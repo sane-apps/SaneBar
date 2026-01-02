@@ -31,6 +31,7 @@ require_relative 'sanemaster/export'
 require_relative 'sanemaster/md_export'
 require_relative 'sanemaster/meta'
 require_relative 'sanemaster/session'
+require_relative 'sanemaster/circuit_breaker_state'
 
 class SaneMaster
   include SaneMasterModules::Base
@@ -110,7 +111,9 @@ class SaneMaster
         'mc' => { args: '', desc: 'Show memory context' },
         'mr' => { args: '<type> <name>', desc: 'Record new entity' },
         'mp' => { args: '[--dry-run]', desc: 'Prune stale entities' },
-        'session_end' => { args: '[--skip-prompts]', desc: 'End session with insight extraction' }
+        'session_end' => { args: '[--skip-prompts]', desc: 'End session with insight extraction' },
+        'reset_breaker' => { args: '', desc: 'Reset circuit breaker (unblock tools)' },
+        'breaker_status' => { args: '', desc: 'Show circuit breaker status' }
       }
     },
     export: {
@@ -265,6 +268,10 @@ class SaneMaster
       prune_memory_entities(args)
     when 'session_end', 'se'
       session_end(args)
+    when 'reset_breaker', 'rb'
+      SaneMasterModules::CircuitBreakerState.reset!
+    when 'breaker_status', 'bs'
+      show_breaker_status
 
     # SOP Loop (Two-Fix Rule Compliant)
     when 'verify_gate', 'vg'
@@ -291,6 +298,23 @@ class SaneMaster
       puts "❌ Unknown command: #{command}"
       print_help
     end
+  end
+
+  def show_breaker_status
+    status = SaneMasterModules::CircuitBreakerState.status
+    puts '🔌 --- [ CIRCUIT BREAKER STATUS ] ---'
+    puts ''
+    if status[:status] == 'OPEN'
+      puts "   Status: 🔴 #{status[:status]} (TOOLS BLOCKED)"
+      puts "   #{status[:message]}"
+      puts "   Blocked: #{status[:blocked_tools].join(', ')}"
+      puts ''
+      puts '   To reset: ./Scripts/SaneMaster.rb reset_breaker'
+    else
+      puts "   Status: 🟢 #{status[:status]}"
+      puts "   #{status[:message]}"
+    end
+    puts ''
   end
 
   def parse_diagnose_args(args)

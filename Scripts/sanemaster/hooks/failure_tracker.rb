@@ -3,9 +3,14 @@
 
 # Failure Tracking Hook
 # Tracks consecutive failures and enforces Two-Fix Rule escalation
+# Also integrates with circuit breaker to trip after threshold failures
 
 require 'json'
 require 'fileutils'
+
+# Load circuit breaker state module
+circuit_breaker_path = File.join(__dir__, '..', 'circuit_breaker_state.rb')
+require circuit_breaker_path if File.exist?(circuit_breaker_path)
 
 # Read hook input from stdin
 input = begin
@@ -66,6 +71,18 @@ if is_failure
   state['consecutive_failures'] += 1
   state['last_failure_tool'] = tool_name
 
+  # Record failure in circuit breaker
+  if defined?(SaneMasterModules::CircuitBreakerState)
+    failure_msg = "#{tool_name}: #{tool_output.lines.first&.strip}"
+    breaker_state = SaneMasterModules::CircuitBreakerState.record_failure(failure_msg)
+
+    if breaker_state[:tripped]
+      msg = "CIRCUIT BREAKER TRIPPED: #{breaker_state[:failures]} consecutive failures. " \
+            'All Edit/Bash/Write tools now BLOCKED. Run ./Scripts/SaneMaster.rb reset_breaker to unblock.'
+      warn msg
+    end
+  end
+
   # Enforce Two-Fix Rule
   if state['consecutive_failures'] >= 2 && !state['escalated']
     state['escalated'] = true
@@ -81,6 +98,9 @@ else
   # Success - reset counter
   state['consecutive_failures'] = 0
   state['escalated'] = false
+
+  # Record success in circuit breaker (resets failure count but not tripped state)
+  SaneMasterModules::CircuitBreakerState.record_success if defined?(SaneMasterModules::CircuitBreakerState)
 end
 
 # Save state
