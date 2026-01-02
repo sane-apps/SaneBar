@@ -422,12 +422,27 @@ final class MenuBarManager: ObservableObject {
 
     @objc private func openSettings(_ sender: Any?) {
         print("[SaneBar] Menu: Open Settings")
+
+        // Activate app and bring to front
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Try multiple approaches to open Settings
+        // Approach 1: Find and click the Settings item in the app's main menu
+        if let appMenu = NSApp.mainMenu?.item(at: 0)?.submenu {
+            for item in appMenu.items where item.title.contains("Settings") || item.title.contains("Preferences") {
+                if let action = item.action {
+                    NSApp.sendAction(action, to: item.target, from: item)
+                    return
+                }
+            }
+        }
+
+        // Approach 2: Use the standard selector (shows warning but may work)
         if #available(macOS 14.0, *) {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } else {
             NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func quitApp(_ sender: Any?) {
