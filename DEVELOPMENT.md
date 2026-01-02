@@ -28,11 +28,28 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 
 ---
 
-## Quick Start
+## 🚀 Quick Start for AI Agents
 
+**New to this project? Start here:**
+
+1. **Read Rule #0 first** (Section "The Rules") - It's about HOW to use all other rules
+2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneBar/` unless user explicitly requests it
+3. **Use SaneMaster.rb for everything** - `./Scripts/SaneMaster.rb verify` for build+test, never raw `xcodebuild`
+4. **Self-rate after every task** - Rate yourself 1-10 on SOP adherence (see Self-Rating section)
+
+Bootstrap runs automatically via SessionStart hook. If it fails, run `./Scripts/SaneMaster.rb doctor`.
+
+**Your first action when user says "check our SOP" or "use our SOP":**
 ```bash
-./Scripts/SaneMaster.rb verify     # Build + test
-./Scripts/SaneMaster.rb test_mode  # Full cycle: kill → build → launch → logs
+./Scripts/SaneMaster.rb bootstrap  # Verify environment (may already have run)
+./Scripts/SaneMaster.rb verify     # Build + unit tests
+```
+
+**Key Commands:**
+```bash
+./Scripts/SaneMaster.rb verify     # Build + test (~30s)
+./Scripts/SaneMaster.rb test_mode  # Kill → Build → Launch → Logs (full cycle)
+./Scripts/SaneMaster.rb logs --follow  # Stream live logs
 ```
 
 **System**: macOS 26.2 (Tahoe), Apple Silicon, Ruby 3.4+
@@ -43,7 +60,8 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 
 ### #0: NAME THE RULE BEFORE YOU CODE
 
-Before writing code, state which rules apply.
+✅ DO: State which rules apply before writing code
+❌ DON'T: Start coding without thinking about rules
 
 ```
 🟢 RIGHT: "Uses AXUIElement API → Rule #2: VERIFY BEFORE YOU TRY"
@@ -54,7 +72,8 @@ Before writing code, state which rules apply.
 
 ### #1: STAY IN YOUR LANE
 
-All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
+✅ DO: Save all files inside `/Users/sj/SaneBar/`
+❌ DON'T: Create files outside project without asking
 
 ```
 🟢 RIGHT: /Users/sj/SaneBar/Core/NewService.swift
@@ -65,7 +84,8 @@ All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 
 ### #2: VERIFY BEFORE YOU TRY
 
-**Any unfamiliar or Apple-specific API**: run `verify_api` first.
+✅ DO: Run `verify_api` before using any Apple API
+❌ DON'T: Assume an API exists from memory or web search
 
 ```bash
 ./Scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
@@ -80,7 +100,8 @@ All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 
 ### #3: TWO STRIKES? INVESTIGATE
 
-Failed twice? **Stop coding. Start researching.**
+✅ DO: After 2 failures → stop, run verify_api, check docs
+❌ DON'T: Guess a third time without researching
 
 ```
 🟢 RIGHT: "Failed twice → checking apple-docs MCP"
@@ -93,7 +114,8 @@ Stopping IS compliance. Guessing a 3rd time is the violation.
 
 ### #4: GREEN MEANS GO
 
-`verify` must pass before claiming done.
+✅ DO: Fix all verify failures before claiming done
+❌ DON'T: Ship with failing tests
 
 ```
 🟢 RIGHT: "verify failed → fix → verify again → passes → done"
@@ -104,7 +126,8 @@ Stopping IS compliance. Guessing a 3rd time is the violation.
 
 ### #5: SANEMASTER OR DISASTER
 
-All builds through SaneMaster. No raw xcodebuild.
+✅ DO: Use `./Scripts/SaneMaster.rb` for all build/test operations
+❌ DON'T: Use raw xcodebuild or swift commands
 
 ```
 🟢 RIGHT: ./Scripts/SaneMaster.rb verify
@@ -115,7 +138,8 @@ All builds through SaneMaster. No raw xcodebuild.
 
 ### #6: BUILD, KILL, LAUNCH, LOG
 
-After completing a **logical unit of work** (not every typo):
+✅ DO: Run full sequence after every code change
+❌ DON'T: Skip steps or assume it works
 
 ```bash
 ./Scripts/SaneMaster.rb verify    # BUILD
@@ -135,7 +159,8 @@ Or just: `./Scripts/SaneMaster.rb test_mode`
 
 ### #7: NO TEST? NO REST
 
-Every bug fix AND new feature gets a test. No tautologies.
+✅ DO: Every bug fix gets a test that verifies the fix
+❌ DON'T: Use placeholder or tautology assertions
 
 ```
 🟢 RIGHT: #expect(error.code == .invalidInput)
@@ -146,7 +171,8 @@ Every bug fix AND new feature gets a test. No tautologies.
 
 ### #8: BUG FOUND? WRITE IT DOWN
 
-Bug found? TodoWrite immediately. Fix it? Update BUG_TRACKING.md.
+✅ DO: Document bugs in TodoWrite immediately, BUG_TRACKING.md after
+❌ DON'T: Try to remember bugs or skip documentation
 
 ```
 🟢 RIGHT: TodoWrite: "BUG: Items not appearing"
@@ -157,7 +183,8 @@ Bug found? TodoWrite immediately. Fix it? Update BUG_TRACKING.md.
 
 ### #9: NEW FILE? GEN THAT PILE
 
-Created a file? Run `xcodegen generate`. Every time.
+✅ DO: Run `xcodegen generate` after creating any new file
+❌ DON'T: Create files without updating project
 
 ```
 🟢 RIGHT: Create file → xcodegen generate
@@ -168,13 +195,14 @@ Created a file? Run `xcodegen generate`. Every time.
 
 ### #10: FIVE HUNDRED'S FINE, EIGHT'S THE LINE
 
+✅ DO: Keep files under 500 lines, split by responsibility
+❌ DON'T: Exceed 800 lines or split arbitrarily
+
 | Lines | Status |
 |-------|--------|
 | <500 | Good |
 | 500-800 | OK if single responsibility |
 | >800 | Must split |
-
-Split by responsibility, not by line count.
 
 ```
 🟢 RIGHT: "File at 600 lines, single responsibility → OK"
@@ -185,7 +213,8 @@ Split by responsibility, not by line count.
 
 ### #11: TOOL BROKE? FIX THE YOKE
 
-If SaneMaster fails, **fix SaneMaster**. Never work around it.
+✅ DO: If SaneMaster fails, fix the tool itself
+❌ DON'T: Work around broken tools
 
 ```
 🟢 RIGHT: "Nuclear clean doesn't clear cache → fix verify.rb"
@@ -198,7 +227,8 @@ Working around broken tools creates invisible debt. Fix once, benefit forever.
 
 ### #12: TALK WHILE I WALK
 
-Use subagents for heavy lifting. Main agent stays responsive to user.
+✅ DO: Use subagents for heavy lifting, stay responsive to user
+❌ DON'T: Block on long operations
 
 ```
 🟢 RIGHT: "User asked question → answer while subagent keeps working"
@@ -301,6 +331,83 @@ After each task, rate yourself. Format:
 | 7-8 | Minor miss |
 | 5-6 | Notable gaps |
 | 1-4 | Multiple violations |
+
+---
+
+## Available Tools
+
+### SaneMaster Commands
+
+```bash
+./Scripts/SaneMaster.rb verify          # Build + tests
+./Scripts/SaneMaster.rb verify --clean  # Full clean build
+./Scripts/SaneMaster.rb test_mode       # Kill → Build → Launch → Logs
+./Scripts/SaneMaster.rb launch          # Launch app
+./Scripts/SaneMaster.rb logs --follow   # Stream live logs
+./Scripts/SaneMaster.rb clean --nuclear # Deep clean (all caches)
+./Scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
+./Scripts/SaneMaster.rb session_end     # End session with memory capture
+```
+
+### Tool Decision Matrix
+
+| Situation | Tool to Use | Why |
+|-----------|-------------|-----|
+| **Need API signature/existence** | `./Scripts/SaneMaster.rb verify_api` | SDK is source of truth (Rule #2) |
+| **Need API usage examples** | `apple-docs` MCP | Rich examples, WWDC context |
+| **Need library docs (KeyboardShortcuts, etc.)** | `context7` MCP | Real-time docs from source |
+| **Build/test the project** | `./Scripts/SaneMaster.rb verify` | Always use SaneMaster (Rule #5) |
+| **Generate mock classes** | `./Scripts/SaneMaster.rb gen_mock` (Mockolo) | Fast protocol→mock generation |
+| **GitHub issues/PRs** | `github` MCP | Create issues, review PRs |
+| **Remember context across sessions** | `memory` MCP | Persistent knowledge graph |
+
+### Ralph Wiggum: SOP Enforcement Loop
+
+**Purpose**: Forces Claude to complete ALL SOP requirements before claiming a task is done.
+
+**How it works**:
+1. Run `/ralph-loop` with a prompt containing SOP requirements
+2. Claude works on the task
+3. When Claude tries to exit, a Stop hook intercepts and feeds the prompt back
+4. Claude sees previous work and iterates until completion criteria are met
+5. Loop exits when `<promise>COMPLETE</promise>` appears or max iterations hit
+
+**Usage for bug fixes**:
+
+```bash
+/ralph-loop "Fix: [describe bug]
+
+SOP Requirements (verify before completing):
+1. ./Scripts/SaneMaster.rb verify passes
+2. killall -9 SaneBar && ./Scripts/SaneMaster.rb launch
+3. ./Scripts/SaneMaster.rb logs --follow (check for errors)
+4. Regression test added in Tests/
+5. BUG_TRACKING.md updated
+6. Self-rating 1-10 provided
+
+Output <promise>SOP-COMPLETE</promise> ONLY when ALL verified." --completion-promise "SOP-COMPLETE" --max-iterations 10
+```
+
+**Usage for features**:
+
+```bash
+/ralph-loop "Implement: [describe feature]
+
+Requirements: [list requirements]
+
+SOP: verify passes, logs checked, self-rating provided.
+
+<promise>FEATURE-DONE</promise>" --completion-promise "FEATURE-DONE" --max-iterations 15
+```
+
+**Commands**:
+- `/ralph-loop "<prompt>" --completion-promise "<text>" --max-iterations N` - Start loop
+- `/cancel-ralph` - Cancel active loop
+
+**When to use**:
+- Complex bug fixes requiring multiple verification steps
+- Feature implementations with many requirements
+- Any task where Claude tends to skip SOP steps
 
 ---
 

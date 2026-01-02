@@ -24,11 +24,24 @@ enum AccessibilityError: LocalizedError {
     }
 }
 
+// MARK: - AccessibilityServiceProtocol
+
+/// @mockable
+@MainActor
+protocol AccessibilityServiceProtocol: AnyObject {
+    var isTrusted: Bool { get }
+    var isScanning: Bool { get }
+    var lastScanDate: Date? { get }
+    var lastError: AccessibilityError? { get }
+    func requestPermission()
+    func scanMenuBarItems() async throws -> [StatusItemModel]
+}
+
 // MARK: - AccessibilityService
 
 /// Service for scanning menu bar items via Accessibility API
 @MainActor
-final class AccessibilityService: ObservableObject {
+final class AccessibilityService: ObservableObject, AccessibilityServiceProtocol {
 
     @Published private(set) var isScanning = false
     @Published private(set) var lastScanDate: Date?

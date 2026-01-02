@@ -42,7 +42,8 @@ module SaneMasterModules
       end
 
       puts '📂 Scanning for @mockable protocols...'
-      protocol_files = `find SaneBar -name "*.swift" -exec grep -l "@mockable" {} \\;`.strip.split("\n")
+      # Search in both root and SaneBar/ subdirectory for different project structures
+      protocol_files = `find . -name "*.swift" -not -path "./Tests/*" -not -path "./.build/*" -exec grep -l "@mockable" {} \\; 2>/dev/null`.strip.split("\n")
 
       if protocol_files.empty?
         puts '⚠️  No @mockable protocols found'
@@ -101,7 +102,8 @@ module SaneMasterModules
     def parse_mock_options(args)
       target = nil
       protocol = nil
-      output_dir = 'SaneBarTests/Mocks'
+      # Use Tests/Mocks or SaneBarTests/Mocks depending on project structure
+      output_dir = File.directory?('Tests') ? 'Tests/Mocks' : 'SaneBarTests/Mocks'
 
       args.each_with_index do |arg, i|
         case arg
@@ -116,9 +118,16 @@ module SaneMasterModules
 
     def generate_mocks_for_target(target, output_file, output_dir)
       puts "Generating mocks for target: #{target}"
-      source_dir = "SaneBar/#{target}"
-      unless File.directory?(source_dir)
-        puts "❌ Directory not found: #{source_dir}"
+      # Try target directly first, then with SaneBar/ prefix (for different project structures)
+      source_dir = if File.directory?(target)
+                     target
+                   elsif File.directory?("SaneBar/#{target}")
+                     "SaneBar/#{target}"
+                   else
+                     nil
+                   end
+      unless source_dir
+        puts "❌ Directory not found: #{target} or SaneBar/#{target}"
         return
       end
 
@@ -136,7 +145,7 @@ module SaneMasterModules
 
     def generate_mock_for_protocol(protocol, output_file, output_dir)
       puts "Generating mock for protocol: #{protocol}"
-      protocol_file = `find SaneBar -name "*.swift" -exec grep -l "protocol #{protocol}" {} \\;`.strip
+      protocol_file = `find . -name "*.swift" -not -path "./Tests/*" -not -path "./.build/*" -exec grep -l "protocol #{protocol}" {} \\; 2>/dev/null`.strip
 
       if protocol_file.empty?
         puts "❌ Protocol not found: #{protocol}"
@@ -178,7 +187,9 @@ module SaneMasterModules
       temp_dir = Dir.mktmpdir
       temp_mocks = File.join(temp_dir, 'Mocks.swift')
 
-      cmd = "mockolo -s SaneBar/Core/Protocols -d #{temp_mocks} --enable-args-history --mock-all 2>/dev/null"
+      # Use Core/Services or SaneBar/Core/Protocols depending on project structure
+      protocols_dir = File.directory?('Core/Services') ? 'Core/Services' : 'SaneBar/Core/Protocols'
+      cmd = "mockolo -s #{protocols_dir} -d #{temp_mocks} --enable-args-history --mock-all 2>/dev/null"
       unless system(cmd)
         puts '❌ Failed to generate temporary mocks'
         FileUtils.rm_rf(temp_dir)

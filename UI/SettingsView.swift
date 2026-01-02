@@ -1,10 +1,19 @@
 import SwiftUI
+import KeyboardShortcuts
 
 // MARK: - SettingsView
 
 /// Main settings view for SaneBar
 struct SettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @State private var showingPermissionAlert = false
+    @State private var selectedTab: SettingsTab = .items
+
+    enum SettingsTab: String, CaseIterable {
+        case items = "Items"
+        case shortcuts = "Shortcuts"
+        case behavior = "Behavior"
+    }
 
     var body: some View {
         Group {
@@ -15,6 +24,18 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 450, minHeight: 400)
+        // BUG-007 fix: Wire showingPermissionAlert from PermissionService to UI alert
+        .onReceive(NotificationCenter.default.publisher(for: .showPermissionAlert)) { _ in
+            showingPermissionAlert = true
+        }
+        .alert("Accessibility Permission Required", isPresented: $showingPermissionAlert) {
+            Button("Open System Settings") {
+                menuBarManager.permissionService.openAccessibilitySettings()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(PermissionService.permissionInstructions)
+        }
     }
 
     // MARK: - Permission Request
@@ -33,22 +54,126 @@ struct SettingsView: View {
 
     private var mainContent: some View {
         VStack(spacing: 0) {
-            // Header
-            headerView
+            // Tab picker
+            Picker("", selection: $selectedTab) {
+                ForEach(SettingsTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding()
 
             Divider()
 
-            // Item list or empty state
-            if menuBarManager.statusItems.isEmpty {
-                emptyStateView
-            } else {
-                itemListView
+            // Tab content
+            switch selectedTab {
+            case .items:
+                itemsTabContent
+            case .shortcuts:
+                shortcutsTabContent
+            case .behavior:
+                behaviorTabContent
             }
 
             Divider()
 
             // Footer
             footerView
+        }
+    }
+
+    // MARK: - Items Tab
+
+    private var itemsTabContent: some View {
+        VStack(spacing: 0) {
+            headerView
+
+            if menuBarManager.statusItems.isEmpty {
+                emptyStateView
+            } else {
+                itemListView
+            }
+        }
+    }
+
+    // MARK: - Shortcuts Tab
+
+    private var shortcutsTabContent: some View {
+        Form {
+            Section {
+                KeyboardShortcuts.Recorder("Toggle Hidden Items:", name: .toggleHiddenItems)
+                    .help("Show or hide the hidden menu bar section")
+
+                KeyboardShortcuts.Recorder("Show Hidden Items:", name: .showHiddenItems)
+                    .help("Temporarily show hidden items")
+
+                KeyboardShortcuts.Recorder("Hide Items:", name: .hideItems)
+                    .help("Hide items immediately")
+
+                KeyboardShortcuts.Recorder("Open Settings:", name: .openSettings)
+                    .help("Open SaneBar settings window")
+            } header: {
+                Text("Global Keyboard Shortcuts")
+            } footer: {
+                Text("Click a field and press your desired key combination. These shortcuts work system-wide.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Behavior Tab
+
+    private var behaviorTabContent: some View {
+        Form {
+            Section {
+                Toggle("Auto-hide after delay", isOn: $menuBarManager.settings.autoRehide)
+
+                if menuBarManager.settings.autoRehide {
+                    HStack {
+                        Text("Delay:")
+                        Slider(value: $menuBarManager.settings.rehideDelay, in: 1...10, step: 0.5)
+                        Text("\(menuBarManager.settings.rehideDelay, specifier: "%.1f")s")
+                            .monospacedDigit()
+                            .frame(width: 40)
+                    }
+                }
+            } header: {
+                Text("Hidden Section")
+            }
+
+            Section {
+                Toggle("Show on hover", isOn: $menuBarManager.settings.showOnHover)
+
+                if menuBarManager.settings.showOnHover {
+                    HStack {
+                        Text("Hover delay:")
+                        Slider(value: $menuBarManager.settings.hoverDelay, in: 0.1...1.0, step: 0.1)
+                        Text("\(menuBarManager.settings.hoverDelay, specifier: "%.1f")s")
+                            .monospacedDigit()
+                            .frame(width: 40)
+                    }
+                }
+            } header: {
+                Text("Hover Behavior")
+            }
+
+            Section {
+                Toggle("Track usage analytics", isOn: $menuBarManager.settings.analyticsEnabled)
+                    .help("Track click counts to suggest frequently used items")
+
+                Toggle("Smart suggestions", isOn: $menuBarManager.settings.smartSuggestionsEnabled)
+                    .help("Suggest items to hide based on usage patterns")
+            } header: {
+                Text("Analytics")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .onChange(of: menuBarManager.settings) { _, _ in
+            menuBarManager.saveSettings()
         }
     }
 
@@ -60,10 +185,32 @@ struct SettingsView: View {
                 Text("Menu Bar Items")
                     .font(.headline)
 
-                Text("\(menuBarManager.statusItems.count) items discovered")
+                if let message = menuBarManager.lastScanMessage {
+                    // Show scan success message
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(message)
+                    }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .transition(.opacity)
+                } else if menuBarManager.isScanning {
+                    // Show scanning status
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text("Scanning...")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Text("\(menuBarManager.statusItems.count) items discovered")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: menuBarManager.lastScanMessage)
 
             Spacer()
 

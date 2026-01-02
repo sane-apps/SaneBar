@@ -17,7 +17,7 @@ protocol PersistenceServiceProtocol: Sendable {
 // MARK: - SaneBarSettings
 
 /// Global app settings
-struct SaneBarSettings: Codable, Sendable {
+struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Whether hidden items auto-hide after a delay
     var autoRehide: Bool = true
 

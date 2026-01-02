@@ -4,7 +4,9 @@ import SwiftUI
 
 /// View for requesting accessibility permission
 struct PermissionRequestView: View {
-    @ObservedObject var permissionService: PermissionService
+    // Use concrete type for @ObservedObject (required for SwiftUI observation)
+    // Protocol is used at MenuBarManager level for testability
+    let permissionService: any PermissionServiceProtocol
     var onGranted: (() -> Void)?
 
     var body: some View {

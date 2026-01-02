@@ -2,6 +2,13 @@ import Foundation
 import AppKit
 @preconcurrency import ApplicationServices
 
+// MARK: - Notification Names
+
+extension Notification.Name {
+    /// Posted when permission alert should be shown (BUG-007 fix)
+    static let showPermissionAlert = Notification.Name("showPermissionAlert")
+}
+
 // MARK: - PermissionState
 
 enum PermissionState: Equatable {
@@ -26,11 +33,26 @@ enum PermissionState: Equatable {
     }
 }
 
+// MARK: - PermissionServiceProtocol
+
+/// @mockable
+@MainActor
+protocol PermissionServiceProtocol: AnyObject {
+    var permissionState: PermissionState { get }
+    var showingPermissionAlert: Bool { get set }
+    func checkPermission()
+    func requestPermission()
+    func openAccessibilitySettings()
+    func showPermissionRequest()
+    func startPermissionPolling()
+    func stopPermissionPolling()
+}
+
 // MARK: - PermissionService
 
 /// Service for managing accessibility permission state
 @MainActor
-final class PermissionService: ObservableObject {
+final class PermissionService: ObservableObject, PermissionServiceProtocol {
 
     @Published private(set) var permissionState: PermissionState = .unknown
     @Published var showingPermissionAlert = false
@@ -115,6 +137,8 @@ final class PermissionService: ObservableObject {
     /// Show the permission request flow
     func showPermissionRequest() {
         showingPermissionAlert = true
+        // BUG-007: Post notification so any listening view can show the alert
+        NotificationCenter.default.post(name: .showPermissionAlert, object: nil)
     }
 
     /// Instructions for granting permission

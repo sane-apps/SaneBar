@@ -8,6 +8,41 @@
 
 ## Resolved Bugs
 
+### BUG-007: Permission alert never displays
+
+**Status**: RESOLVED (2026-01-01)
+
+**Symptom**: When user clicks "Scan Menu Bar" without permission, `showPermissionRequest()` is called but no alert appears. The `showingPermissionAlert` property was set but never bound to UI.
+
+**Root Cause**: `PermissionService.showingPermissionAlert` was a `@Published` property but no SwiftUI view was observing it with an `.alert()` modifier.
+
+**Fix**:
+1. Added `Notification.Name.showPermissionAlert` in `Core/Services/PermissionService.swift:7-10`
+2. Updated `showPermissionRequest()` to post notification in `Core/Services/PermissionService.swift:140-141`
+3. Added `.onReceive()` and `.alert()` modifiers in `UI/SettingsView.swift:19-30`
+
+**Regression Test**: `Tests/MenuBarManagerTests.swift:testShowPermissionRequestPostsNotification()`
+
+---
+
+### BUG-006: Scan provides no visible feedback
+
+**Status**: RESOLVED (2026-01-01)
+
+**Symptom**: Clicking "Scan Menu Bar" or "Refresh" button provides no feedback. The `print()` statements in `scan()` went to stdout, invisible to users.
+
+**Root Cause**: `MenuBarManager.scan()` used `print()` for logging which goes to Console.app, not the UI. The `isScanning` state was set but no success feedback was shown.
+
+**Fix**:
+1. Added `lastScanMessage` published property in `Core/MenuBarManager.swift:19`
+2. Set success message after scan in `Core/MenuBarManager.swift:118`
+3. Added 3-second auto-clear in `Core/MenuBarManager.swift:126-131`
+4. Updated `SettingsView.headerView` to display the message with checkmark icon in `UI/SettingsView.swift:63-86`
+
+**Regression Test**: `Tests/MenuBarManagerTests.swift:testScanSetsLastScanMessageOnSuccess()`, `testScanClearsLastScanMessageOnError()`
+
+---
+
 ### BUG-001: Nuclear clean missing asset cache
 
 **Status**: RESOLVED (2026-01-01)
