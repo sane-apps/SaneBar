@@ -17,6 +17,24 @@ PROJECT_DIR = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
 SOFT_LIMIT = 500
 HARD_LIMIT = 800
 
+# Paths that should ALWAYS be blocked (dangerous/system paths)
+BLOCKED_PATHS = [
+  '/tmp',
+  '/var',
+  '/etc',
+  '/usr',
+  '/System',
+  '/Library',
+  '/private',
+  File.expand_path('~/.claude'),
+  File.expand_path('~/.config'),
+  File.expand_path('~/.ssh'),
+  File.expand_path('~/.aws')
+].freeze
+
+# User's home directory (cross-project work allowed with warning)
+USER_HOME = File.expand_path('~')
+
 # Get tool input from environment
 tool_input_raw = ENV['CLAUDE_TOOL_INPUT']
 exit 0 if tool_input_raw.nil? || tool_input_raw.empty?
@@ -28,27 +46,60 @@ begin
   exit 0 if file_path.nil? || file_path.empty?
 
   # =============================================================================
-  # Rule #1: STAY IN YOUR LANE - Block edits outside project
+  # Rule #1: STAY IN YOUR LANE - Block dangerous paths, warn on cross-project
   # =============================================================================
 
   # Normalize paths for comparison
   normalized_path = File.expand_path(file_path)
   normalized_project = File.expand_path(PROJECT_DIR)
 
-  unless normalized_path.start_with?(normalized_project)
+  # Check 1: BLOCK dangerous/system paths (never allow)
+  if BLOCKED_PATHS.any? { |blocked| normalized_path.start_with?(blocked) }
     warn ''
     warn '=' * 60
-    warn '🔴 BLOCKED: Rule #1 - STAY IN YOUR LANE'
+    warn '🔴 BLOCKED: Rule #1 - DANGEROUS PATH'
     warn '=' * 60
     warn ''
     warn "   File: #{file_path}"
-    warn "   Project: #{PROJECT_DIR}"
     warn ''
-    warn '   All files must stay inside the project directory.'
-    warn '   If you need to edit files elsewhere, ask the user first.'
+    warn '   This path is blocked for safety reasons:'
+    warn '   - System directories (/etc, /usr, /System, /Library)'
+    warn '   - Temp directories (/tmp, /var, /private)'
+    warn '   - Sensitive config (~/.ssh, ~/.aws, ~/.claude)'
     warn ''
     warn '=' * 60
     exit 1
+  end
+
+  # Check 2: WARN on cross-project (user can still approve)
+  unless normalized_path.start_with?(normalized_project)
+    if normalized_path.start_with?(USER_HOME)
+      # It's in user home but different project - warn but allow
+      warn ''
+      warn '⚠️  WARNING: Rule #1 - Cross-project edit'
+      warn "   Current project: #{PROJECT_DIR}"
+      warn "   Target file: #{file_path}"
+      warn ''
+      warn '   If user requested this cross-project work, proceeding...'
+      warn '   Otherwise, stay in your lane!'
+      warn ''
+      # Don't exit - allow the edit with warning
+    else
+      # Outside user home entirely - block
+      warn ''
+      warn '=' * 60
+      warn '🔴 BLOCKED: Rule #1 - STAY IN YOUR LANE'
+      warn '=' * 60
+      warn ''
+      warn "   File: #{file_path}"
+      warn "   Project: #{PROJECT_DIR}"
+      warn ''
+      warn '   Path is outside your home directory.'
+      warn '   Ask the user before editing system files.'
+      warn ''
+      warn '=' * 60
+      exit 1
+    end
   end
 
   # =============================================================================
