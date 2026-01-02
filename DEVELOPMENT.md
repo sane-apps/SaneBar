@@ -372,6 +372,26 @@ After each task, rate yourself. Format:
 4. Claude sees previous work and iterates until completion criteria are met
 5. Loop exits when `<promise>COMPLETE</promise>` appears or max iterations hit
 
+**MANDATORY Rules** (learned from 700+ iteration failure on 2026-01-02):
+
+| Rule | Requirement | Why |
+|------|-------------|-----|
+| **Always set `--max-iterations`** | Use 10-20, NEVER 0 or omit | Prevents infinite loops |
+| **Always set `--completion-promise`** | Clear, verifiable text | Loop needs exit condition |
+| **Promise must be TRUE** | Only output when genuinely complete | Don't lie to escape loop |
+
+✅ DO:
+```bash
+/ralph-loop "Fix bug X" --completion-promise "BUG-FIXED" --max-iterations 15
+/ralph-loop "Add feature Y" --completion-promise "FEATURE-COMPLETE" --max-iterations 20
+```
+
+❌ DON'T:
+```bash
+/ralph-loop "Fix bug X"  # NO! Missing both required flags
+/ralph-loop "Fix bug X" --max-iterations 0  # NO! Unlimited = infinite loop
+```
+
 **Usage for bug fixes**:
 
 ```bash

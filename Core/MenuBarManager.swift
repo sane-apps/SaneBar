@@ -96,14 +96,11 @@ final class MenuBarManager: ObservableObject {
 
         if let button = mainStatusItem?.button {
             configureMainButton(button)
-            button.action = #selector(handleMainClick)
-            button.target = self
-            // Send action on left click, show menu on right click
-            button.sendAction(on: [.leftMouseUp])
         }
 
-        // Setup context menu
+        // Setup and assign menu (standard macOS behavior)
         setupMenu()
+        mainStatusItem?.menu = statusMenu
 
         // Update delimiter position after a short delay (let menu bar settle)
         Task {
@@ -171,8 +168,10 @@ final class MenuBarManager: ObservableObject {
         quitItem.target = self
         menu.addItem(quitItem)
 
-        mainStatusItem?.menu = menu
+        statusMenu = menu
     }
+
+    private var statusMenu: NSMenu?
 
     private func setupObservers() {
         // Observe hiding state changes
@@ -407,22 +406,22 @@ final class MenuBarManager: ObservableObject {
 
     // MARK: - Actions
 
-    @objc private func handleMainClick() {
-        // Left-click toggles hidden items
-        toggleHiddenItems()
-    }
+    // Menu is now handled natively by setting statusItem.menu
 
     @objc private func menuToggleHiddenItems(_ sender: Any?) {
+        print("[SaneBar] Menu: Toggle Hidden Items")
         toggleHiddenItems()
     }
 
     @objc private func scanMenuItems(_ sender: Any?) {
+        print("[SaneBar] Menu: Scan Menu Bar")
         Task {
             await scan()
         }
     }
 
     @objc private func openSettings(_ sender: Any?) {
+        print("[SaneBar] Menu: Open Settings")
         if #available(macOS 14.0, *) {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } else {
@@ -432,6 +431,7 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func quitApp(_ sender: Any?) {
+        print("[SaneBar] Menu: Quit")
         NSApplication.shared.terminate(nil)
     }
 }
