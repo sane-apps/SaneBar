@@ -93,6 +93,27 @@ Updated `Resources/Assets.xcassets/MenuBarIcon.imageset/Contents.json` to refere
 
 ---
 
+### BUG-005: Menu items greyed out / disabled
+
+**Status**: RESOLVED (2026-01-01)
+
+**Symptom**: All menu items (Toggle Hidden Items, Scan Menu Bar, Settings, Quit) appear greyed out and cannot be clicked.
+
+**Root Cause**: `NSMenuItem` objects created without setting `target`. Without explicit target, actions route through responder chain. `MenuBarManager` is not an `NSResponder` subclass, so it's not in the chain → items disabled.
+
+**Fix**: Set `target = self` on each menu item in `MenuBarManager.swift:69-78`:
+```swift
+let item = NSMenuItem(title: "...", action: #selector(...), keyEquivalent: "...")
+item.target = self
+menu.addItem(item)
+```
+
+**Regression Test**: `Tests/MenuBarManagerTests.swift:testMenuItemsHaveTargetSet()`
+
+**Lesson Learned**: AppKit menu items need explicit `target` when the action handler is not in the responder chain. Verify API behavior before assuming.
+
+---
+
 ## Bug Report Template
 
 ```markdown

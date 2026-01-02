@@ -20,6 +20,7 @@
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
+		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +48,7 @@
 		AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarTests.swift; sourceTree = "<group>"; };
 		C3421DFEC06B718721E59CCB /* PermissionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionService.swift; sourceTree = "<group>"; };
 		C4F88199356D52B9677F7643 /* StatusItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemRow.swift; sourceTree = "<group>"; };
+		E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManagerTests.swift; sourceTree = "<group>"; };
 		E2110BC48727749AB5BC8606 /* SaneBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SaneBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -74,6 +76,7 @@
 			children = (
 				41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */,
 				3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */,
+				E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */,
 				85919ED0716C9D83D069D3C3 /* PermissionServiceTests.swift */,
 				AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */,
 			);
@@ -257,6 +260,7 @@
 			files = (
 				D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */,
 				4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */,
+				F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */,
 				7EB184D9BA18ACBE58E213D8 /* PermissionServiceTests.swift in Sources */,
 				9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */,
 			);
