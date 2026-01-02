@@ -73,7 +73,6 @@ module SaneMasterModules
       puts ''
 
       screenshots_dir = File.join(Dir.pwd, 'Screenshots')
-      log_file = File.expand_path('~/Library/Containers/com.sanevideo.SaneBar/Data/Library/Logs/SaneBar/SaneBar_Debug.log')
       crash_dir = File.expand_path('~/Library/Logs/DiagnosticReports')
 
       kill_existing_processes
@@ -83,53 +82,41 @@ module SaneMasterModules
 
       launch_app([])
       sleep 2
-      print_test_mode_ready(log_file)
+      print_test_mode_ready
 
-      # Stream logs in background so conversation can continue
+      # Stream logs in background - non-sandboxed app uses unified logging
       puts '📡 Streaming live logs in background...'
+      puts '   (Non-sandboxed app - using unified logging)'
       puts '─' * 60
-      spawn("tail -f '#{log_file}'")
+      spawn('log', 'stream', '--predicate', 'process == "SaneBar"', '--style', 'compact')
     end
 
     def show_app_logs(args)
       puts '📋 --- [ APPLICATION LOGS ] ---'
 
-      log_file = File.expand_path('~/Library/Containers/com.sanevideo.SaneBar/Data/Library/Logs/SaneBar/SaneBar_Debug.log')
-      tail_count = 50
       follow_mode = args.include?('--follow') || args.include?('-f')
+      last_minutes = 5
 
       args.each_with_index do |arg, i|
-        tail_count = args[i + 1].to_i if arg == '--tail' && args[i + 1]
+        last_minutes = args[i + 1].to_i if arg == '--last' && args[i + 1]
       end
 
-      unless File.exist?(log_file)
-        puts '❌ No log file found at: ~/Library/Containers/com.sanevideo.SaneBar/Data/Library/Logs/SaneBar/SaneBar_Debug.log'
-        puts "\nTo generate logs:"
-        puts '  1. Rebuild the app: ./Scripts/SaneMaster.rb verify'
-        puts '  2. Launch the app: ./Scripts/SaneMaster.rb launch'
-        return
-      end
-
-      mtime = File.mtime(log_file)
-      size = File.size(log_file) / 1024.0
-      puts '📁 Log file: ~/Library/Containers/com.sanevideo.SaneBar/Data/Library/Logs/SaneBar/SaneBar_Debug.log'
-      puts "   Last updated: #{mtime.strftime('%Y-%m-%d %H:%M:%S')} (#{size.round(1)}KB)"
+      # SaneBar is NOT sandboxed (requires Accessibility API)
+      # Use unified logging via `log` command instead of file-based logs
+      puts '📡 SaneBar logs from unified logging system'
+      puts '   (Non-sandboxed app - stdout goes to unified logs)'
       puts '─' * 60
 
       if follow_mode
-        puts 'Following log file (Ctrl+C to stop)...'
+        puts 'Following live logs (Ctrl+C to stop)...'
         puts ''
-        # Use Kernel.exec for tail -f
-        Kernel.exec("tail -f '#{log_file}'")
+        # Stream live logs - process name is hardcoded, safe
+        Kernel.exec('log', 'stream', '--predicate', 'process == "SaneBar"', '--style', 'compact')
       else
-        lines = File.readlines(log_file)
-        if lines.length > tail_count
-          puts "(showing last #{tail_count} of #{lines.length} lines)"
-          puts ''
-          puts lines.last(tail_count).join
-        else
-          puts lines.join
-        end
+        puts "(showing last #{last_minutes} minutes)"
+        puts ''
+        # Show recent logs - last_minutes is sanitized via .to_i
+        system('log', 'show', '--predicate', 'process == "SaneBar"', '--last', "#{last_minutes}m", '--style', 'compact')
       end
     end
 
@@ -226,19 +213,13 @@ module SaneMasterModules
       puts ''
     end
 
-    def print_test_mode_ready(log_file)
+    def print_test_mode_ready
       puts '═' * 60
       puts '🧪 TEST MODE READY'
       puts '═' * 60
       puts ''
-      if File.exist?(log_file)
-        mtime = File.mtime(log_file).strftime('%Y-%m-%d %H:%M:%S')
-        size = (File.size(log_file) / 1024.0).round(1)
-        puts "📋 Log file: #{log_file}"
-        puts "   Last updated: #{mtime} (#{size}KB)"
-      else
-        puts '📋 Log file will be created when app writes first log'
-      end
+      puts '📋 Logs: Using unified logging (non-sandboxed app)'
+      puts '   View with: ./Scripts/SaneMaster.rb logs --follow'
       puts ''
       puts "🕐 Session started: #{Time.now.strftime('%Y-%m-%d %H:%M:%S')}"
       puts ''

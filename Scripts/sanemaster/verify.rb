@@ -81,8 +81,8 @@ module SaneMasterModules
         # Dir.tmpdir returns /var/folders/.../T/ not /tmp
         diagnostics_dir = File.join(Dir.tmpdir, 'SaneBar_Diagnostics')
         FileUtils.rm_rf(diagnostics_dir)
-        # Clear any test project leftovers in container
-        system('rm -rf ~/Library/Containers/com.sanevideo.SaneBar/Data/tmp/SaneBar_Test_Projects 2>/dev/null')
+        # Clear any test project leftovers (non-sandboxed app uses Application Support)
+        system('rm -rf ~/Library/Application\\ Support/SaneBar/SaneBar_Test_Projects 2>/dev/null')
         system('rm -f test_output.txt')
         # Regenerate project after nuclear clean
         puts '🔄 Regenerating Xcode project...'

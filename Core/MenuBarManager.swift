@@ -66,14 +66,28 @@ final class MenuBarManager: ObservableObject {
             button.target = self
         }
 
-        // Add a menu
+        // Add a menu - BUG-005: Must set target explicitly since MenuBarManager isn't in responder chain
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Toggle Hidden Items", action: #selector(menuToggleHiddenItems), keyEquivalent: "b"))
+
+        let toggleItem = NSMenuItem(title: "Toggle Hidden Items", action: #selector(menuToggleHiddenItems), keyEquivalent: "b")
+        toggleItem.target = self
+        menu.addItem(toggleItem)
+
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Scan Menu Bar", action: #selector(scanMenuItems), keyEquivalent: "r"))
+
+        let scanItem = NSMenuItem(title: "Scan Menu Bar", action: #selector(scanMenuItems), keyEquivalent: "r")
+        scanItem.target = self
+        menu.addItem(scanItem)
+
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Quit SaneBar", action: #selector(quitApp), keyEquivalent: "q"))
+
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        let quitItem = NSMenuItem(title: "Quit SaneBar", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
 
         ownStatusItem?.menu = menu
     }

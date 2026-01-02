@@ -46,9 +46,10 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 Before writing code, state which rules apply.
 
 ```
-🟢 "Uses AXUIElement API → Rule #2: VERIFY BEFORE YOU TRY"
-🟢 "New file → Rule #9: NEW FILE? GEN THAT PILE"
-🔴 "Let me just code this real quick..."
+🟢 RIGHT: "Uses AXUIElement API → Rule #2: VERIFY BEFORE YOU TRY"
+🟢 RIGHT: "New file → Rule #9: NEW FILE? GEN THAT PILE"
+🔴 WRONG: "Let me just code this real quick..."
+🔴 WRONG: "I'll figure out which rules apply as I go"
 ```
 
 ### #1: STAY IN YOUR LANE
@@ -56,9 +57,10 @@ Before writing code, state which rules apply.
 All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 
 ```
-🟢 /Users/sj/SaneBar/Core/NewService.swift
-🔴 ~/.claude/plans/anything.md
-🔴 /tmp/scratch.swift
+🟢 RIGHT: /Users/sj/SaneBar/Core/NewService.swift
+🟢 RIGHT: /Users/sj/SaneBar/Tests/NewServiceTests.swift
+🔴 WRONG: ~/.claude/plans/anything.md
+🔴 WRONG: /tmp/scratch.swift
 ```
 
 ### #2: VERIFY BEFORE YOU TRY
@@ -70,9 +72,10 @@ All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 ```
 
 ```
-🟢 verify_api → then code
-🔴 "I remember this API has..."
-🔴 "Stack Overflow says..."
+🟢 RIGHT: verify_api → then code
+🟢 RIGHT: "Unfamiliar API → check apple-docs MCP first"
+🔴 WRONG: "I remember this API has..."
+🔴 WRONG: "Stack Overflow says..."
 ```
 
 ### #3: TWO STRIKES? INVESTIGATE
@@ -80,8 +83,10 @@ All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 Failed twice? **Stop coding. Start researching.**
 
 ```
-🟢 "Failed twice → checking apple-docs MCP"
-🔴 "Let me try one more thing..." (attempt #3, #4, #5...)
+🟢 RIGHT: "Failed twice → checking apple-docs MCP"
+🟢 RIGHT: "Second attempt failed → reading SDK .swiftinterface"
+🔴 WRONG: "Let me try one more thing..." (attempt #3, #4, #5...)
+🔴 WRONG: "Third time's a charm..."
 ```
 
 Stopping IS compliance. Guessing a 3rd time is the violation.
@@ -91,8 +96,10 @@ Stopping IS compliance. Guessing a 3rd time is the violation.
 `verify` must pass before claiming done.
 
 ```
-🟢 "verify failed → fix → verify again → passes → done"
-🔴 "verify failed but it's probably fine"
+🟢 RIGHT: "verify failed → fix → verify again → passes → done"
+🟢 RIGHT: "Tests red → not done, period"
+🔴 WRONG: "verify failed but it's probably fine"
+🔴 WRONG: "I'll fix the tests later"
 ```
 
 ### #5: SANEMASTER OR DISASTER
@@ -100,8 +107,10 @@ Stopping IS compliance. Guessing a 3rd time is the violation.
 All builds through SaneMaster. No raw xcodebuild.
 
 ```
-🟢 ./Scripts/SaneMaster.rb verify
-🔴 xcodebuild -scheme SaneBar build
+🟢 RIGHT: ./Scripts/SaneMaster.rb verify
+🟢 RIGHT: ./Scripts/SaneMaster.rb test_mode
+🔴 WRONG: xcodebuild -scheme SaneBar build
+🔴 WRONG: swift build (bypassing project tools)
 ```
 
 ### #6: BUILD, KILL, LAUNCH, LOG
@@ -117,14 +126,22 @@ killall -9 SaneBar                # KILL
 
 Or just: `./Scripts/SaneMaster.rb test_mode`
 
+```
+🟢 RIGHT: "Feature done → verify → kill → launch → check logs"
+🟢 RIGHT: "Bug fixed → full cycle before claiming done"
+🔴 WRONG: "Built successfully, shipping it" (skipped kill/launch/log)
+🔴 WRONG: "Logs? I'll check if something breaks"
+```
+
 ### #7: NO TEST? NO REST
 
 Every bug fix AND new feature gets a test. No tautologies.
 
 ```
-🟢 #expect(error.code == .invalidInput)
-🔴 #expect(true)
-🔴 #expect(value == true || value == false)
+🟢 RIGHT: #expect(error.code == .invalidInput)
+🟢 RIGHT: #expect(items.count == 3)
+🔴 WRONG: #expect(true)
+🔴 WRONG: #expect(value == true || value == false)
 ```
 
 ### #8: BUG FOUND? WRITE IT DOWN
@@ -132,8 +149,10 @@ Every bug fix AND new feature gets a test. No tautologies.
 Bug found? TodoWrite immediately. Fix it? Update BUG_TRACKING.md.
 
 ```
-🟢 TodoWrite: "BUG: Items not appearing"
-🔴 "I'll remember this"
+🟢 RIGHT: TodoWrite: "BUG: Items not appearing"
+🟢 RIGHT: "Bug fixed → update BUG_TRACKING.md with root cause"
+🔴 WRONG: "I'll remember this"
+🔴 WRONG: "Fixed it, no need to document"
 ```
 
 ### #9: NEW FILE? GEN THAT PILE
@@ -141,8 +160,10 @@ Bug found? TodoWrite immediately. Fix it? Update BUG_TRACKING.md.
 Created a file? Run `xcodegen generate`. Every time.
 
 ```
-🟢 Create file → xcodegen generate
-🔴 Create file → wonder why Xcode can't find it
+🟢 RIGHT: Create file → xcodegen generate
+🟢 RIGHT: "New test file → xcodegen generate immediately"
+🔴 WRONG: Create file → wonder why Xcode can't find it
+🔴 WRONG: "I'll run xcodegen later when I'm done"
 ```
 
 ### #10: FIVE HUNDRED'S FINE, EIGHT'S THE LINE
@@ -154,6 +175,39 @@ Created a file? Run `xcodegen generate`. Every time.
 | >800 | Must split |
 
 Split by responsibility, not by line count.
+
+```
+🟢 RIGHT: "File at 600 lines, single responsibility → OK"
+🟢 RIGHT: "File at 850 lines → split by protocol conformance"
+🔴 WRONG: "File at 1200 lines but it works"
+🔴 WRONG: "Split into 20 tiny files for no reason"
+```
+
+### #11: TOOL BROKE? FIX THE YOKE
+
+If SaneMaster fails, **fix SaneMaster**. Never work around it.
+
+```
+🟢 RIGHT: "Nuclear clean doesn't clear cache → fix verify.rb"
+🟢 RIGHT: "Logs path wrong → fix test_mode.rb"
+🔴 WRONG: "Nuclear clean doesn't work → run raw xcodebuild"
+🔴 WRONG: "Logs broken → just skip checking logs"
+```
+
+Working around broken tools creates invisible debt. Fix once, benefit forever.
+
+### #12: TALK WHILE I WALK
+
+Use subagents for heavy lifting. Main agent stays responsive to user.
+
+```
+🟢 RIGHT: "User asked question → answer while subagent keeps working"
+🟢 RIGHT: "Long task → spawn subagent, stay responsive"
+🔴 WRONG: "Hold on, let me finish this first..."
+🔴 WRONG: "Running verify... (blocks for 2 minutes)"
+```
+
+User talks, you listen, work continues uninterrupted.
 
 ---
 
