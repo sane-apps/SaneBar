@@ -6,15 +6,12 @@
 
 ## ⚠️ THESE WILL BURN YOU
 
-Real failures from past sessions. Don't repeat them.
-
-| Mistake | What Happened | Prevention |
-|---------|---------------|------------|
-| **Guessed API** | `await scheduleSegment` blocks forever (waits for playback, not scheduling) | `verify_api` first |
-| **Assumed Swift binding** | MTAudioProcessingTap C API ≠ Swift API. Hours wasted. | Check `apple-docs` MCP |
+| Mistake | What Happens | Prevention |
+|---------|--------------|------------|
+| **Guessed API exists** | AXUIElement has no `.menuBarItems` property. Build fails. | `verify_api` first |
+| **Assumed API behavior** | API exists but works differently than expected | Check `apple-docs` MCP |
 | **Skipped xcodegen** | Created file, "file not found" for 20 minutes | `xcodegen generate` after new files |
-| **Deleted "unused" file** | Periphery said unused, but ServiceContainer needed it | Grep before delete |
-| **Kept guessing** | Hidden Button + keyboardShortcut = EXC_BAD_ACCESS. 4 attempts. | Stop at 2, investigate |
+| **Kept guessing** | 4 attempts at wrong approach. Wasted hour. | Stop at 2, investigate |
 
 **The #1 differentiator**: Skimming this SOP = 5/10 sessions. Internalizing it = 8+/10.
 
@@ -66,8 +63,6 @@ All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 🔴 "I remember this API has..."
 🔴 "Stack Overflow says..."
 ```
-
-**Real example**: `onKeyPress` does NOT have a `modifiers:` parameter. Guessing cost 30 minutes.
 
 ### #3: TWO STRIKES = STOP
 
