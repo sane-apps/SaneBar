@@ -259,6 +259,14 @@ module SaneMasterModules
       mocks_file = 'SaneBarTests/Mocks/Mocks.swift'
       protocol_dir = 'SaneBar/Core/Protocols'
 
+      # Check if any protocols exist first
+      protocol_files = Dir.glob("#{protocol_dir}/**/*.swift")
+      if protocol_files.empty?
+        puts '   ✅ No protocols to mock'
+        puts ''
+        return { status: :ok, stale: false }
+      end
+
       unless File.exist?(mocks_file)
         puts '   ⚠️  Mocks.swift not found'
         puts ''
@@ -453,7 +461,8 @@ module SaneMasterModules
         mcp = JSON.parse(File.read(mcp_file))
         servers = mcp['mcpServers'] || {}
 
-        required = %w[apple-docs github memory context7 XcodeBuildMCP]
+        # Note: XcodeBuildMCP is configured globally, not per-project
+        required = %w[apple-docs github memory context7]
 
         required.each do |name|
           if servers[name]

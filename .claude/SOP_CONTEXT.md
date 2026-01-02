@@ -22,25 +22,25 @@ What would you like to work on today?
 
 ## Before ANY Code Change
 
-- [ ] **EXPLORE FIRST** - Read relevant files, grep patterns, understand context BEFORE editing. No edits until you have a clear picture. If unsure, say "I need to explore X before making changes."
-- [ ] Verify current state with `grep`/`find` (NOT memory - Rule #13)
-- [ ] If API involved: `./Scripts/SaneMaster.rb verify_api <API> [Framework]` (Rule #1)
-- [ ] Two-Fix Rule: If you fail twice, STOP and investigate — that's the win, not the failure (Rule #2)
+- [ ] **EXPLORE FIRST** - Read files, grep patterns, understand context BEFORE editing
+- [ ] If API involved: `./Scripts/SaneMaster.rb verify_api <API> [Framework]` (Rule #2)
+- [ ] Two failed attempts = stop and research (Rule #3)
 
-## After ANY Code Change
+## After ANY Code Change (Rule #6)
 
 ```bash
-./Scripts/SaneMaster.rb verify        # Build + test (Rule #4)
-killall -9 SaneBar                     # Kill old instances (Rule #5)
+./Scripts/SaneMaster.rb verify        # Build + test
+killall -9 SaneBar                     # Kill old instances
 ./Scripts/SaneMaster.rb launch         # Start fresh
-./Scripts/SaneMaster.rb logs --follow  # Watch logs (Rule #6)
+./Scripts/SaneMaster.rb logs --follow  # Watch logs
 ```
 
 ## For Bug Fixes (MANDATORY)
 
 - [ ] Add regression test in `Tests/` (Rule #7)
 - [ ] Document in `BUG_TRACKING.md` if persistent (Rule #8)
-- [ ] Search for similar patterns elsewhere: `grep -r "pattern" Core/ UI/`
+- [ ] Run `xcodegen generate` if new files created (Rule #9)
+- [ ] Search for similar patterns: `grep -r "pattern" Core/ UI/`
 
 ## Before Claiming Done
 
