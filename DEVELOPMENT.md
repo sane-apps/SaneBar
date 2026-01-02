@@ -334,6 +334,74 @@ After each task, rate yourself. Format:
 
 ---
 
+## Circuit Breaker Protocol
+
+The circuit breaker is an automated safety mechanism that **blocks Edit/Bash/Write tools** after repeated failures. This prevents runaway loops (learned from 700+ iteration failure on 2026-01-02).
+
+### When It Triggers
+
+| Condition | Threshold | Meaning |
+|-----------|-----------|---------|
+| **Same error 3x** | 3 identical | Stuck in loop, repeating same mistake |
+| **Total failures** | 5 any errors | Flailing, time to step back |
+
+Success resets the counter. Normal iterative development (fail → fix → fail → fix → succeed) works fine.
+
+### Commands
+
+```bash
+./Scripts/SaneMaster.rb breaker_status  # Check if tripped
+./Scripts/SaneMaster.rb breaker_errors  # See what failed
+./Scripts/SaneMaster.rb reset_breaker   # Unblock (after plan approved)
+```
+
+### Mandatory Research Protocol
+
+When blocked, you MUST use these tools to investigate before presenting a plan:
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `breaker_errors` | See what failed | `./Scripts/SaneMaster.rb breaker_errors` |
+| **Task agents** | Explore codebase, analyze patterns | `Task(subagent_type='Explore')` |
+| **apple-docs MCP** | Verify Apple APIs exist | `mcp__apple-docs__search_apple_docs` |
+| **context7 MCP** | Check library documentation | `mcp__context7__query-docs` |
+| **WebSearch** | Find solutions, patterns | `WebSearch(query='...')` |
+| **Grep/Glob/Read** | Investigate local code | Find similar patterns, check imports |
+| **memory MCP** | Check past bug patterns | `mcp__memory__search_nodes` |
+
+### Recovery Flow
+
+```
+🔴 CIRCUIT BREAKER TRIPS
+         │
+         ▼
+┌─────────────────────────────────────────────┐
+│  1. READ ERRORS                             │
+│     ./Scripts/SaneMaster.rb breaker_errors  │
+├─────────────────────────────────────────────┤
+│  2. RESEARCH (use ALL tools above)          │
+│     - What API am I misusing?               │
+│     - Has this bug pattern happened before? │
+│     - What does the documentation say?      │
+├─────────────────────────────────────────────┤
+│  3. PRESENT SOP-COMPLIANT PLAN              │
+│     - State which rules apply               │
+│     - Show what research revealed           │
+│     - Propose specific fix steps            │
+├─────────────────────────────────────────────┤
+│  4. USER APPROVES PLAN                      │
+│     User runs: ./Scripts/SaneMaster.rb      │
+│                reset_breaker                │
+└─────────────────────────────────────────────┘
+         │
+         ▼
+    🟢 EXECUTE APPROVED PLAN
+```
+
+**Key insight**: Being blocked is not failure—it's the system working. The research phase often reveals the root cause that guessing would never find.
+
+---
+
 ## Available Tools
 
 ### SaneMaster Commands
