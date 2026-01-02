@@ -14,6 +14,7 @@ struct SettingsView: View {
         case items = "Items"
         case shortcuts = "Shortcuts"
         case behavior = "Behavior"
+        case usage = "Usage"
     }
 
     /// Items filtered by search text
@@ -85,6 +86,8 @@ struct SettingsView: View {
                 shortcutsTabContent
             case .behavior:
                 behaviorTabContent
+            case .usage:
+                UsageStatsView(menuBarManager: menuBarManager)
             }
 
             Divider()

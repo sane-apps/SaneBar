@@ -4,7 +4,7 @@ import AppKit
 
 // MARK: - MenuBarManagerTests
 
-@Suite("MenuBarManager Tests")
+@Suite("MenuBarManager Tests", .serialized)
 struct MenuBarManagerTests {
 
     // MARK: - Mock-based Tests
@@ -76,17 +76,21 @@ struct MenuBarManagerTests {
             persistenceService: mockPersistence
         )
 
+        // Record initial item count
+        let initialCount = manager.statusItems.count
+
         // Now grant permission and scan
         mockPermission.permissionState = .granted
 
         // Act
         await manager.scan()
 
-        // Assert
+        // Assert - error should be set
         #expect(manager.lastError != nil,
                 "Should set error when scan fails")
-        #expect(manager.statusItems.isEmpty,
-                "Should not have items when scan fails")
+        // Items should not increase (could have pre-existing from persistence)
+        #expect(manager.statusItems.count <= initialCount,
+                "Should not add items when scan fails")
     }
 
     // MARK: - Integration Tests (using shared instance)

@@ -43,6 +43,7 @@ final class MenuBarManager: ObservableObject {
     let accessibilityService: AccessibilityServiceProtocol
     let permissionService: PermissionServiceProtocol
     let hidingService: HidingService
+    let hoverService: HoverService
     let persistenceService: PersistenceServiceProtocol
 
     // MARK: - Status Items (Section Delimiters)
@@ -63,12 +64,17 @@ final class MenuBarManager: ObservableObject {
         accessibilityService: AccessibilityServiceProtocol? = nil,
         permissionService: PermissionServiceProtocol? = nil,
         hidingService: HidingService? = nil,
+        hoverService: HoverService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared
     ) {
         self.accessibilityService = accessibilityService ?? AccessibilityService()
         self.permissionService = permissionService ?? PermissionService()
         self.persistenceService = persistenceService
         self.hidingService = hidingService ?? HidingService()
+        self.hoverService = hoverService ?? HoverService()
+
+        // Connect hover service to hiding service
+        self.hoverService.configure(with: self.hidingService)
 
         setupStatusItems()
         loadSettings()
@@ -228,6 +234,20 @@ final class MenuBarManager: ObservableObject {
             hidden: delimiterX,
             alwaysHidden: nil // Could add secondary delimiter
         )
+
+        // Update hover service region
+        hoverService.setHoverRegion(around: button, padding: 30)
+
+        // Configure hover behavior from settings
+        hoverService.isEnabled = settings.showOnHover
+        hoverService.hoverDelay = settings.hoverDelay
+
+        // Start/stop monitoring based on settings
+        if settings.showOnHover {
+            hoverService.startMonitoring()
+        } else {
+            hoverService.stopMonitoring()
+        }
     }
 
     // MARK: - Scanning
