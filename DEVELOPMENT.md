@@ -1,232 +1,191 @@
 # SaneBar Development Guide (SOP)
 
-**Version 1.0** | Last updated: 2026-01-01
-
-> **SINGLE SOURCE OF TRUTH** for all Developers and AI Agents.
->
-> **SOP = Standard Operating Procedure = This File (DEVELOPMENT.md)**
->
-> When you see "SOP", "use our SOP", or "follow the SOP", this is the document.
->
-> **Read this entirely before touching code.**
+**Version 1.1** | Last updated: 2026-01-01
 
 ---
 
-## 🚀 Quick Start for AI Agents
+## ⚠️ THESE WILL BURN YOU
 
-**New to this project? Start here:**
+Real failures from past sessions. Don't repeat them.
 
-1. **Bootstrap runs automatically** - `./Scripts/SaneMaster.rb bootstrap`
-2. **Read Rule #0 first** (Section 1)
-3. **Know the Self-Rating requirement**
-4. **Use SaneMaster.rb**: All tools are in `./Scripts/SaneMaster.rb`
+| Mistake | What Happened | Prevention |
+|---------|---------------|------------|
+| **Guessed API** | `await scheduleSegment` blocks forever (waits for playback, not scheduling) | `verify_api` first |
+| **Assumed Swift binding** | MTAudioProcessingTap C API ≠ Swift API. Hours wasted. | Check `apple-docs` MCP |
+| **Skipped xcodegen** | Created file, "file not found" for 20 minutes | `xcodegen generate` after new files |
+| **Deleted "unused" file** | Periphery said unused, but ServiceContainer needed it | Grep before delete |
+| **Kept guessing** | Hidden Button + keyboardShortcut = EXC_BAD_ACCESS. 4 attempts. | Stop at 2, investigate |
 
-**Key Commands:**
+**The #1 differentiator**: Skimming this SOP = 5/10 sessions. Internalizing it = 8+/10.
+
+---
+
+## Quick Start
 
 ```bash
-./Scripts/SaneMaster.rb bootstrap  # Environment check + auto-update
-./Scripts/SaneMaster.rb verify     # Build + unit tests
+./Scripts/SaneMaster.rb verify     # Build + test
+./Scripts/SaneMaster.rb test_mode  # Full cycle: kill → build → launch → logs
 ```
 
----
-
-## 0. Critical System Context: macOS 26.2 (Tahoe)
-
-- **OS**: macOS 26.2 (Tahoe). APIs differ from older versions.
-- **Hardware**: Apple Silicon (M1+) ONLY.
-- **Ruby**: Homebrew Ruby 3.4+ required.
+**System**: macOS 26.2 (Tahoe), Apple Silicon, Ruby 3.4+
 
 ---
 
-## 1. The Golden Rules
+## The Rules
 
-### Rule #0: MAP RULES BEFORE CODING
+### #0: SAY THE RULE BEFORE CODING
 
-✅ DO: State which rules apply before writing code
-❌ DON'T: Start coding without thinking about rules
+Before writing code, state which rules apply.
 
-🟢 GOOD: "This uses Accessibility API → verify_api first (Rule #2)"
-🟢 GOOD: "New file needed → run xcodegen after (Rule #9)"
-🔴 BAD: "Let me just start coding..."
-🔴 BAD: "I'll figure out the rules as I go"
+```
+🟢 "Uses AXUIElement API → verify_api first"
+🟢 "New file → xcodegen after"
+🔴 "Let me just code this real quick..."
+```
 
----
+### #1: STAY IN PROJECT
 
-### Rule #1: FILES STAY IN PROJECT
+All files inside `/Users/sj/SaneBar/`. No exceptions without asking.
 
-✅ DO: Save all files inside `/Users/sj/SaneBar/`
-❌ DON'T: Create files outside project without asking
+```
+🟢 /Users/sj/SaneBar/Core/NewService.swift
+🔴 ~/.claude/plans/anything.md
+🔴 /tmp/scratch.swift
+```
 
-🟢 GOOD: `/Users/sj/SaneBar/Core/NewService.swift`
-🟢 GOOD: `/Users/sj/SaneBar/Scripts/new_helper.rb`
-🔴 BAD: `~/.claude/plans/my-plan.md`
-🔴 BAD: `/tmp/scratch.swift`
+### #2: VERIFY BEFORE USING
 
-If file must go elsewhere → ask user where.
+**Any unfamiliar or Apple-specific API**: run `verify_api` first.
 
----
+```bash
+./Scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
+```
 
-### Rule #2: SDK IS SOURCE OF TRUTH
+```
+🟢 verify_api → then code
+🔴 "I remember this API has..."
+🔴 "Stack Overflow says..."
+```
 
-✅ DO: Run verify_api before using any Apple API
-❌ DON'T: Assume an API exists from memory or web search
+**Real example**: `onKeyPress` does NOT have a `modifiers:` parameter. Guessing cost 30 minutes.
 
-🟢 GOOD: `./Scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility`
-🟢 GOOD: `./Scripts/SaneMaster.rb verify_api kAXExtrasMenuBarAttribute Accessibility`
-🔴 BAD: "I remember AXUIElement has a .menuBarItems property"
-🔴 BAD: "Stack Overflow says use .statusItems"
+### #3: TWO STRIKES = STOP
 
----
+Failed twice? **Stop coding. Start researching.**
 
-### Rule #3: INVESTIGATE-AFTER-TWO
+```
+🟢 "Failed twice → checking apple-docs MCP"
+🔴 "Let me try one more thing..." (attempt #3, #4, #5...)
+```
 
-✅ DO: After 2 failures → stop, run verify_api, check docs
-❌ DON'T: Guess a third time without researching
+Stopping IS compliance. Guessing a 3rd time is the violation.
 
-🟢 GOOD: "Failed twice. Running verify_api to check if this API exists."
-🟢 GOOD: "Two attempts failed. Checking apple-docs MCP for correct usage."
-🔴 BAD: "Let me try a slightly different approach..." (attempt #3)
-🔴 BAD: "Maybe if I change this one thing..." (attempt #4)
+### #4: GREEN BEFORE DONE
 
----
+`verify` must pass before claiming done.
 
-### Rule #4: VERIFY BEFORE SHIP
+```
+🟢 "verify failed → fix → verify again → passes → done"
+🔴 "verify failed but it's probably fine"
+```
 
-✅ DO: Fix all verify failures before claiming done
-❌ DON'T: Ship with failing tests
+### #5: USE SANEMASTER
 
-🟢 GOOD: "verify failed → fixing the error → running verify again"
-🟢 GOOD: "Tests pass. Ready to ship."
-🔴 BAD: "verify failed but it's probably fine"
-🔴 BAD: "I'll fix that test later"
+All builds through SaneMaster. No raw xcodebuild.
 
----
+```
+🟢 ./Scripts/SaneMaster.rb verify
+🔴 xcodebuild -scheme SaneBar build
+```
 
-### Rule #5: USE SANEMASTER.RB
+### #6: FULL CYCLE AFTER CHANGES
 
-✅ DO: Use `./Scripts/SaneMaster.rb` for all build/test operations
-❌ DON'T: Use raw xcodebuild or xcode commands
+After completing a **logical unit of work** (not every typo):
 
-🟢 GOOD: `./Scripts/SaneMaster.rb verify`
-🟢 GOOD: `./Scripts/SaneMaster.rb verify_api MyAPI`
-🔴 BAD: `xcodebuild -scheme SaneBar build`
-🔴 BAD: `xcrun xcodebuild test`
-
----
-
-### Rule #6: BUILD → KILL → LAUNCH → LOGS
-
-✅ DO: Run full sequence after every code change
-❌ DON'T: Skip steps or assume it works
-
-🟢 GOOD:
 ```bash
 ./Scripts/SaneMaster.rb verify
 killall -9 SaneBar
 ./Scripts/SaneMaster.rb launch
 ./Scripts/SaneMaster.rb logs --follow
 ```
-🟢 GOOD: `./Scripts/SaneMaster.rb test_mode` (runs all steps)
-🔴 BAD: `./Scripts/SaneMaster.rb verify` then "done!"
-🔴 BAD: Launch without killing old instance first
+
+Or just: `./Scripts/SaneMaster.rb test_mode`
+
+### #7: TESTS FOR FIXES AND FEATURES
+
+Every bug fix AND new feature gets a test. No tautologies.
+
+```
+🟢 #expect(error.code == .invalidInput)
+🔴 #expect(true)
+🔴 #expect(value == true || value == false)
+```
+
+### #8: DOCUMENT BUGS
+
+Bug found? TodoWrite immediately. Fix it? Update BUG_TRACKING.md.
+
+```
+🟢 TodoWrite: "BUG: Items not appearing"
+🔴 "I'll remember this"
+```
+
+### #9: NEW FILE = XCODEGEN
+
+Created a file? Run `xcodegen generate`. Every time.
+
+```
+🟢 Create file → xcodegen generate
+🔴 Create file → wonder why Xcode can't find it
+```
+
+### #10: FILE SIZE LIMITS
+
+| Lines | Status |
+|-------|--------|
+| <500 | Good |
+| 500-800 | OK if single responsibility |
+| >800 | Must split |
+
+Split by responsibility, not by line count.
 
 ---
 
-### Rule #7: REGRESSION TESTS REQUIRED
+## Self-Rating (MANDATORY)
 
-✅ DO: Every bug fix gets a test that verifies the fix
-❌ DON'T: Use placeholder or tautology assertions
+After each task, rate yourself. Format:
 
-🟢 GOOD: `#expect(error.code == .invalidInput)`
-🟢 GOOD: `#expect(result.count == 3)`
-🔴 BAD: `#expect(true)`
-🔴 BAD: `#expect(value == true || value == false)`
-
----
-
-### Rule #8: BUG TRACKING
-
-✅ DO: Document bugs in TodoWrite immediately, BUG_TRACKING.md after
-❌ DON'T: Try to remember bugs or skip documentation
-
-🟢 GOOD: TodoWrite: "BUG: Menu bar - items not appearing"
-🟢 GOOD: Update BUG_TRACKING.md with root cause after fix
-🔴 BAD: "I'll remember to fix that later"
-🔴 BAD: Fix bug without documenting what caused it
-
----
-
-### Rule #9: FILE CREATION = XCODEGEN
-
-✅ DO: Run `xcodegen generate` after creating any new file
-❌ DON'T: Create files without updating project
-
-🟢 GOOD: Create `NewService.swift` → run `xcodegen generate`
-🟢 GOOD: Create `NewView.swift` in UI/ → run `xcodegen generate`
-🔴 BAD: Create file and wonder why Xcode can't find it
-🔴 BAD: Manually edit project.pbxproj
-
----
-
-### Rule #10: FILE SIZE LIMITS (500 soft / 800 hard)
-
-✅ DO: Keep files under 500 lines, split by responsibility
-❌ DON'T: Exceed 800 lines or split arbitrarily
-
-🟢 GOOD: Split `MenuBarManager.swift` → `MenuBarManager.swift` + `MenuBarManager+Scanning.swift`
-🟢 GOOD: 650-line file with clear single responsibility = OK
-🔴 BAD: 900-line file "because it's all related"
-🔴 BAD: Split at line 400 mid-function to hit a number
-
----
-
-### SELF-RATING (MANDATORY)
-
-✅ DO: Rate 1-10 after every task with specific ✅/❌ items
-❌ DON'T: Skip rating or give vague justification
-
-🟢 GOOD:
 ```
 **Self-rating: 7/10**
-✅ Used SaneMaster, ran verify, added regression test
-❌ Forgot to check logs after launch
+✅ Used verify_api, ran full cycle
+❌ Forgot to run xcodegen after new file
 ```
-🟢 GOOD:
-```
-**Self-rating: 9/10**
-✅ Verified API before using, full test cycle, logs clean
-❌ Minor: could have used TodoWrite for tracking
-```
-🔴 BAD: "Self-rating: 10/10" (no explanation)
-🔴 BAD: "Self-rating: 8/10 - did good" (vague)
 
-| 9-10 | All rules followed | 5-6 | Notable gaps |
-| 7-8 | Minor miss | 1-4 | Multiple violations |
-
+| Score | Meaning |
+|-------|---------|
+| 9-10 | All rules followed |
+| 7-8 | Minor miss |
+| 5-6 | Notable gaps |
+| 1-4 | Multiple violations |
 
 ---
 
-## 2. Directory Structure
+## Project Structure
 
-```text
+```
 SaneBar/
-├── Core/                  # Foundation types, Managers
-├── UI/                    # SwiftUI views
-├── SaneBarApp.swift       # Entry point
-└── Scripts/               # SaneMaster automation
+├── Core/           # Managers, Services, Models
+├── UI/             # SwiftUI views
+├── Tests/          # Unit tests
+├── Scripts/        # SaneMaster automation
+└── SaneBarApp.swift
 ```
 
 ---
 
-## 3. Style Guide & Best Practices
+## Troubleshooting
 
-- **Line Length**: 120 chars max.
-- **Indent**: 4 spaces.
-- **Linting**: Enforced by `swiftlint`.
-
----
-
-## 4. Troubleshooting
-
-- **Ghost Beeps / No Launch**: Run `xcodegen generate`.
-- **Phantom Errors**: Run `./Scripts/SaneMaster.rb clean --nuclear`.
+| Problem | Fix |
+|---------|-----|
+| Ghost beeps / no launch | `xcodegen generate` |
+| Phantom build errors | `./Scripts/SaneMaster.rb clean --nuclear` |
