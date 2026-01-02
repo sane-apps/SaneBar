@@ -275,6 +275,9 @@ class SaneMaster
       show_breaker_status
     when 'breaker_errors', 'be'
       show_breaker_errors
+    when 'compliance', 'cr'
+      require_relative 'sanemaster/compliance_report'
+      SaneMasterModules::ComplianceReport.generate
 
     # SOP Loop (Two-Fix Rule Compliant)
     when 'verify_gate', 'vg'

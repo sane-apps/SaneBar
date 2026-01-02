@@ -168,6 +168,13 @@ module SaneMasterModules
       puts '💡 Tips:'
       puts '   • Run `./Scripts/SaneMaster.rb mc` to view full memory context'
       puts '   • Run `./Scripts/SaneMaster.rb mp` to prune stale entries'
+
+      # Show compliance report if audit log exists
+      audit_log = File.join(Dir.pwd, '.claude', 'audit_log.jsonl')
+      if File.exist?(audit_log) && File.size(audit_log).positive?
+        require_relative 'compliance_report'
+        SaneMasterModules::ComplianceReport.generate
+      end
     end
   end
 end
