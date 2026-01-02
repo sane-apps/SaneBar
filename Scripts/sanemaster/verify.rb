@@ -67,8 +67,14 @@ module SaneMasterModules
 
       if nuclear
         puts '⚠️  NUCLEAR CLEAN - Removing all build artifacts...'
+        # DerivedData
         system('rm -rf ~/Library/Developer/Xcode/DerivedData/SaneBar-*')
         system('rm -rf .derivedData')
+        # Asset catalog caches (critical for icon changes!)
+        system('rm -rf ~/Library/Caches/com.apple.dt.Xcode/')
+        # Module cache
+        system('rm -rf ~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex')
+        # Test output
         system('rm -rf fastlane/test_output')
         system('rm -rf /tmp/SaneBar*')
         # CRITICAL: Also clear Ruby's actual tmpdir (which differs from /tmp on macOS)
@@ -78,6 +84,9 @@ module SaneMasterModules
         # Clear any test project leftovers in container
         system('rm -rf ~/Library/Containers/com.sanevideo.SaneBar/Data/tmp/SaneBar_Test_Projects 2>/dev/null')
         system('rm -f test_output.txt')
+        # Regenerate project after nuclear clean
+        puts '🔄 Regenerating Xcode project...'
+        system('xcodegen generate 2>&1')
         puts '✅ Nuclear clean complete.'
       else
         puts 'Standard clean...'

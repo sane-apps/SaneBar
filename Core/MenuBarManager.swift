@@ -46,10 +46,22 @@ final class MenuBarManager: ObservableObject {
         ownStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = ownStatusItem?.button {
-            button.image = NSImage(
-                systemSymbolName: "line.3.horizontal.decrease.circle",
-                accessibilityDescription: "SaneBar"
-            )
+            // Use custom menu bar icon, fall back to SF Symbol
+            let customIcon = NSImage(named: "MenuBarIcon")
+            print("🔍 MenuBarIcon lookup: \(customIcon != nil ? "FOUND" : "NOT FOUND")")
+
+            if let icon = customIcon {
+                icon.isTemplate = true
+                icon.size = NSSize(width: 18, height: 18)
+                button.image = icon
+                print("✅ Using custom MenuBarIcon")
+            } else {
+                button.image = NSImage(
+                    systemSymbolName: "line.3.horizontal.decrease.circle",
+                    accessibilityDescription: "SaneBar"
+                )
+                print("⚠️ Falling back to SF Symbol")
+            }
             button.action = #selector(handleStatusItemClick)
             button.target = self
         }
