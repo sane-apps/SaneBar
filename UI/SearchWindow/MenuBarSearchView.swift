@@ -135,7 +135,7 @@ struct MenuBarSearchView: View {
         // Show the item if it's hidden
         if item.section != .alwaysVisible {
             Task {
-                try? await menuBarManager.hidingService.show()
+                try? await menuBarManager.hidingService.show(items: menuBarManager.statusItems)
             }
         }
 

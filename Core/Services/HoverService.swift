@@ -41,6 +41,9 @@ final class HoverService: ObservableObject, HoverServiceProtocol {
 
     private weak var hidingService: HidingService?
 
+    /// Closure to get current items for batch operations
+    var itemsProvider: (() -> [StatusItemModel])?
+
     // MARK: - Private State
 
     private var eventMonitor: Any?
@@ -183,10 +186,11 @@ final class HoverService: ObservableObject, HoverServiceProtocol {
 
     private func triggerShow() {
         guard let hidingService else { return }
+        let items = itemsProvider?() ?? []
 
         Task {
             do {
-                try await hidingService.show()
+                try await hidingService.show(items: items)
             } catch {
                 print("Hover show failed: \(error)")
             }
@@ -195,10 +199,11 @@ final class HoverService: ObservableObject, HoverServiceProtocol {
 
     private func triggerHide() {
         guard let hidingService else { return }
+        let items = itemsProvider?() ?? []
 
         Task {
             do {
-                try await hidingService.hide()
+                try await hidingService.hide(items: items)
             } catch {
                 print("Hover hide failed: \(error)")
             }

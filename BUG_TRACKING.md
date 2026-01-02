@@ -6,6 +6,103 @@
 
 ---
 
+## UX Audit Fixes (2026-01-02)
+
+External auditor identified 5 usability issues. All resolved:
+
+### UI-001: Three Confusing Eye Icons
+
+**Root Cause**: Three similar SF Symbols (eye, eye.slash, eye.trianglebadge.exclamationmark) were indistinguishable.
+
+**Fix**: Replaced with SwiftUI segmented Picker using clear text labels: "Show", "Hide", "Bury"
+
+**File**: `UI/Components/StatusItemRow.swift:84-103`
+
+---
+
+### UI-002: Manual Refresh Button
+
+**Root Cause**: No auto-detection of menu bar changes; users had to manually click Refresh.
+
+**Fix**:
+- Removed Refresh button from header
+- Added 5-second auto-refresh timer in `MenuBarManager.startAutoRefresh()`
+- Timer starts/stops with settings window lifecycle
+
+**Files**: `Core/MenuBarManager.swift:317-333`, `UI/SettingsView.swift:118-123`
+
+---
+
+### UI-003: Keyboard Shortcut Conflict
+
+**Root Cause**: ⌘B conflicts with "Bold" in text editors globally.
+
+**Fix**: Changed to Option+S (user-implemented)
+
+---
+
+### UI-004: Privacy Badge Placement
+
+**Root Cause**: Prominent "100% On-Device" badge above tabs competed with functional UI.
+
+**Fix**: Moved CompactPrivacyBadge to footer - always visible for peace of mind but not intrusive.
+
+**File**: `UI/SettingsView.swift:456-458`
+
+---
+
+### UI-005: Usage Tab Vanity Metrics
+
+**Root Cause**: Raw click counts ("Total Clicks: 0") are not actionable.
+
+**Fix**:
+- Smart Suggestions now primary content
+- Usage stats moved to collapsible DisclosureGroup
+
+**File**: `UI/UsageStatsView.swift:24-48`
+
+---
+
+### INFRA-001: Stale Diagnostics Logs
+
+**Root Cause**: `find_app_log()` searched entire `@diagnostics_dir` (all historical exports) instead of the current export path.
+
+**Fix**:
+- Changed to accept `export_path` parameter and scope search to current export only
+- Added `cleanup_old_exports()` to keep only last 3 diagnostic exports
+- Made diagnostics.rb project-aware using `project_name` method
+
+**Files**: `Scripts/sanemaster/diagnostics.rb:38-47, 159-164`
+
+---
+
+### INFRA-002: Stale Build Detection
+
+**Root Cause**: Could launch old app binary after source changes without rebuilding.
+
+**Fix**: Added stale build detection to `launch_app()`:
+- Compares binary mtime vs newest source file mtime
+- Auto-rebuilds if stale (unless `--force` flag)
+- Made test_mode.rb project-aware using `project_name` method
+
+**Files**: `Scripts/sanemaster/test_mode.rb:17-47`
+
+---
+
+### INFRA-003: Project-Aware Tooling
+
+**Root Cause**: Hardcoded "SaneBar"/"SaneVideo" strings required maintaining separate file versions.
+
+**Fix**: Added `project_name` method that detects from current directory (`File.basename(Dir.pwd)`):
+- Diagnostics directory: `#{project_name}_Diagnostics`
+- Crash file globs: `#{project_name}-*.ips`
+- DerivedData paths: `#{project_name}-*/...`
+- Process names for `log` command: `process == "#{project_name}"`
+
+**Result**: Both `diagnostics.rb` and `test_mode.rb` are now identical in both projects.
+
+---
+
 ## Resolved Bugs
 
 ### BUG-007: Permission alert never displays

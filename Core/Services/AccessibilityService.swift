@@ -1,6 +1,9 @@
 import Foundation
 import AppKit
 @preconcurrency import ApplicationServices
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService")
 
 // MARK: - AccessibilityError
 
@@ -65,7 +68,12 @@ final class AccessibilityService: ObservableObject, AccessibilityServiceProtocol
 
     /// Scan for all menu bar status items
     func scanMenuBarItems() async throws -> [StatusItemModel] {
+        NSLog("[SaneBar] scanMenuBarItems() called - isTrusted=%d", isTrusted ? 1 : 0)
+        logger.notice("scanMenuBarItems() called - isTrusted=\(self.isTrusted)")
+
         guard isTrusted else {
+            NSLog("[SaneBar] ERROR: NOT TRUSTED")
+            logger.error("scanMenuBarItems: NOT TRUSTED - throwing error")
             throw AccessibilityError.notTrusted
         }
 
@@ -86,13 +94,21 @@ final class AccessibilityService: ObservableObject, AccessibilityServiceProtocol
             &extrasMenuBarValue
         )
 
+        NSLog("[SaneBar] AXExtrasMenuBar result: %d", extrasResult.rawValue)
+        logger.notice("AXExtrasMenuBar result: \(extrasResult.rawValue)")
+
         guard extrasResult == .success, let extrasMenuBar = extrasMenuBarValue else {
+            NSLog("[SaneBar] Falling back to scanViaApplications()")
+            logger.notice("Falling back to scanViaApplications()")
             // Fallback: try to get menu bar via focused app
             return try await scanViaApplications()
         }
 
         // Get children of the extras menu bar
-        return try getStatusItemsFromElement(extrasMenuBar as! AXUIElement)
+        let items = try getStatusItemsFromElement(extrasMenuBar as! AXUIElement)
+        NSLog("[SaneBar] Scan found %d items", items.count)
+        logger.notice("Scan found \(items.count) items")
+        return items
     }
 
     // MARK: - Private Helpers
@@ -143,18 +159,37 @@ final class AccessibilityService: ObservableObject, AccessibilityServiceProtocol
             }
         }
 
+        // Get position and size for drag operations
+        var screenX: CGFloat?
+        var itemWidth: CGFloat?
+
+        do {
+            let elementPosition = try getPosition(of: element)
+            let elementSize = try getSize(of: element)
+            // screenX is the center of the item (for Cmd+drag)
+            screenX = elementPosition.x + (elementSize.width / 2)
+            itemWidth = elementSize.width
+            logger.notice("Item '\(title ?? "unknown", privacy: .public)': pos=\(elementPosition.x),\(elementPosition.y) size=\(elementSize.width)x\(elementSize.height) screenX=\(screenX!)")
+        } catch {
+            logger.error("Item '\(title ?? "unknown", privacy: .public)': Failed to get position/size: \(error.localizedDescription, privacy: .public)")
+        }
+
         return StatusItemModel(
             bundleIdentifier: bundleId,
             title: title ?? description,
             iconHash: nil, // Icon extraction would require more complex handling
             position: position,
             section: .alwaysVisible,
-            isVisible: true
+            isVisible: true,
+            screenX: screenX,
+            originalPosition: position,
+            width: itemWidth
         )
     }
 
     /// Fallback: scan via running applications
     private func scanViaApplications() async throws -> [StatusItemModel] {
+        NSLog("[SaneBar] scanViaApplications: starting fallback scan")
         var items: [StatusItemModel] = []
         let runningApps = NSWorkspace.shared.runningApplications
 
@@ -177,19 +212,40 @@ final class AccessibilityService: ObservableObject, AccessibilityServiceProtocol
                 &menuBarValue
             )
 
-            if result == .success {
-                // This app has menu bar extras
-                let item = StatusItemModel(
-                    bundleIdentifier: bundleId,
-                    title: app.localizedName,
-                    position: index,
-                    section: .alwaysVisible,
-                    isVisible: true
+            if result == .success, let menuBarElement = menuBarValue {
+                // This app has menu bar extras - try to get its children (actual status items)
+                var childrenValue: CFTypeRef?
+                let childResult = AXUIElementCopyAttributeValue(
+                    menuBarElement as! AXUIElement,
+                    kAXChildrenAttribute as CFString,
+                    &childrenValue
                 )
-                items.append(item)
+
+                if childResult == .success, let children = childrenValue as? [AXUIElement] {
+                    // Iterate through actual status item elements
+                    for child in children {
+                        let item = createStatusItem(from: child, position: items.count)
+                        items.append(item)
+                        NSLog("[SaneBar] Found item via app '%@': screenX=%@",
+                              app.localizedName ?? "unknown",
+                              item.screenX?.description ?? "nil")
+                    }
+                } else {
+                    // No children, just record the app
+                    let item = StatusItemModel(
+                        bundleIdentifier: bundleId,
+                        title: app.localizedName,
+                        position: index,
+                        section: .alwaysVisible,
+                        isVisible: true
+                    )
+                    items.append(item)
+                    NSLog("[SaneBar] Found app '%@' but no children (screenX=nil)", app.localizedName ?? "unknown")
+                }
             }
         }
 
+        NSLog("[SaneBar] scanViaApplications: found %d items total", items.count)
         return items
     }
 

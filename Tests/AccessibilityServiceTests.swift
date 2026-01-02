@@ -68,6 +68,56 @@ struct AccessibilityServiceTests {
         #expect(item.displayName == "Unknown Item")
     }
 
+    // MARK: - Position Tracking Tests (BUG-009: screenX must be populated for hiding to work)
+
+    @Test("StatusItemModel stores screenX for drag operations")
+    func testScreenXIsStored() {
+        let item = StatusItemModel(
+            bundleIdentifier: "com.example.app",
+            title: "Test",
+            position: 0,
+            screenX: 500.0,
+            originalPosition: 0,
+            width: 24.0
+        )
+
+        #expect(item.screenX == 500.0)
+        #expect(item.width == 24.0)
+        #expect(item.originalPosition == 0)
+    }
+
+    @Test("StatusItemModel screenX is optional for items without position")
+    func testScreenXOptional() {
+        let item = StatusItemModel(
+            bundleIdentifier: "com.example.app",
+            title: "Test",
+            position: 0
+        )
+
+        // screenX should be nil when not provided
+        #expect(item.screenX == nil)
+    }
+
+    @Test("StatusItemModel screenX survives encoding/decoding")
+    func testScreenXPersistence() throws {
+        let original = StatusItemModel(
+            bundleIdentifier: "com.example.app",
+            title: "Test",
+            position: 0,
+            screenX: 750.5,
+            width: 30.0
+        )
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        let data = try encoder.encode(original)
+        let decoded = try decoder.decode(StatusItemModel.self, from: data)
+
+        #expect(decoded.screenX == 750.5)
+        #expect(decoded.width == 30.0)
+    }
+
     // MARK: - Section Tests
 
     @Test("ItemSection has correct display names")

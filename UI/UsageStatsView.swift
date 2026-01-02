@@ -24,22 +24,27 @@ struct UsageStatsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Summary cards
-                summarySection
-
-                Divider()
-
-                // Smart suggestions
+                // Smart suggestions - PRIMARY content (actionable)
                 SuggestionsView(menuBarManager: menuBarManager)
 
                 Divider()
 
-                // Most used items
-                if !usedItems.isEmpty {
-                    mostUsedSection
-                } else {
-                    emptyState
+                // Usage details - SECONDARY (collapsible)
+                DisclosureGroup("Usage Details") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Summary cards
+                        summarySection
+                            .padding(.top, 8)
+
+                        // Most used items
+                        if !usedItems.isEmpty {
+                            mostUsedSection
+                        } else {
+                            emptyState
+                        }
+                    }
                 }
+                .font(.headline)
             }
             .padding()
         }

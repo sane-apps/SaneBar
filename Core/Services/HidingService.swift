@@ -1,5 +1,8 @@
 import Foundation
 import AppKit
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "HidingService")
 
 // MARK: - HidingServiceError
 
@@ -38,9 +41,9 @@ protocol HidingServiceProtocol {
     var state: HidingState { get }
     var isAnimating: Bool { get }
 
-    func toggle() async throws
-    func show() async throws
-    func hide() async throws
+    func toggle(items: [StatusItemModel]) async throws
+    func show(items: [StatusItemModel]) async throws
+    func hide(items: [StatusItemModel]) async throws
     func moveItem(_ item: StatusItemModel, to section: StatusItemModel.ItemSection) async throws
 }
 
@@ -70,6 +73,9 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     /// X position of the always-hidden section delimiter (secondary icon)
     private var alwaysHiddenDelimiterX: CGFloat?
 
+    /// Closure to get current items for auto-rehide
+    var itemsProvider: (() -> [StatusItemModel])?
+
     // MARK: - Initialization
 
     init(
@@ -94,42 +100,80 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Show/Hide Operations
 
     /// Toggle between hidden and expanded states
-    func toggle() async throws {
+    func toggle(items: [StatusItemModel]) async throws {
         switch state {
         case .hidden:
-            try await show()
+            try await show(items: items)
         case .expanded:
-            try await hide()
+            try await hide(items: items)
         }
     }
 
-    /// Expand to show hidden items
-    func show() async throws {
+    /// Expand to show hidden items by moving them left of delimiter
+    func show(items: [StatusItemModel]) async throws {
         guard !isAnimating else { return }
         guard state == .hidden else { return }
 
         isAnimating = true
         defer { isAnimating = false }
 
-        // For now, we just update state
-        // The actual visual "expansion" is handled by MenuBarManager
-        // which will adjust the delimiter status item positions
+        logger.info("show() called with \(items.count) items to reveal")
+
+        // Move each hidden item to visible area (left of delimiter)
+        for item in items where item.section == .hidden {
+            guard let itemX = item.screenX, let targetX = delimiterX else {
+                logger.warning("Skipping item '\(item.displayName, privacy: .public)' - missing position")
+                continue
+            }
+
+            // Move to left of delimiter (visible area)
+            let destinationX = targetX - 50
+            logger.info("Moving '\(item.displayName, privacy: .public)' from \(itemX) to \(destinationX)")
+
+            do {
+                try await eventService.moveMenuBarItem(from: itemX, to: destinationX)
+                try await Task.sleep(nanoseconds: 150_000_000) // 150ms between moves
+            } catch {
+                logger.error("Failed to move item: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
         state = .expanded
 
-        // Record show time for analytics
         NotificationCenter.default.post(
             name: .hiddenSectionShown,
             object: nil
         )
     }
 
-    /// Collapse to hide items
-    func hide() async throws {
+    /// Collapse to hide items by moving them right of delimiter
+    func hide(items: [StatusItemModel]) async throws {
         guard !isAnimating else { return }
         guard state == .expanded else { return }
 
         isAnimating = true
         defer { isAnimating = false }
+
+        logger.info("hide() called with \(items.count) items to hide")
+
+        // Move each hidden-section item back to hidden area (right of delimiter)
+        for item in items where item.section == .hidden {
+            guard let itemX = item.screenX, let targetX = delimiterX else {
+                logger.warning("Skipping item '\(item.displayName, privacy: .public)' - missing position")
+                continue
+            }
+
+            // Move to right of delimiter (hidden area)
+            let destinationX = targetX + 30
+            logger.info("Moving '\(item.displayName, privacy: .public)' from \(itemX) to \(destinationX)")
+
+            do {
+                try await eventService.moveMenuBarItem(from: itemX, to: destinationX)
+                try await Task.sleep(nanoseconds: 150_000_000) // 150ms between moves
+            } catch {
+                logger.error("Failed to move item: \(error.localizedDescription, privacy: .public)")
+            }
+        }
 
         state = .hidden
 
@@ -144,13 +188,20 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     /// Move an item to a different section
     /// This uses Cmd+drag simulation to physically move the item
     func moveItem(_ item: StatusItemModel, to section: StatusItemModel.ItemSection) async throws {
+        logger.info("moveItem called for '\(item.displayName, privacy: .public)' to section: \(section.rawValue, privacy: .public)")
+        logger.info("item.screenX = \(item.screenX?.description ?? "NIL", privacy: .public)")
+
         guard let itemX = item.screenX else {
+            logger.error("ERROR: screenX is nil - cannot move item")
             throw HidingServiceError.itemNotFound
         }
 
         guard let targetX = positionForSection(section) else {
+            logger.error("ERROR: delimiterX is nil - delimiter not set")
             throw HidingServiceError.delimiterNotFound
         }
+
+        logger.info("Moving from X=\(itemX) to targetX=\(targetX)")
 
         isAnimating = true
         defer { isAnimating = false }
@@ -200,7 +251,8 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if !Task.isCancelled {
-                    try await hide()
+                    let items = itemsProvider?() ?? []
+                    try await hide(items: items)
                 }
             } catch {
                 // Task cancelled or hide failed - ignore
