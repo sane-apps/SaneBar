@@ -1,75 +1,146 @@
-import Accessibility
-import Cocoa
+import AppKit
+import ApplicationServices
 
-class MenuBarManager: ObservableObject {
+// MARK: - MenuBarManager
+
+/// Central manager for menu bar item discovery and visibility control
+@MainActor
+final class MenuBarManager: ObservableObject {
+
+    // MARK: - Singleton
+
     static let shared = MenuBarManager()
 
-    @Published var statusItems: [StatusItem] = []
+    // MARK: - Published State
 
-    private let systemUIServerBundleId = "com.apple.systemuiserver"
-    private let controlCenterBundleId = "com.apple.controlcenter"
+    @Published private(set) var statusItems: [StatusItemModel] = []
+    @Published private(set) var isScanning = false
+    @Published private(set) var lastError: String?
 
-    // Our own status item (the "handle")
-    private var statusItem: NSStatusItem?
+    // MARK: - Services
+
+    let accessibilityService = AccessibilityService()
+    let permissionService = PermissionService()
+
+    // MARK: - Menu Bar Status Item
+
+    private var ownStatusItem: NSStatusItem?
+
+    // MARK: - Initialization
 
     private init() {
-        setupStatusItem()
-        // Delay scan to allow permissions to settle if needed, though we should check immediately
-        scanForStatusItems()
+        setupOwnStatusItem()
+
+        // Scan if we have permission
+        if permissionService.permissionState == .granted {
+            Task {
+                await scan()
+            }
+        }
     }
 
     // MARK: - Setup
 
-    private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem?.button {
+    /// Create SaneBar's own menu bar icon
+    private func setupOwnStatusItem() {
+        ownStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        if let button = ownStatusItem?.button {
             button.image = NSImage(
-                systemSymbolName: "circle.circle", accessibilityDescription: "SaneBar")
-            button.action = #selector(toggleHiding)
+                systemSymbolName: "line.3.horizontal.decrease.circle",
+                accessibilityDescription: "SaneBar"
+            )
+            button.action = #selector(handleStatusItemClick)
             button.target = self
         }
-    }
 
-    @objc func toggleHiding() {
-        print("Toggling visibility...")
-        // Logic to hide/show items will go here
-        // For now, just re-scan
-        scanForStatusItems()
+        // Add a menu
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Toggle Hidden Items", action: #selector(menuToggleHiddenItems), keyEquivalent: "b"))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Scan Menu Bar", action: #selector(scanMenuItems), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "Quit SaneBar", action: #selector(quitApp), keyEquivalent: "q"))
+
+        ownStatusItem?.menu = menu
     }
 
     // MARK: - Scanning
 
-    func scanForStatusItems() {
-        // macOS 15+ usually hosts these in Control Center or separate processes
-        // We need to query the Menu Bar AX element directly.
-
-        guard checkAccessibilityPermissions() else {
-            print("❌ No Accessibility Permissions")
+    /// Scan for menu bar items
+    func scan() async {
+        guard permissionService.permissionState == .granted else {
+            lastError = "Accessibility permission required"
+            permissionService.showPermissionRequest()
             return
         }
 
-        // Find the System Menu Bar
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        isScanning = true
+        lastError = nil
 
-        if accessEnabled {
-            // Get System Wide Element
-            let systemWide = AXUIElementCreateSystemWide()
+        do {
+            let items = try await accessibilityService.scanMenuBarItems()
+            statusItems = items
+            print("✅ Found \(items.count) menu bar items")
+        } catch {
+            lastError = error.localizedDescription
+            print("❌ Scan failed: \(error)")
+        }
 
-            // Get the Menu Bar
-            // Note: This is an expensive traversal, simplified for MVP
-            // In reality, we might need to filter specifically for the menu bar window
+        isScanning = false
+    }
+
+    // MARK: - Visibility Control
+
+    /// Toggle visibility of hidden items
+    func toggleHiddenItems() {
+        // Phase 2: Implement show/hide logic
+        print("Toggle hidden items - coming in Phase 2")
+    }
+
+    /// Update an item's section and visibility
+    func updateItem(_ item: StatusItemModel, section: StatusItemModel.ItemSection) {
+        guard let index = statusItems.firstIndex(where: { $0.id == item.id }) else { return }
+
+        var updatedItem = item
+        updatedItem.section = section
+        updatedItem.isVisible = section == .alwaysVisible
+
+        statusItems[index] = updatedItem
+
+        // TODO: Persist changes
+        // TODO: Apply visibility changes via AX API
+    }
+
+    // MARK: - Actions
+
+    @objc private func handleStatusItemClick() {
+        // Left-click shows menu (handled by NSMenu)
+        // Option-click could toggle hidden items
+    }
+
+    @objc private func menuToggleHiddenItems(_ sender: Any?) {
+        toggleHiddenItems()
+    }
+
+    @objc private func scanMenuItems(_ sender: Any?) {
+        Task {
+            await scan()
         }
     }
 
-    private func checkAccessibilityPermissions() -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        return AXIsProcessTrustedWithOptions(options as CFDictionary)
+    @objc private func openSettings(_ sender: Any?) {
+        // Open the Settings window
+        if #available(macOS 14.0, *) {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
-}
 
-struct StatusItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let position: Int
+    @objc private func quitApp(_ sender: Any?) {
+        NSApplication.shared.terminate(nil)
+    }
 }
