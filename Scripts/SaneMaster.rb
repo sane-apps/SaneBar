@@ -113,7 +113,8 @@ class SaneMaster
         'mp' => { args: '[--dry-run]', desc: 'Prune stale entities' },
         'session_end' => { args: '[--skip-prompts]', desc: 'End session with insight extraction' },
         'reset_breaker' => { args: '', desc: 'Reset circuit breaker (unblock tools)' },
-        'breaker_status' => { args: '', desc: 'Show circuit breaker status' }
+        'breaker_status' => { args: '', desc: 'Show circuit breaker status' },
+        'breaker_errors' => { args: '', desc: 'Show recent failure messages' }
       }
     },
     export: {
@@ -272,6 +273,8 @@ class SaneMaster
       SaneMasterModules::CircuitBreakerState.reset!
     when 'breaker_status', 'bs'
       show_breaker_status
+    when 'breaker_errors', 'be'
+      show_breaker_errors
 
     # SOP Loop (Two-Fix Rule Compliant)
     when 'verify_gate', 'vg'
@@ -310,11 +313,43 @@ class SaneMaster
       puts "   Reason: #{status[:trip_reason]}" if status[:trip_reason]
       puts "   Blocked: #{status[:blocked_tools].join(', ')}"
       puts ''
+      puts '   To see errors: ./Scripts/SaneMaster.rb breaker_errors'
       puts '   To reset: ./Scripts/SaneMaster.rb reset_breaker'
     else
       puts "   Status: 🟢 #{status[:status]}"
       puts "   #{status[:message]}"
     end
+    puts ''
+  end
+
+  def show_breaker_errors
+    state = SaneMasterModules::CircuitBreakerState.load_state
+    puts '🔌 --- [ CIRCUIT BREAKER ERRORS ] ---'
+    puts ''
+
+    messages = state[:failure_messages] || []
+    if messages.empty?
+      puts '   No failure messages recorded.'
+    else
+      puts "   Recent failures (#{messages.count}):"
+      puts ''
+      messages.each_with_index do |msg, i|
+        puts "   #{i + 1}. #{msg}"
+      end
+    end
+
+    # Show error signatures if any
+    signatures = state[:error_signatures] || {}
+    if signatures.any?
+      puts ''
+      puts '   Error patterns detected:'
+      signatures.sort_by { |_, v| -v }.first(5).each do |sig, count|
+        puts "   - #{count}x: #{sig[0, 60]}#{'...' if sig.length > 60}"
+      end
+    end
+
+    puts ''
+    puts '   Use this information to research the problem and create a plan.'
     puts ''
   end
 

@@ -60,13 +60,20 @@ if state[:tripped]
   warn "   Total failures: #{state[:failures]}"
   warn "   Blocked tools: #{BLOCKED_TOOLS.join(', ')}"
   warn ''
-  warn '   This safety mechanism prevents runaway AI loops.'
-  warn '   (Learned from 700+ iteration failure on 2026-01-02)'
+  warn '   ┌─────────────────────────────────────────────────────────┐'
+  warn '   │  MANDATORY: Research the problem and present a plan    │'
+  warn '   └─────────────────────────────────────────────────────────┘'
   warn ''
-  warn '   To reset:'
+  warn '   You MUST now:'
+  warn '   1. Read the error messages in failure_messages'
+  warn '   2. Research: check docs, SDK, grep codebase'
+  warn '   3. Present a SOP-compliant plan to the user'
+  warn '   4. Wait for user approval before requesting reset'
+  warn ''
+  warn '   Only after user approves your plan:'
   warn '     ./Scripts/SaneMaster.rb reset_breaker'
   warn ''
-  warn '   Then investigate what caused the failures before continuing.'
+  warn '   (Learned from 700+ iteration failure on 2026-01-02)'
   warn ''
   warn '=' * 60
   exit 1
