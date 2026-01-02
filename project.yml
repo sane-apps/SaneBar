@@ -4,6 +4,11 @@ options:
   deploymentTarget:
     macOS: 15.0
   xcodeVersion: 16.0
+
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -66,6 +71,8 @@ targets:
       - Core
       - UI
       - Resources
+    dependencies:
+      - package: KeyboardShortcuts
     settings:
       base:
         PRODUCT_NAME: SaneBar
