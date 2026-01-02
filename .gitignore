@@ -1,0 +1,92 @@
+# Build logs
+build_log*.txt
+build_output*.txt
+test_output*.txt
+*.log
+
+# Secrets (Secrets.swift is now committed - uses Keychain/APIKeyManager, no hardcoded secrets)
+# SaneVideo/Core/Utilities/Secrets.swift
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+.derivedData/
+.swiftpm/
+build_debug/
+build_release/
+Packages/**/.build/
+Packages/**/.swiftpm/
+*.xcresult/
+*.xccheckout/
+*.xcworkspace/contents.xcworkspacedata
+*.xcuserstate
+*.xcuserstatedata
+
+# macOS
+.DS_Store
+
+# Build artifacts
+build/
+.build/
+*.backup*
+vendor/
+.bundle/
+
+# Gemini/Agentic
+.gemini/
+.mcp.json
+
+# Claude Code - track project config, ignore user/transient files
+.claude/settings.local.json
+.claude/edit_state.json
+.claude/memory.json
+
+# IDE - Keep shared settings, ignore user-specific files
+.cursor/settings.json
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+!.cursor/
+!.vscode/
+
+# Large media/test artifacts (but NOT app assets)
+*.mp4
+*.mov
+*.m4v
+*.m4a
+*.xcresult/
+TranscriptionTest*/
+TestReports/
+
+# Images - ignore in root/tests, but keep app assets
+/*.png
+/*.jpg
+/*.jpeg
+/Screenshots/**/*.png
+/Screenshots/**/*.jpg
+/Tests/**/*.png
+/Tests/**/*.jpg
+/Media/**/*.png
+/Media/**/*.jpg
+
+# Keep all xcassets (app icons, etc)
+!SaneVideo/Assets.xcassets/**/*.png
+!SaneVideo/Assets.xcassets/**/*.jpg
+
+# Code coverage reports
+fastlane/coverage/
+*.gcda
+*.gcno
+Media/
+TestOutput.xcresult/
+*.o
+SaneVideo/Resources/Models/ggml-base.en.bin
+project.yml.ci_backup
+
+# Ephemeral reports and analysis (AI-generated, test results, audits)
+reports/
+
+# Generated output
+Output/

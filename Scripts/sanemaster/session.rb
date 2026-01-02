@@ -1,0 +1,135 @@
+# frozen_string_literal: true
+
+module SaneMasterModules
+  # Session lifecycle management - insights extraction at session end
+  # Inspired by Auto-Claude's automated insight extraction pattern
+  module Session
+    INSIGHT_CATEGORIES = {
+      bug_pattern: {
+        prompt: 'Any bug patterns discovered this session?',
+        prefix: 'BugPattern',
+        example: 'e.g., "await scheduleSegment hangs in offline mode"'
+      },
+      concurrency_gotcha: {
+        prompt: 'Any concurrency gotchas worth remembering?',
+        prefix: 'ConcurrencyGotcha',
+        example: 'e.g., "MainActor.assumeIsolated crashes in deinit"'
+      },
+      architecture_pattern: {
+        prompt: 'Any architecture decisions or patterns?',
+        prefix: 'ArchPattern',
+        example: 'e.g., "Use type erasure for macOS 26+ APIs"'
+      }
+    }.freeze
+
+    def session_end(args)
+      puts '🔚 --- [ SESSION END REVIEW ] ---'
+      puts ''
+      puts 'Checking for memory-worthy insights from this session...'
+      puts '(Inspired by Auto-Claude insight extraction pattern)'
+      puts ''
+
+      insights = []
+      skip_prompts = args.include?('--skip-prompts')
+
+      if skip_prompts
+        puts '⏭️  Skipping interactive prompts (--skip-prompts)'
+        show_session_summary
+        return
+      end
+
+      INSIGHT_CATEGORIES.each do |category, config|
+        insight = prompt_for_insight(category, config)
+        insights << insight if insight
+      end
+
+      if insights.empty?
+        puts ''
+        puts '✅ No new insights to record. Session complete!'
+        show_session_summary
+        return
+      end
+
+      # Record insights to memory
+      puts ''
+      puts "📝 Recording #{insights.count} insight(s) to memory..."
+      insights.each do |insight|
+        auto_record(insight[:type].to_s, insight[:name], insight[:observations])
+      end
+
+      puts ''
+      puts '✅ Session insights saved!'
+      show_session_summary
+    end
+
+    private
+
+    def prompt_for_insight(category, config)
+      puts(config[:prompt])
+      puts "   #{config[:example]}"
+      print '   (y/n): '
+
+      response = $stdin.gets&.chomp&.downcase
+      return nil unless response == 'y'
+
+      puts ''
+      print '   Name (short, snake_case): '
+      name = $stdin.gets&.chomp
+      return nil if name.nil? || name.empty?
+
+      # Clean up the name
+      name = name.downcase.gsub(/\s+/, '_').gsub(/[^a-z0-9_]/, '')
+      full_name = "#{config[:prefix]}_#{Date.today.strftime('%Y%m%d')}_#{name}"
+
+      puts '   Enter observations (one per line, empty line to finish):'
+      observations = []
+      loop do
+        print '   > '
+        line = $stdin.gets&.chomp
+        break if line.nil? || line.empty?
+
+        observations << line
+      end
+
+      return nil if observations.empty?
+
+      puts "   ✓ Will record: #{full_name}"
+      puts ''
+
+      {
+        type: category,
+        name: full_name,
+        observations: observations
+      }
+    end
+
+    def show_session_summary
+      puts ''
+      puts '📊 Session Summary:'
+
+      # Show recent git activity
+      recent_commits = `git log --oneline -5 --format='%s' 2>/dev/null`.strip.split("\n")
+      if recent_commits.any?
+        puts '   Recent commits:'
+        recent_commits.each { |c| puts "     • #{c}" }
+      end
+
+      # Show memory stats
+      memory = load_memory
+      if memory && memory['entities']
+        entity_count = memory['entities'].count
+        by_type = memory['entities'].group_by { |e| e['entityType'] }
+        type_summary = by_type.map { |t, e| "#{e.count} #{t}" }.join(', ')
+        puts "   Memory: #{entity_count} entities (#{type_summary})"
+
+        # Warn if memory is getting large
+        puts "   ⚠️  Memory growing large (#{entity_count}/60 target). Consider consolidation." if entity_count > 60
+      end
+
+      puts ''
+      puts '💡 Tips:'
+      puts '   • Run `./Scripts/SaneMaster.rb mc` to view full memory context'
+      puts '   • Run `./Scripts/SaneMaster.rb mp` to prune stale entries'
+    end
+  end
+end

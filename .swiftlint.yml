@@ -1,0 +1,32 @@
+disabled_rules:
+  - trailing_whitespace
+  - todo
+  - identifier_name
+  - line_length
+  - type_body_length
+  - function_body_length
+  - cyclomatic_complexity
+  - nesting
+  - shorthand_operator
+
+file_length:
+  warning: 500
+  error: 800
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+
+included:
+  - SaneVideo
+
+excluded:
+  - Carthage
+  - Pods
+  - DerivedData
+  - .build
+  - .swiftpm
+  - SaneVideoTests
+  - Scripts
+
+# Configure specific rules if re-enabled later
