@@ -4,14 +4,17 @@
 
 ---
 
-## ⚠️ THESE WILL BURN YOU
+## ⚠️ THIS HAS BURNED YOU
 
-| Mistake | What Happens | Prevention |
-|---------|--------------|------------|
-| **Guessed API exists** | AXUIElement has no `.menuBarItems` property. Build fails. | `verify_api` first |
-| **Assumed API behavior** | API exists but works differently than expected | Check `apple-docs` MCP |
-| **Skipped xcodegen** | Created file, "file not found" for 20 minutes | `xcodegen generate` after new files |
-| **Kept guessing** | 4 attempts at wrong approach. Wasted hour. | Stop at 2, investigate |
+Real failures from past sessions. Don't repeat them.
+
+| Mistake | What Happened | Prevention |
+|---------|---------------|------------|
+| **Guessed API** | Assumed `AXUIElement` has `.menuBarItems`. It doesn't. 20 min wasted. | `verify_api` first |
+| **Assumed permission flow** | Called AX functions before checking `AXIsProcessTrusted()`. Silent failures. | Check permission state first |
+| **Skipped xcodegen** | Created `HidingService.swift`, "file not found" for 20 minutes | `xcodegen generate` after new files |
+| **Kept guessing** | Menu bar traversal wrong 4 times. Finally checked apple-docs MCP. | Stop at 2, investigate |
+| **Deleted "unused" file** | Periphery said unused, but `ServiceContainer` needed it. Broke build. | Grep before delete |
 
 **The #1 differentiator**: Skimming this SOP = 5/10 sessions. Internalizing it = 8+/10.
 
