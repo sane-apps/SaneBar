@@ -13,6 +13,28 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
     var section: ItemSection
     var isVisible: Bool
 
+    // MARK: - Position Tracking
+
+    /// Screen X position of the item's center (for drag operations)
+    var screenX: CGFloat?
+
+    /// Original position index before any hiding operations
+    var originalPosition: Int?
+
+    /// Width of the status item in points
+    var width: CGFloat?
+
+    // MARK: - Usage Analytics
+
+    /// Number of times this item has been clicked
+    var clickCount: Int = 0
+
+    /// Last time this item was clicked
+    var lastClickDate: Date?
+
+    /// Last time this item was shown (for smart suggestions)
+    var lastShownDate: Date?
+
     /// The section determines where the item appears
     enum ItemSection: String, Codable, CaseIterable {
         case alwaysVisible  // Never hidden
@@ -45,7 +67,13 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
         iconHash: String? = nil,
         position: Int = 0,
         section: ItemSection = .alwaysVisible,
-        isVisible: Bool = true
+        isVisible: Bool = true,
+        screenX: CGFloat? = nil,
+        originalPosition: Int? = nil,
+        width: CGFloat? = nil,
+        clickCount: Int = 0,
+        lastClickDate: Date? = nil,
+        lastShownDate: Date? = nil
     ) {
         self.id = id
         self.bundleIdentifier = bundleIdentifier
@@ -54,6 +82,12 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
         self.position = position
         self.section = section
         self.isVisible = isVisible
+        self.screenX = screenX
+        self.originalPosition = originalPosition
+        self.width = width
+        self.clickCount = clickCount
+        self.lastClickDate = lastClickDate
+        self.lastShownDate = lastShownDate
     }
 
     // MARK: - Display Helpers

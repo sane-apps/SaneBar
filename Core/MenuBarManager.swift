@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Combine
 
 // MARK: - MenuBarManager
 
@@ -16,23 +17,65 @@ final class MenuBarManager: ObservableObject {
     @Published private(set) var statusItems: [StatusItemModel] = []
     @Published private(set) var isScanning = false
     @Published private(set) var lastError: String?
+    @Published private(set) var lastScanMessage: String?
+    @Published private(set) var hidingState: HidingState = .hidden
+    @Published var settings: SaneBarSettings = SaneBarSettings()
+
+    // MARK: - Computed Properties
+
+    /// Items in the always-visible section
+    var visibleItems: [StatusItemModel] {
+        statusItems.filter { $0.section == .alwaysVisible }
+    }
+
+    /// Items in the hidden section
+    var hiddenItems: [StatusItemModel] {
+        statusItems.filter { $0.section == .hidden }
+    }
+
+    /// Items in the always-hidden section
+    var collapsedItems: [StatusItemModel] {
+        statusItems.filter { $0.section == .collapsed }
+    }
 
     // MARK: - Services
 
-    let accessibilityService = AccessibilityService()
-    let permissionService = PermissionService()
+    let accessibilityService: AccessibilityServiceProtocol
+    let permissionService: PermissionServiceProtocol
+    let hidingService: HidingService
+    let persistenceService: PersistenceServiceProtocol
 
-    // MARK: - Menu Bar Status Item
+    // MARK: - Status Items (Section Delimiters)
 
-    private var ownStatusItem: NSStatusItem?
+    /// Main SaneBar icon - acts as delimiter between visible and hidden
+    private var mainStatusItem: NSStatusItem?
+
+    /// Secondary delimiter for always-hidden section (optional)
+    private var alwaysHiddenStatusItem: NSStatusItem?
+
+    // MARK: - Subscriptions
+
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
-    private init() {
-        setupOwnStatusItem()
+    init(
+        accessibilityService: AccessibilityServiceProtocol? = nil,
+        permissionService: PermissionServiceProtocol? = nil,
+        hidingService: HidingService? = nil,
+        persistenceService: PersistenceServiceProtocol = PersistenceService.shared
+    ) {
+        self.accessibilityService = accessibilityService ?? AccessibilityService()
+        self.permissionService = permissionService ?? PermissionService()
+        self.persistenceService = persistenceService
+        self.hidingService = hidingService ?? HidingService()
+
+        setupStatusItems()
+        loadSettings()
+        setupObservers()
 
         // Scan if we have permission
-        if permissionService.permissionState == .granted {
+        if self.permissionService.permissionState == .granted {
             Task {
                 await scan()
             }
@@ -41,60 +84,154 @@ final class MenuBarManager: ObservableObject {
 
     // MARK: - Setup
 
-    /// Create SaneBar's own menu bar icon
-    private func setupOwnStatusItem() {
-        ownStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private func setupStatusItems() {
+        // Main status item (delimiter between visible and hidden)
+        mainStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-        if let button = ownStatusItem?.button {
-            // Use custom menu bar icon, fall back to SF Symbol
-            let customIcon = NSImage(named: "MenuBarIcon")
-            print("🔍 MenuBarIcon lookup: \(customIcon != nil ? "FOUND" : "NOT FOUND")")
-
-            if let icon = customIcon {
-                icon.isTemplate = true
-                icon.size = NSSize(width: 18, height: 18)
-                button.image = icon
-                print("✅ Using custom MenuBarIcon")
-            } else {
-                button.image = NSImage(
-                    systemSymbolName: "line.3.horizontal.decrease.circle",
-                    accessibilityDescription: "SaneBar"
-                )
-                print("⚠️ Falling back to SF Symbol")
-            }
-            button.action = #selector(handleStatusItemClick)
+        if let button = mainStatusItem?.button {
+            configureMainButton(button)
+            button.action = #selector(handleMainClick)
             button.target = self
+            // Send action on left click, show menu on right click
+            button.sendAction(on: [.leftMouseUp])
         }
 
-        // Add a menu - BUG-005: Must set target explicitly since MenuBarManager isn't in responder chain
+        // Setup context menu
+        setupMenu()
+
+        // Update delimiter position after a short delay (let menu bar settle)
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            updateDelimiterPositions()
+        }
+    }
+
+    private func configureMainButton(_ button: NSStatusBarButton) {
+        // Use custom menu bar icon, fall back to SF Symbol
+        let customIcon = NSImage(named: "MenuBarIcon")
+
+        if let icon = customIcon {
+            icon.isTemplate = true
+            icon.size = NSSize(width: 18, height: 18)
+            button.image = icon
+        } else {
+            button.image = NSImage(
+                systemSymbolName: "line.3.horizontal.decrease.circle",
+                accessibilityDescription: "SaneBar"
+            )
+        }
+    }
+
+    private func setupMenu() {
         let menu = NSMenu()
 
-        let toggleItem = NSMenuItem(title: "Toggle Hidden Items", action: #selector(menuToggleHiddenItems), keyEquivalent: "b")
+        let toggleItem = NSMenuItem(
+            title: "Toggle Hidden Items",
+            action: #selector(menuToggleHiddenItems),
+            keyEquivalent: "b"
+        )
         toggleItem.target = self
+        toggleItem.keyEquivalentModifierMask = [.command]
         menu.addItem(toggleItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        let scanItem = NSMenuItem(title: "Scan Menu Bar", action: #selector(scanMenuItems), keyEquivalent: "r")
+        let scanItem = NSMenuItem(
+            title: "Scan Menu Bar",
+            action: #selector(scanMenuItems),
+            keyEquivalent: "r"
+        )
         scanItem.target = self
+        scanItem.keyEquivalentModifierMask = [.command]
         menu.addItem(scanItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(
+            title: "Settings...",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let quitItem = NSMenuItem(title: "Quit SaneBar", action: #selector(quitApp), keyEquivalent: "q")
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit SaneBar",
+            action: #selector(quitApp),
+            keyEquivalent: "q"
+        )
         quitItem.target = self
         menu.addItem(quitItem)
 
-        ownStatusItem?.menu = menu
+        mainStatusItem?.menu = menu
+    }
+
+    private func setupObservers() {
+        // Observe hiding state changes
+        hidingService.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.hidingState = state
+                self?.updateStatusItemAppearance()
+            }
+            .store(in: &cancellables)
+
+        // Observe notifications for analytics
+        NotificationCenter.default.publisher(for: .hiddenSectionShown)
+            .sink { [weak self] _ in
+                self?.handleSectionShown()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .hiddenSectionHidden)
+            .sink { [weak self] _ in
+                self?.handleSectionHidden()
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Settings
+
+    private func loadSettings() {
+        do {
+            settings = try persistenceService.loadSettings()
+            let savedItems = try persistenceService.loadItemConfigurations()
+            if !savedItems.isEmpty {
+                statusItems = savedItems
+            }
+        } catch {
+            print("Failed to load settings: \(error)")
+        }
+    }
+
+    func saveSettings() {
+        do {
+            try persistenceService.saveSettings(settings)
+            try persistenceService.saveItemConfigurations(statusItems)
+        } catch {
+            print("Failed to save settings: \(error)")
+        }
+    }
+
+    // MARK: - Delimiter Position
+
+    private func updateDelimiterPositions() {
+        guard let button = mainStatusItem?.button,
+              let window = button.window else { return }
+
+        let frame = window.frame
+        let delimiterX = frame.midX
+
+        hidingService.setDelimiterPositions(
+            hidden: delimiterX,
+            alwaysHidden: nil // Could add secondary delimiter
+        )
     }
 
     // MARK: - Scanning
 
-    /// Scan for menu bar items
     func scan() async {
         guard permissionService.permissionState == .granted else {
             lastError = "Accessibility permission required"
@@ -104,28 +241,85 @@ final class MenuBarManager: ObservableObject {
 
         isScanning = true
         lastError = nil
+        lastScanMessage = nil
 
         do {
-            let items = try await accessibilityService.scanMenuBarItems()
-            statusItems = items
-            print("✅ Found \(items.count) menu bar items")
+            var scannedItems = try await accessibilityService.scanMenuBarItems()
+
+            // Merge with saved configurations
+            let savedItems = try? persistenceService.loadItemConfigurations()
+            if let saved = savedItems, !saved.isEmpty {
+                scannedItems = persistenceService.mergeWithSaved(
+                    scannedItems: scannedItems,
+                    savedItems: saved
+                )
+            }
+
+            statusItems = scannedItems
+            lastScanMessage = "Found \(scannedItems.count) menu bar item\(scannedItems.count == 1 ? "" : "s")"
+
+            // Save updated configurations
+            try? persistenceService.saveItemConfigurations(statusItems)
+
+            // Update delimiter positions after scan
+            updateDelimiterPositions()
         } catch {
             lastError = error.localizedDescription
-            print("❌ Scan failed: \(error)")
+            lastScanMessage = nil
         }
 
         isScanning = false
+
+        // Clear success message after 3 seconds
+        if lastScanMessage != nil {
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                lastScanMessage = nil
+            }
+        }
     }
 
     // MARK: - Visibility Control
 
-    /// Toggle visibility of hidden items
     func toggleHiddenItems() {
-        // Phase 2: Implement show/hide logic
-        print("Toggle hidden items - coming in Phase 2")
+        Task {
+            do {
+                try await hidingService.toggle()
+
+                // Schedule auto-rehide if enabled and we just showed
+                if hidingState == .expanded && settings.autoRehide {
+                    hidingService.scheduleRehide(after: settings.rehideDelay)
+                }
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
     }
 
-    /// Update an item's section and visibility
+    func showHiddenItems() {
+        Task {
+            do {
+                try await hidingService.show()
+                if settings.autoRehide {
+                    hidingService.scheduleRehide(after: settings.rehideDelay)
+                }
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    func hideHiddenItems() {
+        Task {
+            do {
+                try await hidingService.hide()
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    /// Update an item's section
     func updateItem(_ item: StatusItemModel, section: StatusItemModel.ItemSection) {
         guard let index = statusItems.firstIndex(where: { $0.id == item.id }) else { return }
 
@@ -135,15 +329,67 @@ final class MenuBarManager: ObservableObject {
 
         statusItems[index] = updatedItem
 
-        // TODO: Persist changes
-        // TODO: Apply visibility changes via AX API
+        // Persist changes
+        saveSettings()
+
+        // Move the item in the menu bar
+        Task {
+            do {
+                try await hidingService.moveItem(item, to: section)
+                await scan() // Rescan to update positions
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+    }
+
+    /// Record a click on an item (for analytics)
+    func recordItemClick(_ item: StatusItemModel) {
+        guard let index = statusItems.firstIndex(where: { $0.id == item.id }) else { return }
+
+        statusItems[index].clickCount += 1
+        statusItems[index].lastClickDate = Date()
+
+        saveSettings()
+    }
+
+    // MARK: - Appearance
+
+    private func updateStatusItemAppearance() {
+        guard let button = mainStatusItem?.button else { return }
+
+        // Could change icon based on state
+        let iconName = hidingState == .expanded
+            ? "line.3.horizontal.decrease.circle.fill"
+            : "line.3.horizontal.decrease.circle"
+
+        // Only use SF Symbol if we don't have custom icon
+        if NSImage(named: "MenuBarIcon") == nil {
+            button.image = NSImage(
+                systemSymbolName: iconName,
+                accessibilityDescription: "SaneBar"
+            )
+        }
+    }
+
+    // MARK: - Event Handlers
+
+    private func handleSectionShown() {
+        // Update show timestamps for analytics
+        for index in statusItems.indices where statusItems[index].section == .hidden {
+            statusItems[index].lastShownDate = Date()
+        }
+    }
+
+    private func handleSectionHidden() {
+        hidingService.cancelRehide()
     }
 
     // MARK: - Actions
 
-    @objc private func handleStatusItemClick() {
-        // Left-click shows menu (handled by NSMenu)
-        // Option-click could toggle hidden items
+    @objc private func handleMainClick() {
+        // Left-click toggles hidden items
+        toggleHiddenItems()
     }
 
     @objc private func menuToggleHiddenItems(_ sender: Any?) {
@@ -157,7 +403,6 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func openSettings(_ sender: Any?) {
-        // Open the Settings window
         if #available(macOS 14.0, *) {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } else {
