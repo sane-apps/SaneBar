@@ -65,7 +65,28 @@ failure_patterns = [
   /build failed/i
 ]
 
-is_failure = failure_patterns.any? { |pattern| tool_output.match?(pattern) }
+# Exclusion patterns (override failure detection when build actually succeeded)
+success_patterns = [
+  /no errors?/i,
+  /0 errors?/i,
+  /error.*(fixed|resolved|cleared)/i,
+  /Build succeeded/i,
+  /Test.*passed/i,
+  /\*\* BUILD SUCCEEDED \*\*/
+]
+
+# Check if this is warning-only output (has warning but no actual error indicators)
+warning_only = tool_output.match?(/warning:/i) &&
+               !tool_output.match?(/error:/i) &&
+               !tool_output.match?(/FAIL/)
+
+# Only count as failure if:
+# 1. Matches failure pattern
+# 2. Doesn't match success pattern (explicit success overrides)
+# 3. Isn't warning-only output
+is_failure = failure_patterns.any? { |pattern| tool_output.match?(pattern) } &&
+             !success_patterns.any? { |pattern| tool_output.match?(pattern) } &&
+             !warning_only
 
 if is_failure
   state['consecutive_failures'] += 1

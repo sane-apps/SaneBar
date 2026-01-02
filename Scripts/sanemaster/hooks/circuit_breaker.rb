@@ -75,7 +75,7 @@ if state[:tripped]
   warn '      - mcp__context7__* for library documentation'
   warn '      - WebSearch/WebFetch for solutions and patterns'
   warn '      - Grep/Glob/Read for local investigation'
-  warn '      - mcp__memory__* for past bug patterns'
+  warn '      - mcp__memory__search_nodes (CRITICAL - past bugs often repeat)'
   warn ''
   warn '   3. PRESENT A SOP-COMPLIANT PLAN:'
   warn '      - State which rules apply'

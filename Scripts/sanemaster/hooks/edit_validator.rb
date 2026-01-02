@@ -49,8 +49,9 @@ begin
   # Rule #1: STAY IN YOUR LANE - Block dangerous paths, warn on cross-project
   # =============================================================================
 
-  # Normalize paths for comparison
+  # Normalize paths for comparison (resolve symlinks if file exists)
   normalized_path = File.expand_path(file_path)
+  normalized_path = File.realpath(file_path) if File.exist?(file_path) && File.symlink?(file_path)
   normalized_project = File.expand_path(PROJECT_DIR)
 
   # Check 1: BLOCK dangerous/system paths (never allow)
