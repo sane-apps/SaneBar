@@ -14,7 +14,17 @@ rescue StandardError
   {}
 end
 input['tool_name'] || 'unknown'
+tool_input = input['tool_input'] || {}
 session_id = input['session_id'] || 'unknown'
+
+# Skip if editing a file in a different project
+project_dir = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
+current_project = File.basename(project_dir)
+file_path = tool_input['file_path'] || ''
+if file_path.include?('/Sane') && !file_path.include?("/#{current_project}")
+  puts({ 'result' => 'continue' }.to_json)
+  exit 0
+end
 
 # State file to track edit attempts
 state_file = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'edit_state.json')

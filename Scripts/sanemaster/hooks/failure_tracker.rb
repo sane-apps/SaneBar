@@ -14,8 +14,18 @@ rescue StandardError
   {}
 end
 tool_name = input['tool_name'] || 'unknown'
+tool_input = input['tool_input'] || {}
 tool_output = input['tool_output'] || ''
 session_id = input['session_id'] || 'unknown'
+
+# Skip if command is for a different project
+project_dir = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
+current_project = File.basename(project_dir)
+command = tool_input['command'] || ''
+if command.include?('/Sane') && !command.include?("/#{current_project}")
+  puts({ 'result' => 'continue' }.to_json)
+  exit 0
+end
 
 # State file for failure tracking
 state_file = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'failure_state.json')
