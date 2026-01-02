@@ -3,11 +3,20 @@
 module SaneMasterModules
   # Crash analysis, xcresult diagnosis, log analysis
   module Diagnostics
+    # Detect project name from current directory (context-specific)
+    def project_name
+      @project_name ||= File.basename(Dir.pwd)
+    end
+
     def diagnose(path, dump: false)
       puts '🔬 --- [ SANEMASTER DIAGNOSE ] ---'
 
-      @diagnostics_dir = File.join(Dir.tmpdir, 'SaneBar_Diagnostics')
+      # Project-specific diagnostics directory
+      @diagnostics_dir = File.join(Dir.tmpdir, "#{project_name}_Diagnostics")
       FileUtils.mkdir_p(@diagnostics_dir)
+
+      # AUTO-CLEANUP: Keep only last 3 exports to prevent stale log accumulation
+      cleanup_old_exports
 
       xcresult = path || find_latest_xcresult
       unless xcresult && File.exist?(xcresult)
@@ -26,13 +35,25 @@ module SaneMasterModules
       puts "\n✅ Diagnosis complete."
     end
 
+    def cleanup_old_exports
+      exports = Dir.glob(File.join(@diagnostics_dir, 'diagnostics_*')).sort_by { |f| File.mtime(f) }
+      return if exports.count <= 3
+
+      # Remove all but the 3 most recent
+      exports[0...-3].each do |old_export|
+        FileUtils.rm_rf(old_export)
+      end
+      puts "  🧹 Cleaned #{exports.count - 3} old diagnostic exports"
+    end
+
     def analyze_crashes(args)
       puts '💥 --- [ CRASH REPORT ANALYSIS ] ---'
-      puts 'Analyzing SaneBar crash reports for patterns...'
+      puts "Analyzing #{project_name} crash reports for patterns..."
       puts ''
 
       crash_dir = File.expand_path('~/Library/Logs/DiagnosticReports')
-      crash_files = Dir.glob(File.join(crash_dir, 'SaneBar-*.ips')).sort_by { |f| File.mtime(f) }.reverse
+      # Project-specific crash files
+      crash_files = Dir.glob(File.join(crash_dir, "#{project_name}-*.ips")).sort_by { |f| File.mtime(f) }.reverse
 
       if crash_files.empty?
         puts '✅ No crash reports found. The app appears stable!'
@@ -74,8 +95,8 @@ module SaneMasterModules
       export_path
     end
 
-    def analyze_app_logs(_export_path)
-      app_log = find_app_log
+    def analyze_app_logs(export_path)
+      app_log = find_app_log(export_path)
       if app_log
         puts "\n  📱 App Log: #{app_log}"
         puts '  --- App Runtime Insights ---'
@@ -91,18 +112,18 @@ module SaneMasterModules
           end
         end
       else
-        puts '  ⚠️  No App Log found.'
+        puts '  ⚠️  No App Log found in current export.'
       end
     end
 
-    def analyze_test_logs(_export_path)
-      test_log = find_test_log
+    def analyze_test_logs(export_path)
+      test_log = find_test_log(export_path)
       if test_log
         puts "\n  📄 Test Log: #{test_log}"
         puts '  --- Test Runner Insights ---'
         process_test_log(test_log)
       else
-        puts '  ⚠️  No Test Runner Log found.'
+        puts '  ⚠️  No Test Runner Log found in current export.'
       end
     end
 
@@ -135,18 +156,22 @@ module SaneMasterModules
       end
     end
 
-    def find_app_log
-      logs = Dir.glob(File.join(@diagnostics_dir, '**', 'StandardOutputAndStandardError*.txt'))
-      logs.find { |f| f.include?('com.sanevideo.SaneBar') || f.include?('SaneBar') } || logs.first
+    def find_app_log(export_path)
+      # Search ONLY in the current export, not historical ones
+      logs = Dir.glob(File.join(export_path, '**', 'StandardOutputAndStandardError*.txt'))
+      # Project-specific log detection
+      logs.find { |f| f.include?(project_name) } || logs.first
     end
 
-    def find_test_log
-      logs = Dir.glob(File.join(@diagnostics_dir, '**', 'StandardOutputAndStandardError*.txt'))
+    def find_test_log(export_path)
+      # Search ONLY in the current export, not historical ones
+      logs = Dir.glob(File.join(export_path, '**', 'StandardOutputAndStandardError*.txt'))
       logs.find { |f| f.include?('xctest') || f.include?('Test') }
     end
 
     def find_latest_xcresult
-      system_dd_logs = Dir.glob(File.expand_path('~/Library/Developer/Xcode/DerivedData/SaneBar-*/Logs/Test/*.xcresult'))
+      # Project-specific DerivedData path
+      system_dd_logs = Dir.glob(File.expand_path("~/Library/Developer/Xcode/DerivedData/#{project_name}-*/Logs/Test/*.xcresult"))
       dd_logs = Dir.glob('.derivedData/Logs/Test/*.xcresult')
       fl_logs = Dir.glob('fastlane/test_output/*.xcresult')
       tmp_logs = Dir.glob('/tmp/*.xcresult')
@@ -204,7 +229,8 @@ module SaneMasterModules
       app_frame = frames.first(15).find do |f|
         src = f['sourceFile'] || ''
         sym = f['symbol'] || ''
-        src.include?('SaneBar') || sym.include?('SaneBar')
+        # Project-specific frame detection
+        src.include?(project_name) || sym.include?(project_name)
       end
 
       return nil unless app_frame

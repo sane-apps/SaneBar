@@ -1,5 +1,7 @@
 import Foundation
 import AppKit
+import UniformTypeIdentifiers
+import CoreTransferable
 
 // MARK: - StatusItemModel
 
@@ -106,11 +108,13 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
 
     /// Creates a composite identifier for matching items across scans
     /// Uses multiple properties since menu bar items lack stable IDs
+    /// Includes position to disambiguate multiple items from the same app (e.g., Control Center)
     var compositeKey: String {
         let parts = [
             bundleIdentifier ?? "",
             title ?? "",
-            iconHash ?? ""
+            iconHash ?? "",
+            String(originalPosition ?? position)
         ]
         return parts.joined(separator: "|")
     }
@@ -128,6 +132,20 @@ extension StatusItemModel {
         var hasher = Hasher()
         hasher.combine(tiffData)
         return String(hasher.finalize())
+    }
+}
+
+// MARK: - Transferable (for drag and drop)
+
+extension StatusItemModel: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .statusItemModel)
+    }
+}
+
+extension UTType {
+    static var statusItemModel: UTType {
+        UTType(exportedAs: "com.sanebar.statusitemmodel")
     }
 }
 

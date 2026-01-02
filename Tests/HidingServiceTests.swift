@@ -57,12 +57,12 @@ struct HidingServiceTests {
         #expect(service.state == .hidden)
 
         // Toggle should switch to expanded
-        try await service.toggle()
+        try await service.toggle(items: [])
         #expect(service.state == .expanded,
                 "Should be expanded after toggle from hidden")
 
         // Toggle again should switch back to hidden
-        try await service.toggle()
+        try await service.toggle(items: [])
         #expect(service.state == .hidden,
                 "Should be hidden after toggle from expanded")
     }
@@ -72,13 +72,13 @@ struct HidingServiceTests {
     func testShowSetsExpanded() async throws {
         let service = HidingService()
 
-        try await service.show()
+        try await service.show(items: [])
 
         #expect(service.state == .expanded,
                 "Should be expanded after show")
 
         // Calling show again should remain expanded
-        try await service.show()
+        try await service.show(items: [])
         #expect(service.state == .expanded,
                 "Should still be expanded after second show")
     }
@@ -89,16 +89,16 @@ struct HidingServiceTests {
         let service = HidingService()
 
         // First show
-        try await service.show()
+        try await service.show(items: [])
         #expect(service.state == .expanded)
 
         // Then hide
-        try await service.hide()
+        try await service.hide(items: [])
         #expect(service.state == .hidden,
                 "Should be hidden after hide")
 
         // Calling hide again should remain hidden
-        try await service.hide()
+        try await service.hide(items: [])
         #expect(service.state == .hidden,
                 "Should still be hidden after second hide")
     }
@@ -111,7 +111,7 @@ struct HidingServiceTests {
         let service = HidingService()
 
         // Show first
-        try await service.show()
+        try await service.show(items: [])
         #expect(service.state == .expanded)
 
         // Schedule rehide in 1 second

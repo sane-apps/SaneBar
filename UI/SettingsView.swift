@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var showingPermissionAlert = false
     @State private var selectedTab: SettingsTab = .items
     @State private var searchText = ""
+    @State private var showWelcomeBanner = !UserDefaults.standard.hasSeenWelcome
+    @State private var dropTargetSection: StatusItemModel.ItemSection?
 
     enum SettingsTab: String, CaseIterable {
         case items = "Items"
@@ -37,7 +39,7 @@ struct SettingsView: View {
                 mainContent
             }
         }
-        .frame(minWidth: 450, minHeight: 400)
+        .frame(minWidth: 340, minHeight: 480)
         // BUG-007 fix: Wire showingPermissionAlert from PermissionService to UI alert
         .onReceive(NotificationCenter.default.publisher(for: .showPermissionAlert)) { _ in
             showingPermissionAlert = true
@@ -68,6 +70,14 @@ struct SettingsView: View {
 
     private var mainContent: some View {
         VStack(spacing: 0) {
+            // Welcome banner for first-time users
+            if showWelcomeBanner {
+                WelcomeBanner(isVisible: $showWelcomeBanner) {
+                    UserDefaults.standard.hasSeenWelcome = true
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             // Tab picker
             Picker("", selection: $selectedTab) {
                 ForEach(SettingsTab.allCases, id: \.self) { tab in
@@ -97,6 +107,12 @@ struct SettingsView: View {
 
             // Footer
             footerView
+        }
+        .onAppear {
+            menuBarManager.startAutoRefresh()
+        }
+        .onDisappear {
+            menuBarManager.stopAutoRefresh()
         }
     }
 
@@ -220,13 +236,17 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Track usage analytics", isOn: $menuBarManager.settings.analyticsEnabled)
-                    .help("Track click counts to suggest frequently used items")
+                Toggle("Remember which icons I use", isOn: $menuBarManager.settings.analyticsEnabled)
+                    .help("Stored locally on your Mac - never sent anywhere")
 
                 Toggle("Smart suggestions", isOn: $menuBarManager.settings.smartSuggestionsEnabled)
-                    .help("Suggest items to hide based on usage patterns")
+                    .help("Suggest what to hide based on your usage")
             } header: {
-                Text("Analytics")
+                Text("Local Usage Data")
+            } footer: {
+                Text("All data stays on your Mac. Nothing is ever sent to us or anyone else.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -264,28 +284,19 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 } else {
-                    Text("\(menuBarManager.statusItems.count) items discovered")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    // Show auto-refresh indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.tertiary)
+                        Text("\(menuBarManager.statusItems.count) items • auto-refreshing")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: menuBarManager.lastScanMessage)
 
             Spacer()
-
-            Button {
-                Task {
-                    await menuBarManager.scan()
-                }
-            } label: {
-                if menuBarManager.isScanning {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-            }
-            .disabled(menuBarManager.isScanning)
         }
         .padding()
     }
@@ -309,35 +320,78 @@ struct SettingsView: View {
         return Group {
             if !items.isEmpty || section == .alwaysVisible {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Section header
-                    HStack {
-                        Image(systemName: section.systemImage)
-                        Text(section.displayName)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text("\(items.count)")
-                            .font(.caption)
+                    // Section header with explanation
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Image(systemName: section.systemImage)
+                            Text(section.displayName)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text("\(items.count)")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .foregroundStyle(.secondary)
+
+                        // Explanatory subtitle
+                        Text(sectionSubtitle(for: section))
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
-                    .foregroundStyle(.secondary)
 
-                    // Items
+                    // Items (with drag source)
                     if items.isEmpty {
-                        Text("No items")
+                        Text("No items — drag items here")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                             .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         ForEach(items) { item in
                             StatusItemRow(item: item) { newSection in
                                 menuBarManager.updateItem(item, section: newSection)
                             }
+                            .draggable(item)
                         }
                     }
                 }
                 .padding(.bottom, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(dropTargetSection == section ? Color.accentColor.opacity(0.1) : Color.clear)
+                        .animation(.easeInOut(duration: 0.15), value: dropTargetSection)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(
+                            dropTargetSection == section ? Color.accentColor : Color.clear,
+                            style: StrokeStyle(lineWidth: 2, dash: [6, 3])
+                        )
+                        .animation(.easeInOut(duration: 0.15), value: dropTargetSection)
+                )
+                .dropDestination(for: StatusItemModel.self) { droppedItems, _ in
+                    for item in droppedItems {
+                        menuBarManager.updateItem(item, section: section)
+                    }
+                    dropTargetSection = nil
+                    return true
+                } isTargeted: { isTargeted in
+                    dropTargetSection = isTargeted ? section : nil
+                }
             }
+        }
+    }
+
+    /// Returns explanatory subtitle for each section
+    private func sectionSubtitle(for section: StatusItemModel.ItemSection) -> String {
+        switch section {
+        case .alwaysVisible:
+            return "These icons stay in your menu bar all the time"
+        case .hidden:
+            return "Click the SaneBar icon to reveal these when needed"
+        case .collapsed:
+            return "These icons are completely hidden from view"
         }
     }
 
@@ -358,18 +412,19 @@ struct SettingsView: View {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
+            } else if menuBarManager.isScanning {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Scanning...")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             } else {
-                Text("Click Refresh to scan for items")
+                Text("Auto-scanning every 5 seconds...")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Button("Scan Now") {
-                Task {
-                    await menuBarManager.scan()
-                }
-            }
-            .buttonStyle(.borderedProminent)
 
             Spacer()
         }
@@ -398,11 +453,22 @@ struct SettingsView: View {
 
             Spacer()
 
-            Text("Right-click items to change section")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            // Privacy indicator - always visible for peace of mind
+            CompactPrivacyBadge()
 
             Spacer()
+
+            // Show welcome guide button
+            Button {
+                withAnimation {
+                    showWelcomeBanner = true
+                }
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Show welcome guide")
 
             Button("Quit SaneBar") {
                 NSApplication.shared.terminate(nil)

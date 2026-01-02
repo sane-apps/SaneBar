@@ -1,6 +1,9 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "EventService")
 
 // MARK: - EventServiceError
 
@@ -199,15 +202,21 @@ final class EventService: EventServiceProtocol, Sendable {
         // Menu bar is at y = 0 in screen coordinates (top of screen)
         // But CGEvent uses flipped coordinates, so we need the actual menu bar Y
         guard let screen = NSScreen.main else {
+            logger.error("ERROR: No main screen found")
             throw EventServiceError.invalidPosition
         }
 
         // Menu bar height is typically 24-37 points depending on notch
+        // CGEvent uses bottom-left origin, so Y is distance from bottom
         let menuBarY = screen.frame.height - 12 // Center of menu bar
 
         let start = CGPoint(x: startX, y: menuBarY)
         let end = CGPoint(x: endX, y: menuBarY)
 
+        logger.info("moveMenuBarItem: screen.height=\(screen.frame.height)")
+        logger.info("Cmd+drag from (\(start.x), \(start.y)) to (\(end.x), \(end.y))")
+
         try await simulateMouseDrag(from: start, to: end, button: .left, withCommand: true)
+        logger.info("Cmd+drag completed")
     }
 }

@@ -58,6 +58,11 @@ final class MenuBarManager: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Auto-Refresh
+
+    /// Timer for auto-refreshing when settings window is open
+    private var refreshTimer: Timer?
+
     // MARK: - Initialization
 
     init(
@@ -75,6 +80,12 @@ final class MenuBarManager: ObservableObject {
 
         // Connect hover service to hiding service
         self.hoverService.configure(with: self.hidingService)
+        self.hoverService.itemsProvider = { [weak self] in
+            self?.statusItems ?? []
+        }
+        self.hidingService.itemsProvider = { [weak self] in
+            self?.statusItems ?? []
+        }
 
         setupStatusItems()
         loadSettings()
@@ -282,6 +293,9 @@ final class MenuBarManager: ObservableObject {
 
             // Update delimiter positions after scan
             updateDelimiterPositions()
+
+            // Provide feedback (sound + icon flash)
+            provideScanFeedback()
         } catch {
             lastError = error.localizedDescription
             lastScanMessage = nil
@@ -298,12 +312,32 @@ final class MenuBarManager: ObservableObject {
         }
     }
 
+    // MARK: - Auto-Refresh (for Settings Window)
+
+    /// Start auto-refresh timer when settings window opens
+    func startAutoRefresh() {
+        stopAutoRefresh() // Cancel any existing timer
+
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self, !self.isScanning else { return }
+                await self.scan()
+            }
+        }
+    }
+
+    /// Stop auto-refresh timer when settings window closes
+    func stopAutoRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+
     // MARK: - Visibility Control
 
     func toggleHiddenItems() {
         Task {
             do {
-                try await hidingService.toggle()
+                try await hidingService.toggle(items: statusItems)
 
                 // Schedule auto-rehide if enabled and we just showed
                 if hidingState == .expanded && settings.autoRehide {
@@ -318,7 +352,7 @@ final class MenuBarManager: ObservableObject {
     func showHiddenItems() {
         Task {
             do {
-                try await hidingService.show()
+                try await hidingService.show(items: statusItems)
                 if settings.autoRehide {
                     hidingService.scheduleRehide(after: settings.rehideDelay)
                 }
@@ -331,7 +365,7 @@ final class MenuBarManager: ObservableObject {
     func hideHiddenItems() {
         Task {
             do {
-                try await hidingService.hide()
+                try await hidingService.hide(items: statusItems)
             } catch {
                 lastError = error.localizedDescription
             }
@@ -388,6 +422,37 @@ final class MenuBarManager: ObservableObject {
                 systemSymbolName: iconName,
                 accessibilityDescription: "SaneBar"
             )
+        }
+    }
+
+    // MARK: - Scan Feedback
+
+    /// Provides visual and audible feedback after a successful scan
+    private func provideScanFeedback() {
+        // Play system sound for audible confirmation
+        NSSound(named: "Pop")?.play()
+
+        // Flash the menu bar icon
+        flashMenuBarIcon()
+    }
+
+    /// Briefly flashes the menu bar icon to indicate action completed
+    private func flashMenuBarIcon() {
+        guard let button = mainStatusItem?.button else { return }
+
+        let originalImage = button.image
+
+        // Show filled variant
+        if NSImage(named: "MenuBarIcon") == nil {
+            button.image = NSImage(
+                systemSymbolName: "line.3.horizontal.decrease.circle.fill",
+                accessibilityDescription: "SaneBar"
+            )
+        }
+
+        // Restore original after brief delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            button.image = originalImage
         }
     }
 

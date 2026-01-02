@@ -31,8 +31,8 @@ struct StatusItemRow: View {
 
             Spacer()
 
-            // Section indicator
-            sectionBadge
+            // Section controls - visible buttons for discoverability
+            sectionControls
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
@@ -80,22 +80,26 @@ struct StatusItemRow: View {
         }
     }
 
-    private var sectionBadge: some View {
-        Label(item.section.displayName, systemImage: item.section.systemImage)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(badgeColor.opacity(0.15))
-            .foregroundStyle(badgeColor)
-            .clipShape(Capsule())
+    /// Segmented control for section selection - clear text labels instead of confusing icons
+    private var sectionControls: some View {
+        Picker("Section", selection: sectionBinding) {
+            Text("Show").tag(StatusItemModel.ItemSection.alwaysVisible)
+            Text("Hide").tag(StatusItemModel.ItemSection.hidden)
+            Text("Bury").tag(StatusItemModel.ItemSection.collapsed)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 150)
     }
 
-    private var badgeColor: Color {
-        switch item.section {
-        case .alwaysVisible: return .green
-        case .hidden: return .orange
-        case .collapsed: return .red
-        }
+    /// Binding that bridges the item's section to the onSectionChange callback
+    private var sectionBinding: Binding<StatusItemModel.ItemSection> {
+        Binding(
+            get: { item.section },
+            set: { newSection in
+                onSectionChange?(newSection)
+            }
+        )
     }
 
     @ViewBuilder

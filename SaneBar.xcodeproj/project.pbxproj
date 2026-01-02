@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03C43364C2C7C2731960AE8D /* OnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0630BC08FB78D59B51139FE7 /* OnboardingTests.swift */; };
 		0EDCE71282E9C7A8C2F4C162 /* UsageStatsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DA6817EBB9252FF4116BAA /* UsageStatsViewTests.swift */; };
 		15EFB59407E05434E4439A95 /* EventService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2376F0B770B78169B385C0A3 /* EventService.swift */; };
 		1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E264258C707319B447D489AC /* KeyboardShortcuts */; };
@@ -32,10 +33,12 @@
 		959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */; };
 		989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */; };
 		9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */; };
+		9D45DB2B062B50A5A99ECD3A /* WelcomeBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B49CD5A8528CBA268B6620 /* WelcomeBanner.swift */; };
 		A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */; };
 		A31A1121AA09ACA4DB5061D0 /* SearchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9911A7251AE151FCA164258D /* SearchWindowController.swift */; };
 		A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */; };
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
+		AC0ACEC7A0FF89A73D07B587 /* PrivacyBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EBD788D61BAC16E36C1781F /* PrivacyBadge.swift */; };
 		AD49F17E4268EA29A167A23E /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971AECBBE401F1377B6E7D59 /* ProfileService.swift */; };
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
 		B207D8C90670B575527260F2 /* KeyboardShortcutsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */; };
@@ -61,6 +64,7 @@
 
 /* Begin PBXFileReference section */
 		020608E925672C32F3F5FEDF /* ProfilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesView.swift; sourceTree = "<group>"; };
+		0630BC08FB78D59B51139FE7 /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
 		0752D3D1CCD73101C00C78C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		19FD9D185F4FC4F87A37098D /* EventServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventServiceTests.swift; sourceTree = "<group>"; };
@@ -77,6 +81,7 @@
 		67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SaneBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6BBBAEAF6472F27F647186E0 /* IconServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconServiceTests.swift; sourceTree = "<group>"; };
 		6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7EBD788D61BAC16E36C1781F /* PrivacyBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyBadge.swift; sourceTree = "<group>"; };
 		83871F13AB8CFA776D0ABA14 /* PermissionRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionRequestView.swift; sourceTree = "<group>"; };
 		85919ED0716C9D83D069D3C3 /* PermissionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionServiceTests.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
@@ -85,6 +90,7 @@
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		9F355489A098017EB8389250 /* SearchWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowControllerTests.swift; sourceTree = "<group>"; };
+		A0B49CD5A8528CBA268B6620 /* WelcomeBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeBanner.swift; sourceTree = "<group>"; };
 		A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceServiceTests.swift; sourceTree = "<group>"; };
 		AA2BC5BBE6A904EE1A628082 /* StatusItemModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemModel.swift; sourceTree = "<group>"; };
 		AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarTests.swift; sourceTree = "<group>"; };
@@ -157,6 +163,7 @@
 				F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */,
 				3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */,
 				E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */,
+				0630BC08FB78D59B51139FE7 /* OnboardingTests.swift */,
 				85919ED0716C9D83D069D3C3 /* PermissionServiceTests.swift */,
 				A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */,
 				52D7C372AA4DAB4E38FBEADA /* ProfileServiceTests.swift */,
@@ -211,7 +218,9 @@
 		9C3C6E73E33B43B37B3BB914 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				7EBD788D61BAC16E36C1781F /* PrivacyBadge.swift */,
 				C4F88199356D52B9677F7643 /* StatusItemRow.swift */,
+				A0B49CD5A8528CBA268B6620 /* WelcomeBanner.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -301,6 +310,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					020A0F6219F4EE96F9923799 = {
+						DevelopmentTeam = M78L6FXD48;
+						ProvisioningStyle = Manual;
+					};
 					1951DC8E5DD83CFDC1E5875B = {
 						DevelopmentTeam = M78L6FXD48;
 						ProvisioningStyle = Manual;
@@ -376,6 +389,7 @@
 				4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */,
 				F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */,
 				BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */,
+				03C43364C2C7C2731960AE8D /* OnboardingTests.swift in Sources */,
 				7EB184D9BA18ACBE58E213D8 /* PermissionServiceTests.swift in Sources */,
 				A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */,
 				7232DCD90DE115ED65B277F6 /* ProfileServiceTests.swift in Sources */,
@@ -402,6 +416,7 @@
 				90018A351B057A581E39CD83 /* PermissionRequestView.swift in Sources */,
 				61D55161B67B30D75C3B14C2 /* PermissionService.swift in Sources */,
 				B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */,
+				AC0ACEC7A0FF89A73D07B587 /* PrivacyBadge.swift in Sources */,
 				AD49F17E4268EA29A167A23E /* ProfileService.swift in Sources */,
 				29974F41BD3FBEE915CF45C3 /* ProfilesView.swift in Sources */,
 				5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */,
@@ -412,6 +427,7 @@
 				23E399CD29C9ED572E7E7EED /* SuggestionsService.swift in Sources */,
 				D59F3C250CBFF3176AC59209 /* SuggestionsView.swift in Sources */,
 				DCF0E3908CDDA68895D28BD0 /* UsageStatsView.swift in Sources */,
+				9D45DB2B062B50A5A99ECD3A /* WelcomeBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -561,7 +577,7 @@
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -584,7 +600,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -600,7 +619,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
