@@ -127,6 +127,21 @@ class PersistenceServiceProtocolMock: PersistenceServiceProtocol, @unchecked Sen
     func mergeWithSaved(scannedItems: [StatusItemModel], savedItems: [StatusItemModel]) -> [StatusItemModel] {
         return scannedItems
     }
+
+    func exportConfiguration() throws -> Data {
+        let bundle = PersistenceService.ExportBundle(
+            version: 1,
+            items: itemConfigurations,
+            settings: settings,
+            exportDate: Date()
+        )
+        return try JSONEncoder().encode(bundle)
+    }
+
+    func importConfiguration(from data: Data) throws -> (items: [StatusItemModel], settings: SaneBarSettings) {
+        let bundle = try JSONDecoder().decode(PersistenceService.ExportBundle.self, from: data)
+        return (bundle.items, bundle.settings)
+    }
 }
 
 class AccessibilityServiceProtocolMock: AccessibilityServiceProtocol {

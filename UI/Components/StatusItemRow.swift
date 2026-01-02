@@ -7,13 +7,13 @@ struct StatusItemRow: View {
     let item: StatusItemModel
     var onSectionChange: ((StatusItemModel.ItemSection) -> Void)?
 
+    private let iconService = IconService.shared
+
     var body: some View {
         HStack(spacing: 12) {
-            // Icon placeholder
-            Image(systemName: iconName)
-                .font(.title2)
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
+            // Real app icon or fallback
+            appIcon
+                .frame(width: 24, height: 24)
 
             // Item info
             VStack(alignment: .leading, spacing: 2) {
@@ -47,7 +47,22 @@ struct StatusItemRow: View {
 
     // MARK: - Subviews
 
-    private var iconName: String {
+    @ViewBuilder
+    private var appIcon: some View {
+        if let bundleId = item.bundleIdentifier,
+           let nsImage = iconService.icon(forBundleIdentifier: bundleId, size: 24) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            // Fallback to SF Symbol based on known bundle IDs
+            Image(systemName: fallbackIconName)
+                .font(.title2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var fallbackIconName: String {
         // Use different icons based on known bundle IDs
         switch item.bundleIdentifier {
         case "com.apple.controlcenter":

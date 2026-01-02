@@ -8,11 +8,23 @@ struct SettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var showingPermissionAlert = false
     @State private var selectedTab: SettingsTab = .items
+    @State private var searchText = ""
 
     enum SettingsTab: String, CaseIterable {
         case items = "Items"
         case shortcuts = "Shortcuts"
         case behavior = "Behavior"
+    }
+
+    /// Items filtered by search text
+    private var filteredItems: [StatusItemModel] {
+        if searchText.isEmpty {
+            return menuBarManager.statusItems
+        }
+        return menuBarManager.statusItems.filter { item in
+            item.displayName.localizedCaseInsensitiveContains(searchText) ||
+            (item.bundleIdentifier?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
     }
 
     var body: some View {
@@ -88,12 +100,53 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             headerView
 
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search items...", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+            .background(Color(NSColor.textBackgroundColor))
+            .cornerRadius(8)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+
             if menuBarManager.statusItems.isEmpty {
                 emptyStateView
+            } else if filteredItems.isEmpty {
+                noSearchResultsView
             } else {
                 itemListView
             }
         }
+    }
+
+    private var noSearchResultsView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+            Text("No items match '\(searchText)'")
+                .foregroundStyle(.secondary)
+            Button("Clear Search") {
+                searchText = ""
+            }
+            .buttonStyle(.bordered)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Shortcuts Tab
@@ -245,7 +298,7 @@ struct SettingsView: View {
     }
 
     private func sectionView(for section: StatusItemModel.ItemSection) -> some View {
-        let items = menuBarManager.statusItems.filter { $0.section == section }
+        let items = filteredItems.filter { $0.section == section }
 
         return Group {
             if !items.isEmpty || section == .alwaysVisible {
@@ -322,7 +375,24 @@ struct SettingsView: View {
 
     private var footerView: some View {
         HStack {
-            Text("Right-click items to change their section")
+            // Import/Export buttons
+            Button {
+                exportConfiguration()
+            } label: {
+                Label("Export", systemImage: "square.and.arrow.up")
+            }
+            .help("Export your SaneBar configuration")
+
+            Button {
+                importConfiguration()
+            } label: {
+                Label("Import", systemImage: "square.and.arrow.down")
+            }
+            .help("Import a SaneBar configuration")
+
+            Spacer()
+
+            Text("Right-click items to change section")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
 
@@ -336,7 +406,58 @@ struct SettingsView: View {
         }
         .padding()
     }
+
+    // MARK: - Import/Export
+
+    private func exportConfiguration() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "SaneBar-Config.json"
+        panel.title = "Export SaneBar Configuration"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+
+            do {
+                let data = try menuBarManager.persistenceService.exportConfiguration()
+                try data.write(to: url)
+            } catch {
+                print("Export failed: \(error)")
+            }
+        }
+    }
+
+    private func importConfiguration() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.title = "Import SaneBar Configuration"
+        panel.message = "Select a SaneBar configuration file"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+
+            do {
+                let data = try Data(contentsOf: url)
+                let (items, settings) = try menuBarManager.persistenceService.importConfiguration(from: data)
+
+                // Apply imported configuration
+                try menuBarManager.persistenceService.saveItemConfigurations(items)
+                try menuBarManager.persistenceService.saveSettings(settings)
+
+                // Reload
+                Task {
+                    await menuBarManager.scan()
+                }
+            } catch {
+                print("Import failed: \(error)")
+            }
+        }
+    }
 }
+
+// MARK: - UniformTypeIdentifiers
+
+import UniformTypeIdentifiers
 
 // MARK: - Preview
 
