@@ -152,21 +152,39 @@ module SaneMasterModules
         recent_commits.each { |c| puts "     • #{c}" }
       end
 
-      # Show memory stats
+      # Show memory stats with health info
       memory = load_memory
       if memory && memory['entities']
-        entity_count = memory['entities'].count
-        by_type = memory['entities'].group_by { |e| e['entityType'] }
+        entities = memory['entities']
+        entity_count = entities.count
+        by_type = entities.group_by { |e| e['entityType'] }
         type_summary = by_type.map { |t, e| "#{e.count} #{t}" }.join(', ')
-        puts "   Memory: #{entity_count} entities (#{type_summary})"
 
-        # Warn if memory is getting large
-        puts "   ⚠️  Memory growing large (#{entity_count}/60 target). Consider consolidation." if entity_count > 60
+        # Estimate tokens (~4 chars per token)
+        estimated_tokens = (memory.to_json.length / 4.0).round
+
+        puts "   Memory: #{entity_count} entities (~#{estimated_tokens} tokens)"
+        puts "     Types: #{type_summary}"
+
+        # Health warnings
+        if entity_count > 60
+          puts "   ⚠️  Entity count HIGH (#{entity_count}/60) - consolidate!"
+        end
+        if estimated_tokens > 8000
+          puts "   ⚠️  Token count HIGH (~#{estimated_tokens}/8000) - may fill context!"
+        end
+
+        # Check for verbose entities
+        verbose = entities.select { |e| (e['observations'] || []).count > 15 }
+        if verbose.any?
+          puts "   ⚠️  #{verbose.count} verbose entities (>15 observations)"
+        end
       end
 
       puts ''
       puts '💡 Tips:'
-      puts '   • Run `./Scripts/SaneMaster.rb mc` to view full memory context'
+      puts '   • Run `./Scripts/SaneMaster.rb mh` to check memory health'
+      puts '   • Run `./Scripts/SaneMaster.rb mcompact --dry-run` to preview compaction'
       puts '   • Run `./Scripts/SaneMaster.rb mp` to prune stale entries'
 
       # Show compliance report if audit log exists

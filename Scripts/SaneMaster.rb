@@ -111,6 +111,9 @@ class SaneMaster
         'mc' => { args: '', desc: 'Show memory context' },
         'mr' => { args: '<type> <name>', desc: 'Record new entity' },
         'mp' => { args: '[--dry-run]', desc: 'Prune stale entities' },
+        'mh' => { args: '', desc: 'Memory health check (entity/token counts)' },
+        'mcompact' => { args: '[--dry-run] [--aggressive]', desc: 'Compact memory (trim verbose, dedupe)' },
+        'mcleanup' => { args: '(pipe JSON)', desc: 'Analyze MCP memory, generate cleanup commands' },
         'session_end' => { args: '[--skip-prompts]', desc: 'End session with insight extraction' },
         'reset_breaker' => { args: '', desc: 'Reset circuit breaker (unblock tools)' },
         'breaker_status' => { args: '', desc: 'Show circuit breaker status' },
@@ -267,6 +270,12 @@ class SaneMaster
       record_memory_entity(args)
     when 'memory_prune', 'mp'
       prune_memory_entities(args)
+    when 'memory_health', 'mh'
+      memory_health(args)
+    when 'memory_compact', 'mcompact'
+      memory_compact(args)
+    when 'memory_cleanup', 'mcleanup'
+      memory_cleanup(args)
     when 'session_end', 'se'
       session_end(args)
     when 'reset_breaker', 'rb'
