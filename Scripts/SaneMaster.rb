@@ -307,6 +307,7 @@ class SaneMaster
     if status[:status] == 'OPEN'
       puts "   Status: 🔴 #{status[:status]} (TOOLS BLOCKED)"
       puts "   #{status[:message]}"
+      puts "   Reason: #{status[:trip_reason]}" if status[:trip_reason]
       puts "   Blocked: #{status[:blocked_tools].join(', ')}"
       puts ''
       puts '   To reset: ./Scripts/SaneMaster.rb reset_breaker'

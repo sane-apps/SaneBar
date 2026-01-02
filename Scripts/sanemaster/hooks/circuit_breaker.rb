@@ -56,7 +56,8 @@ if state[:tripped]
   warn '=' * 60
   warn ''
   warn "   Breaker tripped at: #{state[:tripped_at]}"
-  warn "   Consecutive failures: #{state[:failures]}"
+  warn "   Reason: #{state[:trip_reason] || 'Unknown'}"
+  warn "   Total failures: #{state[:failures]}"
   warn "   Blocked tools: #{BLOCKED_TOOLS.join(', ')}"
   warn ''
   warn '   This safety mechanism prevents runaway AI loops.'
