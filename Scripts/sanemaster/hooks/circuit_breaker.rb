@@ -39,7 +39,7 @@ def default_state
 end
 
 # Get tool name from environment
-tool_name = ENV['CLAUDE_TOOL_NAME']
+tool_name = ENV.fetch('CLAUDE_TOOL_NAME', nil)
 exit 0 if tool_name.nil? || tool_name.empty?
 
 # Check if this tool should be blocked
@@ -95,7 +95,7 @@ end
 
 # Breaker not tripped - allow the call
 # Warn if getting close to threshold
-if state[:failures] > 0
+if state[:failures].positive?
   remaining = state[:threshold] - state[:failures]
   if remaining == 1
     warn "⚠️  WARNING: Circuit breaker at #{state[:failures]}/#{state[:threshold]} failures!"

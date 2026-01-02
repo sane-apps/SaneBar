@@ -36,7 +36,7 @@ BLOCKED_PATHS = [
 USER_HOME = File.expand_path('~')
 
 # Get tool input from environment
-tool_input_raw = ENV['CLAUDE_TOOL_INPUT']
+tool_input_raw = ENV.fetch('CLAUDE_TOOL_INPUT', nil)
 exit 0 if tool_input_raw.nil? || tool_input_raw.empty?
 
 begin
@@ -74,9 +74,9 @@ begin
 
   # Check 2: WARN on cross-project (user can still approve)
   unless normalized_path.start_with?(normalized_project)
+    warn ''
     if normalized_path.start_with?(USER_HOME)
       # It's in user home but different project - warn but allow
-      warn ''
       warn '⚠️  WARNING: Rule #1 - Cross-project edit'
       warn "   Current project: #{PROJECT_DIR}"
       warn "   Target file: #{file_path}"
@@ -84,10 +84,9 @@ begin
       warn '   If user requested this cross-project work, proceeding...'
       warn '   Otherwise, stay in your lane!'
       warn ''
-      # Don't exit - allow the edit with warning
+    # Don't exit - allow the edit with warning
     else
       # Outside user home entirely - block
-      warn ''
       warn '=' * 60
       warn '🔴 BLOCKED: Rule #1 - STAY IN YOUR LANE'
       warn '=' * 60
@@ -136,17 +135,16 @@ begin
       exit 1
     elsif projected_count > SOFT_LIMIT
       warn ''
-      warn "⚠️  WARNING: Rule #10 - File approaching size limit"
+      warn '⚠️  WARNING: Rule #10 - File approaching size limit'
       warn "   #{file_path}: #{line_count} → ~#{projected_count} lines"
       warn "   Soft limit: #{SOFT_LIMIT} | Hard limit: #{HARD_LIMIT}"
-      warn "   Consider splitting soon."
+      warn '   Consider splitting soon.'
       warn ''
     end
   end
 
   # All checks passed
   exit 0
-
 rescue JSON::ParserError
   # Not valid JSON, skip validation
   exit 0

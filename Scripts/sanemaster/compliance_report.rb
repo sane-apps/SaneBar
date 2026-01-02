@@ -122,11 +122,9 @@ module SaneMasterModules
         # Get entries from last 24 hours
         cutoff = Time.now - (24 * 60 * 60)
         entries.select! do |e|
-          begin
-            Time.parse(e['timestamp']) > cutoff
-          rescue StandardError
-            false
-          end
+          Time.parse(e['timestamp']) > cutoff
+        rescue StandardError
+          false
         end
       end
 

@@ -311,16 +311,8 @@ module SaneMasterModules
     def handle_progress_update(line, state)
       case line
       # XCTest pattern: Test Case '-[TestClass testMethod]' started/passed
-      when /Test Case.*'(.+)'/
-        state[:current_test] = ::Regexp.last_match(1)
-        state[:tests_run] += 1
-        elapsed = (Time.now - state[:start_time]).to_i
-        spinner = state[:spinner_chars][state[:spinner_idx] % state[:spinner_chars].length]
-        print "\r#{spinner} Running: #{state[:current_test]} (#{state[:tests_run]} tests, #{elapsed}s)    "
-        state[:spinner_idx] += 1
-        state[:last_update] = Time.now
       # Swift Testing pattern: ✔ Test "test name" passed after X seconds
-      when /[✔✓] Test "(.+)" passed/
+      when /Test Case.*'(.+)'/, /[✔✓] Test "(.+)" passed/
         state[:current_test] = ::Regexp.last_match(1)
         state[:tests_run] += 1
         elapsed = (Time.now - state[:start_time]).to_i

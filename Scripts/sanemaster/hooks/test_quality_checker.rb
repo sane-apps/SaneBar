@@ -31,7 +31,7 @@ TAUTOLOGY_PATTERNS = [
   /#expect\s*\([^)]+==\s*false\s*\|\|\s*[^)]+==\s*true\s*\)/i,
 
   # Empty or trivial comparisons
-  /#expect\s*\(\s*\w+\s*==\s*\w+\s*\)/,  # expect(x == x)
+  /#expect\s*\(\s*\w+\s*==\s*\w+\s*\)/, # expect(x == x)
 
   # Placeholder assertions
   /XCTAssert.*TODO/i,
@@ -54,7 +54,7 @@ WEAK_PATTERNS = [
 ].freeze
 
 # Get tool input from environment
-tool_input_raw = ENV['CLAUDE_TOOL_INPUT']
+tool_input_raw = ENV.fetch('CLAUDE_TOOL_INPUT', nil)
 exit 0 if tool_input_raw.nil? || tool_input_raw.empty?
 
 begin
@@ -76,7 +76,7 @@ begin
 
   # Skip tautology check if there's an explicit REASON or INTENTIONAL comment
   # (developer knows what they're doing)
-  skip_tautology = content.match?(/\/\/\s*(REASON|INTENTIONAL|PLACEHOLDER):/i)
+  skip_tautology = content.match?(%r{//\s*(REASON|INTENTIONAL|PLACEHOLDER):}i)
 
   # Check for tautology patterns
   unless skip_tautology
@@ -130,7 +130,6 @@ begin
 
   # Always exit 0 (don't block, just warn)
   exit 0
-
 rescue JSON::ParserError
   # Not valid JSON, skip validation
   exit 0

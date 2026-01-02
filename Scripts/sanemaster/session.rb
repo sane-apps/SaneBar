@@ -97,7 +97,7 @@ module SaneMasterModules
       HANDOFF
 
       File.write(handoff_path, content)
-      puts "📋 Handoff file generated: .claude/SESSION_HANDOFF.md"
+      puts '📋 Handoff file generated: .claude/SESSION_HANDOFF.md'
     end
 
     private
@@ -167,18 +167,12 @@ module SaneMasterModules
         puts "     Types: #{type_summary}"
 
         # Health warnings
-        if entity_count > 60
-          puts "   ⚠️  Entity count HIGH (#{entity_count}/60) - consolidate!"
-        end
-        if estimated_tokens > 8000
-          puts "   ⚠️  Token count HIGH (~#{estimated_tokens}/8000) - may fill context!"
-        end
+        puts "   ⚠️  Entity count HIGH (#{entity_count}/60) - consolidate!" if entity_count > 60
+        puts "   ⚠️  Token count HIGH (~#{estimated_tokens}/8000) - may fill context!" if estimated_tokens > 8000
 
         # Check for verbose entities
         verbose = entities.select { |e| (e['observations'] || []).count > 15 }
-        if verbose.any?
-          puts "   ⚠️  #{verbose.count} verbose entities (>15 observations)"
-        end
+        puts "   ⚠️  #{verbose.count} verbose entities (>15 observations)" if verbose.any?
       end
 
       puts ''
@@ -189,10 +183,10 @@ module SaneMasterModules
 
       # Show compliance report if audit log exists
       audit_log = File.join(Dir.pwd, '.claude', 'audit_log.jsonl')
-      if File.exist?(audit_log) && File.size(audit_log).positive?
-        require_relative 'compliance_report'
-        SaneMasterModules::ComplianceReport.generate
-      end
+      return unless File.exist?(audit_log) && File.size(audit_log).positive?
+
+      require_relative 'compliance_report'
+      SaneMasterModules::ComplianceReport.generate
     end
   end
 end

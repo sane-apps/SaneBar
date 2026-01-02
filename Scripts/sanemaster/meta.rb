@@ -461,7 +461,7 @@ module SaneMasterModules
         mcp = JSON.parse(File.read(mcp_file))
         servers = mcp['mcpServers'] || {}
 
-        # Note: XcodeBuildMCP is configured globally, not per-project
+        # NOTE: XcodeBuildMCP is configured globally, not per-project
         required = %w[apple-docs github memory context7]
 
         required.each do |name|

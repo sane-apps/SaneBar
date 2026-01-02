@@ -7,7 +7,7 @@
 require 'json'
 
 # Get tool input from environment
-tool_input = ENV['CLAUDE_TOOL_INPUT']
+tool_input = ENV.fetch('CLAUDE_TOOL_INPUT', nil)
 exit 0 if tool_input.nil? || tool_input.empty?
 
 begin
@@ -54,9 +54,7 @@ begin
   # Warn about high iteration counts
   if (match = args.match(/--max-iterations\s+(\d+)/))
     count = match[1].to_i
-    if count > 30
-      warn "⚠️  WARNING: --max-iterations #{count} is high. 10-20 is recommended."
-    end
+    warn "⚠️  WARNING: --max-iterations #{count} is high. 10-20 is recommended." if count > 30
   end
 
   puts '✅ Ralph loop validated: exit conditions present'

@@ -123,8 +123,6 @@ module SaneMasterModules
                      target
                    elsif File.directory?("SaneBar/#{target}")
                      "SaneBar/#{target}"
-                   else
-                     nil
                    end
       unless source_dir
         puts "❌ Directory not found: #{target} or SaneBar/#{target}"

@@ -10,8 +10,8 @@ module SaneMasterModules
 
       input_file = args.find { |a| a.end_with?('.md') }
       unless input_file && File.exist?(input_file)
-        puts "Usage: ./Scripts/SaneMaster.rb md_export <file.md>"
-        puts "       Converts markdown to PDF"
+        puts 'Usage: ./Scripts/SaneMaster.rb md_export <file.md>'
+        puts '       Converts markdown to PDF'
         return
       end
 
@@ -19,7 +19,7 @@ module SaneMasterModules
       unless output_file
         # Default to project Output/ folder
         project_output = File.join(Dir.pwd, 'Output')
-        FileUtils.mkdir_p(project_output) unless Dir.exist?(project_output)
+        FileUtils.mkdir_p(project_output)
         output_file = File.join(project_output, File.basename(input_file).sub('.md', '.pdf'))
       end
 
@@ -79,9 +79,7 @@ module SaneMasterModules
           if line =~ /^\|.+\|$/
             cells = line.split('|').map(&:strip).reject(&:empty?)
             # Skip separator rows
-            unless cells.all? { |c| c =~ /^[-:]+$/ }
-              table_rows << cells
-            end
+            table_rows << cells unless cells.all? { |c| c =~ /^[-:]+$/ }
             in_table = true
             next
           elsif in_table && line.strip.empty?
@@ -97,7 +95,7 @@ module SaneMasterModules
           case line
           when /^# (.+)/
             pdf.move_down 15
-            pdf.font('Helvetica', size: 24, style: :bold) { pdf.text $1, color: '1a1a1a' }
+            pdf.font('Helvetica', size: 24, style: :bold) { pdf.text ::Regexp.last_match(1), color: '1a1a1a' }
             pdf.move_down 5
             pdf.stroke_color '333333'
             pdf.stroke_horizontal_rule
@@ -105,16 +103,16 @@ module SaneMasterModules
           when /^## (.+)/
             pdf.start_new_page if pdf.cursor < 100
             pdf.move_down 15
-            pdf.font('Helvetica', size: 18, style: :bold) { pdf.text $1, color: '2a2a2a' }
+            pdf.font('Helvetica', size: 18, style: :bold) { pdf.text ::Regexp.last_match(1), color: '2a2a2a' }
             pdf.move_down 8
           when /^### (.+)/
             pdf.start_new_page if pdf.cursor < 80
             pdf.move_down 12
-            pdf.font('Helvetica', size: 14, style: :bold) { pdf.text $1, color: '333333' }
+            pdf.font('Helvetica', size: 14, style: :bold) { pdf.text ::Regexp.last_match(1), color: '333333' }
             pdf.move_down 6
           when /^#### (.+)/
             pdf.move_down 8
-            pdf.font('Helvetica', size: 12, style: :bold) { pdf.text $1, color: '444444' }
+            pdf.font('Helvetica', size: 12, style: :bold) { pdf.text ::Regexp.last_match(1), color: '444444' }
             pdf.move_down 4
           when /^---$/
             pdf.move_down 10
@@ -124,17 +122,18 @@ module SaneMasterModules
           when /^\s*$/
             pdf.move_down 4
           when /^- (.+)/, /^\* (.+)/
-            text = format_inline($1)
+            text = format_inline(::Regexp.last_match(1))
             pdf.font('Helvetica', size: 10) do
               pdf.indent(15) { pdf.text "• #{text}", inline_format: true, leading: 2 }
             end
             pdf.move_down 2
           when /^\d+\. (.+)/
-            text = format_inline($1)
+            text = format_inline(::Regexp.last_match(1))
             pdf.font('Helvetica', size: 10) { pdf.text line.sub(/^\d+\. /, '').then { |t| format_inline(t) }, inline_format: true }
             pdf.move_down 2
           else
             next if line.strip.empty?
+
             text = format_inline(line)
             pdf.font('Helvetica', size: 10) { pdf.text text, inline_format: true, leading: 2 }
             pdf.move_down 3
@@ -169,10 +168,10 @@ module SaneMasterModules
       end
 
       pdf.table(table_data, width: pdf.bounds.width, cell_style: {
-        size: 9,
-        padding: [5, 8],
-        inline_format: true
-      }) do |t|
+                  size: 9,
+                  padding: [5, 8],
+                  inline_format: true
+                }) do |t|
         t.row(0).font_style = :bold
         t.row(0).background_color = 'f0f0f0'
         t.cells.borders = [:bottom]

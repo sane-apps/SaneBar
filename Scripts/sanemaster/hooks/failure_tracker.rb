@@ -85,7 +85,7 @@ warning_only = tool_output.match?(/warning:/i) &&
 # 2. Doesn't match success pattern (explicit success overrides)
 # 3. Isn't warning-only output
 is_failure = failure_patterns.any? { |pattern| tool_output.match?(pattern) } &&
-             !success_patterns.any? { |pattern| tool_output.match?(pattern) } &&
+             success_patterns.none? { |pattern| tool_output.match?(pattern) } &&
              !warning_only
 
 if is_failure
