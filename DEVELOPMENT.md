@@ -100,17 +100,17 @@ Bootstrap runs automatically via SessionStart hook. If it fails, run `./Scripts/
 
 ### #3: TWO STRIKES? INVESTIGATE
 
-✅ DO: After 2 failures → stop, run verify_api, check docs
+✅ DO: After 2 failures → stop, follow **Research Protocol** (see section below)
 ❌ DON'T: Guess a third time without researching
 
 ```
-🟢 RIGHT: "Failed twice → checking apple-docs MCP"
-🟢 RIGHT: "Second attempt failed → reading SDK .swiftinterface"
+🟢 RIGHT: "Failed twice → Research Protocol → present plan"
+🟢 RIGHT: "Second attempt failed → using all research tools"
 🔴 WRONG: "Let me try one more thing..." (attempt #3, #4, #5...)
 🔴 WRONG: "Third time's a charm..."
 ```
 
-Stopping IS compliance. Guessing a 3rd time is the violation.
+Stopping IS compliance. Guessing a 3rd time is the violation. See **Research Protocol** section for exactly which tools to use.
 
 ### #4: GREEN MEANS GO
 
@@ -334,6 +334,58 @@ After each task, rate yourself. Format:
 
 ---
 
+## Research Protocol (STANDARD)
+
+This is the standard protocol for investigating problems. Used by Rule #3, Circuit Breaker, and any time you're stuck.
+
+### Tools to Use (ALL of them)
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| **Task agents** | Explore codebase, analyze patterns | "Where is X used?", "How does Y work?" |
+| **apple-docs MCP** | Verify Apple APIs exist and usage | Any Apple framework API |
+| **context7 MCP** | Library documentation | Third-party packages (KeyboardShortcuts, etc.) |
+| **WebSearch/WebFetch** | Solutions, patterns, best practices | Error messages, architectural questions |
+| **Grep/Glob/Read** | Local investigation | Find similar patterns, check implementations |
+| **memory MCP** | Past bug patterns, architecture decisions | "Have we seen this before?" |
+| **verify_api** | SDK symbol verification | Before using any unfamiliar API |
+
+### Research Output → Plan
+
+After research, present findings in this format:
+
+```
+## Research Findings
+
+### What I Found
+- [Tool used]: [What it revealed]
+- [Tool used]: [What it revealed]
+
+### Root Cause
+[Clear explanation of why the problem occurs]
+
+### Proposed Fix
+
+[Rule #X: NAME] - specific action
+[Rule #Y: NAME] - specific action
+...
+
+### Verification
+- [ ] ./Scripts/SaneMaster.rb verify passes
+- [ ] Manual test: [specific check]
+```
+
+### When to Use This Protocol
+
+| Trigger | Action |
+|---------|--------|
+| **Rule #3**: 2 failures on same problem | STOP → Research Protocol → Plan |
+| **Circuit Breaker**: Blocked by 3x same error or 5 total | STOP → Research Protocol → Plan → User approves reset |
+| **Unfamiliar API** | Research Protocol (lighter: just verify_api + docs) |
+| **Architectural question** | Research Protocol → discuss with user |
+
+---
+
 ## Circuit Breaker Protocol
 
 The circuit breaker is an automated safety mechanism that **blocks Edit/Bash/Write tools** after repeated failures. This prevents runaway loops (learned from 700+ iteration failure on 2026-01-02).
@@ -355,21 +407,9 @@ Success resets the counter. Normal iterative development (fail → fix → fail 
 ./Scripts/SaneMaster.rb reset_breaker   # Unblock (after plan approved)
 ```
 
-### Mandatory Research Protocol
-
-When blocked, you MUST use these tools to investigate before presenting a plan:
-
-| Tool | Purpose | Example |
-|------|---------|---------|
-| `breaker_errors` | See what failed | `./Scripts/SaneMaster.rb breaker_errors` |
-| **Task agents** | Explore codebase, analyze patterns | `Task(subagent_type='Explore')` |
-| **apple-docs MCP** | Verify Apple APIs exist | `mcp__apple-docs__search_apple_docs` |
-| **context7 MCP** | Check library documentation | `mcp__context7__query-docs` |
-| **WebSearch** | Find solutions, patterns | `WebSearch(query='...')` |
-| **Grep/Glob/Read** | Investigate local code | Find similar patterns, check imports |
-| **memory MCP** | Check past bug patterns | `mcp__memory__search_nodes` |
-
 ### Recovery Flow
+
+When blocked, follow the **Research Protocol** (section above). Start with `breaker_errors` to see what failed.
 
 ```
 🔴 CIRCUIT BREAKER TRIPS
