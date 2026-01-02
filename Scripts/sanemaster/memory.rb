@@ -189,7 +189,7 @@ module SaneMasterModules
 
       # Duplicate candidates
       if duplicate_candidates.any?
-        puts "   ⚠️  Potential duplicates (similar names):"
+        puts '   ⚠️  Potential duplicates (similar names):'
         duplicate_candidates.first(3).each do |pair|
           puts "      • #{pair[0]} <-> #{pair[1]}"
         end
@@ -200,12 +200,12 @@ module SaneMasterModules
       puts ''
 
       # Recommendations
-      if entities.count > ENTITY_WARN_THRESHOLD || estimated_tokens > TOKEN_WARN_THRESHOLD
-        puts '💡 Recommendations:'
-        puts '   • Run: ./Scripts/SaneMaster.rb memory_compact --dry-run'
-        puts '   • Run: ./Scripts/SaneMaster.rb memory_prune --dry-run'
-        puts '   • Manually consolidate similar entities in Memory MCP'
-      end
+      return unless entities.count > ENTITY_WARN_THRESHOLD || estimated_tokens > TOKEN_WARN_THRESHOLD
+
+      puts '💡 Recommendations:'
+      puts '   • Run: ./Scripts/SaneMaster.rb memory_compact --dry-run'
+      puts '   • Run: ./Scripts/SaneMaster.rb memory_prune --dry-run'
+      puts '   • Manually consolidate similar entities in Memory MCP'
     end
 
     def memory_compact(args)
@@ -219,7 +219,7 @@ module SaneMasterModules
       return puts '   ⚠️  No memory data found' if memory.nil?
 
       entities = memory['entities'] || []
-      original_count = entities.count
+      entities.count
       original_obs = entities.sum { |e| (e['observations'] || []).count }
 
       changes = []
@@ -230,33 +230,29 @@ module SaneMasterModules
         next unless obs.count > OBSERVATION_WARN_THRESHOLD
 
         # Keep first 3 (usually the core info) and last 5 (recent updates)
-        if aggressive
-          trimmed = obs.first(3) + obs.last(3)
-        else
-          trimmed = obs.first(5) + obs.last(5)
-        end
+        trimmed = if aggressive
+                    obs.first(3) + obs.last(3)
+                  else
+                    obs.first(5) + obs.last(5)
+                  end
         trimmed.uniq!
 
         if trimmed.count < obs.count
           changes << "#{entity['name']}: #{obs.count} → #{trimmed.count} observations"
           entity['observations'] = trimmed unless dry_run
         end
-      end
 
-      # 2. Remove duplicate observations within entities
-      entities.each do |entity|
+        # 2. Remove duplicate observations within entities
         obs = entity['observations'] || []
         unique_obs = obs.uniq
         if unique_obs.count < obs.count
           changes << "#{entity['name']}: removed #{obs.count - unique_obs.count} duplicate observations"
           entity['observations'] = unique_obs unless dry_run
         end
-      end
 
-      # 3. Remove date-only observations (noise)
-      entities.each do |entity|
+        # 3. Remove date-only observations (noise)
         obs = entity['observations'] || []
-        filtered = obs.reject { |o| o.match?(/^(Last (checked|updated)|Recorded):?\s*\d{4}-\d{2}-\d{2}$/) }
+        filtered = obs.grep_v(/^(Last (checked|updated)|Recorded):?\s*\d{4}-\d{2}-\d{2}$/)
         if filtered.count < obs.count
           changes << "#{entity['name']}: removed #{obs.count - filtered.count} date-only entries"
           entity['observations'] = filtered unless dry_run
@@ -296,10 +292,10 @@ module SaneMasterModules
         warn '   Run: ./Scripts/SaneMaster.rb memory_health'
       end
 
-      if estimated_tokens > TOKEN_WARN_THRESHOLD
-        warn "⚠️  Memory ~#{estimated_tokens} tokens (>#{TOKEN_WARN_THRESHOLD}) - context risk!"
-        warn '   Run: ./Scripts/SaneMaster.rb memory_compact'
-      end
+      return unless estimated_tokens > TOKEN_WARN_THRESHOLD
+
+      warn "⚠️  Memory ~#{estimated_tokens} tokens (>#{TOKEN_WARN_THRESHOLD}) - context risk!"
+      warn '   Run: ./Scripts/SaneMaster.rb memory_compact'
     end
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -307,12 +303,16 @@ module SaneMasterModules
     # Analyze memory and generate MCP commands for cleanup
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def memory_cleanup(args)
+    def memory_cleanup(_args)
       puts '🧹 --- [ MCP MEMORY CLEANUP ANALYSIS ] ---'
       puts ''
 
       # Parse STDIN for memory graph JSON (piped from mcp__memory__read_graph)
-      input = $stdin.read.strip rescue ''
+      input = begin
+        $stdin.read.strip
+      rescue StandardError
+        ''
+      end
 
       if input.empty?
         puts 'Usage: Run mcp__memory__read_graph first, then ask Claude to analyze with:'
@@ -354,11 +354,13 @@ module SaneMasterModules
           keep = (e['observations'].first(5) + e['observations'].last(3)).uniq
           trim = e['observations'] - keep
           puts "   • #{e['name']}: #{obs_count} obs → keep #{keep.count}, trim #{trim.count}"
+          next unless trim.any?
+
           recommendations << {
             type: 'trim_observations',
             entity: e['name'],
             delete_observations: trim
-          } if trim.any?
+          }
         end
         puts ''
       end
@@ -396,7 +398,7 @@ module SaneMasterModules
       date_only_cleanup = []
       entities.each do |e|
         obs = e['observations'] || []
-        dates = obs.select { |o| o.match?(/^(Last (checked|updated)|Recorded):?\s*\d{4}-\d{2}-\d{2}$/) }
+        dates = obs.grep(/^(Last (checked|updated)|Recorded):?\s*\d{4}-\d{2}-\d{2}$/)
         date_only_cleanup << { entity: e['name'], observations: dates } if dates.count > 2
       end
       if date_only_cleanup.any?
@@ -453,7 +455,7 @@ module SaneMasterModules
       # Save recommendations to file for reference
       recommendations_file = File.join(Dir.pwd, '.claude', 'memory_cleanup_recommendations.json')
       File.write(recommendations_file, JSON.pretty_generate(recommendations))
-      puts "💾 Full recommendations saved to: .claude/memory_cleanup_recommendations.json"
+      puts '💾 Full recommendations saved to: .claude/memory_cleanup_recommendations.json'
       puts ''
       puts "📉 Estimated savings: ~#{estimate_cleanup_savings(recommendations)} tokens"
     end
@@ -479,9 +481,13 @@ module SaneMasterModules
     ARCHIVE_FILE = '.claude/memory_archive.jsonl'
     ARCHIVE_THRESHOLD_DAYS = 60
 
-    def auto_memory_check(args = [])
+    def auto_memory_check(_args = [])
       # Read memory from STDIN (piped from mcp__memory__read_graph)
-      input = $stdin.read.strip rescue ''
+      input = begin
+        $stdin.read.strip
+      rescue StandardError
+        ''
+      end
       return if input.empty?
 
       begin
@@ -513,17 +519,16 @@ module SaneMasterModules
       puts "   Tokens: ~#{estimated_tokens}/#{TOKEN_WARN_THRESHOLD}"
 
       # Auto-maintenance if any threshold exceeded
+      puts ''
       if issues.include?(:entity_count) || issues.include?(:token_count)
-        puts ''
         puts '🔧 Running auto-maintenance...'
         auto_maintain_memory(memory, entities)
       else
-        puts ''
         puts '💡 Run: ./Scripts/SaneMaster.rb mcleanup (pipe memory graph)'
       end
     end
 
-    def auto_maintain_memory(memory, entities)
+    def auto_maintain_memory(_memory, entities)
       archive_path = File.join(Dir.pwd, ARCHIVE_FILE)
       FileUtils.mkdir_p(File.dirname(archive_path))
 
@@ -572,26 +577,26 @@ module SaneMasterModules
       end
 
       # Output recommended MCP commands
-      if archived.any? || trimmed.any?
+      return unless archived.any? || trimmed.any?
+
+      puts ''
+      puts '📋 Recommended MCP actions (run these commands):'
+
+      if archived.any?
         puts ''
-        puts '📋 Recommended MCP actions (run these commands):'
-
-        if archived.any?
-          puts ''
-          puts 'Delete archived entities:'
-          puts "mcp__memory__delete_entities entityNames: #{archived.to_json}"
-        end
-
-        if trimmed.any?
-          puts ''
-          puts 'Trim verbose entities (example for first one):'
-          first = verbose.first
-          obs = first['observations'] || []
-          keep = (obs.first(5) + obs.last(3)).uniq
-          delete = obs - keep
-          puts "mcp__memory__delete_observations entityName: \"#{first['name']}\" observations: #{delete.first(5).to_json}"
-        end
+        puts 'Delete archived entities:'
+        puts "mcp__memory__delete_entities entityNames: #{archived.to_json}"
       end
+
+      return unless trimmed.any?
+
+      puts ''
+      puts 'Trim verbose entities (example for first one):'
+      first = verbose.first
+      obs = first['observations'] || []
+      keep = (obs.first(5) + obs.last(3)).uniq
+      delete = obs - keep
+      puts "mcp__memory__delete_observations entityName: \"#{first['name']}\" observations: #{delete.first(5).to_json}"
     end
 
     def memory_archive_stats(_args = [])
@@ -602,7 +607,11 @@ module SaneMasterModules
         return
       end
 
-      entries = File.readlines(archive_path).map { |line| JSON.parse(line) rescue nil }.compact
+      entries = File.readlines(archive_path).map do |line|
+        JSON.parse(line)
+      rescue StandardError
+        nil
+      end.compact
       puts "📦 Memory Archive: #{entries.count} entities"
 
       # Group by type

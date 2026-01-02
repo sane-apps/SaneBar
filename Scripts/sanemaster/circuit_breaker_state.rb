@@ -23,9 +23,7 @@ module SaneMasterModules
 
         state = JSON.parse(File.read(STATE_FILE), symbolize_names: true)
         # Ensure error_signatures uses string keys (JSON symbolizes them on load)
-        if state[:error_signatures].is_a?(Hash)
-          state[:error_signatures] = state[:error_signatures].transform_keys(&:to_s)
-        end
+        state[:error_signatures] = state[:error_signatures].transform_keys(&:to_s) if state[:error_signatures].is_a?(Hash)
         state
       rescue JSON::ParserError
         default_state
@@ -44,7 +42,7 @@ module SaneMasterModules
           trip_reason: nil,
           last_failure: nil,
           failure_messages: [],
-          error_signatures: {},      # Track unique error patterns
+          error_signatures: {}, # Track unique error patterns
           threshold: DEFAULT_THRESHOLD,
           same_error_threshold: SAME_ERROR_THRESHOLD
         }
@@ -55,13 +53,12 @@ module SaneMasterModules
         return nil if message.nil? || message.empty?
 
         # Normalize: lowercase, remove line numbers, file paths, timestamps
-        sig = message.downcase
-                     .gsub(/:\d+:\d+:/, ':N:N:')           # Line:col numbers
-                     .gsub(%r{/[\w/.-]+\.swift}, 'FILE.swift')  # File paths
-                     .gsub(/\d{4}-\d{2}-\d{2}/, 'DATE')    # Dates
-                     .gsub(/\d+/, 'N')                      # All numbers
-                     .strip[0, 100]                         # First 100 chars
-        sig
+        message.downcase
+               .gsub(/:\d+:\d+:/, ':N:N:') # Line:col numbers
+               .gsub(%r{/[\w/.-]+\.swift}, 'FILE.swift') # File paths
+               .gsub(/\d{4}-\d{2}-\d{2}/, 'DATE') # Dates
+               .gsub(/\d+/, 'N')                      # All numbers
+               .strip[0, 100]                         # First 100 chars
       end
 
       def record_failure(message = nil)

@@ -33,7 +33,7 @@ module SaneMasterModules
 
       timestamp = Time.now.strftime('%Y%m%d_%H%M')
       project_output = File.join(Dir.pwd, 'Output')
-      FileUtils.mkdir_p(project_output) unless Dir.exist?(project_output)
+      FileUtils.mkdir_p(project_output)
       output_dir = options[:output] || project_output
       pdf_path = File.join(output_dir, "SaneBar_Code_#{timestamp}.pdf")
 
