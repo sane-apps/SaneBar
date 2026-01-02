@@ -65,8 +65,19 @@ final class PermissionService: ObservableObject {
 
     /// Open System Settings directly to Privacy & Security > Accessibility
     func openAccessibilitySettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-        NSWorkspace.shared.open(url)
+        // Use `open -b` with explicit bundle ID to prevent browser hijacking
+        // AppleScript `reveal anchor` is broken since Ventura (macOS 13+)
+        let url = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-b", "com.apple.systempreferences", url]
+
+        do {
+            try process.run()
+        } catch {
+            // Fallback: open System Settings app directly
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+        }
 
         // Start polling for permission grant
         startPermissionPolling()
@@ -78,14 +89,19 @@ final class PermissionService: ObservableObject {
     func startPermissionPolling() {
         stopPermissionPolling()
 
-        checkTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Must schedule on main run loop for UI apps
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.checkPermission()
                 if self?.permissionState == .granted {
                     self?.stopPermissionPolling()
+                    // Trigger a scan now that we have permission
+                    await MenuBarManager.shared.scan()
                 }
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        checkTimer = timer
     }
 
     /// Stop polling
