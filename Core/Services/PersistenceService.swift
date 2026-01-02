@@ -12,6 +12,8 @@ protocol PersistenceServiceProtocol: Sendable {
     func loadProfiles() throws -> [Profile]
     func clearAll() throws
     func mergeWithSaved(scannedItems: [StatusItemModel], savedItems: [StatusItemModel]) -> [StatusItemModel]
+    func exportConfiguration() throws -> Data
+    func importConfiguration(from data: Data) throws -> (items: [StatusItemModel], settings: SaneBarSettings)
 }
 
 // MARK: - SaneBarSettings
@@ -224,5 +226,55 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         }
 
         return result
+    }
+
+    // MARK: - Import/Export
+
+    /// Export configuration bundle for items and settings
+    struct ExportBundle: Codable {
+        let version: Int
+        let items: [StatusItemModel]
+        let settings: SaneBarSettings
+        let exportDate: Date
+
+        static let currentVersion = 1
+    }
+
+    /// Export all configuration as a single Data blob
+    func exportConfiguration() throws -> Data {
+        let items = try loadItemConfigurations()
+        let settings = try loadSettings()
+
+        let bundle = ExportBundle(
+            version: ExportBundle.currentVersion,
+            items: items,
+            settings: settings,
+            exportDate: Date()
+        )
+
+        return try encoder.encode(bundle)
+    }
+
+    /// Import configuration from a Data blob
+    func importConfiguration(from data: Data) throws -> (items: [StatusItemModel], settings: SaneBarSettings) {
+        let bundle = try decoder.decode(ExportBundle.self, from: data)
+
+        // Validate version
+        guard bundle.version <= ExportBundle.currentVersion else {
+            throw ImportError.unsupportedVersion(bundle.version)
+        }
+
+        return (bundle.items, bundle.settings)
+    }
+
+    enum ImportError: LocalizedError {
+        case unsupportedVersion(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedVersion(let version):
+                return "Unsupported configuration version: \(version). Please update SaneBar."
+            }
+        }
     }
 }

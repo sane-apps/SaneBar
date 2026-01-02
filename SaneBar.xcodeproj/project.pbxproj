@@ -30,6 +30,7 @@
 		BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 279B371659C5F49AC26F024E /* Mocks.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
+		F4D96BB5988A1A7484739596 /* IconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97F4B2A30525A4EC50AE1A66 /* IconService.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -58,6 +59,7 @@
 		83871F13AB8CFA776D0ABA14 /* PermissionRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionRequestView.swift; sourceTree = "<group>"; };
 		85919ED0716C9D83D069D3C3 /* PermissionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionServiceTests.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
+		97F4B2A30525A4EC50AE1A66 /* IconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconService.swift; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceServiceTests.swift; sourceTree = "<group>"; };
 		AA2BC5BBE6A904EE1A628082 /* StatusItemModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemModel.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 				9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */,
 				2376F0B770B78169B385C0A3 /* EventService.swift */,
 				94B8376513461FDCE0D56D48 /* HidingService.swift */,
+				97F4B2A30525A4EC50AE1A66 /* IconService.swift */,
 				23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */,
 				C3421DFEC06B718721E59CCB /* PermissionService.swift */,
 				B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */,
@@ -330,6 +333,7 @@
 				A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */,
 				15EFB59407E05434E4439A95 /* EventService.swift in Sources */,
 				2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */,
+				F4D96BB5988A1A7484739596 /* IconService.swift in Sources */,
 				B207D8C90670B575527260F2 /* KeyboardShortcutsService.swift in Sources */,
 				C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */,
 				90018A351B057A581E39CD83 /* PermissionRequestView.swift in Sources */,
