@@ -14,6 +14,7 @@ struct SettingsView: View {
         case items = "Items"
         case shortcuts = "Shortcuts"
         case behavior = "Behavior"
+        case profiles = "Profiles"
         case usage = "Usage"
     }
 
@@ -86,6 +87,8 @@ struct SettingsView: View {
                 shortcutsTabContent
             case .behavior:
                 behaviorTabContent
+            case .profiles:
+                ProfilesView(menuBarManager: menuBarManager)
             case .usage:
                 UsageStatsView(menuBarManager: menuBarManager)
             }
