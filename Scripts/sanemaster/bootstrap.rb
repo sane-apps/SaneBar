@@ -443,8 +443,41 @@ module SaneMasterModules
       puts "\n#{'─' * 50}"
       puts '✅ Ready — Ruby, tools, hooks, MCP servers checked.'
       puts '🧠 Memory will load on first response.'
+
+      # Show handoff if exists
+      show_session_handoff
+
+      # Show recent git activity
+      show_git_summary
+
       puts "\nWhat would you like to work on today?"
       puts '─' * 50
+    end
+
+    def show_session_handoff
+      handoff_path = File.join(Dir.pwd, '.claude', 'SESSION_HANDOFF.md')
+      return unless File.exist?(handoff_path)
+
+      puts ''
+      puts '📋 Previous Session Handoff:'
+      content = File.read(handoff_path)
+      # Show just the key sections
+      content.lines.each do |line|
+        next if line.strip.empty? || line.start_with?('---') || line.start_with?('*Generated')
+
+        puts "   #{line.rstrip}"
+        break if line.include?('## Next Steps') # Stop after showing structure
+      end
+      puts '   (see .claude/SESSION_HANDOFF.md for full details)'
+    end
+
+    def show_git_summary
+      commits = `git log --oneline -5 --format='%h %s (%cr)' 2>/dev/null`.strip
+      return if commits.empty?
+
+      puts ''
+      puts '📜 Recent Git Activity:'
+      commits.split("\n").each { |c| puts "   #{c}" }
     end
 
     def status_icon(status)
