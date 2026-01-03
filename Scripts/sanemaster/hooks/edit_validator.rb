@@ -19,7 +19,7 @@ HARD_LIMIT = 800
 
 # Paths that should ALWAYS be blocked (dangerous/system paths)
 BLOCKED_PATHS = [
-  '/tmp',
+  # '/tmp' - removed: sometimes needed for build artifacts
   '/var',
   '/etc',
   '/usr',

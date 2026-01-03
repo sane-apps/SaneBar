@@ -469,12 +469,12 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 | **GitHub issues/PRs** | `github` MCP | Create issues, review PRs |
 | **Remember context across sessions** | `memory` MCP | Persistent knowledge graph |
 
-### Ralph Wiggum: SOP Enforcement Loop
+### SaneLoop: SOP Enforcement Loop
 
 **Purpose**: Forces Claude to complete ALL SOP requirements before claiming a task is done.
 
 **How it works**:
-1. Run `/ralph-loop` with a prompt containing SOP requirements
+1. Run `/sane-loop` with a prompt containing SOP requirements
 2. Claude works on the task
 3. When Claude tries to exit, a Stop hook intercepts and feeds the prompt back
 4. Claude sees previous work and iterates until completion criteria are met
@@ -490,20 +490,20 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 
 ✅ DO:
 ```bash
-/ralph-loop "Fix bug X" --completion-promise "BUG-FIXED" --max-iterations 15
-/ralph-loop "Add feature Y" --completion-promise "FEATURE-COMPLETE" --max-iterations 20
+/sane-loop "Fix bug X" --completion-promise "BUG-FIXED" --max-iterations 15
+/sane-loop "Add feature Y" --completion-promise "FEATURE-COMPLETE" --max-iterations 20
 ```
 
 ❌ DON'T:
 ```bash
-/ralph-loop "Fix bug X"  # NO! Missing both required flags
-/ralph-loop "Fix bug X" --max-iterations 0  # NO! Unlimited = infinite loop
+/sane-loop "Fix bug X"  # NO! Missing both required flags
+/sane-loop "Fix bug X" --max-iterations 0  # NO! Unlimited = infinite loop
 ```
 
 **Usage for bug fixes**:
 
 ```bash
-/ralph-loop "Fix: [describe bug]
+/sane-loop "Fix: [describe bug]
 
 SOP Requirements (verify before completing):
 1. ./Scripts/SaneMaster.rb verify passes
@@ -519,7 +519,7 @@ Output <promise>SOP-COMPLETE</promise> ONLY when ALL verified." --completion-pro
 **Usage for features**:
 
 ```bash
-/ralph-loop "Implement: [describe feature]
+/sane-loop "Implement: [describe feature]
 
 Requirements: [list requirements]
 
@@ -529,8 +529,8 @@ SOP: verify passes, logs checked, self-rating provided.
 ```
 
 **Commands**:
-- `/ralph-loop "<prompt>" --completion-promise "<text>" --max-iterations N` - Start loop
-- `/cancel-ralph` - Cancel active loop
+- `/sane-loop "<prompt>" --completion-promise "<text>" --max-iterations N` - Start loop
+- `/cancel-sane` - Cancel active loop
 
 **When to use**:
 - Complex bug fixes requiring multiple verification steps

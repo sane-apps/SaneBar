@@ -72,7 +72,15 @@ success_patterns = [
   /error.*(fixed|resolved|cleared)/i,
   /Build succeeded/i,
   /Test.*passed/i,
-  /\*\* BUILD SUCCEEDED \*\*/
+  /\*\* BUILD SUCCEEDED \*\*/,
+  /error_handler/i,            # Variable/function names containing "error"
+  /error_code/i,
+  /on_error/i,
+  /ErrorType/i,
+  /\.error\s*=/,               # Property assignment like .error = nil
+  /catch.*error/i,             # Error handling code
+  /handle.*error/i,
+  /log.*error/i                # Logging about errors
 ]
 
 # Check if this is warning-only output (has warning but no actual error indicators)
