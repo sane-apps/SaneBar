@@ -79,6 +79,10 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     /// Toggle between hidden and expanded states
     func toggle() async {
+        guard delimiterItem != nil else {
+            logger.error("toggle() called but delimiterItem is nil - was configure() called?")
+            return
+        }
         print("[SaneBar] HidingService.toggle() called, current state: \(state)")
         switch state {
         case .hidden:

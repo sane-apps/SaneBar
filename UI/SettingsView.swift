@@ -2,6 +2,57 @@ import SwiftUI
 import KeyboardShortcuts
 import ServiceManagement
 
+// MARK: - HelpButton
+
+struct HelpButton: View {
+    let tip: String
+    @State private var isShowingPopover = false
+
+    var body: some View {
+        Button {
+            isShowingPopover.toggle()
+        } label: {
+            Image(systemName: "questionmark.circle")
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .popover(isPresented: $isShowingPopover) {
+            Text(tip)
+                .padding()
+                .frame(maxWidth: 280)
+        }
+    }
+}
+
+// MARK: - Scroll Position Detection
+
+private struct BottomVisibleKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = .infinity
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = min(value, nextValue())
+    }
+}
+
+// MARK: - GlassGroupBoxStyle
+
+struct GlassGroupBoxStyle: GroupBoxStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            configuration.label
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            configuration.content
+        }
+        .padding(16)
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(.primary.opacity(0.1), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - SettingsView
 
 struct SettingsView: View {
@@ -36,27 +87,24 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(SettingsTab.about)
         }
-        .frame(width: 480, height: 400)
+        .frame(width: 520, height: 480)
+        .groupBoxStyle(GlassGroupBoxStyle())
     }
 
     // MARK: - General Tab
 
     private var generalTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Quick Start
+            VStack(alignment: .leading, spacing: 20) {
+                // Startup - FIRST (most important)
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("How it works", systemImage: "questionmark.circle")
-                            .font(.headline)
-
-                        Text("1. **\u{2318}+drag** menu bar icons to rearrange them")
-                        Text("2. Icons **left** of SaneBar icon = always visible")
-                        Text("3. Icons **right** of SaneBar icon = can be hidden")
-                        Text("4. **Click** SaneBar icon to show/hide")
-                    }
-                    .font(.callout)
+                    Toggle("Start SaneBar when you log in", isOn: Binding(
+                        get: { LaunchAtLogin.isEnabled },
+                        set: { LaunchAtLogin.isEnabled = $0 }
+                    ))
                     .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Startup", systemImage: "power")
                 }
 
                 // Auto-hide
@@ -66,17 +114,11 @@ struct SettingsView: View {
 
                         if menuBarManager.settings.autoRehide {
                             HStack {
-                                Text("Hide after")
+                                Text("Delay:")
                                 Slider(value: $menuBarManager.settings.rehideDelay, in: 1...10, step: 1)
-                                Text("\(Int(menuBarManager.settings.rehideDelay))s")
+                                Text("\(Int(menuBarManager.settings.rehideDelay)) seconds")
                                     .monospacedDigit()
-                                    .frame(width: 25)
                             }
-                            .font(.callout)
-
-                            Text("Hidden icons automatically disappear after this delay.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -84,15 +126,53 @@ struct SettingsView: View {
                     Label("Auto-hide", systemImage: "eye.slash")
                 }
 
-                // Launch at Login
+                // How it works - icons AND words, readable size
                 GroupBox {
-                    Toggle("Start SaneBar when you log in", isOn: Binding(
-                        get: { LaunchAtLogin.isEnabled },
-                        set: { LaunchAtLogin.isEnabled = $0 }
-                    ))
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "command")
+                            Text("**⌘+drag** menu bar icons to rearrange them")
+                        }
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "line.diagonal")
+                                .padding(3)
+                                .background(.secondary.opacity(0.2))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text("This is the **separator** icon")
+                        }
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.left.circle")
+                            Text("Icons **left** of separator stay visible")
+                        }
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.right.circle")
+                            Text("Icons **right** of separator can be hidden")
+                        }
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .padding(3)
+                                .background(.secondary.opacity(0.2))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text("**Click this icon** to show or hide")
+                        }
+
+                        if menuBarManager.hasNotch {
+                            Divider()
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("**Notch detected** — keep important icons to the right of SaneBar")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
-                    Label("Startup", systemImage: "power")
+                    Label("How it works", systemImage: "questionmark.circle")
                 }
             }
             .padding()
@@ -110,7 +190,7 @@ struct SettingsView: View {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Click a field, then press your shortcut keys.")
-                            .font(.caption)
+                            
                             .foregroundStyle(.secondary)
 
                         KeyboardShortcuts.Recorder("Toggle visibility:", name: .toggleHiddenItems)
@@ -124,25 +204,41 @@ struct SettingsView: View {
                     Label("Global Shortcuts", systemImage: "keyboard")
                 }
 
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Control SaneBar from Terminal or automation tools:")
-                            .font(.callout)
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("osascript -e 'tell app \"SaneBar\" to toggle'")
+                                .font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled)
 
-                        Text("osascript -e 'tell app \"SaneBar\" to toggle'")
-                            .font(.system(.caption, design: .monospaced))
-                            .padding(8)
-                            .background(Color(NSColor.textBackgroundColor))
-                            .cornerRadius(4)
+                            Spacer()
+
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString("osascript -e 'tell app \"SaneBar\" to toggle'", forType: .string)
+                            } label: {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(10)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(6)
 
                         Text("Commands: **toggle**, **show hidden**, **hide items**")
-                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
                 } label: {
-                    Label("AppleScript", systemImage: "applescript")
+                    Label("AppleScript & Automation", systemImage: "applescript")
+                        .font(.headline)
                 }
+                .padding(16)
+                .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(.primary.opacity(0.1), lineWidth: 1)
+                )
             }
             .padding()
         }
@@ -150,14 +246,16 @@ struct SettingsView: View {
 
     // MARK: - Advanced Tab
 
+    @State private var isAtBottom = false
+
     private var advancedTab: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 24) {
                 // Profiles
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Save and restore your settings configurations.")
-                            .font(.callout)
+                            
 
                         if savedProfiles.isEmpty {
                             HStack {
@@ -174,7 +272,7 @@ struct SettingsView: View {
                                         Text(profile.name)
                                             .font(.body)
                                         Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                                            .font(.caption)
+                                            
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
@@ -187,8 +285,9 @@ struct SettingsView: View {
                                         deleteProfile(profile)
                                     } label: {
                                         Image(systemName: "trash")
+                                            .foregroundStyle(.red)
                                     }
-                                    .buttonStyle(.borderless)
+                                    .buttonStyle(.bordered)
                                 }
                                 .padding(.vertical, 2)
                             }
@@ -196,10 +295,13 @@ struct SettingsView: View {
 
                         Divider()
 
-                        Button("Save Current Settings as Profile...") {
+                        Button {
                             newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
                             showingSaveProfileAlert = true
+                        } label: {
+                            Label("Save Current Settings as Profile...", systemImage: "plus.circle")
                         }
+                        .buttonStyle(.bordered)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
@@ -217,10 +319,13 @@ struct SettingsView: View {
                 // Always Visible Apps
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Keep specific menu bar icons always visible, even when hiding others.")
-                            .font(.callout)
+                        HStack {
+                            Text("Keep specific icons always visible.")
+                            Spacer()
+                            HelpButton(tip: "Enter bundle IDs separated by commas.\n\n⌘+drag those icons LEFT of the separator.\n\nFind bundle ID:\nosascript -e 'id of app \"AppName\"'")
+                        }
 
-                        TextField("App bundle IDs", text: Binding(
+                        TextField("com.1password.1password, com.apple.Safari", text: Binding(
                             get: { menuBarManager.settings.alwaysVisibleApps.joined(separator: ", ") },
                             set: { newValue in
                                 menuBarManager.settings.alwaysVisibleApps = newValue
@@ -230,19 +335,6 @@ struct SettingsView: View {
                             }
                         ))
                         .textFieldStyle(.roundedBorder)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("**How to set up:**")
-                            Text("1. Enter bundle IDs above (e.g., com.1password.1password)")
-                            Text("2. \u{2318}+drag those icons to the LEFT of the separator (⧵)")
-                            Text("3. They'll stay visible when you hide other icons")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                        Text("Find bundle ID: osascript -e 'id of app \"AppName\"'")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
@@ -251,12 +343,10 @@ struct SettingsView: View {
 
                 // Spacers
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
+                    HStack {
                         Stepper("Number of spacers: \(menuBarManager.settings.spacerCount)", value: $menuBarManager.settings.spacerCount, in: 0...3)
-
-                        Text("Spacers are small dividers you can drag around to organize your hidden icons into groups. Use \u{2318}+drag to position them.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Spacer()
+                        HelpButton(tip: "Spacers are small dividers (—) that appear in your menu bar.\n\n⌘+drag them to organize hidden icons into groups.")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
@@ -265,18 +355,18 @@ struct SettingsView: View {
 
                 // Per-Icon Hotkeys
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Assign keyboard shortcuts to quickly access specific app icons.")
-                            .font(.callout)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Quick access shortcuts for specific apps")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            HelpButton(tip: "Use the Search apps shortcut (set in Shortcuts tab) to find apps and assign hotkeys.")
+                        }
 
                         if menuBarManager.settings.iconHotkeys.isEmpty {
-                            HStack {
-                                Image(systemName: "keyboard.badge.ellipsis")
-                                    .foregroundStyle(.secondary)
-                                Text("No hotkeys configured")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 4)
+                            Text("No hotkeys configured")
+                                .foregroundStyle(.tertiary)
+                                .padding(.vertical, 4)
                         } else {
                             ForEach(Array(menuBarManager.settings.iconHotkeys.keys.sorted()), id: \.self) { bundleID in
                                 HStack {
@@ -286,51 +376,89 @@ struct SettingsView: View {
                                         menuBarManager.settings.iconHotkeys.removeValue(forKey: bundleID)
                                     } label: {
                                         Image(systemName: "trash")
+                                            .foregroundStyle(.red)
                                     }
-                                    .buttonStyle(.borderless)
+                                    .buttonStyle(.bordered)
                                 }
-                                .padding(.vertical, 2)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Icon Hotkeys", systemImage: "keyboard.badge.ellipsis")
+                }
+
+                // Automation - grouped triggers
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // App Launch Trigger
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Show when apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
+
+                            if menuBarManager.settings.showOnAppLaunch {
+                                TextField("com.apple.Safari, com.zoom.us", text: Binding(
+                                    get: { menuBarManager.settings.triggerApps.joined(separator: ", ") },
+                                    set: { newValue in
+                                        menuBarManager.settings.triggerApps = newValue
+                                            .split(separator: ",")
+                                            .map { $0.trimmingCharacters(in: .whitespaces) }
+                                            .filter { !$0.isEmpty }
+                                    }
+                                ))
+                                .textFieldStyle(.roundedBorder)
                             }
                         }
 
-                        Text("Use **Search apps** shortcut to find apps and add hotkeys from there.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Divider()
+
+                        // Battery Trigger
+                        Toggle("Show when battery is low", isOn: $menuBarManager.settings.showOnLowBattery)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
-                    Label("Per-Icon Hotkeys", systemImage: "keyboard.badge.ellipsis")
+                    Label("Automation", systemImage: "gearshape.2")
                 }
 
-                // App Launch Triggers
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Show hidden items when apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
-
-                        if menuBarManager.settings.showOnAppLaunch {
-                            TextField("App bundle IDs", text: Binding(
-                                get: { menuBarManager.settings.triggerApps.joined(separator: ", ") },
-                                set: { newValue in
-                                    menuBarManager.settings.triggerApps = newValue
-                                        .split(separator: ",")
-                                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                                        .filter { !$0.isEmpty }
-                                }
-                            ))
-                            .textFieldStyle(.roundedBorder)
-
-                            Text("Example: com.apple.Safari, com.zoom.us\nFind bundle ID: osascript -e 'id of app \"AppName\"'")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Label("App Triggers", systemImage: "app.badge")
+                // Bottom anchor to detect scroll position
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: BottomVisibleKey.self, value: geo.frame(in: .named("scroll")).maxY)
                 }
+                .frame(height: 1)
             }
             .padding()
         }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(BottomVisibleKey.self) { maxY in
+            // Consider "at bottom" when bottom anchor is visible (within ~400pt of top)
+            isAtBottom = maxY < 420
+        }
+        .scrollIndicators(.visible)
+        .overlay(alignment: .bottom) {
+            // Gradient fade + hint - only show when NOT at bottom
+            if !isAtBottom {
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.clear, Color(NSColor.windowBackgroundColor)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 30)
+
+                    HStack {
+                        Spacer()
+                        Label("Scroll for more", systemImage: "chevron.down")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.bottom, 4)
+                    .background(Color(NSColor.windowBackgroundColor))
+                }
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isAtBottom)
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
         }
@@ -404,7 +532,7 @@ struct SettingsView: View {
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
                     Text("Version \(version) (\(build))")
-                        .font(.caption)
+                        
                         .foregroundStyle(.secondary)
                 }
             }
@@ -415,7 +543,7 @@ struct SettingsView: View {
                         .foregroundStyle(.green)
 
                     Text("No analytics. No telemetry. No network requests. Everything stays on your Mac.")
-                        .font(.caption)
+                        
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -425,12 +553,13 @@ struct SettingsView: View {
             .padding(.horizontal, 40)
 
             Link("View on GitHub", destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!)
-                .font(.callout)
+                
 
             Spacer()
         }
         .padding()
     }
+
 }
 
 // MARK: - Launch at Login Helper

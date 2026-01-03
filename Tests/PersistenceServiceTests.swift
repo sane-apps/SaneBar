@@ -104,6 +104,54 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertTrue(settings.iconHotkeys.isEmpty)
     }
 
+    // MARK: - Low Battery Trigger
+
+    func testShowOnLowBatteryDefaultsToFalse() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: showOnLowBattery is disabled by default
+        XCTAssertFalse(settings.showOnLowBattery)
+    }
+
+    func testShowOnLowBatteryEncodesAndDecodes() throws {
+        // Given: settings with battery trigger enabled
+        var settings = SaneBarSettings()
+        settings.showOnLowBattery = true
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: showOnLowBattery is preserved
+        XCTAssertTrue(decoded.showOnLowBattery)
+    }
+
+    func testShowOnLowBatteryBackwardsCompatibility() throws {
+        // Given: JSON without showOnLowBattery (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "alwaysVisibleApps": [],
+            "iconHotkeys": {}
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: showOnLowBattery defaults to false
+        XCTAssertFalse(settings.showOnLowBattery)
+    }
+
     // MARK: - Profiles
 
     func testProfileEncodesAndDecodes() throws {
