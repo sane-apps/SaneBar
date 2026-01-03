@@ -7,13 +7,14 @@
 require 'json'
 require 'fileutils'
 
-# Read hook input from stdin
+# Read hook input from stdin (Claude Code standard)
 input = begin
   JSON.parse($stdin.read)
 rescue StandardError
   {}
 end
-input['tool_name'] || 'unknown'
+
+tool_name = input['tool_name'] || 'unknown'
 tool_input = input['tool_input'] || {}
 session_id = input['session_id'] || 'unknown'
 
@@ -27,7 +28,7 @@ if file_path.include?('/Sane') && !file_path.include?("/#{current_project}")
 end
 
 # State file to track edit attempts
-state_file = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'edit_state.json')
+state_file = File.join(project_dir, '.claude', 'edit_state.json')
 state_dir = File.dirname(state_file)
 FileUtils.mkdir_p(state_dir)
 
@@ -43,14 +44,23 @@ state['edit_count'] += 1
 # Save state
 File.write(state_file, JSON.pretty_generate(state))
 
-# Output reminder every 10 edits (5 was too frequent for large refactors)
-output = if (state['edit_count'] % 10).zero?
-           {
-             'result' => 'continue',
-             'message' => "Reminder: You've made #{state['edit_count']} edits this session. Remember: Verify before coding, Two-Fix Rule applies."
-           }
-         else
-           { 'result' => 'continue' }
-         end
+# Output reminder every 10 edits - MUST use warn for visibility
+if (state['edit_count'] % 10).zero?
+  warn ''
+  warn '=' * 60
+  warn "📋 CHECKPOINT: #{state['edit_count']} edits this session"
+  warn '=' * 60
+  warn ''
+  warn '   Quick self-check:'
+  warn '   • What task am I working on?'
+  warn '   • Which SOP rules apply here?'
+  warn '   • Have I verified my changes work?'
+  warn ''
+  warn '   Rule #3: Two strikes? Research before guessing again'
+  warn '   Rule #6: Build → Kill → Launch → Logs → Confirm'
+  warn ''
+  warn '=' * 60
+  warn ''
+end
 
-puts output.to_json
+puts({ 'result' => 'continue' }.to_json)
