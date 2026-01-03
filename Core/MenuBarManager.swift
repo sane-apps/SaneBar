@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import SwiftUI
 
 // MARK: - MenuBarManager
 
@@ -25,6 +26,15 @@ final class MenuBarManager: ObservableObject {
     @Published private(set) var hidingState: HidingState = .hidden
     @Published var settings: SaneBarSettings = SaneBarSettings()
 
+    // MARK: - Screen Detection
+
+    /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)
+    var hasNotch: Bool {
+        guard let screen = NSScreen.main else { return false }
+        // auxiliaryTopLeftArea is non-nil on notched Macs (macOS 12+)
+        return screen.auxiliaryTopLeftArea != nil
+    }
+
     // MARK: - Services
 
     let hidingService: HidingService
@@ -41,6 +51,7 @@ final class MenuBarManager: ObservableObject {
     /// Additional spacers for organizing hidden items
     private var spacerItems: [NSStatusItem] = []
     private var statusMenu: NSMenu?
+    private var onboardingPopover: NSPopover?
 
     // MARK: - Subscriptions
 
@@ -69,6 +80,9 @@ final class MenuBarManager: ObservableObject {
 
         // Configure icon hotkeys service with self
         self.iconHotkeysService.configure(with: self)
+
+        // Show onboarding on first launch
+        showOnboardingIfNeeded()
     }
 
     // MARK: - Setup
@@ -307,5 +321,39 @@ final class MenuBarManager: ObservableObject {
             }
             spacerItems.append(spacer)
         }
+    }
+
+    // MARK: - Onboarding
+
+    private func showOnboardingIfNeeded() {
+        guard !settings.hasCompletedOnboarding else { return }
+
+        // Delay slightly to ensure menu bar is fully set up
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.showOnboardingPopover()
+        }
+    }
+
+    private func showOnboardingPopover() {
+        guard let button = mainStatusItem?.button else { return }
+
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 320, height: 240)
+        popover.behavior = .transient
+
+        let hostingController = NSHostingController(rootView: OnboardingTipView(onDismiss: { [weak self] in
+            self?.completeOnboarding()
+        }))
+        popover.contentViewController = hostingController
+
+        onboardingPopover = popover
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+
+    private func completeOnboarding() {
+        onboardingPopover?.close()
+        onboardingPopover = nil
+        settings.hasCompletedOnboarding = true
+        saveSettings()
     }
 }

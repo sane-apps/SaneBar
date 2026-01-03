@@ -36,6 +36,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// When triggered, shows hidden items and activates the app
     var iconHotkeys: [String: KeyboardShortcutData] = [:]
 
+    /// Show hidden items when battery drops to low level
+    var showOnLowBattery: Bool = false
+
+    /// Whether the user has completed first-launch onboarding
+    var hasCompletedOnboarding: Bool = false
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -49,10 +55,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         triggerApps = try container.decodeIfPresent([String].self, forKey: .triggerApps) ?? []
         alwaysVisibleApps = try container.decodeIfPresent([String].self, forKey: .alwaysVisibleApps) ?? []
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
+        showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
+        hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps, alwaysVisibleApps, iconHotkeys
+        case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps, alwaysVisibleApps, iconHotkeys, showOnLowBattery, hasCompletedOnboarding
     }
 }
 

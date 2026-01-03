@@ -109,44 +109,42 @@ External auditor identified 5 usability issues. All resolved:
 
 ### BUG-011: Ralph-Wiggum (SaneLoop) Plugin Parsing Errors
 
-**Status**: RESOLVED (2026-01-02)
+**Status**: PARTIALLY RESOLVED (2026-01-03)
 
-**Symptom**: `/ralph-loop` and `/cancel-ralph` commands fail with parse errors like `command not found: PHASES:` or `parse error near 'echo'`. Special characters in prompts break shell parsing.
+**Symptom**: `/ralph-loop` and `/cancel-ralph` commands fail with parse errors like `command not found: PHASES:` or `parse error near ')'`. Special characters in prompts break shell parsing.
 
 **Root Cause**:
-1. `ralph-loop.md` passes `$ARGUMENTS` unquoted - special chars like `()`, `[]`, `:` break bash
-2. `cancel-ralph.md` uses multiline `[[ -f` conditional which fails in the ` ```! ` execution context
+1. `ralph-loop.md` passes `$ARGUMENTS` unquoted - newlines cause each line to execute as command
+2. `ralph-loop.md` - even with quotes, parentheses `)` still cause `parse error near ')'`
+3. `cancel-ralph.md` uses multiline `[[ -f` conditional which fails in the ` ```! ` execution context
 
-**Fix** (6 files total in `~/.claude/plugins/`):
-
-For `ralph-loop.md`:
+**Fix Attempt 1** (2026-01-02) - Partial:
 ```bash
-# Before:
-"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh" $ARGUMENTS
-
-# After:
+# Added eval wrapper:
 eval "\"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh\" $ARGUMENTS"
 ```
 
+**Fix Attempt 2** (2026-01-03) - Partial:
+```bash
+# Added quotes around $ARGUMENTS to handle newlines:
+eval "\"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh\" \"$ARGUMENTS\""
+```
+This fixes multi-line prompts but NOT prompts containing `()` or other shell metacharacters.
+
 For `cancel-ralph.md`:
 ```bash
-# Before (multiline):
-if [[ -f .claude/ralph-loop.local.md ]]; then
-  ITERATION=$(...)
-  ...
-fi
-
-# After (single-line):
+# Changed to single-line:
 if test -f .claude/ralph-loop.local.md; then ITERATION=$(...); echo "..."; else echo "..."; fi
 ```
 
-**Files Fixed**:
-- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/ralph-loop.md`
-- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/cancel-ralph.md`
-- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/ralph-loop.md`
-- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/cancel-ralph.md`
-- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/ralph-loop.md`
-- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/cancel-ralph.md`
+**Files Fixed** (3 locations x 2 commands = 6 files in `~/.claude/plugins/`):
+- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/`
+- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/`
+- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/`
+
+**Workaround**: Use simple prompts without parentheses, brackets, or colons in SaneLoop commands.
+
+**Proper Fix Needed**: Plugin should write $ARGUMENTS to a temp file and have the script read from it, avoiding shell parsing entirely.
 
 **Note**: Claude Code caches plugins at session start. Fixes require session restart to take effect.
 
