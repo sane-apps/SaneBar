@@ -14,7 +14,7 @@ rescue StandardError
   {}
 end
 
-tool_name = input['tool_name'] || 'unknown'
+input['tool_name'] || 'unknown'
 tool_input = input['tool_input'] || {}
 session_id = input['session_id'] || 'unknown'
 

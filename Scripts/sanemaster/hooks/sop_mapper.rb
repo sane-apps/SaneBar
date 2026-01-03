@@ -45,9 +45,7 @@ def increment_tool_count(session_id)
   data = read_tool_count
 
   # Reset on new session
-  if data['session'] != session_id
-    data = { 'count' => 0, 'session' => session_id, 'last_checkpoint' => 0, 'warned_no_mapping' => false }
-  end
+  data = { 'count' => 0, 'session' => session_id, 'last_checkpoint' => 0, 'warned_no_mapping' => false } if data['session'] != session_id
 
   data['count'] += 1
   File.write(TOOL_COUNT_FILE, JSON.pretty_generate(data))
@@ -156,7 +154,11 @@ def main
     reason = 'Rules not marked as mapped'
     mark_warned_no_mapping(tool_data)
   elsif state && !state_is_fresh?(state)
-    age = ((Time.now - Time.parse(state['timestamp'])) / 60).round rescue 999
+    age = begin
+      ((Time.now - Time.parse(state['timestamp'])) / 60).round
+    rescue StandardError
+      999
+    end
     reason = "Rule mapping stale (#{age} min old)"
   elsif checkpoint_due
     reason = "Periodic checkpoint (#{tool_count} tool calls)"

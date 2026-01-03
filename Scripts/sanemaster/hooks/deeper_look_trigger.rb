@@ -99,7 +99,7 @@ WEASEL_PATTERNS = {
   },
 
   # Workaround commands (Rule #5)
-  /\bcat\s+[^\|]+\.(swift|rb|ts|js|py)\b/i => {
+  /\bcat\s+[^|]+\.(swift|rb|ts|js|py)\b/i => {
     rule: '#5',
     msg: 'Use Read tool instead of cat for files.',
     severity: :info
@@ -141,7 +141,7 @@ def output_weasel_warning(found_weasels)
   warn '=' * 65
   warn ''
 
-  found_weasels.each do |pattern, info|
+  found_weasels.each_value do |info|
     icon = case info[:severity]
            when :alert then '🔴'
            when :warning then '🟡'
@@ -184,7 +184,9 @@ exit 0 unless %w[Grep Read Bash].include?(tool_name)
 exit 0 if text_to_check.length < 20
 
 # Check for issue patterns (Deeper Look)
-found_issues = ISSUE_PATTERNS.select { |pattern| text_to_check.match?(pattern) }
+# rubocop:disable Style/SelectByRegexp -- patterns match text, not vice versa
+found_issues = ISSUE_PATTERNS.filter { |pat| text_to_check.match?(pat) }
+# rubocop:enable Style/SelectByRegexp
 
 # Check for weasel patterns (SaneCop)
 found_weasels = WEASEL_PATTERNS.select { |pattern, _info| text_to_check.match?(pattern) }
