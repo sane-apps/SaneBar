@@ -118,8 +118,8 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
     func setDefaultsIfNeeded() {
         // Only set defaults if user hasn't configured any
         if KeyboardShortcuts.getShortcut(for: .toggleHiddenItems) == nil {
-            // Default: Cmd+B for toggle (like Bartender)
-            KeyboardShortcuts.setShortcut(.init(.b, modifiers: .command), for: .toggleHiddenItems)
+            // Default: Cmd+\ for toggle (avoids conflict with Bold shortcut)
+            KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: .command), for: .toggleHiddenItems)
         }
 
         if KeyboardShortcuts.getShortcut(for: .searchMenuBar) == nil {

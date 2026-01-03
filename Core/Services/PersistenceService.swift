@@ -208,13 +208,13 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
     func mergeWithSaved(scannedItems: [StatusItemModel], savedItems: [StatusItemModel]) -> [StatusItemModel] {
         var result = scannedItems
 
-        // Use reduce to handle potential duplicate keys gracefully (keep last occurrence)
+        // Use matchingKey (position-independent) to find saved items even when positions change
         let savedByKey = savedItems.reduce(into: [String: StatusItemModel]()) { dict, item in
-            dict[item.compositeKey] = item
+            dict[item.matchingKey] = item
         }
 
         for index in result.indices {
-            let key = result[index].compositeKey
+            let key = result[index].matchingKey
             if let saved = savedByKey[key] {
                 // Preserve user's section assignment and analytics
                 result[index].section = saved.section

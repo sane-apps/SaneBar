@@ -50,6 +50,11 @@
             "type": "command",
             "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/two_fix_reminder.rb",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
+            "timeout": 5
           }
         ]
       },
@@ -60,6 +65,11 @@
             "type": "command",
             "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/circuit_breaker.rb",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/version_mismatch.rb",
+            "timeout": 5
           }
         ]
       },
@@ -69,6 +79,11 @@
           {
             "type": "command",
             "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/circuit_breaker.rb",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
             "timeout": 5
           }
         ]
