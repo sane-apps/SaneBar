@@ -1,10 +1,18 @@
 import AppKit
-import ApplicationServices
 import Combine
 
 // MARK: - MenuBarManager
 
-/// Central manager for menu bar item discovery and visibility control
+/// Central manager for menu bar hiding using the length toggle technique.
+///
+/// HOW IT WORKS (same as Bartender, Dozer, Hidden Bar):
+/// 1. User Cmd+drags menu bar icons to position them left or right of our delimiter
+/// 2. Icons to the LEFT of delimiter = always visible
+/// 3. Icons to the RIGHT of delimiter = can be hidden
+/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its right off screen
+/// 5. To SHOW: Set delimiter's length back to 22 → reveals the hidden icons
+///
+/// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
 final class MenuBarManager: ObservableObject {
 
@@ -14,126 +22,121 @@ final class MenuBarManager: ObservableObject {
 
     // MARK: - Published State
 
-    @Published private(set) var statusItems: [StatusItemModel] = []
-    @Published private(set) var isScanning = false
-    @Published private(set) var lastError: String?
-    @Published private(set) var lastScanMessage: String?
     @Published private(set) var hidingState: HidingState = .hidden
     @Published var settings: SaneBarSettings = SaneBarSettings()
 
-    // MARK: - Computed Properties
-
-    /// Items in the always-visible section
-    var visibleItems: [StatusItemModel] {
-        statusItems.filter { $0.section == .alwaysVisible }
-    }
-
-    /// Items in the hidden section
-    var hiddenItems: [StatusItemModel] {
-        statusItems.filter { $0.section == .hidden }
-    }
-
-    /// Items in the always-hidden section
-    var collapsedItems: [StatusItemModel] {
-        statusItems.filter { $0.section == .collapsed }
-    }
-
     // MARK: - Services
 
-    let accessibilityService: AccessibilityServiceProtocol
-    let permissionService: PermissionServiceProtocol
     let hidingService: HidingService
-    let hoverService: HoverService
     let persistenceService: PersistenceServiceProtocol
+    let triggerService: TriggerService
 
-    // MARK: - Status Items (Section Delimiters)
+    // MARK: - Status Items
 
-    /// Main SaneBar icon - acts as delimiter between visible and hidden
+    /// Main SaneBar icon you click (always visible)
     private var mainStatusItem: NSStatusItem?
-
-    /// Secondary delimiter for always-hidden section (optional)
-    private var alwaysHiddenStatusItem: NSStatusItem?
+    /// Separator that expands to hide items (the actual delimiter)
+    private var separatorItem: NSStatusItem?
+    /// Additional spacers for organizing hidden items
+    private var spacerItems: [NSStatusItem] = []
+    private var statusMenu: NSMenu?
 
     // MARK: - Subscriptions
 
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Auto-Refresh
-
-    /// Timer for auto-refreshing when settings window is open
-    private var refreshTimer: Timer?
-
     // MARK: - Initialization
 
     init(
-        accessibilityService: AccessibilityServiceProtocol? = nil,
-        permissionService: PermissionServiceProtocol? = nil,
         hidingService: HidingService? = nil,
-        hoverService: HoverService? = nil,
-        persistenceService: PersistenceServiceProtocol = PersistenceService.shared
+        persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
+        triggerService: TriggerService? = nil
     ) {
-        self.accessibilityService = accessibilityService ?? AccessibilityService()
-        self.permissionService = permissionService ?? PermissionService()
-        self.persistenceService = persistenceService
         self.hidingService = hidingService ?? HidingService()
-        self.hoverService = hoverService ?? HoverService()
+        self.persistenceService = persistenceService
+        self.triggerService = triggerService ?? TriggerService()
 
-        // Connect hover service to hiding service
-        self.hoverService.configure(with: self.hidingService)
-        self.hoverService.itemsProvider = { [weak self] in
-            self?.statusItems ?? []
-        }
-        self.hidingService.itemsProvider = { [weak self] in
-            self?.statusItems ?? []
-        }
-
-        setupStatusItems()
+        setupStatusItem()
         loadSettings()
+        updateSpacers()
         setupObservers()
 
-        // Scan if we have permission
-        if self.permissionService.permissionState == .granted {
-            Task {
-                await scan()
-            }
-        }
+        // Configure trigger service with self
+        self.triggerService.configure(menuBarManager: self)
     }
 
     // MARK: - Setup
 
-    private func setupStatusItems() {
-        // Main status item (delimiter between visible and hidden)
+    private func setupStatusItem() {
+        // Based on Hidden Bar's proven implementation:
+        // - Items created FIRST appear to the RIGHT (higher X coordinate)
+        // - Items created SECOND appear to the LEFT
+        // - When separator expands to 10000, items to its LEFT get pushed off screen
+        // - Main icon (to separator's RIGHT) stays visible
+        //
+        // Order on screen: [items to hide] [separator] [main icon] [system icons]
+
+        // 1. Create MAIN ICON first - appears to the RIGHT (stays visible when collapsed)
         mainStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        mainStatusItem?.autosaveName = "SaneBar_main"
 
         if let button = mainStatusItem?.button {
-            configureMainButton(button)
+            configureButton(button)
+            button.action = #selector(statusItemClicked)
+            button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        // Setup and assign menu (standard macOS behavior)
-        setupMenu()
-        mainStatusItem?.menu = statusMenu
+        // 2. Create SEPARATOR second - appears to the LEFT of main icon
+        // Start at 20 (expanded state - hidden items visible)
+        // When user clicks to hide, this expands to 10000
+        separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        separatorItem?.autosaveName = "SaneBar_separator"
+        if let button = separatorItem?.button {
+            button.image = NSImage(
+                systemSymbolName: "line.diagonal",
+                accessibilityDescription: "Separator"
+            )
+            button.image?.isTemplate = true
+        }
 
-        // Update delimiter position after a short delay (let menu bar settle)
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            updateDelimiterPositions()
+        // Setup menu (attached to separator for right-click, like Hidden Bar)
+        setupMenu()
+        separatorItem?.menu = statusMenu
+
+        // Configure hiding service with the SEPARATOR (not the icon)
+        if let separator = separatorItem {
+            hidingService.configure(delimiterItem: separator)
         }
     }
 
-    private func configureMainButton(_ button: NSStatusBarButton) {
-        // Use custom menu bar icon, fall back to SF Symbol
-        let customIcon = NSImage(named: "MenuBarIcon")
+    @objc private func statusItemClicked(_ sender: Any?) {
+        guard let event = NSApp.currentEvent else { return }
 
-        if let icon = customIcon {
-            icon.isTemplate = true
-            icon.size = NSSize(width: 18, height: 18)
-            button.image = icon
-        } else {
-            button.image = NSImage(
-                systemSymbolName: "line.3.horizontal.decrease.circle",
-                accessibilityDescription: "SaneBar"
-            )
+        if event.type == .leftMouseUp {
+            toggleHiddenItems()
+        } else if event.type == .rightMouseUp {
+            showStatusMenu()
         }
+    }
+
+    private func showStatusMenu() {
+        guard let statusMenu = statusMenu else { return }
+        print("[SaneBar] Right-click: showing menu")
+        mainStatusItem?.menu = statusMenu
+        mainStatusItem?.button?.performClick(nil)
+        // Clear menu so left-click works again
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.mainStatusItem?.menu = nil
+        }
+    }
+
+    private func configureButton(_ button: NSStatusBarButton) {
+        // Use SF Symbol circle icon
+        button.image = NSImage(
+            systemSymbolName: "line.3.horizontal.decrease.circle",
+            accessibilityDescription: "SaneBar"
+        )
     }
 
     private func setupMenu() {
@@ -142,22 +145,11 @@ final class MenuBarManager: ObservableObject {
         let toggleItem = NSMenuItem(
             title: "Toggle Hidden Items",
             action: #selector(menuToggleHiddenItems),
-            keyEquivalent: "b"
+            keyEquivalent: "\\"
         )
         toggleItem.target = self
         toggleItem.keyEquivalentModifierMask = [.command]
         menu.addItem(toggleItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let scanItem = NSMenuItem(
-            title: "Scan Menu Bar",
-            action: #selector(scanMenuItems),
-            keyEquivalent: "r"
-        )
-        scanItem.target = self
-        scanItem.keyEquivalentModifierMask = [.command]
-        menu.addItem(scanItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -182,8 +174,6 @@ final class MenuBarManager: ObservableObject {
         statusMenu = menu
     }
 
-    private var statusMenu: NSMenu?
-
     private func setupObservers() {
         // Observe hiding state changes
         hidingService.$state
@@ -194,16 +184,12 @@ final class MenuBarManager: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Observe notifications for analytics
-        NotificationCenter.default.publisher(for: .hiddenSectionShown)
+        // Observe settings changes to update spacers
+        $settings
+            .dropFirst() // Skip initial value
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.handleSectionShown()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .hiddenSectionHidden)
-            .sink { [weak self] _ in
-                self?.handleSectionHidden()
+                self?.updateSpacers()
             }
             .store(in: &cancellables)
     }
@@ -213,197 +199,45 @@ final class MenuBarManager: ObservableObject {
     private func loadSettings() {
         do {
             settings = try persistenceService.loadSettings()
-            let savedItems = try persistenceService.loadItemConfigurations()
-            if !savedItems.isEmpty {
-                statusItems = savedItems
-            }
         } catch {
-            print("Failed to load settings: \(error)")
+            print("[SaneBar] Failed to load settings: \(error)")
         }
     }
 
     func saveSettings() {
         do {
             try persistenceService.saveSettings(settings)
-            try persistenceService.saveItemConfigurations(statusItems)
         } catch {
-            print("Failed to save settings: \(error)")
+            print("[SaneBar] Failed to save settings: \(error)")
         }
-    }
-
-    // MARK: - Delimiter Position
-
-    private func updateDelimiterPositions() {
-        guard let button = mainStatusItem?.button,
-              let window = button.window else { return }
-
-        let frame = window.frame
-        let delimiterX = frame.midX
-
-        hidingService.setDelimiterPositions(
-            hidden: delimiterX,
-            alwaysHidden: nil // Could add secondary delimiter
-        )
-
-        // Update hover service region
-        hoverService.setHoverRegion(around: button, padding: 30)
-
-        // Configure hover behavior from settings
-        hoverService.isEnabled = settings.showOnHover
-        hoverService.hoverDelay = settings.hoverDelay
-
-        // Start/stop monitoring based on settings
-        if settings.showOnHover {
-            hoverService.startMonitoring()
-        } else {
-            hoverService.stopMonitoring()
-        }
-    }
-
-    // MARK: - Scanning
-
-    func scan() async {
-        guard permissionService.permissionState == .granted else {
-            lastError = "Accessibility permission required"
-            permissionService.showPermissionRequest()
-            return
-        }
-
-        isScanning = true
-        lastError = nil
-        lastScanMessage = nil
-
-        do {
-            var scannedItems = try await accessibilityService.scanMenuBarItems()
-
-            // Merge with saved configurations
-            let savedItems = try? persistenceService.loadItemConfigurations()
-            if let saved = savedItems, !saved.isEmpty {
-                scannedItems = persistenceService.mergeWithSaved(
-                    scannedItems: scannedItems,
-                    savedItems: saved
-                )
-            }
-
-            statusItems = scannedItems
-            lastScanMessage = "Found \(scannedItems.count) menu bar item\(scannedItems.count == 1 ? "" : "s")"
-
-            // Save updated configurations
-            try? persistenceService.saveItemConfigurations(statusItems)
-
-            // Update delimiter positions after scan
-            updateDelimiterPositions()
-
-            // Provide feedback (sound + icon flash)
-            provideScanFeedback()
-        } catch {
-            lastError = error.localizedDescription
-            lastScanMessage = nil
-        }
-
-        isScanning = false
-
-        // Clear success message after 3 seconds
-        if lastScanMessage != nil {
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                lastScanMessage = nil
-            }
-        }
-    }
-
-    // MARK: - Auto-Refresh (for Settings Window)
-
-    /// Start auto-refresh timer when settings window opens
-    func startAutoRefresh() {
-        stopAutoRefresh() // Cancel any existing timer
-
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self, !self.isScanning else { return }
-                await self.scan()
-            }
-        }
-    }
-
-    /// Stop auto-refresh timer when settings window closes
-    func stopAutoRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 
     // MARK: - Visibility Control
 
     func toggleHiddenItems() {
         Task {
-            do {
-                try await hidingService.toggle(items: statusItems)
+            await hidingService.toggle()
 
-                // Schedule auto-rehide if enabled and we just showed
-                if hidingState == .expanded && settings.autoRehide {
-                    hidingService.scheduleRehide(after: settings.rehideDelay)
-                }
-            } catch {
-                lastError = error.localizedDescription
+            // Schedule auto-rehide if enabled and we just showed
+            if hidingState == .expanded && settings.autoRehide {
+                hidingService.scheduleRehide(after: settings.rehideDelay)
             }
         }
     }
 
     func showHiddenItems() {
         Task {
-            do {
-                try await hidingService.show(items: statusItems)
-                if settings.autoRehide {
-                    hidingService.scheduleRehide(after: settings.rehideDelay)
-                }
-            } catch {
-                lastError = error.localizedDescription
+            await hidingService.show()
+            if settings.autoRehide {
+                hidingService.scheduleRehide(after: settings.rehideDelay)
             }
         }
     }
 
     func hideHiddenItems() {
         Task {
-            do {
-                try await hidingService.hide(items: statusItems)
-            } catch {
-                lastError = error.localizedDescription
-            }
+            await hidingService.hide()
         }
-    }
-
-    /// Update an item's section
-    func updateItem(_ item: StatusItemModel, section: StatusItemModel.ItemSection) {
-        guard let index = statusItems.firstIndex(where: { $0.id == item.id }) else { return }
-
-        var updatedItem = item
-        updatedItem.section = section
-        updatedItem.isVisible = section == .alwaysVisible
-
-        statusItems[index] = updatedItem
-
-        // Persist changes
-        saveSettings()
-
-        // Move the item in the menu bar
-        Task {
-            do {
-                try await hidingService.moveItem(item, to: section)
-                await scan() // Rescan to update positions
-            } catch {
-                lastError = error.localizedDescription
-            }
-        }
-    }
-
-    /// Record a click on an item (for analytics)
-    func recordItemClick(_ item: StatusItemModel) {
-        guard let index = statusItems.firstIndex(where: { $0.id == item.id }) else { return }
-
-        statusItems[index].clickCount += 1
-        statusItems[index].lastClickDate = Date()
-
-        saveSettings()
     }
 
     // MARK: - Appearance
@@ -411,107 +245,70 @@ final class MenuBarManager: ObservableObject {
     private func updateStatusItemAppearance() {
         guard let button = mainStatusItem?.button else { return }
 
-        // Could change icon based on state
+        // Change icon based on state (filled when expanded, outline when hidden)
         let iconName = hidingState == .expanded
             ? "line.3.horizontal.decrease.circle.fill"
             : "line.3.horizontal.decrease.circle"
 
-        // Only use SF Symbol if we don't have custom icon
-        if NSImage(named: "MenuBarIcon") == nil {
-            button.image = NSImage(
-                systemSymbolName: iconName,
-                accessibilityDescription: "SaneBar"
-            )
-        }
+        button.image = NSImage(
+            systemSymbolName: iconName,
+            accessibilityDescription: "SaneBar"
+        )
     }
 
-    // MARK: - Scan Feedback
-
-    /// Provides visual and audible feedback after a successful scan
-    private func provideScanFeedback() {
-        // Play system sound for audible confirmation
-        NSSound(named: "Pop")?.play()
-
-        // Flash the menu bar icon
-        flashMenuBarIcon()
-    }
-
-    /// Briefly flashes the menu bar icon to indicate action completed
-    private func flashMenuBarIcon() {
-        guard let button = mainStatusItem?.button else { return }
-
-        let originalImage = button.image
-
-        // Show filled variant
-        if NSImage(named: "MenuBarIcon") == nil {
-            button.image = NSImage(
-                systemSymbolName: "line.3.horizontal.decrease.circle.fill",
-                accessibilityDescription: "SaneBar"
-            )
-        }
-
-        // Restore original after brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            button.image = originalImage
-        }
-    }
-
-    // MARK: - Event Handlers
-
-    private func handleSectionShown() {
-        // Update show timestamps for analytics
-        for index in statusItems.indices where statusItems[index].section == .hidden {
-            statusItems[index].lastShownDate = Date()
-        }
-    }
-
-    private func handleSectionHidden() {
-        hidingService.cancelRehide()
-    }
-
-    // MARK: - Actions
-
-    // Menu is now handled natively by setting statusItem.menu
+    // MARK: - Menu Actions
 
     @objc private func menuToggleHiddenItems(_ sender: Any?) {
         print("[SaneBar] Menu: Toggle Hidden Items")
         toggleHiddenItems()
     }
 
-    @objc private func scanMenuItems(_ sender: Any?) {
-        print("[SaneBar] Menu: Scan Menu Bar")
-        Task {
-            await scan()
-        }
-    }
-
     @objc private func openSettings(_ sender: Any?) {
         print("[SaneBar] Menu: Open Settings")
 
-        // Activate app and bring to front
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Try multiple approaches to open Settings
-        // Approach 1: Find and click the Settings item in the app's main menu
-        if let appMenu = NSApp.mainMenu?.item(at: 0)?.submenu {
-            for item in appMenu.items where item.title.contains("Settings") || item.title.contains("Preferences") {
-                if let action = item.action {
-                    NSApp.sendAction(action, to: item.target, from: item)
-                    return
-                }
-            }
-        }
-
-        // Approach 2: Use the standard selector (shows warning but may work)
+        // Open Settings window without hiding other apps
         if #available(macOS 14.0, *) {
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } else {
             NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+
+        // Bring just the Settings window to front (not the whole app)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NSApp.windows.first { $0.title.contains("Settings") || $0.title.contains("Preferences") }?.makeKeyAndOrderFront(nil)
         }
     }
 
     @objc private func quitApp(_ sender: Any?) {
         print("[SaneBar] Menu: Quit")
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Spacers
+
+    /// Update spacer items based on settings
+    func updateSpacers() {
+        let desiredCount = min(max(settings.spacerCount, 0), 3) // Clamp to 0-3
+
+        // Remove excess spacers
+        while spacerItems.count > desiredCount {
+            if let item = spacerItems.popLast() {
+                NSStatusBar.system.removeStatusItem(item)
+            }
+        }
+
+        // Add missing spacers
+        while spacerItems.count < desiredCount {
+            let spacer = NSStatusBar.system.statusItem(withLength: 12)
+            spacer.autosaveName = "SaneBar_spacer_\(spacerItems.count)"
+            if let button = spacer.button {
+                button.image = NSImage(
+                    systemSymbolName: "minus",
+                    accessibilityDescription: "Spacer"
+                )
+                button.image?.isTemplate = true
+            }
+            spacerItems.append(spacer)
+        }
     }
 }

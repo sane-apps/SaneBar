@@ -79,24 +79,6 @@ struct KeyboardShortcutsServiceTests {
         #expect(true, "Handler unregistration should complete without error")
     }
 
-    @Test("Service can be configured with MenuBarManager")
-    @MainActor
-    func testConfigureWithManager() {
-        let mockPermission = PermissionServiceProtocolMock(permissionState: .notGranted)
-        let mockAccessibility = AccessibilityServiceProtocolMock()
-        let mockPersistence = PersistenceServiceProtocolMock()
-        let manager = MenuBarManager(
-            accessibilityService: mockAccessibility,
-            permissionService: mockPermission,
-            persistenceService: mockPersistence
-        )
-
-        let service = KeyboardShortcutsService()
-        service.configure(with: manager)
-
-        #expect(true, "Configuration should complete without error")
-    }
-
     // MARK: - Default Shortcut Tests
 
     @Test("Default shortcuts can be set")
@@ -110,8 +92,8 @@ struct KeyboardShortcutsServiceTests {
         // Set defaults
         service.setDefaultsIfNeeded()
 
-        // Check if default was set (Cmd+B)
-        let shortcut = KeyboardShortcuts.getShortcut(for: .toggleHiddenItems)
+        // Check if default was set (Cmd+\)
+        _ = KeyboardShortcuts.getShortcut(for: .toggleHiddenItems)
 
         // Note: The shortcut might be nil if the library doesn't support setting defaults
         // in the test environment, so we just verify it doesn't crash

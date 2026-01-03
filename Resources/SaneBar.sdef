@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="SaneBar Terminology">
+    <suite name="SaneBar Suite" code="SBar" description="SaneBar menu bar management commands">
+
+        <!-- Toggle Command -->
+        <command name="toggle" code="SBartggl" description="Toggle visibility of hidden menu bar items">
+            <cocoa class="ToggleCommand"/>
+        </command>
+
+        <!-- Show Command -->
+        <command name="show hidden" code="SBarshow" description="Show hidden menu bar items">
+            <cocoa class="ShowCommand"/>
+        </command>
+
+        <!-- Hide Command -->
+        <command name="hide items" code="SBarhide" description="Hide menu bar items">
+            <cocoa class="HideCommand"/>
+        </command>
+
+    </suite>
+</dictionary>

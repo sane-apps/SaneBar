@@ -66,7 +66,7 @@ struct WelcomeBanner: View {
             }
             .padding(.vertical, 8)
 
-            // How to use - multiple methods
+            // How to use
             VStack(alignment: .leading, spacing: 8) {
                 Text("How to organize:")
                     .font(.subheadline)
@@ -74,16 +74,16 @@ struct WelcomeBanner: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
-                    Image(systemName: "hand.tap")
+                    Image(systemName: "command")
                         .foregroundStyle(.blue)
-                    Text("Click the section icons on each item")
+                    Text("Hold ⌘ and drag icons in the menu bar")
                         .font(.callout)
                 }
 
                 HStack(spacing: 8) {
-                    Image(systemName: "hand.draw")
+                    Image(systemName: "arrow.left.arrow.right")
                         .foregroundStyle(.blue)
-                    Text("Or drag items between sections")
+                    Text("Place icons left or right of SaneBar")
                         .font(.callout)
                 }
             }

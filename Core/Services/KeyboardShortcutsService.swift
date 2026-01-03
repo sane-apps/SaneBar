@@ -15,9 +15,6 @@ extension KeyboardShortcuts.Name {
 
     /// Open SaneBar settings
     static let openSettings = Self("openSettings")
-
-    /// Open menu bar search
-    static let searchMenuBar = Self("searchMenuBar")
 }
 
 // MARK: - KeyboardShortcutsServiceProtocol
@@ -94,13 +91,6 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
                 NSApp.activate(ignoringOtherApps: true)
             }
         }
-
-        // Open menu bar search
-        KeyboardShortcuts.onKeyUp(for: .searchMenuBar) {
-            Task { @MainActor in
-                SearchWindowController.shared.toggle()
-            }
-        }
     }
 
     /// Unregister all handlers (for cleanup)
@@ -109,7 +99,6 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         KeyboardShortcuts.reset(.showHiddenItems)
         KeyboardShortcuts.reset(.hideItems)
         KeyboardShortcuts.reset(.openSettings)
-        KeyboardShortcuts.reset(.searchMenuBar)
     }
 
     // MARK: - Default Shortcuts
@@ -120,11 +109,6 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         if KeyboardShortcuts.getShortcut(for: .toggleHiddenItems) == nil {
             // Default: Cmd+\ for toggle (avoids conflict with Bold shortcut)
             KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: .command), for: .toggleHiddenItems)
-        }
-
-        if KeyboardShortcuts.getShortcut(for: .searchMenuBar) == nil {
-            // Default: Cmd+Shift+B for search
-            KeyboardShortcuts.setShortcut(.init(.b, modifiers: [.command, .shift]), for: .searchMenuBar)
         }
     }
 }

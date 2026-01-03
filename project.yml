@@ -73,6 +73,11 @@ targets:
       - Resources
     dependencies:
       - package: KeyboardShortcuts
+    info:
+      path: SaneBar/Info.plist
+      properties:
+        NSAppleScriptEnabled: true
+        OSAScriptingDefinition: SaneBar.sdef
     settings:
       base:
         PRODUCT_NAME: SaneBar
