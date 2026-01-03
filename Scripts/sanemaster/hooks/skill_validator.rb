@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # Skill Validator Hook - validates skill invocations before they run
-# Specifically enforces ralph-loop exit conditions
+# Specifically enforces sane-loop exit conditions
 
 require 'json'
 
@@ -15,8 +15,8 @@ begin
   skill_name = input['skill']&.downcase || ''
   args = input['args'] || ''
 
-  # Only validate ralph-loop
-  exit 0 unless skill_name.include?('ralph-loop')
+  # Only validate sane-loop
+  exit 0 unless skill_name.include?('sane-loop')
 
   # Check for required flags
   has_max_iter = args.include?('--max-iterations')
@@ -27,14 +27,14 @@ begin
 
   if !has_max_iter && !has_promise
     warn ''
-    warn '❌ BLOCKED: Ralph loop requires an exit condition!'
+    warn '❌ BLOCKED: SaneLoop loop requires an exit condition!'
     warn ''
     warn '   You must provide at least ONE of:'
     warn '     --max-iterations N    (where N > 0)'
     warn "     --completion-promise 'TEXT'"
     warn ''
     warn '   Example:'
-    warn '     /ralph-loop "Fix bug" --max-iterations 15 --completion-promise "BUG-FIXED"'
+    warn '     /sane-loop "Fix bug" --max-iterations 15 --completion-promise "BUG-FIXED"'
     warn ''
     warn '   This prevents infinite loops (learned from 700+ iteration failure).'
     exit 1
@@ -57,7 +57,7 @@ begin
     warn "⚠️  WARNING: --max-iterations #{count} is high. 10-20 is recommended." if count > 30
   end
 
-  puts '✅ Ralph loop validated: exit conditions present'
+  puts '✅ SaneLoop loop validated: exit conditions present'
 rescue JSON::ParserError
   # Not valid JSON, skip validation
   exit 0

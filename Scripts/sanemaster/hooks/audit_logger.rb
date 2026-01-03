@@ -53,7 +53,7 @@ when 'Bash'
   rules_checked << '#6:FULL_CYCLE' if command&.match?(/verify|test|build/)
 when 'Skill'
   skill = tool_input['skill'] || ''
-  rules_checked << '#RALPH:EXIT_CONDITION' if skill.include?('ralph')
+  rules_checked << '#RALPH:EXIT_CONDITION' if skill.include?('sane_loop')
 end
 
 # Check for warnings/blocks in stderr (captured by hooks)

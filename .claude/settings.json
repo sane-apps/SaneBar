@@ -38,6 +38,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/circuit_breaker.rb",
             "timeout": 5
           },
@@ -53,7 +58,7 @@
           },
           {
             "type": "command",
-            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/path_rules.rb",
             "timeout": 5
           }
         ]
@@ -78,12 +83,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/circuit_breaker.rb",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/sop_mapper.rb",
+            "command": "ruby \"$CLAUDE_PROJECT_DIR\"/Scripts/sanemaster/hooks/path_rules.rb",
             "timeout": 5
           }
         ]

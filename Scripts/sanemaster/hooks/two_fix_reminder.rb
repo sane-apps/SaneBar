@@ -43,8 +43,8 @@ state['edit_count'] += 1
 # Save state
 File.write(state_file, JSON.pretty_generate(state))
 
-# Output reminder every 5 edits
-output = if (state['edit_count'] % 5).zero?
+# Output reminder every 10 edits (5 was too frequent for large refactors)
+output = if (state['edit_count'] % 10).zero?
            {
              'result' => 'continue',
              'message' => "Reminder: You've made #{state['edit_count']} edits this session. Remember: Verify before coding, Two-Fix Rule applies."
