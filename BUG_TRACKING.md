@@ -37,7 +37,9 @@ External auditor identified 5 usability issues. All resolved:
 
 **Root Cause**: ⌘B conflicts with "Bold" in text editors globally.
 
-**Fix**: Changed to Option+S (user-implemented)
+**Fix**: Changed default to ⌘\ (backslash). User can still customize in Shortcuts tab.
+
+**File**: `Core/Services/KeyboardShortcutsService.swift:120-123`
 
 ---
 

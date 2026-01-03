@@ -106,7 +106,7 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
         return "Unknown Item"
     }
 
-    /// Creates a composite identifier for matching items across scans
+    /// Creates a composite identifier for storage and unique identification
     /// Uses multiple properties since menu bar items lack stable IDs
     /// Includes position to disambiguate multiple items from the same app (e.g., Control Center)
     var compositeKey: String {
@@ -115,6 +115,17 @@ struct StatusItemModel: Identifiable, Codable, Hashable {
             title ?? "",
             iconHash ?? "",
             String(originalPosition ?? position)
+        ]
+        return parts.joined(separator: "|")
+    }
+
+    /// Position-independent key for matching items across scans
+    /// Used by merge to preserve user settings when positions change
+    var matchingKey: String {
+        let parts = [
+            bundleIdentifier ?? "",
+            title ?? "",
+            iconHash ?? ""
         ]
         return parts.joined(separator: "|")
     }
