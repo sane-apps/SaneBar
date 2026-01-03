@@ -15,6 +15,9 @@ extension KeyboardShortcuts.Name {
 
     /// Open SaneBar settings
     static let openSettings = Self("openSettings")
+
+    /// Open menu bar search
+    static let searchMenuBar = Self("searchMenuBar")
 }
 
 // MARK: - KeyboardShortcutsServiceProtocol
@@ -80,15 +83,15 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
             }
         }
 
-        // Open settings
+        // Open settings via notification (macOS Tahoe workaround)
         KeyboardShortcuts.onKeyUp(for: .openSettings) {
+            NotificationCenter.default.post(name: .openSaneBarSettings, object: nil)
+        }
+
+        // Menu bar search
+        KeyboardShortcuts.onKeyUp(for: .searchMenuBar) {
             Task { @MainActor in
-                if #available(macOS 14.0, *) {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                } else {
-                    NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-                }
-                NSApp.activate(ignoringOtherApps: true)
+                SearchWindowController.shared.toggle()
             }
         }
     }
@@ -99,6 +102,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         KeyboardShortcuts.reset(.showHiddenItems)
         KeyboardShortcuts.reset(.hideItems)
         KeyboardShortcuts.reset(.openSettings)
+        KeyboardShortcuts.reset(.searchMenuBar)
     }
 
     // MARK: - Default Shortcuts

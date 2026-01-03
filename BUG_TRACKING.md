@@ -107,6 +107,53 @@ External auditor identified 5 usability issues. All resolved:
 
 ## Resolved Bugs
 
+### BUG-011: Ralph-Wiggum (SaneLoop) Plugin Parsing Errors
+
+**Status**: RESOLVED (2026-01-02)
+
+**Symptom**: `/ralph-loop` and `/cancel-ralph` commands fail with parse errors like `command not found: PHASES:` or `parse error near 'echo'`. Special characters in prompts break shell parsing.
+
+**Root Cause**:
+1. `ralph-loop.md` passes `$ARGUMENTS` unquoted - special chars like `()`, `[]`, `:` break bash
+2. `cancel-ralph.md` uses multiline `[[ -f` conditional which fails in the ` ```! ` execution context
+
+**Fix** (6 files total in `~/.claude/plugins/`):
+
+For `ralph-loop.md`:
+```bash
+# Before:
+"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh" $ARGUMENTS
+
+# After:
+eval "\"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh\" $ARGUMENTS"
+```
+
+For `cancel-ralph.md`:
+```bash
+# Before (multiline):
+if [[ -f .claude/ralph-loop.local.md ]]; then
+  ITERATION=$(...)
+  ...
+fi
+
+# After (single-line):
+if test -f .claude/ralph-loop.local.md; then ITERATION=$(...); echo "..."; else echo "..."; fi
+```
+
+**Files Fixed**:
+- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/ralph-loop.md`
+- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/cancel-ralph.md`
+- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/ralph-loop.md`
+- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/cancel-ralph.md`
+- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/ralph-loop.md`
+- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/cancel-ralph.md`
+
+**Note**: Claude Code caches plugins at session start. Fixes require session restart to take effect.
+
+**Regression Test**: None (external plugin, not project code)
+
+---
+
 ### BUG-007: Permission alert never displays
 
 **Status**: RESOLVED (2026-01-01)

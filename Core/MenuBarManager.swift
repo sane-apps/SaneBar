@@ -30,6 +30,7 @@ final class MenuBarManager: ObservableObject {
     let hidingService: HidingService
     let persistenceService: PersistenceServiceProtocol
     let triggerService: TriggerService
+    let iconHotkeysService: IconHotkeysService
 
     // MARK: - Status Items
 
@@ -50,11 +51,13 @@ final class MenuBarManager: ObservableObject {
     init(
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
-        triggerService: TriggerService? = nil
+        triggerService: TriggerService? = nil,
+        iconHotkeysService: IconHotkeysService? = nil
     ) {
         self.hidingService = hidingService ?? HidingService()
         self.persistenceService = persistenceService
         self.triggerService = triggerService ?? TriggerService()
+        self.iconHotkeysService = iconHotkeysService ?? IconHotkeysService.shared
 
         setupStatusItem()
         loadSettings()
@@ -63,6 +66,9 @@ final class MenuBarManager: ObservableObject {
 
         // Configure trigger service with self
         self.triggerService.configure(menuBarManager: self)
+
+        // Configure icon hotkeys service with self
+        self.iconHotkeysService.configure(with: self)
     }
 
     // MARK: - Setup
@@ -207,6 +213,8 @@ final class MenuBarManager: ObservableObject {
     func saveSettings() {
         do {
             try persistenceService.saveSettings(settings)
+            // Re-register hotkeys when settings change
+            iconHotkeysService.registerHotkeys(from: settings)
         } catch {
             print("[SaneBar] Failed to save settings: \(error)")
         }
@@ -264,19 +272,8 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func openSettings(_ sender: Any?) {
-        print("[SaneBar] Menu: Open Settings")
-
-        // Open Settings window without hiding other apps
-        if #available(macOS 14.0, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        }
-
-        // Bring just the Settings window to front (not the whole app)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NSApp.windows.first { $0.title.contains("Settings") || $0.title.contains("Preferences") }?.makeKeyAndOrderFront(nil)
-        }
+        // Post notification - handled by SettingsOpenerView (macOS Tahoe workaround)
+        NotificationCenter.default.post(name: .openSaneBarSettings, object: nil)
     }
 
     @objc private func quitApp(_ sender: Any?) {

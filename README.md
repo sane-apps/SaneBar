@@ -1,0 +1,129 @@
+# SaneBar
+
+A clean, privacy-focused menu bar manager for macOS. Hide menu bar clutter with a single click.
+
+**Free and open source alternative to Bartender.**
+
+## Features
+
+- **One-click hide/show** - Click the SaneBar icon to toggle hidden items
+- **Cmd+drag to organize** - Arrange icons left (always visible) or right (hideable) of the separator
+- **Auto-hide** - Hidden items automatically disappear after a configurable delay
+- **Keyboard shortcuts** - Global hotkeys for all actions
+- **Menu bar search** - Quickly find apps and copy their bundle IDs
+- **Per-icon hotkeys** - Assign shortcuts to specific app icons
+- **Profiles** - Save and restore settings configurations
+- **Always visible apps** - Keep specific icons visible even when hiding others
+- **App triggers** - Auto-show hidden items when specific apps launch
+- **Spacers** - Add dividers to organize hidden icons into groups
+- **AppleScript support** - Automate via Terminal or automation tools
+
+## Privacy
+
+**100% on-device.** No analytics. No telemetry. No network requests. Everything stays on your Mac.
+
+## Requirements
+
+- macOS 14.0 (Sonoma) or later
+- macOS 15.0+ (Sequoia/Tahoe) fully supported
+
+## Installation
+
+### Download
+
+Download the latest release from [Releases](https://github.com/stephanjoseph/SaneBar/releases).
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/stephanjoseph/SaneBar.git
+cd SaneBar
+
+# Install dependencies
+bundle install
+
+# Generate Xcode project and build
+./Scripts/SaneMaster.rb verify
+
+# Launch
+./Scripts/SaneMaster.rb launch
+```
+
+## Usage
+
+### Quick Start
+
+1. **Cmd+drag** menu bar icons to rearrange them
+2. Icons **left** of SaneBar icon = always visible
+3. Icons **right** of SaneBar icon = can be hidden
+4. **Click** SaneBar icon to show/hide
+
+### Keyboard Shortcuts
+
+Configure in Settings > Shortcuts:
+- Toggle visibility
+- Show hidden items
+- Hide items
+- Search apps
+- Open Settings
+
+### AppleScript
+
+Control SaneBar from Terminal or automation tools:
+
+```bash
+osascript -e 'tell app "SaneBar" to toggle'
+osascript -e 'tell app "SaneBar" to show hidden'
+osascript -e 'tell app "SaneBar" to hide items'
+```
+
+## Development
+
+### Prerequisites
+
+- Xcode 16+
+- Ruby 3.0+ (for build scripts)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+
+### Build & Test
+
+```bash
+# Full build + tests
+./Scripts/SaneMaster.rb verify
+
+# Kill, build, launch, stream logs
+./Scripts/SaneMaster.rb test_mode
+
+# Stream logs
+./Scripts/SaneMaster.rb logs --follow
+```
+
+### Project Structure
+
+```
+SaneBar/
+├── Core/
+│   ├── MenuBarManager.swift      # Main status bar logic
+│   ├── Services/                 # Hiding, keyboard shortcuts, persistence
+│   └── Models/                   # Data models (profiles, settings)
+├── UI/
+│   ├── SettingsView.swift        # Settings window
+│   └── SearchWindow/             # Menu bar search UI
+├── Tests/                        # Unit tests
+└── Scripts/
+    └── SaneMaster.rb             # Build automation
+```
+
+## macOS Tahoe (26) Notes
+
+SaneBar includes a workaround for the SwiftUI Settings scene issue on macOS Tahoe where `showSettingsWindow:` no longer works for menu bar apps. The fix uses a hidden window technique with activation policy toggling, based on [Peter Steinberger's research](https://steipete.me/posts/2025/showing-settings-from-macos-menu-bar-items).
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Credits
+
+- Uses [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus
+- Inspired by [Bartender](https://www.macbartender.com/) and [Hidden Bar](https://github.com/dwarvesf/hidden)

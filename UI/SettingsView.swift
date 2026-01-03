@@ -7,6 +7,9 @@ import ServiceManagement
 struct SettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var selectedTab: SettingsTab = .general
+    @State private var savedProfiles: [SaneBarProfile] = []
+    @State private var showingSaveProfileAlert = false
+    @State private var newProfileName = ""
 
     enum SettingsTab: String, CaseIterable {
         case general = "General"
@@ -113,6 +116,7 @@ struct SettingsView: View {
                         KeyboardShortcuts.Recorder("Toggle visibility:", name: .toggleHiddenItems)
                         KeyboardShortcuts.Recorder("Show hidden:", name: .showHiddenItems)
                         KeyboardShortcuts.Recorder("Hide items:", name: .hideItems)
+                        KeyboardShortcuts.Recorder("Search apps:", name: .searchMenuBar)
                         KeyboardShortcuts.Recorder("Open Settings:", name: .openSettings)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -149,6 +153,102 @@ struct SettingsView: View {
     private var advancedTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // Profiles
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Save and restore your settings configurations.")
+                            .font(.callout)
+
+                        if savedProfiles.isEmpty {
+                            HStack {
+                                Image(systemName: "square.stack")
+                                    .foregroundStyle(.secondary)
+                                Text("No saved profiles")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            ForEach(savedProfiles) { profile in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(profile.name)
+                                            .font(.body)
+                                        Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button("Load") {
+                                        loadProfile(profile)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    Button(role: .destructive) {
+                                        deleteProfile(profile)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+
+                        Divider()
+
+                        Button("Save Current Settings as Profile...") {
+                            newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
+                            showingSaveProfileAlert = true
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Profiles", systemImage: "square.stack")
+                }
+                .onAppear { loadProfiles() }
+                .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
+                    TextField("Profile name", text: $newProfileName)
+                    Button("Save") { saveCurrentProfile() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Enter a name for this profile.")
+                }
+
+                // Always Visible Apps
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Keep specific menu bar icons always visible, even when hiding others.")
+                            .font(.callout)
+
+                        TextField("App bundle IDs", text: Binding(
+                            get: { menuBarManager.settings.alwaysVisibleApps.joined(separator: ", ") },
+                            set: { newValue in
+                                menuBarManager.settings.alwaysVisibleApps = newValue
+                                    .split(separator: ",")
+                                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                                    .filter { !$0.isEmpty }
+                            }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("**How to set up:**")
+                            Text("1. Enter bundle IDs above (e.g., com.1password.1password)")
+                            Text("2. \u{2318}+drag those icons to the LEFT of the separator (⧵)")
+                            Text("3. They'll stay visible when you hide other icons")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        Text("Find bundle ID: osascript -e 'id of app \"AppName\"'")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Always Visible", systemImage: "pin.fill")
+                }
+
                 // Spacers
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
@@ -161,6 +261,45 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Label("Spacers", systemImage: "rectangle.split.3x1")
+                }
+
+                // Per-Icon Hotkeys
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Assign keyboard shortcuts to quickly access specific app icons.")
+                            .font(.callout)
+
+                        if menuBarManager.settings.iconHotkeys.isEmpty {
+                            HStack {
+                                Image(systemName: "keyboard.badge.ellipsis")
+                                    .foregroundStyle(.secondary)
+                                Text("No hotkeys configured")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            ForEach(Array(menuBarManager.settings.iconHotkeys.keys.sorted()), id: \.self) { bundleID in
+                                HStack {
+                                    Text(appName(for: bundleID))
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        menuBarManager.settings.iconHotkeys.removeValue(forKey: bundleID)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+
+                        Text("Use **Search apps** shortcut to find apps and add hotkeys from there.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Per-Icon Hotkeys", systemImage: "keyboard.badge.ellipsis")
                 }
 
                 // App Launch Triggers
@@ -194,6 +333,56 @@ struct SettingsView: View {
         }
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// Get app name from bundle ID
+    private func appName(for bundleID: String) -> String {
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first,
+           let name = app.localizedName {
+            return name
+        }
+        // Fallback: extract last component of bundle ID
+        return bundleID.split(separator: ".").last.map(String.init) ?? bundleID
+    }
+
+    // MARK: - Profile Management
+
+    private func loadProfiles() {
+        do {
+            savedProfiles = try PersistenceService.shared.listProfiles()
+        } catch {
+            print("[SaneBar] Failed to load profiles: \(error)")
+        }
+    }
+
+    private func saveCurrentProfile() {
+        guard !newProfileName.isEmpty else { return }
+
+        var profile = SaneBarProfile(name: newProfileName, settings: menuBarManager.settings)
+        profile.modifiedAt = Date()
+
+        do {
+            try PersistenceService.shared.saveProfile(profile)
+            loadProfiles()
+        } catch {
+            print("[SaneBar] Failed to save profile: \(error)")
+        }
+    }
+
+    private func loadProfile(_ profile: SaneBarProfile) {
+        menuBarManager.settings = profile.settings
+        menuBarManager.saveSettings()
+    }
+
+    private func deleteProfile(_ profile: SaneBarProfile) {
+        do {
+            try PersistenceService.shared.deleteProfile(id: profile.id)
+            loadProfiles()
+        } catch {
+            print("[SaneBar] Failed to delete profile: \(error)")
         }
     }
 

@@ -17,6 +17,7 @@ struct KeyboardShortcutsServiceTests {
         let showName = KeyboardShortcuts.Name.showHiddenItems
         let hideName = KeyboardShortcuts.Name.hideItems
         let settingsName = KeyboardShortcuts.Name.openSettings
+        let searchName = KeyboardShortcuts.Name.searchMenuBar
 
         #expect(toggleName.rawValue == "toggleHiddenItems",
                 "Toggle shortcut name should match")
@@ -26,6 +27,8 @@ struct KeyboardShortcutsServiceTests {
                 "Hide shortcut name should match")
         #expect(settingsName.rawValue == "openSettings",
                 "Settings shortcut name should match")
+        #expect(searchName.rawValue == "searchMenuBar",
+                "Search shortcut name should match")
     }
 
     @Test("All shortcut names are unique")
@@ -34,7 +37,8 @@ struct KeyboardShortcutsServiceTests {
             .toggleHiddenItems,
             .showHiddenItems,
             .hideItems,
-            .openSettings
+            .openSettings,
+            .searchMenuBar
         ]
 
         let rawValues = names.map { $0.rawValue }
