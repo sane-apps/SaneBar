@@ -18,38 +18,38 @@ struct HelpButton: View {
         .buttonStyle(.borderless)
         .popover(isPresented: $isShowingPopover) {
             Text(tip)
+                .font(.system(size: 13))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding()
-                .frame(maxWidth: 280)
+                .frame(width: 300)
         }
-    }
-}
-
-// MARK: - Scroll Position Detection
-
-private struct BottomVisibleKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = .infinity
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = min(value, nextValue())
     }
 }
 
 // MARK: - GlassGroupBoxStyle
 
 struct GlassGroupBoxStyle: GroupBoxStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             configuration.label
-                .font(.headline)
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
 
             configuration.content
         }
         .padding(16)
-        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? .thickMaterial : .regularMaterial)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(.primary.opacity(0.1), lineWidth: 1)
+                .stroke(colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.08), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 4, y: 2)
     }
 }
 
@@ -88,7 +88,8 @@ struct SettingsView: View {
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(SettingsTab.about)
         }
-        .frame(width: 520, height: 480)
+        .frame(width: 540, height: 540)
+        .tint(.blue)
         .groupBoxStyle(GlassGroupBoxStyle())
     }
 
@@ -152,16 +153,19 @@ struct SettingsView: View {
                         Divider()
 
                         // Step 2: How to organize
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 8) {
                                 Image(systemName: "hand.draw")
                                     .foregroundStyle(.blue)
                                 Text("**⌘+drag** icons to organize them")
                             }
-                            Text("• Left of separator = always visible\n• Right of separator = can be hidden")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 28)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("• Left of separator = always visible")
+                                Text("• Right of separator = can be hidden")
+                            }
+                            .font(.system(size: 13))
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 28)
                         }
 
                         Divider()
@@ -203,7 +207,7 @@ struct SettingsView: View {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Click a field, then press your shortcut keys.")
-                            
+                            .font(.system(size: 13))
                             .foregroundStyle(.secondary)
 
                         KeyboardShortcuts.Recorder("Toggle visibility:", name: .toggleHiddenItems)
@@ -212,6 +216,7 @@ struct SettingsView: View {
                         KeyboardShortcuts.Recorder("Search apps:", name: .searchMenuBar)
                         KeyboardShortcuts.Recorder("Open Settings:", name: .openSettings)
                     }
+                    .tint(.blue)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Label("Global Shortcuts", systemImage: "keyboard")
@@ -252,7 +257,6 @@ struct SettingsView: View {
 
     // MARK: - Advanced Tab
 
-    @State private var isAtBottom = false
     @State private var showAppearanceOptions = false
     @State private var showAutomationOptions = false
 
@@ -272,6 +276,7 @@ struct SettingsView: View {
                                 Text("No saved profiles")
                                     .foregroundStyle(.secondary)
                             }
+                            .font(.system(size: 13))
                             .padding(.vertical, 4)
                         } else {
                             ForEach(savedProfiles) { profile in
@@ -365,16 +370,22 @@ struct SettingsView: View {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Quick access shortcuts for specific apps")
+                            Text("Assign keyboard shortcuts to activate specific menu bar apps")
+                                .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            HelpButton(tip: "Use the Search apps shortcut (set in Shortcuts tab) to find apps and assign hotkeys.")
+                            HelpButton(tip: "How to add a hotkey:\n\n1. Set a \"Search apps\" shortcut in the Shortcuts tab\n2. Press that shortcut to open the app search\n3. Select an app and press a key to assign it\n\nThe hotkey will reveal hidden icons and activate that app.")
                         }
 
                         if menuBarManager.settings.iconHotkeys.isEmpty {
-                            Text("No hotkeys configured")
-                                .foregroundStyle(.tertiary)
-                                .padding(.vertical, 4)
+                            HStack {
+                                Image(systemName: "keyboard")
+                                    .foregroundStyle(.tertiary)
+                                Text("No hotkeys configured yet")
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .font(.system(size: 13))
+                            .padding(.vertical, 4)
                         } else {
                             ForEach(Array(menuBarManager.settings.iconHotkeys.keys.sorted()), id: \.self) { bundleID in
                                 HStack {
@@ -541,46 +552,10 @@ struct SettingsView: View {
                     Label("Automation", systemImage: "gearshape.2")
                 }
 
-                // Bottom anchor to detect scroll position
-                GeometryReader { geo in
-                    Color.clear
-                        .preference(key: BottomVisibleKey.self, value: geo.frame(in: .named("scroll")).maxY)
-                }
-                .frame(height: 1)
             }
             .padding()
         }
-        .coordinateSpace(name: "scroll")
-        .onPreferenceChange(BottomVisibleKey.self) { maxY in
-            // Consider "at bottom" when bottom anchor is visible (within ~400pt of top)
-            isAtBottom = maxY < 420
-        }
-        .scrollIndicators(.visible)
-        .overlay(alignment: .bottom) {
-            // Gradient fade + hint - only show when NOT at bottom
-            if !isAtBottom {
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.clear, Color(NSColor.windowBackgroundColor)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 30)
-
-                    HStack {
-                        Spacer()
-                        Label("Scroll for more", systemImage: "chevron.down")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(.bottom, 4)
-                    .background(Color(NSColor.windowBackgroundColor))
-                }
-                .allowsHitTesting(false)
-                .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: isAtBottom)
+        .scrollIndicators(.automatic)
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
         }
@@ -675,19 +650,32 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 40)
 
-            HStack(spacing: 16) {
-                Link("View on GitHub", destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!)
-
-                Button("Licenses") {
-                    showLicenses = true
+            HStack(spacing: 12) {
+                Link(destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!) {
+                    Label("GitHub", systemImage: "link")
                 }
                 .buttonStyle(.bordered)
 
-                Button("Reset to Defaults") {
-                    showResetConfirmation = true
+                Button {
+                    showLicenses = true
+                } label: {
+                    Label("Licenses", systemImage: "doc.text")
                 }
                 .buttonStyle(.bordered)
             }
+            .font(.system(size: 13))
+
+            Spacer()
+
+            // Reset button separated - destructive action
+            Button(role: .destructive) {
+                showResetConfirmation = true
+            } label: {
+                Text("Reset to Defaults")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
 
             Spacer()
         }

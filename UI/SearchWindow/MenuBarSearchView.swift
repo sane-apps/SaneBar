@@ -108,7 +108,7 @@ struct MenuBarSearchView: View {
                     }
                 } else {
                     Text("Select an app and press Return to activate it. This will reveal hidden items and bring the app forward.")
-                        .font(.caption)
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
             }
