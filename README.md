@@ -70,6 +70,9 @@ bundle install
 
 # Launch
 ./Scripts/SaneMaster.rb launch
+
+# Create distribution DMG (requires Developer ID)
+./Scripts/release.sh --skip-notarize
 ```
 
 ## Usage

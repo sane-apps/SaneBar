@@ -127,38 +127,50 @@ struct SettingsView: View {
                     Label("Auto-hide", systemImage: "eye.slash")
                 }
 
-                // How it works - icons AND words, readable size
+                // How it works - clear step-by-step
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "command")
-                            Text("**⌘+drag** menu bar icons to rearrange them")
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Step 1: The icons
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Your menu bar icons:").fontWeight(.medium)
+                            HStack(spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle")
+                                        .foregroundStyle(.blue)
+                                    Text("SaneBar")
+                                }
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.diagonal")
+                                        .foregroundStyle(.secondary)
+                                    Text("Separator")
+                                }
+                            }
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
                         }
 
-                        HStack(spacing: 8) {
-                            Image(systemName: "line.diagonal")
-                                .padding(3)
-                                .background(.secondary.opacity(0.2))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                            Text("This is the **separator** icon")
+                        Divider()
+
+                        // Step 2: How to organize
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "hand.draw")
+                                    .foregroundStyle(.blue)
+                                Text("**⌘+drag** icons to organize them")
+                            }
+                            Text("• Left of separator = always visible\n• Right of separator = can be hidden")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 28)
                         }
 
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.left.circle")
-                            Text("Icons **left** of separator stay visible")
-                        }
+                        Divider()
 
+                        // Step 3: Toggle
                         HStack(spacing: 8) {
-                            Image(systemName: "arrow.right.circle")
-                            Text("Icons **right** of separator can be hidden")
-                        }
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                                .padding(3)
-                                .background(.secondary.opacity(0.2))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                            Text("**Click this icon** to show or hide")
+                            Image(systemName: "cursorarrow.click.2")
+                                .foregroundStyle(.blue)
+                            Text("**Click SaneBar icon** to show/hide")
                         }
 
                         if menuBarManager.hasNotch {
@@ -626,6 +638,8 @@ struct SettingsView: View {
 
     // MARK: - About Tab
 
+    @State private var showResetConfirmation = false
+
     private var aboutTab: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -642,7 +656,6 @@ struct SettingsView: View {
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
                     Text("Version \(version) (\(build))")
-                        
                         .foregroundStyle(.secondary)
                 }
             }
@@ -653,7 +666,6 @@ struct SettingsView: View {
                         .foregroundStyle(.green)
 
                     Text("No analytics. No telemetry. No network requests. Everything stays on your Mac.")
-                        
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -662,12 +674,27 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 40)
 
-            Link("View on GitHub", destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!)
-                
+            HStack(spacing: 16) {
+                Link("View on GitHub", destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!)
+
+                Button("Reset to Defaults") {
+                    showResetConfirmation = true
+                }
+                .buttonStyle(.bordered)
+            }
 
             Spacer()
         }
         .padding()
+        .alert("Reset Settings?", isPresented: $showResetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                menuBarManager.resetToDefaults()
+                launchAtLoginEnabled = LaunchAtLogin.isEnabled
+            }
+        } message: {
+            Text("This will reset all settings to their defaults. This cannot be undone.")
+        }
     }
 
 }
