@@ -132,7 +132,7 @@ SaneBar includes a workaround for the SwiftUI Settings scene issue on macOS Taho
 
 ## Donate
 
-If SaneBar saves you time, consider supporting development:
+Starving artist here. Enjoy the product, but if you can, help a brother out. God bless!
 
 | Crypto | Address |
 |--------|---------|
