@@ -11,27 +11,26 @@
 
 require 'json'
 
-# Get tool input from environment
-tool_input_raw = ENV.fetch('CLAUDE_TOOL_INPUT', nil)
-exit 0 if tool_input_raw.nil? || tool_input_raw.empty?
-
+# Read hook input from stdin (Claude Code standard)
 begin
-  tool_input = JSON.parse(tool_input_raw)
-  file_path = tool_input['file_path']
-
-  exit 0 if file_path.nil? || file_path.empty?
-
-  # Only remind for Swift source files (not tests, not configs)
-  exit 0 unless file_path.end_with?('.swift')
-  exit 0 if file_path.include?('/Tests/')
-  exit 0 if file_path.include?('Mock')
-
-  # Simple reminder
-  warn ''
-  warn '📋 VERIFY CYCLE: Edit complete → Now: verify → kill → launch → logs → confirm'
-  warn ''
-
-  exit 0
-rescue StandardError
+  input = JSON.parse($stdin.read)
+rescue JSON::ParserError, Errno::ENOENT
   exit 0
 end
+
+tool_input = input['tool_input'] || {}
+file_path = tool_input['file_path'] || ''
+
+exit 0 if file_path.empty?
+
+# Only remind for Swift source files (not tests, not configs)
+exit 0 unless file_path.end_with?('.swift')
+exit 0 if file_path.include?('/Tests/')
+exit 0 if file_path.include?('Mock')
+
+# Simple reminder
+warn ''
+warn '📋 VERIFY CYCLE: Edit complete → Now: verify → kill → launch → logs → confirm'
+warn ''
+
+exit 0

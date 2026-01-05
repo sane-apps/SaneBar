@@ -1,8 +1,14 @@
 # SaneBar Project Configuration
 
 > Project-specific settings that override/extend the global ~/CLAUDE.md
-
 ---
+
+## PRIME DIRECTIVE (from ~/CLAUDE.md)
+
+> When hooks fire: **READ THE MESSAGE FIRST**. The answer is in the prompt/hook/memory/SOP.
+> Stop guessing. Start reading.
+
+
 
 ## Project Structure
 

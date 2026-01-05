@@ -83,9 +83,11 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
             }
         }
 
-        // Open settings via notification (macOS Tahoe workaround)
+        // Open settings
         KeyboardShortcuts.onKeyUp(for: .openSettings) {
-            NotificationCenter.default.post(name: .openSaneBarSettings, object: nil)
+            Task { @MainActor in
+                SettingsOpener.open()
+            }
         }
 
         // Menu bar search

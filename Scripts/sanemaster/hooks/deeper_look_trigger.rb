@@ -13,6 +13,7 @@
 # - 0: Always (reminder only, never blocks)
 
 require 'json'
+require_relative 'rule_tracker'
 
 # === DEEPER LOOK: Issue patterns requiring investigation ===
 ISSUE_PATTERNS = [
@@ -192,7 +193,16 @@ found_issues = ISSUE_PATTERNS.filter { |pat| text_to_check.match?(pat) }
 found_weasels = WEASEL_PATTERNS.select { |pattern, _info| text_to_check.match?(pattern) }
 
 # Output warnings
-output_issue_warning(found_issues) if found_issues.any?
-output_weasel_warning(found_weasels) if found_weasels.any?
+if found_issues.any?
+  RuleTracker.log_enforcement(rule: 8, hook: 'deeper_look_trigger', action: 'warn', details: "#{found_issues.count} issue patterns found")
+  output_issue_warning(found_issues)
+end
+
+if found_weasels.any?
+  # Track by most severe rule violated
+  first_rule = found_weasels.values.first[:rule]
+  RuleTracker.log_enforcement(rule: first_rule.to_s, hook: 'deeper_look_trigger', action: 'warn', details: "#{found_weasels.count} weasel patterns")
+  output_weasel_warning(found_weasels)
+end
 
 exit 0

@@ -4,13 +4,37 @@
 # Failure Tracking Hook
 # Tracks consecutive failures and enforces Two-Fix Rule escalation
 # Also integrates with circuit breaker to trip after threshold failures
+#
+# This is a PostToolUse hook for Bash commands.
 
 require 'json'
 require 'fileutils'
+require_relative 'rule_tracker'
 
-# Load circuit breaker state module
-circuit_breaker_path = File.join(__dir__, '..', 'circuit_breaker_state.rb')
-require circuit_breaker_path if File.exist?(circuit_breaker_path)
+# State file for failure tracking
+STATE_FILE = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'failure_state.json')
+BREAKER_FILE = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'circuit_breaker.json')
+
+def default_state
+  { 'consecutive_failures' => 0, 'last_failure_tool' => nil, 'session' => nil, 'escalated' => false }
+end
+
+def default_breaker_state
+  { failures: 0, tripped: false, tripped_at: nil, threshold: 3 }
+end
+
+def load_state(file, default)
+  return default.call unless File.exist?(file)
+
+  JSON.parse(File.read(file), symbolize_names: false)
+rescue StandardError
+  default.call
+end
+
+def save_state(file, state)
+  FileUtils.mkdir_p(File.dirname(file))
+  File.write(file, JSON.pretty_generate(state))
+end
 
 # Read hook input from stdin
 input = begin
@@ -18,35 +42,13 @@ input = begin
 rescue StandardError
   {}
 end
+
 tool_name = input['tool_name'] || 'unknown'
-tool_input = input['tool_input'] || {}
 tool_output = input['tool_output'] || ''
 session_id = input['session_id'] || 'unknown'
 
-# Skip if command is for a different project
-project_dir = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
-current_project = File.basename(project_dir)
-command = tool_input['command'] || ''
-if command.include?('/Sane') && !command.include?("/#{current_project}")
-  puts({ 'result' => 'continue' }.to_json)
-  exit 0
-end
-
-# State file for failure tracking
-state_file = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'failure_state.json')
-state_dir = File.dirname(state_file)
-FileUtils.mkdir_p(state_dir)
-
 # Load state
-state = begin
-  File.exist?(state_file) ? JSON.parse(File.read(state_file)) : default_state
-rescue StandardError
-  default_state
-end
-
-def default_state
-  { 'consecutive_failures' => 0, 'last_failure_tool' => nil, 'session' => nil, 'escalated' => false }
-end
+state = load_state(STATE_FILE, method(:default_state))
 
 # Reset if new session
 state = default_state if state['session'] != session_id
@@ -69,70 +71,55 @@ failure_patterns = [
 success_patterns = [
   /no errors?/i,
   /0 errors?/i,
-  /error.*(fixed|resolved|cleared)/i,
   /Build succeeded/i,
   /Test.*passed/i,
   /\*\* BUILD SUCCEEDED \*\*/,
-  /error_handler/i,            # Variable/function names containing "error"
-  /error_code/i,
-  /on_error/i,
+  /error_handler/i,
   /ErrorType/i,
-  /\.error\s*=/,               # Property assignment like .error = nil
-  /catch.*error/i,             # Error handling code
-  /handle.*error/i,
-  /log.*error/i                # Logging about errors
+  /catch.*error/i
 ]
 
-# Check if this is warning-only output (has warning but no actual error indicators)
-warning_only = tool_output.match?(/warning:/i) &&
-               !tool_output.match?(/error:/i) &&
-               !tool_output.match?(/FAIL/)
-
-# Only count as failure if:
-# 1. Matches failure pattern
-# 2. Doesn't match success pattern (explicit success overrides)
-# 3. Isn't warning-only output
-is_failure = failure_patterns.any? { |pattern| tool_output.match?(pattern) } &&
-             success_patterns.none? { |pattern| tool_output.match?(pattern) } &&
-             !warning_only
+# Only count as failure if matches failure pattern and not success pattern
+is_failure = failure_patterns.any? { |p| tool_output.match?(p) } &&
+             success_patterns.none? { |p| tool_output.match?(p) }
 
 if is_failure
   state['consecutive_failures'] += 1
   state['last_failure_tool'] = tool_name
 
-  # Record failure in circuit breaker
-  if defined?(SaneMasterModules::CircuitBreakerState)
-    failure_msg = "#{tool_name}: #{tool_output.lines.first&.strip}"
-    breaker_state = SaneMasterModules::CircuitBreakerState.record_failure(failure_msg)
+  # Update circuit breaker
+  breaker = load_state(BREAKER_FILE, method(:default_breaker_state))
+  breaker[:failures] = (breaker[:failures] || 0) + 1
 
-    if breaker_state[:tripped]
-      msg = "CIRCUIT BREAKER TRIPPED: #{breaker_state[:failures]} consecutive failures. " \
-            'All Edit/Bash/Write tools now BLOCKED. Run ./Scripts/SaneMaster.rb reset_breaker to unblock.'
-      warn msg
-    end
+  if breaker[:failures] >= (breaker[:threshold] || 3) && !breaker[:tripped]
+    breaker[:tripped] = true
+    breaker[:tripped_at] = Time.now.iso8601
+    breaker[:trip_reason] = "#{breaker[:failures]} consecutive failures"
+    save_state(BREAKER_FILE, breaker)
+    RuleTracker.log_violation(rule: 3, hook: 'failure_tracker', reason: "Circuit breaker tripped: #{breaker[:failures]} failures")
+    warn '🔴 CIRCUIT BREAKER TRIPPED: All Edit/Bash/Write tools now BLOCKED.'
+  else
+    save_state(BREAKER_FILE, breaker)
   end
 
   # Enforce Two-Fix Rule
   if state['consecutive_failures'] >= 2 && !state['escalated']
     state['escalated'] = true
-    File.write(state_file, JSON.pretty_generate(state))
-
-    msg = "TWO-FIX RULE: #{state['consecutive_failures']} failures. " \
-          'STOP GUESSING. Look up docs/SDK/source before next fix.'
-    output = { 'result' => 'continue', 'message' => msg }
-    puts output.to_json
-    exit 0
+    RuleTracker.log_enforcement(rule: 3, hook: 'failure_tracker', action: 'warn', details: "#{state['consecutive_failures']} failures")
+    warn "⚠️  TWO-FIX RULE: #{state['consecutive_failures']} failures. STOP GUESSING. Research before next fix."
   end
 else
   # Success - reset counter
   state['consecutive_failures'] = 0
   state['escalated'] = false
 
-  # Record success in circuit breaker (resets failure count but not tripped state)
-  SaneMasterModules::CircuitBreakerState.record_success if defined?(SaneMasterModules::CircuitBreakerState)
+  # Reset breaker failure count (but not tripped state)
+  breaker = load_state(BREAKER_FILE, method(:default_breaker_state))
+  breaker[:failures] = 0
+  save_state(BREAKER_FILE, breaker)
 end
 
 # Save state
-File.write(state_file, JSON.pretty_generate(state))
+save_state(STATE_FILE, state)
 
 puts({ 'result' => 'continue' }.to_json)

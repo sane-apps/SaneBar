@@ -6,7 +6,7 @@
 # Prevents BUG-008: Building to one path but launching from another.
 #
 # Plain English: If you build with a custom derivedDataPath (like ./build),
-# then launch with SaneMaster (which uses DerivedData), you'll run the OLD
+# then launch with your project tool (which uses DerivedData), you'll run the OLD
 # version and think your changes work when they don't.
 #
 # This hook tracks the last build path and warns if launch uses a different one.
@@ -28,7 +28,7 @@ def save_state(state)
   File.write(STATE_FILE, JSON.pretty_generate(state))
 end
 
-# Read tool input from stdin
+# Read tool input from stdin (Claude Code standard)
 begin
   input = JSON.parse($stdin.read)
 rescue JSON::ParserError
@@ -53,8 +53,8 @@ if command.match?(/xcodebuild.*build/) && command.match?(/-derivedDataPath\s+(\S
   exit 0
 end
 
-# Detect SaneMaster launch (uses DerivedData by default)
-if command.match?(/SaneMaster\.rb\s+(launch|test_mode|run)/)
+# Detect project tool launch (uses DerivedData by default)
+if command.match?(/Scripts.*\s+(launch|test_mode|run)/)
   if state['used_custom_path'] && state['last_build_path']
     warn <<~WARNING
 
@@ -63,12 +63,12 @@ if command.match?(/SaneMaster\.rb\s+(launch|test_mode|run)/)
       ========================================
 
       Last build used custom path: #{state['last_build_path']}
-      But SaneMaster.rb launch uses: DerivedData
+      But your launch command uses: DerivedData
 
       These are DIFFERENT binaries!
 
       To fix:
-        1. Run: ./Scripts/SaneMaster.rb verify (uses DerivedData)
+        1. Use your project's verify command (uses DerivedData)
         2. Or: open "#{state['last_build_path']}/Build/Products/Debug/*.app"
 
       ========================================

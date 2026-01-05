@@ -1,91 +1,94 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Audit Logger Hook - Creates structured decision trail
+# Audit Logger Hook - Tracks all tool decisions for post-mortem analysis
 #
-# Logs all tool calls to .claude/audit_log.jsonl with:
+# Logs every tool call with:
 # - Timestamp
 # - Tool name
 # - File path (if applicable)
-# - Rule checks performed
-# - Result (pass/warn/block)
+# - Session ID
+# - Outcome (allowed/blocked)
 #
-# This is a PostToolUse hook for observability.
+# This is a PostToolUse hook that runs after every tool call.
+# Logs are written to .claude/audit.jsonl (JSON Lines format).
+#
+# Exit codes:
+# - 0: Always (logging should never block)
 
 require 'json'
 require 'fileutils'
 
-LOG_FILE = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'audit_log.jsonl')
+AUDIT_FILE = File.join(ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd, '.claude', 'audit.jsonl')
+MAX_LOG_SIZE = 1_000_000 # 1MB - rotate after this
 
-# Ensure directory exists
-FileUtils.mkdir_p(File.dirname(LOG_FILE))
+def rotate_if_needed
+  return unless File.exist?(AUDIT_FILE) && File.size(AUDIT_FILE) > MAX_LOG_SIZE
 
-# Read hook input from stdin (PostToolUse format)
-input = begin
-  JSON.parse($stdin.read)
-rescue StandardError
-  {}
+  # Keep last 500KB of logs
+  content = File.read(AUDIT_FILE)
+  lines = content.lines
+  half = lines.size / 2
+  File.write(AUDIT_FILE, lines[half..].join)
 end
 
-tool_name = input['tool_name'] || ENV['CLAUDE_TOOL_NAME'] || 'unknown'
+def extract_file_path(tool_input)
+  return nil unless tool_input.is_a?(Hash)
+
+  tool_input['file_path'] || tool_input.dig('tool_input', 'file_path')
+end
+
+def determine_outcome(tool_output)
+  return 'unknown' if tool_output.nil? || tool_output.empty?
+
+  # Check for common error patterns
+  if tool_output.match?(/BLOCKED|exit 1|error:/i)
+    'blocked'
+  elsif tool_output.match?(/WARNING/i)
+    'warning'
+  else
+    'allowed'
+  end
+end
+
+# Read hook input from stdin
+begin
+  input = JSON.parse($stdin.read)
+rescue JSON::ParserError, Errno::ENOENT
+  exit 0
+end
+
+tool_name = input['tool_name'] || 'unknown'
 tool_input = input['tool_input'] || {}
 tool_output = input['tool_output'] || ''
-session_id = input['session_id'] || 'unknown'
-
-# Extract file path if present
-file_path = tool_input['file_path'] || tool_input['path'] || nil
-command = tool_input['command'] if tool_name == 'Bash'
-
-# Determine which rules were checked based on tool type
-rules_checked = []
-result = 'pass'
-
-case tool_name
-when 'Edit'
-  rules_checked << '#1:STAY_IN_LANE'
-  rules_checked << '#10:FILE_SIZE'
-  rules_checked << '#7:TEST_QUALITY' if file_path&.include?('/Tests/')
-when 'Write'
-  rules_checked << '#1:STAY_IN_LANE'
-  rules_checked << '#7:TEST_QUALITY' if file_path&.include?('/Tests/')
-when 'Bash'
-  rules_checked << '#5:SANEMASTER' if command&.include?('SaneMaster')
-  rules_checked << '#6:FULL_CYCLE' if command&.match?(/verify|test|build/)
-when 'Skill'
-  skill = tool_input['skill'] || ''
-  rules_checked << '#RALPH:EXIT_CONDITION' if skill.include?('sane_loop')
-end
-
-# Check for warnings/blocks in stderr (captured by hooks)
-# This is a heuristic - actual blocking happens in PreToolUse hooks
-if tool_output.include?('BLOCKED')
-  result = 'blocked'
-elsif tool_output.include?('WARNING')
-  result = 'warn'
-end
+session_id = input['session_id'] || ENV['CLAUDE_SESSION_ID'] || 'unknown'
 
 # Build log entry
-log_entry = {
+entry = {
   timestamp: Time.now.utc.iso8601,
-  session: session_id,
+  session_id: session_id,
   tool: tool_name,
-  file: file_path,
-  command: command&.slice(0, 100), # Truncate long commands
-  rules_checked: rules_checked,
-  result: result
-}.compact
+  file: extract_file_path(tool_input),
+  outcome: determine_outcome(tool_output)
+}
 
-# Append to log file
-File.open(LOG_FILE, 'a') do |f|
-  f.puts(log_entry.to_json)
+# Add error snippet if blocked
+if entry[:outcome] == 'blocked' && tool_output.is_a?(String)
+  # Extract first line of error
+  first_error = tool_output.lines.find { |l| l.match?(/BLOCKED|error:/i) }
+  entry[:error] = first_error&.strip&.slice(0, 100)
 end
 
-# Rotate log if too large (>1MB)
-if File.exist?(LOG_FILE) && File.size(LOG_FILE) > 1_000_000
-  # Keep last 500 entries
-  lines = File.readlines(LOG_FILE)
-  File.write(LOG_FILE, lines.last(500).join)
+# Write to audit log
+begin
+  FileUtils.mkdir_p(File.dirname(AUDIT_FILE))
+  rotate_if_needed
+
+  File.open(AUDIT_FILE, 'a') do |f|
+    f.puts(JSON.generate(entry))
+  end
+rescue StandardError => e
+  warn "⚠️  Audit logger error: #{e.message}"
 end
 
-# Always continue (observability only, never blocks)
-puts({ 'result' => 'continue' }.to_json)
+exit 0

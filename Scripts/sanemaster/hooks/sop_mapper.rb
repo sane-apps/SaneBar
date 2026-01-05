@@ -14,6 +14,7 @@
 require 'json'
 require 'time'
 require 'fileutils'
+require_relative 'rule_tracker'
 
 PROJECT_DIR = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
 STATE_FILE = File.join(PROJECT_DIR, '.claude', 'sop_state.json')
@@ -169,6 +170,7 @@ def main
 
   return unless reason
 
+  RuleTracker.log_enforcement(rule: 0, hook: 'sop_mapper', action: 'checkpoint', details: reason)
   output_checkpoint_form(reason, state, tool_count)
 end
 

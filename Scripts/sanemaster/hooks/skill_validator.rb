@@ -3,17 +3,21 @@
 
 # Skill Validator Hook - validates skill invocations before they run
 # Specifically enforces sane-loop exit conditions
+#
+# PreToolUse hook for Skill - validates before execution
+#
+# Exit codes:
+# - 0: Allow
+# - 1: Block (missing exit conditions)
 
 require 'json'
 
-# Get tool input from environment
-tool_input = ENV.fetch('CLAUDE_TOOL_INPUT', nil)
-exit 0 if tool_input.nil? || tool_input.empty?
-
+# Read hook input from stdin (Claude Code standard)
 begin
-  input = JSON.parse(tool_input)
-  skill_name = input['skill']&.downcase || ''
-  args = input['args'] || ''
+  input = JSON.parse($stdin.read)
+  tool_input = input['tool_input'] || {}
+  skill_name = (tool_input['skill'] || '').downcase
+  args = tool_input['args'] || ''
 
   # Only validate sane-loop
   exit 0 unless skill_name.include?('sane-loop')

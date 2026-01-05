@@ -18,7 +18,7 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 ///
 /// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
-final class MenuBarManager: ObservableObject {
+final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Singleton
 
@@ -42,6 +42,8 @@ final class MenuBarManager: ObservableObject {
 
     let hidingService: HidingService
     let persistenceService: PersistenceServiceProtocol
+    let settingsController: SettingsController
+    let statusBarController: StatusBarController
     let triggerService: TriggerService
     let iconHotkeysService: IconHotkeysService
     let hoverService: HoverService
@@ -56,8 +58,6 @@ final class MenuBarManager: ObservableObject {
     private var separatorItem: NSStatusItem?
     /// Always-hidden delimiter - items to LEFT of this are only shown with Option+click
     private var alwaysHiddenDelimiter: NSStatusItem?
-    /// Additional spacers for organizing hidden items
-    private var spacerItems: [NSStatusItem] = []
     private var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
 
@@ -70,6 +70,8 @@ final class MenuBarManager: ObservableObject {
     init(
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
+        settingsController: SettingsController? = nil,
+        statusBarController: StatusBarController? = nil,
         triggerService: TriggerService? = nil,
         iconHotkeysService: IconHotkeysService? = nil,
         hoverService: HoverService? = nil,
@@ -78,12 +80,17 @@ final class MenuBarManager: ObservableObject {
     ) {
         self.hidingService = hidingService ?? HidingService()
         self.persistenceService = persistenceService
+        self.settingsController = settingsController ?? SettingsController(persistence: persistenceService)
+        self.statusBarController = statusBarController ?? StatusBarController()
         self.triggerService = triggerService ?? TriggerService()
         self.iconHotkeysService = iconHotkeysService ?? IconHotkeysService.shared
         self.hoverService = hoverService ?? HoverService()
         self.appearanceService = appearanceService ?? MenuBarAppearanceService()
         self.networkTriggerService = networkTriggerService ?? NetworkTriggerService()
 
+        super.init()
+
+        print("[SaneBar] MenuBarManager init starting...")
         setupStatusItem()
         loadSettings()
         updateSpacers()
@@ -110,55 +117,33 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Setup
 
     private func setupStatusItem() {
-        // Based on Hidden Bar's proven implementation:
-        // - Items created FIRST appear to the RIGHT (higher X coordinate)
-        // - Items created SECOND appear to the LEFT
-        // - When separator expands to 10000, items to its LEFT get pushed off screen
-        // - Main icon (to separator's RIGHT) stays visible
-        //
-        // Order on screen: [items to hide] [separator] [main icon] [system icons]
+        // Delegate status item creation to controller
+        statusBarController.createStatusItems(
+            clickAction: #selector(statusItemClicked),
+            target: self
+        )
 
-        // 1. Create MAIN ICON first - appears to the RIGHT (stays visible when collapsed)
-        mainStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        mainStatusItem?.autosaveName = "SaneBar_main"
+        // Copy references for local use (backward compatibility)
+        mainStatusItem = statusBarController.mainItem
+        separatorItem = statusBarController.separatorItem
+        alwaysHiddenDelimiter = statusBarController.alwaysHiddenDelimiter
 
-        if let button = mainStatusItem?.button {
-            configureButton(button)
-            button.action = #selector(statusItemClicked)
-            button.target = self
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        }
-
-        // 2. Create SEPARATOR second - appears to the LEFT of main icon
-        // Start at 20 (expanded state - hidden items visible)
-        // When user clicks to hide, this expands to 10000
-        separatorItem = NSStatusBar.system.statusItem(withLength: 20)
-        separatorItem?.autosaveName = "SaneBar_separator"
-        if let button = separatorItem?.button {
-            button.image = NSImage(
-                systemSymbolName: "line.diagonal",
-                accessibilityDescription: "Separator"
-            )
-            button.image?.isTemplate = true
-        }
-
-        // 3. Create ALWAYS-HIDDEN delimiter - appears to the LEFT of regular separator
-        // Items between this and the separator are "always hidden" (Option+click to reveal)
-        alwaysHiddenDelimiter = NSStatusBar.system.statusItem(withLength: 20)
-        alwaysHiddenDelimiter?.autosaveName = "SaneBar_alwaysHidden"
-        if let button = alwaysHiddenDelimiter?.button {
-            button.image = NSImage(
-                systemSymbolName: "line.diagonal",
-                accessibilityDescription: "Always Hidden Separator"
-            )
-            button.image?.isTemplate = true
-            // Slightly different appearance to distinguish it
-            button.alphaValue = 0.5
-        }
-
-        // Setup menu (attached to separator for right-click, like Hidden Bar)
-        setupMenu()
+        // Setup menu using controller, attach to separator
+        statusMenu = statusBarController.createMenu(
+            toggleAction: #selector(menuToggleHiddenItems),
+            settingsAction: #selector(openSettings),
+            quitAction: #selector(quitApp),
+            target: self
+        )
         separatorItem?.menu = statusMenu
+        statusMenu?.delegate = self
+
+        // Debug: Verify menu items have targets
+        if let items = statusMenu?.items {
+            for item in items where !item.isSeparatorItem {
+                print("[SaneBar] Menu item '\(item.title)': target=\(item.target == nil ? "nil" : "set"), action=\(item.action?.description ?? "nil")")
+            }
+        }
 
         // Configure hiding service with BOTH delimiters
         if let separator = separatorItem {
@@ -185,57 +170,10 @@ final class MenuBarManager: ObservableObject {
     }
 
     private func showStatusMenu() {
-        guard let statusMenu = statusMenu else { return }
-        print("[SaneBar] Right-click: showing menu")
-        mainStatusItem?.menu = statusMenu
-        mainStatusItem?.button?.performClick(nil)
-        // Clear menu so left-click works again
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.mainStatusItem?.menu = nil
-        }
-    }
-
-    private func configureButton(_ button: NSStatusBarButton) {
-        // Use SF Symbol circle icon
-        button.image = NSImage(
-            systemSymbolName: "line.3.horizontal.decrease.circle",
-            accessibilityDescription: "SaneBar"
-        )
-    }
-
-    private func setupMenu() {
-        let menu = NSMenu()
-
-        let toggleItem = NSMenuItem(
-            title: "Toggle Hidden Items",
-            action: #selector(menuToggleHiddenItems),
-            keyEquivalent: "\\"
-        )
-        toggleItem.target = self
-        toggleItem.keyEquivalentModifierMask = [.command]
-        menu.addItem(toggleItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let settingsItem = NSMenuItem(
-            title: "Settings...",
-            action: #selector(openSettings),
-            keyEquivalent: ","
-        )
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(
-            title: "Quit SaneBar",
-            action: #selector(quitApp),
-            keyEquivalent: "q"
-        )
-        quitItem.target = self
-        menu.addItem(quitItem)
-
-        statusMenu = menu
+        guard let statusMenu = statusMenu,
+              let item = mainStatusItem else { return }
+        logger.info("Right-click: showing menu via popUpMenu API")
+        item.popUpMenu(statusMenu)
     }
 
     private func setupObservers() {
@@ -315,21 +253,26 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Settings
 
     private func loadSettings() {
-        do {
-            settings = try persistenceService.loadSettings()
-        } catch {
-            print("[SaneBar] Failed to load settings: \(error)")
-        }
+        settingsController.loadOrDefault()
+        settings = settingsController.settings
     }
 
     func saveSettings() {
-        do {
-            try persistenceService.saveSettings(settings)
-            // Re-register hotkeys when settings change
-            iconHotkeysService.registerHotkeys(from: settings)
-        } catch {
-            print("[SaneBar] Failed to save settings: \(error)")
-        }
+        // Sync to controller and save
+        settingsController.settings = settings
+        settingsController.saveQuietly()
+        // Re-register hotkeys when settings change
+        iconHotkeysService.registerHotkeys(from: settings)
+    }
+
+    /// Reset all settings to defaults
+    func resetToDefaults() {
+        settingsController.resetToDefaults()
+        settings = settingsController.settings
+        updateSpacers()
+        updateAppearance()
+        iconHotkeysService.registerHotkeys(from: settings)
+        logger.info("All settings reset to defaults")
     }
 
     // MARK: - Visibility Control
@@ -513,17 +456,24 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Appearance
 
     private func updateStatusItemAppearance() {
-        guard let button = mainStatusItem?.button else { return }
+        statusBarController.updateAppearance(for: hidingState)
+    }
 
-        // Change icon based on state (filled when expanded, outline when hidden)
-        let iconName = hidingState == .expanded
-            ? "line.3.horizontal.decrease.circle.fill"
-            : "line.3.horizontal.decrease.circle"
+    // MARK: - NSMenuDelegate
 
-        button.image = NSImage(
-            systemSymbolName: iconName,
-            accessibilityDescription: "SaneBar"
-        )
+    func menuWillOpen(_ menu: NSMenu) {
+        let logFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("sanebar_debug.log")
+        let message = "[SaneBar] Menu will open - checking targets...\n"
+        try? message.write(to: logFile, atomically: true, encoding: .utf8)
+        for item in menu.items where !item.isSeparatorItem {
+            let targetStatus = item.target == nil ? "nil" : "set (self=\(item.target === self))"
+            let itemLog = "[SaneBar]   '\(item.title)': target=\(targetStatus)\n"
+            if let data = itemLog.data(using: .utf8), let handle = try? FileHandle(forWritingTo: logFile) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            }
+        }
     }
 
     // MARK: - Menu Actions
@@ -535,8 +485,8 @@ final class MenuBarManager: ObservableObject {
     }
 
     @objc private func openSettings(_ sender: Any?) {
-        // Post notification - handled by SettingsOpenerView (macOS Tahoe workaround)
-        NotificationCenter.default.post(name: .openSaneBarSettings, object: nil)
+        logger.info("Menu: Opening Settings")
+        SettingsOpener.open()
     }
 
     @objc private func quitApp(_ sender: Any?) {
@@ -548,28 +498,7 @@ final class MenuBarManager: ObservableObject {
 
     /// Update spacer items based on settings
     func updateSpacers() {
-        let desiredCount = min(max(settings.spacerCount, 0), 3) // Clamp to 0-3
-
-        // Remove excess spacers
-        while spacerItems.count > desiredCount {
-            if let item = spacerItems.popLast() {
-                NSStatusBar.system.removeStatusItem(item)
-            }
-        }
-
-        // Add missing spacers
-        while spacerItems.count < desiredCount {
-            let spacer = NSStatusBar.system.statusItem(withLength: 12)
-            spacer.autosaveName = "SaneBar_spacer_\(spacerItems.count)"
-            if let button = spacer.button {
-                button.image = NSImage(
-                    systemSymbolName: "minus",
-                    accessibilityDescription: "Spacer"
-                )
-                button.image?.isTemplate = true
-            }
-            spacerItems.append(spacer)
-        }
+        statusBarController.updateSpacers(count: settings.spacerCount)
     }
 
     // MARK: - Onboarding

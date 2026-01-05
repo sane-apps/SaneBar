@@ -143,43 +143,52 @@ module SaneMasterModules
 
     def show_session_summary
       puts ''
-      puts '📊 Session Summary:'
+      puts '=' * 60
+      puts '  SESSION SUMMARY TEMPLATE'
+      puts '  (Rate RULE COMPLIANCE, not task completion)'
+      puts '=' * 60
+      puts ''
+      puts '## Session Summary'
+      puts ''
+      puts '### What Was Done'
 
-      # Show recent git activity
+      # Show recent git commits as numbered list
       recent_commits = `git log --oneline -5 --format='%s' 2>/dev/null`.strip.split("\n")
       if recent_commits.any?
-        puts '   Recent commits:'
-        recent_commits.each { |c| puts "     • #{c}" }
+        recent_commits.each_with_index { |c, i| puts "#{i + 1}. #{c}" }
+      else
+        puts '1. [Describe what was done]'
       end
 
-      # Show memory stats with health info
+      puts ''
+      puts '### SOP Compliance: X/10'
+      puts ''
+      puts '✅ **Followed:**'
+      puts '- Rule #X: [What you did right]'
+      puts '- Rule #X: [What you did right]'
+      puts ''
+      puts '❌ **Missed:**'
+      puts '- Rule #X: [What you missed and why]'
+      puts ''
+      puts '**Next time:** [Specific improvement]'
+      puts ''
+      puts '### Followup'
+      puts '- [Actionable item for future]'
+      puts ''
+      puts '=' * 60
+      puts ''
+
+      # Show memory stats
       memory = load_memory
       if memory && memory['entities']
         entities = memory['entities']
         entity_count = entities.count
-        by_type = entities.group_by { |e| e['entityType'] }
-        type_summary = by_type.map { |t, e| "#{e.count} #{t}" }.join(', ')
-
-        # Estimate tokens (~4 chars per token)
         estimated_tokens = (memory.to_json.length / 4.0).round
 
-        puts "   Memory: #{entity_count} entities (~#{estimated_tokens} tokens)"
-        puts "     Types: #{type_summary}"
-
-        # Health warnings
-        puts "   ⚠️  Entity count HIGH (#{entity_count}/60) - consolidate!" if entity_count > 60
-        puts "   ⚠️  Token count HIGH (~#{estimated_tokens}/8000) - may fill context!" if estimated_tokens > 8000
-
-        # Check for verbose entities
-        verbose = entities.select { |e| (e['observations'] || []).count > 15 }
-        puts "   ⚠️  #{verbose.count} verbose entities (>15 observations)" if verbose.any?
+        puts "📊 Memory: #{entity_count} entities (~#{estimated_tokens} tokens)"
+        puts "   ⚠️  Entity count HIGH (#{entity_count}/60)" if entity_count > 60
+        puts "   ⚠️  Token count HIGH (~#{estimated_tokens}/8000)" if estimated_tokens > 8000
       end
-
-      puts ''
-      puts '💡 Tips:'
-      puts '   • Run `./Scripts/SaneMaster.rb mh` to check memory health'
-      puts '   • Run `./Scripts/SaneMaster.rb mcompact --dry-run` to preview compaction'
-      puts '   • Run `./Scripts/SaneMaster.rb mp` to prune stale entries'
 
       # Show compliance report if audit log exists
       audit_log = File.join(Dir.pwd, '.claude', 'audit_log.jsonl')

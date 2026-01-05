@@ -40,14 +40,14 @@ module SaneMasterModules
         puts '   🔪 Killing stuck xcodebuild/xctest processes...'
         system('killall -9 xcodebuild 2>/dev/null')
         system('killall -9 xctest 2>/dev/null')
-        system('killall -9 SaneBar 2>/dev/null')
+        system('killall -9 __PROJECT_NAME__ 2>/dev/null')
         fixed << 'Killed stuck processes'
         sop_log('Auto-fix: killed stuck build processes')
       end
 
       if issues.any? { |i| i.include?('DerivedData') }
-        puts '   🧹 Clearing SaneBar DerivedData...'
-        dd_path = File.expand_path('~/Library/Developer/Xcode/DerivedData/SaneBar-*')
+        puts '   🧹 Clearing __PROJECT_NAME__ DerivedData...'
+        dd_path = File.expand_path('~/Library/Developer/Xcode/DerivedData/__PROJECT_NAME__-*')
         Dir.glob(dd_path).each { |d| FileUtils.rm_rf(d) }
         fixed << 'Cleared DerivedData'
         sop_log('Auto-fix: cleared DerivedData')

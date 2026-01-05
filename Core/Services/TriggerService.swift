@@ -2,11 +2,20 @@ import AppKit
 import Combine
 import IOKit.ps
 
+// MARK: - TriggerServiceProtocol
+
+/// @mockable
+@MainActor
+protocol TriggerServiceProtocol {
+    func configure(menuBarManager: MenuBarManager)
+    func stopMonitoring()
+}
+
 // MARK: - TriggerService
 
 /// Service that monitors system events and triggers menu bar visibility
 @MainActor
-final class TriggerService: ObservableObject {
+final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
     // MARK: - Dependencies
 
