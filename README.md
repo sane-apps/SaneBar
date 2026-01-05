@@ -130,6 +130,16 @@ SaneBar/
 
 SaneBar includes a workaround for the SwiftUI Settings scene issue on macOS Tahoe where `showSettingsWindow:` no longer works for menu bar apps. The fix uses a hidden window technique with activation policy toggling.
 
+## Donate
+
+If SaneBar saves you time, consider supporting development:
+
+| Crypto | Address |
+|--------|---------|
+| **BTC** | `3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke` |
+| **SOL** | `FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ` |
+| **ZEC** | `t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN` |
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
