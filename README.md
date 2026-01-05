@@ -1,8 +1,19 @@
 # SaneBar
 
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
+[![Swift](https://img.shields.io/badge/Swift-5.9-orange)](https://swift.org)
+[![macOS](https://img.shields.io/badge/macOS-14%2B-blue)](https://www.apple.com/macos)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 A clean, privacy-focused menu bar manager for macOS. Hide menu bar clutter with a single click.
 
 **Free and open source.**
+
+## The Story
+
+I built this over a long weekend (~20 hours) pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't phone home, and actually worked on macOS Tahoe. So I made one.
+
+If you're curious about building Mac apps with AI, feel free to poke around the code or reach out. Happy to share what I learned.
 
 ## Features
 
