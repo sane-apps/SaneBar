@@ -61,6 +61,7 @@ struct SettingsView: View {
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
+    @State private var launchAtLoginEnabled = LaunchAtLogin.isEnabled
 
     enum SettingsTab: String, CaseIterable {
         case general = "General"
@@ -98,11 +99,11 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Startup - FIRST (most important)
                 GroupBox {
-                    Toggle("Start SaneBar when you log in", isOn: Binding(
-                        get: { LaunchAtLogin.isEnabled },
-                        set: { LaunchAtLogin.isEnabled = $0 }
-                    ))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Toggle("Start SaneBar when you log in", isOn: $launchAtLoginEnabled)
+                        .onChange(of: launchAtLoginEnabled) { _, newValue in
+                            LaunchAtLogin.isEnabled = newValue
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Label("Startup", systemImage: "power")
                 }
@@ -240,10 +241,12 @@ struct SettingsView: View {
     // MARK: - Advanced Tab
 
     @State private var isAtBottom = false
+    @State private var showAppearanceOptions = false
+    @State private var showAutomationOptions = false
 
     private var advancedTab: some View {
         ScrollView(.vertical, showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 // Profiles
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
@@ -381,64 +384,62 @@ struct SettingsView: View {
                     Label("Icon Hotkeys", systemImage: "keyboard.badge.ellipsis")
                 }
 
-                // Menu Bar Appearance
+                // Menu Bar Appearance - collapsible
                 GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle("Enable custom menu bar style", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
 
                         if menuBarManager.settings.menuBarAppearance.isEnabled {
-                            Divider()
+                            DisclosureGroup("Style Options", isExpanded: $showAppearanceOptions) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    // Tint Color
+                                    HStack {
+                                        Text("Tint:")
+                                        ColorPicker(
+                                            "",
+                                            selection: Binding(
+                                                get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
+                                                set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
+                                            ),
+                                            supportsOpacity: false
+                                        )
+                                        .labelsHidden()
+                                        Spacer()
+                                        Text("Opacity:")
+                                        Slider(
+                                            value: $menuBarManager.settings.menuBarAppearance.tintOpacity,
+                                            in: 0.05...0.5,
+                                            step: 0.05
+                                        )
+                                        .frame(width: 80)
+                                        Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
+                                            .monospacedDigit()
+                                            .frame(width: 35, alignment: .trailing)
+                                    }
 
-                            // Tint Color
-                            HStack {
-                                Text("Tint color:")
-                                ColorPicker(
-                                    "",
-                                    selection: Binding(
-                                        get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
-                                        set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
-                                    ),
-                                    supportsOpacity: false
-                                )
-                                .labelsHidden()
+                                    // Effects row
+                                    HStack(spacing: 16) {
+                                        Toggle("Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
+                                        Toggle("Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
+                                        Toggle("Rounded", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
+                                    }
 
-                                Spacer()
-
-                                Text("Opacity:")
-                                Slider(
-                                    value: $menuBarManager.settings.menuBarAppearance.tintOpacity,
-                                    in: 0.05...0.5,
-                                    step: 0.05
-                                )
-                                .frame(width: 100)
-                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
-                                    .monospacedDigit()
-                                    .frame(width: 35, alignment: .trailing)
-                            }
-
-                            Divider()
-
-                            // Effects
-                            HStack(spacing: 20) {
-                                Toggle("Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
-                                Toggle("Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
-                            }
-
-                            // Rounded corners
-                            Toggle("Rounded corners", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
-
-                            if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
-                                HStack {
-                                    Text("Radius:")
-                                    Slider(
-                                        value: $menuBarManager.settings.menuBarAppearance.cornerRadius,
-                                        in: 4...16,
-                                        step: 2
-                                    )
-                                    Text("\(Int(menuBarManager.settings.menuBarAppearance.cornerRadius))pt")
-                                        .monospacedDigit()
-                                        .frame(width: 35, alignment: .trailing)
+                                    if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
+                                        HStack {
+                                            Text("Corner radius:")
+                                            Slider(
+                                                value: $menuBarManager.settings.menuBarAppearance.cornerRadius,
+                                                in: 4...16,
+                                                step: 2
+                                            )
+                                            .frame(width: 100)
+                                            Text("\(Int(menuBarManager.settings.menuBarAppearance.cornerRadius))pt")
+                                                .monospacedDigit()
+                                                .frame(width: 35, alignment: .trailing)
+                                        }
+                                    }
                                 }
+                                .padding(.top, 8)
                             }
                         }
                     }
@@ -447,85 +448,81 @@ struct SettingsView: View {
                     Label("Appearance", systemImage: "paintbrush")
                 }
 
-                // Automation - grouped triggers
+                // Automation - grouped triggers with disclosure
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Hover Trigger
-                        VStack(alignment: .leading, spacing: 8) {
-                            Toggle("Show on hover", isOn: $menuBarManager.settings.showOnHover)
-
-                            if menuBarManager.settings.showOnHover {
-                                HStack {
-                                    Text("Delay:")
-                                    Slider(value: $menuBarManager.settings.hoverDelay, in: 0.1...1.0, step: 0.1)
-                                    Text("\(menuBarManager.settings.hoverDelay, specifier: "%.1f")s")
-                                        .monospacedDigit()
-                                        .frame(width: 35, alignment: .trailing)
-                                }
-                            }
-                        }
-
-                        Divider()
-
-                        // App Launch Trigger
-                        VStack(alignment: .leading, spacing: 8) {
-                            Toggle("Show when apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
-
-                            if menuBarManager.settings.showOnAppLaunch {
-                                TextField("com.apple.Safari, com.zoom.us", text: Binding(
-                                    get: { menuBarManager.settings.triggerApps.joined(separator: ", ") },
-                                    set: { newValue in
-                                        menuBarManager.settings.triggerApps = newValue
-                                            .split(separator: ",")
-                                            .map { $0.trimmingCharacters(in: .whitespaces) }
-                                            .filter { !$0.isEmpty }
-                                    }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-                            }
-                        }
-
-                        Divider()
-
-                        // Network Trigger
-                        VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Simple triggers always visible
+                        Toggle("Show on hover", isOn: $menuBarManager.settings.showOnHover)
+                        if menuBarManager.settings.showOnHover {
                             HStack {
-                                Toggle("Show when connecting to WiFi networks", isOn: $menuBarManager.settings.showOnNetworkChange)
-                                Spacer()
-                                HelpButton(tip: "When you connect to a network in this list, SaneBar will automatically show hidden icons.\n\nUseful for showing VPN or work-related icons when on office WiFi.")
+                                Text("Delay:")
+                                    .foregroundStyle(.secondary)
+                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.1...1.0, step: 0.1)
+                                    .frame(width: 100)
+                                Text("\(menuBarManager.settings.hoverDelay, specifier: "%.1f")s")
+                                    .monospacedDigit()
+                                    .frame(width: 35)
                             }
-
-                            if menuBarManager.settings.showOnNetworkChange {
-                                TextField("Home WiFi, Work Network", text: Binding(
-                                    get: { menuBarManager.settings.triggerNetworks.joined(separator: ", ") },
-                                    set: { newValue in
-                                        menuBarManager.settings.triggerNetworks = newValue
-                                            .split(separator: ",")
-                                            .map { $0.trimmingCharacters(in: .whitespaces) }
-                                            .filter { !$0.isEmpty }
-                                    }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-
-                                // Add current network button
-                                if let currentSSID = menuBarManager.networkTriggerService.currentSSID {
-                                    Button {
-                                        if !menuBarManager.settings.triggerNetworks.contains(currentSSID) {
-                                            menuBarManager.settings.triggerNetworks.append(currentSSID)
-                                        }
-                                    } label: {
-                                        Label("Add \"\(currentSSID)\"", systemImage: "plus.circle")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                }
-                            }
+                            .padding(.leading, 20)
                         }
 
-                        Divider()
-
-                        // Battery Trigger
                         Toggle("Show when battery is low", isOn: $menuBarManager.settings.showOnLowBattery)
+
+                        // Advanced triggers in disclosure
+                        DisclosureGroup("More Triggers", isExpanded: $showAutomationOptions) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                // App Launch Trigger
+                                Toggle("Show when specific apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
+                                if menuBarManager.settings.showOnAppLaunch {
+                                    TextField("com.apple.Safari, com.zoom.us", text: Binding(
+                                        get: { menuBarManager.settings.triggerApps.joined(separator: ", ") },
+                                        set: { newValue in
+                                            menuBarManager.settings.triggerApps = newValue
+                                                .split(separator: ",")
+                                                .map { $0.trimmingCharacters(in: .whitespaces) }
+                                                .filter { !$0.isEmpty }
+                                        }
+                                    ))
+                                    .textFieldStyle(.roundedBorder)
+                                    .padding(.leading, 20)
+                                }
+
+                                // Network Trigger
+                                HStack {
+                                    Toggle("Show on WiFi networks", isOn: $menuBarManager.settings.showOnNetworkChange)
+                                    Spacer()
+                                    HelpButton(tip: "Auto-show hidden icons when connecting to specific networks.")
+                                }
+                                if menuBarManager.settings.showOnNetworkChange {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        TextField("Home WiFi, Work Network", text: Binding(
+                                            get: { menuBarManager.settings.triggerNetworks.joined(separator: ", ") },
+                                            set: { newValue in
+                                                menuBarManager.settings.triggerNetworks = newValue
+                                                    .split(separator: ",")
+                                                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                                                    .filter { !$0.isEmpty }
+                                            }
+                                        ))
+                                        .textFieldStyle(.roundedBorder)
+
+                                        if let currentSSID = menuBarManager.networkTriggerService.currentSSID {
+                                            Button {
+                                                if !menuBarManager.settings.triggerNetworks.contains(currentSSID) {
+                                                    menuBarManager.settings.triggerNetworks.append(currentSSID)
+                                                }
+                                            } label: {
+                                                Label("Add \"\(currentSSID)\"", systemImage: "plus.circle")
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .controlSize(.small)
+                                        }
+                                    }
+                                    .padding(.leading, 20)
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {

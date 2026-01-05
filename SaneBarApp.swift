@@ -6,14 +6,6 @@ struct SaneBarApp: App {
     @StateObject private var menuBarManager = MenuBarManager.shared
 
     var body: some Scene {
-        // Hidden window MUST come before Settings scene (macOS Tahoe workaround)
-        Window("Hidden", id: "HiddenWindow") {
-            SettingsOpenerView()
-        }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 1, height: 1)
-        .windowStyle(.hiddenTitleBar)
-
         Settings {
             SettingsView()
                 .onDisappear {
@@ -32,49 +24,53 @@ struct SaneBarApp: App {
     }
 }
 
-// MARK: - Settings Opener (macOS Tahoe workaround)
+// MARK: - Settings Opener
 
-/// Hidden view that provides SwiftUI context for opening Settings
-struct SettingsOpenerView: View {
-    @Environment(\.openSettings) private var openSettings
+/// Opens Settings window programmatically
+enum SettingsOpener {
+    @MainActor private static var settingsWindow: NSWindow?
+    @MainActor private static var windowDelegate: SettingsWindowDelegate?
 
-    private var isRunningTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-    }
+    @MainActor static func open() {
+        // Switch to regular app mode so windows can appear
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
 
-    var body: some View {
-        // Use EmptyView during tests to avoid constraint issues
-        if isRunningTests {
-            EmptyView()
-        } else {
-            Color.clear
-                .frame(width: 0, height: 0)
-                .onReceive(NotificationCenter.default.publisher(for: .openSaneBarSettings)) { _ in
-                    Task { @MainActor in
-                        // Switch to regular app to allow window focus
-                        NSApp.setActivationPolicy(.regular)
-                        try? await Task.sleep(for: .milliseconds(50))
-
-                        NSApp.activate(ignoringOtherApps: true)
-                        openSettings()
-
-                        // Ensure settings window comes to front
-                        try? await Task.sleep(for: .milliseconds(100))
-                        if let window = NSApp.windows.first(where: {
-                            $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" ||
-                            $0.title.contains("Settings")
-                        }) {
-                            window.makeKeyAndOrderFront(nil)
-                            window.orderFrontRegardless()
-                        }
-                    }
-                }
+        // Reuse existing window if it exists
+        if let window = settingsWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            return
         }
+
+        // Create a new Settings window with NSHostingController
+        let settingsView = SettingsView()
+        let hostingController = NSHostingController(rootView: settingsView)
+
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "SaneBar Settings"
+        window.styleMask = [.titled, .closable]
+        window.setContentSize(NSSize(width: 450, height: 400))
+        window.center()
+        window.isReleasedWhenClosed = false
+
+        // Set delegate to handle window close
+        let delegate = SettingsWindowDelegate()
+        window.delegate = delegate
+        windowDelegate = delegate
+
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+
+        settingsWindow = window
     }
 }
 
-// MARK: - Notification
-
-extension Notification.Name {
-    static let openSaneBarSettings = Notification.Name("openSaneBarSettings")
+/// Handles settings window lifecycle events
+private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        // Return to accessory mode when settings window closes
+        NSApp.setActivationPolicy(.accessory)
+    }
 }
+
