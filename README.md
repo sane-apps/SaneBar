@@ -2,21 +2,32 @@
 
 A clean, privacy-focused menu bar manager for macOS. Hide menu bar clutter with a single click.
 
-**Free and open source alternative to Bartender.**
+**Free and open source.**
 
 ## Features
 
+### Core
 - **One-click hide/show** - Click the SaneBar icon to toggle hidden items
 - **Cmd+drag to organize** - Arrange icons left (always visible) or right (hideable) of the separator
 - **Auto-hide** - Hidden items automatically disappear after a configurable delay
-- **Keyboard shortcuts** - Global hotkeys for all actions
-- **Menu bar search** - Quickly find apps and copy their bundle IDs
-- **Per-icon hotkeys** - Assign shortcuts to specific app icons
-- **Profiles** - Save and restore settings configurations
-- **Always visible apps** - Keep specific icons visible even when hiding others
-- **App triggers** - Auto-show hidden items when specific apps launch
 - **Spacers** - Add dividers to organize hidden icons into groups
-- **AppleScript support** - Automate via Terminal or automation tools
+
+### Keyboard & Automation
+- **Global hotkeys** - Configurable shortcuts for all actions
+- **Per-icon hotkeys** - Assign keyboard shortcuts to specific menu bar icons
+- **Menu bar search** - Quickly find apps and copy their bundle IDs
+- **AppleScript support** - Automate via Terminal or other tools
+
+### Smart Triggers
+- **Hover to reveal** - Show hidden items when hovering over the menu bar
+- **App triggers** - Auto-show hidden items when specific apps launch
+- **WiFi triggers** - Auto-show on specific networks (home, work, VPN)
+- **Always visible apps** - Keep specific icons visible even when hiding others
+
+### Customization
+- **Profiles** - Save and restore different configurations
+- **Menu bar appearance** - Customize tint, shadow, and border styling
+- **Notch support** - Optimized for MacBook Pro with notch
 
 ## Privacy
 
@@ -105,7 +116,7 @@ osascript -e 'tell app "SaneBar" to hide items'
 SaneBar/
 ├── Core/
 │   ├── MenuBarManager.swift      # Main status bar logic
-│   ├── Services/                 # Hiding, keyboard shortcuts, persistence
+│   ├── Services/                 # Hiding, shortcuts, triggers, persistence
 │   └── Models/                   # Data models (profiles, settings)
 ├── UI/
 │   ├── SettingsView.swift        # Settings window
@@ -117,7 +128,7 @@ SaneBar/
 
 ## macOS Tahoe (26) Notes
 
-SaneBar includes a workaround for the SwiftUI Settings scene issue on macOS Tahoe where `showSettingsWindow:` no longer works for menu bar apps. The fix uses a hidden window technique with activation policy toggling, based on [Peter Steinberger's research](https://steipete.me/posts/2025/showing-settings-from-macos-menu-bar-items).
+SaneBar includes a workaround for the SwiftUI Settings scene issue on macOS Tahoe where `showSettingsWindow:` no longer works for menu bar apps. The fix uses a hidden window technique with activation policy toggling.
 
 ## License
 
@@ -126,4 +137,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Credits
 
 - Uses [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) by Sindre Sorhus
-- Inspired by [Bartender](https://www.macbartender.com/) and [Hidden Bar](https://github.com/dwarvesf/hidden)
+- Inspired by [Hidden Bar](https://github.com/dwarvesf/hidden) and other open source menu bar tools

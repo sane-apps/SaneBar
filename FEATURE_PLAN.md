@@ -1,6 +1,6 @@
 # SaneBar Feature Plan
 
-> SOP-Compliant implementation plan for missing Bartender features
+> Implementation plan for SaneBar features
 
 ---
 
@@ -96,7 +96,7 @@ struct SaneBarProfile: Codable {
 **Applies to**: Would need new service
 **Confidence**: Low (high complexity, potential for bugs)
 
-**Recommendation**: SKIP - Too complex, high risk of cursor/input issues. Bartender's implementation is fragile too.
+**Recommendation**: SKIP - Too complex, high risk of cursor/input issues.
 
 ---
 

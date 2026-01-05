@@ -204,7 +204,7 @@ struct SettingsView: View {
                     Label("Global Shortcuts", systemImage: "keyboard")
                 }
 
-                DisclosureGroup {
+                GroupBox {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("osascript -e 'tell app \"SaneBar\" to toggle'")
@@ -228,17 +228,10 @@ struct SettingsView: View {
                         Text("Commands: **toggle**, **show hidden**, **hide items**")
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.top, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Label("AppleScript & Automation", systemImage: "applescript")
-                        .font(.headline)
                 }
-                .padding(16)
-                .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.primary.opacity(0.1), lineWidth: 1)
-                )
             }
             .padding()
         }
@@ -388,9 +381,92 @@ struct SettingsView: View {
                     Label("Icon Hotkeys", systemImage: "keyboard.badge.ellipsis")
                 }
 
+                // Menu Bar Appearance
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle("Enable custom menu bar style", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
+
+                        if menuBarManager.settings.menuBarAppearance.isEnabled {
+                            Divider()
+
+                            // Tint Color
+                            HStack {
+                                Text("Tint color:")
+                                ColorPicker(
+                                    "",
+                                    selection: Binding(
+                                        get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
+                                        set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
+                                    ),
+                                    supportsOpacity: false
+                                )
+                                .labelsHidden()
+
+                                Spacer()
+
+                                Text("Opacity:")
+                                Slider(
+                                    value: $menuBarManager.settings.menuBarAppearance.tintOpacity,
+                                    in: 0.05...0.5,
+                                    step: 0.05
+                                )
+                                .frame(width: 100)
+                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
+                                    .monospacedDigit()
+                                    .frame(width: 35, alignment: .trailing)
+                            }
+
+                            Divider()
+
+                            // Effects
+                            HStack(spacing: 20) {
+                                Toggle("Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
+                                Toggle("Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
+                            }
+
+                            // Rounded corners
+                            Toggle("Rounded corners", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
+
+                            if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
+                                HStack {
+                                    Text("Radius:")
+                                    Slider(
+                                        value: $menuBarManager.settings.menuBarAppearance.cornerRadius,
+                                        in: 4...16,
+                                        step: 2
+                                    )
+                                    Text("\(Int(menuBarManager.settings.menuBarAppearance.cornerRadius))pt")
+                                        .monospacedDigit()
+                                        .frame(width: 35, alignment: .trailing)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Label("Appearance", systemImage: "paintbrush")
+                }
+
                 // Automation - grouped triggers
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
+                        // Hover Trigger
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Show on hover", isOn: $menuBarManager.settings.showOnHover)
+
+                            if menuBarManager.settings.showOnHover {
+                                HStack {
+                                    Text("Delay:")
+                                    Slider(value: $menuBarManager.settings.hoverDelay, in: 0.1...1.0, step: 0.1)
+                                    Text("\(menuBarManager.settings.hoverDelay, specifier: "%.1f")s")
+                                        .monospacedDigit()
+                                        .frame(width: 35, alignment: .trailing)
+                                }
+                            }
+                        }
+
+                        Divider()
+
                         // App Launch Trigger
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("Show when apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
@@ -406,6 +482,43 @@ struct SettingsView: View {
                                     }
                                 ))
                                 .textFieldStyle(.roundedBorder)
+                            }
+                        }
+
+                        Divider()
+
+                        // Network Trigger
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Toggle("Show when connecting to WiFi networks", isOn: $menuBarManager.settings.showOnNetworkChange)
+                                Spacer()
+                                HelpButton(tip: "When you connect to a network in this list, SaneBar will automatically show hidden icons.\n\nUseful for showing VPN or work-related icons when on office WiFi.")
+                            }
+
+                            if menuBarManager.settings.showOnNetworkChange {
+                                TextField("Home WiFi, Work Network", text: Binding(
+                                    get: { menuBarManager.settings.triggerNetworks.joined(separator: ", ") },
+                                    set: { newValue in
+                                        menuBarManager.settings.triggerNetworks = newValue
+                                            .split(separator: ",")
+                                            .map { $0.trimmingCharacters(in: .whitespaces) }
+                                            .filter { !$0.isEmpty }
+                                    }
+                                ))
+                                .textFieldStyle(.roundedBorder)
+
+                                // Add current network button
+                                if let currentSSID = menuBarManager.networkTriggerService.currentSSID {
+                                    Button {
+                                        if !menuBarManager.settings.triggerNetworks.contains(currentSSID) {
+                                            menuBarManager.settings.triggerNetworks.append(currentSSID)
+                                        }
+                                    } label: {
+                                        Label("Add \"\(currentSSID)\"", systemImage: "plus.circle")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
                             }
                         }
 

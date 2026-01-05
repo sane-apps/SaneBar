@@ -42,6 +42,21 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Whether the user has completed first-launch onboarding
     var hasCompletedOnboarding: Bool = false
 
+    /// Show hidden items when hovering over the separator/icon
+    var showOnHover: Bool = false
+
+    /// Delay before showing on hover (in seconds)
+    var hoverDelay: TimeInterval = 0.3
+
+    /// Menu bar appearance/tint settings
+    var menuBarAppearance: MenuBarAppearanceSettings = MenuBarAppearanceSettings()
+
+    /// Show hidden items when connecting to specific WiFi networks
+    var showOnNetworkChange: Bool = false
+
+    /// WiFi network SSIDs that trigger showing hidden items
+    var triggerNetworks: [String] = []
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -57,10 +72,20 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
         showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+        showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
+        hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.3
+        menuBarAppearance = try container.decodeIfPresent(
+            MenuBarAppearanceSettings.self,
+            forKey: .menuBarAppearance
+        ) ?? MenuBarAppearanceSettings()
+        showOnNetworkChange = try container.decodeIfPresent(Bool.self, forKey: .showOnNetworkChange) ?? false
+        triggerNetworks = try container.decodeIfPresent([String].self, forKey: .triggerNetworks) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps, alwaysVisibleApps, iconHotkeys, showOnLowBattery, hasCompletedOnboarding
+        case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps
+        case alwaysVisibleApps, iconHotkeys, showOnLowBattery, hasCompletedOnboarding
+        case showOnHover, hoverDelay, menuBarAppearance, showOnNetworkChange, triggerNetworks
     }
 }
 

@@ -1,12 +1,15 @@
 import AppKit
 import Combine
+import os.log
 import SwiftUI
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
 
 // MARK: - MenuBarManager
 
 /// Central manager for menu bar hiding using the length toggle technique.
 ///
-/// HOW IT WORKS (same as Bartender, Dozer, Hidden Bar):
+/// HOW IT WORKS (same technique as Dozer, Hidden Bar, and similar tools):
 /// 1. User Cmd+drags menu bar icons to position them left or right of our delimiter
 /// 2. Icons to the LEFT of delimiter = always visible
 /// 3. Icons to the RIGHT of delimiter = can be hidden
@@ -41,6 +44,9 @@ final class MenuBarManager: ObservableObject {
     let persistenceService: PersistenceServiceProtocol
     let triggerService: TriggerService
     let iconHotkeysService: IconHotkeysService
+    let hoverService: HoverService
+    let appearanceService: MenuBarAppearanceService
+    let networkTriggerService: NetworkTriggerService
 
     // MARK: - Status Items
 
@@ -48,6 +54,8 @@ final class MenuBarManager: ObservableObject {
     private var mainStatusItem: NSStatusItem?
     /// Separator that expands to hide items (the actual delimiter)
     private var separatorItem: NSStatusItem?
+    /// Always-hidden delimiter - items to LEFT of this are only shown with Option+click
+    private var alwaysHiddenDelimiter: NSStatusItem?
     /// Additional spacers for organizing hidden items
     private var spacerItems: [NSStatusItem] = []
     private var statusMenu: NSMenu?
@@ -63,23 +71,37 @@ final class MenuBarManager: ObservableObject {
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
         triggerService: TriggerService? = nil,
-        iconHotkeysService: IconHotkeysService? = nil
+        iconHotkeysService: IconHotkeysService? = nil,
+        hoverService: HoverService? = nil,
+        appearanceService: MenuBarAppearanceService? = nil,
+        networkTriggerService: NetworkTriggerService? = nil
     ) {
         self.hidingService = hidingService ?? HidingService()
         self.persistenceService = persistenceService
         self.triggerService = triggerService ?? TriggerService()
         self.iconHotkeysService = iconHotkeysService ?? IconHotkeysService.shared
+        self.hoverService = hoverService ?? HoverService()
+        self.appearanceService = appearanceService ?? MenuBarAppearanceService()
+        self.networkTriggerService = networkTriggerService ?? NetworkTriggerService()
 
         setupStatusItem()
         loadSettings()
         updateSpacers()
         setupObservers()
+        setupHoverService()
+        updateAppearance()
 
         // Configure trigger service with self
         self.triggerService.configure(menuBarManager: self)
 
         // Configure icon hotkeys service with self
         self.iconHotkeysService.configure(with: self)
+
+        // Configure network trigger service
+        self.networkTriggerService.configure(menuBarManager: self)
+        if settings.showOnNetworkChange {
+            self.networkTriggerService.startMonitoring()
+        }
 
         // Show onboarding on first launch
         showOnboardingIfNeeded()
@@ -120,21 +142,43 @@ final class MenuBarManager: ObservableObject {
             button.image?.isTemplate = true
         }
 
+        // 3. Create ALWAYS-HIDDEN delimiter - appears to the LEFT of regular separator
+        // Items between this and the separator are "always hidden" (Option+click to reveal)
+        alwaysHiddenDelimiter = NSStatusBar.system.statusItem(withLength: 20)
+        alwaysHiddenDelimiter?.autosaveName = "SaneBar_alwaysHidden"
+        if let button = alwaysHiddenDelimiter?.button {
+            button.image = NSImage(
+                systemSymbolName: "line.diagonal",
+                accessibilityDescription: "Always Hidden Separator"
+            )
+            button.image?.isTemplate = true
+            // Slightly different appearance to distinguish it
+            button.alphaValue = 0.5
+        }
+
         // Setup menu (attached to separator for right-click, like Hidden Bar)
         setupMenu()
         separatorItem?.menu = statusMenu
 
-        // Configure hiding service with the SEPARATOR (not the icon)
+        // Configure hiding service with BOTH delimiters
         if let separator = separatorItem {
-            hidingService.configure(delimiterItem: separator)
+            hidingService.configure(
+                delimiterItem: separator,
+                alwaysHiddenDelimiter: alwaysHiddenDelimiter
+            )
         }
+
+        // Validate positions on startup (with delay for UI to settle)
+        validatePositionsOnStartup()
     }
 
     @objc private func statusItemClicked(_ sender: Any?) {
         guard let event = NSApp.currentEvent else { return }
 
         if event.type == .leftMouseUp {
-            toggleHiddenItems()
+            // Option+click reveals always-hidden section
+            let optionPressed = event.modifierFlags.contains(.option)
+            toggleHiddenItems(withModifier: optionPressed)
         } else if event.type == .rightMouseUp {
             showStatusMenu()
         }
@@ -204,14 +248,68 @@ final class MenuBarManager: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Observe settings changes to update spacers
+        // Observe settings changes to update spacers, hover, appearance, and network trigger
         $settings
             .dropFirst() // Skip initial value
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] newSettings in
                 self?.updateSpacers()
+                self?.updateHoverSettings()
+                self?.updateAppearance()
+                self?.updateNetworkTrigger(enabled: newSettings.showOnNetworkChange)
             }
             .store(in: &cancellables)
+    }
+
+    private func updateAppearance() {
+        appearanceService.updateAppearance(settings.menuBarAppearance)
+    }
+
+    private func updateNetworkTrigger(enabled: Bool) {
+        if enabled {
+            networkTriggerService.startMonitoring()
+        } else {
+            networkTriggerService.stopMonitoring()
+        }
+    }
+
+    private func setupHoverService() {
+        guard let mainItem = mainStatusItem, let separator = separatorItem else {
+            logger.warning("Cannot setup hover service - status items not ready")
+            return
+        }
+
+        hoverService.configure(
+            mainItem: mainItem,
+            separatorItem: separator,
+            onHoverStart: { [weak self] in
+                self?.handleHoverStart()
+            },
+            onHoverEnd: { [weak self] in
+                self?.handleHoverEnd()
+            }
+        )
+
+        updateHoverSettings()
+    }
+
+    private func updateHoverSettings() {
+        hoverService.setEnabled(settings.showOnHover)
+        hoverService.setDelay(settings.hoverDelay)
+    }
+
+    private func handleHoverStart() {
+        // Only show if currently hidden
+        guard hidingState == .hidden else { return }
+        logger.info("Hover triggered - showing hidden items")
+        showHiddenItems()
+    }
+
+    private func handleHoverEnd() {
+        // Auto-rehide if setting enabled
+        if settings.autoRehide {
+            hidingService.scheduleRehide(after: settings.rehideDelay)
+        }
     }
 
     // MARK: - Settings
@@ -236,11 +334,24 @@ final class MenuBarManager: ObservableObject {
 
     // MARK: - Visibility Control
 
-    func toggleHiddenItems() {
+    func toggleHiddenItems(withModifier: Bool = false) {
         Task {
-            await hidingService.toggle()
+            logger.info("toggleHiddenItems(withModifier: \(withModifier)) called, current state: \(self.hidingState.rawValue)")
 
-            // Schedule auto-rehide if enabled and we just showed
+            // If about to hide, validate position first
+            if hidingState == .expanded && !withModifier {
+                logger.info("State is expanded, validating position before hiding...")
+                guard validateSeparatorPosition() else {
+                    logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide")
+                    showPositionWarning()
+                    return
+                }
+                logger.info("Position valid, proceeding to hide")
+            }
+
+            await hidingService.toggle(withModifier: withModifier)
+
+            // Schedule auto-rehide if enabled and we just showed (not always-hidden)
             if hidingState == .expanded && settings.autoRehide {
                 hidingService.scheduleRehide(after: settings.rehideDelay)
             }
@@ -258,7 +369,144 @@ final class MenuBarManager: ObservableObject {
 
     func hideHiddenItems() {
         Task {
+            // Safety check: verify separator is LEFT of main icon before hiding
+            guard validateSeparatorPosition() else {
+                print("[SaneBar] ⚠️ Separator is RIGHT of main icon - refusing to hide to prevent eating the main icon")
+                showPositionWarning()
+                return
+            }
             await hidingService.hide()
+        }
+    }
+
+    // MARK: - Position Validation
+
+    /// Enum describing position validation errors
+    enum PositionError {
+        case separatorRightOfMain      // Main separator is right of main icon
+        case alwaysHiddenRightOfSeparator  // Always-hidden delimiter is right of main separator
+        case separatorsOverlapping     // Both separators are at same position
+    }
+
+    /// Published property to track position errors for UI
+    @Published private(set) var positionError: PositionError?
+
+    /// Returns true if all status items are correctly positioned
+    /// Correct order (left to right): [alwaysHiddenDelimiter] [separatorItem] [mainStatusItem]
+    /// Uses Ice's pattern: check window.frame intersects screen to detect off-screen items
+    private func validateSeparatorPosition() -> Bool {
+        positionError = nil
+
+        guard let mainButton = mainStatusItem?.button,
+              let separatorButton = separatorItem?.button else {
+            logger.error("validateSeparatorPosition: buttons are nil - blocking hide for safety")
+            return false
+        }
+
+        guard let mainWindow = mainButton.window,
+              let separatorWindow = separatorButton.window else {
+            logger.error("validateSeparatorPosition: windows are nil - blocking hide for safety")
+            return false
+        }
+
+        // Get screen for intersection check (Ice pattern)
+        guard let screen = mainWindow.screen ?? NSScreen.main else {
+            logger.error("validateSeparatorPosition: no screen available")
+            return false
+        }
+
+        let mainFrame = mainWindow.frame
+        let separatorFrame = separatorWindow.frame
+
+        // Check 0: Verify separators are visible on screen (Ice pattern)
+        // If they don't intersect screen, they may have been pushed off
+        if !screen.frame.intersects(separatorFrame) {
+            logger.warning("Position error: separator is off-screen!")
+            positionError = .separatorsOverlapping  // Reuse for "not visible" case
+            return false
+        }
+
+        // Check 1: Main separator must be LEFT of main icon
+        let separatorRightEdge = separatorFrame.origin.x + separatorFrame.width
+        let mainLeftEdge = mainFrame.origin.x
+        let separatorIsLeftOfMain = separatorRightEdge <= mainLeftEdge
+
+        if !separatorIsLeftOfMain {
+            logger.warning("Position error: separator is RIGHT of main icon!")
+            positionError = .separatorRightOfMain
+            return false
+        }
+
+        // Check 2: If alwaysHiddenDelimiter exists, validate its position too
+        if let alwaysHiddenButton = alwaysHiddenDelimiter?.button,
+           let alwaysHiddenWindow = alwaysHiddenButton.window {
+            let alwaysHiddenFrame = alwaysHiddenWindow.frame
+
+            // Check if alwaysHidden is visible on screen
+            if !screen.frame.intersects(alwaysHiddenFrame) {
+                logger.warning("Position error: always-hidden delimiter is off-screen!")
+                positionError = .separatorsOverlapping
+                return false
+            }
+
+            let alwaysHiddenRightEdge = alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width
+            let separatorLeftEdge = separatorFrame.origin.x
+
+            // Check for overlapping (within 5px tolerance)
+            let areOverlapping = abs(alwaysHiddenRightEdge - separatorLeftEdge) < 5 &&
+                                 abs(alwaysHiddenFrame.origin.x - separatorFrame.origin.x) < 5
+
+            if areOverlapping {
+                logger.warning("Position error: separators are overlapping!")
+                positionError = .separatorsOverlapping
+                return false
+            }
+
+            let alwaysHiddenIsLeftOfSeparator = alwaysHiddenRightEdge <= separatorLeftEdge + 5
+
+            if !alwaysHiddenIsLeftOfSeparator {
+                logger.warning("Position error: always-hidden delimiter is RIGHT of separator!")
+                positionError = .alwaysHiddenRightOfSeparator
+                return false
+            }
+
+            logger.debug("""
+                Position check: alwaysHidden frame=\(NSStringFromRect(alwaysHiddenFrame)), \
+                separator frame=\(NSStringFromRect(separatorFrame)), \
+                main frame=\(NSStringFromRect(mainFrame)) - ALL VALID
+                """)
+        }
+
+        return true
+    }
+
+    /// Validates positions on startup with a delay to let UI settle
+    func validatePositionsOnStartup() {
+        // Delay to let status items get their final positions
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self else { return }
+            if !self.validateSeparatorPosition() {
+                logger.warning("Startup position validation failed!")
+                self.showPositionWarning()
+            }
+        }
+    }
+
+    private func showPositionWarning() {
+        // Show a brief notification or popover explaining the issue
+        guard let button = mainStatusItem?.button else { return }
+
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 300, height: 120)
+        popover.behavior = .transient
+
+        let warningView = PositionWarningView(errorType: positionError)
+        popover.contentViewController = NSHostingController(rootView: warningView)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+
+        // Auto-close after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            popover.close()
         }
     }
 
@@ -281,8 +529,9 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Menu Actions
 
     @objc private func menuToggleHiddenItems(_ sender: Any?) {
-        print("[SaneBar] Menu: Toggle Hidden Items")
-        toggleHiddenItems()
+        let optionPressed = NSEvent.modifierFlags.contains(.option)
+        logger.info("Menu: Toggle Hidden Items (Option: \(optionPressed))")
+        toggleHiddenItems(withModifier: optionPressed)
     }
 
     @objc private func openSettings(_ sender: Any?) {

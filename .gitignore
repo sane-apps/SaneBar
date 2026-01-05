@@ -37,10 +37,28 @@ vendor/
 .gemini/
 .mcp.json
 
-# Claude Code - track project config, ignore user/transient files
+# Claude Code - track project config, ignore user/transient state
 .claude/settings.local.json
 .claude/edit_state.json
 .claude/memory.json
+.claude/state.json
+.claude/state.json.lock
+.claude/phase_state.json
+.claude/failure_state.json
+.claude/audit.jsonl
+.claude/prompt_log.jsonl
+.claude/research_*.json*
+.claude/enforcement_*.json
+.claude/memory_checked.json
+.claude/recent_actions.json
+.claude/read_history.json
+.claude/user_patterns.json
+.claude/bypass_mode.txt
+.claude/saneloop-archive/
+.claude/research/
+.claude/rule_tracking.jsonl
+.claude/bugs.md
+.claude/hook_*.md
 
 # IDE - Keep shared settings, ignore user-specific files
 .cursor/settings.json

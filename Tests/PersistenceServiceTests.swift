@@ -185,4 +185,191 @@ final class PersistenceServiceTests: XCTestCase {
         // Then: name doesn't conflict
         XCTAssertEqual(newName, "Profile 4")
     }
+
+    // MARK: - Hover Settings
+
+    func testShowOnHoverDefaultsToFalse() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: showOnHover is disabled by default
+        XCTAssertFalse(settings.showOnHover)
+    }
+
+    func testHoverDelayDefaultsToPointThree() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: hoverDelay defaults to 0.3 seconds
+        XCTAssertEqual(settings.hoverDelay, 0.3, accuracy: 0.001)
+    }
+
+    func testShowOnHoverEncodesAndDecodes() throws {
+        // Given: settings with hover enabled
+        var settings = SaneBarSettings()
+        settings.showOnHover = true
+        settings.hoverDelay = 0.5
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: hover settings are preserved
+        XCTAssertTrue(decoded.showOnHover)
+        XCTAssertEqual(decoded.hoverDelay, 0.5, accuracy: 0.001)
+    }
+
+    func testShowOnHoverBackwardsCompatibility() throws {
+        // Given: JSON without hover settings (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "alwaysVisibleApps": [],
+            "iconHotkeys": {},
+            "showOnLowBattery": false
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: hover settings default correctly
+        XCTAssertFalse(settings.showOnHover)
+        XCTAssertEqual(settings.hoverDelay, 0.3, accuracy: 0.001)
+    }
+
+    // MARK: - Menu Bar Appearance Settings
+
+    func testMenuBarAppearanceDefaultsToDisabled() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: appearance is disabled by default
+        XCTAssertFalse(settings.menuBarAppearance.isEnabled)
+        XCTAssertEqual(settings.menuBarAppearance.tintOpacity, 0.15, accuracy: 0.001)
+    }
+
+    func testMenuBarAppearanceEncodesAndDecodes() throws {
+        // Given: settings with appearance enabled
+        var settings = SaneBarSettings()
+        settings.menuBarAppearance.isEnabled = true
+        settings.menuBarAppearance.tintColor = "#FF5500"
+        settings.menuBarAppearance.tintOpacity = 0.25
+        settings.menuBarAppearance.hasShadow = true
+        settings.menuBarAppearance.hasBorder = true
+        settings.menuBarAppearance.hasRoundedCorners = true
+        settings.menuBarAppearance.cornerRadius = 12.0
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: appearance settings are preserved
+        XCTAssertTrue(decoded.menuBarAppearance.isEnabled)
+        XCTAssertEqual(decoded.menuBarAppearance.tintColor, "#FF5500")
+        XCTAssertEqual(decoded.menuBarAppearance.tintOpacity, 0.25, accuracy: 0.001)
+        XCTAssertTrue(decoded.menuBarAppearance.hasShadow)
+        XCTAssertTrue(decoded.menuBarAppearance.hasBorder)
+        XCTAssertTrue(decoded.menuBarAppearance.hasRoundedCorners)
+        XCTAssertEqual(decoded.menuBarAppearance.cornerRadius, 12.0, accuracy: 0.001)
+    }
+
+    func testMenuBarAppearanceBackwardsCompatibility() throws {
+        // Given: JSON without appearance settings (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "alwaysVisibleApps": [],
+            "iconHotkeys": {},
+            "showOnLowBattery": false,
+            "showOnHover": false,
+            "hoverDelay": 0.3
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: appearance defaults correctly
+        XCTAssertFalse(settings.menuBarAppearance.isEnabled)
+        XCTAssertEqual(settings.menuBarAppearance.tintColor, "#000000")
+    }
+
+    // MARK: - Network Trigger Settings
+
+    func testShowOnNetworkChangeDefaultsToFalse() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: network trigger is disabled by default
+        XCTAssertFalse(settings.showOnNetworkChange)
+    }
+
+    func testTriggerNetworksDefaultsToEmptyArray() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: trigger networks is empty
+        XCTAssertEqual(settings.triggerNetworks, [])
+    }
+
+    func testNetworkTriggerSettingsEncodeAndDecode() throws {
+        // Given: settings with network trigger configured
+        var settings = SaneBarSettings()
+        settings.showOnNetworkChange = true
+        settings.triggerNetworks = ["Home WiFi", "Work Network"]
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: network trigger settings are preserved
+        XCTAssertTrue(decoded.showOnNetworkChange)
+        XCTAssertEqual(decoded.triggerNetworks, ["Home WiFi", "Work Network"])
+    }
+
+    func testNetworkTriggerBackwardsCompatibility() throws {
+        // Given: JSON without network trigger settings (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "alwaysVisibleApps": [],
+            "iconHotkeys": {},
+            "showOnLowBattery": false,
+            "showOnHover": false,
+            "hoverDelay": 0.3
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: network trigger settings default correctly
+        XCTAssertFalse(settings.showOnNetworkChange)
+        XCTAssertEqual(settings.triggerNetworks, [])
+    }
 }

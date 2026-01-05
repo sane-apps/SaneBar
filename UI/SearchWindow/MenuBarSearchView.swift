@@ -79,30 +79,40 @@ struct MenuBarSearchView: View {
 
             Divider()
 
-            // Footer with instructions
-            VStack(alignment: .leading, spacing: 4) {
+            // Footer with actions
+            VStack(alignment: .leading, spacing: 8) {
                 if let app = selectedApp {
-                    HStack {
-                        Text("Bundle ID:")
-                            .foregroundStyle(.secondary)
-                        Text(app.id)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                        Spacer()
-                        Button("Copy") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(app.id, forType: .string)
+                    HStack(spacing: 12) {
+                        // Activate button - shows hidden items and activates app
+                        Button(action: { activateApp(app) }) {
+                            Label("Activate", systemImage: "arrow.up.forward.app")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .keyboardShortcut(.return, modifiers: [])
+
+                        // Copy bundle ID
+                        Button(action: { copyBundleID(app) }) {
+                            Label("Copy ID", systemImage: "doc.on.doc")
                         }
                         .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .controlSize(.regular)
+
+                        Spacer()
+
+                        // Bundle ID display
+                        Text(app.id)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                 } else {
-                    Text("Select an app to see its bundle ID. Use bundle IDs in Settings > Advanced for Always Visible or App Triggers.")
+                    Text("Select an app and press Return to activate it. This will reveal hidden items and bring the app forward.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(8)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(NSColor.controlBackgroundColor))
         }
@@ -127,6 +137,26 @@ struct MenuBarSearchView: View {
             .filter { $0.bundleIdentifier != nil }
             .map { RunningApp(app: $0) }
             .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    private func activateApp(_ app: RunningApp) {
+        // Show hidden menu bar items first
+        MenuBarManager.shared.showHiddenItems()
+
+        // Find and activate the app
+        let workspace = NSWorkspace.shared
+        if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.id }) {
+            // Use modern activation API (macOS 14+) with fallback
+            runningApp.activate()
+        }
+
+        // Dismiss the search window
+        onDismiss()
+    }
+
+    private func copyBundleID(_ app: RunningApp) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(app.id, forType: .string)
     }
 }
 
