@@ -18,7 +18,7 @@ Free. Private. No account needed.
 
 **[Download SaneBar](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.0/SaneBar-1.0.0.dmg)** (macOS 14+)
 
-Or use Homebrew: `brew install --cask sanebar` *(coming soon)*
+Or use Homebrew: `brew install --cask sanebar` *(coming soon - help approval by starring this repo!)*
 
 ---
 
