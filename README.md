@@ -48,11 +48,7 @@ Works great on MacBook Pro with notch.
 
 ## Support
 
-Free to use! If SaneBar saves you time, consider:
-- Leaving a star on this repo
-- [Buying me a coffee](https://github.com/stephanjoseph/SaneBar#donations)
-
----
+Free to use! If SaneBar helps you, leave a star on this repo.
 
 ## Donations
 
