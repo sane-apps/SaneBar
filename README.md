@@ -4,9 +4,13 @@
 
 Free. Private. No account needed.
 
-| Icons Visible | Icons Hidden |
-|---------------|--------------|
-| ![Menu bar with icons visible](assets/screenshot-1.png) | ![Menu bar with icons hidden](assets/screenshot-2.png) |
+![SaneBar Settings](assets/settings-general.png)
+
+| Before | After |
+|--------|-------|
+| ![Cluttered menu bar](assets/screenshot-1.png) | ![Clean menu bar](assets/screenshot-2.png) |
+
+![100% On-Device](assets/settings-about.png)
 
 ---
 
