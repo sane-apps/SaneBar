@@ -11,7 +11,7 @@ A clean, privacy-focused menu bar manager for macOS. Hide menu bar clutter with 
 
 ## The Story
 
-I built this over a long weekend (~20 hours) pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't phone home, and actually worked on macOS Tahoe. So I made one.
+I built this over a long weekend (~20 hours) pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't an ongoing subscription, didn't steal or track my data, and actually worked on modern Mac's. So I made one.
 
 If you're curious about building Mac apps with AI, feel free to poke around the code or reach out. Happy to share what I learned.
 
