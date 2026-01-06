@@ -4,6 +4,10 @@
 
 Free. Private. No account needed.
 
+| Icons Visible | Icons Hidden |
+|---------------|--------------|
+| ![Menu bar with icons visible](assets/screenshot-1.png) | ![Menu bar with icons hidden](assets/screenshot-2.png) |
+
 ---
 
 ## Download
