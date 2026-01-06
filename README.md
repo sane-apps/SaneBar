@@ -1,24 +1,25 @@
 # SaneBar
 
+[![License: MIT](https://img.shields.io/github/license/stephanjoseph/SaneBar)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/stephanjoseph/SaneBar)](https://github.com/stephanjoseph/SaneBar/releases)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)](https://github.com/stephanjoseph/SaneBar/releases)
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
+
 **Clean up your Mac's menu bar in one click.**
 
 Free. Private. No account needed.
-
-![SaneBar Settings](assets/settings-general.png)
 
 | Before | After |
 |--------|-------|
 | ![Cluttered menu bar](assets/screenshot-1.png) | ![Clean menu bar](assets/screenshot-2.png) |
 
-![100% On-Device](assets/settings-about.png)
-
 ---
 
 ## Download
 
-**[Download SaneBar](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.0/SaneBar-1.0.0.dmg)** (macOS 14+)
+**[Download SaneBar v1.0.0](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.0/SaneBar-1.0.0.dmg)** (macOS 14+)
 
-Or use Homebrew: `brew install --cask sanebar` *(coming soon - help approval by starring this repo!)*
+Or via Homebrew: `brew install --cask sanebar` *(coming soon - help approval by starring this repo!)*
 
 ---
 
@@ -35,10 +36,10 @@ Icons to the **right** of SaneBar = can be hidden
 
 ## Features
 
-- **One-click hide/show** - Click to toggle
-- **Hover to reveal** - Optional: show icons when you hover
-- **Auto-hide** - Icons disappear after a delay
-- **Keyboard shortcuts** - Control everything from the keyboard
+- **One-click hide/show** - Click to toggle visibility
+- **Hover to reveal** - Show icons when you mouse over the menu bar
+- **Auto-hide** - Icons disappear after a configurable delay
+- **Keyboard shortcuts** - Global hotkeys for everything
 - **WiFi triggers** - Auto-show icons on specific networks
 - **Profiles** - Save different setups for work/home
 
@@ -46,9 +47,30 @@ Works great on MacBook Pro with notch.
 
 ---
 
+## Configuration
+
+All settings are in the **Settings** window (click SaneBar icon > Settings, or use your configured shortcut).
+
+| Tab | What's there |
+|-----|--------------|
+| **General** | Launch at login, auto-hide delay |
+| **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
+| **Advanced** | Profiles, always-visible apps, triggers, appearance |
+| **About** | Version info, privacy badge, licenses |
+
+**Smart Triggers** (Settings > Advanced > Automation):
+- **Hover**: Show hidden icons when you mouse over the menu bar area
+- **Low Battery**: Auto-show when battery drops below threshold
+- **App Launch**: Show when specific apps start (enter bundle IDs)
+- **WiFi Networks**: Show on specific networks (enter SSIDs or click "Add current network")
+
+---
+
 ## Privacy
 
 **Your data stays on your Mac.** SaneBar makes zero network requests. No analytics. No telemetry. No account.
+
+![100% On-Device](assets/settings-about.png)
 
 [Full privacy details](PRIVACY.md)
 
@@ -56,9 +78,9 @@ Works great on MacBook Pro with notch.
 
 ## Support
 
-Free to use! If SaneBar helps you, leave a star on this repo.
+Free to use! If SaneBar helps you, star this repo.
 
-## Donations
+### Donations
 
 | | Address |
 |---|---------|
@@ -92,11 +114,14 @@ bundle install
 ### Project Structure
 
 ```
-SaneBar/
-├── Core/           # Business logic, services
-├── UI/             # SwiftUI views
-├── Tests/          # Unit tests
-└── Scripts/        # Build automation
+SaneBar/                    # Repository root
+├── Core/                   # Business logic, services, managers
+├── UI/                     # SwiftUI views
+├── SaneBar/                # App target (entry point, resources)
+├── Resources/              # Assets, icons
+├── Tests/                  # Unit tests
+├── Scripts/                # Build automation (SaneMaster.rb)
+└── project.yml             # XcodeGen configuration
 ```
 
 </details>
@@ -124,5 +149,3 @@ Built over a weekend pair programming with [Claude](https://claude.ai). Wanted a
 ## License
 
 MIT - see [LICENSE](LICENSE)
-
-[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
