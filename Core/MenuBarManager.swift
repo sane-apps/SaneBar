@@ -125,14 +125,21 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Detects if running in a headless environment (CI, tests without window server)
     private func isRunningInHeadlessEnvironment() -> Bool {
         // Check for common CI environment variables
-        if ProcessInfo.processInfo.environment["CI"] != nil ||
-           ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil {
+        let env = ProcessInfo.processInfo.environment
+        if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {
             return true
         }
         
-        // Check if we're running in XCTest context
-        // In test bundles, NSApp.windows is empty but that's not reliable
-        // Better to check for XCTest framework
+        // Check if running in test bundle by examining bundle identifier
+        // Test bundles typically have "Tests" suffix or "xctest" in their identifier
+        if let bundleID = Bundle.main.bundleIdentifier {
+            if bundleID.hasSuffix("Tests") || bundleID.contains("xctest") {
+                return true
+            }
+        }
+        
+        // Fallback: Check for XCTest framework presence
+        // This catches edge cases where bundle ID doesn't follow conventions
         if NSClassFromString("XCTestCase") != nil {
             return true
         }
