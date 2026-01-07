@@ -91,6 +91,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         super.init()
 
         logger.info("MenuBarManager init starting...")
+        
+        // Skip UI initialization in headless/test environments
+        // CI environments don't have a window server, so NSStatusItem creation will crash
+        guard !isRunningInHeadlessEnvironment() else {
+            logger.info("Headless environment detected - skipping UI initialization")
+            return
+        }
+        
         setupStatusItem()
         loadSettings()
         updateSpacers()
@@ -112,6 +120,24 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Show onboarding on first launch
         showOnboardingIfNeeded()
+    }
+    
+    /// Detects if running in a headless environment (CI, tests without window server)
+    private func isRunningInHeadlessEnvironment() -> Bool {
+        // Check for common CI environment variables
+        if ProcessInfo.processInfo.environment["CI"] != nil ||
+           ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil {
+            return true
+        }
+        
+        // Check if we're running in XCTest context
+        // In test bundles, NSApp.windows is empty but that's not reliable
+        // Better to check for XCTest framework
+        if NSClassFromString("XCTestCase") != nil {
+            return true
+        }
+        
+        return false
     }
 
     // MARK: - Setup
