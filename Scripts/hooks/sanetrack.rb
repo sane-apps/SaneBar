@@ -393,6 +393,24 @@ def process_result(tool_name, tool_input, tool_response)
     log_action_for_learning(tool_name, tool_input, true, nil)
 
     log_action(tool_name, 'success')
+
+    # === GIT PUSH REMINDER ===
+    # After successful git commit, check if push is needed
+    if tool_name == 'Bash'
+      command = tool_input['command'] || tool_input[:command] || ''
+      if command.match?(/git\s+commit/i) && !command.match?(/git\s+push/i)
+        # Check for unpushed commits
+        ahead_check = `git status 2>/dev/null | grep -o "ahead of.*by [0-9]* commit"`
+        unless ahead_check.empty?
+          warn ''
+          warn '⚠️  GIT PUSH REMINDER ⚠️'
+          warn "   You just committed but haven't pushed!"
+          warn "   Status: #{ahead_check.strip}"
+          warn '   Run: git push'
+          warn ''
+        end
+      end
+    end
   end
 
   0  # PostToolUse always returns 0 (tool already executed)
