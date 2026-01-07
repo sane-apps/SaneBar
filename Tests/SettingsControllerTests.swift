@@ -146,6 +146,43 @@ struct SettingsControllerTests {
 
         #expect(true, "Should conform to protocol")
     }
+
+    // MARK: - Dock Icon Setting Tests
+
+    @Test("showDockIcon defaults to false for backward compatibility")
+    @MainActor
+    func testShowDockIconDefaults() {
+        let mockPersistence = PersistenceServiceProtocolMock()
+        let controller = SettingsController(persistence: mockPersistence)
+
+        #expect(controller.settings.showDockIcon == false, "Default showDockIcon should be false")
+    }
+
+    @Test("showDockIcon setting persists when saved")
+    @MainActor
+    func testShowDockIconPersists() throws {
+        let mockPersistence = PersistenceServiceProtocolMock()
+        let controller = SettingsController(persistence: mockPersistence)
+
+        controller.settings.showDockIcon = true
+        try controller.save()
+
+        #expect(mockPersistence.settings.showDockIcon == true, "showDockIcon should be saved")
+    }
+
+    @Test("showDockIcon setting loads correctly")
+    @MainActor
+    func testShowDockIconLoads() throws {
+        let mockPersistence = PersistenceServiceProtocolMock()
+        var customSettings = SaneBarSettings()
+        customSettings.showDockIcon = true
+        mockPersistence.settings = customSettings
+
+        let controller = SettingsController(persistence: mockPersistence)
+        try controller.load()
+
+        #expect(controller.settings.showDockIcon == true, "showDockIcon should be loaded")
+    }
 }
 
 // MARK: - Test Helpers

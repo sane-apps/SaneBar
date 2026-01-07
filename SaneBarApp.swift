@@ -9,8 +9,8 @@ struct SaneBarApp: App {
         Settings {
             SettingsView()
                 .onDisappear {
-                    // Return to accessory mode when settings closes
-                    NSApp.setActivationPolicy(.accessory)
+                    // Return to appropriate mode based on user setting when settings closes
+                    ActivationPolicyManager.restorePolicy()
                 }
         }
     }
@@ -21,6 +21,9 @@ struct SaneBarApp: App {
         let shortcutsService = KeyboardShortcutsService.shared
         shortcutsService.configure(with: MenuBarManager.shared)
         shortcutsService.setDefaultsIfNeeded()
+        
+        // Set initial activation policy based on user settings
+        ActivationPolicyManager.applyInitialPolicy()
     }
 }
 
@@ -32,7 +35,7 @@ enum SettingsOpener {
     @MainActor private static var windowDelegate: SettingsWindowDelegate?
 
     @MainActor static func open() {
-        // Switch to regular app mode so windows can appear
+        // Always switch to regular app mode so settings window can appear
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -69,8 +72,52 @@ enum SettingsOpener {
 /// Handles settings window lifecycle events
 private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
-        // Return to accessory mode when settings window closes
-        NSApp.setActivationPolicy(.accessory)
+        // Return to appropriate mode based on user setting when settings window closes
+        ActivationPolicyManager.restorePolicy()
+    }
+}
+
+// MARK: - ActivationPolicyManager
+
+/// Manages the app's activation policy based on user settings
+enum ActivationPolicyManager {
+    
+    /// Apply the initial activation policy when app launches
+    @MainActor
+    static func applyInitialPolicy() {
+        let settings = loadSettings()
+        let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
+        NSApp.setActivationPolicy(policy)
+    }
+    
+    /// Restore the policy after settings window closes
+    @MainActor
+    static func restorePolicy() {
+        let settings = loadSettings()
+        let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
+        NSApp.setActivationPolicy(policy)
+    }
+    
+    /// Apply policy change when user toggles the setting
+    @MainActor
+    static func applyPolicy(showDockIcon: Bool) {
+        let policy: NSApplication.ActivationPolicy = showDockIcon ? .regular : .accessory
+        NSApp.setActivationPolicy(policy)
+        
+        if showDockIcon {
+            // Activate the app so Dock icon is immediately visible
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+    
+    /// Load settings to determine current Dock icon preference
+    private static func loadSettings() -> SaneBarSettings {
+        do {
+            return try PersistenceService.shared.loadSettings()
+        } catch {
+            // On error, return defaults (Dock icon hidden for backward compatibility)
+            return SaneBarSettings()
+        }
     }
 }
 

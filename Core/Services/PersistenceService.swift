@@ -57,6 +57,11 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// WiFi network SSIDs that trigger showing hidden items
     var triggerNetworks: [String] = []
 
+    /// Show Dock icon (default: false for backward compatibility)
+    /// When false, app uses .accessory mode (no Dock icon)
+    /// When true, app uses .regular mode (Dock icon visible)
+    var showDockIcon: Bool = false
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -80,12 +85,14 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         ) ?? MenuBarAppearanceSettings()
         showOnNetworkChange = try container.decodeIfPresent(Bool.self, forKey: .showOnNetworkChange) ?? false
         triggerNetworks = try container.decodeIfPresent([String].self, forKey: .triggerNetworks) ?? []
+        showDockIcon = try container.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
         case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps
         case alwaysVisibleApps, iconHotkeys, showOnLowBattery, hasCompletedOnboarding
         case showOnHover, hoverDelay, menuBarAppearance, showOnNetworkChange, triggerNetworks
+        case showDockIcon
     }
 }
 
