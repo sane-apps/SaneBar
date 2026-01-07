@@ -68,6 +68,19 @@ struct SettingsView: View {
         case advanced = "Advanced"
         case about = "About"
     }
+    
+    // MARK: - Computed Properties
+    
+    /// Binding for Dock icon visibility that applies the activation policy when changed
+    private var showDockIconBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.showDockIcon },
+            set: { newValue in
+                menuBarManager.settings.showDockIcon = newValue
+                ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
+            }
+        )
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -99,8 +112,22 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Startup - FIRST (most important)
                 GroupBox {
-                    LaunchAtLogin.Toggle {
-                        Text("Start SaneBar when you log in")
+                    VStack(alignment: .leading, spacing: 12) {
+                        LaunchAtLogin.Toggle {
+                            Text("Start SaneBar when you log in")
+                        }
+                        
+                        Toggle("Show Dock icon", isOn: showDockIconBinding)
+                        
+                        if !menuBarManager.settings.showDockIcon {
+                            HStack(spacing: 6) {
+                                Image(systemName: "info.circle")
+                                    .foregroundStyle(.secondary)
+                                Text("SaneBar will run in the menu bar only (no Dock icon)")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
