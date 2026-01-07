@@ -162,14 +162,20 @@ struct MenuBarSearchView: View {
     }
 
     private func activateApp(_ app: RunningApp) {
-        // Show hidden menu bar items first
+        // 1. Show hidden menu bar items first (in case it's hidden)
+        // This pushes items into view if they were collapsed
         MenuBarManager.shared.showHiddenItems()
 
-        // Find and activate the app
-        let workspace = NSWorkspace.shared
-        if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.id }) {
-            // Use modern activation API (macOS 14+) with fallback
-            runningApp.activate()
+        // 2. Perform Virtual Click on the menu bar item
+        // This uses Accessibility API to press the item, even if it's off-screen/in-Notch
+        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(for: app.id)
+
+        if !clickSuccess {
+            // Fallback: Just activate the app normally if we couldn't click the status item
+            let workspace = NSWorkspace.shared
+            if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.id }) {
+                runningApp.activate()
+            }
         }
 
         // Dismiss the search window
