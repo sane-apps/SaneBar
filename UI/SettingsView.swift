@@ -68,6 +68,19 @@ struct SettingsView: View {
         case advanced = "Advanced"
         case about = "About"
     }
+    
+    // MARK: - Computed Properties
+    
+    /// Binding for Dock icon visibility that applies the activation policy when changed
+    private var showDockIconBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.showDockIcon },
+            set: { newValue in
+                menuBarManager.settings.showDockIcon = newValue
+                ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
+            }
+        )
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -104,13 +117,7 @@ struct SettingsView: View {
                             Text("Start SaneBar when you log in")
                         }
                         
-                        Toggle("Show Dock icon", isOn: Binding(
-                            get: { menuBarManager.settings.showDockIcon },
-                            set: { newValue in
-                                menuBarManager.settings.showDockIcon = newValue
-                                ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
-                            }
-                        ))
+                        Toggle("Show Dock icon", isOn: showDockIconBinding)
                         
                         if !menuBarManager.settings.showDockIcon {
                             HStack(spacing: 6) {

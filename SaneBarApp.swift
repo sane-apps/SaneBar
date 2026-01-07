@@ -111,7 +111,8 @@ enum ActivationPolicyManager {
         
         if showDockIcon {
             // Activate the app so Dock icon is immediately visible
-            NSApp.activate(ignoringOtherApps: true)
+            // Use ignoringOtherApps: false to avoid interrupting user's workflow
+            NSApp.activate(ignoringOtherApps: false)
         }
     }
     
