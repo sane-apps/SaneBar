@@ -372,4 +372,57 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertFalse(settings.showOnNetworkChange)
         XCTAssertEqual(settings.triggerNetworks, [])
     }
+
+    // MARK: - Dock Icon Visibility Settings
+
+    func testShowDockIconDefaultsToFalse() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: Dock icon is hidden by default (backward compatibility)
+        XCTAssertFalse(settings.showDockIcon)
+    }
+
+    func testShowDockIconEncodesAndDecodes() throws {
+        // Given: settings with Dock icon enabled
+        var settings = SaneBarSettings()
+        settings.showDockIcon = true
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: showDockIcon is preserved
+        XCTAssertTrue(decoded.showDockIcon)
+    }
+
+    func testShowDockIconBackwardsCompatibility() throws {
+        // Given: JSON without showDockIcon (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "alwaysVisibleApps": [],
+            "iconHotkeys": {},
+            "showOnLowBattery": false,
+            "showOnHover": false,
+            "hoverDelay": 0.3,
+            "showOnNetworkChange": false,
+            "triggerNetworks": []
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: showDockIcon defaults to false (backward compatibility)
+        XCTAssertFalse(settings.showDockIcon)
+    }
 }
