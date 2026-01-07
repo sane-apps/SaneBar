@@ -80,6 +80,7 @@ targets:
     info:
       path: SaneBar/Info.plist
       properties:
+        LSUIElement: true
         NSAppleScriptEnabled: true
         OSAScriptingDefinition: SaneBar.sdef
     settings:
