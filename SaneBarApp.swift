@@ -97,7 +97,8 @@ enum ActivationPolicyManager {
     /// Restore the policy after settings window closes
     @MainActor
     static func restorePolicy() {
-        let settings = loadSettings()
+        // Use MenuBarManager's cached settings to avoid disk I/O
+        let settings = MenuBarManager.shared.settings
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
         NSApp.setActivationPolicy(policy)
     }
