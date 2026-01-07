@@ -137,4 +137,3 @@ enum ActivationPolicyManager {
         }
     }
 }
-

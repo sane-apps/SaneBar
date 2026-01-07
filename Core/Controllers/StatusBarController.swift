@@ -45,16 +45,16 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Autosave Names
 
-    static let mainAutosaveName = "SaneBar_main"
-    static let separatorAutosaveName = "SaneBar_separator"
-    static let alwaysHiddenAutosaveName = "SaneBar_alwaysHidden"
+    nonisolated static let mainAutosaveName = "SaneBar_main"
+    nonisolated static let separatorAutosaveName = "SaneBar_separator"
+    nonisolated static let alwaysHiddenAutosaveName = "SaneBar_alwaysHidden"
 
     // MARK: - Icon Names
 
-    static let iconExpanded = "line.3.horizontal.decrease.circle.fill"
-    static let iconHidden = "line.3.horizontal.decrease.circle"
-    static let separatorIcon = "line.diagonal"
-    static let spacerIcon = "minus"
+    nonisolated static let iconExpanded = "line.3.horizontal.decrease.circle.fill"
+    nonisolated static let iconHidden = "line.3.horizontal.decrease.circle"
+    nonisolated static let separatorIcon = "line.diagonal"
+    nonisolated static let spacerIcon = "minus"
 
     // MARK: - Initialization
 

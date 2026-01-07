@@ -45,28 +45,28 @@ struct PositionWarningView: View {
     private var descriptionText: AttributedString {
         switch errorType {
         case .separatorRightOfMain:
-            return try! AttributedString(
+            return (try? AttributedString(
                 markdown: "The **/** separator is to the right of the main icon. Hiding would push everything off screen!"
-            )
+            )) ?? AttributedString("The / separator is to the right of the main icon.")
         case .alwaysHiddenRightOfSeparator:
-            return try! AttributedString(
+            return (try? AttributedString(
                 markdown: "The two **/** separators are in the wrong order. The lighter one should be to the left."
-            )
+            )) ?? AttributedString("The two / separators are in the wrong order.")
         case .separatorsOverlapping, .none:
-            return try! AttributedString(
+            return (try? AttributedString(
                 markdown: "The **/** separators are overlapping or off-screen. Please reposition them."
-            )
+            )) ?? AttributedString("The / separators are overlapping.")
         }
     }
 
     private var instructionText: AttributedString {
         switch errorType {
         case .separatorRightOfMain:
-            return try! AttributedString(markdown: "**⌘+drag** the **/** back to the left of")
+            return (try? AttributedString(markdown: "**⌘+drag** the **/** back to the left of")) ?? AttributedString("Cmd+drag the / back to the left")
         case .alwaysHiddenRightOfSeparator:
-            return try! AttributedString(markdown: "**⌘+drag** the lighter **/** to the left of the brighter")
+            return (try? AttributedString(markdown: "**⌘+drag** the lighter **/** to the left of the brighter")) ?? AttributedString("Cmd+drag the lighter / to the left")
         case .separatorsOverlapping, .none:
-            return try! AttributedString(markdown: "**⌘+drag** each **/** to separate them")
+            return (try? AttributedString(markdown: "**⌘+drag** each **/** to separate them")) ?? AttributedString("Cmd+drag each / to separate them")
         }
     }
 

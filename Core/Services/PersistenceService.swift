@@ -102,11 +102,6 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 struct KeyboardShortcutData: Codable, Sendable, Hashable {
     var keyCode: UInt16
     var modifiers: UInt
-
-    init(keyCode: UInt16, modifiers: UInt) {
-        self.keyCode = keyCode
-        self.modifiers = modifiers
-    }
 }
 
 // MARK: - PersistenceService

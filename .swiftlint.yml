@@ -18,7 +18,9 @@ opt_in_rules:
   - empty_string
 
 included:
-  - SaneVideo
+  - Core
+  - UI
+  - SaneBarApp.swift
 
 excluded:
   - Carthage
@@ -26,7 +28,7 @@ excluded:
   - DerivedData
   - .build
   - .swiftpm
-  - SaneVideoTests
+  - Tests
   - Scripts
 
 # Configure specific rules if re-enabled later

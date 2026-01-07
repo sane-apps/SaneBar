@@ -5,9 +5,9 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)](https://github.com/stephanjoseph/SaneBar/releases)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-**Clean up your Mac's menu bar in one click.**
+**The free, private menu bar manager for Mac.**
 
-Free. Private. No account needed.
+Hide clutter. Find apps instantly. Works perfectly with the Notch.
 
 | Before | After |
 |--------|-------|
@@ -40,16 +40,26 @@ Icons to the **right** of Separator = always visible
 
 ## Features
 
-- **One-click hide/show** - Click to toggle visibility
-- **Menu Bar Search** - Quickly find and open menu bar apps
-- **Per-Icon Hotkeys** - Assign global shortcuts to specific apps
-- **Hover to reveal** - Show icons when you mouse over the menu bar
+### Core
+- **One-click hide/show** - Toggle visibility with a single click or hotkey
+- **Cmd+drag to organize** - Choose which icons hide and which stay visible
 - **Auto-hide** - Icons disappear after a configurable delay
-- **Bar Styling** - Customize tint, shadow, and borders
-- **Smart Triggers** - Auto-show on WiFi, app launch, or low battery
-- **Profiles** - Save different setups for work/home
 
-Works great on MacBook Pro with notch.
+### Unique to SaneBar
+- **Virtual Click** - Access menu bar apps even when hidden behind the Notch
+- **Menu Bar Search** - Find any app by name and activate it instantly
+- **Per-Icon Hotkeys** - Global shortcuts for your most-used menu bar apps
+
+### Automation
+- **Hover to reveal** - Show icons when you mouse over the menu bar
+- **Smart Triggers** - Auto-show on WiFi, app launch, or low battery
+- **Profiles** - Save different setups for work, home, or presentations
+
+### Customization
+- **Bar Styling** - Tint, shadow, borders, and rounded corners
+- **Always-visible list** - Pin specific apps to never be hidden
+
+Works perfectly on MacBook Pro with Notch. **100% private** - no network requests, no analytics, no account.
 
 ---
 
@@ -166,12 +176,15 @@ bundle install
 ### Project Structure
 
 ```
-SaneBar/                    # Repository root
-├── Core/                   # Business logic, services, managers
+SaneBar/
+├── Core/                   # Business logic
+│   ├── Services/           # AccessibilityService, SearchService, etc.
+│   ├── Controllers/        # StatusBarController, SettingsController
+│   └── Models/             # Data models
 ├── UI/                     # SwiftUI views
-├── SaneBar/                # App target (entry point, resources)
-├── Resources/              # Assets, icons
-├── Tests/                  # Unit tests
+│   ├── Settings/           # Modular settings tabs
+│   └── SearchWindow/       # Menu bar search UI
+├── Tests/                  # Unit tests with mocks
 ├── Scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```

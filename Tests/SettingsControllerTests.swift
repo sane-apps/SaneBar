@@ -14,6 +14,9 @@ struct SettingsControllerTests {
     @MainActor
     func testInitialization() {
         let mockPersistence = PersistenceServiceProtocolMock()
+        // Setup mock to return default settings for load
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
+        
         let controller = SettingsController(persistence: mockPersistence)
 
         #expect(controller.settings.autoRehide == true, "Default autoRehide should be true")
@@ -30,7 +33,9 @@ struct SettingsControllerTests {
         customSettings.autoRehide = false
         customSettings.rehideDelay = 5.0
         customSettings.spacerCount = 2
-        mockPersistence.settings = customSettings
+        
+        // Setup mock to return custom settings for load
+        mockPersistence.loadSettingsHandler = { return customSettings }
 
         let controller = SettingsController(persistence: mockPersistence)
         try controller.load()
@@ -43,8 +48,9 @@ struct SettingsControllerTests {
     @Test("loadOrDefault() falls back to defaults on error")
     @MainActor
     func testLoadOrDefaultFallsBack() {
-        let mockPersistence = ThrowingPersistenceServiceMock()
-        mockPersistence.shouldThrowOnLoad = true
+        let mockPersistence = PersistenceServiceProtocolMock()
+        // Setup mock to throw on load
+        mockPersistence.loadSettingsHandler = { throw PersistenceError.profileNotFound } // Any error works
 
         let controller = SettingsController(persistence: mockPersistence)
         controller.loadOrDefault()
@@ -59,21 +65,31 @@ struct SettingsControllerTests {
     @MainActor
     func testSaveWritesToPersistence() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        let controller = SettingsController(persistence: mockPersistence)
+        // Capture saved settings
+        var capturedSettings: SaneBarSettings?
+        mockPersistence.saveSettingsHandler = { settings in
+            capturedSettings = settings
+        }
+        
+        // Setup mock for load handler as it might be called during init or indirectly
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
 
+        let controller = SettingsController(persistence: mockPersistence)
         controller.settings.autoRehide = false
         controller.settings.spacerCount = 3
+        
         try controller.save()
 
-        #expect(mockPersistence.settings.autoRehide == false)
-        #expect(mockPersistence.settings.spacerCount == 3)
+        #expect(capturedSettings?.autoRehide == false)
+        #expect(capturedSettings?.spacerCount == 3)
     }
 
     @Test("saveQuietly() does not throw on error")
     @MainActor
     func testSaveQuietlyDoesNotThrow() {
-        let mockPersistence = ThrowingPersistenceServiceMock()
-        mockPersistence.shouldThrowOnSave = true
+        let mockPersistence = PersistenceServiceProtocolMock()
+        mockPersistence.saveSettingsHandler = { _ in throw PersistenceError.profileNotFound }
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
 
         let controller = SettingsController(persistence: mockPersistence)
         controller.settings.autoRehide = false
@@ -90,6 +106,12 @@ struct SettingsControllerTests {
     @MainActor
     func testUpdateModifiesAndSaves() {
         let mockPersistence = PersistenceServiceProtocolMock()
+        var capturedSettings: SaneBarSettings?
+        mockPersistence.saveSettingsHandler = { settings in
+            capturedSettings = settings
+        }
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
+        
         let controller = SettingsController(persistence: mockPersistence)
 
         controller.update { settings in
@@ -99,7 +121,7 @@ struct SettingsControllerTests {
 
         #expect(controller.settings.autoRehide == false)
         #expect(controller.settings.showOnHover == true)
-        #expect(mockPersistence.settings.autoRehide == false, "Should have saved to persistence")
+        #expect(capturedSettings?.autoRehide == false, "Should have saved to persistence")
     }
 
     // MARK: - Publisher Tests
@@ -108,6 +130,9 @@ struct SettingsControllerTests {
     @MainActor
     func testSettingsPublisherEmitsChanges() async {
         let mockPersistence = PersistenceServiceProtocolMock()
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
+        mockPersistence.saveSettingsHandler = { _ in } // No-op save
+        
         let controller = SettingsController(persistence: mockPersistence)
 
         var receivedSettings: [SaneBarSettings] = []
@@ -138,6 +163,8 @@ struct SettingsControllerTests {
     @MainActor
     func testProtocolConformance() {
         let mockPersistence = PersistenceServiceProtocolMock()
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
+        
         let controller: any SettingsControllerProtocol = SettingsController(persistence: mockPersistence)
 
         // Protocol requires these
@@ -153,6 +180,8 @@ struct SettingsControllerTests {
     @MainActor
     func testShowDockIconDefaults() {
         let mockPersistence = PersistenceServiceProtocolMock()
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
+        
         let controller = SettingsController(persistence: mockPersistence)
 
         #expect(controller.settings.showDockIcon == false, "Default showDockIcon should be false")
@@ -162,12 +191,17 @@ struct SettingsControllerTests {
     @MainActor
     func testShowDockIconPersists() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        let controller = SettingsController(persistence: mockPersistence)
+        var capturedSettings: SaneBarSettings?
+        mockPersistence.saveSettingsHandler = { settings in
+            capturedSettings = settings
+        }
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
 
+        let controller = SettingsController(persistence: mockPersistence)
         controller.settings.showDockIcon = true
         try controller.save()
 
-        #expect(mockPersistence.settings.showDockIcon == true, "showDockIcon should be saved")
+        #expect(capturedSettings?.showDockIcon == true, "showDockIcon should be saved")
     }
 
     @Test("showDockIcon setting loads correctly")
@@ -176,43 +210,12 @@ struct SettingsControllerTests {
         let mockPersistence = PersistenceServiceProtocolMock()
         var customSettings = SaneBarSettings()
         customSettings.showDockIcon = true
-        mockPersistence.settings = customSettings
+        
+        mockPersistence.loadSettingsHandler = { return customSettings }
 
         let controller = SettingsController(persistence: mockPersistence)
         try controller.load()
 
         #expect(controller.settings.showDockIcon == true, "showDockIcon should be loaded")
-    }
-}
-
-// MARK: - Test Helpers
-
-/// Mock that can throw on load/save for error handling tests
-class ThrowingPersistenceServiceMock: PersistenceServiceProtocol, @unchecked Sendable {
-    var settings: SaneBarSettings = SaneBarSettings()
-    var shouldThrowOnLoad = false
-    var shouldThrowOnSave = false
-
-    enum MockError: Error {
-        case loadFailed
-        case saveFailed
-    }
-
-    func saveSettings(_ settings: SaneBarSettings) throws {
-        if shouldThrowOnSave {
-            throw MockError.saveFailed
-        }
-        self.settings = settings
-    }
-
-    func loadSettings() throws -> SaneBarSettings {
-        if shouldThrowOnLoad {
-            throw MockError.loadFailed
-        }
-        return settings
-    }
-
-    func clearAll() throws {
-        settings = SaneBarSettings()
     }
 }

@@ -204,9 +204,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     private func showStatusMenu() {
         guard let statusMenu = statusMenu,
-              let item = mainStatusItem else { return }
-        logger.info("Right-click: showing menu via popUpMenu API")
-        item.popUpMenu(statusMenu)
+              let item = mainStatusItem,
+              let button = item.button else { return }
+        logger.info("Right-click: showing menu")
+        statusMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.frame.height), in: button)
     }
 
     private func setupObservers() {

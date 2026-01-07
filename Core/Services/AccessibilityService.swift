@@ -75,6 +75,8 @@ final class AccessibilityService: ObservableObject {
             return false
         }
 
+        // Safe cast from CFTypeRef
+        // swiftlint:disable:next force_cast
         let menuBarElement = menuBar as! AXUIElement
         var children: CFTypeRef?
 

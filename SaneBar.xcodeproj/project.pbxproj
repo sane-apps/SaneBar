@@ -7,20 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C33525F13C653C654FBABD /* SearchWindowTests.swift */; };
 		17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56253053D08930BD23085754 /* IconHotkeysService.swift */; };
 		1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E264258C707319B447D489AC /* KeyboardShortcuts */; };
+		265187C64135D0BBD23E8286 /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */; };
 		2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8376513461FDCE0D56D48 /* HidingService.swift */; };
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
 		4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */; };
 		4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */; };
 		5688BE185598444C9246B5A2 /* MenuBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */; };
+		568DF28CA44E4228C14694D3 /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */; };
 		5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */; };
 		6EB978727259DBDB0C8D3604 /* HoverService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0B1C1B3F989733A71F1C53 /* HoverService.swift */; };
 		7348B2397B78857F7F0F5067 /* SettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2C108D39FB5084CC3C11DA /* SettingsController.swift */; };
 		7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */; };
 		8149B82E4E317A035AEEB406 /* PositionWarningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB11C5E4ADAE059C90B232B0 /* PositionWarningView.swift */; };
+		85B23B36890D6B156C4DC865 /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */; };
+		8A701E459F4DC1FFD01F7080 /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B169D11639EA3855736D56D3 /* SearchService.swift */; };
 		8E33C3A54BBCC58D221E0B84 /* KeyboardShortcutsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */; };
+		93AFF7A17DDE1106C3EFE659 /* HelpButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B00E3A26F01C0B4DAE9418 /* HelpButton.swift */; };
 		9428EB7B846206973BA5FF5E /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = E9C15D05272B9E2F506E6168 /* LaunchAtLogin */; };
 		959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */; };
 		989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */; };
@@ -39,10 +45,13 @@
 		BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 279B371659C5F49AC26F024E /* Mocks.swift */; };
 		C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
+		ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */; };
 		F2B3FB6C4A975BB22A83EF62 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FB5A5E19E67E44650AC8FED0 /* Localizable.strings */; };
 		F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
+		F650F18E449852345CEB3FA6 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2608C1CE315884BF17942B22 /* AdvancedSettingsView.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
+		FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */; };
 		FB7CE69BC52130B02564CF53 /* TriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */; };
 		FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */; };
 /* End PBXBuildFile section */
@@ -62,15 +71,19 @@
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
+		2608C1CE315884BF17942B22 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
+		26C33525F13C653C654FBABD /* SearchWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowTests.swift; sourceTree = "<group>"; };
 		279B371659C5F49AC26F024E /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */ = {isa = PBXFileReference; path = SaneBar.sdef; sourceTree = "<group>"; };
 		386A8722235E682FD58BF6B6 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassGroupBoxStyle.swift; sourceTree = "<group>"; };
 		3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconTests.swift; sourceTree = "<group>"; };
 		3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommands.swift; sourceTree = "<group>"; };
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		4C0B1C1B3F989733A71F1C53 /* HoverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverService.swift; sourceTree = "<group>"; };
 		56253053D08930BD23085754 /* IconHotkeysService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysService.swift; sourceTree = "<group>"; };
 		67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SaneBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
 		6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7386E7B1B55EE182670DC1FF /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTipView.swift; sourceTree = "<group>"; };
@@ -82,11 +95,16 @@
 		A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUITests.swift; sourceTree = "<group>"; };
 		AB11C5E4ADAE059C90B232B0 /* PositionWarningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionWarningView.swift; sourceTree = "<group>"; };
 		AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarTests.swift; sourceTree = "<group>"; };
+		B169D11639EA3855736D56D3 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
 		B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
+		B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
 		B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingServiceTests.swift; sourceTree = "<group>"; };
 		B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchView.swift; sourceTree = "<group>"; };
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
+		C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
+		D0B00E3A26F01C0B4DAE9418 /* HelpButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpButton.swift; sourceTree = "<group>"; };
+		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
 		DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsControllerTests.swift; sourceTree = "<group>"; };
 		E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManagerTests.swift; sourceTree = "<group>"; };
@@ -128,6 +146,7 @@
 				6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */,
 				9C3C6E73E33B43B37B3BB914 /* Components */,
 				069C3A0FC8F35C1CEEE6717E /* SearchWindow */,
+				8B3B0395225A66EBED761B56 /* Settings */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -162,6 +181,7 @@
 				A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */,
 				A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */,
 				AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */,
+				26C33525F13C653C654FBABD /* SearchWindowTests.swift */,
 				DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */,
 				D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */,
 				FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */,
@@ -180,6 +200,19 @@
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
 				D14A5D400198233C0D7C948F /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		8B3B0395225A66EBED761B56 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */,
+				2608C1CE315884BF17942B22 /* AdvancedSettingsView.swift */,
+				C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */,
+				3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */,
+				D0B00E3A26F01C0B4DAE9418 /* HelpButton.swift */,
+				D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		90F8FA130E087A281C816B2A /* Core */ = {
@@ -204,6 +237,7 @@
 		9B59B9EFDE3FBE4F62C13BDD /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */,
 				3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */,
 			);
 			path = Models;
@@ -238,6 +272,7 @@
 				ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */,
 				B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */,
 				B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */,
+				B169D11639EA3855736D56D3 /* SearchService.swift */,
 				FC1779B5B710715DD106EE34 /* TriggerService.swift */,
 			);
 			path = Services;
@@ -377,6 +412,7 @@
 				BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */,
 				A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */,
 				9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */,
+				13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */,
 				F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */,
 				4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */,
 				FB7CE69BC52130B02564CF53 /* TriggerServiceTests.swift in Sources */,
@@ -387,8 +423,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				85B23B36890D6B156C4DC865 /* AboutSettingsView.swift in Sources */,
 				A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */,
+				F650F18E449852345CEB3FA6 /* AdvancedSettingsView.swift in Sources */,
 				7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */,
+				ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */,
+				FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */,
+				93AFF7A17DDE1106C3EFE659 /* HelpButton.swift in Sources */,
 				2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */,
 				6EB978727259DBDB0C8D3604 /* HoverService.swift in Sources */,
 				17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */,
@@ -400,11 +441,14 @@
 				FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */,
 				B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */,
 				8149B82E4E317A035AEEB406 /* PositionWarningView.swift in Sources */,
+				568DF28CA44E4228C14694D3 /* RunningApp.swift in Sources */,
 				5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */,
 				C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */,
+				8A701E459F4DC1FFD01F7080 /* SearchService.swift in Sources */,
 				A31A1121AA09ACA4DB5061D0 /* SearchWindowController.swift in Sources */,
 				7348B2397B78857F7F0F5067 /* SettingsController.swift in Sources */,
 				B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */,
+				265187C64135D0BBD23E8286 /* ShortcutsSettingsView.swift in Sources */,
 				F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */,
 				A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */,
 				9D45DB2B062B50A5A99ECD3A /* WelcomeBanner.swift in Sources */,
@@ -497,6 +541,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -558,6 +603,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
