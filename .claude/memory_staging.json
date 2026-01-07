@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-01-06T22:38:34-05:00",
+  "project": "SaneBar",
+  "session_score": 9,
+  "violations_this_session": {
+    "bypass_attempt": 5
+  },
+  "cumulative_weak_spots": {
+    "bypass_attempt": 5
+  },
+  "needs_memory_update": false,
+  "suggested_entity": {
+    "name": "SOP-WeakSpot-SaneBar",
+    "type": "LearningPattern",
+    "observations": [
+      "Weak spot: Rule bypass_attempt with 5 cumulative violations",
+      "Session score: 9/10",
+      "Recorded: 2026-01-06"
+    ]
+  },
+  "processed_at": "2026-01-06T23:33:06-05:00"
+}

@@ -61,18 +61,19 @@ module StateSigner
 
     # Read and verify signed data
     # Returns nil if file doesn't exist, signature invalid, or tampered
-    def read_verified(path)
+    def read_verified(path, symbolize: false)
       return nil unless File.exist?(path)
 
       raw = File.read(path)
-      data = JSON.parse(raw)
+      data = JSON.parse(raw)  # String keys for signature verification
 
       signature = data.delete(SIGNATURE_KEY)
       return nil unless signature
 
       return nil unless verify(data, signature)
 
-      data
+      # Optionally symbolize keys after verification
+      symbolize ? JSON.parse(raw, symbolize_names: true).tap { |h| h.delete(:__sig__) } : data
     rescue JSON::ParserError, StandardError
       nil
     end
