@@ -23,7 +23,11 @@ jobs:
       run: xcodegen generate
       
     - name: Build and Test
+      # Note: UI initialization is skipped in headless CI environments
+      # MenuBarManager detects CI via environment variables and skips NSStatusItem creation
       # Disable code signing for CI to avoid certificate errors
+      env:
+        CI: true
       run: |
         xcodebuild test \
           -scheme SaneBar \
