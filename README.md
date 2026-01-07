@@ -41,13 +41,45 @@ Icons to the **right** of SaneBar = can be hidden
 ## Features
 
 - **One-click hide/show** - Click to toggle visibility
+- **Menu Bar Search** - Quickly find and open menu bar apps
+- **Per-Icon Hotkeys** - Assign global shortcuts to specific apps
 - **Hover to reveal** - Show icons when you mouse over the menu bar
 - **Auto-hide** - Icons disappear after a configurable delay
-- **Keyboard shortcuts** - Global hotkeys for everything
-- **WiFi triggers** - Auto-show icons on specific networks
+- **Bar Styling** - Customize tint, shadow, and borders
+- **Smart Triggers** - Auto-show on WiFi, app launch, or low battery
 - **Profiles** - Save different setups for work/home
 
 Works great on MacBook Pro with notch.
+
+---
+
+## Power User Features
+
+### 🔍 Menu Bar Search
+Quickly find and activate any menu bar app without lifting your hands from the keyboard.
+1. Go to **Settings > Shortcuts** and set a hotkey for "Search apps".
+2. Press the hotkey to open the search window.
+3. Type an app name and press **Return** to reveal hidden icons and activate that app.
+
+### ⌨️ Per-Icon Hotkeys
+Assign a specific global hotkey to any menu bar app.
+1. Open the **Menu Bar Search** window (using the hotkey set above).
+2. Select an app from the list.
+3. Click the **Record Shortcut** box in the footer.
+4. Press your desired key combination.
+5. Now, pressing that hotkey will instantly show hidden items and open that app's menu.
+
+### 🎨 Bar Styling
+Customize the look of your menu bar panel.
+- Go to **Settings > Advanced > Appearance**.
+- Enable "Custom menu bar style".
+- Adjust **Tint**, **Opacity**, **Shadow**, **Border**, and **Corner Radius**.
+
+### 💾 Profiles
+Save different menu bar configurations for different contexts (e.g., "Work", "Gaming", "Presentation").
+- Go to **Settings > Advanced > Profiles**.
+- Click **Save Current Settings as Profile...**
+- Restore any profile with a single click.
 
 ---
 

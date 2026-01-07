@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import KeyboardShortcuts
 
 // MARK: - RunningApp Model
 
@@ -96,6 +97,27 @@ struct MenuBarSearchView: View {
                             Label("Copy ID", systemImage: "doc.on.doc")
                         }
                         .buttonStyle(.bordered)
+                        .controlSize(.regular)
+
+                        // Hotkey Recorder
+                        KeyboardShortcuts.Recorder(
+                            for: IconHotkeysService.shortcutName(for: app.id)
+                        ) { shortcut in
+                            Task { @MainActor in
+                                if let shortcut = shortcut {
+                                    // Save new shortcut
+                                    let data = KeyboardShortcutData(
+                                        keyCode: UInt16(shortcut.key.rawValue),
+                                        modifiers: UInt(shortcut.modifiers.rawValue)
+                                    )
+                                    MenuBarManager.shared.settings.iconHotkeys[app.id] = data
+                                } else {
+                                    // Remove shortcut
+                                    MenuBarManager.shared.settings.iconHotkeys.removeValue(forKey: app.id)
+                                }
+                                MenuBarManager.shared.saveSettings()
+                            }
+                        }
                         .controlSize(.regular)
 
                         Spacer()
