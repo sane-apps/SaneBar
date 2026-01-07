@@ -1,5 +1,7 @@
 import SwiftUI
+import AppKit
 import KeyboardShortcuts
+import os.log
 
 @main
 struct SaneBarApp: App {
@@ -82,6 +84,8 @@ private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
 /// Manages the app's activation policy based on user settings
 enum ActivationPolicyManager {
     
+    private static let logger = Logger(subsystem: "com.sanebar.app", category: "ActivationPolicyManager")
+    
     /// Apply the initial activation policy when app launches
     @MainActor
     static func applyInitialPolicy() {
@@ -115,7 +119,8 @@ enum ActivationPolicyManager {
         do {
             return try PersistenceService.shared.loadSettings()
         } catch {
-            // On error, return defaults (Dock icon hidden for backward compatibility)
+            // On error, log and return defaults (Dock icon hidden for backward compatibility)
+            logger.warning("Failed to load settings for activation policy: \(error.localizedDescription). Using defaults.")
             return SaneBarSettings()
         }
     }
