@@ -403,10 +403,13 @@ def process_result(tool_name, tool_input, tool_response)
         ahead_check = `git status 2>/dev/null | grep -o "ahead of.*by [0-9]* commit"`
         unless ahead_check.empty?
           warn ''
-          warn '⚠️  GIT PUSH REMINDER ⚠️'
-          warn "   You just committed but haven't pushed!"
+          warn '🚨 GIT PUSH REMINDER 🚨'
+          warn "   You committed but haven't pushed!"
           warn "   Status: #{ahead_check.strip}"
-          warn '   Run: git push'
+          warn ''
+          warn '   → Run: git push'
+          warn '   → READ ALL DOCUMENTATION before claiming done'
+          warn '   → Verify README is accurate and up to date'
           warn ''
         end
       end
