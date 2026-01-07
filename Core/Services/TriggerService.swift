@@ -1,6 +1,9 @@
 import AppKit
 import Combine
 import IOKit.ps
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "TriggerService")
 
 // MARK: - TriggerServiceProtocol
 
@@ -28,13 +31,42 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
     init() {
         setupAppLaunchObserver()
-        setupBatteryMonitor()
+        // Note: Battery monitor is started lazily when settings enable it
     }
 
     // MARK: - Configuration
 
     func configure(menuBarManager: MenuBarManager) {
         self.menuBarManager = menuBarManager
+        // Start battery monitoring only if enabled in settings
+        if menuBarManager.settings.showOnLowBattery {
+            startBatteryMonitor()
+        }
+    }
+
+    /// Start or stop battery monitoring based on settings
+    func updateBatteryMonitoring(enabled: Bool) {
+        if enabled {
+            startBatteryMonitor()
+        } else {
+            stopBatteryMonitor()
+        }
+    }
+
+    private func startBatteryMonitor() {
+        guard batteryCheckTimer == nil else { return }  // Already running
+        logger.info("Starting battery monitor")
+        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkBatteryLevel()
+            }
+        }
+    }
+
+    private func stopBatteryMonitor() {
+        batteryCheckTimer?.invalidate()
+        batteryCheckTimer = nil
+        logger.info("Stopped battery monitor")
     }
 
     // MARK: - App Launch Observer
@@ -61,21 +93,12 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
         // Check if this app is in our trigger list
         if manager.settings.triggerApps.contains(bundleID) {
-            print("[SaneBar] App trigger: \(bundleID) launched, showing hidden items")
+            logger.info("App trigger: \(bundleID) launched, showing hidden items")
             manager.showHiddenItems()
         }
     }
 
     // MARK: - Battery Monitor
-
-    private func setupBatteryMonitor() {
-        // Check battery level periodically (every 30 seconds)
-        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkBatteryLevel()
-            }
-        }
-    }
 
     private func checkBatteryLevel() {
         guard let manager = menuBarManager else { return }
@@ -85,7 +108,7 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
         // Trigger only on transition TO low battery (not every check)
         if currentLevel != kIOPSLowBatteryWarningNone && lastBatteryWarningLevel == kIOPSLowBatteryWarningNone {
-            print("[SaneBar] Battery trigger: low battery detected, showing hidden items")
+            logger.info("Battery trigger: low battery detected, showing hidden items")
             manager.showHiddenItems()
         }
 
@@ -94,7 +117,6 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
     /// Call to clean up timer before deallocation
     func stopMonitoring() {
-        batteryCheckTimer?.invalidate()
-        batteryCheckTimer = nil
+        stopBatteryMonitor()
     }
 }

@@ -90,7 +90,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         super.init()
 
-        print("[SaneBar] MenuBarManager init starting...")
+        logger.info("MenuBarManager init starting...")
         setupStatusItem()
         loadSettings()
         updateSpacers()
@@ -141,7 +141,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Debug: Verify menu items have targets
         if let items = statusMenu?.items {
             for item in items where !item.isSeparatorItem {
-                print("[SaneBar] Menu item '\(item.title)': target=\(item.target == nil ? "nil" : "set"), action=\(item.action?.description ?? "nil")")
+                logger.debug("Menu item '\(item.title)': target=\(item.target == nil ? "nil" : "set"), action=\(item.action?.description ?? "nil")")
             }
         }
 
@@ -314,7 +314,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         Task {
             // Safety check: verify separator is LEFT of main icon before hiding
             guard validateSeparatorPosition() else {
-                print("[SaneBar] ⚠️ Separator is RIGHT of main icon - refusing to hide to prevent eating the main icon")
+                logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide to prevent eating the main icon")
                 showPositionWarning()
                 return
             }
@@ -462,17 +462,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
-        let logFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("sanebar_debug.log")
-        let message = "[SaneBar] Menu will open - checking targets...\n"
-        try? message.write(to: logFile, atomically: true, encoding: .utf8)
+        logger.debug("Menu will open - checking targets...")
         for item in menu.items where !item.isSeparatorItem {
-            let targetStatus = item.target == nil ? "nil" : "set (self=\(item.target === self))"
-            let itemLog = "[SaneBar]   '\(item.title)': target=\(targetStatus)\n"
-            if let data = itemLog.data(using: .utf8), let handle = try? FileHandle(forWritingTo: logFile) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                handle.closeFile()
-            }
+            let targetStatus = item.target == nil ? "nil" : "set"
+            logger.debug("  '\(item.title)': target=\(targetStatus)")
         }
     }
 
@@ -490,7 +483,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @objc private func quitApp(_ sender: Any?) {
-        print("[SaneBar] Menu: Quit")
+        logger.info("Menu: Quit")
         NSApplication.shared.terminate(nil)
     }
 

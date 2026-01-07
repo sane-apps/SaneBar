@@ -1,6 +1,9 @@
 import AppKit
 import KeyboardShortcuts
 import Combine
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "IconHotkeysService")
 
 // MARK: - IconHotkeysService
 
@@ -57,7 +60,7 @@ final class IconHotkeysService {
         }
 
         registeredShortcuts.insert(bundleID)
-        print("[SaneBar] Registered hotkey for \(bundleID)")
+        logger.info("Registered hotkey for \(bundleID)")
     }
 
     /// Unregister all hotkeys
@@ -73,7 +76,7 @@ final class IconHotkeysService {
 
     /// Handle a per-icon hotkey press
     private func handleHotkey(for bundleID: String) {
-        print("[SaneBar] Per-icon hotkey triggered for \(bundleID)")
+        logger.info("Per-icon hotkey triggered for \(bundleID)")
 
         // Show hidden items
         menuBarManager?.showHiddenItems()
@@ -85,13 +88,13 @@ final class IconHotkeysService {
     /// Activate an app by bundle ID
     private func activateApp(bundleID: String) {
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
-            print("[SaneBar] App not running: \(bundleID)")
+            logger.warning("App not running: \(bundleID)")
             return
         }
 
         // Activate the app
         app.activate(options: [])
-        print("[SaneBar] Activated app: \(bundleID)")
+        logger.info("Activated app: \(bundleID)")
     }
 
     // MARK: - Shortcut Name Generation
