@@ -188,8 +188,16 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     /// Save a profile to disk
     func saveProfile(_ profile: SaneBarProfile) throws {
-        let data = try encoder.encode(profile)
+        // Check limit if creating a new profile (by checking if file exists)
         let url = profileFileURL(for: profile.id)
+        if !fileManager.fileExists(atPath: url.path) {
+            let existingProfiles = try listProfiles()
+            if existingProfiles.count >= 50 {
+                throw PersistenceError.limitReached
+            }
+        }
+
+        let data = try encoder.encode(profile)
         try data.write(to: url, options: .atomic)
     }
 
@@ -229,11 +237,14 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
 enum PersistenceError: Error, LocalizedError {
     case profileNotFound
+    case limitReached
 
     var errorDescription: String? {
         switch self {
         case .profileNotFound:
             return "Profile not found"
+        case .limitReached:
+            return "Profile limit reached (max 50). Please delete some profiles first."
         }
     }
 }

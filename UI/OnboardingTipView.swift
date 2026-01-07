@@ -39,6 +39,18 @@ struct OnboardingTipView: View {
             }
             .font(.callout)
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Pro Tip: Search")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                
+                tipRow(icon: "magnifyingglass", text: "Lost an icon behind the Notch?")
+                tipRow(icon: "keyboard", text: "Press Cmd+Shift+Space to search & click it")
+            }
+            .font(.callout)
+
             Button("Got it!") {
                 onDismiss()
             }
