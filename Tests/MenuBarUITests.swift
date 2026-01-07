@@ -88,6 +88,31 @@ struct MenuBarUITests {
         #expect(result == "SETTINGS_OPENED", "Settings window should open when clicking Settings menu item")
     }
 
+    @Test("Settings window shows correct documentation text (Left = hidden)", .disabled("Requires running app"))
+    func testDocumentationTextIsCorrect() throws {
+        let script = """
+        tell application "System Events"
+            tell process "SaneBar"
+                -- Open Settings first (reuse logic)
+                set menuBarItem to menu bar item 2 of menu bar 2
+                click menuBarItem
+                delay 0.3
+                click menu item "Settings..." of menu "SaneBar" of menuBarItem
+                delay 1.0
+                
+                -- Check for static text
+                -- Note: exact hierarchy might vary, searching all text elements
+                set uiText to (value of every static text of window "SaneBar" whose value contains "Left of separator")
+                return uiText as string
+            end tell
+        end tell
+        """
+
+        let result = try runAppleScript(script)
+        #expect(result.contains("Left of separator = can be hidden"), "Settings should say 'Left of separator = can be hidden'")
+        #expect(result.contains("Right of separator = always visible"), "Settings should say 'Right of separator = always visible'")
+    }
+
     @Test("Menu has expected items: Toggle, Settings, Quit", .disabled("Requires running app"))
     func testMenuHasExpectedItems() throws {
         let script = """

@@ -12,14 +12,10 @@ struct TriggerServiceTests {
     @Test("TriggerService can be initialized")
     @MainActor
     func testInitialization() {
-        let service = TriggerService()
+        let _ = TriggerService()
 
         // Service should initialize without crashing
         // Timer and observers set up internally
-        #expect(service != nil)
-
-        // Clean up
-        service.stopMonitoring()
     }
 
     @Test("Stop monitoring is safe to call multiple times")

@@ -55,10 +55,39 @@ module SaneMasterModules
 
     # --- Memory Helpers ---
 
-    def load_memory
-      return nil unless File.exist?(MEMORY_FILE)
+    # Load memory from STDIN (piped from mcp__memory__read_graph) or local cache
+    def load_memory(from_stdin: false)
+      if from_stdin
+        input = begin
+          $stdin.read.strip
+        rescue StandardError
+          ''
+        end
+        return nil if input.empty?
 
-      JSON.parse(File.read(MEMORY_FILE))
+        begin
+          memory = JSON.parse(input)
+          # Cache locally for future use
+          save_memory(memory)
+          memory
+        rescue JSON::ParserError
+          nil
+        end
+      elsif File.exist?(MEMORY_FILE)
+        JSON.parse(File.read(MEMORY_FILE))
+      else
+        warn ''
+        warn '⚠️  No local memory cache found at .claude/memory.json'
+        warn ''
+        warn 'To use memory commands, pipe from MCP:'
+        warn '  1. Ask Claude to run: mcp__memory__read_graph'
+        warn '  2. Copy the JSON output'
+        warn '  3. Run: echo \'<json>\' | ./Scripts/SaneMaster.rb <command>'
+        warn ''
+        warn 'Or use: ./Scripts/SaneMaster.rb msync to create a cache.'
+        warn ''
+        nil
+      end
     rescue JSON::ParserError
       nil
     end
@@ -66,6 +95,25 @@ module SaneMasterModules
     def save_memory(memory)
       FileUtils.mkdir_p(File.dirname(MEMORY_FILE))
       File.write(MEMORY_FILE, JSON.pretty_generate(memory))
+    end
+
+    # Sync memory from STDIN (requires piping from mcp__memory__read_graph)
+    def memory_sync(_args)
+      puts '🔄 --- [ MEMORY SYNC ] ---'
+      puts ''
+      puts 'Paste the output from mcp__memory__read_graph below,'
+      puts 'then press Ctrl+D (or Ctrl+Z on Windows) when done:'
+      puts ''
+
+      memory = load_memory(from_stdin: true)
+      if memory
+        count = (memory['entities'] || []).count
+        puts ''
+        puts "✅ Synced #{count} entities to .claude/memory.json"
+      else
+        puts ''
+        puts '❌ No valid JSON received'
+      end
     end
   end
 end

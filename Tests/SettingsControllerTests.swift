@@ -138,7 +138,7 @@ struct SettingsControllerTests {
     @MainActor
     func testProtocolConformance() {
         let mockPersistence = PersistenceServiceProtocolMock()
-        let controller: SettingsControllerProtocol = SettingsController(persistence: mockPersistence)
+        let controller: any SettingsControllerProtocol = SettingsController(persistence: mockPersistence)
 
         // Protocol requires these
         _ = controller.settings
