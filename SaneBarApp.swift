@@ -89,29 +89,39 @@ enum ActivationPolicyManager {
     /// Apply the initial activation policy when app launches
     @MainActor
     static func applyInitialPolicy() {
+        guard !isHeadlessEnvironment() else { return }
         let settings = loadSettings()
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
         NSApp.setActivationPolicy(policy)
+    }
+
+    /// Check if running in headless/test environment
+    private static func isHeadlessEnvironment() -> Bool {
+        let env = ProcessInfo.processInfo.environment
+        if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil { return true }
+        if let bundleID = Bundle.main.bundleIdentifier,
+           bundleID.hasSuffix("Tests") || bundleID.contains("xctest") { return true }
+        if NSClassFromString("XCTestCase") != nil { return true }
+        return false
     }
     
     /// Restore the policy after settings window closes
     @MainActor
     static func restorePolicy() {
-        // Use MenuBarManager's cached settings to avoid disk I/O
+        guard !isHeadlessEnvironment() else { return }
         let settings = MenuBarManager.shared.settings
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
         NSApp.setActivationPolicy(policy)
     }
-    
+
     /// Apply policy change when user toggles the setting
     @MainActor
     static func applyPolicy(showDockIcon: Bool) {
+        guard !isHeadlessEnvironment() else { return }
         let policy: NSApplication.ActivationPolicy = showDockIcon ? .regular : .accessory
         NSApp.setActivationPolicy(policy)
-        
+
         if showDockIcon {
-            // Activate the app so Dock icon is immediately visible
-            // Use ignoringOtherApps: false to avoid interrupting user's workflow
             NSApp.activate(ignoringOtherApps: false)
         }
     }
