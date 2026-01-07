@@ -1,6 +1,6 @@
 import SwiftUI
 import KeyboardShortcuts
-import ServiceManagement
+import LaunchAtLogin
 
 // MARK: - HelpButton
 
@@ -61,7 +61,6 @@ struct SettingsView: View {
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
-    @State private var launchAtLoginEnabled = LaunchAtLogin.isEnabled
 
     enum SettingsTab: String, CaseIterable {
         case general = "General"
@@ -100,11 +99,10 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Startup - FIRST (most important)
                 GroupBox {
-                    Toggle("Start SaneBar when you log in", isOn: $launchAtLoginEnabled)
-                        .onChange(of: launchAtLoginEnabled) { _, newValue in
-                            LaunchAtLogin.isEnabled = newValue
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    LaunchAtLogin.Toggle {
+                        Text("Start SaneBar when you log in")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
                     Label("Startup", systemImage: "power")
                 }
@@ -691,7 +689,6 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) {
                 menuBarManager.resetToDefaults()
-                launchAtLoginEnabled = LaunchAtLogin.isEnabled
             }
         } message: {
             Text("This will reset all settings to their defaults. This cannot be undone.")
@@ -760,26 +757,6 @@ struct SettingsView: View {
 
 }
 
-// MARK: - Launch at Login Helper
-
-enum LaunchAtLogin {
-    static var isEnabled: Bool {
-        get {
-            SMAppService.mainApp.status == .enabled
-        }
-        set {
-            do {
-                if newValue {
-                    try SMAppService.mainApp.register()
-                } else {
-                    try SMAppService.mainApp.unregister()
-                }
-            } catch {
-                print("[SaneBar] Launch at login error: \(error)")
-            }
-        }
-    }
-}
 
 #Preview {
     SettingsView()
