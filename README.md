@@ -59,7 +59,9 @@ Works great on MacBook Pro with notch.
 Quickly find and activate any menu bar app without lifting your hands from the keyboard.
 1. Go to **Settings > Shortcuts** and set a hotkey for "Search apps".
 2. Press the hotkey to open the search window.
-3. Type an app name and press **Return** to reveal hidden icons and activate that app.
+3. Type an app name and press **Return**.
+   *   SaneBar will reveal hidden icons (if necessary) and **virtually click** the app's menu bar item.
+   *   This works even if the icon is physically hidden behind the Notch or off-screen!
 
 ### ⌨️ Per-Icon Hotkeys
 Assign a specific global hotkey to any menu bar app.

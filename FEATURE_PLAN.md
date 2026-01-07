@@ -249,20 +249,21 @@ killall -9 SaneBar                     # Kill old instance
 
 ---
 
-## User Decisions (2026-01-02)
+## User Decisions (2026-01-07)
 
 **Features to implement:**
 - [x] Always Show List
-- [x] Menu Bar Search
+- [x] Menu Bar Search (Enhanced with Virtual Click)
 - [x] Presets/Profiles
 - [x] Per-Icon Hotkeys
-- [ ] ~~Show on Hover~~ - SKIPPED (BUG-009 risk)
-- [ ] ~~Icon Click-Through~~ - SKIPPED (too complex)
+- [x] Show on Hover (Implemented safely with NSEvent)
+- [ ] ~~Icon Click-Through~~ - SKIPPED (too complex/unsafe)
 
-**Scope:** All recommended features
+**Scope:** All recommended features completed.
 
 **Implementation Order:**
 1. Always Show List (easiest, foundations for others)
 2. Menu Bar Search (high user value)
 3. Per-Icon Hotkeys (extends shortcuts system)
 4. Presets/Profiles (builds on all above)
+5. Show on Hover (Safe implementation)
