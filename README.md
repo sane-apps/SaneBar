@@ -85,6 +85,18 @@ Save different menu bar configurations for different contexts (e.g., "Work", "Ga
 
 ---
 
+## The Notch & 50+ Apps
+
+**Worried about losing icons behind the Notch?**
+
+If you have 50+ apps, macOS might hide some of them behind the camera housing (the "Notch") or off-screen. SaneBar handles this gracefully:
+
+1.  **Hiding**: SaneBar pushes unused icons safely off-screen so your menu bar looks clean.
+2.  **Safety Lock**: If SaneBar itself would get pushed off-screen by expanding icons, it refuses to hide to ensure you never lose control.
+3.  **Virtual Click**: Can't see an icon because it's behind the Notch? Use **Menu Bar Search** (Cmd+Shift+Space). Type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible.
+
+---
+
 ## Configuration
 
 All settings are in the **Settings** window (click SaneBar icon > Settings, or use your configured shortcut).
