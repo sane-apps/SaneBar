@@ -111,10 +111,29 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
     /// Set default shortcuts if none configured
     func setDefaultsIfNeeded() {
-        // Only set defaults if user hasn't configured any
+        // Toggle: Cmd+\ (primary action)
         if KeyboardShortcuts.getShortcut(for: .toggleHiddenItems) == nil {
-            // Default: Cmd+\ for toggle (avoids conflict with Bold shortcut)
             KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: .command), for: .toggleHiddenItems)
+        }
+
+        // Show hidden: Cmd+Shift+\
+        if KeyboardShortcuts.getShortcut(for: .showHiddenItems) == nil {
+            KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: [.command, .shift]), for: .showHiddenItems)
+        }
+
+        // Hide items: Cmd+Option+\
+        if KeyboardShortcuts.getShortcut(for: .hideItems) == nil {
+            KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: [.command, .option]), for: .hideItems)
+        }
+
+        // Search apps: Cmd+Shift+Space
+        if KeyboardShortcuts.getShortcut(for: .searchMenuBar) == nil {
+            KeyboardShortcuts.setShortcut(.init(.space, modifiers: [.command, .shift]), for: .searchMenuBar)
+        }
+
+        // Open Settings: Cmd+, (standard macOS convention)
+        if KeyboardShortcuts.getShortcut(for: .openSettings) == nil {
+            KeyboardShortcuts.setShortcut(.init(.comma, modifiers: .command), for: .openSettings)
         }
     }
 }

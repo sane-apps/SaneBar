@@ -75,65 +75,55 @@ struct MenuBarSearchView: View {
             // Footer with actions
             VStack(alignment: .leading, spacing: 8) {
                 if let app = selectedApp {
-                    HStack(spacing: 12) {
-                        // Activate button
-                        Button(
-                            action: {
-                                Task {
-                                    await service.activate(app: app)
-                                    onDismiss()
-                                }
-                            },
-                            label: {
-                                Label("Activate", systemImage: "arrow.up.forward.app")
+                    // Row 1: Buttons
+                    HStack(spacing: 8) {
+                        Button {
+                            Task {
+                                await service.activate(app: app)
+                                onDismiss()
                             }
-                        )
+                        } label: {
+                            Label("Activate", systemImage: "arrow.up.forward.app")
+                        }
                         .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
                         .keyboardShortcut(.return, modifiers: [])
 
-                        // Copy bundle ID
-                        Button(
-                            action: { copyBundleID(app) },
-                            label: {
-                                Label("Copy ID", systemImage: "doc.on.doc")
-                            }
-                        )
+                        Button { copyBundleID(app) } label: {
+                            Label("Copy ID", systemImage: "doc.on.doc")
+                        }
                         .buttonStyle(.bordered)
-                        .controlSize(.regular)
 
-                        // Hotkey Recorder
+                        Spacer()
+
+                        Text("Hotkey:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         KeyboardShortcuts.Recorder(
                             for: IconHotkeysService.shortcutName(for: app.id)
                         ) { shortcut in
                             Task { @MainActor in
                                 if let shortcut = shortcut, let key = shortcut.key {
-                                    // Save new shortcut
                                     let data = KeyboardShortcutData(
                                         keyCode: UInt16(key.rawValue),
                                         modifiers: UInt(shortcut.modifiers.rawValue)
                                     )
                                     MenuBarManager.shared.settings.iconHotkeys[app.id] = data
                                 } else {
-                                    // Remove shortcut
                                     MenuBarManager.shared.settings.iconHotkeys.removeValue(forKey: app.id)
                                 }
                                 MenuBarManager.shared.saveSettings()
                             }
                         }
-                        .controlSize(.regular)
-
-                        Spacer()
-
-                        // Bundle ID display
-                        Text(app.id)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
                     }
+
+                    // Row 2: Bundle ID
+                    Text(app.id)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
                 } else {
-                    Text("Select an app and press Return to activate it. This will reveal hidden items and bring the app forward.")
-                        .font(.system(size: 13))
+                    Text("Select an app and press Return to activate it.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
