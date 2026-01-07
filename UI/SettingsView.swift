@@ -138,11 +138,13 @@ struct SettingsView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "line.3.horizontal.decrease.circle")
                                         .foregroundStyle(.blue)
+                                        .accessibilityLabel("SaneBar Icon")
                                     Text("SaneBar")
                                 }
                                 HStack(spacing: 4) {
                                     Image(systemName: "line.diagonal")
                                         .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Separator Icon")
                                     Text("Separator")
                                 }
                             }
@@ -157,6 +159,7 @@ struct SettingsView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "hand.draw")
                                     .foregroundStyle(.blue)
+                                    .accessibilityHidden(true)
                                 Text("**⌘+drag** icons to organize them")
                             }
                             VStack(alignment: .leading, spacing: 6) {
@@ -174,6 +177,7 @@ struct SettingsView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "cursorarrow.click.2")
                                 .foregroundStyle(.blue)
+                                .accessibilityHidden(true)
                             Text("**Click SaneBar icon** to show/hide")
                         }
 
