@@ -1,0 +1,109 @@
+/* General */
+"General" = "General";
+"Startup" = "Startup";
+"Start SaneBar when you log in" = "Start SaneBar when you log in";
+"Auto-hide" = "Auto-hide";
+"Auto-hide after showing" = "Auto-hide after showing";
+"Delay:" = "Delay:";
+"seconds" = "seconds";
+"How it works" = "How it works";
+"Your menu bar icons:" = "Your menu bar icons:";
+"SaneBar" = "SaneBar";
+"Separator" = "Separator";
+"**⌘+drag** icons to organize them" = "**⌘+drag** icons to organize them";
+"• Left of separator = always visible" = "• Left of separator = always visible";
+"• Right of separator = can be hidden" = "• Right of separator = can be hidden";
+"**Click SaneBar icon** to show/hide" = "**Click SaneBar icon** to show/hide";
+"**Notch detected** — keep important icons to the right of SaneBar" = "**Notch detected** — keep important icons to the right of SaneBar";
+
+/* Shortcuts */
+"Shortcuts" = "Shortcuts";
+"Global Shortcuts" = "Global Shortcuts";
+"Click a field, then press your shortcut keys." = "Click a field, then press your shortcut keys.";
+"Toggle visibility:" = "Toggle visibility:";
+"Show hidden:" = "Show hidden:";
+"Hide items:" = "Hide items:";
+"Search apps:" = "Search apps:";
+"Open Settings:" = "Open Settings:";
+"AppleScript & Automation" = "AppleScript & Automation";
+"Copy" = "Copy";
+"Commands: **toggle**, **show hidden**, **hide items**" = "Commands: **toggle**, **show hidden**, **hide items**";
+
+/* Advanced */
+"Advanced" = "Advanced";
+"Profiles" = "Profiles";
+"Save and restore your settings configurations." = "Save and restore your settings configurations.";
+"No saved profiles" = "No saved profiles";
+"Load" = "Load";
+"Save Current Settings as Profile..." = "Save Current Settings as Profile...";
+"Save Profile" = "Save Profile";
+"Profile name" = "Profile name";
+"Enter a name for this profile." = "Enter a name for this profile.";
+"Save" = "Save";
+"Cancel" = "Cancel";
+
+"Always Visible" = "Always Visible";
+"Keep specific icons always visible." = "Keep specific icons always visible.";
+"Enter bundle IDs separated by commas.\n\n⌘+drag those icons LEFT of the separator.\n\nFind bundle ID:\nosascript -e 'id of app \"AppName\"'" = "Enter bundle IDs separated by commas.
+
+⌘+drag those icons LEFT of the separator.
+
+Find bundle ID:
+osascript -e 'id of app \"AppName\"'";
+
+"Spacers" = "Spacers";
+"Number of spacers: %d" = "Number of spacers: %d";
+"Spacers are small dividers (—) that appear in your menu bar.\n\n⌘+drag them to organize hidden icons into groups." = "Spacers are small dividers (—) that appear in your menu bar.
+
+⌘+drag them to organize hidden icons into groups.";
+
+"Icon Hotkeys" = "Icon Hotkeys";
+"Assign keyboard shortcuts to activate specific menu bar apps" = "Assign keyboard shortcuts to activate specific menu bar apps";
+"How to add a hotkey:\n\n1. Set a \"Search apps\" shortcut in the Shortcuts tab\n2. Press that shortcut to open the app search\n3. Select an app and press a key to assign it\n\nThe hotkey will reveal hidden icons and activate that app." = "How to add a hotkey:
+
+1. Set a \"Search apps\" shortcut in the Shortcuts tab
+2. Press that shortcut to open the app search
+3. Select an app and press a key to assign it
+
+The hotkey will reveal hidden icons and activate that app.";
+"No hotkeys configured yet" = "No hotkeys configured yet";
+
+"Appearance" = "Appearance";
+"Enable custom menu bar style" = "Enable custom menu bar style";
+"Style Options" = "Style Options";
+"Tint:" = "Tint:";
+"Opacity:" = "Opacity:";
+"Shadow" = "Shadow";
+"Border" = "Border";
+"Rounded" = "Rounded";
+"Corner radius:" = "Corner radius:";
+
+"Automation" = "Automation";
+"Show on hover" = "Show on hover";
+"Show when battery is low" = "Show when battery is low";
+"More Triggers" = "More Triggers";
+"Show when specific apps launch" = "Show when specific apps launch";
+"Show on WiFi networks" = "Show on WiFi networks";
+"Auto-show hidden icons when connecting to specific networks." = "Auto-show hidden icons when connecting to specific networks.";
+"Add \"%@\"" = "Add \"%@\"";
+
+/* About */
+"About" = "About";
+"Version %@ (%@)" = "Version %@ (%@)";
+"100% On-Device" = "100% On-Device";
+"No analytics. No telemetry. No network requests. Everything stays on your Mac." = "No analytics. No telemetry. No network requests. Everything stays on your Mac.";
+"GitHub" = "GitHub";
+"Licenses" = "Licenses";
+"Reset to Defaults" = "Reset to Defaults";
+"Reset Settings?" = "Reset Settings?";
+"This will reset all settings to their defaults. This cannot be undone." = "This will reset all settings to their defaults. This cannot be undone.";
+"Reset" = "Reset";
+"Open Source Licenses" = "Open Source Licenses";
+"Done" = "Done";
+
+/* Search Window */
+"Search apps..." = "Search apps...";
+"No matching apps" = "No matching apps";
+"Activate" = "Activate";
+"Copy ID" = "Copy ID";
+"Select an app and press Return to activate it. This will reveal hidden items and bring the app forward." = "Select an app and press Return to activate it. This will reveal hidden items and bring the app forward.";

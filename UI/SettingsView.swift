@@ -361,9 +361,9 @@ struct SettingsView: View {
                 // Spacers
                 GroupBox {
                     HStack {
-                        Stepper("Number of spacers: \(menuBarManager.settings.spacerCount)", value: $menuBarManager.settings.spacerCount, in: 0...3)
+                        Stepper(String(localized: "Number of spacers: \(menuBarManager.settings.spacerCount)"), value: $menuBarManager.settings.spacerCount, in: 0...3)
                         Spacer()
-                        HelpButton(tip: "Spacers are small dividers (—) that appear in your menu bar.\n\n⌘+drag them to organize hidden icons into groups.")
+                        HelpButton(tip: String(localized: "Spacers are small dividers (—) that appear in your menu bar.\n\n⌘+drag them to organize hidden icons into groups."))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
@@ -539,7 +539,7 @@ struct SettingsView: View {
                                                     menuBarManager.settings.triggerNetworks.append(currentSSID)
                                                 }
                                             } label: {
-                                                Label("Add \"\(currentSSID)\"", systemImage: "plus.circle")
+                                                Label(String(localized: "Add \"\(currentSSID)\""), systemImage: "plus.circle")
                                             }
                                             .buttonStyle(.bordered)
                                             .controlSize(.small)
