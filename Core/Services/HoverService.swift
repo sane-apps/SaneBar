@@ -49,6 +49,7 @@ final class HoverService: ObservableObject, HoverServiceProtocol {
     private var eventMonitor: Any?
     private var hoverTimer: Timer?
     private var wasInHoverZone = false
+    private var lastCheckTime: TimeInterval = 0
 
     // MARK: - Initialization
 
@@ -120,6 +121,11 @@ final class HoverService: ObservableObject, HoverServiceProtocol {
     }
 
     private func handleMouseMoved(_ event: NSEvent) {
+        // Throttle checks to ~10Hz (every 0.1s) to save CPU
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastCheckTime > 0.1 else { return }
+        lastCheckTime = now
+
         let mouseLocation = NSEvent.mouseLocation
 
         // Check if mouse is in the hover zone

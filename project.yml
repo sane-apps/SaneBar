@@ -9,6 +9,9 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0
+  LaunchAtLogin:
+    url: https://github.com/sindresorhus/LaunchAtLogin
+    from: 5.0.0
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -73,6 +76,7 @@ targets:
       - Resources
     dependencies:
       - package: KeyboardShortcuts
+      - package: LaunchAtLogin
     info:
       path: SaneBar/Info.plist
       properties:
