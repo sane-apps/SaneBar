@@ -115,6 +115,8 @@ All settings are in the **Settings** window (click SaneBar icon > Settings, or u
 ## Support
 
 Free to use! If SaneBar helps you, star this repo.
+If you LOVE me and want me to feed my family I would be immensely grateful. 
+Starving artist out here. lol 
 
 ### Donations
 
