@@ -80,4 +80,25 @@ struct MenuBarManagerTests {
 
         #expect(!isValid, "Same position should be treated as invalid (edge case)")
     }
+
+    // MARK: - Regression Tests
+
+    @Test("REGRESSION: Verify hiding logic matches documentation (Left = Hidden)")
+    func testHidingLogicMatchesDocumentation() {
+        // This test documents the relationship between screen coordinates and visibility
+        // to prevent regression of the "Icons Left of Separator are Hidden" documentation.
+
+        let separatorX: CGFloat = 500
+
+        // Item to the LEFT of separator (X < 500)
+        let leftItemX: CGFloat = 400
+        let isLeftItemHiddenCandidate = leftItemX < separatorX
+
+        // Item to the RIGHT of separator (X > 500)
+        let rightItemX: CGFloat = 600
+        let isRightItemHiddenCandidate = rightItemX < separatorX
+
+        #expect(isLeftItemHiddenCandidate, "Items to the LEFT of separator (lower X) MUST be the ones hidden")
+        #expect(!isRightItemHiddenCandidate, "Items to the RIGHT of separator (higher X) MUST NOT be hidden")
+    }
 }

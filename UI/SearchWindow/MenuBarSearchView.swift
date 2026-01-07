@@ -104,10 +104,10 @@ struct MenuBarSearchView: View {
                             for: IconHotkeysService.shortcutName(for: app.id)
                         ) { shortcut in
                             Task { @MainActor in
-                                if let shortcut = shortcut {
+                                if let shortcut = shortcut, let key = shortcut.key {
                                     // Save new shortcut
                                     let data = KeyboardShortcutData(
-                                        keyCode: UInt16(shortcut.key.rawValue),
+                                        keyCode: UInt16(key.rawValue),
                                         modifiers: UInt(shortcut.modifiers.rawValue)
                                     )
                                     MenuBarManager.shared.settings.iconHotkeys[app.id] = data
