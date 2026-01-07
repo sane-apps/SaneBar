@@ -11,8 +11,17 @@
 "SaneBar" = "SaneBar";
 "Separator" = "Separator";
 "**⌘+drag** icons to organize them" = "**⌘+drag** icons to organize them";
-"• Left of separator = always visible" = "• Left of separator = always visible";
-"• Right of separator = can be hidden" = "• Right of separator = can be hidden";
+"• Left of separator = can be hidden" = "• Left of separator = can be hidden";
+"• Right of separator = always visible" = "• Right of separator = always visible";
+
+/* Onboarding */
+"Welcome to SaneBar!" = "Welcome to SaneBar!";
+"Cmd+drag icons to arrange them" = "Cmd+drag icons to arrange them";
+"This is the separator icon" = "This is the separator icon";
+"Icons LEFT of it can be hidden" = "Icons LEFT of it can be hidden";
+"Icons RIGHT of it stay visible" = "Icons RIGHT of it stay visible";
+"Click SaneBar icon to show/hide" = "Click SaneBar icon to show/hide";
+"Got it!" = "Got it!";
 "**Click SaneBar icon** to show/hide" = "**Click SaneBar icon** to show/hide";
 "**Notch detected** — keep important icons to the right of SaneBar" = "**Notch detected** — keep important icons to the right of SaneBar";
 

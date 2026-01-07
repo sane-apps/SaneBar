@@ -163,8 +163,8 @@ struct SettingsView: View {
                                 Text("**⌘+drag** icons to organize them")
                             }
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("• Left of separator = always visible")
-                                Text("• Right of separator = can be hidden")
+                                Text("• Left of separator = can be hidden")
+                                Text("• Right of separator = always visible")
                             }
                             .font(.system(size: 13))
                             .foregroundStyle(.tertiary)

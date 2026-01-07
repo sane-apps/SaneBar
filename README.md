@@ -33,8 +33,8 @@ brew install --cask sanebar
 2. **Cmd+drag** icons to choose which ones hide
 3. That's it!
 
-Icons to the **left** of SaneBar = always visible
-Icons to the **right** of SaneBar = can be hidden
+Icons to the **left** of Separator = can be hidden
+Icons to the **right** of Separator = always visible
 
 ---
 

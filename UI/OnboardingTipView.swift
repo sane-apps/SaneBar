@@ -33,8 +33,8 @@ struct OnboardingTipView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
 
-                tipRow(icon: "arrow.left.circle", text: "Icons LEFT of it stay visible")
-                tipRow(icon: "arrow.right.circle", text: "Icons RIGHT of it can be hidden")
+                tipRow(icon: "arrow.left.circle", text: "Icons LEFT of it can be hidden")
+                tipRow(icon: "arrow.right.circle", text: "Icons RIGHT of it stay visible")
                 tipRow(icon: "cursorarrow.click", text: "Click SaneBar icon to show/hide")
             }
             .font(.callout)
