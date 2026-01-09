@@ -131,10 +131,7 @@
             font-weight: 700;
             margin-bottom: 20px;
             letter-spacing: -0.02em;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--text-primary);
         }
 
         .hero .subtitle {
@@ -191,6 +188,7 @@
             margin: 0 auto;
             border-radius: 16px;
             overflow: hidden;
+            background: var(--bg-card);
             box-shadow:
                 0 25px 50px -12px rgba(0, 0, 0, 0.5),
                 0 0 0 1px var(--border);
@@ -200,6 +198,8 @@
             width: 100%;
             height: auto;
             display: block;
+            min-height: 200px;
+            object-fit: contain;
         }
 
         /* Privacy Badge */
