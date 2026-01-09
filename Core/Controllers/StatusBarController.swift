@@ -47,7 +47,6 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     nonisolated static let mainAutosaveName = "SaneBar_main"
     nonisolated static let separatorAutosaveName = "SaneBar_separator"
-    nonisolated static let alwaysHiddenAutosaveName = "SaneBar_alwaysHidden"
 
     // MARK: - Icon Names
 
@@ -63,7 +62,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Status Item Creation
 
     /// Create all status items in the correct order for menu bar positioning
-    /// Order on screen: [alwaysHidden] [separator] [main] [system icons]
+    /// Order on screen: [separator] [main] [system icons]
     func createStatusItems(
         clickAction: Selector,
         target: AnyObject
@@ -83,13 +82,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             configureSeparatorButton(button)
         }
 
-        // 3. Create ALWAYS-HIDDEN delimiter - appears to the LEFT of separator
-        alwaysHiddenDelimiter = NSStatusBar.system.statusItem(withLength: 20)
-        alwaysHiddenDelimiter?.autosaveName = Self.alwaysHiddenAutosaveName
-        if let button = alwaysHiddenDelimiter?.button {
-            configureAlwaysHiddenButton(button)
-        }
-
         logger.info("Status items created")
     }
 
@@ -106,20 +98,11 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     private func configureSeparatorButton(_ button: NSStatusBarButton) {
-        button.image = NSImage(
-            systemSymbolName: Self.separatorIcon,
-            accessibilityDescription: "Separator"
-        )
-        button.image?.isTemplate = true
-    }
-
-    private func configureAlwaysHiddenButton(_ button: NSStatusBarButton) {
-        button.image = NSImage(
-            systemSymbolName: Self.separatorIcon,
-            accessibilityDescription: "Always Hidden Separator"
-        )
-        button.image?.isTemplate = true
-        button.alphaValue = 0.5
+        // Use a literal "/" marker so it stays legible at all sizes/themes.
+        button.image = nil
+        button.title = "/"
+        button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        button.alphaValue = 0.7
     }
 
     // MARK: - Appearance

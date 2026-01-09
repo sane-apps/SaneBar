@@ -8,6 +8,12 @@ protocol SearchServiceProtocol: Sendable {
     /// Fetch all running apps suitable for menu bar interaction
     func getRunningApps() async -> [RunningApp]
 
+    /// Fetch apps that currently own a menu bar icon (requires Accessibility permission)
+    func getMenuBarApps() async -> [RunningApp]
+
+    /// Fetch ONLY the menu bar apps that are currently HIDDEN by SaneBar
+    func getHiddenMenuBarApps() async -> [RunningApp]
+
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
     func activate(app: RunningApp) async
@@ -34,20 +40,53 @@ final class SearchService: SearchServiceProtocol {
         }
     }
 
-    @MainActor
-    func activate(app: RunningApp) {
-        // 1. Show hidden menu bar items first (in case it's hidden)
-        MenuBarManager.shared.showHiddenItems()
+    func getMenuBarApps() async -> [RunningApp] {
+        await MainActor.run {
+            AccessibilityService.shared.listMenuBarItemOwners()
+        }
+    }
 
-        // 2. Perform Virtual Click on the menu bar item
+    func getHiddenMenuBarApps() async -> [RunningApp] {
+        await MainActor.run {
+            // Get all menu bar items with their positions
+            let itemsWithPositions = AccessibilityService.shared.listMenuBarItemsWithPositions()
+
+            // Filter to only items with negative x position (pushed off-screen by SaneBar)
+            // When SaneBar's delimiter expands to 10,000px, hidden items get x < 0
+            let hiddenApps = itemsWithPositions
+                .filter { $0.x < 0 }
+                .map { $0.app }
+
+            return hiddenApps
+        }
+    }
+
+    @MainActor
+    func activate(app: RunningApp) async {
+        // 1. Show hidden menu bar items first
+        let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
+
+        // 2. Wait for menu bar animation to complete
+        // When icons move from hidden (x=-4000) to visible (x=1200), macOS needs time
+        if didReveal {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        }
+
+        // 3. Perform Virtual Click on the menu bar item
         let clickSuccess = AccessibilityService.shared.clickMenuBarItem(for: app.id)
 
         if !clickSuccess {
-            // Fallback: Just activate the app normally
+            // Fallback: Just activate the app normally (user can then click the now-visible icon)
             let workspace = NSWorkspace.shared
             if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.id }) {
                 runningApp.activate()
             }
+        }
+
+        // 4. ALWAYS auto-hide after Find Icon use (seamless experience)
+        // Give user 5 seconds to interact with the menu, then hide
+        if didReveal {
+            MenuBarManager.shared.scheduleRehideFromSearch(after: 5.0)
         }
     }
 }

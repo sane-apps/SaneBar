@@ -78,11 +78,14 @@ final class IconHotkeysService {
     private func handleHotkey(for bundleID: String) {
         logger.info("Per-icon hotkey triggered for \(bundleID)")
 
-        // Show hidden items
-        menuBarManager?.showHiddenItems()
+        guard let manager = menuBarManager else { return }
+        Task { @MainActor in
+            let didReveal = await manager.showHiddenItemsNow(trigger: .hotkey)
+            guard didReveal else { return }
 
-        // Activate the target app (this may trigger its status bar menu)
-        activateApp(bundleID: bundleID)
+            // Activate the target app (this may trigger its status bar menu)
+            activateApp(bundleID: bundleID)
+        }
     }
 
     /// Activate an app by bundle ID

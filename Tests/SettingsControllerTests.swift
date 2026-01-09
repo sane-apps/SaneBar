@@ -116,11 +116,11 @@ struct SettingsControllerTests {
 
         controller.update { settings in
             settings.autoRehide = false
-            settings.showOnHover = true
+            settings.showOnLowBattery = true
         }
 
         #expect(controller.settings.autoRehide == false)
-        #expect(controller.settings.showOnHover == true)
+        #expect(controller.settings.showOnLowBattery == true)
         #expect(capturedSettings?.autoRehide == false, "Should have saved to persistence")
     }
 

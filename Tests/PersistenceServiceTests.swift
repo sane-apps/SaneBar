@@ -3,55 +3,6 @@ import XCTest
 
 final class PersistenceServiceTests: XCTestCase {
 
-    // MARK: - Always Visible Apps
-
-    func testAlwaysVisibleAppsDefaultsToEmptyArray() throws {
-        // Given: default settings
-        let settings = SaneBarSettings()
-
-        // Then: alwaysVisibleApps is empty
-        XCTAssertEqual(settings.alwaysVisibleApps, [])
-    }
-
-    func testAlwaysVisibleAppsEncodesAndDecodes() throws {
-        // Given: settings with always visible apps
-        var settings = SaneBarSettings()
-        settings.alwaysVisibleApps = ["com.1password.1password", "com.apple.controlcenter"]
-
-        // When: encode and decode
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-        let data = try encoder.encode(settings)
-        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
-
-        // Then: alwaysVisibleApps is preserved
-        XCTAssertEqual(decoded.alwaysVisibleApps, ["com.1password.1password", "com.apple.controlcenter"])
-    }
-
-    func testAlwaysVisibleAppsBackwardsCompatibility() throws {
-        // Given: JSON without alwaysVisibleApps (old format)
-        let oldJSON = """
-        {
-            "autoRehide": true,
-            "rehideDelay": 5.0,
-            "spacerCount": 1,
-            "showOnAppLaunch": false,
-            "triggerApps": []
-        }
-        """
-
-        // When: decode
-        let decoder = JSONDecoder()
-        let data = oldJSON.data(using: .utf8)!
-        let settings = try decoder.decode(SaneBarSettings.self, from: data)
-
-        // Then: alwaysVisibleApps defaults to empty
-        XCTAssertEqual(settings.alwaysVisibleApps, [])
-        // And other settings are preserved
-        XCTAssertEqual(settings.rehideDelay, 5.0)
-        XCTAssertEqual(settings.spacerCount, 1)
-    }
-
     // MARK: - Icon Hotkeys
 
     func testIconHotkeysDefaultsToEmptyDictionary() throws {
@@ -91,7 +42,6 @@ final class PersistenceServiceTests: XCTestCase {
             "spacerCount": 0,
             "showOnAppLaunch": false,
             "triggerApps": [],
-            "alwaysVisibleApps": []
         }
         """
 
@@ -138,7 +88,6 @@ final class PersistenceServiceTests: XCTestCase {
             "spacerCount": 0,
             "showOnAppLaunch": false,
             "triggerApps": [],
-            "alwaysVisibleApps": [],
             "iconHotkeys": {}
         }
         """
@@ -188,64 +137,6 @@ final class PersistenceServiceTests: XCTestCase {
 
     // MARK: - Hover Settings
 
-    func testShowOnHoverDefaultsToFalse() throws {
-        // Given: default settings
-        let settings = SaneBarSettings()
-
-        // Then: showOnHover is disabled by default
-        XCTAssertFalse(settings.showOnHover)
-    }
-
-    func testHoverDelayDefaultsToPointThree() throws {
-        // Given: default settings
-        let settings = SaneBarSettings()
-
-        // Then: hoverDelay defaults to 0.3 seconds
-        XCTAssertEqual(settings.hoverDelay, 0.3, accuracy: 0.001)
-    }
-
-    func testShowOnHoverEncodesAndDecodes() throws {
-        // Given: settings with hover enabled
-        var settings = SaneBarSettings()
-        settings.showOnHover = true
-        settings.hoverDelay = 0.5
-
-        // When: encode and decode
-        let encoder = JSONEncoder()
-        let decoder = JSONDecoder()
-        let data = try encoder.encode(settings)
-        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
-
-        // Then: hover settings are preserved
-        XCTAssertTrue(decoded.showOnHover)
-        XCTAssertEqual(decoded.hoverDelay, 0.5, accuracy: 0.001)
-    }
-
-    func testShowOnHoverBackwardsCompatibility() throws {
-        // Given: JSON without hover settings (old format)
-        let oldJSON = """
-        {
-            "autoRehide": true,
-            "rehideDelay": 3.0,
-            "spacerCount": 0,
-            "showOnAppLaunch": false,
-            "triggerApps": [],
-            "alwaysVisibleApps": [],
-            "iconHotkeys": {},
-            "showOnLowBattery": false
-        }
-        """
-
-        // When: decode
-        let decoder = JSONDecoder()
-        let data = oldJSON.data(using: .utf8)!
-        let settings = try decoder.decode(SaneBarSettings.self, from: data)
-
-        // Then: hover settings default correctly
-        XCTAssertFalse(settings.showOnHover)
-        XCTAssertEqual(settings.hoverDelay, 0.3, accuracy: 0.001)
-    }
-
     // MARK: - Menu Bar Appearance Settings
 
     func testMenuBarAppearanceDefaultsToDisabled() throws {
@@ -293,11 +184,8 @@ final class PersistenceServiceTests: XCTestCase {
             "spacerCount": 0,
             "showOnAppLaunch": false,
             "triggerApps": [],
-            "alwaysVisibleApps": [],
             "iconHotkeys": {},
-            "showOnLowBattery": false,
-            "showOnHover": false,
-            "hoverDelay": 0.3
+            "showOnLowBattery": false
         }
         """
 
@@ -355,11 +243,8 @@ final class PersistenceServiceTests: XCTestCase {
             "spacerCount": 0,
             "showOnAppLaunch": false,
             "triggerApps": [],
-            "alwaysVisibleApps": [],
             "iconHotkeys": {},
-            "showOnLowBattery": false,
-            "showOnHover": false,
-            "hoverDelay": 0.3
+            "showOnLowBattery": false
         }
         """
 
@@ -407,11 +292,8 @@ final class PersistenceServiceTests: XCTestCase {
             "spacerCount": 0,
             "showOnAppLaunch": false,
             "triggerApps": [],
-            "alwaysVisibleApps": [],
             "iconHotkeys": {},
             "showOnLowBattery": false,
-            "showOnHover": false,
-            "hoverDelay": 0.3,
             "showOnNetworkChange": false,
             "triggerNetworks": []
         }

@@ -11,6 +11,9 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
     /// Whether custom appearance is enabled
     var isEnabled: Bool = false
 
+    /// Use Liquid Glass effect (macOS 26+ only, falls back to tint on older systems)
+    var useLiquidGlass: Bool = true
+
     /// Tint color (hex string like "#FF0000")
     var tintColor: String = "#000000"
 
@@ -37,6 +40,14 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
 
     /// Corner radius
     var cornerRadius: Double = 8.0
+
+    /// Check if running on macOS 26+ for Liquid Glass support
+    static var supportsLiquidGlass: Bool {
+        if #available(macOS 26.0, *) {
+            return true
+        }
+        return false
+    }
 }
 
 // MARK: - MenuBarAppearanceServiceProtocol
@@ -68,16 +79,24 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     // MARK: - Initialization
 
     init() {
-        setupScreenObserver()
+        // Screen observer is only set up when overlay is created
     }
 
-    deinit {
-        // Observer cleanup is handled in teardown
+    /// Clean up resources - call before releasing service
+    func teardown() {
+        if let observer = screenObserver {
+            NotificationCenter.default.removeObserver(observer)
+            screenObserver = nil
+        }
+        overlayWindow?.orderOut(nil)
+        overlayWindow = nil
     }
 
     // MARK: - Screen Observer
 
     private func setupScreenObserver() {
+        guard screenObserver == nil else { return }
+
         // Re-position overlay when screens change
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -114,6 +133,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
     private func ensureOverlayExists() {
         guard overlayWindow == nil else { return }
+
+        // Set up screen observer now that we need the overlay
+        setupScreenObserver()
 
         let menuBarFrame = calculateMenuBarFrame()
 
@@ -207,9 +229,8 @@ struct MenuBarOverlayView: View {
     var body: some View {
         GeometryReader { _ in
             ZStack(alignment: .bottom) {
-                // Tint layer
-                Rectangle()
-                    .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+                // Main appearance layer
+                mainAppearanceLayer
 
                 // Border layer
                 if viewModel.settings.hasBorder {
@@ -226,6 +247,32 @@ struct MenuBarOverlayView: View {
             )
         }
         .allowsHitTesting(false) // Ensure clicks pass through
+    }
+
+    @ViewBuilder
+    private var mainAppearanceLayer: some View {
+        if viewModel.settings.useLiquidGlass && MenuBarAppearanceSettings.supportsLiquidGlass {
+            liquidGlassLayer
+        } else {
+            // Fallback tint layer for older macOS
+            Rectangle()
+                .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+        }
+    }
+
+    @ViewBuilder
+    private var liquidGlassLayer: some View {
+        if #available(macOS 26.0, *) {
+            Rectangle()
+                .fill(.clear)
+                .glassEffect(
+                    Glass.regular.tint(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+                )
+        } else {
+            // This branch won't execute due to supportsLiquidGlass check, but needed for compilation
+            Rectangle()
+                .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+        }
     }
 
     private var overlayShape: some Shape {

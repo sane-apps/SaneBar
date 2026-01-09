@@ -6,7 +6,43 @@ import SwiftUI
 struct OnboardingTipView: View {
     let onDismiss: () -> Void
 
+    @State private var currentStep = 0
+    @State private var hasAccessibility = false
+    @State private var permissionRequested = false
+
     var body: some View {
+        VStack(spacing: 0) {
+            // Step indicator
+            HStack(spacing: 6) {
+                ForEach(0..<2) { step in
+                    Circle()
+                        .fill(step == currentStep ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            // Content
+            Group {
+                if currentStep == 0 {
+                    welcomeStep
+                } else {
+                    permissionStep
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .frame(width: 340)
+        .onAppear {
+            hasAccessibility = AccessibilityService.shared.isTrusted
+        }
+    }
+
+    // MARK: - Step 1: Welcome
+
+    private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "hand.wave.fill")
@@ -16,61 +52,100 @@ struct OnboardingTipView: View {
                     .font(.headline)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                tipRow(icon: "hand.draw", text: "Cmd+drag icons to arrange them")
-
-                HStack(spacing: 4) {
-                    Image(systemName: "line.diagonal")
-                        .frame(width: 20)
-                        .foregroundStyle(.secondary)
-                    Text("This is the separator icon")
-                    Image(systemName: "arrow.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Image(systemName: "line.diagonal")
-                        .padding(4)
-                        .background(.secondary.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-
-                tipRow(icon: "arrow.left.circle", text: "Icons LEFT of it can be hidden")
-                tipRow(icon: "arrow.right.circle", text: "Icons RIGHT of it stay visible")
-                tipRow(icon: "cursorarrow.click", text: "Click SaneBar icon to show/hide")
+            VStack(alignment: .leading, spacing: 10) {
+                tipRow(icon: "hand.draw", text: "**⌘+drag** icons to arrange them")
+                tipRow(icon: "line.diagonal", text: "Icons left of **/** get hidden")
+                tipRow(icon: "cursorarrow.click", text: "Click **SaneBar** to reveal hidden icons")
+                tipRow(icon: "magnifyingglass", text: "**⌘+Shift+Space** to search icons")
             }
             .font(.callout)
+
+            Button {
+                withAnimation {
+                    currentStep = 1
+                }
+            } label: {
+                Text("Next")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    // MARK: - Step 2: Permissions
+
+    private var permissionStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: permissionRequested || hasAccessibility ? "checkmark.shield.fill" : "shield.fill")
+                    .font(.title)
+                    .foregroundStyle(permissionRequested || hasAccessibility ? .green : .orange)
+                Text(permissionRequested || hasAccessibility ? "You're All Set!" : "One More Thing")
+                    .font(.headline)
+            }
+
+            if permissionRequested || hasAccessibility {
+                Text("SaneBar is ready to use! If the \"Find Icon\" search doesn't work, check that SaneBar is enabled in **System Settings → Privacy → Accessibility**.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("For the **Find Icon** feature to work, SaneBar needs Accessibility permission.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    AccessibilityService.shared.requestAccessibility()
+                    permissionRequested = true
+                } label: {
+                    Label("Enable Accessibility", systemImage: "hand.raised")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Text("This opens System Settings. Toggle SaneBar ON, then come back.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Pro Tip: Search")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                
-                tipRow(icon: "magnifyingglass", text: "Lost an icon behind the Notch?")
-                tipRow(icon: "keyboard", text: "Press Cmd+Shift+Space to search & click it")
-            }
-            .font(.callout)
+            HStack {
+                if !permissionRequested && !hasAccessibility {
+                    Button("Back") {
+                        withAnimation {
+                            currentStep = 0
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
 
-            Button("Got it!") {
-                onDismiss()
+                Button {
+                    onDismiss()
+                } label: {
+                    Text("Done")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity)
         }
-        .padding()
     }
 
+    // MARK: - Helpers
+
     private func tipRow(icon: String, text: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
                 .frame(width: 20)
                 .foregroundStyle(.secondary)
-            Text(text)
+            Text(LocalizedStringKey(text))
         }
     }
 }
 
-#Preview {
+#Preview("Welcome") {
     OnboardingTipView(onDismiss: {})
-        .frame(width: 320)
+}
+
+#Preview("Permission") {
+    OnboardingTipView(onDismiss: {})
 }

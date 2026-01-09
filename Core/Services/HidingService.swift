@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "HidingService")
@@ -55,8 +55,8 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     // MARK: - Published State
 
-    /// Start expanded (visible) - length=22 matches this state
-    @Published private(set) var state: HidingState = .expanded
+    /// Start hidden (collapsed) - users expect menu bar hiders to start collapsed
+    @Published private(set) var state: HidingState = .hidden
     @Published private(set) var isAnimating = false
 
     // MARK: - Configuration
@@ -79,7 +79,14 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     func configure(delimiterItem: NSStatusItem, alwaysHiddenDelimiter: NSStatusItem? = nil) {
         self.delimiterItem = delimiterItem
         self.alwaysHiddenDelimiter = alwaysHiddenDelimiter
-        logger.info("HidingService configured with delimiter item(s)")
+
+        // Initialize lengths - start COLLAPSED (hidden items pushed off screen)
+        // This matches user expectation: menu bar hiders start with items hidden
+        delimiterItem.length = StatusItemLength.collapsed
+        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
+        state = .hidden
+
+        logger.info("HidingService configured with delimiter(s) - starting hidden")
     }
 
     // MARK: - Show/Hide Operations
@@ -123,9 +130,9 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         isAnimating = true
         logger.info("Expanding menu bar (length → \(StatusItemLength.expanded))")
 
-        // Show both delimiters so users can always see the zone markers
+        // Show regular hidden section; always-hidden section remains hidden by collapsed alwaysHiddenDelimiter
         delimiterItem.length = StatusItemLength.expanded
-        alwaysHiddenDelimiter?.length = StatusItemLength.expanded
+        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
 
         state = .expanded
         isAnimating = false
@@ -149,7 +156,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
         logger.info("Hiding items (length → \(StatusItemLength.collapsed))")
 
-        // Hide both delimiters
+        // Hide regular hidden section; always-hidden section stays hidden (delimiter remains as marker)
         delimiterItem.length = StatusItemLength.collapsed
         alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
 
@@ -174,7 +181,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
         logger.info("Showing ALL items including always-hidden")
 
-        // Shrink both delimiters to reveal everything
+        // Reveal everything: show regular hidden section + expand always-hidden delimiter
         delimiterItem.length = StatusItemLength.expanded
         alwaysHiddenDelimiter?.length = StatusItemLength.expanded
 
@@ -196,7 +203,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
         logger.info("Hiding always-hidden section only")
 
-        // Expand only the always-hidden delimiter
+        // Re-hide always-hidden section by collapsing always-hidden delimiter again
         alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
 
         state = .expanded

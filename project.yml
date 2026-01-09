@@ -2,7 +2,7 @@ name: SaneBar
 options:
   bundleIdPrefix: com.sanevideo
   deploymentTarget:
-    macOS: 14.0
+    macOS: 15.0
   xcodeVersion: 16.0
 
 packages:
@@ -69,7 +69,7 @@ targets:
     platform: macOS
     bundleId: com.sanevideo.SaneBar
     deploymentTarget:
-      macOS: 14.0
+      macOS: 15.0
     sources:
       - SaneBarApp.swift
       - Core
@@ -92,7 +92,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
         SWIFT_VERSION: 6.0
-        MACOSX_DEPLOYMENT_TARGET: 14.0
+        MACOSX_DEPLOYMENT_TARGET: 15.0
         ARCHS: arm64
         VALID_ARCHS: arm64
         DEVELOPMENT_TEAM: M78L6FXD48
@@ -119,7 +119,7 @@ targets:
     platform: macOS
     bundleId: com.sanevideo.SaneBarTests
     deploymentTarget:
-      macOS: 14.0
+      macOS: 15.0
     sources:
       - Tests
     dependencies:

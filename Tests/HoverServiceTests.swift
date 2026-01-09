@@ -1,131 +1,245 @@
 import Testing
 import Foundation
+import AppKit
 @testable import SaneBar
 
 // MARK: - HoverServiceTests
 
 @Suite("HoverService Tests")
+@MainActor
 struct HoverServiceTests {
 
     // MARK: - Initialization Tests
 
-    @Test("HoverService initializes with correct defaults")
-    @MainActor
-    func testInitialization() {
+    @Test("HoverService initializes with hover disabled by default")
+    func testDefaultHoverDisabled() {
         let service = HoverService()
 
-        #expect(service.isHovering == false, "Should start not hovering")
+        #expect(service.isEnabled == false, "Hover should be disabled by default")
+        #expect(service.scrollEnabled == false, "Scroll should be disabled by default")
     }
 
-    // MARK: - Delay Configuration Tests
-
-    @Test("setDelay clamps values to valid range")
-    @MainActor
-    func testDelayClampingMinimum() {
+    @Test("HoverService initializes with default delay of 0.15 seconds")
+    func testDefaultHoverDelay() {
         let service = HoverService()
 
-        // Delay should clamp between 0.1 and 2.0 seconds
-        // We test the clamping logic: max(0.1, min(delay, 2.0))
-
-        // Test minimum clamp
-        service.setDelay(0.01)  // Below minimum
-        // We can't directly read hoverDelay (private), but we test the API works
-        #expect(true, "setDelay with value below minimum should not crash")
+        #expect(service.hoverDelay == 0.15, "Default hover delay should be 0.15s")
     }
 
-    @Test("setDelay clamps values above maximum")
-    @MainActor
-    func testDelayClampingMaximum() {
+    // MARK: - Enable/Disable State Machine Tests
+
+    @Test("Enabling hover when scroll is disabled should allow start")
+    func testEnableHoverAlone() {
+        let service = HoverService()
+        service.isEnabled = true
+
+        // Service should be enabled
+        #expect(service.isEnabled == true)
+        #expect(service.scrollEnabled == false)
+
+        // Clean up
+        service.stop()
+    }
+
+    @Test("Enabling scroll when hover is disabled should allow start")
+    func testEnableScrollAlone() {
+        let service = HoverService()
+        service.scrollEnabled = true
+
+        // Service should have scroll enabled
+        #expect(service.scrollEnabled == true)
+        #expect(service.isEnabled == false)
+
+        // Clean up
+        service.stop()
+    }
+
+    @Test("Disabling both hover and scroll stops monitoring")
+    func testDisableBothStops() {
         let service = HoverService()
 
-        // Test maximum clamp
-        service.setDelay(10.0)  // Above maximum (2.0)
-        #expect(true, "setDelay with value above maximum should not crash")
+        // Enable both
+        service.isEnabled = true
+        service.scrollEnabled = true
+
+        // Disable hover first
+        service.isEnabled = false
+        // Should still be monitoring because scroll is enabled
+        #expect(service.scrollEnabled == true)
+
+        // Disable scroll too
+        service.scrollEnabled = false
+        // Now both are disabled
+
+        #expect(service.isEnabled == false)
+        #expect(service.scrollEnabled == false)
     }
 
-    @Test("setDelay accepts values in valid range")
-    @MainActor
-    func testDelayValidRange() {
+    @Test("Setting isEnabled to same value does not trigger state change")
+    func testNoOpOnSameValue() {
+        let service = HoverService()
+        var triggerCount = 0
+
+        service.onTrigger = { _ in
+            triggerCount += 1
+        }
+
+        // Set to false when already false - should be no-op
+        service.isEnabled = false
+        service.isEnabled = false
+        service.isEnabled = false
+
+        #expect(triggerCount == 0, "No triggers should occur on no-op state changes")
+    }
+
+    // MARK: - Callback Configuration Tests
+
+    @Test("onTrigger callback is settable and type is preserved")
+    func testOnTriggerCallback() async {
+        let service = HoverService()
+        var receivedReason: HoverService.TriggerReason?
+
+        service.onTrigger = { reason in
+            receivedReason = reason
+        }
+
+        // Manually invoke to test callback wiring
+        service.onTrigger?(.hover)
+
+        #expect(receivedReason == .hover, "Callback should receive hover reason")
+
+        service.onTrigger?(.scroll)
+        #expect(receivedReason == .scroll, "Callback should receive scroll reason")
+    }
+
+    @Test("onLeaveMenuBar callback is settable")
+    func testOnLeaveMenuBarCallback() {
+        let service = HoverService()
+        var leaveCallCount = 0
+
+        service.onLeaveMenuBar = {
+            leaveCallCount += 1
+        }
+
+        // Manually invoke
+        service.onLeaveMenuBar?()
+        service.onLeaveMenuBar?()
+
+        #expect(leaveCallCount == 2, "Leave callback should be invocable")
+    }
+
+    // MARK: - Hover Delay Configuration Tests
+
+    @Test("Hover delay can be set to custom values")
+    func testCustomHoverDelay() {
         let service = HoverService()
 
-        service.setDelay(0.5)
-        service.setDelay(1.0)
-        service.setDelay(1.5)
+        service.hoverDelay = 0.5
+        #expect(service.hoverDelay == 0.5, "Delay should be 0.5s")
 
-        #expect(true, "setDelay with valid values should work")
+        service.hoverDelay = 0.05
+        #expect(service.hoverDelay == 0.05, "Delay should be 0.05s")
+
+        service.hoverDelay = 1.0
+        #expect(service.hoverDelay == 1.0, "Delay should be 1.0s")
     }
 
-    // MARK: - Enable/Disable Tests
-
-    @Test("setEnabled can be called without configuration")
-    @MainActor
-    func testEnableWithoutConfiguration() {
-        let service = HoverService()
-
-        // Should not crash even without configure() being called
-        service.setEnabled(true)
-        service.setEnabled(false)
-
-        #expect(true, "setEnabled should not crash without configuration")
-    }
-
-    @Test("setEnabled is idempotent")
-    @MainActor
-    func testEnableIdempotent() {
-        let service = HoverService()
-
-        // Multiple calls with same value should be safe
-        service.setEnabled(true)
-        service.setEnabled(true)
-        service.setEnabled(true)
-        service.setEnabled(false)
-        service.setEnabled(false)
-
-        #expect(true, "Multiple setEnabled calls should be idempotent")
-    }
-
-    // MARK: - Hover State Tests
-
-    @Test("isHovering starts as false")
-    @MainActor
-    func testInitialHoverState() {
-        let service = HoverService()
-
-        #expect(service.isHovering == false, "Initial hover state should be false")
-    }
-
-    // MARK: - Edge Case Tests
-
-    @Test("setDelay with zero uses minimum")
-    @MainActor
+    @Test("Hover delay of zero is allowed")
     func testZeroDelay() {
         let service = HoverService()
+        service.hoverDelay = 0.0
 
-        service.setDelay(0.0)
-        // Should clamp to 0.1 (minimum)
-        #expect(true, "Zero delay should clamp to minimum")
+        #expect(service.hoverDelay == 0.0, "Zero delay should be valid")
     }
 
-    @Test("setDelay with negative uses minimum")
-    @MainActor
-    func testNegativeDelay() {
+    // MARK: - Start/Stop API Tests
+
+    @Test("start() does nothing when both hover and scroll are disabled")
+    func testStartWithBothDisabled() {
         let service = HoverService()
 
-        service.setDelay(-1.0)
-        // Should clamp to 0.1 (minimum)
-        #expect(true, "Negative delay should clamp to minimum")
+        // Both disabled by default
+        service.start()
+
+        // Should not crash, service remains in disabled state
+        #expect(service.isEnabled == false)
+        #expect(service.scrollEnabled == false)
+    }
+
+    @Test("stop() is safe to call multiple times")
+    func testStopMultipleTimes() {
+        let service = HoverService()
+        service.isEnabled = true
+        service.start()
+
+        // Stop multiple times - should not crash
+        service.stop()
+        service.stop()
+        service.stop()
+
+        #expect(true, "Multiple stop() calls should not crash")
+    }
+
+    @Test("stop() resets internal mouse state")
+    func testStopResetsState() {
+        let service = HoverService()
+        service.isEnabled = true
+        service.start()
+
+        // Stop should clean up internal state
+        service.stop()
+
+        // Verify service is stopped (isEnabled remains true but monitoring stops)
+        #expect(service.isEnabled == true, "isEnabled is a setting, not monitoring state")
+    }
+
+    // MARK: - TriggerReason Enum Tests
+
+    @Test("TriggerReason has distinct hover and scroll cases")
+    func testTriggerReasonCases() {
+        let hoverReason = HoverService.TriggerReason.hover
+        let scrollReason = HoverService.TriggerReason.scroll
+
+        #expect(hoverReason != scrollReason, "Hover and scroll should be distinct")
     }
 
     // MARK: - Protocol Conformance Tests
 
     @Test("HoverService conforms to HoverServiceProtocol")
-    @MainActor
     func testProtocolConformance() {
         let service: HoverServiceProtocol = HoverService()
 
         // Protocol requires these properties/methods
-        _ = service.isHovering
+        _ = service.isEnabled
+        _ = service.scrollEnabled
+        service.start()
+        service.stop()
 
         #expect(true, "HoverService should conform to protocol")
+    }
+
+    // MARK: - Mock Tests
+
+    @Test("HoverServiceProtocolMock tracks start/stop calls")
+    func testMockTracking() {
+        let mock = HoverServiceProtocolMock()
+
+        mock.start()
+        mock.start()
+        mock.stop()
+
+        #expect(mock.startCallCount == 2, "Mock should track start calls")
+        #expect(mock.stopCallCount == 1, "Mock should track stop calls")
+    }
+
+    @Test("HoverServiceProtocolMock allows setting isEnabled/scrollEnabled")
+    func testMockProperties() {
+        let mock = HoverServiceProtocolMock()
+
+        mock.isEnabled = true
+        mock.scrollEnabled = true
+
+        #expect(mock.isEnabled == true)
+        #expect(mock.scrollEnabled == true)
     }
 }

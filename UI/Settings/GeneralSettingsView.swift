@@ -4,9 +4,6 @@ import LaunchAtLogin
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
-    // MARK: - Computed Properties
-
-    /// Binding for Dock icon visibility that applies the activation policy when changed
     private var showDockIconBinding: Binding<Bool> {
         Binding(
             get: { menuBarManager.settings.showDockIcon },
@@ -18,121 +15,91 @@ struct GeneralSettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Startup - FIRST (most important)
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        LaunchAtLogin.Toggle {
-                            Text("Start SaneBar when you log in")
-                        }
-
-                        Toggle("Show Dock icon", isOn: showDockIconBinding)
-
-                        if !menuBarManager.settings.showDockIcon {
-                            HStack(spacing: 6) {
-                                Image(systemName: "info.circle")
-                                    .foregroundStyle(.secondary)
-                                Text("SaneBar will run in the menu bar only (no Dock icon)")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Label("Startup", systemImage: "power")
+        Form {
+            // 1. Startup - most users want this
+            Section {
+                LaunchAtLogin.Toggle {
+                    Text("Open SaneBar when I log in")
                 }
+                Toggle("Show in Dock", isOn: showDockIconBinding)
+            } header: {
+                Text("Startup")
+            }
 
-                // Auto-hide
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Auto-hide after showing", isOn: $menuBarManager.settings.autoRehide)
-
-                        if menuBarManager.settings.autoRehide {
-                            HStack {
-                                Text("Delay:")
-                                Slider(value: $menuBarManager.settings.rehideDelay, in: 1...10, step: 1)
-                                Text("\(Int(menuBarManager.settings.rehideDelay)) seconds")
-                                    .monospacedDigit()
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Label("Auto-hide", systemImage: "eye.slash")
+            // 2. Behavior - next most common
+            Section {
+                Toggle("Auto-hide after a few seconds", isOn: $menuBarManager.settings.autoRehide)
+                if menuBarManager.settings.autoRehide {
+                    Stepper("Wait \(Int(menuBarManager.settings.rehideDelay)) seconds",
+                            value: $menuBarManager.settings.rehideDelay,
+                            in: 1...10, step: 1)
                 }
+            } header: {
+                Text("When I reveal hidden icons…")
+            }
 
-                // How it works - clear step-by-step
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Step 1: The icons
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Your menu bar icons:").fontWeight(.medium)
-                            HStack(spacing: 12) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "line.3.horizontal.decrease.circle")
-                                        .foregroundStyle(.blue)
-                                        .accessibilityLabel("SaneBar Icon")
-                                    Text("SaneBar")
-                                }
-                                HStack(spacing: 4) {
-                                    Image(systemName: "line.diagonal")
-                                        .foregroundStyle(.secondary)
-                                        .accessibilityLabel("Separator Icon")
-                                    Text("Separator")
-                                }
-                            }
-                            .font(.system(size: 13))
+            // 3. Gesture triggers
+            Section {
+                Toggle("Reveal when I hover near the top", isOn: $menuBarManager.settings.showOnHover)
+                if menuBarManager.settings.showOnHover {
+                    HStack {
+                        Text("Delay")
+                        Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05...0.5, step: 0.05)
+                        Text("\(Int(menuBarManager.settings.hoverDelay * 1000))ms")
                             .foregroundStyle(.secondary)
+                            .frame(width: 50)
+                    }
+                }
+                Toggle("Reveal when I scroll up in the menu bar", isOn: $menuBarManager.settings.showOnScroll)
+            } header: {
+                Text("Gestures")
+            } footer: {
+                Text("These gestures work anywhere along the menu bar.")
+            }
+
+            // 4. Quick help - always useful
+            Section {
+                HStack {
+                    Button {
+                        menuBarManager.showHiddenItems()
+                    } label: {
+                        Label("Reveal All", systemImage: "eye")
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        Task { @MainActor in
+                            SearchWindowController.shared.toggle()
                         }
+                    } label: {
+                        Label("Find Icon…", systemImage: "magnifyingglass")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } header: {
+                Text("Can't find an icon?")
+            } footer: {
+                Text("\"Find Icon\" shows all menu bar icons and lets you click any of them.")
+            }
 
-                        Divider()
-
-                        // Step 2: How to organize
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "hand.draw")
-                                    .foregroundStyle(.blue)
-                                    .accessibilityHidden(true)
-                                Text("**⌘+drag** icons to organize them")
-                            }
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("• Left of separator = can be hidden")
-                                Text("• Right of separator = always visible")
-                            }
-                            .font(.system(size: 13))
-                            .foregroundStyle(.tertiary)
-                            .padding(.leading, 28)
-                        }
-
-                        Divider()
-
-                        // Step 3: Toggle
-                        HStack(spacing: 8) {
-                            Image(systemName: "cursorarrow.click.2")
-                                .foregroundStyle(.blue)
-                                .accessibilityHidden(true)
-                            Text("**Click SaneBar icon** to show/hide")
-                        }
-
+            // 5. How it works - bottom, collapsible info
+            Section {
+                DisclosureGroup("How to organize your menu bar") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("**⌘+drag** icons to rearrange them", systemImage: "hand.draw")
+                        Label("Icons **left of the separator** get hidden", systemImage: "eye.slash")
+                        Label("Icons **right of SaneBar** stay visible", systemImage: "eye")
+                        Label("**Click SaneBar** to show/hide", systemImage: "cursorarrow.click.2")
                         if menuBarManager.hasNotch {
-                            Divider()
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                Text("**Notch detected** — keep important icons to the right of SaneBar")
-                                    .foregroundStyle(.orange)
-                            }
+                            Label("You have a notch — keep important icons on the right", systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Label("How it works", systemImage: "questionmark.circle")
+                    .padding(.top, 8)
                 }
             }
-            .padding()
         }
+        .formStyle(.grouped)
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
         }

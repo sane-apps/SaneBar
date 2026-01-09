@@ -15,6 +15,7 @@ module SaneMasterModules
       check_code_quality_tools
       check_stuck_processes
       check_derived_data
+      check_duplicate_apps
 
       puts "\n✅ Doctor check complete."
 
@@ -70,6 +71,10 @@ module SaneMasterModules
         # DerivedData
         system('rm -rf ~/Library/Developer/Xcode/DerivedData/SaneBar-*')
         system('rm -rf .derivedData')
+        # CRITICAL: Clean release build folder (causes duplicate .app copies that break permissions!)
+        # release.sh creates build/Export/, build/dmg_temp/, etc with their own SaneBar.app
+        # macOS ties Accessibility permissions to FILE PATH, so multiple .app copies = permission chaos
+        system('rm -rf ./build')
         # Asset catalog caches (critical for icon changes!)
         system('rm -rf ~/Library/Caches/com.apple.dt.Xcode/')
         # Module cache
@@ -84,10 +89,13 @@ module SaneMasterModules
         # Clear any test project leftovers (non-sandboxed app uses Application Support)
         system('rm -rf ~/Library/Application\\ Support/SaneBar/SaneBar_Test_Projects 2>/dev/null')
         system('rm -f test_output.txt')
+        # Reset Accessibility permissions (prevents permission detection issues from stale entries)
+        system("tccutil reset Accessibility #{@bundle_id} 2>/dev/null")
         # Regenerate project after nuclear clean
         puts '🔄 Regenerating Xcode project...'
         system('xcodegen generate 2>&1')
         puts '✅ Nuclear clean complete.'
+        puts '   ℹ️  Accessibility permissions reset - app will prompt on next launch'
       else
         puts 'Standard clean...'
         system('xcodebuild clean -scheme SaneBar 2>&1 > /dev/null')
@@ -484,6 +492,30 @@ module SaneMasterModules
         puts '     Clean with: ./Scripts/SaneMaster.rb clean --nuclear'
       else
         puts '  ✅ No DerivedData cache'
+      end
+    end
+
+    def check_duplicate_apps
+      puts "\n📱 App Bundle Duplicates:"
+      # Find all SaneBar.app copies on the system
+      # macOS ties Accessibility permissions to FILE PATH, not bundle ID
+      # Multiple .app copies = permission detection chaos
+      app_locations = `mdfind "kMDItemFSName == 'SaneBar.app'" 2>/dev/null`.strip.split("\n")
+      app_locations.reject! { |p| p.include?('/Trash/') } # Ignore trashed apps
+
+      if app_locations.length > 1
+        puts "  ⚠️  PROBLEM: #{app_locations.length} copies of SaneBar.app found!"
+        puts '     macOS ties Accessibility permissions to file PATH.'
+        puts '     Multiple copies will cause permission detection to fail.'
+        puts ''
+        app_locations.each { |loc| puts "     • #{loc}" }
+        puts ''
+        puts '     FIX: Run ./Scripts/SaneMaster.rb clean --nuclear'
+        puts '          This removes old builds and resets Accessibility permissions.'
+      elsif app_locations.length == 1
+        puts "  ✅ Single app bundle: #{app_locations.first}"
+      else
+        puts '  ✅ No built app bundles found (run a build first)'
       end
     end
 

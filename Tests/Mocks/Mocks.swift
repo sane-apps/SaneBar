@@ -105,6 +105,44 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return [RunningApp]()
     }
 
+    private let getMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
+    var getMenuBarAppsCallCount: Int {
+        return getMenuBarAppsState.withLock(\.callCount)
+    }
+    var getMenuBarAppsHandler: (@Sendable () async -> [RunningApp])? {
+        get { getMenuBarAppsState.withLock(\.handler) }
+        set { getMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    func getMenuBarApps() async -> [RunningApp] {
+        let getMenuBarAppsHandler = getMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let getMenuBarAppsHandler = getMenuBarAppsHandler {
+            return await getMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
+    private let getHiddenMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
+    var getHiddenMenuBarAppsCallCount: Int {
+        return getHiddenMenuBarAppsState.withLock(\.callCount)
+    }
+    var getHiddenMenuBarAppsHandler: (@Sendable () async -> [RunningApp])? {
+        get { getHiddenMenuBarAppsState.withLock(\.handler) }
+        set { getHiddenMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    func getHiddenMenuBarApps() async -> [RunningApp] {
+        let getHiddenMenuBarAppsHandler = getHiddenMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let getHiddenMenuBarAppsHandler = getHiddenMenuBarAppsHandler {
+            return await getHiddenMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
     private let activateState = MockoloMutex(MockoloHandlerState<RunningApp, @Sendable (RunningApp) async -> ()>())
     var activateCallCount: Int {
         return activateState.withLock(\.callCount)
@@ -173,53 +211,6 @@ class NetworkTriggerServiceProtocolMock: NetworkTriggerServiceProtocol {
     }
 }
 
-class HoverServiceProtocolMock: HoverServiceProtocol {
-    init() { }
-    init(isHovering: Bool = false) {
-        self.isHovering = isHovering
-    }
-
-
-
-    var isHovering: Bool = false
-
-    private(set) var configureCallCount = 0
-    var configureArgValues = [(mainItem: NSStatusItem, separatorItem: NSStatusItem)]()
-    var configureHandler: ((NSStatusItem, NSStatusItem, @escaping () -> Void, @escaping () -> Void) -> ())?
-    func configure(mainItem: NSStatusItem, separatorItem: NSStatusItem, onHoverStart: @escaping () -> Void, onHoverEnd: @escaping () -> Void) {
-        configureCallCount += 1
-        configureArgValues.append((mainItem, separatorItem))
-        if let configureHandler = configureHandler {
-            configureHandler(mainItem, separatorItem, onHoverStart, onHoverEnd)
-        }
-        
-    }
-
-    private(set) var setEnabledCallCount = 0
-    var setEnabledArgValues = [Bool]()
-    var setEnabledHandler: ((Bool) -> ())?
-    func setEnabled(_ enabled: Bool) {
-        setEnabledCallCount += 1
-        setEnabledArgValues.append(enabled)
-        if let setEnabledHandler = setEnabledHandler {
-            setEnabledHandler(enabled)
-        }
-        
-    }
-
-    private(set) var setDelayCallCount = 0
-    var setDelayArgValues = [TimeInterval]()
-    var setDelayHandler: ((TimeInterval) -> ())?
-    func setDelay(_ delay: TimeInterval) {
-        setDelayCallCount += 1
-        setDelayArgValues.append(delay)
-        if let setDelayHandler = setDelayHandler {
-            setDelayHandler(delay)
-        }
-        
-    }
-}
-
 class TriggerServiceProtocolMock: TriggerServiceProtocol {
     init() { }
 
@@ -247,6 +238,7 @@ class TriggerServiceProtocolMock: TriggerServiceProtocol {
     }
 }
 
+@MainActor
 class HidingServiceProtocolMock: HidingServiceProtocol {
     init() { }
     init(state: HidingState, isAnimating: Bool = false) {
@@ -389,6 +381,28 @@ class MenuBarAppearanceServiceProtocolMock: MenuBarAppearanceServiceProtocol {
             hideHandler()
         }
         
+    }
+}
+
+@MainActor
+final class HoverServiceProtocolMock: HoverServiceProtocol, @unchecked Sendable {
+    init() { }
+
+    var isEnabled: Bool = false
+    var scrollEnabled: Bool = false
+
+    var startCallCount = 0
+    var startHandler: (() -> Void)?
+    func start() {
+        startCallCount += 1
+        startHandler?()
+    }
+
+    var stopCallCount = 0
+    var stopHandler: (() -> Void)?
+    func stop() {
+        stopCallCount += 1
+        stopHandler?()
     }
 }
 

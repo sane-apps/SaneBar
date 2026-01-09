@@ -9,181 +9,203 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "HoverServic
 /// @mockable
 @MainActor
 protocol HoverServiceProtocol {
-    var isHovering: Bool { get }
-    func configure(
-        mainItem: NSStatusItem,
-        separatorItem: NSStatusItem,
-        onHoverStart: @escaping () -> Void,
-        onHoverEnd: @escaping () -> Void
-    )
-    func setEnabled(_ enabled: Bool)
-    func setDelay(_ delay: TimeInterval)
+    var isEnabled: Bool { get set }
+    var scrollEnabled: Bool { get set }
+    func start()
+    func stop()
 }
 
 // MARK: - HoverService
 
-/// Service that detects mouse hover over menu bar items and triggers show/hide.
+/// Service that monitors mouse position and scroll gestures near the menu bar
+/// to trigger showing/hiding of icons.
 ///
-/// Uses a global event monitor to track mouse movement. When the mouse enters
-/// the region near the SaneBar icon or separator, it triggers a callback after
-/// a configurable delay.
+/// Key behaviors:
+/// - Detects when mouse enters the menu bar region
+/// - Optional scroll gesture trigger (two-finger scroll up in menu bar)
+/// - Debounces rapid mouse movements to prevent flickering
+/// - Only shows icons when cursor is actually in the menu bar area
 @MainActor
-final class HoverService: ObservableObject, HoverServiceProtocol {
+final class HoverService: HoverServiceProtocol {
 
-    // MARK: - Published State
+    // MARK: - Types
 
-    @Published private(set) var isHovering = false
+    enum TriggerReason {
+        case hover
+        case scroll
+    }
 
-    // MARK: - Configuration
+    // MARK: - Properties
 
-    private weak var mainItem: NSStatusItem?
-    private weak var separatorItem: NSStatusItem?
-    private var onHoverStart: (() -> Void)?
-    private var onHoverEnd: (() -> Void)?
+    var isEnabled: Bool = false {
+        didSet {
+            guard isEnabled != oldValue else { return }
+            if isEnabled || scrollEnabled {
+                startMonitoring()
+            } else {
+                stopMonitoring()
+            }
+        }
+    }
 
-    private var isEnabled = false
-    private var hoverDelay: TimeInterval = 0.3
+    var scrollEnabled: Bool = false {
+        didSet {
+            guard scrollEnabled != oldValue else { return }
+            if isEnabled || scrollEnabled {
+                startMonitoring()
+            } else {
+                stopMonitoring()
+            }
+        }
+    }
 
-    // MARK: - Event Monitoring
+    /// Called when hover/scroll should reveal icons
+    var onTrigger: ((TriggerReason) -> Void)?
 
-    private var eventMonitor: Any?
+    /// Called when mouse leaves menu bar area (optional auto-hide)
+    var onLeaveMenuBar: (() -> Void)?
+
+    /// Delay before triggering (prevents accidental triggers)
+    var hoverDelay: TimeInterval = 0.15
+
+    /// Height of the hover detection zone (typically menu bar height)
+    private let detectionZoneHeight: CGFloat = 24
+
+    /// How far outside menu bar triggers leave event
+    private let leaveThreshold: CGFloat = 50
+
+    private var globalMonitor: Any?
     private var hoverTimer: Timer?
-    private var wasInHoverZone = false
-    private var lastCheckTime: TimeInterval = 0
+    private var isMouseInMenuBar = false
+    private var lastScrollTime: Date = .distantPast
 
     // MARK: - Initialization
 
     init() {}
 
     deinit {
-        // Clean up is handled in stopMonitoring which must be called before deinit
+        // Cleanup handled via stop()
     }
 
-    // MARK: - Configuration
+    // MARK: - Public API
 
-    func configure(
-        mainItem: NSStatusItem,
-        separatorItem: NSStatusItem,
-        onHoverStart: @escaping () -> Void,
-        onHoverEnd: @escaping () -> Void
-    ) {
-        self.mainItem = mainItem
-        self.separatorItem = separatorItem
-        self.onHoverStart = onHoverStart
-        self.onHoverEnd = onHoverEnd
-
-        logger.info("HoverService configured")
+    func start() {
+        // Start monitoring if either hover or scroll is enabled
+        guard isEnabled || scrollEnabled else { return }
+        startMonitoring()
     }
 
-    func setEnabled(_ enabled: Bool) {
-        guard isEnabled != enabled else { return }
-        isEnabled = enabled
-
-        if enabled {
-            startMonitoring()
-        } else {
-            stopMonitoring()
-        }
-
-        logger.info("HoverService enabled: \(enabled)")
+    func stop() {
+        stopMonitoring()
     }
 
-    func setDelay(_ delay: TimeInterval) {
-        hoverDelay = max(0.1, min(delay, 2.0)) // Clamp between 0.1 and 2 seconds
-    }
-
-    // MARK: - Event Monitoring
+    // MARK: - Private Methods
 
     private func startMonitoring() {
-        guard eventMonitor == nil else { return }
+        guard globalMonitor == nil else { return }
 
-        // Monitor mouse moved events globally
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+        logger.info("Starting hover/scroll monitoring")
+
+        // Monitor mouse movement and scroll events globally
+        let eventMask: NSEvent.EventTypeMask = [.mouseMoved, .scrollWheel]
+
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask) { [weak self] event in
             Task { @MainActor in
-                self?.handleMouseMoved(event)
+                self?.handleEvent(event)
             }
         }
-
-        logger.info("Started hover monitoring")
+        
+        if globalMonitor == nil {
+            logger.error("Failed to create global monitor - check Accessibility permissions")
+        }
     }
 
     private func stopMonitoring() {
-        if let monitor = eventMonitor {
+        if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
+            globalMonitor = nil
+            logger.info("Stopped hover/scroll monitoring")
         }
-
         cancelHoverTimer()
-        wasInHoverZone = false
-        isHovering = false
+        isMouseInMenuBar = false
+    }
 
-        logger.info("Stopped hover monitoring")
+    private func handleEvent(_ event: NSEvent) {
+        switch event.type {
+        case .mouseMoved:
+            handleMouseMoved(event)
+        case .scrollWheel:
+            handleScrollWheel(event)
+        default:
+            break
+        }
     }
 
     private func handleMouseMoved(_ event: NSEvent) {
-        // Throttle checks to ~10Hz (every 0.1s) to save CPU
-        let now = ProcessInfo.processInfo.systemUptime
-        guard now - lastCheckTime > 0.1 else { return }
-        lastCheckTime = now
+        // Only process hover if hover is enabled
+        guard isEnabled else { return }
 
         let mouseLocation = NSEvent.mouseLocation
+        let inMenuBar = isInMenuBarRegion(mouseLocation)
 
-        // Check if mouse is in the hover zone
-        let inZone = isMouseInHoverZone(mouseLocation)
-
-        if inZone && !wasInHoverZone {
-            // Entered hover zone - start timer
-            startHoverTimer()
-            wasInHoverZone = true
-        } else if !inZone && wasInHoverZone {
-            // Left hover zone - cancel timer and notify
-            cancelHoverTimer()
-            wasInHoverZone = false
-
-            if isHovering {
-                isHovering = false
-                onHoverEnd?()
-                logger.debug("Hover ended")
+        if inMenuBar && !isMouseInMenuBar {
+            // Entered menu bar region
+            isMouseInMenuBar = true
+            scheduleHoverTrigger()
+        } else if !inMenuBar && isMouseInMenuBar {
+            // Left menu bar region
+            let distanceFromMenuBar = distanceFromMenuBarTop(mouseLocation)
+            if distanceFromMenuBar > leaveThreshold {
+                isMouseInMenuBar = false
+                cancelHoverTimer()
+                onLeaveMenuBar?()
             }
         }
     }
 
-    private func isMouseInHoverZone(_ mouseLocation: NSPoint) -> Bool {
-        // Get frames of the status items
-        guard let mainButton = mainItem?.button,
-              let mainWindow = mainButton.window else {
-            return false
+    private func handleScrollWheel(_ event: NSEvent) {
+        guard scrollEnabled else { return }
+
+        let mouseLocation = NSEvent.mouseLocation
+        guard isInMenuBarRegion(mouseLocation) else { return }
+
+        // Two-finger scroll up (deltaY > 0) to reveal
+        // Require a meaningful scroll amount to avoid accidental triggers
+        if event.scrollingDeltaY > 5 {
+            let now = Date()
+            // Debounce rapid scrolls
+            guard now.timeIntervalSince(lastScrollTime) > 0.3 else { return }
+            lastScrollTime = now
+
+            logger.debug("Scroll trigger detected in menu bar")
+            onTrigger?(.scroll)
         }
-
-        // Expand the hover zone to include the separator area
-        var hoverFrame = mainWindow.frame
-
-        // Extend left to include separator
-        if let separatorButton = separatorItem?.button,
-           let separatorWindow = separatorButton.window {
-            let separatorFrame = separatorWindow.frame
-            // Union the frames
-            hoverFrame = hoverFrame.union(separatorFrame)
-        }
-
-        // Add some padding (20px on each side)
-        let padding: CGFloat = 20
-        hoverFrame = hoverFrame.insetBy(dx: -padding, dy: -padding)
-
-        return hoverFrame.contains(mouseLocation)
     }
 
-    // MARK: - Hover Timer
+    private func isInMenuBarRegion(_ point: NSPoint) -> Bool {
+        guard let screen = NSScreen.main else { return false }
 
-    private func startHoverTimer() {
+        let screenFrame = screen.frame
+        let menuBarTop = screenFrame.maxY
+        let menuBarBottom = menuBarTop - detectionZoneHeight
+
+        // Check if point is in the menu bar vertical band
+        return point.y >= menuBarBottom && point.y <= menuBarTop
+    }
+
+    private func distanceFromMenuBarTop(_ point: NSPoint) -> CGFloat {
+        guard let screen = NSScreen.main else { return 0 }
+        let menuBarTop = screen.frame.maxY
+        return menuBarTop - point.y
+    }
+
+    private func scheduleHoverTrigger() {
         cancelHoverTimer()
 
         hoverTimer = Timer.scheduledTimer(withTimeInterval: hoverDelay, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, self.wasInHoverZone else { return }
-                self.isHovering = true
-                self.onHoverStart?()
-                logger.debug("Hover triggered after \(self.hoverDelay)s delay")
+                guard let self = self, self.isMouseInMenuBar else { return }
+                self.onTrigger?(.hover)
             }
         }
     }

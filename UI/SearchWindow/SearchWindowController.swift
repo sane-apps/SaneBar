@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Controller for the floating menu bar search window
 @MainActor
-final class SearchWindowController {
+final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Singleton
 
@@ -28,23 +28,20 @@ final class SearchWindowController {
 
     /// Show the search window
     func show() {
-        if window == nil {
-            createWindow()
-        }
+        // Always create a fresh window to reset state
+        createWindow()
 
         guard let window = window else { return }
 
-        // Position near menu bar (top center of screen)
+        // Position centered below menu bar
         if let screen = NSScreen.main {
-            let screenFrame = screen.frame
-            let menuBarHeight: CGFloat = 24  // Standard menu bar height
-            let windowWidth: CGFloat = 400
-            let windowHeight: CGFloat = 300
+            let screenFrame = screen.visibleFrame
+            let windowSize = window.frame.size
 
-            let xPos = (screenFrame.width - windowWidth) / 2
-            let yPos = screenFrame.height - menuBarHeight - windowHeight - 8
+            let xPos = screenFrame.midX - (windowSize.width / 2)
+            let yPos = screenFrame.maxY - windowSize.height - 20
 
-            window.setFrame(NSRect(x: xPos, y: yPos, width: windowWidth, height: windowHeight), display: true)
+            window.setFrameOrigin(NSPoint(x: xPos, y: yPos))
         }
 
         window.makeKeyAndOrderFront(nil)
@@ -54,11 +51,15 @@ final class SearchWindowController {
     /// Close the search window
     func close() {
         window?.orderOut(nil)
+        window = nil
     }
 
     // MARK: - Window Creation
 
     private func createWindow() {
+        // Close existing window if any
+        window?.orderOut(nil)
+
         let contentView = MenuBarSearchView(onDismiss: { [weak self] in
             self?.close()
         })
@@ -66,31 +67,35 @@ final class SearchWindowController {
         let hostingView = NSHostingView(rootView: contentView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 400),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
 
         window.contentView = hostingView
-        window.title = "Menu Bar Search"
+        window.title = "Find Hidden Icon"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.level = .floating
         window.backgroundColor = NSColor.windowBackgroundColor
+        window.isReleasedWhenClosed = false
+        window.delegate = self
 
-        // Close when losing focus
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification,
-            object: window,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.close()
-            }
-        }
+        // Add shadow and rounded corners
+        window.hasShadow = true
 
         self.window = window
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowDidResignKey(_ notification: Notification) {
+        close()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        window = nil
     }
 }

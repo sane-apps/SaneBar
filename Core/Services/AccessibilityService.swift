@@ -4,6 +4,16 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService")
 
+// MARK: - Accessibility Prompt Helper
+
+/// Request accessibility with system prompt
+/// Uses the string key directly to avoid concurrency issues with kAXTrustedCheckOptionPrompt
+private nonisolated func requestAccessibilityWithPrompt() -> Bool {
+    // "AXTrustedCheckOptionPrompt" is the string value of kAXTrustedCheckOptionPrompt
+    let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+    return AXIsProcessTrustedWithOptions(options)
+}
+
 // MARK: - AccessibilityService
 
 /// Service for interacting with other apps' menu bar items via Accessibility API.
@@ -27,6 +37,17 @@ final class AccessibilityService: ObservableObject {
         AXIsProcessTrusted()
     }
 
+    /// Request accessibility permission - shows system prompt if not trusted
+    /// Returns true if already trusted, false if user needs to grant permission
+    @discardableResult
+    func requestAccessibility() -> Bool {
+        let trusted = requestAccessibilityWithPrompt()
+        if !trusted {
+            logger.info("Accessibility not trusted - system prompt shown")
+        }
+        return trusted
+    }
+
     // MARK: - Actions
 
     /// Perform a "Virtual Click" on a menu bar item
@@ -40,82 +61,183 @@ final class AccessibilityService: ObservableObject {
             return false
         }
 
-        // 1. Find the running application
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
             logger.warning("App not running: \(bundleID)")
             return false
         }
 
-        // 2. Create accessibility element for the app
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-
-        // 3. Find the menu bar extras (status items)
-        // Note: Status items are often children of the 'AXExtrasMenuBar' attribute of the Application,
-        // OR they are in the System Wide 'AXExtrasMenuBar'.
-        // Modern apps (NSStatusItem) often live in the System Wide space.
-
-        if clickSystemWideItem(for: app.processIdentifier) {
-            return true
-        }
-
-        return false
+        return clickSystemWideItem(for: app.processIdentifier)
     }
 
     // MARK: - System Wide Search
 
-    private func clickSystemWideItem(for targetPID: pid_t) -> Bool {
-        let systemWide = AXUIElementCreateSystemWide()
-        var extrasMenuBar: CFTypeRef?
+    /// Best-effort list of apps that currently own a menu bar status item.
+    /// This is much closer to "things in the menu bar" than `NSWorkspace.runningApplications`.
+    ///
+    /// NOTE: We scan all running apps for their AXExtrasMenuBar attribute.
+    func listMenuBarItemOwners() -> [RunningApp] {
+        guard isTrusted else { return [] }
 
-        // Get the system menu bar (where status items live)
-        let result = AXUIElementCopyAttributeValue(systemWide, kAXExtrasMenuBarAttribute as CFString, &extrasMenuBar)
+        var pids = Set<pid_t>()
 
-        guard result == .success, let menuBar = extrasMenuBar else {
-            logger.debug("Could not find System Extras Menu Bar")
-            return false
-        }
+        // Scan all running apps for their menu bar extras
+        for runningApp in NSWorkspace.shared.runningApplications {
+            let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
 
-        // Safe cast from CFTypeRef
-        // swiftlint:disable:next force_cast
-        let menuBarElement = menuBar as! AXUIElement
-        var children: CFTypeRef?
+            var extrasBar: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-        // Get all status items
-        let childrenResult = AXUIElementCopyAttributeValue(menuBarElement, kAXChildrenAttribute as CFString, &children)
-
-        guard childrenResult == .success, let items = children as? [AXUIElement] else {
-            logger.debug("No items in Extras Menu Bar")
-            return false
-        }
-
-        // Iterate and find the one belonging to our target PID
-        for item in items {
-            var pid: pid_t = 0
-            AXUIElementGetPid(item, &pid)
-
-            if pid == targetPID {
-                // Found it! Perform the action.
-                logger.info("Found matching status item for PID \(pid)")
-                return performPress(on: item)
+            if result == .success {
+                // This app has a menu bar extra
+                pids.insert(runningApp.processIdentifier)
             }
         }
 
-        logger.warning("Could not find status item for PID \(targetPID) in system bar")
-        return false
+        // Map to RunningApp (unique by bundle ID)
+        var seenBundleIDs = Set<String>()
+        var apps: [RunningApp] = []
+        for pid in pids {
+            guard let app = NSRunningApplication(processIdentifier: pid),
+                  let bundleID = app.bundleIdentifier else { continue }
+            guard bundleID != Bundle.main.bundleIdentifier else { continue }
+            guard !seenBundleIDs.contains(bundleID) else { continue }
+            seenBundleIDs.insert(bundleID)
+            apps.append(RunningApp(app: app))
+        }
+
+        return apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    /// Returns menu bar items, with position info.
+    ///
+    /// NOTE: The AXExtrasMenuBar attribute is NOT available on AXSystemWide.
+    /// We must get it from individual applications that have menu bar extras.
+    /// Each app owns its own status items, so we scan all running apps.
+    ///
+    /// HOW HIDING WORKS:
+    /// - SaneBar hides icons by expanding its delimiter to 10,000px
+    /// - This pushes icons to the LEFT of the delimiter off the screen
+    /// - Hidden items have NEGATIVE x coordinates (e.g., -4256)
+    /// - Visible items have POSITIVE x coordinates (e.g., 1337)
+    func listMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
+        guard isTrusted else {
+            logger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
+            return []
+        }
+
+        // Scan ALL running applications for their menu bar extras
+        var results: [(pid: pid_t, x: CGFloat)] = []
+
+        for runningApp in NSWorkspace.shared.runningApplications {
+            let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
+
+            // Try to get this app's extras menu bar (status items)
+            var extrasBar: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+
+            guard result == .success, let bar = extrasBar else { continue }
+
+            // swiftlint:disable:next force_cast
+            let barElement = bar as! AXUIElement
+            var children: CFTypeRef?
+            let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+
+            guard childResult == .success, let items = children as? [AXUIElement] else { continue }
+
+            for item in items {
+                var positionValue: CFTypeRef?
+                let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+
+                var xPos: CGFloat = 0
+                if posResult == .success, let posValue = positionValue {
+                    var point = CGPoint.zero
+                    // swiftlint:disable:next force_cast
+                    if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                        xPos = point.x
+                    }
+                }
+
+                results.append((pid: runningApp.processIdentifier, x: xPos))
+            }
+        }
+
+        logger.debug("Scanned all apps, found \(results.count) menu bar items")
+
+        // Convert to RunningApps (unique by bundle ID, taking the minimum x position per app)
+        var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
+        for (pid, x) in results {
+            guard let app = NSRunningApplication(processIdentifier: pid),
+                  let bundleID = app.bundleIdentifier else { continue }
+            guard bundleID != Bundle.main.bundleIdentifier else { continue }
+
+            // Keep the minimum x position for each app (most hidden position)
+            if let existing = appPositions[bundleID] {
+                if x < existing.x {
+                    appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+                }
+            } else {
+                appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+            }
+        }
+
+        let apps = Array(appPositions.values).sorted { $0.x < $1.x }
+
+        let hiddenCount = apps.filter { $0.x < 0 }.count
+        logger.info("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
+
+        return apps
+    }
+
+    private func clickSystemWideItem(for targetPID: pid_t) -> Bool {
+        let appElement = AXUIElementCreateApplication(targetPID)
+
+        var extrasBar: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+
+        guard result == .success, let bar = extrasBar else {
+            logger.debug("App \(targetPID) has no AXExtrasMenuBar")
+            return false
+        }
+
+        // swiftlint:disable:next force_cast
+        let barElement = bar as! AXUIElement
+        var children: CFTypeRef?
+        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+
+        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+            logger.debug("No items in app's Extras Menu Bar")
+            return false
+        }
+
+        logger.info("Found \(items.count) status item(s) for PID \(targetPID)")
+        return performPress(on: items[0])
     }
 
     // MARK: - Interaction
 
     private func performPress(on element: AXUIElement) -> Bool {
-        // AXPress is the standard action for buttons/menu items
+        // Try AXPress - the standard action for buttons/menu items
         let error = AXUIElementPerformAction(element, kAXPressAction as CFString)
 
         if error == .success {
             logger.info("AXPress successful")
             return true
-        } else {
-            logger.error("AXPress failed with error: \(error.rawValue)")
-            return false
         }
+
+        logger.debug("AXPress failed with error: \(error.rawValue)")
+
+        // Try AXShowMenu as fallback (some apps use this instead)
+        var actionNames: CFArray?
+        if AXUIElementCopyActionNames(element, &actionNames) == .success,
+           let names = actionNames as? [String],
+           names.contains("AXShowMenu") {
+            let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
+            if menuError == .success {
+                logger.info("AXShowMenu successful")
+                return true
+            }
+        }
+
+        return false
     }
 }
