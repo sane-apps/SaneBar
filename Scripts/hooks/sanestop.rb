@@ -136,6 +136,60 @@ rescue StandardError
   # Don't fail on staging errors
 end
 
+# === TODO ENFORCEMENT (inspired by jarrodwatts/claude-code-config) ===
+# Warns when session ends with incomplete todos
+
+TRANSCRIPT_CACHE = {}  # Cache transcript reads
+
+def check_incomplete_todos(transcript_path)
+  return nil unless transcript_path && File.exist?(transcript_path)
+
+  begin
+    # Parse transcript to find last TodoWrite call
+    # Use cached if available and file unchanged
+    mtime = File.mtime(transcript_path)
+    if TRANSCRIPT_CACHE[:path] == transcript_path && TRANSCRIPT_CACHE[:mtime] == mtime
+      todos = TRANSCRIPT_CACHE[:todos]
+    else
+      content = File.read(transcript_path)
+      # Find all TodoWrite tool uses and get the last one
+      todos_json = content.scan(/\{"type":\s*"tool_use".*?"name":\s*"TodoWrite".*?"input":\s*(\{[^}]+\})/m).flatten.last
+
+      if todos_json
+        input = JSON.parse(todos_json)
+        todos = input['todos'] || []
+      else
+        todos = []
+      end
+
+      # Cache for future calls
+      TRANSCRIPT_CACHE[:path] = transcript_path
+      TRANSCRIPT_CACHE[:mtime] = mtime
+      TRANSCRIPT_CACHE[:todos] = todos
+    end
+
+    return nil if todos.empty?
+
+    # Count incomplete
+    pending = todos.count { |t| t['status'] == 'pending' }
+    in_progress = todos.count { |t| t['status'] == 'in_progress' }
+    incomplete = pending + in_progress
+
+    return nil if incomplete.zero?
+
+    # Build warning
+    {
+      pending: pending,
+      in_progress: in_progress,
+      total: incomplete,
+      items: todos.select { |t| %w[pending in_progress].include?(t['status']) }
+    }
+  rescue StandardError => e
+    warn "⚠️  Todo check error: #{e.message}" if ENV['DEBUG']
+    nil
+  end
+end
+
 # === CHECKS ===
 
 def check_summary_needed
@@ -202,9 +256,25 @@ end
 
 # === MAIN PROCESSING ===
 
-def process_stop(stop_hook_active)
+def process_stop(stop_hook_active, transcript_path = nil)
   # Don't loop if already in a stop hook
   return 0 if stop_hook_active
+
+  # Check for incomplete todos (non-blocking warning)
+  incomplete_todos = check_incomplete_todos(transcript_path)
+  if incomplete_todos
+    warn '---'
+    warn 'INCOMPLETE TODOS DETECTED'
+    warn ''
+    warn "  #{incomplete_todos[:total]} incomplete task(s):"
+    incomplete_todos[:items].each do |todo|
+      status_icon = todo['status'] == 'in_progress' ? '→' : '○'
+      warn "  #{status_icon} [#{todo['status']}] #{todo['content']}"
+    end
+    warn ''
+    warn '  Consider completing these tasks or marking done.'
+    warn '---'
+  end
 
   # Check if summary needed (non-blocking reminder)
   check_summary_needed
@@ -403,7 +473,8 @@ else
   begin
     input = JSON.parse($stdin.read)
     stop_hook_active = input['stop_hook_active'] || false
-    exit process_stop(stop_hook_active)
+    transcript_path = input['transcript_path']  # Path to session transcript
+    exit process_stop(stop_hook_active, transcript_path)
   rescue JSON::ParserError, Errno::ENOENT
     exit 0  # Don't fail on parse errors
   end

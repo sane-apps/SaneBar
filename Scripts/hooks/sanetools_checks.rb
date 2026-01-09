@@ -56,19 +56,37 @@ module SaneToolsChecks
       return nil unless path
 
       require 'uri'
-      decoded_path = URI.decode_www_form_component(path) rescue path
-      expanded_path = File.expand_path(path) rescue path
+
+      # VULN-003 FIX: Sanitize null bytes (can bypass path detection)
+      sanitized_path = path.gsub(/\x00|\u0000/, '')
+
+      # VULN-003 FIX: Recursive URL decoding (double encoding bypass)
+      # %252e -> %2e -> . requires multiple decode passes
+      decoded_path = sanitized_path
+      10.times do # Max 10 iterations to prevent infinite loops
+        new_decoded = URI.decode_www_form_component(decoded_path) rescue decoded_path
+        break if new_decoded == decoded_path
+        decoded_path = new_decoded.gsub(/\x00|\u0000/, '') # Sanitize after each decode
+      end
+
+      expanded_path = File.expand_path(sanitized_path) rescue sanitized_path
       expanded_decoded = File.expand_path(decoded_path) rescue decoded_path
 
-      [path, decoded_path, expanded_path, expanded_decoded].each do |p|
+      [sanitized_path, decoded_path, expanded_path, expanded_decoded].each do |p|
         if p.match?(BLOCKED_PATH_PATTERN)
-          return "BLOCKED PATH: #{path}\nRule #1: Stay in your lane"
+          return "BLOCKED PATH: #{path}\n" \
+                 "This path is outside your project scope.\n" \
+                 "DO THIS: Work only within the project directory.\n" \
+                 "READ: DEVELOPMENT.md for allowed paths and project structure."
         end
 
         # Path traversal detection: check for sensitive dirs anywhere in path
         # Catches: ./test/../.ssh/key, /foo/bar/.ssh/id_rsa
         if p.match?(%r{/\.ssh/}) || p.match?(%r{/\.aws/}) || p.match?(%r{/\.gnupg/})
-          return "BLOCKED PATH (traversal detected): #{path}\nRule #1: Stay in your lane"
+          return "BLOCKED PATH (traversal detected): #{path}\n" \
+                 "Path traversal to sensitive directory detected.\n" \
+                 "DO THIS: Use direct paths within the project.\n" \
+                 "READ: The path you requested resolves outside allowed areas."
         end
 
         # State files: block edits only, allow reads
@@ -252,10 +270,27 @@ module SaneToolsChecks
       return nil if complete
 
       missing = research_categories.keys.reject { |cat| research[cat] }
-      "RESEARCH INCOMPLETE\n" \
-      "Cannot edit until research is complete.\n" \
-      "Missing: #{missing.join(', ')}\n" \
-      "Use Task agents for each category."
+
+      # Build specific instructions for each missing category
+      missing_instructions = missing.map do |cat|
+        case cat
+        when :memory then "  1. MEMORY: mcp__memory__read_graph (check past bugs/patterns)"
+        when :docs then "  2. DOCS: mcp__apple-docs or mcp__context7 (verify APIs exist)"
+        when :web then "  3. WEB: WebSearch (current best practices)"
+        when :github then "  4. GITHUB: mcp__github__search_* (external examples)"
+        when :local then "  5. LOCAL: Read/Grep/Glob (understand existing code)"
+        else "  #{cat}: Complete this research category"
+        end
+      end.join("\n")
+
+      "RESEARCH INCOMPLETE - READ THIS CAREFULLY\n" \
+      "Cannot edit until ALL 5 research categories are done.\n" \
+      "\n" \
+      "MISSING (do these NOW):\n" \
+      "#{missing_instructions}\n" \
+      "\n" \
+      "WHY: Rule #1 says VERIFY BEFORE YOU TRY.\n" \
+      "The research prevents wasted attempts. Do it ONCE, succeed ONCE."
     end
 
     def check_global_mutations(tool_name, global_mutation_pattern, research_categories)
@@ -372,6 +407,86 @@ module SaneToolsChecks
       "Complete these before editing."
     end
 
+    # === INTELLIGENCE: Refusal to Read Detection ===
+    # Detect when AI is blocked repeatedly for same reason but keeps trying
+    # instead of reading the message and following instructions
+
+    def check_refusal_to_read(tool_name, block_reason)
+      return nil unless block_reason
+
+      # Extract the block type from the reason
+      block_type = case block_reason
+                   when /RESEARCH INCOMPLETE/i then 'research_incomplete'
+                   when /BLOCKED PATH/i then 'blocked_path'
+                   when /FILE SIZE/i then 'file_size'
+                   when /BASH.*WRITE/i then 'bash_write'
+                   when /STATE.*BYPASS|STATE.*PROTECTED/i then 'state_bypass'
+                   when /MCP.*VERIFICATION/i then 'mcp_verification'
+                   when /SANELOOP REQUIRED/i then 'saneloop_required'
+                   else 'other'
+                   end
+
+      # Track consecutive blocks of same type
+      blocks = StateManager.get(:refusal_tracking) || {}
+      current = blocks[block_type] || { count: 0, last_tool: nil }
+
+      # Increment if same block type
+      current[:count] += 1
+      current[:last_tool] = tool_name
+      current[:last_at] = Time.now.iso8601
+
+      StateManager.update(:refusal_tracking) do |b|
+        b[block_type] = current
+        b
+      end
+
+      # Escalate based on count
+      case current[:count]
+      when 1
+        nil # First block - normal message
+      when 2
+        # Second block - add READ THE MESSAGE reminder
+        "\n" \
+        "⚠️  SAME BLOCK TWICE - READ THE MESSAGE ABOVE\n" \
+        "You were just blocked for this. The FIX is in the message.\n" \
+        "DO NOT try again. READ the block message. FOLLOW the instructions."
+      else
+        # 3+ blocks - halt and require acknowledgment
+        "REFUSAL TO READ DETECTED - SESSION HALTED\n" \
+        "You've been blocked #{current[:count]}x for: #{block_type}\n" \
+        "\n" \
+        "Each block message told you EXACTLY what to do.\n" \
+        "You ignored it and kept trying different approaches.\n" \
+        "\n" \
+        "THIS IS THE PROBLEM THE HOOKS EXIST TO SOLVE.\n" \
+        "\n" \
+        "USER: Type 'reset blocks' or 'unblock' to allow retry.\n" \
+        "      Type 'reset?' to see all reset commands.\n" \
+        "      Resets are LOGGED and do NOT disable enforcement."
+      end
+    end
+
+    def reset_refusal_tracking(block_type = nil)
+      if block_type
+        StateManager.update(:refusal_tracking) { |b| b.delete(block_type); b }
+      else
+        StateManager.reset(:refusal_tracking)
+      end
+    end
+
+    # Reset tracking when AI does the RIGHT thing (reward obedience)
+    def reward_correct_behavior(action_type)
+      case action_type
+      when :research_done
+        reset_refusal_tracking('research_incomplete')
+        warn "✅ Research complete. You may now edit."
+      when :used_correct_tool
+        warn "✅ Correct tool used. Proceeding."
+      when :read_sop
+        warn "✅ SOP acknowledged. You're following the process."
+      end
+    end
+
     # === INTELLIGENCE: Gaming Detection ===
     # Detect patterns suggesting attempts to game the enforcement system
 
@@ -407,26 +522,15 @@ module SaneToolsChecks
       # Log gaming attempts to patterns for future sessions
       log_gaming_attempt(warnings)
 
-      # Check if should block based on cumulative patterns
-      patterns = StateManager.get(:patterns)
-      gaming_count = patterns&.dig(:weak_spots, 'gaming') || 0
-
-      # Block on:
-      # 1. 3+ cumulative gaming warnings in session (pattern established), OR
-      # 2. 2+ patterns detected simultaneously (severe gaming attempt)
-      should_block = gaming_count >= 3 || warnings.length >= 2
-
-      if should_block
-        return "GAMING DETECTION BLOCKED\n" \
-               "Research gaming patterns detected (#{gaming_count} attempts).\n" \
-               "Patterns: #{warnings.join('; ')}\n" \
-               "This suggests automated or scripted research completion.\n" \
-               "Reset with: ./Scripts/SaneMaster.rb hooks reset"
-      end
-
-      # Under threshold - warn only (gives chance to correct behavior)
-      warnings.each { |w| warn "⚠️  GAMING WARNING: #{w}" }
-      nil
+      # VULN-037 FIX: Block on ANY gaming pattern detection
+      # Gaming = cheating. No warnings, no second chances.
+      # If research timestamps are identical or suspiciously fast, the research is fake.
+      return "GAMING DETECTION BLOCKED\n" \
+             "Research gaming patterns detected.\n" \
+             "Patterns: #{warnings.join('; ')}\n" \
+             "This suggests automated or scripted research completion.\n" \
+             "Genuine research takes time and produces varied timestamps.\n" \
+             "Reset research with: StateManager.reset(:research)"
     end
 
     def check_rapid_research(research_categories)

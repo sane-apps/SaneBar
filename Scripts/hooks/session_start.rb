@@ -92,22 +92,10 @@ end
 # Clear stale satisfaction from previous sessions
 # New session = fresh slate, must re-earn compliance
 def clear_stale_satisfaction
-  cleared = []
-
+  # Silently clear stale files - this is routine cleanup, not an error
   [SATISFACTION_FILE, RESEARCH_PROGRESS_FILE, REQUIREMENTS_FILE,
    EDIT_STATE_FILE, SUMMARY_VALIDATED_FILE].each do |file|
-    if File.exist?(file)
-      File.delete(file)
-      cleared << File.basename(file)
-    end
-  end
-
-  if cleared.any?
-    warn ''
-    warn '🧹 Cleared stale satisfaction from previous session'
-    warn "   Removed: #{cleared.join(', ')}"
-    warn '   Fresh session = fresh compliance requirements'
-    warn ''
+    File.delete(file) if File.exist?(file)
   end
 end
 
@@ -148,29 +136,14 @@ rescue StandardError => e
 end
 
 def output_session_context
-  project_name = File.basename(PROJECT_DIR)
+  # Only warn if there's an actual problem (no SOP)
   sop_file = find_sop_file
-
-  warn ''
-  warn "✅ #{project_name} session started"
-
-  if sop_file
-    warn "📋 SOP: #{sop_file}"
-  else
+  unless sop_file
     warn '⚠️  No SOP file found (DEVELOPMENT.md, CONTRIBUTING.md)'
   end
 
-  # Check for pattern rules
-  rules_dir = File.join(CLAUDE_DIR, 'rules')
-  if Dir.exist?(rules_dir)
-    rule_count = Dir.glob(File.join(rules_dir, '*.md')).count
-    warn "📁 Pattern rules: #{rule_count} loaded" if rule_count.positive?
-  end
-
-  # Check memory health (using cached data if available)
+  # Check memory health - only warns if bloat detected
   check_memory_health
-
-  warn ''
 end
 
 # Check for pending MCP actions that need resolution
@@ -219,10 +192,8 @@ TOKEN_WARN = 6000
 def check_memory_health
   memory_file = File.join(CLAUDE_DIR, 'memory.json')
 
-  unless File.exist?(memory_file)
-    warn '🧠 No cached memory - run mcp__memory__read_graph to load'
-    return
-  end
+  # Silent if no memory file - not an error condition
+  return unless File.exist?(memory_file)
 
   begin
     memory = JSON.parse(File.read(memory_file))
@@ -235,20 +206,16 @@ def check_memory_health
     # Check for verbose entities (>15 observations each)
     verbose = entities.count { |e| (e['observations'] || []).count > 15 }
 
+    # Only warn if bloat detected - routine status goes to JSON context
     if entity_count > ENTITY_WARN || est_tokens > TOKEN_WARN || verbose > 3
-      warn ''
       warn '⚠️  MEMORY BLOAT DETECTED'
       warn "   Entities: #{entity_count}/#{ENTITY_WARN} | Tokens: ~#{est_tokens}/#{TOKEN_WARN}"
       warn "   Verbose entities (>15 obs): #{verbose}" if verbose > 0
-      warn ''
       warn '   Run: ./Scripts/SaneMaster.rb mh        # Full health report'
       warn '   Run: ./Scripts/SaneMaster.rb mcompact  # Trim verbose entities'
-      warn ''
-    else
-      warn "🧠 Memory: #{entity_count} entities, ~#{est_tokens} tokens"
     end
-  rescue StandardError => e
-    warn "🧠 Memory cache unreadable: #{e.message}"
+  rescue StandardError
+    # Silent on parse errors - not critical
   end
 end
 
@@ -287,51 +254,109 @@ def show_mcp_verification_status
   # Check for any previous failures
   failures = mcps.select { |_, data| data.is_a?(Hash) && data[:failure_count].to_i > 0 }
 
-  warn ''
-  warn '🔌 MCP VERIFICATION REQUIRED'
-  warn ''
-  warn '   Before editing, verify all 4 MCPs are operational:'
-  warn ''
-
-  MCP_VERIFICATION_TOOLS.each do |mcp, tool|
-    data = mcps[mcp] || {}
-    status = if data[:last_failure] && !data[:last_success]
-               '❌ FAILED last session'
-             elsif data[:failure_count].to_i > 2
-               "⚠️  #{data[:failure_count]} failures"
-             else
-               '⬜ Not verified'
-             end
-    warn "   #{mcp}: #{status}"
-    warn "      → #{tool}"
-  end
-
-  warn ''
-  warn '   EDITS BLOCKED until all MCPs verified this session.'
-  warn '   Run each tool once to prove connectivity.'
-  warn ''
-
+  # Only warn if there were previous MCP failures - otherwise silent
+  # The enforcement still happens via PreToolUse hook, we just don't spam stderr
   if failures.any?
-    warn '   ⚠️  MCPs with previous failures:'
+    warn '⚠️  MCPs with previous failures (verify before editing):'
     failures.each do |mcp, data|
-      warn "      #{mcp}: #{data[:failure_count]} failures, last: #{data[:last_failure]}"
+      warn "   #{mcp}: #{data[:failure_count]} failures"
     end
-    warn ''
   end
+end
+
+# Debug logging for troubleshooting startup issues
+DEBUG_LOG = File.join(CLAUDE_DIR, 'session_start_debug.log')
+
+def log_debug(msg)
+  File.open(DEBUG_LOG, 'a') { |f| f.puts "[#{Time.now.iso8601}] #{msg}" }
+rescue StandardError
+  # Ignore logging errors
+end
+
+# Build context for Claude (injected via stdout JSON)
+def build_session_context
+  require_relative 'core/state_manager'
+
+  context_parts = []
+  project_name = File.basename(PROJECT_DIR)
+  sop_file = find_sop_file
+
+  context_parts << "# [SaneProcess] Session Started"
+  context_parts << "Project: #{project_name}"
+  context_parts << "SOP: #{sop_file}" if sop_file
+
+  # Pattern rules count
+  rules_dir = File.join(CLAUDE_DIR, 'rules')
+  if Dir.exist?(rules_dir)
+    rule_count = Dir.glob(File.join(rules_dir, '*.md')).count
+    context_parts << "Pattern rules: #{rule_count} loaded" if rule_count.positive?
+  end
+
+  # Memory status
+  memory_file = File.join(CLAUDE_DIR, 'memory.json')
+  if File.exist?(memory_file)
+    begin
+      memory = JSON.parse(File.read(memory_file))
+      entities = memory['entities'] || []
+      est_tokens = (File.size(memory_file) / 4.0).round
+      context_parts << "Memory: #{entities.count} entities (~#{est_tokens} tokens)"
+    rescue StandardError
+      # Ignore
+    end
+  end
+
+  # MCP verification reminder (enforcement happens in PreToolUse)
+  health = StateManager.get(:mcp_health) rescue {}
+  unless health.dig(:verified_this_session)
+    context_parts << ""
+    context_parts << "MCP verification: Required before editing"
+    context_parts << "Verify by calling: memory read_graph, apple-docs search, context7 resolve, github search"
+  end
+
+  context_parts.join("\n")
 end
 
 # Main execution
 begin
+  log_debug "Starting session_start hook"
   ensure_claude_dir
+  log_debug "ensure_claude_dir done"
   reset_session_state
+  log_debug "reset_session_state done"
   clear_stale_satisfaction
+  log_debug "clear_stale_satisfaction done"
   handle_stale_saneloop
+  log_debug "handle_stale_saneloop done"
   reset_mcp_verification      # Reset MCP verification for new session
-  output_session_context
+  log_debug "reset_mcp_verification done"
+  output_session_context      # User-facing messages to stderr
+  log_debug "output_session_context done"
   check_pending_mcp_actions   # Alert user to pending actions
+  log_debug "check_pending_mcp_actions done"
   show_mcp_verification_status # Show MCP status and prompt
+  log_debug "show_mcp_verification_status done"
+
+  # Output JSON to stdout for Claude Code to inject into context
+  # Must use hookSpecificOutput format for SessionStart hooks
+  result = {
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: build_session_context
+    }
+  }
+  puts JSON.generate(result)
+  log_debug "JSON output written - SUCCESS"
 rescue StandardError => e
+  log_debug "ERROR: #{e.class}: #{e.message}"
+  log_debug e.backtrace&.first(5)&.join("\n") || "No backtrace"
   warn "⚠️  Session start error: #{e.message}"
+  # Still output valid JSON even on error so Claude Code doesn't show "error"
+  puts JSON.generate({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: "Session start encountered an error: #{e.message}"
+    }
+  })
 end
 
 exit 0

@@ -190,7 +190,10 @@ def track_research(tool_name, tool_input)
   if research_done
     research = StateManager.get(:research)
     all_complete = RESEARCH_CATEGORIES.keys.all? { |cat| research[cat] }
-    SaneToolsChecks.reset_edit_attempts if all_complete
+    if all_complete
+      SaneToolsChecks.reset_edit_attempts
+      SaneToolsChecks.reward_correct_behavior(:research_done)
+    end
   end
 end
 
@@ -293,11 +296,18 @@ def detect_rule_from_reason(reason)
   end
 end
 
-def output_block(reason)
+def output_block(reason, tool_name = nil)
   warn '---'
   warn 'SANETOOLS BLOCKED'
   warn ''
   warn reason
+
+  # Check for refusal to read (repeated same block)
+  if tool_name && (escalation = SaneToolsChecks.check_refusal_to_read(tool_name, reason))
+    warn ''
+    warn escalation
+  end
+
   warn '---'
 end
 
@@ -317,7 +327,7 @@ def process_tool(tool_name, tool_input)
   # Always check blocked paths first (pass tool_name to allow reads of state files)
   if (reason = SaneToolsChecks.check_blocked_path(tool_input, tool_name, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
@@ -332,21 +342,21 @@ def process_tool(tool_name, tool_input)
   # Check circuit breaker
   if (reason = SaneToolsChecks.check_circuit_breaker)
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # PREFLIGHT: Check pending MCP actions (memory staging, etc.)
   if (reason = SaneToolsChecks.check_pending_mcp_actions(tool_name, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check research-only mode
   if (reason = SaneToolsChecks.check_research_only_mode(tool_name, EDIT_TOOLS, GLOBAL_MUTATION_PATTERN, EXTERNAL_MUTATION_PATTERN))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
@@ -360,63 +370,63 @@ def process_tool(tool_name, tool_input)
   # Check bash bypass
   if (reason = SaneToolsChecks.check_bash_bypass(tool_name, tool_input, BASH_FILE_WRITE_PATTERN))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check subagent bypass
   if (reason = SaneToolsChecks.check_subagent_bypass(tool_name, tool_input, EDIT_KEYWORDS, RESEARCH_CATEGORIES))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check research before edit
   if (reason = SaneToolsChecks.check_research_before_edit(tool_name, EDIT_TOOLS, RESEARCH_CATEGORIES))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check SaneLoop required for big tasks
   if (reason = SaneToolsChecks.check_saneloop_required(tool_name, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check file size (Rule #10)
   if (reason = SaneToolsChecks.check_file_size(tool_name, tool_input, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check table ban
   if (reason = SaneToolsChecks.check_table_ban(tool_name, tool_input, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check global mutations
   if (reason = SaneToolsChecks.check_global_mutations(tool_name, GLOBAL_MUTATION_PATTERN, RESEARCH_CATEGORIES))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check external mutations
   if (reason = SaneToolsChecks.check_external_mutations(tool_name, EXTERNAL_MUTATION_PATTERN, RESEARCH_CATEGORIES))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
   # Check requirements
   if (reason = SaneToolsChecks.check_requirements(tool_name, BOOTSTRAP_TOOL_PATTERN, EDIT_TOOLS, RESEARCH_CATEGORIES))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 
@@ -424,7 +434,7 @@ def process_tool(tool_name, tool_input)
   # 3 edit attempts without research = forced pause
   if (reason = SaneToolsChecks.check_edit_attempt_limit(tool_name, EDIT_TOOLS))
     log_action(tool_name, true, reason)
-    output_block(reason)
+    output_block(reason, tool_name)
     return 2
   end
 

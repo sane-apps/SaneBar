@@ -41,7 +41,7 @@ module SaneToolsTest
 
     original_stderr = $stderr.clone
     $stderr.reopen('/dev/null', 'w')
-    exit_code = process_tool_proc.call('Edit', { 'file_path' => '/tmp/test_project/test.swift' })
+    exit_code = process_tool_proc.call('Edit', { 'file_path' => '/Users/sj/SaneProcess/test.swift' })
     $stderr.reopen(original_stderr)
 
     if exit_code == 2
@@ -65,7 +65,7 @@ module SaneToolsTest
     original_stderr = $stderr.clone
     $stderr.reopen('/dev/null', 'w')
     # Use source file path (not /tmp/ which is in safe list)
-    exit_code = process_tool_proc.call('Bash', { 'command' => 'echo "test" > /tmp/test_project/src/file.swift' })
+    exit_code = process_tool_proc.call('Bash', { 'command' => 'echo "test" > ~/SaneProcess/src/file.swift' })
     $stderr.reopen(original_stderr)
 
     if exit_code == 2
@@ -87,10 +87,10 @@ module SaneToolsTest
       { tool: 'Write', input: { 'file_path' => '/var/log/test' }, expect_block: true, name: 'Block /var/' },
 
       # Edit without research (should block)
-      { tool: 'Edit', input: { 'file_path' => '/tmp/test_project/test.swift' }, expect_block: true, name: 'Block edit without research' },
+      { tool: 'Edit', input: { 'file_path' => '/Users/sj/SaneProcess/test.swift' }, expect_block: true, name: 'Block edit without research' },
 
       # Research tools (should allow and track)
-      { tool: 'Read', input: { 'file_path' => '/tmp/test_project/test.swift' }, expect_block: false, name: 'Allow Read (tracks local)' },
+      { tool: 'Read', input: { 'file_path' => '/Users/sj/SaneProcess/test.swift' }, expect_block: false, name: 'Allow Read (tracks local)' },
       { tool: 'Grep', input: { 'pattern' => 'test' }, expect_block: false, name: 'Allow Grep' },
       { tool: 'WebSearch', input: { 'query' => 'swift patterns' }, expect_block: false, name: 'Allow WebSearch (tracks web)' },
       { tool: 'mcp__memory__read_graph', input: {}, expect_block: false, name: 'Allow memory read (tracks memory)' },
@@ -136,7 +136,7 @@ module SaneToolsTest
     if tracked_count == 5
       original_stderr = $stderr.clone
       $stderr.reopen('/dev/null', 'w')
-      exit_code = process_tool_proc.call('Edit', { 'file_path' => '/tmp/test_project/test.swift' })
+      exit_code = process_tool_proc.call('Edit', { 'file_path' => '/Users/sj/SaneProcess/test.swift' })
       $stderr.reopen(original_stderr)
 
       if exit_code == 0
@@ -158,7 +158,7 @@ module SaneToolsTest
     script_path = File.expand_path('sanetools.rb', __dir__)
 
     # Test valid JSON with tool_name and tool_input
-    json_input = '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test_project/test.swift"}}'
+    json_input = '{"tool_name":"Read","tool_input":{"file_path":"/Users/sj/SaneProcess/test.swift"}}'
     _stdout, _stderr, status = Open3.capture3("ruby #{script_path}", stdin_data: json_input)
     if status.exitstatus == 0
       passed += 1

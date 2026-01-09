@@ -107,7 +107,11 @@ module StateManager
         context7: { verified: false, last_success: nil, last_failure: nil, failure_count: 0 },
         github: { verified: false, last_success: nil, last_failure: nil, failure_count: 0 }
       }
-    }
+    },
+    # === REFUSAL TO READ TRACKING ===
+    # Detects when AI is blocked repeatedly for same reason but keeps trying
+    # instead of reading the message and following instructions
+    refusal_tracking: {}
   }.freeze
 
   class << self

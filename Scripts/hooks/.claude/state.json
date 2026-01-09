@@ -1,0 +1,86 @@
+{
+  "circuit_breaker": {
+    "failures": 0,
+    "tripped": false,
+    "tripped_at": null,
+    "last_error": null,
+    "error_signatures": {}
+  },
+  "requirements": {
+    "requested": [],
+    "satisfied": [],
+    "is_task": false,
+    "is_big_task": false
+  },
+  "research": {
+    "memory": null,
+    "docs": null,
+    "web": null,
+    "github": null,
+    "local": null
+  },
+  "edits": {
+    "count": 0,
+    "unique_files": [],
+    "last_file": null
+  },
+  "saneloop": {
+    "active": false,
+    "task": null,
+    "iteration": 0,
+    "max_iterations": 20,
+    "acceptance_criteria": [],
+    "started_at": null
+  },
+  "enforcement": {
+    "blocks": [],
+    "halted": false,
+    "halted_at": null,
+    "halted_reason": null
+  },
+  "edit_attempts": {
+    "count": 0,
+    "last_attempt": null,
+    "reset_at": null
+  },
+  "action_log": [],
+  "learnings": [],
+  "patterns": {
+    "weak_spots": {},
+    "triggers": {},
+    "strengths": [],
+    "session_scores": []
+  },
+  "mcp_health": {
+    "verified_this_session": false,
+    "last_verified": null,
+    "mcps": {
+      "memory": {
+        "verified": false,
+        "last_success": null,
+        "last_failure": null,
+        "failure_count": 0
+      },
+      "apple_docs": {
+        "verified": false,
+        "last_success": null,
+        "last_failure": null,
+        "failure_count": 0
+      },
+      "context7": {
+        "verified": false,
+        "last_success": null,
+        "last_failure": null,
+        "failure_count": 0
+      },
+      "github": {
+        "verified": false,
+        "last_success": null,
+        "last_failure": null,
+        "failure_count": 0
+      }
+    }
+  },
+  "__ts__": "2026-01-07T22:18:34Z",
+  "__sig__": "e99379c5f6c39ce129ff56f9a43fb75a9dbd895c060c260d568f4b8bf853a6de"
+}

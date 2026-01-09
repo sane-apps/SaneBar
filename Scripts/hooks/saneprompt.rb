@@ -108,12 +108,14 @@ def handle_safemode_command(prompt)
     debug_log("RESET BREAKER: cmd='#{cmd}'") rescue nil
     debug_log("BEFORE RESET: #{StateManager.get(:circuit_breaker).inspect}") rescue nil
     StateManager.reset(:circuit_breaker)
+    log_reset('circuit_breaker', 'User reset circuit breaker')
     debug_log("AFTER RESET: #{StateManager.get(:circuit_breaker).inspect}") rescue nil
     warn ''
     warn 'CIRCUIT BREAKER RESET'
     warn '  Failures: 0'
     warn '  Tripped: false'
     warn '  Error signatures: cleared'
+    warn '  (logged to reset_audit.log)'
     warn ''
     true
   elsif cmd.start_with?('rb?') || cmd == 'breaker status'
@@ -129,9 +131,58 @@ def handle_safemode_command(prompt)
     end
     warn ''
     true
+  elsif cmd.start_with?('reset blocks') || cmd == 'unblock'
+    # Reset refusal-to-read tracking (allows retrying after reading the message)
+    StateManager.reset(:refusal_tracking)
+    log_reset('refusal_tracking', 'User reset block counters')
+    warn ''
+    warn 'BLOCK COUNTERS RESET'
+    warn '  All block type counters cleared.'
+    warn '  You may now retry - but READ the block messages this time.'
+    warn '  Next block of same type starts fresh at count=1.'
+    warn ''
+    true
+  elsif cmd.start_with?('reset research') || cmd == 'rr-'
+    # Reset research tracking (forces re-doing all 5 categories)
+    StateManager.reset(:research)
+    log_reset('research', 'User reset research requirements')
+    warn ''
+    warn 'RESEARCH RESET'
+    warn '  All 5 research categories cleared.'
+    warn '  Must complete: memory, docs, web, github, local'
+    warn '  This is NOT a bypass - you must actually do the research.'
+    warn ''
+    true
+  elsif cmd == 'reset?' || cmd == 'resets?'
+    # Show all available reset commands
+    warn ''
+    warn 'AVAILABLE RESET COMMANDS'
+    warn ''
+    warn '  rb-  / reset breaker   → Clear circuit breaker (after 3+ failures)'
+    warn '  reset blocks / unblock → Clear block counters (after repeated blocks)'
+    warn '  rr- / reset research   → Clear research (forces redo all 5 categories)'
+    warn ''
+    warn 'Resets are LOGGED and do NOT disable hooks.'
+    warn 'They allow retry - the hooks still enforce rules.'
+    warn ''
+    true
   else
     false
   end
+end
+
+# Log all resets for audit trail
+def log_reset(what, reason)
+  log_file = File.join(CLAUDE_DIR, 'reset_audit.log')
+  entry = {
+    timestamp: Time.now.iso8601,
+    reset_type: what,
+    reason: reason,
+    pid: Process.pid
+  }
+  File.open(log_file, 'a') { |f| f.puts(entry.to_json) }
+rescue StandardError
+  # Don't fail on logging errors
 end
 
 QUESTION_PATTERN = Regexp.union(
