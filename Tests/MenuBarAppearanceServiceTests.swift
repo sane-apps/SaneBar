@@ -76,33 +76,31 @@ struct MenuBarAppearanceServiceTests {
 
     @Test("Hex color parsing handles 6-digit format")
     func testHexColor6Digit() {
-        let color = Color(hex: "#FF5500")
-        // Color is created without crashing
+        _ = Color(hex: "#FF5500")  // Verify no crash
         #expect(true, "6-digit hex should parse")
     }
 
     @Test("Hex color parsing handles 3-digit format")
     func testHexColor3Digit() {
-        let color = Color(hex: "#F50")
+        _ = Color(hex: "#F50")  // Verify no crash
         #expect(true, "3-digit hex should parse")
     }
 
     @Test("Hex color parsing handles 8-digit ARGB format")
     func testHexColor8Digit() {
-        let color = Color(hex: "#80FF5500")
+        _ = Color(hex: "#80FF5500")  // Verify no crash
         #expect(true, "8-digit ARGB hex should parse")
     }
 
     @Test("Hex color parsing handles missing hash")
     func testHexColorNoHash() {
-        let color = Color(hex: "FF5500")
+        _ = Color(hex: "FF5500")  // Verify no crash
         #expect(true, "Hex without # should parse")
     }
 
     @Test("Invalid hex color defaults to black")
     func testHexColorInvalid() {
-        let color = Color(hex: "not-a-color")
-        // Should not crash, defaults to black
+        _ = Color(hex: "not-a-color")  // Should not crash, defaults to black
         #expect(true, "Invalid hex should not crash")
     }
 
@@ -172,7 +170,7 @@ struct MenuBarAppearanceServiceTests {
 
     @Test("MenuBarAppearanceService can be initialized")
     func testServiceInitialization() {
-        let service = MenuBarAppearanceService()
+        _ = MenuBarAppearanceService()  // Verify no crash
         #expect(true, "Service should initialize without crash")
     }
 

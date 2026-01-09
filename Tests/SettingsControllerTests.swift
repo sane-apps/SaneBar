@@ -29,11 +29,12 @@ struct SettingsControllerTests {
     @MainActor
     func testLoadRetrievesFromPersistence() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        var customSettings = SaneBarSettings()
-        customSettings.autoRehide = false
-        customSettings.rehideDelay = 5.0
-        customSettings.spacerCount = 2
-        
+        var customSettingsBuilder = SaneBarSettings()
+        customSettingsBuilder.autoRehide = false
+        customSettingsBuilder.rehideDelay = 5.0
+        customSettingsBuilder.spacerCount = 2
+        let customSettings = customSettingsBuilder  // Capture as let for closure
+
         // Setup mock to return custom settings for load
         mockPersistence.loadSettingsHandler = { return customSettings }
 
@@ -65,10 +66,13 @@ struct SettingsControllerTests {
     @MainActor
     func testSaveWritesToPersistence() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        // Capture saved settings
-        var capturedSettings: SaneBarSettings?
+        // Capture saved settings using a reference type for safe concurrent access
+        final class SettingsCapture: @unchecked Sendable {
+            var settings: SaneBarSettings?
+        }
+        let capture = SettingsCapture()
         mockPersistence.saveSettingsHandler = { settings in
-            capturedSettings = settings
+            capture.settings = settings
         }
         
         // Setup mock for load handler as it might be called during init or indirectly
@@ -80,8 +84,8 @@ struct SettingsControllerTests {
         
         try controller.save()
 
-        #expect(capturedSettings?.autoRehide == false)
-        #expect(capturedSettings?.spacerCount == 3)
+        #expect(capture.settings?.autoRehide == false)
+        #expect(capture.settings?.spacerCount == 3)
     }
 
     @Test("saveQuietly() does not throw on error")
@@ -106,12 +110,16 @@ struct SettingsControllerTests {
     @MainActor
     func testUpdateModifiesAndSaves() {
         let mockPersistence = PersistenceServiceProtocolMock()
-        var capturedSettings: SaneBarSettings?
+        // Capture saved settings using a reference type for safe concurrent access
+        final class SettingsCapture: @unchecked Sendable {
+            var settings: SaneBarSettings?
+        }
+        let capture = SettingsCapture()
         mockPersistence.saveSettingsHandler = { settings in
-            capturedSettings = settings
+            capture.settings = settings
         }
         mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
-        
+
         let controller = SettingsController(persistence: mockPersistence)
 
         controller.update { settings in
@@ -121,7 +129,7 @@ struct SettingsControllerTests {
 
         #expect(controller.settings.autoRehide == false)
         #expect(controller.settings.showOnLowBattery == true)
-        #expect(capturedSettings?.autoRehide == false, "Should have saved to persistence")
+        #expect(capture.settings?.autoRehide == false, "Should have saved to persistence")
     }
 
     // MARK: - Publisher Tests
@@ -191,9 +199,13 @@ struct SettingsControllerTests {
     @MainActor
     func testShowDockIconPersists() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        var capturedSettings: SaneBarSettings?
+        // Capture saved settings using a reference type for safe concurrent access
+        final class SettingsCapture: @unchecked Sendable {
+            var settings: SaneBarSettings?
+        }
+        let capture = SettingsCapture()
         mockPersistence.saveSettingsHandler = { settings in
-            capturedSettings = settings
+            capture.settings = settings
         }
         mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
 
@@ -201,16 +213,17 @@ struct SettingsControllerTests {
         controller.settings.showDockIcon = true
         try controller.save()
 
-        #expect(capturedSettings?.showDockIcon == true, "showDockIcon should be saved")
+        #expect(capture.settings?.showDockIcon == true, "showDockIcon should be saved")
     }
 
     @Test("showDockIcon setting loads correctly")
     @MainActor
     func testShowDockIconLoads() throws {
         let mockPersistence = PersistenceServiceProtocolMock()
-        var customSettings = SaneBarSettings()
-        customSettings.showDockIcon = true
-        
+        var customSettingsBuilder = SaneBarSettings()
+        customSettingsBuilder.showDockIcon = true
+        let customSettings = customSettingsBuilder  // Capture as let for closure
+
         mockPersistence.loadSettingsHandler = { return customSettings }
 
         let controller = SettingsController(persistence: mockPersistence)

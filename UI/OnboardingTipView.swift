@@ -9,6 +9,7 @@ struct OnboardingTipView: View {
     @State private var currentStep = 0
     @State private var hasAccessibility = false
     @State private var permissionRequested = false
+    @State private var permissionMonitorTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,7 +37,25 @@ struct OnboardingTipView: View {
         }
         .frame(width: 340)
         .onAppear {
-            hasAccessibility = AccessibilityService.shared.isTrusted
+            hasAccessibility = AccessibilityService.shared.isGranted
+            startPermissionMonitoring()
+        }
+        .onDisappear {
+            permissionMonitorTask?.cancel()
+        }
+    }
+
+    /// Monitor for permission changes in real-time
+    /// When user grants permission in System Settings, UI updates immediately
+    private func startPermissionMonitoring() {
+        permissionMonitorTask = Task { @MainActor in
+            for await granted in AccessibilityService.shared.permissionStream(includeInitial: false) {
+                hasAccessibility = granted
+                if granted {
+                    // Auto-advance or show success when permission granted
+                    permissionRequested = true
+                }
+            }
         }
     }
 

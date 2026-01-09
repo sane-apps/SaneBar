@@ -89,8 +89,8 @@ struct AppleScriptCommandsTests {
     func testMultipleInstantiation() {
         let toggle1 = ToggleCommand()
         let toggle2 = ToggleCommand()
-        let show1 = ShowCommand()
-        let hide1 = HideCommand()
+        _ = ShowCommand()  // Verify can instantiate
+        _ = HideCommand()  // Verify can instantiate
 
         #expect(toggle1 !== toggle2, "Each instantiation creates new object")
         #expect(true, "Multiple commands can coexist")
