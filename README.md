@@ -34,7 +34,8 @@ brew install --cask sanebar
 
 1. **Click** the SaneBar icon to show/hide your menu bar icons
 2. **⌘+drag** icons to choose which ones hide
-3. That's it!
+3. **Option-click** the SaneBar icon to open Power Search
+4. That's it!
 
 Icons to the **left** of SaneBar = can be hidden  
 Icons to the **right** of SaneBar = always visible
@@ -82,7 +83,7 @@ Works perfectly on Macs with Notch. **100% private** — no network requests, no
 
 ### 🔍 Find Hidden Icon
 Quickly find and activate any menu bar app without lifting your hands from the keyboard.
-1. Click SaneBar icon → **Find Icon…** (or set a hotkey in Settings → Shortcuts)
+1. **Option-click** the SaneBar icon, or use the menu **Find Icon…** (default hotkey: ⌘⇧Space)
 2. Type an app name and press **Return**
 3. SaneBar will reveal hidden icons and **virtually click** the app's menu bar item
 4. After 5 seconds, icons automatically hide again
@@ -202,7 +203,7 @@ SaneBar/
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
 │   └── SearchWindow/       # Find Hidden Icon UI
-├── Tests/                  # 163 unit tests with mocks
+├── Tests/                  # 165 unit tests with mocks
 ├── Scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```

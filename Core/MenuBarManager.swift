@@ -212,15 +212,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     @objc private func statusItemClicked(_ sender: Any?) {
         guard let event = NSApp.currentEvent else { return }
 
-        if event.type == .leftMouseUp {
-            if event.modifierFlags.contains(.option) {
-                // Option-click: open Power Search
-                logger.info("Option-click: opening Power Search")
-                SearchWindowController.shared.toggle()
-            } else {
-                toggleHiddenItems()
-            }
-        } else if event.type == .rightMouseUp {
+        switch StatusBarController.clickType(from: event) {
+        case .optionClick:
+            logger.info("Option-click: opening Power Search")
+            SearchWindowController.shared.toggle()
+        case .leftClick:
+            toggleHiddenItems()
+        case .rightClick:
             showStatusMenu()
         }
     }
@@ -311,7 +309,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Visibility Control
 
     enum RevealTrigger: String, Sendable {
-        case click
         case hotkey
         case search
         case automation

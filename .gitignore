@@ -115,3 +115,4 @@ reports/
 # Generated output
 Output/
 .claude/audit_log.jsonl
+.claude/learnings.jsonl
