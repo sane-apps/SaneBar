@@ -65,6 +65,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     private var cancellables = Set<AnyCancellable>()
     private var positionMonitorTask: Task<Void, Never>?
+    /// Counter for consecutive invalid position checks (debounce for drag operations)
+    private var invalidPositionCount = 0
+    /// Threshold before triggering warning (3 checks × 500ms = 1.5 seconds)
+    private let invalidPositionThreshold = 3
 
     // MARK: - Initialization
 
@@ -466,15 +470,32 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Check position and auto-expand if separator is eating the main icon
     private func checkPositionAndAutoExpand() {
         // Only check when hidden - that's when the 10,000px spacer can push the main icon off
-        guard hidingState == .hidden else { return }
+        guard self.hidingState == .hidden else {
+            self.invalidPositionCount = 0  // Reset when not hidden
+            return
+        }
 
-        // If position is invalid, auto-expand immediately to rescue the main icon
-        if !validateSeparatorPosition() {
-            logger.warning("⚠️ POSITION EMERGENCY: Separator is eating main icon! Auto-expanding...")
-            Task {
-                await hidingService.show()
+        // If position is invalid, increment counter (debounce for drag operations)
+        if !self.validateSeparatorPosition() {
+            self.invalidPositionCount += 1
+
+            // Only trigger after sustained invalid position (allows drag-through)
+            if self.invalidPositionCount >= self.invalidPositionThreshold {
+                logger.warning("⚠️ POSITION EMERGENCY: Separator in invalid position for \(self.invalidPositionCount) checks. Auto-expanding...")
+                Task {
+                    await self.hidingService.show()
+                }
+                self.showPositionWarning()
+                self.invalidPositionCount = 0  // Reset after triggering
+            } else {
+                logger.debug("Position invalid, count: \(self.invalidPositionCount)/\(self.invalidPositionThreshold)")
             }
-            showPositionWarning()
+        } else {
+            // Position is valid - reset counter
+            if self.invalidPositionCount > 0 {
+                logger.debug("Position valid again, resetting counter from \(self.invalidPositionCount)")
+            }
+            self.invalidPositionCount = 0
         }
     }
 
