@@ -223,9 +223,9 @@ module SaneMasterModules
 
     def grant_test_permissions
       print '🔐 Granting test permissions... '
-      system('tccutil reset Camera com.sanevideo.SaneBar 2>/dev/null')
-      system('tccutil reset Microphone com.sanevideo.SaneBar 2>/dev/null')
-      system('tccutil reset ScreenRecording com.sanevideo.SaneBar 2>/dev/null')
+      system('tccutil reset Camera com.sanebar.app 2>/dev/null')
+      system('tccutil reset Microphone com.sanebar.app 2>/dev/null')
+      system('tccutil reset ScreenRecording com.sanebar.app 2>/dev/null')
 
       permission_pid = nil
       script_path = File.join(__dir__, '..', 'grant_permissions.applescript')

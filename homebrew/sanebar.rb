@@ -1,6 +1,6 @@
 cask "sanebar" do
   version "1.0.0"
-  sha256 "b1a6b36d26ee8b4e45cab2f883161dce3f1605d9d4d12f1ca111fb85ab1150df"
+  sha256 "23c43ee078654e5cf2a72f1d040c1d85f2ea5c320764ae0094fd84cc8f3e2e7a"
 
   url "https://github.com/stephanjoseph/SaneBar/releases/download/v#{version}/SaneBar-#{version}.dmg"
   name "SaneBar"
@@ -12,7 +12,7 @@ cask "sanebar" do
   app "SaneBar.app"
 
   zap trash: [
-    "~/Library/Preferences/com.sanevideo.SaneBar.plist",
+    "~/Library/Preferences/com.sanebar.app.plist",
     "~/Library/Application Support/SaneBar",
   ]
 end
