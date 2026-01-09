@@ -95,6 +95,7 @@ TestReports/
 
 # Code coverage reports
 fastlane/coverage/
+fastlane/keys/
 *.gcda
 *.gcno
 Media/

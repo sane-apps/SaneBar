@@ -1,6 +1,6 @@
 name: SaneBar
 options:
-  bundleIdPrefix: com.sanevideo
+  bundleIdPrefix: com.sanebar
   deploymentTarget:
     macOS: 15.0
   xcodeVersion: 16.0
@@ -10,8 +10,8 @@ packages:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0
   LaunchAtLogin:
-    url: https://github.com/sindresorhus/LaunchAtLogin
-    from: 5.0.0
+    url: https://github.com/sindresorhus/LaunchAtLogin-Modern
+    from: 1.0.0
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -67,7 +67,7 @@ targets:
   SaneBar:
     type: application
     platform: macOS
-    bundleId: com.sanevideo.SaneBar
+    bundleId: com.sanebar.app
     deploymentTarget:
       macOS: 15.0
     sources:
@@ -86,7 +86,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: SaneBar
-        PRODUCT_BUNDLE_IDENTIFIER: com.sanevideo.SaneBar
+        PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -117,7 +117,7 @@ targets:
   SaneBarTests:
     type: bundle.unit-test
     platform: macOS
-    bundleId: com.sanevideo.SaneBarTests
+    bundleId: com.sanebar.SaneBarTests
     deploymentTarget:
       macOS: 15.0
     sources:

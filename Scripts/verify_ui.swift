@@ -41,7 +41,7 @@ print("🔨 --- [ MANUAL UI VERIFICATION ] ---")
 
 // 1. Verify Process
 print("📦 Checking if SaneBar is running...")
-let apps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.sanevideo.SaneBar")
+let apps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.sanebar.app")
 guard let app = apps.first else {
     print("❌ SaneBar is not running. Please run './Scripts/SaneMaster.rb launch' first.")
     exit(1)

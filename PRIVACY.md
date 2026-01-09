@@ -82,13 +82,13 @@ All SaneBar data is stored locally:
 
 | Data | Location |
 |------|----------|
-| Settings | `~/Library/Preferences/com.sanevideo.SaneBar.plist` |
+| Settings | `~/Library/Preferences/com.sanebar.app.plist` |
 | Profiles | Same plist file |
 | Shortcuts | Managed by KeyboardShortcuts package |
 
 **To completely remove SaneBar data:**
 ```bash
-rm ~/Library/Preferences/com.sanevideo.SaneBar.plist
+rm ~/Library/Preferences/com.sanebar.app.plist
 rm -rf ~/Library/Application\ Support/SaneBar
 ```
 
