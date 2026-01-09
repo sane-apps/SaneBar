@@ -1,6 +1,6 @@
 cask "sanebar" do
-  version "1.0.0"
-  sha256 "23c43ee078654e5cf2a72f1d040c1d85f2ea5c320764ae0094fd84cc8f3e2e7a"
+  version "1.0.1"
+  sha256 "c0b826de8cb94fe0f55c4ba6519798111dd1d31fe7d297162ad3fdf8b6e08fa0"
 
   url "https://github.com/stephanjoseph/SaneBar/releases/download/v#{version}/SaneBar-#{version}.dmg"
   name "SaneBar"
