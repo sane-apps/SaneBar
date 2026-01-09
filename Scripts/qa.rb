@@ -74,7 +74,6 @@ class SaneProcessQA
     diagnostics.rb
     export.rb
     generation.rb
-    generation_assets.rb
     generation_mocks.rb
     generation_templates.rb
     md_export.rb

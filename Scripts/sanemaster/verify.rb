@@ -386,16 +386,12 @@ module SaneMasterModules
     def check_test_assets
       puts "\n📦 Test Assets:"
       assets_dir = 'Tests/Assets'
-      test_asset_name = ENV['TEST_ASSET_NAME'] || 'test_video.mp4'
-      test_video = File.join(assets_dir, test_asset_name)
 
-      if File.exist?(test_video)
-        size = File.size(test_video) / 1024 / 1024.0
-        size_str = size >= 1 ? "#{size.round(1)}MB" : "#{(size * 1024).round}KB"
-        puts "  ✅ #{test_asset_name} exists (#{size_str})"
+      if Dir.exist?(assets_dir)
+        file_count = Dir.glob("#{assets_dir}/*").count
+        puts "  ✅ Assets directory exists (#{file_count} files)"
       else
-        puts "  ⚠️  #{test_asset_name} missing"
-        puts '     Run: ./Scripts/SaneMaster.rb gen_assets'
+        puts '  ℹ️  No test assets directory (optional for SaneBar)'
       end
     end
 

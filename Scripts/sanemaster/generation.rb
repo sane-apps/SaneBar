@@ -1,16 +1,14 @@
 # frozen_string_literal: true
 
 require_relative 'generation_templates'
-require_relative 'generation_assets'
 require_relative 'generation_mocks'
 
 module SaneMasterModules
   # Code generation: tests, XcodeGen checks, API verification, documentation sync
-  # Template, asset, and mock generation moved to dedicated modules
+  # Template and mock generation moved to dedicated modules
   module Generation
     include Base
     include GenerationTemplates
-    include GenerationAssets
     include GenerationMocks
 
     def generate_test_file(args)

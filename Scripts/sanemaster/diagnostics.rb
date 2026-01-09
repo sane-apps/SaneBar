@@ -285,7 +285,7 @@ module SaneMasterModules
       app_frames = crash_data.map { |c| c[:app_frame] }.compact
       return unless app_frames.any?
 
-      puts '📱 SANEVIDEO CODE FRAMES'
+      puts '📱 SANEBAR CODE FRAMES'
       puts '─' * 50
       frame_counts = app_frames.group_by(&:itself).transform_values(&:count)
       frame_counts.sort_by { |_, count| -count }.first(10).each do |frame, count|

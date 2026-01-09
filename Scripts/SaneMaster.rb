@@ -63,11 +63,10 @@ class SaneMaster
       }
     },
     gen: {
-      desc: 'Generate code, mocks, and assets',
+      desc: 'Generate code and mocks',
       commands: {
         'gen_test' => { args: '[options]', desc: 'Generate test file from template' },
         'gen_mock' => { args: '', desc: 'Generate mocks using Mockolo' },
-        'gen_assets' => { args: '', desc: 'Generate test video assets' },
         'template' => { args: '[save|apply|list] [name]', desc: 'Manage configuration templates' }
       }
     },
@@ -216,8 +215,6 @@ class SaneMaster
       check_permission_status
 
     # Generation & Verification
-    when 'gen_assets'
-      generate_test_assets
     when 'gen_test'
       generate_test_file(args)
     when 'gen_mock'
