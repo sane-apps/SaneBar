@@ -48,8 +48,8 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Icon Names
 
-    nonisolated static let iconExpanded = "line.3.horizontal.decrease.circle.fill"
-    nonisolated static let iconHidden = "line.3.horizontal.decrease.circle"
+    nonisolated static let iconExpanded = "line.3.horizontal.decrease"
+    nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let separatorIcon = "line.diagonal"
     nonisolated static let spacerIcon = "minus"
 
