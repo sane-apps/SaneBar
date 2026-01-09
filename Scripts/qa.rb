@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 #
-# SaneProcess QA Script
+# Project QA Script
 # Automated product verification before release
 #
 # Usage: ruby scripts/qa.rb
@@ -11,7 +11,7 @@
 # - All hooks exist and have valid Ruby syntax
 # - init.sh downloads all hooks
 # - README matches actual hook count
-# - docs/SaneProcess.md matches rule count
+# - docs/SOP.md matches rule count
 # - All URLs in docs are reachable
 # - All hooks use stdin pattern (not ENV vars)
 # - SaneMaster CLI and modules have valid syntax
@@ -22,11 +22,16 @@ require 'net/http'
 require 'uri'
 require 'json'
 
-class SaneProcessQA
+class ProjectQA
+  # Auto-detect project name from directory
+  PROJECT_ROOT = File.expand_path('..', __dir__)
+  PROJECT_NAME = File.basename(PROJECT_ROOT)
+
   HOOKS_DIR = File.join(__dir__, 'hooks')
   INIT_SCRIPT = File.join(__dir__, 'init.sh')
   README = File.join(__dir__, '..', 'README.md')
-  SOP_DOC = File.join(__dir__, '..', 'docs', 'SaneProcess.md')
+  # Try project-specific SOP doc, fallback to generic
+  SOP_DOC = Dir.glob(File.join(__dir__, '..', 'docs', '*.md')).first || File.join(__dir__, '..', 'docs', 'SOP.md')
   HOOKS_README = File.join(__dir__, 'hooks', 'README.md')
   SETTINGS_JSON = File.join(__dir__, '..', '.claude', 'settings.json')
 
@@ -93,7 +98,7 @@ class SaneProcessQA
 
   def run
     puts "═══════════════════════════════════════════════════════════════"
-    puts "                  SaneProcess QA Check"
+    puts "                  #{PROJECT_NAME} QA Check"
     puts "═══════════════════════════════════════════════════════════════"
     puts
 
@@ -352,10 +357,11 @@ class SaneProcessQA
   end
 
   def check_sop_doc_rule_count
-    print "Checking docs/SaneProcess.md rule count... "
+    sop_basename = File.basename(SOP_DOC)
+    print "Checking docs/#{sop_basename} rule count... "
 
     unless File.exist?(SOP_DOC)
-      @warnings << "docs/SaneProcess.md not found"
+      @warnings << "docs/#{sop_basename} not found"
       puts "⚠️  Not found"
       return
     end
@@ -366,7 +372,7 @@ class SaneProcessQA
     rule_counts = content.scan(/(\d+)\s+Golden Rules?/i).flatten.map(&:to_i)
 
     if rule_counts.empty?
-      @warnings << "docs/SaneProcess.md: No rule count found"
+      @warnings << "docs/#{sop_basename}: No rule count found"
       puts "⚠️  No count found"
       return
     end
@@ -375,7 +381,7 @@ class SaneProcessQA
     if wrong_counts.empty?
       puts "✅ Rule count correct (#{EXPECTED_RULE_COUNT})"
     else
-      @errors << "SaneProcess.md says #{wrong_counts.first} rules, should be #{EXPECTED_RULE_COUNT}"
+      @errors << "#{sop_basename} says #{wrong_counts.first} rules, should be #{EXPECTED_RULE_COUNT}"
       puts "❌ Says #{wrong_counts.first}, should be #{EXPECTED_RULE_COUNT}"
     end
   end
@@ -412,16 +418,16 @@ class SaneProcessQA
     # Check README.md
     if File.exist?(README)
       content = File.read(README)
-      if (match = content.match(/SaneProcess v(\d+\.\d+)/i))
+      if (match = content.match(/#{PROJECT_NAME} v(\d+\.\d+)/i))
         versions['README.md'] = match[1]
       end
     end
 
-    # Check docs/SaneProcess.md
+    # Check SOP doc
     if File.exist?(SOP_DOC)
       content = File.read(SOP_DOC)
-      if (match = content.match(/SaneProcess v(\d+\.\d+)/i))
-        versions['SaneProcess.md'] = match[1]
+      if (match = content.match(/#{PROJECT_NAME} v(\d+\.\d+)/i))
+        versions[File.basename(SOP_DOC)] = match[1]
       end
     end
 
@@ -530,4 +536,4 @@ class SaneProcessQA
 end
 
 # Run if executed directly
-SaneProcessQA.new.run if __FILE__ == $PROGRAM_NAME
+ProjectQA.new.run if __FILE__ == $PROGRAM_NAME

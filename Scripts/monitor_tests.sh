@@ -1,7 +1,7 @@
 #!/bin/bash
 # Monitor test execution with live logs and timeout detection
 
-SCHEME="${1:-SaneVideo}"
+SCHEME="${1:-SaneBar}"
 TEST_NAME="${2:-}"
 TIMEOUT="${3:-300}" # 5 minutes default
 

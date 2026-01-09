@@ -30,6 +30,7 @@ require_relative 'phase_manager'
 include ShortcutDetectors
 
 PROJECT_DIR = ENV['CLAUDE_PROJECT_DIR'] || Dir.pwd
+PROJECT_NAME = File.basename(PROJECT_DIR)
 REQUIREMENTS_FILE = File.join(PROJECT_DIR, '.claude/prompt_requirements.json')
 SANELOOP_STATE_FILE = File.join(PROJECT_DIR, '.claude/saneloop-state.json')
 SATISFACTION_FILE = File.join(PROJECT_DIR, '.claude/process_satisfaction.json')
@@ -81,7 +82,7 @@ RESEARCH_CATEGORIES = {
     name: 'External GitHub',
     patterns: [/\bgithub\b/i, /\bexternal.?repo/i, /\bopen.?source\b/i, /\bmcp__github\b/i],
     desc: 'Learn from community projects (NOT our repo) via Task agent',
-    exclude_patterns: [/stephanjoseph/i, /saneprocess/i] # Our repo doesn't count!
+    exclude_patterns: [/stephanjoseph/i, Regexp.new(PROJECT_NAME, Regexp::IGNORECASE)] # Our repo doesn't count!
   }
 }.freeze
 
@@ -837,7 +838,7 @@ if blocks.any?
     warn '   Hooks blocked 5x consecutively - likely a hook bug, not Claude.'
     warn '   Options:'
     warn '   1. "bypass on" - disable all enforcement'
-    warn '   2. Fix hooks in ~/SaneProcess/scripts/hooks/'
+    warn '   2. Fix hooks in #{PROJECT_DIR}/scripts/hooks/'
     warn '   3. "reset enforcement breaker" - try enforcement again'
     warn ''
     warn "   Would have blocked: #{block_signature}"
@@ -856,7 +857,7 @@ if blocks.any?
     warn ''
     warn '   ENFORCEMENT IS NOW HALTED until you:'
     warn '   1. "bypass on" - disable all enforcement'
-    warn '   2. Fix hooks in ~/SaneProcess/scripts/hooks/'
+    warn '   2. Fix hooks in #{PROJECT_DIR}/scripts/hooks/'
     warn '   3. "reset enforcement breaker" - try enforcement again'
     warn ''
     warn '   Allowing this tool call to proceed...'

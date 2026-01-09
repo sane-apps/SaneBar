@@ -2,7 +2,7 @@ use framework "Foundation"
 use scripting additions
 
 on run argv
-    set appName to "SaneVideo"
+    set appName to "SaneBar"
     if (count of argv) > 0 then
         set appName to item 1 of argv
     end if

@@ -27,28 +27,28 @@ while i < len(lines):
     line = lines[i]
     
     # Re-enable in build section
-    if '# SaneVideoTests: [test]' in line:
-        output.append('        SaneVideoTests: [test]\n')
+    if '# SaneBarTests: [test]' in line:
+        output.append('        SaneBarTests: [test]\n')
         i += 1
         continue
-    
+
     # Re-enable in test section
     if 'test:' in line and i + 1 < len(lines):
         output.append(line)
         i += 1
         # Skip comment lines and empty targets
-        while i < len(lines) and ('# Temporarily' in lines[i] or 
-                                   '# This is a known' in lines[i] or 
+        while i < len(lines) and ('# Temporarily' in lines[i] or
+                                   '# This is a known' in lines[i] or
                                    '# Re-enable' in lines[i] or
                                    'targets: []' in lines[i] or
                                    '# targets:' in lines[i]):
             i += 1
         # Add actual targets
         output.append('      targets:\n')
-        output.append('        - SaneVideoTests\n')
-        output.append('        - SaneVideoUITests\n')
+        output.append('        - SaneBarTests\n')
+        output.append('        - SaneBarUITests\n')
         # Skip remaining commented target lines
-        while i < len(lines) and ('#   - SaneVideo' in lines[i] or lines[i].strip() == ''):
+        while i < len(lines) and ('#   - SaneBar' in lines[i] or lines[i].strip() == ''):
             i += 1
         continue
     
