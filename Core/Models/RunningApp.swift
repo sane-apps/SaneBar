@@ -3,7 +3,8 @@ import AppKit
 // MARK: - RunningApp Model
 
 /// Represents a running app that might have a menu bar icon
-struct RunningApp: Identifiable, Hashable, Sendable {
+/// Note: @unchecked Sendable because NSImage is thread-safe but not marked Sendable
+struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     enum Policy: String, Codable, Sendable {
         case regular
         case accessory
@@ -13,11 +14,6 @@ struct RunningApp: Identifiable, Hashable, Sendable {
 
     let id: String  // bundleIdentifier
     let name: String
-    // NSImage is not Sendable, but we only use it for UI.
-    // For strict concurrency, we might wrap it or use @MainActor.
-    // Since this is a simple value type for UI, we'll mark it unchecked Sendable for now
-    // or better, exclude image from Sendable requirement if possible.
-    // However, NSImage IS thread-safe generally.
     let icon: NSImage?
     let policy: Policy
 
