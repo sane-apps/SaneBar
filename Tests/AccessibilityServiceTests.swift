@@ -48,9 +48,9 @@ struct AccessibilityServiceTests {
 
     // MARK: - Integration Tests (require accessibility permission)
 
-    @Test("Full virtual click flow for System Preferences")
+    @Test("Virtual click returns boolean for any bundle ID")
     @MainActor
-    func testVirtualClickSystemPreferences() async {
+    func testVirtualClickReturnsBool() async {
         let service = AccessibilityService.shared
 
         // Skip if no accessibility permission
@@ -59,13 +59,12 @@ struct AccessibilityServiceTests {
             return
         }
 
-        // Control Center usually has a status item
-        // This is a real integration test
-        let result = service.clickMenuBarItem(for: "com.apple.controlcenter")
+        // Use a non-existent bundle ID to avoid clicking real system UI
+        // (Previously clicked Control Center which toggled AirDrop!)
+        let result = service.clickMenuBarItem(for: "com.test.nonexistent.app")
 
-        // We can't guarantee it works (depends on system state)
-        // but we verify it doesn't crash and returns a boolean
-        #expect(result == true || result == false)
+        // Should return false for non-existent app, but main point is no crash
+        #expect(result == false)
     }
 
     // MARK: - Permission Flow Regression Tests
