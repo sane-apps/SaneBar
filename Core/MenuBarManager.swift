@@ -213,7 +213,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         guard let event = NSApp.currentEvent else { return }
 
         if event.type == .leftMouseUp {
-            toggleHiddenItems()
+            if event.modifierFlags.contains(.option) {
+                // Option-click: open Power Search
+                logger.info("Option-click: opening Power Search")
+                SearchWindowController.shared.toggle()
+            } else {
+                toggleHiddenItems()
+            }
         } else if event.type == .rightMouseUp {
             showStatusMenu()
         }

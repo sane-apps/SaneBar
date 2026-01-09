@@ -5,7 +5,7 @@ struct ShortcutsSettingsView: View {
     var body: some View {
         Form {
             Section {
-                KeyboardShortcuts.Recorder("Search apps", name: .searchMenuBar)
+                KeyboardShortcuts.Recorder("Find any icon", name: .searchMenuBar)
                 KeyboardShortcuts.Recorder("Show/hide icons", name: .toggleHiddenItems)
                 KeyboardShortcuts.Recorder("Show icons", name: .showHiddenItems)
                 KeyboardShortcuts.Recorder("Hide icons", name: .hideItems)
@@ -13,7 +13,7 @@ struct ShortcutsSettingsView: View {
             } header: {
                 Text("Keyboard Shortcuts")
             } footer: {
-                Text("Search is the fastest way to find any menu bar app.")
+                Text("Find any icon works for hidden icons AND icons behind the notch. Or Option-click the SaneBar icon.")
             }
 
             Section {
