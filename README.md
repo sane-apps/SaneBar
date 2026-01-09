@@ -3,21 +3,24 @@
 [![License: MIT](https://img.shields.io/github/license/stephanjoseph/SaneBar)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/stephanjoseph/SaneBar)](https://github.com/stephanjoseph/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/stephanjoseph/SaneBar/releases)
+[![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-**The free, private menu bar manager for Mac.**
+**The privacy-first menu bar manager for macOS.** Native, lightweight, and scriptable.
 
-Hide clutter. Find apps instantly. Works perfectly with the Notch.
+Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
+
+![SaneBar Find Hidden Icon](marketing/find-icon-search.png)
 
 | Before | After |
 |--------|-------|
-| ![Cluttered menu bar](assets/screenshot-1.png) | ![Clean menu bar](assets/screenshot-2.png) |
+| ![Cluttered menu bar](marketing/menubar-before.png) | ![Clean menu bar](marketing/menubar-after.png) |
 
 ---
 
 ## Download
 
-**[Download SaneBar v1.0.0](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.0/SaneBar-1.0.0.dmg)** (macOS 15 Sequoia or later)
+**[Download SaneBar v1.0.1](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.1/SaneBar-1.0.1.dmg)** (macOS 15 Sequoia or later)
 
 Or via Homebrew:
 ```bash
@@ -40,30 +43,38 @@ Icons to the **right** of SaneBar = always visible
 
 ## Features
 
+### Privacy First
+- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID** or password. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
+- **100% On-Device** — No analytics. No telemetry. No network requests. Everything stays on your Mac.
+
+![Privacy Settings](marketing/privacy-touchid-settings.png)
+
+### Power Search
+- **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
+- **Virtual Click** — Activate menu bar items without seeing them
+- **Per-Icon Hotkeys** — Global shortcuts for your most-used menu bar apps
+
+### Automation Ready
+- **AppleScript Support** — Full scripting integration for Shortcuts and automation workflows
+- **Smart Triggers** — Auto-show on WiFi network, app launch, or low battery
+- **Profiles** — Save different setups for work, home, or presentations
+
+![Shortcuts and Automation](marketing/shortcuts-automation.png)
+
 ### Core
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\\)
 - **⌘+drag to organize** — Choose which icons hide and which stay visible
 - **Auto-hide** — Icons disappear after a configurable delay
 
-### Unique to SaneBar
-- **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
-- **Virtual Click** — Activate menu bar items without seeing them
-- **Per-Icon Hotkeys** — Global shortcuts for your most-used menu bar apps
-
 ### Gestures
 - **Hover to reveal** — Move your cursor to the top of the screen to show hidden icons
 - **Scroll to reveal** — Two-finger scroll up in the menu bar area
 
-### Automation
-- **Smart Triggers** — Auto-show on WiFi network, app launch, or low battery
-- **Profiles** — Save different setups for work, home, or presentations
-
 ### Customization
 - **Liquid Glass** — Beautiful translucent styling on macOS 26 Tahoe
 - **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
-- **Always-visible list** — Pin specific apps to never be hidden *(coming soon)*
 
-Works perfectly on MacBook Pro with Notch. **100% private** — no network requests, no analytics, no account.
+Works perfectly on Macs with Notch. **100% private** — no network requests, no analytics, no account.
 
 ---
 
@@ -139,7 +150,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 **Your data stays on your Mac.** SaneBar makes zero network requests. No analytics. No telemetry. No account.
 
-![100% On-Device](assets/settings-about.png)
+![100% On-Device](marketing/about-screen.png)
 
 [Full privacy details](PRIVACY.md)
 
