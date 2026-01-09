@@ -11,6 +11,7 @@ struct MenuBarSearchView: View {
     @State private var menuBarApps: [RunningApp] = []
     @State private var isLoading = true
     @State private var hasAccessibility = false
+    @State private var permissionMonitorTask: Task<Void, Never>?
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
@@ -98,6 +99,24 @@ struct MenuBarSearchView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             loadApps()
+            startPermissionMonitoring()
+        }
+        .onDisappear {
+            permissionMonitorTask?.cancel()
+        }
+    }
+
+    /// Monitor for permission changes - auto-reload when user grants permission
+    private func startPermissionMonitoring() {
+        permissionMonitorTask = Task { @MainActor in
+            for await granted in AccessibilityService.shared.permissionStream(includeInitial: false) {
+                if granted && !hasAccessibility {
+                    // Permission was just granted - reload the app list
+                    hasAccessibility = true
+                    isLoading = true
+                    loadApps()
+                }
+            }
         }
     }
 

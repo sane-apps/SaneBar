@@ -21,8 +21,8 @@ struct SearchWindowTests {
             ]
         }
 
-        let view = MenuBarSearchView(service: mockService, onDismiss: {})
-        
+        _ = MenuBarSearchView(service: mockService, onDismiss: {})  // Verify it can be created
+
         // Verify service interaction
         let apps = await mockService.getRunningApps()
         #expect(apps.count == 3)
