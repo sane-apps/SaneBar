@@ -31,16 +31,6 @@ struct StatusBarControllerTests {
         #expect(!iconName.contains("fill"), "Hidden state should use outline icon")
     }
 
-    @Test("iconName returns filled icon for alwaysHiddenShown state")
-    @MainActor
-    func testIconNameAlwaysHiddenShown() {
-        let controller = StatusBarController()
-
-        let iconName = controller.iconName(for: .alwaysHiddenShown)
-
-        #expect(iconName == StatusBarController.iconExpanded)
-    }
-
     // MARK: - Static Constants Tests
 
     @Test("Autosave names are defined")
@@ -235,7 +225,6 @@ struct StatusBarControllerTests {
         // Protocol requires these
         _ = controller.mainItem
         _ = controller.separatorItem
-        _ = controller.alwaysHiddenDelimiter
         _ = controller.iconName(for: .hidden)
 
         #expect(true, "Should conform to protocol")
@@ -251,6 +240,5 @@ struct StatusBarControllerTests {
         // Items should be nil until createStatusItems is called
         #expect(controller.mainItem == nil)
         #expect(controller.separatorItem == nil)
-        #expect(controller.alwaysHiddenDelimiter == nil)
     }
 }

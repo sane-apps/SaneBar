@@ -7,9 +7,8 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "HidingServi
 // MARK: - HidingState
 
 enum HidingState: String, Codable, Sendable {
-    case hidden              // All hidden items are collapsed (pushed off screen)
-    case expanded            // Regular hidden items visible, always-hidden still hidden
-    case alwaysHiddenShown   // Everything visible including always-hidden section (Option+click)
+    case hidden              // Hidden items are collapsed (pushed off screen)
+    case expanded            // Hidden items are visible
 }
 
 // MARK: - HidingServiceProtocol
@@ -20,12 +19,10 @@ protocol HidingServiceProtocol {
     var state: HidingState { get }
     var isAnimating: Bool { get }
 
-    func configure(delimiterItem: NSStatusItem, alwaysHiddenDelimiter: NSStatusItem?)
-    func toggle(withModifier: Bool) async
+    func configure(delimiterItem: NSStatusItem)
+    func toggle() async
     func show() async
     func hide() async
-    func showAlwaysHidden() async
-    func hideAlwaysHidden() async
 }
 
 // MARK: - StatusItem Length Constants
@@ -55,65 +52,50 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     // MARK: - Published State
 
-    /// Start hidden (collapsed) - users expect menu bar hiders to start collapsed
-    @Published private(set) var state: HidingState = .hidden
+    /// Start expanded for safe position validation - MenuBarManager will hide after validation passes
+    @Published private(set) var state: HidingState = .expanded
     @Published private(set) var isAnimating = false
 
     // MARK: - Configuration
 
-    /// The delimiter status item whose length we toggle (regular hidden section)
+    /// The delimiter status item whose length we toggle
     private weak var delimiterItem: NSStatusItem?
-
-    /// The always-hidden delimiter (Option+click to reveal)
-    private weak var alwaysHiddenDelimiter: NSStatusItem?
 
     // MARK: - Initialization
 
     init() {
-        // Simple init - configure with delimiterItems later
+        // Simple init - configure with delimiterItem later
     }
 
     // MARK: - Configuration
 
-    /// Set the delimiter status items that control hiding
-    func configure(delimiterItem: NSStatusItem, alwaysHiddenDelimiter: NSStatusItem? = nil) {
+    /// Set the delimiter status item that controls hiding
+    func configure(delimiterItem: NSStatusItem) {
         self.delimiterItem = delimiterItem
-        self.alwaysHiddenDelimiter = alwaysHiddenDelimiter
 
-        // Initialize lengths - start COLLAPSED (hidden items pushed off screen)
-        // This matches user expectation: menu bar hiders start with items hidden
-        delimiterItem.length = StatusItemLength.collapsed
-        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
-        state = .hidden
+        // IMPORTANT: Start EXPANDED (not collapsed) so we can validate positions first
+        // MenuBarManager.validatePositionsOnStartup() will call hide() after validation passes
+        // This prevents the separator from "eating" apps if positioned incorrectly
+        delimiterItem.length = StatusItemLength.expanded
+        state = .expanded
 
-        logger.info("HidingService configured with delimiter(s) - starting hidden")
+        logger.info("HidingService configured with delimiter - starting expanded for position validation")
     }
 
     // MARK: - Show/Hide Operations
 
-    /// Toggle visibility with optional modifier key support
-    /// - Parameter withModifier: If true (Option key held), also shows always-hidden section
-    func toggle(withModifier: Bool = false) async {
+    /// Toggle visibility between hidden and expanded states
+    func toggle() async {
         guard delimiterItem != nil else {
             logger.error("toggle() called but delimiterItem is nil - was configure() called?")
             return
         }
-        logger.info("toggle(withModifier: \(withModifier)) called, current state: \(self.state.rawValue)")
+        logger.info("toggle() called, current state: \(self.state.rawValue)")
 
         switch state {
         case .hidden:
-            if withModifier {
-                await showAlwaysHidden()
-            } else {
-                await show()
-            }
+            await show()
         case .expanded:
-            if withModifier {
-                await showAlwaysHidden()
-            } else {
-                await hide()
-            }
-        case .alwaysHiddenShown:
             await hide()
         }
     }
@@ -130,10 +112,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         isAnimating = true
         logger.info("Expanding menu bar (length → \(StatusItemLength.expanded))")
 
-        // Show regular hidden section; always-hidden section remains hidden by collapsed alwaysHiddenDelimiter
         delimiterItem.length = StatusItemLength.expanded
-        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
-
         state = .expanded
         isAnimating = false
 
@@ -153,64 +132,14 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         }
 
         isAnimating = true
-
         logger.info("Hiding items (length → \(StatusItemLength.collapsed))")
 
-        // Hide regular hidden section; always-hidden section stays hidden (delimiter remains as marker)
         delimiterItem.length = StatusItemLength.collapsed
-        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
-
         state = .hidden
         isAnimating = false
 
         NotificationCenter.default.post(
             name: .hiddenSectionHidden,
-            object: nil
-        )
-    }
-
-    /// Show always-hidden section (Option+click behavior)
-    func showAlwaysHidden() async {
-        guard !isAnimating else { return }
-        guard let delimiterItem = delimiterItem else {
-            logger.error("showAlwaysHidden() called but delimiterItem is nil")
-            return
-        }
-
-        isAnimating = true
-
-        logger.info("Showing ALL items including always-hidden")
-
-        // Reveal everything: show regular hidden section + expand always-hidden delimiter
-        delimiterItem.length = StatusItemLength.expanded
-        alwaysHiddenDelimiter?.length = StatusItemLength.expanded
-
-        state = .alwaysHiddenShown
-        isAnimating = false
-
-        NotificationCenter.default.post(
-            name: .alwaysHiddenSectionShown,
-            object: nil
-        )
-    }
-
-    /// Hide just the always-hidden section (keep regular hidden visible)
-    func hideAlwaysHidden() async {
-        guard !isAnimating else { return }
-        guard state == .alwaysHiddenShown else { return }
-
-        isAnimating = true
-
-        logger.info("Hiding always-hidden section only")
-
-        // Re-hide always-hidden section by collapsing always-hidden delimiter again
-        alwaysHiddenDelimiter?.length = StatusItemLength.collapsed
-
-        state = .expanded
-        isAnimating = false
-
-        NotificationCenter.default.post(
-            name: .hiddenSectionShown,
             object: nil
         )
     }
@@ -247,5 +176,4 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 extension Notification.Name {
     static let hiddenSectionShown = Notification.Name("SaneBar.hiddenSectionShown")
     static let hiddenSectionHidden = Notification.Name("SaneBar.hiddenSectionHidden")
-    static let alwaysHiddenSectionShown = Notification.Name("SaneBar.alwaysHiddenSectionShown")
 }
