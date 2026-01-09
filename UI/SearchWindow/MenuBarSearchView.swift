@@ -12,6 +12,7 @@ struct MenuBarSearchView: View {
     @State private var isLoading = true
     @State private var hasAccessibility = false
     @State private var permissionMonitorTask: Task<Void, Never>?
+    @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
@@ -211,26 +212,56 @@ struct MenuBarSearchView: View {
 
             Divider()
 
-            // Footer hint
-            HStack(spacing: 16) {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up")
-                    Image(systemName: "arrow.down")
-                    Text("navigate")
+            // Footer with hotkey recorder
+            VStack(spacing: 0) {
+                // Hotkey recorder (shown when app selected)
+                if let index = selectedIndex, index < filteredApps.count {
+                    let selectedApp = filteredApps[index]
+                    HStack(spacing: 8) {
+                        Text("Hotkey:")
+                            .foregroundStyle(.secondary)
+                        KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: selectedApp.id))
+                            .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: selectedApp.id))) { _, newShortcut in
+                                // Save to settings when shortcut changes
+                                if let shortcut = newShortcut {
+                                    menuBarManager.settings.iconHotkeys[selectedApp.id] = KeyboardShortcutData(
+                                        keyCode: UInt16(shortcut.key?.rawValue ?? 0),
+                                        modifiers: shortcut.modifiers.rawValue
+                                    )
+                                } else {
+                                    menuBarManager.settings.iconHotkeys.removeValue(forKey: selectedApp.id)
+                                }
+                                menuBarManager.saveSettings()
+                                IconHotkeysService.shared.registerHotkeys(from: menuBarManager.settings)
+                            }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                 }
-                HStack(spacing: 4) {
-                    Image(systemName: "return")
-                    Text("open")
+
+                // Navigation hints
+                HStack(spacing: 16) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up")
+                        Image(systemName: "arrow.down")
+                        Text("navigate")
+                    }
+                    HStack(spacing: 4) {
+                        Image(systemName: "return")
+                        Text("open")
+                    }
+                    Spacer()
+                    Text("\(filteredApps.count) hidden")
+                        .foregroundStyle(.tertiary)
                 }
-                Spacer()
-                Text("\(filteredApps.count) hidden")
-                    .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.controlBackgroundColor))
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
         }
         .onKeyPress(.upArrow) {
             moveSelection(by: -1)
