@@ -61,7 +61,7 @@ Icons to the **right** of SaneBar = always visible
 ### Customization
 - **Liquid Glass** — Beautiful translucent styling on macOS 26 Tahoe
 - **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
-- **Always-visible list** — Pin specific apps to never be hidden
+- **Always-visible list** — Pin specific apps to never be hidden *(coming soon)*
 
 Works perfectly on MacBook Pro with Notch. **100% private** — no network requests, no analytics, no account.
 
@@ -191,7 +191,7 @@ SaneBar/
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
 │   └── SearchWindow/       # Find Hidden Icon UI
-├── Tests/                  # 156 unit tests with mocks
+├── Tests/                  # 163 unit tests with mocks
 ├── Scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```
