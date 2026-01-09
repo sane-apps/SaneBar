@@ -139,7 +139,7 @@ class SaneMaster
   ].freeze
 
   def initialize
-    @bundle_id = 'com.sanevideo.SaneBar'
+    @bundle_id = 'com.sanebar.app'
   end
 
   def run(args)
