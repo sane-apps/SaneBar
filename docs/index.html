@@ -337,7 +337,8 @@
         }
 
         .download p {
-            color: var(--text-secondary);
+            color: var(--text-primary);
+            opacity: 0.8;
             margin-bottom: 32px;
         }
 
@@ -360,6 +361,112 @@
 
         .brew-command code {
             color: var(--accent);
+        }
+
+        /* Comparison Table */
+        .comparison {
+            padding: 100px 0;
+        }
+
+        .comparison-table-wrapper {
+            overflow-x: auto;
+            margin: 0 -24px;
+            padding: 0 24px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            min-width: 700px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 16px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .comparison-table th.highlight-col {
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            color: var(--accent);
+        }
+
+        .comparison-table td.highlight-col {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .comparison-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .feature-name {
+            text-align: left !important;
+            min-width: 200px;
+        }
+
+        .feature-label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .feature-desc {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .check {
+            color: var(--success);
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .cross {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .note {
+            color: #f59e0b;
+            font-size: 0.9rem;
+            vertical-align: super;
+            margin-left: 1px;
+            font-weight: 600;
+        }
+
+        .comparison-footnote {
+            text-align: center;
+            color: var(--text-primary);
+            opacity: 0.7;
+            font-size: 0.85rem;
+            margin-top: 24px;
+        }
+
+        .comparison-footnote a {
+            color: #f59e0b;
+            text-decoration: none;
+        }
+
+        .comparison-footnote a:hover {
+            text-decoration: underline;
         }
 
         /* Footer */
@@ -443,7 +550,7 @@
             </a>
             <div class="nav-links">
                 <a href="#features">Features</a>
-                <a href="#privacy">Privacy</a>
+                <a href="#compare">Compare</a>
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
                 <a href="#download" class="btn btn-primary" style="padding: 10px 20px;">Download</a>
             </div>
@@ -551,6 +658,118 @@
         </div>
     </section>
 
+    <section class="comparison" id="compare">
+        <div class="container">
+            <h2 class="section-title">How SaneBar Stacks Up</h2>
+            <p class="section-subtitle">We built what we wished existed. Here's how it compares.</p>
+            <div class="comparison-table-wrapper">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="highlight-col">SaneBar</th>
+                            <th>Bartender</th>
+                            <th>Ice</th>
+                            <th>Hidden Bar</th>
+                            <th>Dozer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Touch ID Lock</span>
+                                <span class="feature-desc">Biometric protection for hidden icons</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">100% Private</span>
+                                <span class="feature-desc">No network calls, no analytics</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span><span class="note">*</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Power Search</span>
+                                <span class="feature-desc">Find any icon by name</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">AppleScript</span>
+                                <span class="feature-desc">Automation & Shortcuts support</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Per-Icon Hotkeys</span>
+                                <span class="feature-desc">Keyboard shortcut per app</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Free</span>
+                                <span class="feature-desc">No cost to use</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">$16</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Open Source</span>
+                                <span class="feature-desc">Audit the code yourself</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Actively Maintained</span>
+                                <span class="feature-desc">Regular updates in 2026</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="comparison-footnote">* Bartender changed ownership in 2024 with <a href="https://creativerly.com/new-ownership-loads-of-concerns-bartenders-lack-of-transparency/" target="_blank" rel="noopener">limited transparency</a>. It requires screen recording permissions.</p>
+        </div>
+    </section>
+
     <section class="download" id="download">
         <div class="container">
             <div class="download-card">
@@ -565,7 +784,7 @@
                         </svg>
                         Download SaneBar v1.0.1
                     </a>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">or install via Homebrew:</p>
+                    <p style="color: var(--text-primary); opacity: 0.7; font-size: 0.9rem;">or install via Homebrew:</p>
                     <div class="brew-command">
                         <code>brew install --cask sanebar</code>
                     </div>
@@ -583,7 +802,7 @@
                 <a href="https://github.com/stephanjoseph/SaneBar/issues">Support</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/blob/main/LICENSE">MIT License</a>
             </div>
-            <p class="footer-copy">&copy; 2025 SaneBar. Built with Claude.</p>
+            <p class="footer-copy">&copy; 2026 SaneBar. Built with Claude.</p>
         </div>
     </footer>
 </body>
