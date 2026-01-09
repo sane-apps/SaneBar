@@ -27,7 +27,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Published State
 
-    @Published private(set) var hidingState: HidingState = .hidden
+    /// Starts expanded - we validate positions first, then hide if safe
+    @Published private(set) var hidingState: HidingState = .expanded
     @Published var settings: SaneBarSettings = SaneBarSettings()
 
     // MARK: - Screen Detection
@@ -63,6 +64,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Subscriptions
 
     private var cancellables = Set<AnyCancellable>()
+    private var positionMonitorTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -306,9 +308,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         case settingsButton
     }
 
-    func toggleHiddenItems(withModifier: Bool = false) {
+    func toggleHiddenItems() {
         Task {
-            logger.info("toggleHiddenItems(withModifier: \(withModifier)) called, current state: \(self.hidingState.rawValue)")
+            logger.info("toggleHiddenItems() called, current state: \(self.hidingState.rawValue)")
 
             // If we're about to SHOW (hidden -> expanded), optionally gate with auth.
             if hidingState == .hidden, settings.requireAuthToShowHiddenIcons {
@@ -317,7 +319,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
 
             // If about to hide, validate position first
-            if hidingState == .expanded && !withModifier {
+            if hidingState == .expanded {
                 logger.info("State is expanded, validating position before hiding...")
                 guard validateSeparatorPosition() else {
                     logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide")
@@ -327,10 +329,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.info("Position valid, proceeding to hide")
             }
 
-            await hidingService.toggle(withModifier: withModifier)
+            await hidingService.toggle()
 
-            // Schedule auto-rehide if enabled and we just showed (not always-hidden)
-            // Use hidingService.state directly since Combine sync hasn't fired yet
+            // Schedule auto-rehide if enabled and we just showed
             if hidingService.state == .expanded && settings.autoRehide {
                 hidingService.scheduleRehide(after: settings.rehideDelay)
             }
@@ -379,55 +380,108 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Position Validation
 
     /// Returns true if separator is correctly positioned (LEFT of main icon)
+    /// Returns true if we can't determine position (assume valid on startup)
     private func validateSeparatorPosition() -> Bool {
+        // If buttons aren't ready, assume valid (don't block on startup)
         guard let mainButton = mainStatusItem?.button,
               let separatorButton = separatorItem?.button else {
-            logger.error("validateSeparatorPosition: buttons are nil - blocking hide for safety")
-            return false
+            logger.debug("validateSeparatorPosition: buttons not ready - assuming valid")
+            return true
         }
 
+        // If windows aren't ready, assume valid (don't block on startup)
         guard let mainWindow = mainButton.window,
               let separatorWindow = separatorButton.window else {
-            logger.error("validateSeparatorPosition: windows are nil - blocking hide for safety")
-            return false
-        }
-
-        guard let screen = mainWindow.screen ?? NSScreen.main else {
-            logger.error("validateSeparatorPosition: no screen available")
-            return false
+            logger.debug("validateSeparatorPosition: windows not ready - assuming valid")
+            return true
         }
 
         let mainFrame = mainWindow.frame
         let separatorFrame = separatorWindow.frame
 
-        // Check: separator visible on screen
-        if !screen.frame.intersects(separatorFrame) {
-            logger.warning("Position error: separator is off-screen!")
-            return false
+        // If frames are zero/invalid, assume valid (UI not ready)
+        if mainFrame.width == 0 || separatorFrame.width == 0 {
+            logger.debug("validateSeparatorPosition: frames not ready - assuming valid")
+            return true
         }
 
-        // Check: separator must be LEFT of main icon
+        // Check: separator must be LEFT of main icon (lower X in screen coordinates)
+        // Menu bar: LEFT = lower X, RIGHT = higher X
         let separatorRightEdge = separatorFrame.origin.x + separatorFrame.width
         let mainLeftEdge = mainFrame.origin.x
 
         if separatorRightEdge > mainLeftEdge {
-            logger.warning("Position error: separator is RIGHT of main icon!")
+            logger.warning("Position error: separator (right edge \(separatorRightEdge)) is RIGHT of main (left edge \(mainLeftEdge))")
             return false
         }
 
+        logger.debug("Position valid: separator right=\(separatorRightEdge), main left=\(mainLeftEdge)")
         return true
     }
 
     /// Validates positions on startup with a delay to let UI settle
+    /// If validation passes, hides the items. If it fails, shows a warning and stays expanded.
     func validatePositionsOnStartup() {
-        // Delay to let status items get their final positions
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        // Delay to let status items get their final positions (2s for safety)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard let self = self else { return }
-            if !self.validateSeparatorPosition() {
-                logger.warning("Startup position validation failed!")
+            if self.validateSeparatorPosition() {
+                // Position is valid - safe to hide
+                logger.info("Startup position validation passed - hiding items")
+                Task {
+                    await self.hidingService.hide()
+                }
+            } else {
+                // Position is wrong - stay expanded and warn user
+                logger.warning("Startup position validation failed! Staying expanded.")
                 self.showPositionWarning()
             }
+
+            // Start continuous position monitoring to prevent separator from eating main icon
+            self.startPositionMonitoring()
         }
+    }
+
+    // MARK: - Continuous Position Monitoring
+
+    /// Monitor separator position continuously to prevent it from "eating" the main icon
+    /// If user drags separator to an invalid position while items are hidden, auto-expand
+    private func startPositionMonitoring() {
+        positionMonitorTask?.cancel()
+
+        positionMonitorTask = Task { [weak self] in
+            while !Task.isCancelled {
+                // Check every 500ms - balance between responsiveness and CPU usage
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                guard !Task.isCancelled else { break }
+
+                await MainActor.run {
+                    self?.checkPositionAndAutoExpand()
+                }
+            }
+        }
+    }
+
+    /// Check position and auto-expand if separator is eating the main icon
+    private func checkPositionAndAutoExpand() {
+        // Only check when hidden - that's when the 10,000px spacer can push the main icon off
+        guard hidingState == .hidden else { return }
+
+        // If position is invalid, auto-expand immediately to rescue the main icon
+        if !validateSeparatorPosition() {
+            logger.warning("⚠️ POSITION EMERGENCY: Separator is eating main icon! Auto-expanding...")
+            Task {
+                await hidingService.show()
+            }
+            showPositionWarning()
+        }
+    }
+
+    /// Stop position monitoring (called on deinit or when appropriate)
+    private func stopPositionMonitoring() {
+        positionMonitorTask?.cancel()
+        positionMonitorTask = nil
     }
 
     private func showPositionWarning() {

@@ -8,11 +8,11 @@ import AppKit
 import Combine
 import CoreWLAN
 import Foundation
-@testable import SaneBar
 import IOKit
 import KeyboardShortcuts
 import SwiftUI
 import os
+@testable import SaneBar
 
 
 final class PersistenceServiceProtocolMock: PersistenceServiceProtocol, @unchecked Sendable {
@@ -168,7 +168,7 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
     }
 }
 
-class NetworkTriggerServiceProtocolMock: NetworkTriggerServiceProtocol {
+final class NetworkTriggerServiceProtocolMock: NetworkTriggerServiceProtocol {
     init() { }
     init(currentSSID: String? = nil) {
         self.currentSSID = currentSSID
@@ -211,7 +211,119 @@ class NetworkTriggerServiceProtocolMock: NetworkTriggerServiceProtocol {
     }
 }
 
-class TriggerServiceProtocolMock: TriggerServiceProtocol {
+final class HoverServiceProtocolMock: HoverServiceProtocol {
+    init() { }
+    init(isEnabled: Bool = false, scrollEnabled: Bool = false) {
+        self.isEnabled = isEnabled
+        self.scrollEnabled = scrollEnabled
+    }
+
+
+    private(set) var isEnabledSetCallCount = 0
+    var isEnabled: Bool = false { didSet { isEnabledSetCallCount += 1 } }
+
+    private(set) var scrollEnabledSetCallCount = 0
+    var scrollEnabled: Bool = false { didSet { scrollEnabledSetCallCount += 1 } }
+
+    private(set) var startCallCount = 0
+    var startHandler: (() -> ())?
+    func start() {
+        startCallCount += 1
+        if let startHandler = startHandler {
+            startHandler()
+        }
+        
+    }
+
+    private(set) var stopCallCount = 0
+    var stopHandler: (() -> ())?
+    func stop() {
+        stopCallCount += 1
+        if let stopHandler = stopHandler {
+            stopHandler()
+        }
+        
+    }
+}
+
+final class StatusBarControllerProtocolMock: StatusBarControllerProtocol {
+    init() { }
+    init(mainItem: NSStatusItem? = nil, separatorItem: NSStatusItem? = nil) {
+        self.mainItem = mainItem
+        self.separatorItem = separatorItem
+    }
+
+
+
+    var mainItem: NSStatusItem? = nil
+
+
+    var separatorItem: NSStatusItem? = nil
+
+    private(set) var iconNameCallCount = 0
+    var iconNameArgValues = [HidingState]()
+    var iconNameHandler: ((HidingState) -> String)?
+    func iconName(for state: HidingState) -> String {
+        iconNameCallCount += 1
+        iconNameArgValues.append(state)
+        if let iconNameHandler = iconNameHandler {
+            return iconNameHandler(state)
+        }
+        return ""
+    }
+
+    private(set) var createMenuCallCount = 0
+    var createMenuArgValues = [(toggleAction: Selector, settingsAction: Selector, quitAction: Selector, target: AnyObject)]()
+    var createMenuHandler: ((Selector, Selector, Selector, AnyObject) -> NSMenu)?
+    func createMenu(toggleAction: Selector, settingsAction: Selector, quitAction: Selector, target: AnyObject) -> NSMenu {
+        createMenuCallCount += 1
+        createMenuArgValues.append((toggleAction, settingsAction, quitAction, target))
+        if let createMenuHandler = createMenuHandler {
+            return createMenuHandler(toggleAction, settingsAction, quitAction, target)
+        }
+        fatalError("createMenuHandler returns can't have a default value thus its handler must be set")
+    }
+}
+
+final class SettingsControllerProtocolMock: SettingsControllerProtocol {
+    init() { }
+    init(settings: SaneBarSettings) {
+        self._settings = settings
+    }
+
+
+    private(set) var settingsSetCallCount = 0
+    private var _settings: SaneBarSettings! { didSet { settingsSetCallCount += 1 } }
+    var settings: SaneBarSettings {
+        get { return _settings }
+        set { _settings = newValue }
+    }
+
+    var settingsPublisher: AnyPublisher<SaneBarSettings, Never> { return self.settingsPublisherSubject.eraseToAnyPublisher() }
+    private(set) var settingsPublisherSubject = PassthroughSubject<SaneBarSettings, Never>()
+
+    private(set) var loadCallCount = 0
+    var loadHandler: (() throws -> ())?
+    func load() throws {
+        loadCallCount += 1
+        if let loadHandler = loadHandler {
+            try loadHandler()
+        }
+        
+    }
+
+    private(set) var saveCallCount = 0
+    var saveHandler: (() throws -> ())?
+    func save() throws {
+        saveCallCount += 1
+        if let saveHandler = saveHandler {
+            try saveHandler()
+        }
+        
+    }
+}
+
+final class TriggerServiceProtocolMock: TriggerServiceProtocol {
     init() { }
 
 
@@ -238,8 +350,7 @@ class TriggerServiceProtocolMock: TriggerServiceProtocol {
     }
 }
 
-@MainActor
-class HidingServiceProtocolMock: HidingServiceProtocol {
+final class HidingServiceProtocolMock: HidingServiceProtocol {
     init() { }
     init(state: HidingState, isAnimating: Bool = false) {
         self._state = state
@@ -258,25 +369,23 @@ class HidingServiceProtocolMock: HidingServiceProtocol {
     var isAnimating: Bool = false
 
     private(set) var configureCallCount = 0
-    var configureArgValues = [(delimiterItem: NSStatusItem, alwaysHiddenDelimiter: NSStatusItem?)]()
-    var configureHandler: ((NSStatusItem, NSStatusItem?) -> ())?
-    func configure(delimiterItem: NSStatusItem, alwaysHiddenDelimiter: NSStatusItem?) {
+    var configureArgValues = [NSStatusItem]()
+    var configureHandler: ((NSStatusItem) -> ())?
+    func configure(delimiterItem: NSStatusItem) {
         configureCallCount += 1
-        configureArgValues.append((delimiterItem, alwaysHiddenDelimiter))
+        configureArgValues.append(delimiterItem)
         if let configureHandler = configureHandler {
-            configureHandler(delimiterItem, alwaysHiddenDelimiter)
+            configureHandler(delimiterItem)
         }
         
     }
 
     private(set) var toggleCallCount = 0
-    var toggleArgValues = [Bool]()
-    var toggleHandler: ((Bool) async -> ())?
-    func toggle(withModifier: Bool) async {
+    var toggleHandler: (() async -> ())?
+    func toggle() async {
         toggleCallCount += 1
-        toggleArgValues.append(withModifier)
         if let toggleHandler = toggleHandler {
-            await toggleHandler(withModifier)
+            await toggleHandler()
         }
         
     }
@@ -300,29 +409,9 @@ class HidingServiceProtocolMock: HidingServiceProtocol {
         }
         
     }
-
-    private(set) var showAlwaysHiddenCallCount = 0
-    var showAlwaysHiddenHandler: (() async -> ())?
-    func showAlwaysHidden() async {
-        showAlwaysHiddenCallCount += 1
-        if let showAlwaysHiddenHandler = showAlwaysHiddenHandler {
-            await showAlwaysHiddenHandler()
-        }
-        
-    }
-
-    private(set) var hideAlwaysHiddenCallCount = 0
-    var hideAlwaysHiddenHandler: (() async -> ())?
-    func hideAlwaysHidden() async {
-        hideAlwaysHiddenCallCount += 1
-        if let hideAlwaysHiddenHandler = hideAlwaysHiddenHandler {
-            await hideAlwaysHiddenHandler()
-        }
-        
-    }
 }
 
-class KeyboardShortcutsServiceProtocolMock: KeyboardShortcutsServiceProtocol {
+final class KeyboardShortcutsServiceProtocolMock: KeyboardShortcutsServiceProtocol {
     init() { }
 
 
@@ -347,7 +436,7 @@ class KeyboardShortcutsServiceProtocolMock: KeyboardShortcutsServiceProtocol {
     }
 }
 
-class MenuBarAppearanceServiceProtocolMock: MenuBarAppearanceServiceProtocol {
+final class MenuBarAppearanceServiceProtocolMock: MenuBarAppearanceServiceProtocol {
     init() { }
 
 
@@ -381,28 +470,6 @@ class MenuBarAppearanceServiceProtocolMock: MenuBarAppearanceServiceProtocol {
             hideHandler()
         }
         
-    }
-}
-
-@MainActor
-final class HoverServiceProtocolMock: HoverServiceProtocol, @unchecked Sendable {
-    init() { }
-
-    var isEnabled: Bool = false
-    var scrollEnabled: Bool = false
-
-    var startCallCount = 0
-    var startHandler: (() -> Void)?
-    func start() {
-        startCallCount += 1
-        startHandler?()
-    }
-
-    var stopCallCount = 0
-    var stopHandler: (() -> Void)?
-    func stop() {
-        stopCallCount += 1
-        stopHandler?()
     }
 }
 

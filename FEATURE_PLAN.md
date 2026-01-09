@@ -252,14 +252,14 @@ killall -9 SaneBar                     # Kill old instance
 ## User Decisions (2026-01-07)
 
 **Features to implement:**
-- [x] Always Show List
+- [ ] Always Show List - NOT IMPLEMENTED (icons left of delimiter are always visible by design, but no separate `alwaysVisibleApps` setting exists)
 - [x] Menu Bar Search (Enhanced with Virtual Click)
 - [x] Presets/Profiles
 - [x] Per-Icon Hotkeys
 - [x] Show on Hover (Implemented safely with NSEvent)
 - [ ] ~~Icon Click-Through~~ - SKIPPED (too complex/unsafe)
 
-**Scope:** All recommended features completed.
+**Scope:** Core features completed. Always Show List deferred.
 
 **Implementation Order:**
 1. Always Show List (easiest, foundations for others)

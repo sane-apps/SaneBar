@@ -11,7 +11,6 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarCo
 protocol StatusBarControllerProtocol {
     var mainItem: NSStatusItem? { get }
     var separatorItem: NSStatusItem? { get }
-    var alwaysHiddenDelimiter: NSStatusItem? { get }
 
     func iconName(for state: HidingState) -> String
     func createMenu(
@@ -40,7 +39,6 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     private(set) var mainItem: NSStatusItem?
     private(set) var separatorItem: NSStatusItem?
-    private(set) var alwaysHiddenDelimiter: NSStatusItem?
     private var spacerItems: [NSStatusItem] = []
 
     // MARK: - Autosave Names
@@ -110,7 +108,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Returns the appropriate icon name for a given hiding state
     func iconName(for state: HidingState) -> String {
         switch state {
-        case .expanded, .alwaysHiddenShown:
+        case .expanded:
             return Self.iconExpanded
         case .hidden:
             return Self.iconHidden

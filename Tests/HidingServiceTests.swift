@@ -9,14 +9,15 @@ struct HidingServiceTests {
 
     // MARK: - State Tests
 
-    @Test("Initial state is hidden")
+    @Test("Initial state is expanded for safe position validation")
     @MainActor
-    func testInitialStateIsHidden() {
+    func testInitialStateIsExpanded() {
         let service = HidingService()
 
-        // Start hidden so menu bar is clean on launch (like Bartender, Hidden Bar)
-        #expect(service.state == .hidden,
-                "Should start in hidden state (items collapsed)")
+        // Start expanded to allow position validation before hiding
+        // MenuBarManager will hide after validating separator is in correct position
+        #expect(service.state == .expanded,
+                "Should start in expanded state for safe position validation")
     }
 
     @Test("HidingState enum cases are correct")
@@ -57,7 +58,7 @@ struct HidingServiceTests {
         // Should not crash when no rehide is scheduled
         service.cancelRehide()
 
-        #expect(service.state == .hidden,
+        #expect(service.state == .expanded,
                 "State should remain unchanged")
     }
 
@@ -72,8 +73,8 @@ struct HidingServiceTests {
         // Should return early without crashing
         await service.toggle()
 
-        #expect(service.state == .hidden,
-                "State should remain unchanged when delimiter is nil")
+        #expect(service.state == .expanded,
+                "State should remain expanded when delimiter is nil")
     }
 
     @Test("Show with nil delimiter does not crash")
@@ -82,11 +83,11 @@ struct HidingServiceTests {
         let service = HidingService()
         // Deliberately NOT calling configure() - delimiterItem is nil
 
-        // Should return early (no delimiter) - state stays hidden
+        // Should return early (no delimiter) - state stays expanded
         await service.show()
 
-        #expect(service.state == .hidden,
-                "State should remain hidden when show fails gracefully")
+        #expect(service.state == .expanded,
+                "State should remain expanded when show fails gracefully")
     }
 
     @Test("Hide with nil delimiter does not crash")
@@ -98,7 +99,7 @@ struct HidingServiceTests {
         // Should return early without crashing
         await service.hide()
 
-        #expect(service.state == .hidden,
-                "State should remain hidden when hide fails gracefully")
+        #expect(service.state == .expanded,
+                "State should remain expanded when hide fails gracefully")
     }
 }

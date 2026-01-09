@@ -90,9 +90,20 @@ enum ActivationPolicyManager {
     @MainActor
     static func applyInitialPolicy() {
         guard !isHeadlessEnvironment() else { return }
-        let settings = loadSettings()
+
+        // Use MenuBarManager's already-loaded settings to avoid race conditions
+        let settings = MenuBarManager.shared.settings
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
+
+        // Apply immediately
         NSApp.setActivationPolicy(policy)
+        logger.info("Initial activation policy: \(policy == .regular ? "regular (dock visible)" : "accessory (dock hidden)")")
+
+        // macOS sometimes needs the policy set again after a short delay for it to stick
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NSApp.setActivationPolicy(policy)
+            logger.debug("Re-applied activation policy after delay")
+        }
     }
 
     /// Check if running in headless/test environment

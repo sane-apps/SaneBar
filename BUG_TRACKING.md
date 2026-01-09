@@ -8,7 +8,9 @@
 
 ## UX Audit Fixes (2026-01-02)
 
-External auditor identified 5 usability issues. All resolved:
+> **Note**: These are historical records. File references may be outdated due to refactoring.
+
+External auditor identified 5 usability issues. Status varies:
 
 ### UI-001: Three Confusing Eye Icons
 
@@ -16,7 +18,7 @@ External auditor identified 5 usability issues. All resolved:
 
 **Fix**: Replaced with SwiftUI segmented Picker using clear text labels: "Show", "Hide", "Bury"
 
-**File**: `UI/Components/StatusItemRow.swift:84-103`
+**File**: *(Historical - file was refactored)*
 
 ---
 
@@ -26,10 +28,9 @@ External auditor identified 5 usability issues. All resolved:
 
 **Fix**:
 - Removed Refresh button from header
-- Added 5-second auto-refresh timer in `MenuBarManager.startAutoRefresh()`
-- Timer starts/stops with settings window lifecycle
+- Auto-refresh now handled by settings window lifecycle
 
-**Files**: `Core/MenuBarManager.swift:317-333`, `UI/SettingsView.swift:118-123`
+**Files**: *(Historical - implementation changed)*
 
 ---
 
@@ -61,7 +62,7 @@ External auditor identified 5 usability issues. All resolved:
 - Smart Suggestions now primary content
 - Usage stats moved to collapsible DisclosureGroup
 
-**File**: `UI/UsageStatsView.swift:24-48`
+**File**: *(Historical - file was refactored)*
 
 ---
 
