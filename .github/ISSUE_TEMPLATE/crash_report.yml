@@ -1,0 +1,105 @@
+name: Crash Report
+description: SaneBar crashes on launch or during use
+title: "[Crash]: "
+labels: ["bug", "crash"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a crash! Please fill out the info below so we can fix it quickly.
+
+  - type: input
+    id: version
+    attributes:
+      label: SaneBar Version
+      description: Check About screen or DMG filename
+      placeholder: "1.0.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: macos
+    attributes:
+      label: macOS Version
+      options:
+        - Sequoia 15.x
+        - Tahoe 26.x
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: input
+    id: macos_other
+    attributes:
+      label: macOS Version (if Other)
+      placeholder: "e.g., Sonoma 14.5"
+
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Mac Chip
+      options:
+        - Apple Silicon (M1)
+        - Apple Silicon (M2)
+        - Apple Silicon (M3)
+        - Apple Silicon (M4)
+        - Intel
+    validations:
+      required: true
+
+  - type: input
+    id: mac_model
+    attributes:
+      label: Mac Model
+      placeholder: "e.g., Mac Mini, MacBook Pro 14-inch"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: when
+    attributes:
+      label: When does it crash?
+      options:
+        - Immediately on launch
+        - After a few seconds
+        - When clicking the menu bar icon
+        - When opening Settings
+        - Random / intermittent
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: crash_log
+    attributes:
+      label: Crash Log
+      description: |
+        Open Console.app > Crash Reports > SaneBar, then paste the log here.
+        Or run: `log show --predicate 'process == "SaneBar"' --last 5m`
+      placeholder: |
+        Paste crash log here...
+      render: shell
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Download SaneBar
+        2. Open the app
+        3. Crash occurs
+
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Troubleshooting Tried
+      options:
+        - label: Deleted ~/Library/Preferences/com.sanebar.app.plist and relaunched
+        - label: Granted Accessibility permission in System Settings
+        - label: Tried downloading fresh from GitHub releases
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      placeholder: Any other info that might help
