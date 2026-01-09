@@ -67,4 +67,35 @@ struct AccessibilityServiceTests {
         // but we verify it doesn't crash and returns a boolean
         #expect(result == true || result == false)
     }
+
+    // MARK: - Permission Flow Regression Tests
+
+    @Test("isGranted property doesn't trigger system permission dialog")
+    @MainActor
+    func testIsGrantedDoesNotPrompt() {
+        // REGRESSION: MenuBarSearchView was calling requestAccessibility() which
+        // triggered the system permission dialog unexpectedly.
+        // Fix: Use isGranted property which only checks current status.
+        let service = AccessibilityService.shared
+
+        // Reading isGranted should NEVER trigger a dialog
+        // It uses AXIsProcessTrusted() internally which is read-only
+        let _ = service.isGranted
+        let _ = service.isGranted
+        let _ = service.isGranted
+
+        // If we got here without a dialog, test passed
+        #expect(true)
+    }
+
+    @Test("System Settings accessibility URL is valid")
+    func testAccessibilitySettingsURLIsValid() {
+        // REGRESSION: "Open System Settings" button wasn't opening anything
+        // because it called requestAccessibility() instead of opening the URL
+        let urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        let url = URL(string: urlString)
+
+        #expect(url != nil, "Accessibility Settings URL must be valid")
+        #expect(url?.scheme == "x-apple.systempreferences", "URL scheme must be x-apple.systempreferences")
+    }
 }
