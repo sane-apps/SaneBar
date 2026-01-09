@@ -138,8 +138,10 @@ struct MenuBarSearchView: View {
 
             HStack(spacing: 12) {
                 Button("Open System Settings") {
-                    // Request again to show system prompt
-                    _ = AccessibilityService.shared.requestAccessibility()
+                    // Actually open System Settings to Accessibility pane
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                        NSWorkspace.shared.open(url)
+                    }
                 }
                 .buttonStyle(.bordered)
 
@@ -250,8 +252,9 @@ struct MenuBarSearchView: View {
 
     private func loadApps() {
         Task {
-            // Request accessibility - this shows system prompt if not granted
-            hasAccessibility = AccessibilityService.shared.requestAccessibility()
+            // Just check current status - don't trigger system prompt
+            // If not granted, user will see our permission UI with "Open System Settings" button
+            hasAccessibility = AccessibilityService.shared.isGranted
 
             if hasAccessibility {
                 // Get ONLY the hidden menu bar apps (pushed off-screen by SaneBar)

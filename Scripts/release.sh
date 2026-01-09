@@ -9,7 +9,7 @@ set -e
 
 # Configuration
 APP_NAME="SaneBar"
-BUNDLE_ID="com.sanevideo.SaneBar"
+BUNDLE_ID="com.sanebar.app"
 TEAM_ID="M78L6FXD48"
 SIGNING_IDENTITY="Developer ID Application: Stephan Joseph (M78L6FXD48)"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -185,7 +185,7 @@ if [ "$SKIP_NOTARIZE" = false ]; then
 
     # Submit for notarization
     xcrun notarytool submit "${DMG_PATH}" \
-        --keychain-profile "AC_PASSWORD" \
+        --keychain-profile "notarytool" \
         --wait
 
     # Staple the notarization ticket

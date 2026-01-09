@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - OnboardingTipView
 
@@ -113,15 +114,18 @@ struct OnboardingTipView: View {
                     .foregroundStyle(.secondary)
 
                 Button {
-                    AccessibilityService.shared.requestAccessibility()
+                    // Actually open System Settings to the Accessibility pane
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                        NSWorkspace.shared.open(url)
+                    }
                     permissionRequested = true
                 } label: {
-                    Label("Enable Accessibility", systemImage: "hand.raised")
+                    Label("Open System Settings", systemImage: "gear")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
 
-                Text("This opens System Settings. Toggle SaneBar ON, then come back.")
+                Text("Toggle **SaneBar** ON in the list, then come back here.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
