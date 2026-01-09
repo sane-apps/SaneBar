@@ -90,18 +90,23 @@ TestReports/
 /Media/**/*.jpg
 
 # Keep all xcassets (app icons, etc)
-!SaneVideo/Assets.xcassets/**/*.png
-!SaneVideo/Assets.xcassets/**/*.jpg
+!Resources/Assets.xcassets/**/*.png
+!Resources/Assets.xcassets/**/*.jpg
 
-# Code coverage reports
+# Fastlane
 fastlane/coverage/
 fastlane/keys/
+fastlane/report.xml
+fastlane/test_output/
+fastlane/gym_output/
+
+# Code coverage
 *.gcda
 *.gcno
-Media/
 TestOutput.xcresult/
 *.o
-SaneVideo/Resources/Models/ggml-base.en.bin
+
+# CI artifacts
 project.yml.ci_backup
 
 # Ephemeral reports and analysis (AI-generated, test results, audits)
