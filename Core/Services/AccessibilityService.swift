@@ -53,6 +53,13 @@ final class AccessibilityService: ObservableObject {
     private var permissionMonitorTask: Task<Void, Never>?
     private var streamContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
 
+    // MARK: - Menu Bar Item Cache
+
+    /// Cache for menu bar item positions to avoid expensive rescans
+    private var menuBarItemCache: [(app: RunningApp, x: CGFloat)] = []
+    private var menuBarItemCacheTime: Date = .distantPast
+    private let cacheValiditySeconds: TimeInterval = 5.0
+
     // MARK: - Initialization
 
     private init() {
@@ -170,14 +177,22 @@ final class AccessibilityService: ObservableObject {
     /// Best-effort list of apps that currently own a menu bar status item.
     /// This is much closer to "things in the menu bar" than `NSWorkspace.runningApplications`.
     ///
-    /// NOTE: We scan all running apps for their AXExtrasMenuBar attribute.
+    /// NOTE: We scan running apps for their AXExtrasMenuBar attribute.
+    /// OPTIMIZATION: Only scans apps with bundle identifiers (skips XPC services, agents).
     func listMenuBarItemOwners() -> [RunningApp] {
         guard isTrusted else { return [] }
 
         var pids = Set<pid_t>()
 
-        // Scan all running apps for their menu bar extras
-        for runningApp in NSWorkspace.shared.runningApplications {
+        // Pre-filter: Only scan apps with bundle identifiers
+        let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
+            guard app.bundleIdentifier != nil else { return false }
+            guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
+            return true
+        }
+
+        // Scan candidate apps for their menu bar extras
+        for runningApp in candidateApps {
             let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
 
             var extrasBar: CFTypeRef?
@@ -195,7 +210,6 @@ final class AccessibilityService: ObservableObject {
         for pid in pids {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
-            guard bundleID != Bundle.main.bundleIdentifier else { continue }
             guard !seenBundleIDs.contains(bundleID) else { continue }
             seenBundleIDs.insert(bundleID)
             apps.append(RunningApp(app: app))
@@ -215,29 +229,53 @@ final class AccessibilityService: ObservableObject {
     /// - This pushes icons to the LEFT of the delimiter off the screen
     /// - Hidden items have NEGATIVE x coordinates (e.g., -4256)
     /// - Visible items have POSITIVE x coordinates (e.g., 1337)
+    ///
+    /// PERFORMANCE OPTIMIZATION:
+    /// - Results are cached for 5 seconds to avoid expensive rescans
+    /// - Only apps with bundle identifiers are scanned (skips XPC services, system agents)
+    /// - This reduces scan time from minutes to milliseconds on subsequent calls
     func listMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
         guard isTrusted else {
             logger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
         }
 
-        // Scan ALL running applications for their menu bar extras
+        // Check cache validity - return cached results if still fresh
+        let now = Date()
+        if now.timeIntervalSince(menuBarItemCacheTime) < cacheValiditySeconds && !menuBarItemCache.isEmpty {
+            logger.debug("Returning cached menu bar items (\(self.menuBarItemCache.count) items)")
+            return menuBarItemCache
+        }
+
+        // Pre-filter: Only scan apps that could have menu bar items
+        // Skip processes without bundle identifiers (XPC services, system agents, helpers)
+        let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
+            // Must have a bundle identifier to be a real app
+            guard app.bundleIdentifier != nil else { return false }
+            // Skip ourselves
+            guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
+            return true
+        }
+
+        logger.debug("Scanning \(candidateApps.count) candidate apps (filtered from \(NSWorkspace.shared.runningApplications.count) total)")
+
+        // Scan candidate applications for their menu bar extras
         var results: [(pid: pid_t, x: CGFloat)] = []
 
-        for runningApp in NSWorkspace.shared.runningApplications {
+        for runningApp in candidateApps {
             let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
 
             // Try to get this app's extras menu bar (status items)
             var extrasBar: CFTypeRef?
             let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-            guard let bar = extrasBar else { continue }
-            
+            guard result == .success, let bar = extrasBar else { continue }
+
             // Safe type checking using Core Foundation type IDs
             guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { continue }
             // swiftlint:disable:next force_cast
             let barElement = bar as! AXUIElement
-            
+
             var children: CFTypeRef?
             let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
 
@@ -248,7 +286,7 @@ final class AccessibilityService: ObservableObject {
                 let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
                 var xPos: CGFloat = 0
-                
+
                 if posResult == .success, let posValue = positionValue {
                     if CFGetTypeID(posValue) == AXValueGetTypeID() {
                         var point = CGPoint.zero
@@ -263,14 +301,13 @@ final class AccessibilityService: ObservableObject {
             }
         }
 
-        logger.debug("Scanned all apps, found \(results.count) menu bar items")
+        logger.debug("Scanned candidate apps, found \(results.count) menu bar items")
 
         // Convert to RunningApps (unique by bundle ID, taking the minimum x position per app)
         var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
         for (pid, x) in results {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
-            guard bundleID != Bundle.main.bundleIdentifier else { continue }
 
             // Keep the minimum x position for each app (most hidden position)
             if let existing = appPositions[bundleID] {
@@ -284,10 +321,21 @@ final class AccessibilityService: ObservableObject {
 
         let apps = Array(appPositions.values).sorted { $0.x < $1.x }
 
+        // Update cache
+        menuBarItemCache = apps
+        menuBarItemCacheTime = now
+
         let hiddenCount = apps.filter { $0.x < 0 }.count
         logger.info("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
 
         return apps
+    }
+
+    /// Invalidates the menu bar item cache, forcing a fresh scan on next call.
+    /// Call this when you know menu bar items have changed (e.g., after hiding/showing).
+    func invalidateMenuBarItemCache() {
+        menuBarItemCacheTime = .distantPast
+        logger.debug("Menu bar item cache invalidated")
     }
 
     private func clickSystemWideItem(for targetPID: pid_t) -> Bool {
