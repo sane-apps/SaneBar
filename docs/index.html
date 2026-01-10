@@ -7,6 +7,8 @@
     <meta name="description" content="Hide menu bar clutter, lock sensitive icons behind Touch ID, and find any app instantly. 100% on-device, no analytics.">
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
     <link rel="icon" type="image/png" href="images/icon.png">
+    <!-- Canonical URL placeholder -->
+    <link rel="canonical" href="https://sanebar.app/" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="SaneBar - Privacy-First Menu Bar Manager">
@@ -19,6 +21,25 @@
     <meta name="twitter:title" content="SaneBar - Privacy-First Menu Bar Manager">
     <meta name="twitter:description" content="The only menu bar manager that locks your hidden icons behind Touch ID.">
     <meta name="twitter:image" content="images/hero.png">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SaneBar",
+      "operatingSystem": "macOS",
+      "applicationCategory": "UtilitiesApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
+      "image": "https://sanebar.app/images/icon.png",
+      "downloadUrl": "https://github.com/stephanjoseph/SaneBar/releases"
+    }
+    </script>
 
     <style>
         :root {
@@ -74,7 +95,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: rgba(10, 10, 15, 0.8);
+            background: rgba(10, 10, 15, 0.85); /* Slightly increased opacity */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             z-index: 100;
@@ -122,6 +143,18 @@
 
         .nav-links a.btn-primary {
             color: #ffffff;
+        }
+        
+        /* Refactored inline style */
+        .btn-donate {
+            padding: 10px 20px !important;
+            color: #ffffff !important;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .btn-donate svg {
+            margin-right: 6px;
         }
 
         .nav-links a.btn-primary:hover {
@@ -267,8 +300,17 @@
         }
 
         .feature-icon {
-            font-size: 2rem;
             margin-bottom: 16px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            height: 40px;
+        }
+        
+        .feature-icon svg {
+            width: 32px;
+            height: 32px;
+            stroke-width: 1.5;
         }
 
         .feature-card h3 {
@@ -357,6 +399,12 @@
             flex-direction: column;
             gap: 16px;
             align-items: center;
+        }
+        
+        .download-option-text {
+            color: var(--text-primary);
+            opacity: 0.7;
+            font-size: 0.9rem;
         }
 
         .brew-command {
@@ -492,6 +540,17 @@
             flex-wrap: wrap;
             margin-bottom: 24px;
         }
+        
+        .support-subtitle {
+             font-style: italic; 
+             max-width: 500px;
+             margin: 0 auto 32px;
+        }
+        
+        .support-subtitle span {
+            margin-top: 8px;
+            display: inline-block;
+        }
 
         .crypto-addresses {
             max-width: 600px;
@@ -500,6 +559,7 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 24px;
+            display: block;
         }
 
         .crypto-grid {
@@ -553,7 +613,8 @@
 
         .crypto-hint {
             font-size: 0.8rem;
-            color: var(--text-secondary);
+            color: var(--accent);
+            font-weight: 500;
             margin-top: 12px;
         }
 
@@ -640,8 +701,8 @@
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
-                <a href="#support" class="btn btn-primary" style="padding: 10px 20px; color: #ffffff !important;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" style="margin-right: 6px;">
+                <a href="#support" class="btn btn-primary btn-donate">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                     </svg>
                     Donate
@@ -688,32 +749,73 @@
             <p class="section-subtitle">Built for power users who value privacy, speed, and control.</p>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">&#128274;</div>
+                    <div class="feature-icon">
+                        <!-- Lock Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
                     <h3>Touch ID Protection</h3>
                     <p>Lock hidden icons behind Touch ID or your password. Protect crypto wallets, messaging apps, and VPNs from prying eyes.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#128269;</div>
+                    <div class="feature-icon">
+                        <!-- Search Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
                     <h3>Power Search</h3>
                     <p>Find and click any menu bar app instantly, even if it's hidden behind the Notch. Keyboard-driven workflow.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#9889;</div>
+                    <div class="feature-icon">
+                        <!-- Zap/Lightning Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
                     <h3>Per-Icon Hotkeys</h3>
                     <p>Assign global shortcuts to your most-used menu bar apps. One keystroke to open any menu.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#129302;</div>
+                    <div class="feature-icon">
+                        <!-- Terminal/Command Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
+                    </div>
                     <h3>AppleScript Ready</h3>
                     <p>Full automation support. Build SaneBar into Shortcuts, Focus Modes, and your existing workflows.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#128161;</div>
+                    <div class="feature-icon">
+                        <!-- Lightbulb/Triggers Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18h6"></path>
+                            <path d="M10 22h4"></path>
+                            <path d="M15.09 14c.18-.9.93-1.54 1.86-1.78A7 7 0 1 0 3 12"></path>
+                            <path d="M12 2v2"></path>
+                            <path d="M12 20v2"></path>
+                            <path d="M22 12h-2"></path>
+                            <path d="M2 12h2"></path>
+                        </svg>
+                    </div>
                     <h3>Smart Triggers</h3>
                     <p>Auto-show icons on low battery, specific WiFi networks, or when certain apps launch.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">&#127912;</div>
+                    <div class="feature-icon">
+                        <!-- Brush/Native Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2.69l5.74 5.74-5.74 5.74-5.74-5.74 5.74-5.74z"></path>
+                            <path d="M12 14.17v5.66"></path>
+                            <path d="M12 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path>
+                        </svg>
+                    </div>
                     <h3>Native & Lightweight</h3>
                     <p>Pure Swift and SwiftUI. No Electron bloat. Feels like part of macOS.</p>
                 </div>
@@ -877,7 +979,7 @@
                         </svg>
                         Download SaneBar v1.0.3
                     </a>
-                    <p style="color: var(--text-primary); opacity: 0.7; font-size: 0.9rem;">or install via Homebrew:</p>
+                    <p class="download-option-text">or install via Homebrew:</p>
                     <div class="brew-command">
                         <code>brew install --cask sanebar</code>
                     </div>
@@ -889,12 +991,12 @@
     <section class="support" id="support">
         <div class="container">
             <h2 class="section-title">Support SaneBar</h2>
-            <p class="section-subtitle" style="font-style: italic; max-width: 500px;">
+            <p class="section-subtitle support-subtitle">
                 Leave a star on GitHub if you like me.<br>
                 Donate if you love me and want me to feed my family.<br>
-                <span style="margin-top: 8px; display: inline-block;">With love — Mr. Sane</span>
+                <span>With love — Mr. Sane</span>
             </p>
-            <div class="crypto-addresses" style="display: block;">
+            <div class="crypto-addresses">
                 <div class="crypto-grid">
                     <div class="crypto-item crypto-btc">
                         <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/btc.svg" alt="BTC" width="24" height="24">
@@ -909,7 +1011,7 @@
                         <code class="crypto-addr" onclick="copyToClipboard(this)">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
                     </div>
                 </div>
-                <p class="crypto-hint" style="color: var(--accent); font-weight: 500; font-size: 0.9rem;">Click any address to copy</p>
+                <p class="crypto-hint">Click any address to copy</p>
             </div>
         </div>
     </section>
