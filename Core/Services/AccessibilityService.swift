@@ -60,6 +60,10 @@ final class AccessibilityService: ObservableObject {
     private var menuBarItemCacheTime: Date = .distantPast
     private let cacheValiditySeconds: TimeInterval = 5.0
 
+    /// Cache for menu bar item owners (apps only, no positions) - used by Find Icon
+    private var menuBarOwnersCache: [RunningApp] = []
+    private var menuBarOwnersCacheTime: Date = .distantPast
+
     // MARK: - Initialization
 
     private init() {
@@ -178,9 +182,16 @@ final class AccessibilityService: ObservableObject {
     /// This is much closer to "things in the menu bar" than `NSWorkspace.runningApplications`.
     ///
     /// NOTE: We scan running apps for their AXExtrasMenuBar attribute.
-    /// OPTIMIZATION: Only scans apps with bundle identifiers (skips XPC services, agents).
+    /// OPTIMIZATION: Results cached for 5 seconds. Only scans apps with bundle identifiers.
     func listMenuBarItemOwners() -> [RunningApp] {
         guard isTrusted else { return [] }
+
+        // Check cache validity - return cached results if still fresh
+        let now = Date()
+        if now.timeIntervalSince(menuBarOwnersCacheTime) < cacheValiditySeconds && !menuBarOwnersCache.isEmpty {
+            logger.debug("Returning cached menu bar owners (\(self.menuBarOwnersCache.count) apps)")
+            return menuBarOwnersCache
+        }
 
         var pids = Set<pid_t>()
 
@@ -190,6 +201,8 @@ final class AccessibilityService: ObservableObject {
             guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
             return true
         }
+
+        logger.debug("Scanning \(candidateApps.count) apps for menu bar owners")
 
         // Scan candidate apps for their menu bar extras
         for runningApp in candidateApps {
@@ -215,7 +228,14 @@ final class AccessibilityService: ObservableObject {
             apps.append(RunningApp(app: app))
         }
 
-        return apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+
+        // Update cache
+        menuBarOwnersCache = sortedApps
+        menuBarOwnersCacheTime = now
+        logger.debug("Cached \(sortedApps.count) menu bar owners")
+
+        return sortedApps
     }
 
     /// Returns menu bar items, with position info.
@@ -331,11 +351,33 @@ final class AccessibilityService: ObservableObject {
         return apps
     }
 
-    /// Invalidates the menu bar item cache, forcing a fresh scan on next call.
+    /// Invalidates all menu bar caches, forcing a fresh scan on next call.
     /// Call this when you know menu bar items have changed (e.g., after hiding/showing).
     func invalidateMenuBarItemCache() {
         menuBarItemCacheTime = .distantPast
-        logger.debug("Menu bar item cache invalidated")
+        menuBarOwnersCacheTime = .distantPast
+        logger.debug("Menu bar item caches invalidated")
+    }
+
+    /// Pre-warms the menu bar caches in the background.
+    /// Call this on app launch so Find Icon opens instantly.
+    func prewarmCache() {
+        guard isTrusted else {
+            logger.debug("Skipping cache prewarm - accessibility not granted")
+            return
+        }
+
+        Task.detached(priority: .utility) { @MainActor in
+            logger.info("Pre-warming menu bar cache...")
+            let startTime = Date()
+
+            // Warm both caches
+            _ = self.listMenuBarItemOwners()
+            _ = self.listMenuBarItemsWithPositions()
+
+            let elapsed = Date().timeIntervalSince(startTime)
+            logger.info("Menu bar cache pre-warmed in \(String(format: "%.2f", elapsed))s")
+        }
     }
 
     private func clickSystemWideItem(for targetPID: pid_t) -> Bool {

@@ -33,6 +33,13 @@ build/
 vendor/
 .bundle/
 
+# Release artifacts (distributed via GitHub Releases, not repo)
+releases/
+*.dmg
+*.xcarchive/
+*.pkg
+*.zip
+
 # Gemini/Agentic
 .gemini/
 .mcp.json
@@ -78,7 +85,7 @@ vendor/
 TranscriptionTest*/
 TestReports/
 
-# Images - ignore in root/tests, but keep app assets
+# Images - ignore in root/tests/marketing, but keep app assets
 /*.png
 /*.jpg
 /*.jpeg
@@ -88,6 +95,9 @@ TestReports/
 /Tests/**/*.jpg
 /Media/**/*.png
 /Media/**/*.jpg
+marketing/*.png
+marketing/*.jpg
+!marketing/app-icon.png
 
 # Keep all xcassets (app icons, etc)
 !Resources/Assets.xcassets/**/*.png
@@ -111,6 +121,10 @@ project.yml.ci_backup
 
 # Ephemeral reports and analysis (AI-generated, test results, audits)
 reports/
+*_AUDIT.md
+*_REVIEW.md
+CODE_REVIEW.md
+WEBSITE_AUDIT.md
 
 # Generated output
 Output/
