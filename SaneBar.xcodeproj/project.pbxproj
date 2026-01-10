@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60BA8814BDB7CD86196B556 /* UpdateService.swift */; };
 		13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C33525F13C653C654FBABD /* SearchWindowTests.swift */; };
 		177462570C47D2B4DB5E35D9 /* NetworkTriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E1A335FE5120D24D104B40 /* NetworkTriggerServiceTests.swift */; };
 		17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56253053D08930BD23085754 /* IconHotkeysService.swift */; };
@@ -110,6 +111,7 @@
 		C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
+		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
 		DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsControllerTests.swift; sourceTree = "<group>"; };
 		E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManagerTests.swift; sourceTree = "<group>"; };
@@ -275,6 +277,7 @@
 				B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */,
 				B169D11639EA3855736D56D3 /* SearchService.swift */,
 				FC1779B5B710715DD106EE34 /* TriggerService.swift */,
+				D60BA8814BDB7CD86196B556 /* UpdateService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -456,6 +459,7 @@
 				265187C64135D0BBD23E8286 /* ShortcutsSettingsView.swift in Sources */,
 				F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */,
 				A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */,
+				0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -622,7 +626,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -631,7 +635,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -688,7 +692,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -697,7 +701,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;

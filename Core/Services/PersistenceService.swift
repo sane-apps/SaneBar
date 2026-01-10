@@ -69,6 +69,14 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
 
+    // MARK: - Update Checking
+
+    /// Automatically check for updates on launch (off by default for privacy)
+    var checkForUpdatesAutomatically: Bool = false
+
+    /// Last time we checked for updates (for rate limiting)
+    var lastUpdateCheck: Date?
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -94,6 +102,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.15
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
+        checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
+        lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -102,6 +112,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll
+        case checkForUpdatesAutomatically, lastUpdateCheck
     }
 }
 
