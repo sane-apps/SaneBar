@@ -273,13 +273,13 @@ final class StatusBarControllerProtocolMock: StatusBarControllerProtocol {
     }
 
     private(set) var createMenuCallCount = 0
-    var createMenuArgValues = [(toggleAction: Selector, settingsAction: Selector, quitAction: Selector, target: AnyObject)]()
-    var createMenuHandler: ((Selector, Selector, Selector, AnyObject) -> NSMenu)?
-    func createMenu(toggleAction: Selector, settingsAction: Selector, quitAction: Selector, target: AnyObject) -> NSMenu {
+    var createMenuArgValues = [(toggleAction: Selector, findIconAction: Selector, settingsAction: Selector, checkForUpdatesAction: Selector, quitAction: Selector, target: AnyObject)]()
+    var createMenuHandler: ((Selector, Selector, Selector, Selector, Selector, AnyObject) -> NSMenu)?
+    func createMenu(toggleAction: Selector, findIconAction: Selector, settingsAction: Selector, checkForUpdatesAction: Selector, quitAction: Selector, target: AnyObject) -> NSMenu {
         createMenuCallCount += 1
-        createMenuArgValues.append((toggleAction, settingsAction, quitAction, target))
+        createMenuArgValues.append((toggleAction, findIconAction, settingsAction, checkForUpdatesAction, quitAction, target))
         if let createMenuHandler = createMenuHandler {
-            return createMenuHandler(toggleAction, settingsAction, quitAction, target)
+            return createMenuHandler(toggleAction, findIconAction, settingsAction, checkForUpdatesAction, quitAction, target)
         }
         fatalError("createMenuHandler returns can't have a default value thus its handler must be set")
     }

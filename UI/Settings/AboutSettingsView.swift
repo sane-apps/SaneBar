@@ -6,6 +6,7 @@ struct AboutSettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showLicenses = false
     @State private var showSupport = false
+    @State private var isCheckingForUpdates = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -27,17 +28,63 @@ struct AboutSettingsView: View {
                 }
             }
 
+            // Privacy commitment
             GroupBox {
                 VStack(spacing: 8) {
-                    Label("100% On-Device", systemImage: "lock.shield.fill")
+                    Label("Privacy First", systemImage: "lock.shield.fill")
                         .foregroundStyle(.green)
 
-                    Text("No analytics. No telemetry. No network requests. Everything stays on your Mac.")
+                    Text("No analytics. No telemetry. No user tracking. Your data stays on your Mac.")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+
+                    Link("Read our Privacy Policy →", destination: URL(string: "https://github.com/stephanjoseph/SaneBar/blob/main/PRIVACY.md")!)
+                        .font(.caption)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
+            }
+            .padding(.horizontal, 40)
+
+            // Update checking section
+            GroupBox {
+                VStack(spacing: 12) {
+                    HStack {
+                        Button {
+                            checkForUpdates()
+                        } label: {
+                            if isCheckingForUpdates {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .frame(width: 16, height: 16)
+                            } else {
+                                Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        .disabled(isCheckingForUpdates)
+
+                        Spacer()
+
+                        if let lastCheck = menuBarManager.settings.lastUpdateCheck {
+                            Text("Last checked: \(lastCheck, style: .relative) ago")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Divider()
+
+                    Toggle("Check automatically on launch", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
+                        .onChange(of: menuBarManager.settings.checkForUpdatesAutomatically) { _, _ in
+                            menuBarManager.saveSettings()
+                        }
+
+                    Text("When enabled, checks once per day. Only notifies you if an update is available.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.vertical, 4)
             }
             .padding(.horizontal, 40)
 
@@ -92,6 +139,55 @@ struct AboutSettingsView: View {
         } message: {
             Text("This will reset all settings to their defaults. This cannot be undone.")
         }
+    }
+
+    // MARK: - Update Check
+
+    private func checkForUpdates() {
+        isCheckingForUpdates = true
+        Task {
+            let result = await menuBarManager.updateService.checkForUpdates()
+            menuBarManager.settings.lastUpdateCheck = Date()
+            menuBarManager.saveSettings()
+
+            await MainActor.run {
+                isCheckingForUpdates = false
+                showUpdateResult(result)
+            }
+        }
+    }
+
+    private func showUpdateResult(_ result: UpdateResult) {
+        let alert = NSAlert()
+
+        switch result {
+        case .upToDate:
+            alert.messageText = "You're up to date!"
+            alert.informativeText = "SaneBar is running the latest version."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+
+        case .updateAvailable(let version, let releaseURL):
+            let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+            alert.messageText = "Update Available"
+            alert.informativeText = "SaneBar \(version) is available. You're currently running \(currentVersion)."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "View Release")
+            alert.addButton(withTitle: "Later")
+
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(releaseURL)
+            }
+            return
+
+        case .error(let message):
+            alert.messageText = "Update Check Failed"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+        }
+
+        alert.runModal()
     }
 
     // MARK: - Licenses Sheet
@@ -171,26 +267,46 @@ struct AboutSettingsView: View {
 
             Divider()
 
-            VStack(spacing: 16) {
-                Text("SaneBar is free and open source. If you find it useful, consider supporting development.")
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Quote
+                    VStack(spacing: 4) {
+                        Text("\"The worker is worthy of his wages.\"")
+                            .font(.system(size: 14, weight: .medium, design: .serif))
+                            .italic()
+                        Text("— 1 Timothy 5:18")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 8)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    CryptoAddressRow(label: "BTC", address: "3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke")
-                    CryptoAddressRow(label: "SOL", address: "FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ")
-                    CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
+                    // Personal message
+                    Text("This app is free because I hate corporations, not because I'm a filthy commie. If it's worth something to you, please donate so I can make a living.")
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Text("Much love,\n— Mr. Sane")
+                        .font(.system(size: 13, weight: .medium))
+                        .multilineTextAlignment(.center)
+
+                    Divider()
+                        .padding(.horizontal, 40)
+
+                    // Crypto addresses
+                    VStack(alignment: .leading, spacing: 12) {
+                        CryptoAddressRow(label: "BTC", address: "3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke")
+                        CryptoAddressRow(label: "SOL", address: "FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ")
+                        CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
+                    }
+                    .padding()
+                    .background(.fill.quaternary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .padding()
-                .background(.fill.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .padding()
-
-            Spacer()
         }
-        .frame(width: 400, height: 280)
+        .frame(width: 420, height: 340)
     }
 }
 

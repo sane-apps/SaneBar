@@ -77,33 +77,42 @@ struct StatusBarControllerTests {
         // Create a dummy target
         class DummyTarget: NSObject {
             @objc func toggle() {}
+            @objc func findIcon() {}
             @objc func settings() {}
+            @objc func checkForUpdates() {}
             @objc func quit() {}
         }
         let target = DummyTarget()
 
         let menu = controller.createMenu(
             toggleAction: #selector(DummyTarget.toggle),
+            findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
         )
 
-        // Should have: Toggle, separator, Settings, separator, Quit
-        #expect(menu.items.count == 5, "Menu should have 5 items (3 commands + 2 separators)")
+        // Should have: Toggle, Find Icon, separator, Settings, Check for Updates, separator, Quit
+        #expect(menu.items.count == 7, "Menu should have 7 items (5 commands + 2 separators)")
 
         // Check Toggle item
         let toggleItem = menu.items[0]
         #expect(toggleItem.title == "Toggle Hidden Items")
         #expect(toggleItem.keyEquivalent == "\\")
 
+        // Check Find Icon item
+        let findIconItem = menu.items[1]
+        #expect(findIconItem.title == "Find Icon...")
+        #expect(findIconItem.keyEquivalent == " ")
+
         // Check Settings item
-        let settingsItem = menu.items[2]
+        let settingsItem = menu.items[3]
         #expect(settingsItem.title == "Settings...")
         #expect(settingsItem.keyEquivalent == ",")
 
         // Check Quit item
-        let quitItem = menu.items[4]
+        let quitItem = menu.items[6]
         #expect(quitItem.title == "Quit SaneBar")
         #expect(quitItem.keyEquivalent == "q")
     }
@@ -115,14 +124,18 @@ struct StatusBarControllerTests {
 
         class DummyTarget: NSObject {
             @objc func toggle() {}
+            @objc func findIcon() {}
             @objc func settings() {}
+            @objc func checkForUpdates() {}
             @objc func quit() {}
         }
         let target = DummyTarget()
 
         let menu = controller.createMenu(
             toggleAction: #selector(DummyTarget.toggle),
+            findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
         )
@@ -142,28 +155,36 @@ struct StatusBarControllerTests {
 
         class DummyTarget: NSObject {
             var toggleCalled = false
+            var findIconCalled = false
             var settingsCalled = false
+            var checkForUpdatesCalled = false
             var quitCalled = false
 
             @objc func toggle() { toggleCalled = true }
+            @objc func findIcon() { findIconCalled = true }
             @objc func settings() { settingsCalled = true }
+            @objc func checkForUpdates() { checkForUpdatesCalled = true }
             @objc func quit() { quitCalled = true }
         }
         let target = DummyTarget()
 
         let menu = controller.createMenu(
             toggleAction: #selector(DummyTarget.toggle),
+            findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
         )
 
         // Verify each menu item has an action
         let toggleItem = menu.items[0]
-        let settingsItem = menu.items[2]
-        let quitItem = menu.items[4]
+        let findIconItem = menu.items[1]
+        let settingsItem = menu.items[3]
+        let quitItem = menu.items[6]
 
         #expect(toggleItem.action == #selector(DummyTarget.toggle), "Toggle item should have toggle action")
+        #expect(findIconItem.action == #selector(DummyTarget.findIcon), "Find Icon item should have findIcon action")
         #expect(settingsItem.action == #selector(DummyTarget.settings), "Settings item should have settings action")
         #expect(quitItem.action == #selector(DummyTarget.quit), "Quit item should have quit action")
     }
@@ -176,20 +197,24 @@ struct StatusBarControllerTests {
         class DummyTarget: NSObject {
             var settingsCalled = false
             @objc func toggle() {}
+            @objc func findIcon() {}
             @objc func settings() { settingsCalled = true }
+            @objc func checkForUpdates() {}
             @objc func quit() {}
         }
         let target = DummyTarget()
 
         let menu = controller.createMenu(
             toggleAction: #selector(DummyTarget.toggle),
+            findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
         )
 
         // Get settings item and verify it can be invoked
-        let settingsItem = menu.items[2]
+        let settingsItem = menu.items[3]
         #expect(settingsItem.target != nil, "Settings item must have a target")
         #expect(settingsItem.action != nil, "Settings item must have an action")
 

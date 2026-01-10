@@ -15,7 +15,9 @@ protocol StatusBarControllerProtocol {
     func iconName(for state: HidingState) -> String
     func createMenu(
         toggleAction: Selector,
+        findIconAction: Selector,
         settingsAction: Selector,
+        checkForUpdatesAction: Selector,
         quitAction: Selector,
         target: AnyObject
     ) -> NSMenu
@@ -234,7 +236,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Create the status menu with provided actions
     func createMenu(
         toggleAction: Selector,
+        findIconAction: Selector,
         settingsAction: Selector,
+        checkForUpdatesAction: Selector,
         quitAction: Selector,
         target: AnyObject
     ) -> NSMenu {
@@ -249,6 +253,15 @@ final class StatusBarController: StatusBarControllerProtocol {
         toggleItem.keyEquivalentModifierMask = [.command]
         menu.addItem(toggleItem)
 
+        let findItem = NSMenuItem(
+            title: "Find Icon...",
+            action: findIconAction,
+            keyEquivalent: " "
+        )
+        findItem.target = target
+        findItem.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(findItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let settingsItem = NSMenuItem(
@@ -258,6 +271,14 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
         settingsItem.target = target
         menu.addItem(settingsItem)
+
+        let updateItem = NSMenuItem(
+            title: "Check for Updates...",
+            action: checkForUpdatesAction,
+            keyEquivalent: ""
+        )
+        updateItem.target = target
+        menu.addItem(updateItem)
 
         menu.addItem(NSMenuItem.separator())
 

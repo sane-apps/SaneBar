@@ -51,6 +51,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     let appearanceService: MenuBarAppearanceService
     let networkTriggerService: NetworkTriggerService
     let hoverService: HoverService
+    let updateService: UpdateService
 
     // MARK: - Status Items
 
@@ -81,7 +82,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         iconHotkeysService: IconHotkeysService? = nil,
         appearanceService: MenuBarAppearanceService? = nil,
         networkTriggerService: NetworkTriggerService? = nil,
-        hoverService: HoverService? = nil
+        hoverService: HoverService? = nil,
+        updateService: UpdateService? = nil
     ) {
         self.hidingService = hidingService ?? HidingService()
         self.persistenceService = persistenceService
@@ -92,6 +94,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.appearanceService = appearanceService ?? MenuBarAppearanceService()
         self.networkTriggerService = networkTriggerService ?? NetworkTriggerService()
         self.hoverService = hoverService ?? HoverService()
+        self.updateService = updateService ?? UpdateService()
 
         super.init()
 
@@ -199,6 +202,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Show onboarding on first launch
             self.showOnboardingIfNeeded()
 
+            // Check for updates on launch if enabled (with rate limiting)
+            self.checkForUpdatesOnLaunchIfEnabled()
+
             logger.info("Deferred UI setup complete")
         }
     }
@@ -217,7 +223,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Setup menu using controller, attach to separator
         statusMenu = statusBarController.createMenu(
             toggleAction: #selector(menuToggleHiddenItems),
+            findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
+            checkForUpdatesAction: #selector(checkForUpdates),
             quitAction: #selector(quitApp),
             target: self
         )
@@ -593,9 +601,98 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         SettingsOpener.open()
     }
 
+    @objc private func openFindIcon(_ sender: Any?) {
+        logger.info("Menu: Find Icon")
+        SearchWindowController.shared.toggle()
+    }
+
     @objc private func quitApp(_ sender: Any?) {
         logger.info("Menu: Quit")
         NSApplication.shared.terminate(nil)
+    }
+
+    @objc private func checkForUpdates(_ sender: Any?) {
+        logger.info("Menu: Check for Updates")
+        Task {
+            await performUpdateCheck()
+        }
+    }
+
+    /// Performs the update check and shows appropriate alert
+    private func performUpdateCheck() async {
+        let result = await updateService.checkForUpdates()
+
+        // Update last check time
+        settings.lastUpdateCheck = Date()
+        saveSettings()
+
+        await MainActor.run {
+            showUpdateResult(result)
+        }
+    }
+
+    private func showUpdateResult(_ result: UpdateResult) {
+        let alert = NSAlert()
+
+        switch result {
+        case .upToDate:
+            alert.messageText = "You're up to date!"
+            alert.informativeText = "SaneBar is running the latest version."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+
+        case .updateAvailable(let version, let releaseURL):
+            alert.messageText = "Update Available"
+            alert.informativeText = "SaneBar \(version) is available. You're currently running \(currentAppVersion)."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "View Release")
+            alert.addButton(withTitle: "Later")
+
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(releaseURL)
+            }
+            return
+
+        case .error(let message):
+            alert.messageText = "Update Check Failed"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+        }
+
+        alert.runModal()
+    }
+
+    private var currentAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
+    /// Check for updates on launch if enabled, with rate limiting (max once per day)
+    private func checkForUpdatesOnLaunchIfEnabled() {
+        guard settings.checkForUpdatesAutomatically else { return }
+
+        // Rate limit: only check once per day
+        if let lastCheck = settings.lastUpdateCheck {
+            let hoursSinceLastCheck = Date().timeIntervalSince(lastCheck) / 3600
+            if hoursSinceLastCheck < 24 {
+                logger.debug("Skipping auto update check - last check was \(hoursSinceLastCheck) hours ago")
+                return
+            }
+        }
+
+        logger.info("Auto-checking for updates on launch")
+        Task {
+            let result = await updateService.checkForUpdates()
+            settings.lastUpdateCheck = Date()
+            saveSettings()
+
+            // Only show alert if update is available (don't bother user with "up to date")
+            if case .updateAvailable = result {
+                await MainActor.run {
+                    showUpdateResult(result)
+                }
+            }
+        }
     }
 
     // MARK: - Spacers

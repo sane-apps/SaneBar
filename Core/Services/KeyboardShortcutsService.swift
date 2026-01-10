@@ -131,9 +131,8 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
             KeyboardShortcuts.setShortcut(.init(.space, modifiers: [.command, .shift]), for: .searchMenuBar)
         }
 
-        // Open Settings: Cmd+, (standard macOS convention)
-        if KeyboardShortcuts.getShortcut(for: .openSettings) == nil {
-            KeyboardShortcuts.setShortcut(.init(.comma, modifiers: .command), for: .openSettings)
-        }
+        // Note: No default for openSettings - ⌘, is a standard macOS convention
+        // for app-specific Settings. A global hotkey would override ALL apps.
+        // Users can manually set this in Settings → Shortcuts if desired.
     }
 }
