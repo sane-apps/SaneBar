@@ -231,10 +231,13 @@ final class AccessibilityService: ObservableObject {
             var extrasBar: CFTypeRef?
             let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-            guard result == .success, let bar = extrasBar else { continue }
-
+            guard let bar = extrasBar else { continue }
+            
+            // Safe type checking using Core Foundation type IDs
+            guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { continue }
             // swiftlint:disable:next force_cast
             let barElement = bar as! AXUIElement
+            
             var children: CFTypeRef?
             let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
 
@@ -245,11 +248,14 @@ final class AccessibilityService: ObservableObject {
                 let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
                 var xPos: CGFloat = 0
+                
                 if posResult == .success, let posValue = positionValue {
-                    var point = CGPoint.zero
-                    // swiftlint:disable:next force_cast
-                    if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
-                        xPos = point.x
+                    if CFGetTypeID(posValue) == AXValueGetTypeID() {
+                        var point = CGPoint.zero
+                        // swiftlint:disable:next force_cast
+                        if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                            xPos = point.x
+                        }
                     }
                 }
 
