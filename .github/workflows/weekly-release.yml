@@ -1,0 +1,318 @@
+name: Weekly Release
+
+on:
+  schedule:
+    # Every Monday at 10:00 AM UTC (5:00 AM EST, 2:00 AM PST)
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      skip_notarization:
+        description: 'Skip notarization (for testing)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  XCODE_VERSION: '16.2'
+  APP_NAME: 'SaneBar'
+  BUNDLE_ID: 'com.sanebar.app'
+
+jobs:
+  check-changes:
+    name: Check for Changes
+    runs-on: macos-15
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+      current_version: ${{ steps.version.outputs.current }}
+      new_version: ${{ steps.version.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes since last release
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "No previous tags found, will create first release"
+          else
+            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline | wc -l | tr -d ' ')
+            if [ "$CHANGES" -gt 0 ]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              echo "Found $CHANGES commits since $LAST_TAG"
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No changes since $LAST_TAG, skipping release"
+            fi
+          fi
+
+      - name: Calculate version
+        id: version
+        env:
+          VERSION_BUMP: ${{ github.event.inputs.version_bump || 'patch' }}
+        run: |
+          # Get current version from project.yml
+          CURRENT=$(grep 'MARKETING_VERSION:' project.yml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+
+          # Calculate new version based on bump type
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case $VERSION_BUMP in
+            major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
+            minor) NEW_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+
+          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Version bump: $CURRENT -> $NEW_VERSION ($VERSION_BUMP)"
+
+  build-and-release:
+    name: Build, Sign, Notarize & Release
+    needs: check-changes
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Install dependencies
+        run: |
+          brew install create-dmg
+          gem install xcodeproj
+
+      - name: Update version in project
+        env:
+          NEW_VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          # Update project.yml
+          sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"$NEW_VERSION\"/" project.yml
+
+          # Get current build number and increment
+          CURRENT_BUILD=$(grep 'CURRENT_PROJECT_VERSION:' project.yml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          NEW_BUILD=$((CURRENT_BUILD + 1))
+          sed -i '' "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$NEW_BUILD\"/" project.yml
+
+          echo "Updated to version $NEW_VERSION ($NEW_BUILD)"
+
+      - name: Generate Xcode project
+        run: |
+          if command -v xcodegen &> /dev/null; then
+            xcodegen generate
+          fi
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate
+          echo "$CERTIFICATE_P12" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Build app
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild -project ${{ env.APP_NAME }}.xcodeproj \
+            -scheme ${{ env.APP_NAME }} \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/${{ env.APP_NAME }}.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime"
+
+      - name: Export app
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > $RUNNER_TEMP/export.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>teamID</key>
+            <string>${TEAM_ID}</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/${{ env.APP_NAME }}.xcarchive \
+            -exportPath $RUNNER_TEMP/export \
+            -exportOptionsPlist $RUNNER_TEMP/export.plist
+
+      - name: Create DMG
+        env:
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          create-dmg \
+            --volname "${{ env.APP_NAME }}" \
+            --volicon "$RUNNER_TEMP/export/${{ env.APP_NAME }}.app/Contents/Resources/AppIcon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "${{ env.APP_NAME }}.app" 150 190 \
+            --app-drop-link 450 190 \
+            --hide-extension "${{ env.APP_NAME }}.app" \
+            "$RUNNER_TEMP/${{ env.APP_NAME }}-${VERSION}.dmg" \
+            "$RUNNER_TEMP/export/${{ env.APP_NAME }}.app"
+
+      - name: Notarize DMG
+        if: ${{ !inputs.skip_notarization }}
+        env:
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+        run: |
+          DMG_PATH="$RUNNER_TEMP/${{ env.APP_NAME }}-${VERSION}.dmg"
+
+          # Store API key
+          mkdir -p ~/.private_keys
+          echo "$NOTARY_API_KEY" > ~/.private_keys/AuthKey_${NOTARY_API_KEY_ID}.p8
+
+          # Submit for notarization
+          xcrun notarytool submit "$DMG_PATH" \
+            --key ~/.private_keys/AuthKey_${NOTARY_API_KEY_ID}.p8 \
+            --key-id "$NOTARY_API_KEY_ID" \
+            --issuer "$NOTARY_API_ISSUER_ID" \
+            --wait
+
+          # Staple the ticket
+          xcrun stapler staple "$DMG_PATH"
+
+          echo "Notarization complete!"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            git log --oneline -20 > $RUNNER_TEMP/changelog.txt
+          else
+            git log ${LAST_TAG}..HEAD --pretty=format:"- %s" | head -30 > $RUNNER_TEMP/changelog.txt
+          fi
+          echo "Generated changelog"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          DMG_PATH="$RUNNER_TEMP/${{ env.APP_NAME }}-${VERSION}.dmg"
+          CHANGELOG=$(cat $RUNNER_TEMP/changelog.txt)
+          RELEASE_DATE=$(date +%Y-%m-%d)
+
+          gh release create "v${VERSION}" \
+            --title "${{ env.APP_NAME }} v${VERSION}" \
+            --notes "## What's Changed
+
+          ${CHANGELOG}
+
+          ## Installation
+
+          ### Homebrew (Recommended)
+          \`\`\`bash
+          brew tap stephanjoseph/sanebar
+          brew install --cask sanebar
+          \`\`\`
+
+          ### Direct Download
+          Download the DMG below and drag SaneBar to Applications.
+
+          ---
+          *Released automatically on ${RELEASE_DATE}*" \
+            "$DMG_PATH"
+
+      - name: Update Homebrew Cask
+        env:
+          HOMEBREW_PAT: ${{ secrets.HOMEBREW_PAT }}
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          DMG_PATH="$RUNNER_TEMP/${{ env.APP_NAME }}-${VERSION}.dmg"
+
+          # Calculate SHA256
+          SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+
+          # Clone homebrew repo
+          git clone "https://x-access-token:${HOMEBREW_PAT}@github.com/stephanjoseph/homebrew-sanebar.git" $RUNNER_TEMP/homebrew
+          cd $RUNNER_TEMP/homebrew
+
+          # Update cask file
+          cat > Casks/sanebar.rb << EOF
+          cask "sanebar" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/stephanjoseph/SaneBar/releases/download/v#{version}/SaneBar-#{version}.dmg"
+            name "SaneBar"
+            desc "Privacy-focused menu bar manager for macOS"
+            homepage "https://github.com/stephanjoseph/SaneBar"
+
+            depends_on macos: ">= :sequoia"
+
+            app "SaneBar.app"
+
+            zap trash: [
+              "~/Library/Preferences/com.sanebar.app.plist",
+              "~/Library/Application Support/SaneBar",
+            ]
+          end
+          EOF
+
+          # Commit and push
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Casks/sanebar.rb
+          git commit -m "Update SaneBar to v${VERSION}"
+          git push
+
+      - name: Commit version bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add project.yml
+          git commit -m "chore: bump version to ${VERSION} [skip ci]"
+          git push
+
+      - name: Summary
+        env:
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release**: https://github.com/${{ github.repository }}/releases/tag/v${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Homebrew**: Updated automatically" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Users can update with: \`brew upgrade sanebar\`" >> $GITHUB_STEP_SUMMARY
