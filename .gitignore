@@ -126,6 +126,17 @@ reports/
 CODE_REVIEW.md
 WEBSITE_AUDIT.md
 
+# Internal planning docs (not for public consumption)
+FEATURE_PLAN.md
+BUG_TRACKING.md
+*Visuals and Marketing.md
+.claude/SOP*.md
+.claude/PROJECT*.md
+.claude/research/
+.claude/bugs.md
+.claude/hook*.md
+.gemini/
+
 # Generated output
 Output/
 .claude/audit_log.jsonl
