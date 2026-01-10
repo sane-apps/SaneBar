@@ -120,6 +120,14 @@
             color: var(--text-primary);
         }
 
+        .nav-links a.btn-primary {
+            color: #ffffff;
+        }
+
+        .nav-links a.btn-primary:hover {
+            color: #ffffff;
+        }
+
         /* Hero Section */
         .hero {
             padding: 160px 0 80px;
@@ -163,8 +171,10 @@
 
         .btn-primary {
             background: var(--accent);
-            color: white;
+            color: #ffffff;
+            font-weight: 600;
             box-shadow: 0 4px 20px var(--accent-glow);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .btn-primary:hover {
@@ -469,6 +479,84 @@
             text-decoration: underline;
         }
 
+        /* Support Section */
+        .support {
+            padding: 80px 0;
+            text-align: center;
+        }
+
+        .support-options {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .crypto-addresses {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .crypto-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .crypto-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .crypto-logo {
+            flex-shrink: 0;
+            border-radius: 50%;
+        }
+
+        .crypto-addr {
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: left;
+            word-break: break-all;
+            border: 1px solid transparent;
+        }
+
+        .crypto-btc:hover .crypto-addr {
+            background: rgba(247, 147, 26, 0.2);
+            color: #F7931A;
+            border-color: #F7931A;
+        }
+
+        .crypto-sol:hover .crypto-addr {
+            background: rgba(153, 69, 255, 0.2);
+            color: #9945FF;
+            border-color: #9945FF;
+        }
+
+        .crypto-zec:hover .crypto-addr {
+            background: rgba(244, 183, 40, 0.2);
+            color: #F4B728;
+            border-color: #F4B728;
+        }
+
+        .crypto-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+
         /* Footer */
         footer {
             padding: 40px 0;
@@ -482,7 +570,7 @@
         }
 
         .footer-privacy strong {
-            color: var(--success);
+            color: var(--accent);
         }
 
         .footer-links {
@@ -552,7 +640,12 @@
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
-                <a href="#download" class="btn btn-primary" style="padding: 10px 20px;">Download</a>
+                <a href="#support" class="btn btn-primary" style="padding: 10px 20px; color: #ffffff !important;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" style="margin-right: 6px;">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                    Donate
+                </a>
             </div>
         </div>
     </nav>
@@ -568,7 +661,7 @@
             <h1>Bring Sanity to your Menu Bar</h1>
             <p class="subtitle">The privacy-first menu bar manager that hides the clutter and secures the rest. The <em>only</em> one with Touch ID protection.</p>
             <div class="cta-buttons">
-                <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.2/SaneBar-1.0.2.dmg" class="btn btn-primary">
+                <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -776,13 +869,13 @@
                 <h2>Ready to declutter?</h2>
                 <p>Free and open source. macOS 15 Sequoia or later.</p>
                 <div class="download-options">
-                    <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.2/SaneBar-1.0.2.dmg" class="btn btn-primary">
+                    <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
-                        Download SaneBar v1.0.2
+                        Download SaneBar v1.0.3
                     </a>
                     <p style="color: var(--text-primary); opacity: 0.7; font-size: 0.9rem;">or install via Homebrew:</p>
                     <div class="brew-command">
@@ -793,17 +886,58 @@
         </div>
     </section>
 
+    <section class="support" id="support">
+        <div class="container">
+            <h2 class="section-title">Support SaneBar</h2>
+            <p class="section-subtitle" style="font-style: italic; max-width: 500px;">
+                Leave a star on GitHub if you like me.<br>
+                Donate if you love me and want me to feed my family.<br>
+                <span style="margin-top: 8px; display: inline-block;">With love — Mr. Sane</span>
+            </p>
+            <div class="crypto-addresses" style="display: block;">
+                <div class="crypto-grid">
+                    <div class="crypto-item crypto-btc">
+                        <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/btc.svg" alt="BTC" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke</code>
+                    </div>
+                    <div class="crypto-item crypto-sol">
+                        <img class="crypto-logo" src="https://cryptologos.cc/logos/solana-sol-logo.svg" alt="SOL" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ</code>
+                    </div>
+                    <div class="crypto-item crypto-zec">
+                        <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/zec.svg" alt="ZEC" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
+                    </div>
+                </div>
+                <p class="crypto-hint" style="color: var(--accent); font-weight: 500; font-size: 0.9rem;">Click any address to copy</p>
+            </div>
+        </div>
+    </section>
+
     <footer>
         <div class="container">
-            <p class="footer-privacy">Made with <strong>0% Analytics</strong>. <strong>100% On-Device</strong>.</p>
+            <p class="footer-privacy"><strong>0% Telemetry</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
             <div class="footer-links">
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/blob/main/PRIVACY.md">Privacy</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/issues">Support</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/blob/main/LICENSE">MIT License</a>
             </div>
-            <p class="footer-copy">&copy; 2026 SaneBar. Built with Claude.</p>
+            <p class="footer-copy">&copy; 2026 SaneBar</p>
         </div>
     </footer>
+
+    <script>
+        function toggleCrypto() {
+            const el = document.getElementById('crypto-addresses');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        function copyToClipboard(el) {
+            navigator.clipboard.writeText(el.textContent);
+            const orig = el.textContent;
+            el.textContent = 'Copied!';
+            setTimeout(() => el.textContent = orig, 1500);
+        }
+    </script>
 </body>
 </html>

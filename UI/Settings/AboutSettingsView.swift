@@ -1,9 +1,11 @@
 import SwiftUI
+import AppKit
 
 struct AboutSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var showResetConfirmation = false
     @State private var showLicenses = false
+    @State private var showSupport = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -51,6 +53,13 @@ struct AboutSettingsView: View {
                     Label("Licenses", systemImage: "doc.text")
                 }
                 .buttonStyle(.bordered)
+
+                Button {
+                    showSupport = true
+                } label: {
+                    Label("Support", systemImage: "heart")
+                }
+                .buttonStyle(.bordered)
             }
             .font(.system(size: 13))
 
@@ -71,6 +80,9 @@ struct AboutSettingsView: View {
         .padding()
         .sheet(isPresented: $showLicenses) {
             licensesSheet
+        }
+        .sheet(isPresented: $showSupport) {
+            supportSheet
         }
         .alert("Reset Settings?", isPresented: $showResetConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -140,5 +152,83 @@ struct AboutSettingsView: View {
             }
         }
         .frame(width: 500, height: 400)
+    }
+
+    // MARK: - Support Sheet
+
+    private var supportSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Support SaneBar")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    showSupport = false
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+
+            Divider()
+
+            VStack(spacing: 16) {
+                Text("SaneBar is free and open source. If you find it useful, consider supporting development.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    CryptoAddressRow(label: "BTC", address: "3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke")
+                    CryptoAddressRow(label: "SOL", address: "FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ")
+                    CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
+                }
+                .padding()
+                .background(.fill.quaternary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .padding()
+
+            Spacer()
+        }
+        .frame(width: 400, height: 280)
+    }
+}
+
+// MARK: - Crypto Address Row
+
+private struct CryptoAddressRow: View {
+    let label: String
+    let address: String
+    @State private var copied = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.blue)
+                .frame(width: 32, alignment: .leading)
+
+            Text(address)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer()
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(address, forType: .string)
+                copied = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    copied = false
+                }
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(copied ? .green : .secondary)
+        }
     }
 }
