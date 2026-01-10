@@ -41,12 +41,16 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
     /// Corner radius
     var cornerRadius: Double = 8.0
 
-    /// Check if running on macOS 26+ for Liquid Glass support
+    /// Check if running on macOS 26+ for Liquid Glass support (and compiled with Swift 6.2+)
     static var supportsLiquidGlass: Bool {
+        #if swift(>=6.2)
         if #available(macOS 26.0, *) {
             return true
         }
         return false
+        #else
+        return false
+        #endif
     }
 }
 
@@ -262,6 +266,7 @@ struct MenuBarOverlayView: View {
 
     @ViewBuilder
     private var liquidGlassLayer: some View {
+        #if swift(>=6.2)
         if #available(macOS 26.0, *) {
             Rectangle()
                 .fill(.clear)
@@ -269,10 +274,17 @@ struct MenuBarOverlayView: View {
                     Glass.regular.tint(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
                 )
         } else {
-            // This branch won't execute due to supportsLiquidGlass check, but needed for compilation
-            Rectangle()
-                .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+            fallbackTintLayer
         }
+        #else
+        // Glass APIs require Swift 6.2+ SDK (Xcode 26+)
+        fallbackTintLayer
+        #endif
+    }
+
+    private var fallbackTintLayer: some View {
+        Rectangle()
+            .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
     }
 
     private var overlayShape: some Shape {
