@@ -294,15 +294,26 @@ jobs:
           git commit -m "Update SaneBar to v${VERSION}"
           git push
 
-      - name: Commit version bump
+      - name: Update website download links
+        env:
+          VERSION: ${{ needs.check-changes.outputs.new_version }}
+          OLD_VERSION: ${{ needs.check-changes.outputs.current_version }}
+        run: |
+          # Update download links in docs/index.html
+          if [ -f docs/index.html ]; then
+            sed -i '' "s|/v${OLD_VERSION}/SaneBar-${OLD_VERSION}.dmg|/v${VERSION}/SaneBar-${VERSION}.dmg|g" docs/index.html
+            echo "Updated website download links from v${OLD_VERSION} to v${VERSION}"
+          fi
+
+      - name: Commit version bump and website update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check-changes.outputs.new_version }}
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add project.yml
-          git commit -m "chore: bump version to ${VERSION} [skip ci]"
+          git add project.yml docs/index.html
+          git commit -m "chore: bump version to ${VERSION}, update website [skip ci]"
           git push
 
       - name: Summary
@@ -314,5 +325,6 @@ jobs:
           echo "- **Version**: ${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "- **Release**: https://github.com/${{ github.repository }}/releases/tag/v${VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "- **Homebrew**: Updated automatically" >> $GITHUB_STEP_SUMMARY
+          echo "- **Website**: Download links updated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Users can update with: \`brew upgrade sanebar\`" >> $GITHUB_STEP_SUMMARY
