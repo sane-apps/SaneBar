@@ -91,17 +91,35 @@ enum ActivationPolicyManager {
     static func applyInitialPolicy() {
         guard !isHeadlessEnvironment() else { return }
 
+        // Defer policy application to ensure NSApp is fully initialized
+        // In SwiftUI @main apps, App.init() runs before NSApplicationMain() completes
+        DispatchQueue.main.async {
+            applyPolicyNow()
+        }
+    }
+
+    /// Actually apply the activation policy (called after NSApp is ready)
+    @MainActor
+    private static func applyPolicyNow() {
+        guard let app = NSApp else {
+            logger.warning("NSApp not available yet, deferring activation policy")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                applyPolicyNow()
+            }
+            return
+        }
+
         // Use MenuBarManager's already-loaded settings to avoid race conditions
         let settings = MenuBarManager.shared.settings
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
 
         // Apply immediately
-        NSApp.setActivationPolicy(policy)
+        app.setActivationPolicy(policy)
         logger.info("Initial activation policy: \(policy == .regular ? "regular (dock visible)" : "accessory (dock hidden)")")
 
         // macOS sometimes needs the policy set again after a short delay for it to stick
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApp.setActivationPolicy(policy)
+            NSApp?.setActivationPolicy(policy)
             logger.debug("Re-applied activation policy after delay")
         }
     }

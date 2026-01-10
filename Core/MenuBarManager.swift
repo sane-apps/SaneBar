@@ -96,37 +96,21 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         super.init()
 
         logger.info("MenuBarManager init starting...")
-        
+
         // Skip UI initialization in headless/test environments
         // CI environments don't have a window server, so NSStatusItem creation will crash
         guard !isRunningInHeadlessEnvironment() else {
             logger.info("Headless environment detected - skipping UI initialization")
             return
         }
-        
-        setupStatusItem()
+
+        // Load settings first - this doesn't depend on status items
         loadSettings()
-        updateSpacers()
-        setupObservers()
-        updateAppearance()
 
-        // Configure trigger service with self
-        self.triggerService.configure(menuBarManager: self)
-
-        // Configure icon hotkeys service with self
-        self.iconHotkeysService.configure(with: self)
-
-        // Configure network trigger service
-        self.networkTriggerService.configure(menuBarManager: self)
-        if settings.showOnNetworkChange {
-            self.networkTriggerService.startMonitoring()
-        }
-
-        // Configure hover service
-        configureHoverService()
-
-        // Show onboarding on first launch
-        showOnboardingIfNeeded()
+        // Defer ALL status-bar-dependent initialization to ensure WindowServer is ready
+        // This fixes crashes on Mac Mini M4 and other systems where GUI isn't
+        // immediately available at app launch (e.g., Login Items, fast boot)
+        deferredUISetup()
     }
 
     private func configureHoverService() {
@@ -178,6 +162,46 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     // MARK: - Setup
+
+    /// Deferred UI setup with initial delay to ensure WindowServer is ready
+    /// Fixes crash on Mac Mini M4 / macOS 15.7.3 where GUI isn't immediately available
+    private func deferredUISetup() {
+        // Initial delay of 100ms gives the system time to fully establish
+        // the WindowServer connection, especially important for:
+        // - Login Items that launch before GUI is ready
+        // - Fast boot systems (M4 Macs)
+        // - Remote desktop sessions
+        let initialDelay: TimeInterval = 0.1
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) { [weak self] in
+            guard let self = self else { return }
+            logger.info("Starting deferred UI setup")
+
+            // Create status items (with additional retry logic inside)
+            self.setupStatusItem()
+
+            // These all depend on status items being ready
+            self.updateSpacers()
+            self.setupObservers()
+            self.updateAppearance()
+
+            // Configure services
+            self.triggerService.configure(menuBarManager: self)
+            self.iconHotkeysService.configure(with: self)
+            self.networkTriggerService.configure(menuBarManager: self)
+            if self.settings.showOnNetworkChange {
+                self.networkTriggerService.startMonitoring()
+            }
+
+            // Configure hover service
+            self.configureHoverService()
+
+            // Show onboarding on first launch
+            self.showOnboardingIfNeeded()
+
+            logger.info("Deferred UI setup complete")
+        }
+    }
 
     private func setupStatusItem() {
         // Delegate status item creation to controller

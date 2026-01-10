@@ -59,14 +59,98 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Status Item Creation
 
+    /// Check if WindowServer connection is likely ready
+    /// Returns true if we can safely create status items
+    private func isWindowServerReady() -> Bool {
+        // Check if NSApp exists and has finished launching
+        guard NSApp != nil else {
+            logger.warning("NSApp is nil - WindowServer not ready")
+            return false
+        }
+
+        // Check if we have a main screen (indicates display server is up)
+        guard NSScreen.main != nil else {
+            logger.warning("No main screen - WindowServer not ready")
+            return false
+        }
+
+        // Check if system status bar exists
+        let statusBar = NSStatusBar.system
+        // If we can access the system status bar without crashing, we're likely good
+        _ = statusBar.thickness
+        return true
+    }
+
     /// Create all status items in the correct order for menu bar positioning
     /// Order on screen: [separator] [main] [system icons]
+    /// Includes retry logic for systems where WindowServer isn't immediately ready
     func createStatusItems(
         clickAction: Selector,
         target: AnyObject
     ) {
+        createStatusItemsWithRetry(clickAction: clickAction, target: target, attempt: 1)
+    }
+
+    /// Internal retry implementation with exponential backoff
+    private func createStatusItemsWithRetry(
+        clickAction: Selector,
+        target: AnyObject,
+        attempt: Int
+    ) {
+        let maxAttempts = 5
+        let baseDelay: Double = 0.2 // 200ms base delay
+
+        // Check if WindowServer is ready
+        guard isWindowServerReady() else {
+            if attempt < maxAttempts {
+                let delay = baseDelay * pow(2.0, Double(attempt - 1)) // Exponential backoff
+                logger.info("WindowServer not ready, retry \(attempt)/\(maxAttempts) in \(delay)s")
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.createStatusItemsWithRetry(
+                        clickAction: clickAction,
+                        target: target,
+                        attempt: attempt + 1
+                    )
+                }
+            } else {
+                logger.error("Failed to create status items after \(maxAttempts) attempts - WindowServer unavailable")
+            }
+            return
+        }
+
+        // Attempt to create status items
+        do {
+            try createStatusItemsUnsafe(clickAction: clickAction, target: target)
+            logger.info("Status items created successfully on attempt \(attempt)")
+        } catch {
+            if attempt < maxAttempts {
+                let delay = baseDelay * pow(2.0, Double(attempt - 1))
+                logger.warning("Status item creation failed, retry \(attempt)/\(maxAttempts) in \(delay)s: \(error.localizedDescription)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.createStatusItemsWithRetry(
+                        clickAction: clickAction,
+                        target: target,
+                        attempt: attempt + 1
+                    )
+                }
+            } else {
+                logger.error("Failed to create status items after \(maxAttempts) attempts: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Actually create the status items - may throw if WindowServer isn't ready
+    private func createStatusItemsUnsafe(
+        clickAction: Selector,
+        target: AnyObject
+    ) throws {
         // 1. Create MAIN ICON first - appears to the RIGHT (stays visible)
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        guard mainItem != nil else {
+            throw StatusBarError.creationFailed("Main status item creation returned nil")
+        }
+
         mainItem?.autosaveName = Self.mainAutosaveName
 
         if let button = mainItem?.button {
@@ -75,12 +159,32 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // 2. Create SEPARATOR second - appears to the LEFT of main icon
         separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+
+        guard separatorItem != nil else {
+            // Clean up main item if separator fails
+            if let main = mainItem {
+                NSStatusBar.system.removeStatusItem(main)
+                mainItem = nil
+            }
+            throw StatusBarError.creationFailed("Separator status item creation returned nil")
+        }
+
         separatorItem?.autosaveName = Self.separatorAutosaveName
         if let button = separatorItem?.button {
             configureSeparatorButton(button)
         }
+    }
 
-        logger.info("Status items created")
+    /// Errors that can occur during status bar creation
+    enum StatusBarError: LocalizedError {
+        case creationFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .creationFailed(let message):
+                return "Status bar creation failed: \(message)"
+            }
+        }
     }
 
     // MARK: - Button Configuration
