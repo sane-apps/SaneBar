@@ -478,6 +478,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             // Start continuous position monitoring to prevent separator from eating main icon
             self.startPositionMonitoring()
+
+            // Pre-warm Find Icon cache so first open is instant
+            AccessibilityService.shared.prewarmCache()
         }
     }
 
