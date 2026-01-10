@@ -22,7 +22,7 @@ on:
         type: boolean
 
 env:
-  XCODE_VERSION: '16.2'
+  XCODE_VERSION: '16.4'
   APP_NAME: 'SaneBar'
   BUNDLE_ID: 'com.sanebar.app'
 
