@@ -9,9 +9,10 @@ struct AboutSettingsView: View {
     @State private var isCheckingForUpdates = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
 
+            // App identity
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 64, height: 64)
@@ -28,66 +29,51 @@ struct AboutSettingsView: View {
                 }
             }
 
-            // Privacy commitment
-            GroupBox {
-                VStack(spacing: 8) {
-                    Label("Privacy First", systemImage: "lock.shield.fill")
-                        .foregroundStyle(.green)
-
-                    Text("No analytics. No telemetry. No user tracking. Your data stays on your Mac.")
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    Link("Read our Privacy Policy →", destination: URL(string: "https://github.com/stephanjoseph/SaneBar/blob/main/PRIVACY.md")!)
-                        .font(.caption)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+            // Privacy - simple inline
+            HStack(spacing: 4) {
+                Label("Privacy First", systemImage: "lock.shield.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Text("·")
+                    .foregroundStyle(.secondary)
+                Text("No analytics. No telemetry. Your data stays on your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 40)
 
-            // Update checking section
-            GroupBox {
-                VStack(spacing: 12) {
-                    HStack {
-                        Button {
-                            checkForUpdates()
-                        } label: {
-                            if isCheckingForUpdates {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .frame(width: 16, height: 16)
-                            } else {
-                                Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
-                            }
-                        }
-                        .disabled(isCheckingForUpdates)
-
-                        Spacer()
-
-                        if let lastCheck = menuBarManager.settings.lastUpdateCheck {
-                            Text("Last checked: \(lastCheck, style: .relative) ago")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            // Update section - clean and simple
+            VStack(spacing: 8) {
+                HStack {
+                    Button {
+                        checkForUpdates()
+                    } label: {
+                        if isCheckingForUpdates {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 16, height: 16)
+                        } else {
+                            Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
+                    .disabled(isCheckingForUpdates)
 
-                    Divider()
-
-                    Toggle("Check automatically on launch", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
-                        .onChange(of: menuBarManager.settings.checkForUpdatesAutomatically) { _, _ in
-                            menuBarManager.saveSettings()
-                        }
-
-                    Text("When enabled, checks once per day. Only notifies you if an update is available.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let lastCheck = menuBarManager.settings.lastUpdateCheck {
+                        Text("Last checked: \(lastCheck, style: .relative) ago")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                .padding(.vertical, 4)
-            }
-            .padding(.horizontal, 40)
 
+                Toggle("Check automatically on launch", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                    .onChange(of: menuBarManager.settings.checkForUpdatesAutomatically) { _, _ in
+                        menuBarManager.saveSettings()
+                    }
+            }
+            .padding(.vertical, 8)
+
+            // Links row
             HStack(spacing: 12) {
                 Link(destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!) {
                     Label("GitHub", systemImage: "link")
@@ -104,7 +90,12 @@ struct AboutSettingsView: View {
                 Button {
                     showSupport = true
                 } label: {
-                    Label("Support", systemImage: "heart")
+                    Label {
+                        Text("Support")
+                    } icon: {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                    }
                 }
                 .buttonStyle(.bordered)
             }
@@ -112,17 +103,15 @@ struct AboutSettingsView: View {
 
             Spacer()
 
-            // Reset button separated - destructive action
+            // Reset - subtle at bottom
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
                 Text("Reset to Defaults")
-                    .font(.system(size: 12))
+                    .font(.caption)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-
-            Spacer()
+            .foregroundStyle(.tertiary)
         }
         .padding()
         .sheet(isPresented: $showLicenses) {
@@ -219,22 +208,22 @@ struct AboutSettingsView: View {
 
                             Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
-                            Permission is hereby granted, free of charge, to any person obtaining a copy \ 
-                            of this software and associated documentation files (the "Software"), to deal \ 
-                            in the Software without restriction, including without limitation the rights \ 
-                            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \ 
-                            copies of the Software, and to permit persons to whom the Software is \ 
+                            Permission is hereby granted, free of charge, to any person obtaining a copy \
+                            of this software and associated documentation files (the "Software"), to deal \
+                            in the Software without restriction, including without limitation the rights \
+                            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \
+                            copies of the Software, and to permit persons to whom the Software is \
                             furnished to do so, subject to the following conditions:
 
-                            The above copyright notice and this permission notice shall be included in all \ 
+                            The above copyright notice and this permission notice shall be included in all \
                             copies or substantial portions of the Software.
 
-                            THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \ 
-                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \ 
-                            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \ 
-                            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \ 
-                            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \ 
-                            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \ 
+                            THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \
+                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \
+                            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \
+                            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \
+                            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \
+                            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
                             SOFTWARE.
                             """)
                             .font(.system(.caption, design: .monospaced))
@@ -306,7 +295,7 @@ struct AboutSettingsView: View {
                 .padding()
             }
         }
-        .frame(width: 420, height: 340)
+        .frame(width: 420, height: 360)
     }
 }
 

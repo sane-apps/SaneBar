@@ -160,9 +160,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        // Use a level above status bar items but below alerts/modals
-        // .statusBar + 1 ensures we're above NSStatusItem windows
-        window.level = .statusBar + 1
+        // Keep the overlay BELOW the actual menu bar content (status items), otherwise
+        // Liquid Glass can visually obscure icons.
+        window.level = .statusBar - 1
         window.ignoresMouseEvents = true // Click-through
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
 
@@ -232,6 +232,10 @@ struct MenuBarOverlayView: View {
 
     var body: some View {
         GeometryReader { _ in
+            let horizontalInset: CGFloat = viewModel.settings.hasRoundedCorners
+                ? min(10, max(4, viewModel.settings.cornerRadius * 0.75))
+                : 0
+
             ZStack(alignment: .bottom) {
                 // Main appearance layer
                 mainAppearanceLayer
@@ -243,6 +247,8 @@ struct MenuBarOverlayView: View {
                         .frame(height: viewModel.settings.borderWidth)
                 }
             }
+            .padding(.horizontal, horizontalInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .clipShape(overlayShape)
             .shadow(
                 color: viewModel.settings.hasShadow ? .black.opacity(viewModel.settings.shadowOpacity) : .clear,
@@ -270,8 +276,12 @@ struct MenuBarOverlayView: View {
         if #available(macOS 26.0, *) {
             Rectangle()
                 .fill(.clear)
-                .glassEffect(
-                    Glass.regular.tint(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+                .glassEffect(Glass.regular)
+                // Ensure chosen tint color/strength is always applied.
+                // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
+                .overlay(
+                    Color(hex: viewModel.settings.tintColor)
+                        .opacity(viewModel.settings.tintOpacity)
                 )
         } else {
             fallbackTintLayer

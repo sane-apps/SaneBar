@@ -16,7 +16,7 @@
 | u/Mstormer (MOD) | "compact spacing is the main reason I need a menubar manager" | r/macapps moderator |
 
 **Analysis:**
-- This is a core feature for power users
+- High ROI if we keep it purely visual and user-controlled via ⌘-dragging in the menu bar (no auto-reordering)
 - Sindre Sorhus has a separate app "Menu Bar Spacing" for this
 - Users want "all things in one app" (per MaxGaav)
 - Could differentiate SaneBar from Ice/HiddenBar
@@ -29,26 +29,21 @@
 ---
 
 ### 2. Find Icon Speed Improvement
-**Priority: HIGH** | **Requests: 1** | **Status: Needs Investigation**
+**Priority: HIGH** | **Requests: 1** | **Status: Implemented**
 
 | Requester | Request | Notes |
 |-----------|---------|-------|
 | u/Elegant_Mobile4311 | "Find Icon function is slow to respond... this feature needs to be polished" | Primary use case for them |
 
-**Analysis:**
-- User explicitly stated this is their "main purpose" for using the app
-- Slow response time impacts core value proposition
-- Need to profile and optimize the search/activation flow
-
-**Investigation Needed:**
-- [ ] Profile Find Icon activation latency
-- [ ] Identify bottleneck (search? animation? click simulation?)
-- [ ] Consider caching app list on launch
+**Implemented:**
+- Cache-first open + background refresh
+- Longer-lived AX cache + prewarm on launch
+- All/Hidden toggle so the feature stays useful even when nothing is "hidden by SaneBar"
 
 ---
 
 ### 3. Find Icon in Right-Click Menu
-**Priority: MEDIUM** | **Requests: 1** | **Status: Not Started**
+**Priority: MEDIUM** | **Requests: 1** | **Status: Implemented**
 
 | Requester | Request | Notes |
 |-----------|---------|-------|
@@ -60,22 +55,25 @@
 - Low effort, high usability improvement
 
 **Implementation:**
-- Add "Find Icon..." item to existing right-click context menu
-- Should be straightforward
+- Add "Find Icon..." item to the right-click menu
+- Keep the menu compact (removed redundant "Toggle Hidden Items")
 
 ---
 
-### 4. Custom Dividers
-**Priority: MEDIUM** | **Requests: 1** | **Status: Not Started**
+### 4. Custom Dividers (Visual Zones)
+**Priority: MEDIUM** | **Requests: 1** | **Status: Implemented**
 
 | Requester | Request | Notes |
 |-----------|---------|-------|
 | u/MaxGaav | "other dividers like vertical lines, dots and spaces?" | Top 1% commenter badge |
 
 **Analysis:**
-- Allows visual organization of menu bar
-- Bartender has this feature
-- Could be implemented as special "spacer" items
+- High ROI because it’s purely visual and user-controlled via ⌘-dragging in the menu bar (no auto-reordering)
+
+**Implemented Scope:**
+- Increase divider limit (0–3 → 0–12)
+- Global divider **style**: line (—), dot (•)
+- Global divider **width** presets: Compact / Normal / Wide
 
 ---
 
@@ -138,6 +136,7 @@
 | Date | Feature | Decision | Rationale |
 |------|---------|----------|-----------|
 | Jan 2026 | Menu Bar Spacing | Consider for v1.1 | High demand from power users |
+| Jan 2026 | Visual Zones (Dividers) | Implemented | Low effort, high reliability, high user ROI |
 | Jan 2026 | Secondary Menu Bar | Deprioritized | Architectural complexity, unclear demand |
 
 ---
@@ -146,13 +145,13 @@
 
 1. **Immediate (v1.0.x)**
    - [ ] Fix `⌘,` shortcut conflict
-   - [ ] Add Find Icon to right-click menu
-   - [ ] Profile Find Icon performance
+   - [x] Add Find Icon to right-click menu
+   - [x] Improve Find Icon performance
 
 2. **Short Term (v1.1)**
    - [ ] Investigate spacing control implementation
    - [ ] Research auto-hide interaction detection
+   - [x] Implement visual zones (custom dividers/spacers)
 
 3. **Evaluate Later**
-   - Custom dividers
    - Secondary menu bar row

@@ -58,11 +58,15 @@ final class AccessibilityService: ObservableObject {
     /// Cache for menu bar item positions to avoid expensive rescans
     private var menuBarItemCache: [(app: RunningApp, x: CGFloat)] = []
     private var menuBarItemCacheTime: Date = .distantPast
-    private let cacheValiditySeconds: TimeInterval = 5.0
+    private let menuBarItemCacheValiditySeconds: TimeInterval = 60.0
 
     /// Cache for menu bar item owners (apps only, no positions) - used by Find Icon
     private var menuBarOwnersCache: [RunningApp] = []
     private var menuBarOwnersCacheTime: Date = .distantPast
+    private let menuBarOwnersCacheValiditySeconds: TimeInterval = 300.0
+
+    private var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
+    private var menuBarItemsRefreshTask: Task<[(app: RunningApp, x: CGFloat)], Never>?
 
     // MARK: - Initialization
 
@@ -176,6 +180,117 @@ final class AccessibilityService: ObservableObject {
         return clickSystemWideItem(for: app.processIdentifier)
     }
 
+    // MARK: - Cached Results (Fast)
+
+    func cachedMenuBarItemOwners() -> [RunningApp] {
+        menuBarOwnersCache
+    }
+
+    func cachedMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
+        menuBarItemCache
+    }
+
+    // MARK: - Async Refresh (Non-blocking)
+
+    func refreshMenuBarItemOwners() async -> [RunningApp] {
+        guard isTrusted else { return [] }
+
+        let now = Date()
+        if now.timeIntervalSince(menuBarOwnersCacheTime) < menuBarOwnersCacheValiditySeconds && !menuBarOwnersCache.isEmpty {
+            return menuBarOwnersCache
+        }
+
+        if let task = menuBarOwnersRefreshTask {
+            return await task.value
+        }
+
+        let task = Task<[RunningApp], Never> {
+            // Candidate apps list must be gathered on the main thread.
+            let candidatePIDs: [pid_t] = NSWorkspace.shared.runningApplications.compactMap { app in
+                guard let bundleID = app.bundleIdentifier else { return nil }
+                guard bundleID != Bundle.main.bundleIdentifier else { return nil }
+                return app.processIdentifier
+            }
+
+            let pidsWithExtras = await Task.detached(priority: .utility) {
+                Self.scanMenuBarOwnerPIDs(candidatePIDs: candidatePIDs)
+            }.value
+
+            var seenBundleIDs = Set<String>()
+            var apps: [RunningApp] = []
+            apps.reserveCapacity(pidsWithExtras.count)
+
+            for pid in pidsWithExtras {
+                guard let app = NSRunningApplication(processIdentifier: pid),
+                      let bundleID = app.bundleIdentifier else { continue }
+                guard !seenBundleIDs.contains(bundleID) else { continue }
+                seenBundleIDs.insert(bundleID)
+                apps.append(RunningApp(app: app))
+            }
+
+            let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            self.menuBarOwnersCache = sortedApps
+            self.menuBarOwnersCacheTime = Date()
+            return sortedApps
+        }
+
+        menuBarOwnersRefreshTask = task
+        let result = await task.value
+        menuBarOwnersRefreshTask = nil
+        return result
+    }
+
+    func refreshMenuBarItemsWithPositions() async -> [(app: RunningApp, x: CGFloat)] {
+        guard isTrusted else { return [] }
+
+        let now = Date()
+        if now.timeIntervalSince(menuBarItemCacheTime) < menuBarItemCacheValiditySeconds && !menuBarItemCache.isEmpty {
+            return menuBarItemCache
+        }
+
+        if let task = menuBarItemsRefreshTask {
+            return await task.value
+        }
+
+        let task = Task<[(app: RunningApp, x: CGFloat)], Never> {
+            // Candidate apps list must be gathered on the main thread.
+            let candidatePIDs: [pid_t] = NSWorkspace.shared.runningApplications.compactMap { app in
+                guard let bundleID = app.bundleIdentifier else { return nil }
+                guard bundleID != Bundle.main.bundleIdentifier else { return nil }
+                return app.processIdentifier
+            }
+
+            let pidMinX = await Task.detached(priority: .utility) {
+                Self.scanMenuBarAppMinXPositions(candidatePIDs: candidatePIDs)
+            }.value
+
+            var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
+
+            for (pid, x) in pidMinX {
+                guard let app = NSRunningApplication(processIdentifier: pid),
+                      let bundleID = app.bundleIdentifier else { continue }
+
+                if let existing = appPositions[bundleID] {
+                    if x < existing.x {
+                        appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+                    }
+                } else {
+                    appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+                }
+            }
+
+            let apps = Array(appPositions.values).sorted { $0.x < $1.x }
+            self.menuBarItemCache = apps
+            self.menuBarItemCacheTime = Date()
+            return apps
+        }
+
+        menuBarItemsRefreshTask = task
+        let result = await task.value
+        menuBarItemsRefreshTask = nil
+        return result
+    }
+
     // MARK: - System Wide Search
 
     /// Best-effort list of apps that currently own a menu bar status item.
@@ -188,7 +303,7 @@ final class AccessibilityService: ObservableObject {
 
         // Check cache validity - return cached results if still fresh
         let now = Date()
-        if now.timeIntervalSince(menuBarOwnersCacheTime) < cacheValiditySeconds && !menuBarOwnersCache.isEmpty {
+        if now.timeIntervalSince(menuBarOwnersCacheTime) < menuBarOwnersCacheValiditySeconds && !menuBarOwnersCache.isEmpty {
             logger.debug("Returning cached menu bar owners (\(self.menuBarOwnersCache.count) apps)")
             return menuBarOwnersCache
         }
@@ -262,7 +377,7 @@ final class AccessibilityService: ObservableObject {
 
         // Check cache validity - return cached results if still fresh
         let now = Date()
-        if now.timeIntervalSince(menuBarItemCacheTime) < cacheValiditySeconds && !menuBarItemCache.isEmpty {
+        if now.timeIntervalSince(menuBarItemCacheTime) < menuBarItemCacheValiditySeconds && !menuBarItemCache.isEmpty {
             logger.debug("Returning cached menu bar items (\(self.menuBarItemCache.count) items)")
             return menuBarItemCache
         }
@@ -356,6 +471,10 @@ final class AccessibilityService: ObservableObject {
     func invalidateMenuBarItemCache() {
         menuBarItemCacheTime = .distantPast
         menuBarOwnersCacheTime = .distantPast
+        menuBarOwnersRefreshTask?.cancel()
+        menuBarItemsRefreshTask?.cancel()
+        menuBarOwnersRefreshTask = nil
+        menuBarItemsRefreshTask = nil
         logger.debug("Menu bar item caches invalidated")
     }
 
@@ -367,17 +486,88 @@ final class AccessibilityService: ObservableObject {
             return
         }
 
-        Task.detached(priority: .utility) { @MainActor in
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
             logger.info("Pre-warming menu bar cache...")
             let startTime = Date()
 
-            // Warm both caches
-            _ = self.listMenuBarItemOwners()
-            _ = self.listMenuBarItemsWithPositions()
+            // Warm both caches (off the main thread)
+            _ = await self.refreshMenuBarItemOwners()
+            _ = await self.refreshMenuBarItemsWithPositions()
 
             let elapsed = Date().timeIntervalSince(startTime)
             logger.info("Menu bar cache pre-warmed in \(String(format: "%.2f", elapsed))s")
         }
+    }
+
+    // MARK: - Scanning Helpers
+
+    private nonisolated static func scanMenuBarOwnerPIDs(candidatePIDs: [pid_t]) -> [pid_t] {
+        var pids: [pid_t] = []
+        pids.reserveCapacity(candidatePIDs.count)
+
+        for pid in candidatePIDs {
+            let appElement = AXUIElementCreateApplication(pid)
+            var extrasBar: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+            if result == .success {
+                pids.append(pid)
+            }
+        }
+
+        return pids
+    }
+
+    private nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) -> [(pid: pid_t, x: CGFloat)] {
+        var results: [(pid: pid_t, x: CGFloat)] = []
+        results.reserveCapacity(candidatePIDs.count)
+
+        for pid in candidatePIDs {
+            let appElement = AXUIElementCreateApplication(pid)
+
+            var extrasBar: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+            guard result == .success, let bar = extrasBar else { continue }
+            guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { continue }
+            // swiftlint:disable:next force_cast
+            let barElement = bar as! AXUIElement
+
+            var children: CFTypeRef?
+            let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+            guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { continue }
+
+            var minX: CGFloat?
+            for item in items {
+                var positionValue: CFTypeRef?
+                let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+
+                var xPos: CGFloat = 0
+
+                if posResult == .success, let posValue = positionValue {
+                    if CFGetTypeID(posValue) == AXValueGetTypeID() {
+                        var point = CGPoint.zero
+                        // swiftlint:disable:next force_cast
+                        if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                            xPos = point.x
+                        }
+                    }
+                }
+
+                if let existing = minX {
+                    if xPos < existing {
+                        minX = xPos
+                    }
+                } else {
+                    minX = xPos
+                }
+            }
+
+            if let minX {
+                results.append((pid: pid, x: minX))
+            }
+        }
+
+        return results
     }
 
     private func clickSystemWideItem(for targetPID: pid_t) -> Bool {

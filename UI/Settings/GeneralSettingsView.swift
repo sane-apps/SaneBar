@@ -26,44 +26,18 @@ struct GeneralSettingsView: View {
                 Text("Startup")
             }
 
-            // 2. Behavior - next most common
-            Section {
-                Toggle("Auto-hide after a few seconds", isOn: $menuBarManager.settings.autoRehide)
-                if menuBarManager.settings.autoRehide {
-                    Stepper("Wait \(Int(menuBarManager.settings.rehideDelay)) seconds",
-                            value: $menuBarManager.settings.rehideDelay,
-                            in: 1...10, step: 1)
-                }
-            } header: {
-                Text("When I reveal hidden icons…")
-            }
-
-            // 3. Gesture triggers
-            Section {
-                Toggle("Reveal when I hover near the top", isOn: $menuBarManager.settings.showOnHover)
-                if menuBarManager.settings.showOnHover {
-                    HStack {
-                        Text("Delay")
-                        Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05...0.5, step: 0.05)
-                        Text("\(Int(menuBarManager.settings.hoverDelay * 1000))ms")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 50)
-                    }
-                }
-                Toggle("Reveal when I scroll up in the menu bar", isOn: $menuBarManager.settings.showOnScroll)
-            } header: {
-                Text("Gestures")
-            } footer: {
-                Text("These gestures work anywhere along the menu bar.")
-            }
-
-            // 4. Quick help - always useful
+            // 2. Quick help - always useful
             Section {
                 HStack {
                     Button {
-                        menuBarManager.showHiddenItems()
+                        if menuBarManager.hidingState == .hidden {
+                            menuBarManager.showHiddenItems()
+                        } else {
+                            menuBarManager.hideHiddenItems()
+                        }
                     } label: {
-                        Label("Reveal All", systemImage: "eye")
+                        Label(menuBarManager.hidingState == .hidden ? "Reveal All" : "Hide All",
+                              systemImage: menuBarManager.hidingState == .hidden ? "eye" : "eye.slash")
                     }
                     .buttonStyle(.borderedProminent)
 
@@ -80,6 +54,37 @@ struct GeneralSettingsView: View {
                 Text("Can't find an icon?")
             } footer: {
                 Text("\"Find Icon\" shows all menu bar icons and lets you click any of them.")
+            }
+
+            // 3. Behavior - next most common
+            Section {
+                Toggle("Auto-hide after a few seconds", isOn: $menuBarManager.settings.autoRehide)
+                if menuBarManager.settings.autoRehide {
+                    Stepper("Wait \(Int(menuBarManager.settings.rehideDelay)) seconds",
+                            value: $menuBarManager.settings.rehideDelay,
+                            in: 1...10, step: 1)
+                }
+            } header: {
+                Text("When I reveal hidden icons…")
+            }
+
+            // 4. Gesture triggers
+            Section {
+                Toggle("Reveal when I hover near the top", isOn: $menuBarManager.settings.showOnHover)
+                if menuBarManager.settings.showOnHover {
+                    HStack {
+                        Text("Delay")
+                        Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05...0.5, step: 0.05)
+                        Text("\(Int(menuBarManager.settings.hoverDelay * 1000))ms")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50)
+                    }
+                }
+                Toggle("Reveal when I scroll up in the menu bar", isOn: $menuBarManager.settings.showOnScroll)
+            } header: {
+                Text("Gestures")
+            } footer: {
+                Text("These gestures work anywhere along the menu bar.")
             }
 
             // 5. How it works - bottom, collapsible info

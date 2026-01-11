@@ -4,14 +4,34 @@ import KeyboardShortcuts
 
 // MARK: - MenuBarSearchView
 
-/// SwiftUI view for finding hidden menu bar icons
+/// SwiftUI view for finding (and clicking) menu bar icons.
 struct MenuBarSearchView: View {
+    private enum Mode: String, CaseIterable, Identifiable {
+        case hidden
+        case all
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .hidden: "Hidden"
+            case .all: "All"
+            }
+        }
+    }
+
+    @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
+
     @State private var searchText = ""
-    @State private var selectedIndex: Int?
+    @State private var isSearchVisible = false
+
     @State private var menuBarApps: [RunningApp] = []
-    @State private var isLoading = true
+    @State private var isRefreshing = false
     @State private var hasAccessibility = false
     @State private var permissionMonitorTask: Task<Void, Never>?
+    @State private var refreshTask: Task<Void, Never>?
+
+    @State private var hotkeyApp: RunningApp?
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     let service: SearchServiceProtocol
@@ -22,88 +42,55 @@ struct MenuBarSearchView: View {
         self.onDismiss = onDismiss
     }
 
-    var filteredApps: [RunningApp] {
-        if searchText.isEmpty {
-            return menuBarApps
-        }
-        return menuBarApps.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText)
-        }
+    private var mode: Mode {
+        Mode(rawValue: storedMode) ?? .all
+    }
+
+    private var modeBinding: Binding<Mode> {
+        Binding(
+            get: { Mode(rawValue: storedMode) ?? .all },
+            set: { storedMode = $0.rawValue }
+        )
+    }
+
+    private var filteredApps: [RunningApp] {
+        guard !searchText.isEmpty else { return menuBarApps }
+        return menuBarApps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Find Hidden Icon")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.title2)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
-            }
-            .padding(.horizontal)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            header
 
-            // Search field
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Type to filter...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.body)
+            controls
 
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+            if isSearchVisible {
+                searchField
             }
-            .padding(10)
-            .background(Color(NSColor.textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .padding(.horizontal)
-            .padding(.bottom, 8)
 
             Divider()
 
-            // Content
-            if isLoading {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Loading menu bar icons...")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !hasAccessibility {
-                accessibilityPrompt
-            } else if menuBarApps.isEmpty {
-                emptyState
-            } else if filteredApps.isEmpty {
-                noMatchState
-            } else {
-                appList
-            }
+            content
+
+            footer
         }
-        .frame(width: 360, height: 400)
+        .frame(width: 420, height: 520)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
-            loadApps()
+            loadCachedApps()
+            refreshApps()
             startPermissionMonitoring()
+        }
+        .onChange(of: storedMode) { _, _ in
+            loadCachedApps()
+            refreshApps()
         }
         .onDisappear {
             permissionMonitorTask?.cancel()
+            refreshTask?.cancel()
+        }
+        .sheet(item: $hotkeyApp) { app in
+            hotkeySheet(for: app)
         }
     }
 
@@ -114,14 +101,187 @@ struct MenuBarSearchView: View {
                 if granted && !hasAccessibility {
                     // Permission was just granted - reload the app list
                     hasAccessibility = true
-                    isLoading = true
-                    loadApps()
+                    loadCachedApps()
+                    refreshApps(force: true)
                 }
             }
         }
     }
 
+    private func loadCachedApps() {
+        hasAccessibility = AccessibilityService.shared.isGranted
+
+        guard hasAccessibility else {
+            menuBarApps = []
+            return
+        }
+
+        switch mode {
+        case .hidden:
+            menuBarApps = service.cachedHiddenMenuBarApps()
+        case .all:
+            menuBarApps = service.cachedMenuBarApps()
+        }
+    }
+
+    private func refreshApps(force: Bool = false) {
+        refreshTask?.cancel()
+
+        guard hasAccessibility else {
+            isRefreshing = false
+            return
+        }
+
+        refreshTask = Task {
+            await MainActor.run {
+                isRefreshing = true
+            }
+
+            if force {
+                await MainActor.run {
+                    AccessibilityService.shared.invalidateMenuBarItemCache()
+                }
+            }
+
+            let refreshed: [RunningApp]
+            switch mode {
+            case .hidden:
+                refreshed = await service.refreshHiddenMenuBarApps()
+            case .all:
+                refreshed = await service.refreshMenuBarApps()
+            }
+
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                menuBarApps = refreshed
+                isRefreshing = false
+            }
+        }
+    }
+
     // MARK: - Subviews
+
+    private var header: some View {
+        HStack {
+            Text("Find Icon")
+                .font(.headline)
+            Spacer()
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .font(.title2)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.escape, modifiers: [])
+        }
+        .padding(.horizontal)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 10) {
+            Picker("", selection: modeBinding) {
+                ForEach(Mode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isSearchVisible.toggle()
+                }
+                if !isSearchVisible {
+                    searchText = ""
+                }
+            } label: {
+                Image(systemName: isSearchVisible ? "xmark.circle" : "magnifyingglass")
+            }
+            .buttonStyle(.plain)
+            .help(isSearchVisible ? "Hide filter" : "Filter")
+
+            Button {
+                refreshApps(force: true)
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.plain)
+            .help("Refresh")
+        }
+        .padding(.horizontal)
+        .padding(.bottom, isSearchVisible ? 6 : 10)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Filter by name…", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.body)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(10)
+        .background(Color(NSColor.textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal)
+        .padding(.bottom, 10)
+    }
+
+    private var content: some View {
+        Group {
+            if !hasAccessibility {
+                accessibilityPrompt
+            } else if menuBarApps.isEmpty {
+                if isRefreshing {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Scanning menu bar icons…")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    emptyState
+                }
+            } else if filteredApps.isEmpty {
+                noMatchState
+            } else {
+                appGrid
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 8) {
+            if isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
+            Text("\(filteredApps.count) \(mode == .hidden ? "hidden" : "icons")")
+                .foregroundStyle(.tertiary)
+
+            Spacer()
+            Text("Right-click an icon for hotkeys")
+                .foregroundStyle(.tertiary)
+        }
+        .font(.caption)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
 
     private var accessibilityPrompt: some View {
         VStack(spacing: 16) {
@@ -147,8 +307,8 @@ struct MenuBarSearchView: View {
                 .buttonStyle(.bordered)
 
                 Button("Try Again") {
-                    isLoading = true
-                    loadApps()
+                    loadCachedApps()
+                    refreshApps(force: true)
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -163,14 +323,21 @@ struct MenuBarSearchView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.green)
 
-            Text("No hidden icons!")
+            Text(mode == .hidden ? "No hidden icons" : "No menu bar icons")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Text("All your menu bar icons are visible.\nDrag icons to the left of the **/** separator to hide them.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+            if mode == .hidden {
+                Text("All your menu bar icons are visible.\nHide mode only shows icons currently pushed off-screen by SaneBar.")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Try Refresh, or grant Accessibility permission.")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -190,125 +357,91 @@ struct MenuBarSearchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var appList: some View {
-        VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                List(selection: $selectedIndex) {
-                    ForEach(Array(filteredApps.enumerated()), id: \.offset) { index, app in
-                        AppRow(app: app, isSelected: selectedIndex == index) {
-                            activateApp(app)
-                        }
-                        .tag(index)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                    }
-                }
-                .listStyle(.plain)
-                .onChange(of: selectedIndex) { _, newIndex in
-                    if let index = newIndex {
-                        proxy.scrollTo(index, anchor: .center)
-                    }
-                }
-            }
+    private var appGrid: some View {
+        GeometryReader { proxy in
+            let padding: CGFloat = 12
+            let availableWidth = max(0, proxy.size.width - (padding * 2))
+            let availableHeight = max(0, proxy.size.height - (padding * 2))
+            let count = filteredApps.count
+            let grid = gridSizing(availableWidth: availableWidth, availableHeight: availableHeight, count: count)
 
-            Divider()
-
-            // Footer with hotkey recorder
-            VStack(spacing: 0) {
-                // Hotkey recorder (shown when app selected)
-                if let index = selectedIndex, index < filteredApps.count {
-                    let selectedApp = filteredApps[index]
-                    HStack(spacing: 8) {
-                        Text("Hotkey:")
-                            .foregroundStyle(.secondary)
-                        KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: selectedApp.id))
-                            .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: selectedApp.id))) { _, newShortcut in
-                                // Save to settings when shortcut changes
-                                if let shortcut = newShortcut {
-                                    menuBarManager.settings.iconHotkeys[selectedApp.id] = KeyboardShortcutData(
-                                        keyCode: UInt16(shortcut.key?.rawValue ?? 0),
-                                        modifiers: shortcut.modifiers.rawValue
-                                    )
-                                } else {
-                                    menuBarManager.settings.iconHotkeys.removeValue(forKey: selectedApp.id)
-                                }
-                                menuBarManager.saveSettings()
-                                IconHotkeysService.shared.registerHotkeys(from: menuBarManager.settings)
-                            }
-                        Spacer()
+            ScrollView {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.fixed(grid.tileSize), spacing: grid.spacing), count: grid.columns),
+                    spacing: grid.spacing
+                ) {
+                    ForEach(filteredApps) { app in
+                        MenuBarAppTile(
+                            app: app,
+                            iconSize: grid.iconSize,
+                            tileSize: grid.tileSize,
+                            onActivate: { activateApp(app) },
+                            onSetHotkey: { hotkeyApp = app }
+                        )
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                 }
-
-                // Navigation hints
-                HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up")
-                        Image(systemName: "arrow.down")
-                        Text("navigate")
-                    }
-                    HStack(spacing: 4) {
-                        Image(systemName: "return")
-                        Text("open")
-                    }
-                    Spacer()
-                    Text("\(filteredApps.count) hidden")
-                        .foregroundStyle(.tertiary)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.controlBackgroundColor))
+                .padding(padding)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onKeyPress(.upArrow) {
-            moveSelection(by: -1)
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            moveSelection(by: 1)
-            return .handled
-        }
-        .onKeyPress(.return) {
-            if let index = selectedIndex, index < filteredApps.count {
-                activateApp(filteredApps[index])
-            }
-            return .handled
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Actions
-
-    private func loadApps() {
-        Task {
-            // Just check current status - don't trigger system prompt
-            // If not granted, user will see our permission UI with "Open System Settings" button
-            hasAccessibility = AccessibilityService.shared.isGranted
-
-            if hasAccessibility {
-                // Get ONLY the hidden menu bar apps (pushed off-screen by SaneBar)
-                menuBarApps = await service.getHiddenMenuBarApps()
-            }
-            isLoading = false
-
-            // Select first item by default
-            if !menuBarApps.isEmpty {
-                selectedIndex = 0
-            }
-        }
+    private struct GridSizing {
+        let columns: Int
+        let tileSize: CGFloat
+        let iconSize: CGFloat
+        let spacing: CGFloat
     }
 
-    private func moveSelection(by delta: Int) {
-        let count = filteredApps.count
-        guard count > 0 else { return }
+    private func gridSizing(availableWidth: CGFloat, availableHeight: CGFloat, count: Int) -> GridSizing {
+        let spacing: CGFloat = 12
 
-        if let current = selectedIndex {
-            selectedIndex = max(0, min(count - 1, current + delta))
-        } else {
-            selectedIndex = delta > 0 ? 0 : count - 1
+        let minTile: CGFloat = 44
+        let maxTile: CGFloat = 112
+
+        guard count > 0 else {
+            return GridSizing(columns: 1, tileSize: 84, iconSize: 52, spacing: spacing)
         }
+
+        let maxColumnsByWidth = max(1, Int((availableWidth + spacing) / (minTile + spacing)))
+        let maxColumns = min(maxColumnsByWidth, count)
+
+        let height = max(1, availableHeight)
+
+        var best = GridSizing(columns: 1, tileSize: minTile, iconSize: 26, spacing: spacing)
+        var bestScore: CGFloat = -1_000_000
+
+        for columns in 1...maxColumns {
+            let rawTile = (availableWidth - (CGFloat(columns - 1) * spacing)) / CGFloat(columns)
+            let tileSize = max(minTile, min(maxTile, floor(rawTile)))
+
+            let rows = Int(ceil(Double(count) / Double(columns)))
+            let contentHeight = (CGFloat(rows) * tileSize) + (CGFloat(max(0, rows - 1)) * spacing)
+            let overflow = max(0, contentHeight - height)
+
+            let score: CGFloat
+            if overflow <= 0 {
+                // Fits without scrolling: prefer a more horizontal grid (fewer rows)
+                // while still keeping tiles reasonably large.
+                score = 10_000 + tileSize - (CGFloat(rows) * 4) + (CGFloat(columns) * 0.5)
+            } else {
+                // Prefer less scrolling for very large icon counts.
+                score = tileSize - ((overflow / height) * 24)
+            }
+
+            if score > bestScore {
+                bestScore = score
+                best = GridSizing(
+                    columns: columns,
+                    tileSize: tileSize,
+                    iconSize: max(24, min(64, floor(tileSize * 0.62))),
+                    spacing: spacing
+                )
+            }
+        }
+
+        return best
     }
 
     private func activateApp(_ app: RunningApp) {
@@ -317,25 +450,26 @@ struct MenuBarSearchView: View {
             onDismiss()
         }
     }
-}
 
-// MARK: - AppRow
+    private func hotkeySheet(for app: RunningApp) -> some View {
+        VStack(spacing: 14) {
+            HStack {
+                Text("Set hotkey")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    hotkeyApp = nil
+                }
+                .keyboardShortcut(.defaultAction)
+            }
 
-struct AppRow: View {
-    let app: RunningApp
-    let isSelected: Bool
-    let onActivate: () -> Void
-
-    var body: some View {
-        Button(action: onActivate) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 if let icon = app.icon {
                     Image(nsImage: icon)
                         .resizable()
                         .frame(width: 28, height: 28)
                 } else {
                     Image(systemName: "app.fill")
-                        .font(.title2)
                         .frame(width: 28, height: 28)
                         .foregroundStyle(.secondary)
                 }
@@ -345,20 +479,79 @@ struct AppRow: View {
                     .lineLimit(1)
 
                 Spacer()
-
-                Image(systemName: "arrow.up.forward")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            HStack(spacing: 8) {
+                Text("Hotkey:")
+                    .foregroundStyle(.secondary)
+
+                KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: app.id))
+                    .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: app.id))) { _, newShortcut in
+                        if let shortcut = newShortcut {
+                            menuBarManager.settings.iconHotkeys[app.id] = KeyboardShortcutData(
+                                keyCode: UInt16(shortcut.key?.rawValue ?? 0),
+                                modifiers: shortcut.modifiers.rawValue
+                            )
+                        } else {
+                            menuBarManager.settings.iconHotkeys.removeValue(forKey: app.id)
+                        }
+
+                        menuBarManager.saveSettings()
+                        IconHotkeysService.shared.registerHotkeys(from: menuBarManager.settings)
+                    }
+
+                Spacer()
+            }
         }
-        .buttonStyle(.plain)
+        .padding(16)
+        .frame(width: 360)
     }
+
 }
 
+// MARK: - Tile
+
+private struct MenuBarAppTile: View {
+    let app: RunningApp
+    let iconSize: CGFloat
+    let tileSize: CGFloat
+    let onActivate: () -> Void
+    let onSetHotkey: () -> Void
+
+    var body: some View {
+        Button(action: onActivate) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(10, tileSize * 0.18))
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
+
+                Group {
+                    if let icon = app.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                    } else {
+                        Image(systemName: "app.fill")
+                            .resizable()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .aspectRatio(contentMode: .fit)
+                .frame(width: iconSize, height: iconSize)
+            }
+            .frame(width: tileSize, height: tileSize)
+        }
+        .buttonStyle(.plain)
+        .help(app.name)
+        .contextMenu {
+            Button("Open") {
+                onActivate()
+            }
+            Button("Set Hotkey…") {
+                onSetHotkey()
+            }
+        }
+        .accessibilityLabel(Text(app.name))
+    }
+}
 #Preview {
     MenuBarSearchView(onDismiss: {})
 }

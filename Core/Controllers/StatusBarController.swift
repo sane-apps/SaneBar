@@ -54,6 +54,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let separatorIcon = "line.diagonal"
     nonisolated static let spacerIcon = "minus"
+    nonisolated static let spacerDotIcon = "circle.fill"
+
+    nonisolated static let maxSpacerCount = 12
 
     // MARK: - Initialization
 
@@ -244,15 +247,6 @@ final class StatusBarController: StatusBarControllerProtocol {
     ) -> NSMenu {
         let menu = NSMenu()
 
-        let toggleItem = NSMenuItem(
-            title: "Toggle Hidden Items",
-            action: toggleAction,
-            keyEquivalent: "\\"
-        )
-        toggleItem.target = target
-        toggleItem.keyEquivalentModifierMask = [.command]
-        menu.addItem(toggleItem)
-
         let findItem = NSMenuItem(
             title: "Find Icon...",
             action: findIconAction,
@@ -295,9 +289,19 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Spacer Management
 
-    /// Update spacer items to match the desired count (0-3)
-    func updateSpacers(count: Int) {
-        let desiredCount = min(max(count, 0), 3)
+    /// Update spacer items to match the desired count (0-12)
+    func updateSpacers(count: Int, style: SaneBarSettings.SpacerStyle, width: SaneBarSettings.SpacerWidth) {
+        let desiredCount = min(max(count, 0), Self.maxSpacerCount)
+
+        let spacerLength: CGFloat
+        switch width {
+        case .compact:
+            spacerLength = 8
+        case .normal:
+            spacerLength = 12
+        case .wide:
+            spacerLength = 20
+        }
 
         // Remove excess spacers
         while spacerItems.count > desiredCount {
@@ -308,16 +312,31 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // Add missing spacers
         while spacerItems.count < desiredCount {
-            let spacer = NSStatusBar.system.statusItem(withLength: 12)
+            let spacer = NSStatusBar.system.statusItem(withLength: spacerLength)
             spacer.autosaveName = "SaneBar_spacer_\(spacerItems.count)"
-            if let button = spacer.button {
-                button.image = NSImage(
-                    systemSymbolName: Self.spacerIcon,
-                    accessibilityDescription: "Spacer"
-                )
-                button.image?.isTemplate = true
-            }
+            configureSpacer(spacer, style: style)
             spacerItems.append(spacer)
+        }
+
+        // Update existing spacer length/style
+        for spacer in spacerItems {
+            spacer.length = spacerLength
+            configureSpacer(spacer, style: style)
+        }
+    }
+
+    private func configureSpacer(_ spacer: NSStatusItem, style: SaneBarSettings.SpacerStyle) {
+        guard let button = spacer.button else { return }
+
+        button.image = nil
+        button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        button.alphaValue = 0.7
+
+        switch style {
+        case .line:
+            button.title = "│"
+        case .dot:
+            button.title = "•"
         }
     }
 
