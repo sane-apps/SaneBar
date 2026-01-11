@@ -85,26 +85,48 @@ private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
 enum ActivationPolicyManager {
     
     private static let logger = Logger(subsystem: "com.sanebar.app", category: "ActivationPolicyManager")
+
+    @MainActor
+    private static var didFinishLaunchingObserver: Any?
     
     /// Apply the initial activation policy when app launches
     @MainActor
     static func applyInitialPolicy() {
         guard !isHeadlessEnvironment() else { return }
 
+        // macOS (especially Login Items / fast boot) can override activation policy
+        // after launch as scenes/windows are established. Re-assert a few times.
+        if didFinishLaunchingObserver == nil {
+            didFinishLaunchingObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.didFinishLaunchingNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    enforcePolicy(retries: 6)
+                }
+            }
+        }
+
         // Defer policy application to ensure NSApp is fully initialized
         // In SwiftUI @main apps, App.init() runs before NSApplicationMain() completes
+        // Use more retries for login items where macOS aggressively sets .regular
         DispatchQueue.main.async {
-            applyPolicyNow()
+            Task { @MainActor in
+                enforcePolicy(retries: 10)
+            }
         }
     }
 
-    /// Actually apply the activation policy (called after NSApp is ready)
+    /// Apply and re-apply the activation policy for a short window until it sticks.
     @MainActor
-    private static func applyPolicyNow() {
+    private static func enforcePolicy(retries: Int) {
         guard let app = NSApp else {
             logger.warning("NSApp not available yet, deferring activation policy")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                applyPolicyNow()
+                Task { @MainActor in
+                    enforcePolicy(retries: max(0, retries - 1))
+                }
             }
             return
         }
@@ -113,14 +135,23 @@ enum ActivationPolicyManager {
         let settings = MenuBarManager.shared.settings
         let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
 
-        // Apply immediately
-        app.setActivationPolicy(policy)
-        logger.info("Initial activation policy: \(policy == .regular ? "regular (dock visible)" : "accessory (dock hidden)")")
+        // Apply immediately (only if needed to avoid unnecessary flips)
+        if app.activationPolicy() != policy {
+            app.setActivationPolicy(policy)
+            logger.info("Applied activation policy: \(policy == .regular ? "regular (dock visible)" : "accessory (dock hidden)")")
+        }
 
-        // macOS sometimes needs the policy set again after a short delay for it to stick
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApp?.setActivationPolicy(policy)
-            logger.debug("Re-applied activation policy after delay")
+        // Re-assert a few times in case macOS flips it during launch.
+        guard retries > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            Task { @MainActor in
+                guard let app = NSApp else { return }
+                if app.activationPolicy() != policy {
+                    app.setActivationPolicy(policy)
+                    logger.debug("Re-applied activation policy (was overridden)")
+                }
+                enforcePolicy(retries: retries - 1)
+            }
         }
     }
 
@@ -135,12 +166,17 @@ enum ActivationPolicyManager {
     }
     
     /// Restore the policy after settings window closes
+    /// Uses retry logic because macOS can override the policy after a window closes
     @MainActor
     static func restorePolicy() {
         guard !isHeadlessEnvironment() else { return }
-        let settings = MenuBarManager.shared.settings
-        let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
-        NSApp.setActivationPolicy(policy)
+
+        // Small delay to let window fully close before changing policy
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task { @MainActor in
+                enforcePolicy(retries: 4)  // Retry a few times to ensure it sticks
+            }
+        }
     }
 
     /// Apply policy change when user toggles the setting

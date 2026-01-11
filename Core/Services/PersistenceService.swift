@@ -13,14 +13,31 @@ protocol PersistenceServiceProtocol: Sendable {
 
 /// Global app settings
 struct SaneBarSettings: Codable, Sendable, Equatable {
+
+    enum SpacerStyle: String, Codable, CaseIterable, Sendable {
+        case line
+        case dot
+    }
+
+    enum SpacerWidth: String, Codable, CaseIterable, Sendable {
+        case compact
+        case normal
+        case wide
+    }
     /// Whether hidden items auto-hide after a delay
     var autoRehide: Bool = true
 
     /// Delay before auto-rehiding in seconds
     var rehideDelay: TimeInterval = 3.0
 
-    /// Number of spacers to show (0-3)
+    /// Number of spacers to show (0-12)
     var spacerCount: Int = 0
+
+    /// Global visual style for spacers
+    var spacerStyle: SpacerStyle = .line
+
+    /// Global width preset for spacers
+    var spacerWidth: SpacerWidth = .normal
 
     /// Show hidden items when specific apps launch
     var showOnAppLaunch: Bool = false
@@ -86,6 +103,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         autoRehide = try container.decodeIfPresent(Bool.self, forKey: .autoRehide) ?? true
         rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 3.0
         spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 0
+        spacerStyle = try container.decodeIfPresent(SpacerStyle.self, forKey: .spacerStyle) ?? .line
+        spacerWidth = try container.decodeIfPresent(SpacerWidth.self, forKey: .spacerWidth) ?? .normal
         showOnAppLaunch = try container.decodeIfPresent(Bool.self, forKey: .showOnAppLaunch) ?? false
         triggerApps = try container.decodeIfPresent([String].self, forKey: .triggerApps) ?? []
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
@@ -107,7 +126,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoRehide, rehideDelay, spacerCount, showOnAppLaunch, triggerApps
+        case autoRehide, rehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
         case iconHotkeys, showOnLowBattery, hasCompletedOnboarding
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case requireAuthToShowHiddenIcons

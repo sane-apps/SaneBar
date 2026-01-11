@@ -143,6 +143,84 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return [RunningApp]()
     }
 
+    private let cachedMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () -> [RunningApp]>())
+    var cachedMenuBarAppsCallCount: Int {
+        return cachedMenuBarAppsState.withLock(\.callCount)
+    }
+    var cachedMenuBarAppsHandler: (@Sendable () -> [RunningApp])? {
+        get { cachedMenuBarAppsState.withLock(\.handler) }
+        set { cachedMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    @MainActor
+    func cachedMenuBarApps() -> [RunningApp] {
+        let cachedMenuBarAppsHandler = cachedMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let cachedMenuBarAppsHandler = cachedMenuBarAppsHandler {
+            return cachedMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
+    private let cachedHiddenMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () -> [RunningApp]>())
+    var cachedHiddenMenuBarAppsCallCount: Int {
+        return cachedHiddenMenuBarAppsState.withLock(\.callCount)
+    }
+    var cachedHiddenMenuBarAppsHandler: (@Sendable () -> [RunningApp])? {
+        get { cachedHiddenMenuBarAppsState.withLock(\.handler) }
+        set { cachedHiddenMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    @MainActor
+    func cachedHiddenMenuBarApps() -> [RunningApp] {
+        let cachedHiddenMenuBarAppsHandler = cachedHiddenMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let cachedHiddenMenuBarAppsHandler = cachedHiddenMenuBarAppsHandler {
+            return cachedHiddenMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
+    private let refreshMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
+    var refreshMenuBarAppsCallCount: Int {
+        return refreshMenuBarAppsState.withLock(\.callCount)
+    }
+    var refreshMenuBarAppsHandler: (@Sendable () async -> [RunningApp])? {
+        get { refreshMenuBarAppsState.withLock(\.handler) }
+        set { refreshMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    func refreshMenuBarApps() async -> [RunningApp] {
+        let refreshMenuBarAppsHandler = refreshMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let refreshMenuBarAppsHandler = refreshMenuBarAppsHandler {
+            return await refreshMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
+    private let refreshHiddenMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
+    var refreshHiddenMenuBarAppsCallCount: Int {
+        return refreshHiddenMenuBarAppsState.withLock(\.callCount)
+    }
+    var refreshHiddenMenuBarAppsHandler: (@Sendable () async -> [RunningApp])? {
+        get { refreshHiddenMenuBarAppsState.withLock(\.handler) }
+        set { refreshHiddenMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    func refreshHiddenMenuBarApps() async -> [RunningApp] {
+        let refreshHiddenMenuBarAppsHandler = refreshHiddenMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let refreshHiddenMenuBarAppsHandler = refreshHiddenMenuBarAppsHandler {
+            return await refreshHiddenMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
     private let activateState = MockoloMutex(MockoloHandlerState<RunningApp, @Sendable (RunningApp) async -> ()>())
     var activateCallCount: Int {
         return activateState.withLock(\.callCount)

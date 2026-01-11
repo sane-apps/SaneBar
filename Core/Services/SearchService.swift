@@ -14,6 +14,20 @@ protocol SearchServiceProtocol: Sendable {
     /// Fetch ONLY the menu bar apps that are currently HIDDEN by SaneBar
     func getHiddenMenuBarApps() async -> [RunningApp]
 
+    /// Cached menu bar apps (may be stale). Returns immediately.
+    @MainActor
+    func cachedMenuBarApps() -> [RunningApp]
+
+    /// Cached hidden menu bar apps (may be stale). Returns immediately.
+    @MainActor
+    func cachedHiddenMenuBarApps() -> [RunningApp]
+
+    /// Refresh menu bar apps in the background (may take time).
+    func refreshMenuBarApps() async -> [RunningApp]
+
+    /// Refresh hidden menu bar apps in the background (may take time).
+    func refreshHiddenMenuBarApps() async -> [RunningApp]
+
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
     func activate(app: RunningApp) async
@@ -41,24 +55,35 @@ final class SearchService: SearchServiceProtocol {
     }
 
     func getMenuBarApps() async -> [RunningApp] {
-        await MainActor.run {
-            AccessibilityService.shared.listMenuBarItemOwners()
-        }
+        await refreshMenuBarApps()
     }
 
     func getHiddenMenuBarApps() async -> [RunningApp] {
-        await MainActor.run {
-            // Get all menu bar items with their positions
-            let itemsWithPositions = AccessibilityService.shared.listMenuBarItemsWithPositions()
+        await refreshHiddenMenuBarApps()
+    }
 
-            // Filter to only items with negative x position (pushed off-screen by SaneBar)
-            // When SaneBar's delimiter expands to 10,000px, hidden items get x < 0
-            let hiddenApps = itemsWithPositions
-                .filter { $0.x < 0 }
-                .map { $0.app }
+    @MainActor
+    func cachedMenuBarApps() -> [RunningApp] {
+        AccessibilityService.shared.cachedMenuBarItemOwners()
+    }
 
-            return hiddenApps
-        }
+    @MainActor
+    func cachedHiddenMenuBarApps() -> [RunningApp] {
+        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+        return items
+            .filter { $0.x < 0 }
+            .map { $0.app }
+    }
+
+    func refreshMenuBarApps() async -> [RunningApp] {
+        await AccessibilityService.shared.refreshMenuBarItemOwners()
+    }
+
+    func refreshHiddenMenuBarApps() async -> [RunningApp] {
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        return items
+            .filter { $0.x < 0 }
+            .map { $0.app }
     }
 
     @MainActor

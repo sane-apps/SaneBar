@@ -120,6 +120,8 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             name: .hiddenSectionShown,
             object: nil
         )
+
+        AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
     /// Hide items by expanding delimiter to push them off screen
@@ -142,6 +144,8 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             name: .hiddenSectionHidden,
             object: nil
         )
+
+        AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
     // MARK: - Auto-Rehide

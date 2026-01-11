@@ -31,6 +31,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     @Published private(set) var hidingState: HidingState = .expanded
     @Published var settings: SaneBarSettings = SaneBarSettings()
 
+    /// When true, the user explicitly chose to keep icons revealed ("Reveal All")
+    /// and we should not auto-hide until they explicitly hide again.
+    @Published private(set) var isRevealPinned: Bool = false
+
     // MARK: - Screen Detection
 
     /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)
@@ -129,7 +133,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             guard let self = self else { return }
             Task { @MainActor in
                 // Only auto-hide if autoRehide is enabled
-                if self.settings.autoRehide {
+                if self.settings.autoRehide && !self.isRevealPinned {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
                 }
             }
@@ -260,7 +264,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
               let item = mainStatusItem,
               let button = item.button else { return }
         logger.info("Right-click: showing menu")
-        statusMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.frame.height), in: button)
+        // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
+        item.popUpMenu(statusMenu)
     }
 
     private func setupObservers() {
@@ -370,8 +375,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             await hidingService.toggle()
 
+            // If user explicitly hid everything, unpin.
+            if hidingService.state == .hidden {
+                isRevealPinned = false
+                hidingService.cancelRehide()
+            }
+
             // Schedule auto-rehide if enabled and we just showed
-            if hidingService.state == .expanded && settings.autoRehide {
+            if hidingService.state == .expanded && settings.autoRehide && !isRevealPinned {
                 hidingService.scheduleRehide(after: settings.rehideDelay)
             }
         }
@@ -386,15 +397,23 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             guard ok else { return false }
         }
 
+        // Manual reveal should pin and cancel any pending auto-rehide.
+        if trigger == .settingsButton {
+            isRevealPinned = true
+            hidingService.cancelRehide()
+        }
+
+        let didReveal = hidingService.state == .hidden
         await hidingService.show()
-        if settings.autoRehide {
+        if didReveal, settings.autoRehide, !isRevealPinned {
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
-        return true
+        return didReveal
     }
 
     /// Schedule a rehide specifically from Find Icon search (always hides, ignores autoRehide setting)
     func scheduleRehideFromSearch(after delay: TimeInterval) {
+        guard !isRevealPinned else { return }
         hidingService.scheduleRehide(after: delay)
     }
 
@@ -406,6 +425,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     func hideHiddenItems() {
         Task {
+            isRevealPinned = false
+            hidingService.cancelRehide()
+
             // Safety check: verify separator is LEFT of main icon before hiding
             guard validateSeparatorPosition() else {
                 logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide to prevent eating the main icon")
@@ -441,6 +463,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // If frames are zero/invalid, assume valid (UI not ready)
         if mainFrame.width == 0 || separatorFrame.width == 0 {
             logger.debug("validateSeparatorPosition: frames not ready - assuming valid")
+            return true
+        }
+
+        // CRITICAL: Check if both windows are on the same screen
+        // In multi-display setups, each display has its own menu bar, and coordinates
+        // are in unified screen space. Comparing coordinates across different screens
+        // will produce false positives (e.g., separator at x=6476 on external display,
+        // main at x=1496 on built-in display).
+        // See: https://github.com/stephanjoseph/SaneBar/issues/11
+        if mainWindow.screen != separatorWindow.screen {
+            logger.debug("validateSeparatorPosition: items on different screens - assuming valid (multi-display transition)")
             return true
         }
 
@@ -702,7 +735,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Update spacer items based on settings
     func updateSpacers() {
-        statusBarController.updateSpacers(count: settings.spacerCount)
+        statusBarController.updateSpacers(
+            count: settings.spacerCount,
+            style: settings.spacerStyle,
+            width: settings.spacerWidth
+        )
     }
 
     // MARK: - Onboarding
