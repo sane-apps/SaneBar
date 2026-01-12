@@ -102,6 +102,34 @@ struct AdvancedSettingsView: View {
                 }
             }
 
+            // 4. System-wide icon spacing
+            Section {
+                Toggle("Tighter menu bar icons", isOn: tighterSpacingEnabled)
+                if menuBarManager.settings.menuBarSpacing != nil || menuBarManager.settings.menuBarSelectionPadding != nil {
+                    Stepper("Icon spacing: \(menuBarManager.settings.menuBarSpacing ?? 6)",
+                            value: spacingBinding,
+                            in: 1...10)
+                    Stepper("Click padding: \(menuBarManager.settings.menuBarSelectionPadding ?? 8)",
+                            value: paddingBinding,
+                            in: 1...10)
+
+                    Button("Reset to system defaults") {
+                        resetSpacingToDefaults()
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("System Icon Spacing")
+            } footer: {
+                if menuBarManager.settings.menuBarSpacing != nil {
+                    Text("⚠️ Logout required to apply. Affects all apps system-wide.")
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("Recover icons hidden by the notch! Tighter spacing = more room before icons get cut off.")
+                }
+            }
+
             // 5. Icon hotkeys - rare
             if !menuBarManager.settings.iconHotkeys.isEmpty {
                 Section {
@@ -170,6 +198,74 @@ struct AdvancedSettingsView: View {
         }
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
+        }
+    }
+
+    // MARK: - Spacing Bindings
+
+    /// Binding for the "Tighter spacing" toggle
+    private var tighterSpacingEnabled: Binding<Bool> {
+        Binding(
+            get: {
+                menuBarManager.settings.menuBarSpacing != nil
+            },
+            set: { enabled in
+                if enabled {
+                    // Enable with notch-friendly defaults (4,4 tested to recover hidden icons)
+                    menuBarManager.settings.menuBarSpacing = 4
+                    menuBarManager.settings.menuBarSelectionPadding = 4
+                    applySpacingToSystem()
+                } else {
+                    // Disable - reset to system defaults
+                    resetSpacingToDefaults()
+                }
+            }
+        )
+    }
+
+    /// Binding for the spacing stepper
+    private var spacingBinding: Binding<Int> {
+        Binding(
+            get: { menuBarManager.settings.menuBarSpacing ?? 6 },
+            set: { newValue in
+                menuBarManager.settings.menuBarSpacing = newValue
+                applySpacingToSystem()
+            }
+        )
+    }
+
+    /// Binding for the padding stepper
+    private var paddingBinding: Binding<Int> {
+        Binding(
+            get: { menuBarManager.settings.menuBarSelectionPadding ?? 8 },
+            set: { newValue in
+                menuBarManager.settings.menuBarSelectionPadding = newValue
+                applySpacingToSystem()
+            }
+        )
+    }
+
+    /// Apply current spacing settings to macOS defaults
+    private func applySpacingToSystem() {
+        let service = MenuBarSpacingService.shared
+        do {
+            try service.setSpacing(menuBarManager.settings.menuBarSpacing)
+            try service.setSelectionPadding(menuBarManager.settings.menuBarSelectionPadding)
+            service.attemptGracefulRefresh()
+        } catch {
+            print("[SaneBar] Failed to apply spacing: \(error)")
+        }
+    }
+
+    /// Reset spacing to system defaults
+    private func resetSpacingToDefaults() {
+        menuBarManager.settings.menuBarSpacing = nil
+        menuBarManager.settings.menuBarSelectionPadding = nil
+        do {
+            try MenuBarSpacingService.shared.resetToDefaults()
+            MenuBarSpacingService.shared.attemptGracefulRefresh()
+        } catch {
+            print("[SaneBar] Failed to reset spacing: \(error)")
         }
     }
 

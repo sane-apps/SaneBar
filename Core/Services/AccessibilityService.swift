@@ -622,4 +622,171 @@ final class AccessibilityService: ObservableObject {
 
         return false
     }
+
+    // MARK: - Icon Moving (CGEvent-based)
+
+    /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag
+    /// - Parameters:
+    ///   - bundleID: The bundle ID of the app whose icon to move
+    ///   - toHidden: If true, move LEFT of separator (hidden). If false, move RIGHT (visible).
+    ///   - separatorX: The X position of the separator's LEFT edge
+    /// - Returns: True if successful
+    func moveMenuBarIcon(bundleID: String, toHidden: Bool, separatorX: CGFloat) -> Bool {
+        logger.error("🔧 moveMenuBarIcon: bundleID=\(bundleID), toHidden=\(toHidden), separatorX=\(separatorX)")
+
+        guard isTrusted else {
+            logger.error("🔧 Accessibility permission not granted")
+            return false
+        }
+
+        // Find the icon's current position
+        guard let iconPosition = getMenuBarIconPosition(bundleID: bundleID) else {
+            logger.error("🔧 Could not find icon position for \(bundleID)")
+            return false
+        }
+
+        logger.error("🔧 Icon position: x=\(iconPosition.x), width=\(iconPosition.width)")
+
+        // SaneBar menu bar layout:
+        // [Apple] [App Menus] ... [HIDDEN ICONS] | SEPARATOR | [VISIBLE ICONS] ...
+        //
+        // LEFT of separator (lower X) = HIDDEN
+        // RIGHT of separator (higher X) = VISIBLE
+        //
+        // To HIDE: drag icon to LEFT of separator (targetX < separatorX)
+        // To SHOW: drag icon to RIGHT of separator (targetX > separatorX)
+        let targetX: CGFloat = toHidden ? (separatorX - 100) : (separatorX + 100)
+
+        logger.error("🔧 Target X: \(targetX) (toHidden=\(toHidden), separator=\(separatorX))")
+
+        // CGEvent uses top-left screen coordinates (Quartz coordinate system)
+        // Menu bar is at y=0 to y≈24, middle is around y=12
+        let menuBarY: CGFloat = 12
+
+        // The icon's X position from AX API is already in screen coordinates
+        let fromPoint = CGPoint(x: iconPosition.x + iconPosition.width / 2, y: menuBarY)
+        let toPoint = CGPoint(x: targetX, y: menuBarY)
+
+        logger.error("🔧 CGEvent drag from (\(fromPoint.x), \(fromPoint.y)) to (\(toPoint.x), \(toPoint.y))")
+
+        // Perform Cmd+drag using CGEvent
+        return performCmdDrag(from: fromPoint, to: toPoint)
+    }
+
+    /// Get the position and size of a menu bar icon
+    private func getMenuBarIconPosition(bundleID: String) -> (x: CGFloat, width: CGFloat)? {
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
+            return nil
+        }
+
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+
+        var extrasBar: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+        guard result == .success, let bar = extrasBar else { return nil }
+        guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return nil }
+        // swiftlint:disable:next force_cast
+        let barElement = bar as! AXUIElement
+
+        var children: CFTypeRef?
+        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { return nil }
+
+        // Get the first (usually only) menu bar item for this app
+        let item = items[0]
+
+        // Get position
+        var positionValue: CFTypeRef?
+        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+        guard posResult == .success, let posValue = positionValue else { return nil }
+        guard CFGetTypeID(posValue) == AXValueGetTypeID() else { return nil }
+
+        var point = CGPoint.zero
+        // swiftlint:disable:next force_cast
+        guard AXValueGetValue(posValue as! AXValue, .cgPoint, &point) else { return nil }
+
+        // Get size
+        var sizeValue: CFTypeRef?
+        let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+        var width: CGFloat = 22  // Default width
+        if sizeResult == .success, let sizeVal = sizeValue, CFGetTypeID(sizeVal) == AXValueGetTypeID() {
+            var size = CGSize.zero
+            // swiftlint:disable:next force_cast
+            if AXValueGetValue(sizeVal as! AXValue, .cgSize, &size) {
+                width = size.width
+            }
+        }
+
+        return (x: point.x, width: width)
+    }
+
+    /// Perform a Cmd+drag operation using CGEvent (runs on background thread)
+    private func performCmdDrag(from: CGPoint, to: CGPoint) -> Bool {
+        // Capture current mouse position BEFORE dispatching to background thread
+        // NSEvent.mouseLocation uses bottom-left origin, CGEvent uses top-left
+        let currentMouseLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.main?.frame.height ?? 0
+        let savedPosition = CGPoint(
+            x: currentMouseLocation.x,
+            y: screenHeight - currentMouseLocation.y
+        )
+
+        // Run CGEvent posting on a background thread to avoid blocking UI
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Create mouse down event with Cmd modifier
+            guard let mouseDown = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseDown,
+                mouseCursorPosition: from,
+                mouseButton: .left
+            ) else {
+                logger.error("Failed to create mouse down event")
+                return
+            }
+            mouseDown.flags = .maskCommand  // Hold Cmd key
+
+            // Create drag event
+            guard let mouseDrag = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseDragged,
+                mouseCursorPosition: to,
+                mouseButton: .left
+            ) else {
+                logger.error("Failed to create mouse drag event")
+                return
+            }
+            mouseDrag.flags = .maskCommand
+
+            // Create mouse up event
+            guard let mouseUp = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseUp,
+                mouseCursorPosition: to,
+                mouseButton: .left
+            ) else {
+                logger.error("Failed to create mouse up event")
+                return
+            }
+
+            // Post events with minimal delays for reliability
+            mouseDown.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: 0.02)
+
+            mouseDrag.post(tap: .cghidEventTap)
+            Thread.sleep(forTimeInterval: 0.03)
+
+            mouseUp.post(tap: .cghidEventTap)
+
+            // Restore cursor to original position after a brief delay
+            Thread.sleep(forTimeInterval: 0.05)
+            CGWarpMouseCursorPosition(savedPosition)
+
+            // Invalidate cache on main thread
+            DispatchQueue.main.async {
+                self.invalidateMenuBarItemCache()
+            }
+        }
+
+        return true  // Return immediately, operation happens async
+    }
 }

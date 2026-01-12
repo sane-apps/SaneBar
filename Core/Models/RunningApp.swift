@@ -1,5 +1,73 @@
 import AppKit
 
+// MARK: - AppCategory (Smart Groups)
+
+/// App categories matching Apple's Launchpad categories exactly
+enum AppCategory: String, CaseIterable, Sendable {
+    // Apple Launchpad categories (in their display order)
+    case productivity = "Productivity"
+    case social = "Social"
+    case utilities = "Utilities"
+    case creativity = "Creativity"
+    case entertainment = "Entertainment"
+    case infoAndReading = "Information & Reading"
+    case finance = "Finance"
+    case shopping = "Shopping"
+    case healthAndFitness = "Health & Fitness"
+    case travel = "Travel"
+    case games = "Games"
+    case foodAndDrinks = "Food & Drinks"
+    // Additional categories for menu bar apps
+    case developerTools = "Developer Tools"
+    case system = "System"
+    case other = "Other"
+
+    /// Map LSApplicationCategoryType to our smart category
+    static func from(categoryType: String?) -> AppCategory {
+        guard let type = categoryType?.lowercased() else { return .other }
+
+        // Map Apple's category identifiers to Launchpad groups
+        if type.contains("productivity") || type.contains("business") { return .productivity }
+        if type.contains("social") { return .social }
+        if type.contains("utilities") { return .utilities }
+        if type.contains("graphics") || type.contains("design") || type.contains("photo") ||
+           type.contains("video") || type.contains("music") { return .creativity }
+        if type.contains("entertainment") || type.contains("lifestyle") { return .entertainment }
+        if type.contains("news") || type.contains("reference") || type.contains("education") ||
+           type.contains("weather") || type.contains("book") { return .infoAndReading }
+        if type.contains("finance") { return .finance }
+        if type.contains("shopping") { return .shopping }
+        if type.contains("health") || type.contains("fitness") { return .healthAndFitness }
+        if type.contains("travel") || type.contains("navigation") { return .travel }
+        if type.contains("games") || type.contains("game") { return .games }
+        if type.contains("food") || type.contains("drink") { return .foodAndDrinks }
+        if type.contains("developer") { return .developerTools }
+
+        return .other
+    }
+
+    /// Icon for the category (SF Symbol)
+    var iconName: String {
+        switch self {
+        case .productivity: return "checkmark.circle"
+        case .social: return "bubble.left.and.bubble.right"
+        case .utilities: return "wrench.and.screwdriver"
+        case .creativity: return "paintbrush"
+        case .entertainment: return "tv"
+        case .infoAndReading: return "book"
+        case .finance: return "dollarsign.circle"
+        case .shopping: return "cart"
+        case .healthAndFitness: return "heart"
+        case .travel: return "airplane"
+        case .games: return "gamecontroller"
+        case .foodAndDrinks: return "fork.knife"
+        case .developerTools: return "hammer"
+        case .system: return "gearshape"
+        case .other: return "square.grid.2x2"
+        }
+    }
+}
+
 // MARK: - RunningApp Model
 
 /// Represents a running app that might have a menu bar icon
@@ -16,18 +84,21 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let name: String
     let icon: NSImage?
     let policy: Policy
+    let category: AppCategory
 
-    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular) {
+    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other) {
         self.id = id
         self.name = name
         self.icon = icon
         self.policy = policy
+        self.category = category
     }
 
     init(app: NSRunningApplication) {
         self.id = app.bundleIdentifier ?? UUID().uuidString
         self.name = app.localizedName ?? "Unknown"
         self.icon = app.icon
+
         switch app.activationPolicy {
         case .regular:
             self.policy = .regular
@@ -38,5 +109,132 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         @unknown default:
             self.policy = .unknown
         }
+
+        // Detect category from app bundle
+        self.category = Self.detectCategory(for: app)
+    }
+
+    /// Detect app category from bundle's Info.plist
+    private static func detectCategory(for app: NSRunningApplication) -> AppCategory {
+        let bundleId = app.bundleIdentifier ?? ""
+        let appName = app.localizedName?.lowercased() ?? ""
+
+        // MARK: - Apple System Apps
+        if bundleId.hasPrefix("com.apple.") {
+            // System utilities (Control Center, Finder, etc.)
+            if bundleId.contains("controlcenter") || bundleId.contains("SystemPreferences") ||
+               bundleId.contains("Finder") || bundleId.contains("systempreferences") ||
+               bundleId.contains("Spotlight") || bundleId.contains("SystemUIServer") ||
+               bundleId.contains("dock") || bundleId.contains("loginwindow") {
+                return .system
+            }
+            // Creativity (Music, Photos, GarageBand, etc.)
+            if bundleId.contains("Music") || bundleId.contains("iTunes") ||
+               bundleId.contains("Photos") || bundleId.contains("GarageBand") ||
+               bundleId.contains("iMovie") || bundleId.contains("FinalCut") {
+                return .creativity
+            }
+            // Productivity
+            if bundleId.contains("Safari") || bundleId.contains("Mail") ||
+               bundleId.contains("Calendar") || bundleId.contains("Notes") ||
+               bundleId.contains("Reminders") || bundleId.contains("Pages") ||
+               bundleId.contains("Numbers") || bundleId.contains("Keynote") {
+                return .productivity
+            }
+            // Social
+            if bundleId.contains("Messages") || bundleId.contains("FaceTime") {
+                return .social
+            }
+            // Information & Reading
+            if bundleId.contains("News") || bundleId.contains("Weather") ||
+               bundleId.contains("Books") || bundleId.contains("Stocks") {
+                return .infoAndReading
+            }
+            // Developer Tools
+            if bundleId.contains("Xcode") || bundleId.contains("Terminal") ||
+               bundleId.contains("Instruments") || bundleId.contains("FileMerge") {
+                return .developerTools
+            }
+            // Default Apple apps to System
+            return .system
+        }
+
+        // MARK: - Common Third-Party Menu Bar Apps
+
+        // Developer Tools
+        if bundleId.contains("github") || bundleId.contains("gitlab") ||
+           bundleId.contains("docker") || bundleId.contains("iterm") ||
+           bundleId.contains("vscode") || bundleId.contains("jetbrains") ||
+           bundleId.contains("sublime") || bundleId.contains("tower") ||
+           bundleId.contains("cursor") || bundleId.contains("fig") ||
+           appName.contains("xcode") || appName.contains("terminal") {
+            return .developerTools
+        }
+
+        // Utilities (launchers, clipboard managers, window managers, etc.)
+        if bundleId.contains("1password") || bundleId.contains("bitwarden") ||
+           bundleId.contains("lastpass") || bundleId.contains("dashlane") ||
+           bundleId.contains("dropbox") || bundleId.contains("google.drive") ||
+           bundleId.contains("onedrive") || bundleId.contains("icloud") ||
+           bundleId.contains("alfred") || bundleId.contains("raycast") ||
+           bundleId.contains("bartender") || bundleId.contains("cleanmymac") ||
+           bundleId.contains("amphetamine") || bundleId.contains("caffeine") ||
+           bundleId.contains("rectangle") || bundleId.contains("magnet") ||
+           bundleId.contains("clipboard") || bundleId.contains("paste") ||
+           bundleId.contains("vpn") || bundleId.contains("nordvpn") ||
+           bundleId.contains("expressvpn") || bundleId.contains("mullvad") ||
+           bundleId.contains("wireguard") || bundleId.contains("tunnelblick") ||
+           bundleId.contains("littlesnitch") || appName.contains("vpn") {
+            return .utilities
+        }
+
+        // Productivity (note-taking, task management, office apps)
+        if bundleId.contains("notion") || bundleId.contains("obsidian") ||
+           bundleId.contains("todoist") || bundleId.contains("things") ||
+           bundleId.contains("omnifocus") || bundleId.contains("fantastical") ||
+           bundleId.contains("spark") || bundleId.contains("airmail") {
+            return .productivity
+        }
+
+        // Social / Communication
+        if bundleId.contains("slack") || bundleId.contains("discord") ||
+           bundleId.contains("zoom") || bundleId.contains("teams") ||
+           bundleId.contains("skype") || bundleId.contains("telegram") ||
+           bundleId.contains("whatsapp") || bundleId.contains("signal") ||
+           bundleId.contains("messenger") || appName.contains("chat") {
+            return .social
+        }
+
+        // Creativity (music, video, design)
+        if bundleId.contains("spotify") || bundleId.contains("soundcloud") ||
+           bundleId.contains("audiohijack") || bundleId.contains("airfoil") ||
+           bundleId.contains("adobe") || bundleId.contains("sketch") ||
+           bundleId.contains("figma") || bundleId.contains("affinity") ||
+           appName.contains("music") || appName.contains("audio") {
+            return .creativity
+        }
+
+        // Finance
+        if bundleId.contains("coinbase") || bundleId.contains("exodus") ||
+           bundleId.contains("ledger") || bundleId.contains("crypto") ||
+           appName.contains("wallet") || appName.contains("bitcoin") ||
+           appName.contains("trading") || appName.contains("stock") {
+            return .finance
+        }
+
+        // Health & Fitness
+        if bundleId.contains("strava") || bundleId.contains("fitness") ||
+           bundleId.contains("workout") || appName.contains("health") {
+            return .healthAndFitness
+        }
+
+        // Try to read LSApplicationCategoryType from bundle
+        if let bundleURL = app.bundleURL,
+           let bundle = Bundle(url: bundleURL),
+           let categoryType = bundle.object(forInfoDictionaryKey: "LSApplicationCategoryType") as? String {
+            return AppCategory.from(categoryType: categoryType)
+        }
+
+        return .other
     }
 }

@@ -183,6 +183,26 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return [RunningApp]()
     }
 
+    private let cachedVisibleMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () -> [RunningApp]>())
+    var cachedVisibleMenuBarAppsCallCount: Int {
+        return cachedVisibleMenuBarAppsState.withLock(\.callCount)
+    }
+    var cachedVisibleMenuBarAppsHandler: (@Sendable () -> [RunningApp])? {
+        get { cachedVisibleMenuBarAppsState.withLock(\.handler) }
+        set { cachedVisibleMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    @MainActor
+    func cachedVisibleMenuBarApps() -> [RunningApp] {
+        let cachedVisibleMenuBarAppsHandler = cachedVisibleMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let cachedVisibleMenuBarAppsHandler = cachedVisibleMenuBarAppsHandler {
+            return cachedVisibleMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
     private let refreshMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
     var refreshMenuBarAppsCallCount: Int {
         return refreshMenuBarAppsState.withLock(\.callCount)
@@ -217,6 +237,25 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         }
         if let refreshHiddenMenuBarAppsHandler = refreshHiddenMenuBarAppsHandler {
             return await refreshHiddenMenuBarAppsHandler()
+        }
+        return [RunningApp]()
+    }
+
+    private let refreshVisibleMenuBarAppsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [RunningApp]>())
+    var refreshVisibleMenuBarAppsCallCount: Int {
+        return refreshVisibleMenuBarAppsState.withLock(\.callCount)
+    }
+    var refreshVisibleMenuBarAppsHandler: (@Sendable () async -> [RunningApp])? {
+        get { refreshVisibleMenuBarAppsState.withLock(\.handler) }
+        set { refreshVisibleMenuBarAppsState.withLock { $0.handler = newValue } }
+    }
+    func refreshVisibleMenuBarApps() async -> [RunningApp] {
+        let refreshVisibleMenuBarAppsHandler = refreshVisibleMenuBarAppsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let refreshVisibleMenuBarAppsHandler = refreshVisibleMenuBarAppsHandler {
+            return await refreshVisibleMenuBarAppsHandler()
         }
         return [RunningApp]()
     }

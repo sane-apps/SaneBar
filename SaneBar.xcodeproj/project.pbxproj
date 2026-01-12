@@ -12,9 +12,11 @@
 		177462570C47D2B4DB5E35D9 /* NetworkTriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E1A335FE5120D24D104B40 /* NetworkTriggerServiceTests.swift */; };
 		17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56253053D08930BD23085754 /* IconHotkeysService.swift */; };
 		1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E264258C707319B447D489AC /* KeyboardShortcuts */; };
+		22A389BF0FF36E955E7D94FE /* MenuBarSpacingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */; };
 		265187C64135D0BBD23E8286 /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */; };
 		2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8376513461FDCE0D56D48 /* HidingService.swift */; };
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
+		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
 		4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */; };
@@ -72,6 +74,7 @@
 
 /* Begin PBXFileReference section */
 		0752D3D1CCD73101C00C78C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingService.swift; sourceTree = "<group>"; };
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
@@ -110,6 +113,7 @@
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
 		C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
+		CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingServiceTests.swift; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
@@ -189,6 +193,7 @@
 				70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */,
 				3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */,
 				E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */,
+				CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */,
 				A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */,
 				34E1A335FE5120D24D104B40 /* NetworkTriggerServiceTests.swift */,
 				A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */,
@@ -273,6 +278,7 @@
 				56253053D08930BD23085754 /* IconHotkeysService.swift */,
 				23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */,
 				ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */,
+				104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */,
 				B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */,
 				B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */,
 				B169D11639EA3855736D56D3 /* SearchService.swift */,
@@ -416,6 +422,7 @@
 				41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */,
 				4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */,
 				F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */,
+				22A389BF0FF36E955E7D94FE /* MenuBarSpacingServiceTests.swift in Sources */,
 				5688BE185598444C9246B5A2 /* MenuBarUITests.swift in Sources */,
 				BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */,
 				177462570C47D2B4DB5E35D9 /* NetworkTriggerServiceTests.swift in Sources */,
@@ -445,6 +452,7 @@
 				4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */,
 				C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
+				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
 				FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */,
 				B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */,

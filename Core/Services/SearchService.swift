@@ -22,11 +22,18 @@ protocol SearchServiceProtocol: Sendable {
     @MainActor
     func cachedHiddenMenuBarApps() -> [RunningApp]
 
+    /// Cached shown (visible) menu bar apps (may be stale). Returns immediately.
+    @MainActor
+    func cachedVisibleMenuBarApps() -> [RunningApp]
+
     /// Refresh menu bar apps in the background (may take time).
     func refreshMenuBarApps() async -> [RunningApp]
 
     /// Refresh hidden menu bar apps in the background (may take time).
     func refreshHiddenMenuBarApps() async -> [RunningApp]
+
+    /// Refresh shown (visible) menu bar apps in the background (may take time).
+    func refreshVisibleMenuBarApps() async -> [RunningApp]
 
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
@@ -70,8 +77,24 @@ final class SearchService: SearchServiceProtocol {
     @MainActor
     func cachedHiddenMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+        // Hidden icons are LEFT of the separator's left edge (lower X values)
+        guard let separatorX = MenuBarManager.shared.getSeparatorOriginX() else {
+            return []
+        }
         return items
-            .filter { $0.x < 0 }
+            .filter { $0.x < separatorX }
+            .map { $0.app }
+    }
+
+    @MainActor
+    func cachedVisibleMenuBarApps() -> [RunningApp] {
+        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+        // Visible icons are RIGHT of the separator's left edge (higher X values)
+        guard let separatorX = MenuBarManager.shared.getSeparatorOriginX() else {
+            return []
+        }
+        return items
+            .filter { $0.x >= separatorX }
             .map { $0.app }
     }
 
@@ -81,9 +104,26 @@ final class SearchService: SearchServiceProtocol {
 
     func refreshHiddenMenuBarApps() async -> [RunningApp] {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        return items
-            .filter { $0.x < 0 }
-            .map { $0.app }
+        // Hidden icons are LEFT of the separator's left edge (lower X values)
+        let separatorX = await MainActor.run {
+            MenuBarManager.shared.getSeparatorOriginX()
+        }
+        guard let separatorX else {
+            return []
+        }
+        return items.filter { $0.x < separatorX }.map { $0.app }
+    }
+
+    func refreshVisibleMenuBarApps() async -> [RunningApp] {
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        // Visible icons are RIGHT of the separator's left edge (higher X values)
+        let separatorX = await MainActor.run {
+            MenuBarManager.shared.getSeparatorOriginX()
+        }
+        guard let separatorX else {
+            return []
+        }
+        return items.filter { $0.x >= separatorX }.map { $0.app }
     }
 
     @MainActor
@@ -92,7 +132,7 @@ final class SearchService: SearchServiceProtocol {
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
 
         // 2. Wait for menu bar animation to complete
-        // When icons move from hidden (x=-4000) to visible (x=1200), macOS needs time
+        // When icons move from hidden (left of separator) to visible, macOS needs time
         if didReveal {
             try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
         }

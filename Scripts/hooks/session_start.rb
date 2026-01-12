@@ -33,6 +33,122 @@ SANELOOP_ARCHIVE_DIR = File.join(CLAUDE_DIR, 'saneloop-archive')
 EDIT_STATE_FILE = File.join(CLAUDE_DIR, 'edit_state.json')
 SUMMARY_VALIDATED_FILE = File.join(CLAUDE_DIR, 'summary_validated.json')
 
+# MCP process patterns to clean up (orphaned from previous sessions)
+MCP_PROCESS_PATTERNS = %w[
+  mcp-server
+  xcodebuildmcp
+  chroma-mcp
+  context7-mcp
+  apple-docs-mcp
+  mcp-server-github
+  mcp-server-memory
+  worker-service.cjs
+].freeze
+
+# Log files to rotate (max 100KB each)
+LOG_FILES_TO_ROTATE = %w[
+  sanetools.log
+  sanetrack.log
+  saneprompt.log
+  saneprompt_debug.log
+  sanestop.log
+  session_start_debug.log
+].freeze
+
+LOG_MAX_SIZE = 100 * 1024  # 100KB
+
+# Rotate log files that exceed size limit
+def rotate_log_files
+  rotated = []
+
+  LOG_FILES_TO_ROTATE.each do |log_name|
+    log_path = File.join(CLAUDE_DIR, log_name)
+    next unless File.exist?(log_path)
+
+    size = File.size(log_path)
+    next if size < LOG_MAX_SIZE
+
+    # Rotate: rename to .old (overwriting previous .old)
+    old_path = "#{log_path}.old"
+    File.rename(log_path, old_path)
+    rotated << { name: log_name, size_kb: (size / 1024.0).round }
+  end
+
+  if rotated.any?
+    warn ''
+    warn "📜 Rotated #{rotated.length} log file#{rotated.length > 1 ? 's' : ''}:"
+    rotated.each { |r| warn "   #{r[:name]} (#{r[:size_kb]}KB → .old)" }
+    warn ''
+  end
+
+  rotated.length
+rescue StandardError => e
+  log_debug "Log rotation error: #{e.message}"
+  0
+end
+
+# Clean up orphaned MCP processes from previous sessions
+# These accumulate when Claude Code exits without proper cleanup
+def cleanup_orphaned_mcp_processes
+  # Get current session's parent PID to avoid killing our own processes
+  current_ppid = Process.ppid
+  killed = []
+
+  # Find MCP-related processes
+  ps_output = `ps -eo pid,ppid,lstart,command 2>/dev/null`
+  return if ps_output.empty?
+
+  current_time = Time.now
+
+  ps_output.each_line do |line|
+    next if line =~ /^\s*PID/ # Skip header
+
+    # Check if this line matches any MCP pattern
+    next unless MCP_PROCESS_PATTERNS.any? { |pattern| line.include?(pattern) }
+
+    # Parse the line: PID PPID LSTART(day month date time year) COMMAND
+    parts = line.strip.split(/\s+/, 6)
+    next if parts.length < 6
+
+    pid = parts[0].to_i
+    ppid = parts[1].to_i
+
+    # Skip if this is our own process tree
+    next if ppid == current_ppid || pid == Process.pid
+
+    # Parse start time (format: "Sun Jan 11 09:45:00 2026")
+    begin
+      start_str = parts[2..5].join(' ')
+      start_time = Time.parse(start_str)
+      age_hours = ((current_time - start_time) / 3600.0).round(1)
+
+      # Kill processes older than 1 hour (definitely orphaned)
+      if age_hours >= 1.0
+        Process.kill('TERM', pid)
+        killed << { pid: pid, age: age_hours, cmd: parts[5][0..50] }
+      end
+    rescue ArgumentError, Errno::ESRCH, Errno::EPERM
+      # Ignore parse errors or already-dead processes
+    end
+  end
+
+  # Report cleanup
+  if killed.any?
+    warn ''
+    warn "🧹 Cleaned #{killed.length} orphaned MCP process#{killed.length > 1 ? 'es' : ''}:"
+    killed.each do |p|
+      warn "   PID #{p[:pid]} (#{p[:age]}h old): #{p[:cmd]}..."
+    end
+    warn ''
+  end
+
+  killed.length
+rescue StandardError => e
+  # Don't fail startup on cleanup errors
+  log_debug "MCP cleanup error: #{e.message}"
+  0
+end
+
 def ensure_claude_dir
   FileUtils.mkdir_p(CLAUDE_DIR)
 
@@ -321,6 +437,10 @@ begin
   log_debug "Starting session_start hook"
   ensure_claude_dir
   log_debug "ensure_claude_dir done"
+  cleanup_orphaned_mcp_processes  # Clean zombies from previous sessions
+  log_debug "cleanup_orphaned_mcp_processes done"
+  rotate_log_files                # Prevent unbounded log growth
+  log_debug "rotate_log_files done"
   reset_session_state
   log_debug "reset_session_state done"
   clear_stale_satisfaction

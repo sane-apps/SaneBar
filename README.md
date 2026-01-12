@@ -122,6 +122,7 @@ If you have 50+ apps, macOS might hide some of them behind the camera housing (t
 1. **Hiding**: SaneBar pushes unused icons safely off-screen so your menu bar looks clean
 2. **Safety Lock**: If SaneBar itself would get pushed off-screen, it refuses to hide to ensure you never lose control
 3. **Find Hidden Icon**: Can't see an icon because it's behind the Notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible
+4. **Tighter Icon Spacing**: Reduce system-wide menu bar spacing to fit more icons. Go to **Settings → Advanced** and enable "Tighter menu bar icons" (requires logout)
 
 ---
 
@@ -144,6 +145,16 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 - **Low Battery** — Auto-show when battery drops below threshold
 - **App Launch** — Show when specific apps start (enter bundle IDs)
 - **WiFi Networks** — Show on specific networks (enter SSIDs or click "Add current network")
+
+### System Icon Spacing (Settings → Advanced)
+
+Reduce the spacing between **all** menu bar icons system-wide to fit more icons before they get hidden by the notch.
+
+- **Enable**: Toggle "Tighter menu bar icons" in Advanced Settings
+- **Defaults**: Ships with notch-friendly values (spacing=4, padding=4)
+- **Logout required**: macOS reads these settings at login, so you must log out and back in for changes to take effect
+- **System-wide**: This affects ALL apps, not just SaneBar. It modifies macOS user defaults (`NSStatusItemSpacing` and `NSStatusItemSelectionPadding`)
+- **Reversible**: Disable the toggle and log out to restore default spacing
 
 ---
 

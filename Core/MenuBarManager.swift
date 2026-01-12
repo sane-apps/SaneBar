@@ -742,6 +742,68 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         )
     }
 
+    // MARK: - Icon Moving
+
+    /// Get the separator's LEFT edge X position (for hidden/visible icon classification)
+    /// Icons to the LEFT of this position (lower X) are HIDDEN
+    /// Icons to the RIGHT of this position (higher X) are VISIBLE
+    /// Returns nil if separator position can't be determined
+    func getSeparatorOriginX() -> CGFloat? {
+        guard let separatorButton = separatorItem?.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+        let frame = separatorWindow.frame
+        return frame.origin.x
+    }
+
+    /// Get the separator's right edge X position (for moving icons)
+    /// NOTE: This value changes based on expanded/collapsed state!
+    /// Returns nil if separator position can't be determined
+    func getSeparatorRightEdgeX() -> CGFloat? {
+        guard let separatorButton = separatorItem?.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+        let frame = separatorWindow.frame
+        guard frame.width > 0 else { return nil }
+        return frame.origin.x + frame.width
+    }
+
+    /// Move an icon to hidden or visible position
+    /// - Parameters:
+    ///   - bundleID: The bundle ID of the app to move
+    ///   - toHidden: True to hide, false to show
+    /// - Returns: True if successful
+    func moveIcon(bundleID: String, toHidden: Bool) -> Bool {
+        logger.info("🔧 moveIcon: \(bundleID), toHidden=\(toHidden)")
+
+        // If moving FROM hidden TO visible, expand (show) first so icon is draggable
+        let wasHidden = hidingState == .hidden
+        if !toHidden && wasHidden {
+            Task { await hidingService.show() }
+        }
+
+        // Minimal delay only if we needed to expand
+        let delay: TimeInterval = (!toHidden && wasHidden) ? 0.2 : 0.0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
+            guard let separatorX = getSeparatorRightEdgeX() else {
+                logger.error("🔧 Cannot get separator position")
+                return
+            }
+
+            _ = AccessibilityService.shared.moveMenuBarIcon(
+                bundleID: bundleID,
+                toHidden: toHidden,
+                separatorX: separatorX
+            )
+            // Cache invalidation happens inside moveMenuBarIcon
+        }
+
+        return true
+    }
+
     // MARK: - Onboarding
 
     private func showOnboardingIfNeeded() {

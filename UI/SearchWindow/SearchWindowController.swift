@@ -79,7 +79,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.level = .floating
-        window.backgroundColor = NSColor.windowBackgroundColor
+        // Clear background for ultraThinMaterial to show through
+        // Fallback: on older macOS, the material degrades gracefully to translucent
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.isReleasedWhenClosed = false
         window.delegate = self
 

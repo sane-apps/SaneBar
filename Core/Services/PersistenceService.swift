@@ -24,6 +24,19 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case normal
         case wide
     }
+
+    /// User-created icon group for organizing menu bar apps
+    struct IconGroup: Codable, Sendable, Equatable, Identifiable {
+        var id: UUID = UUID()
+        var name: String
+        var appBundleIds: [String] = []
+
+        init(name: String, appBundleIds: [String] = []) {
+            self.name = name
+            self.appBundleIds = appBundleIds
+        }
+    }
+
     /// Whether hidden items auto-hide after a delay
     var autoRehide: Bool = true
 
@@ -31,7 +44,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var rehideDelay: TimeInterval = 3.0
 
     /// Number of spacers to show (0-12)
-    var spacerCount: Int = 0
+    var spacerCount: Int = 2  // Default to 2 dividers for better notch compatibility
 
     /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line
@@ -48,6 +61,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Per-icon hotkey configurations: bundleID -> shortcut key data
     /// When triggered, shows hidden items and activates the app
     var iconHotkeys: [String: KeyboardShortcutData] = [:]
+
+    /// User-created icon groups for organizing menu bar apps in Find Icon
+    var iconGroups: [IconGroup] = []
 
     /// Show hidden items when battery drops to low level
     var showOnLowBattery: Bool = false
@@ -86,6 +102,16 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
 
+    // MARK: - System Icon Spacing
+
+    /// System-wide spacing between menu bar icons (1-10, nil = system default)
+    /// Uses macOS private API: NSStatusItemSpacing
+    var menuBarSpacing: Int?
+
+    /// System-wide click-area padding for menu bar icons (1-10, nil = system default)
+    /// Uses macOS private API: NSStatusItemSelectionPadding
+    var menuBarSelectionPadding: Int?
+
     // MARK: - Update Checking
 
     /// Automatically check for updates on launch (off by default for privacy)
@@ -102,12 +128,13 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         autoRehide = try container.decodeIfPresent(Bool.self, forKey: .autoRehide) ?? true
         rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 3.0
-        spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 0
+        spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 2
         spacerStyle = try container.decodeIfPresent(SpacerStyle.self, forKey: .spacerStyle) ?? .line
         spacerWidth = try container.decodeIfPresent(SpacerWidth.self, forKey: .spacerWidth) ?? .normal
         showOnAppLaunch = try container.decodeIfPresent(Bool.self, forKey: .showOnAppLaunch) ?? false
         triggerApps = try container.decodeIfPresent([String].self, forKey: .triggerApps) ?? []
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
+        iconGroups = try container.decodeIfPresent([IconGroup].self, forKey: .iconGroups) ?? []
         showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
         requireAuthToShowHiddenIcons = try container.decodeIfPresent(Bool.self, forKey: .requireAuthToShowHiddenIcons) ?? false
@@ -121,16 +148,19 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.15
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
+        menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
+        menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
     }
 
     private enum CodingKeys: String, CodingKey {
         case autoRehide, rehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
-        case iconHotkeys, showOnLowBattery, hasCompletedOnboarding
+        case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll
+        case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
     }
 }
