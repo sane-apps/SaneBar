@@ -22,6 +22,11 @@
     <meta name="twitter:description" content="The only menu bar manager that locks your hidden icons behind Touch ID.">
     <meta name="twitter:image" content="images/hero.png">
 
+    <!-- Fonts: Elegant typography for luxury feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
     {
@@ -43,15 +48,20 @@
 
     <style>
         :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a25;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.3);
-            --text-primary: #f0f0f5;
-            --text-secondary: #a0a0b0;
-            --success: #22c55e;
-            --border: #2a2a3a;
+            --bg-primary: #08080c;
+            --bg-secondary: #0f0f16;
+            --bg-card: #16161f;
+            --accent: #4f8ffa;
+            --accent-soft: #3b7ce8;
+            --accent-glow: rgba(79, 143, 250, 0.25);
+            --accent-subtle: rgba(79, 143, 250, 0.08);
+            --text-primary: #f5f5f8;
+            --text-secondary: #9898a8;
+            --text-muted: #6b6b7b;
+            --success: #34d399;
+            --success-soft: rgba(52, 211, 153, 0.15);
+            --border: #252530;
+            --border-subtle: #1e1e28;
         }
 
         * {
@@ -61,14 +71,16 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            line-height: 1.6;
+            line-height: 1.7;
             overflow-x: hidden;
+            font-weight: 400;
+            letter-spacing: -0.01em;
         }
 
-        /* Gradient background */
+        /* Elegant gradient background with subtle noise */
         .gradient-bg {
             position: fixed;
             top: 0;
@@ -76,11 +88,56 @@
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-                var(--bg-primary);
+                radial-gradient(ellipse at 15% 10%, rgba(79, 143, 250, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 85% 90%, rgba(139, 92, 246, 0.1) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(20, 20, 30, 1) 0%, var(--bg-primary) 100%);
             z-index: -1;
         }
+
+        .gradient-bg::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+        }
+
+        /* Animation keyframes */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.8s ease-out forwards;
+            opacity: 0;
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
 
         .container {
             max-width: 1100px;
@@ -163,23 +220,38 @@
 
         /* Hero Section */
         .hero {
-            padding: 160px 0 80px;
+            padding: 180px 0 100px;
             text-align: center;
         }
 
         .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 700;
-            margin-bottom: 20px;
-            letter-spacing: -0.02em;
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(2.75rem, 7vw, 4.5rem);
+            font-weight: 600;
+            margin-bottom: 24px;
+            letter-spacing: -0.03em;
             color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--accent);
         }
 
         .hero .subtitle {
             font-size: 1.25rem;
             color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto 40px;
+            max-width: 560px;
+            margin: 0 auto 48px;
+            font-weight: 400;
+            line-height: 1.8;
+        }
+
+        .hero .subtitle em {
+            color: var(--text-primary);
+            font-style: normal;
+            font-weight: 500;
         }
 
         .cta-buttons {
@@ -191,39 +263,50 @@
         }
 
         .btn {
-            padding: 14px 28px;
-            border-radius: 12px;
-            font-size: 1rem;
+            padding: 16px 32px;
+            border-radius: 14px;
+            font-size: 0.95rem;
             font-weight: 500;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            letter-spacing: 0.01em;
         }
 
         .btn-primary {
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
             color: #ffffff;
             font-weight: 600;
-            box-shadow: 0 4px 20px var(--accent-glow);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow:
+                0 4px 24px var(--accent-glow),
+                0 1px 3px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px var(--accent-glow);
+            transform: translateY(-3px);
+            box-shadow:
+                0 8px 40px var(--accent-glow),
+                0 4px 12px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            filter: brightness(1.05);
         }
 
         .btn-secondary {
             background: var(--bg-card);
             color: var(--text-primary);
             border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .btn-secondary:hover {
             background: var(--bg-secondary);
-            border-color: var(--text-secondary);
+            border-color: var(--accent);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
         }
 
         .hero-image {
@@ -249,15 +332,77 @@
         .privacy-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            gap: 10px;
+            background: var(--success-soft);
+            border: 1px solid rgba(52, 211, 153, 0.25);
             color: var(--success);
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 100px;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             font-weight: 500;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
+            letter-spacing: 0.02em;
+            box-shadow: 0 2px 12px rgba(52, 211, 153, 0.15);
+        }
+
+        /* Before/After Section */
+        .before-after {
+            padding: 80px 0;
+        }
+
+        .comparison-images {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+
+        .comparison-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .comparison-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+        }
+
+        .comparison-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+            margin-top: 12px;
+        }
+
+        .comparison-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-arrow {
+            font-size: 2rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-images {
+                flex-direction: column;
+            }
+
+            .comparison-arrow {
+                transform: rotate(90deg);
+            }
         }
 
         /* Features Section */
@@ -266,18 +411,22 @@
         }
 
         .section-title {
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(2rem, 5vw, 2.75rem);
+            font-weight: 600;
             text-align: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
         }
 
         .section-subtitle {
             text-align: center;
             color: var(--text-secondary);
-            font-size: 1.125rem;
-            max-width: 600px;
-            margin: 0 auto 60px;
+            font-size: 1.1rem;
+            max-width: 540px;
+            margin: 0 auto 64px;
+            line-height: 1.7;
         }
 
         .feature-grid {
@@ -287,71 +436,123 @@
         }
 
         .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 32px;
-            transition: all 0.3s;
+            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 36px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
         }
 
         .feature-card:hover {
             border-color: var(--accent);
-            transform: translateY(-4px);
+            transform: translateY(-6px);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px var(--accent-subtle);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
         }
 
         .feature-icon {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             color: var(--accent);
             display: flex;
             align-items: center;
-            height: 40px;
+            height: 44px;
+            width: 44px;
+            background: var(--accent-subtle);
+            border-radius: 12px;
+            justify-content: center;
         }
-        
+
         .feature-icon svg {
-            width: 32px;
-            height: 32px;
-            stroke-width: 1.5;
+            width: 24px;
+            height: 24px;
+            stroke-width: 1.75;
         }
 
         .feature-card h3 {
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
         }
 
         .feature-card p {
             color: var(--text-secondary);
             font-size: 0.95rem;
+            line-height: 1.65;
         }
 
         /* Highlight Section */
         .highlight {
-            padding: 100px 0;
+            padding: 120px 0;
         }
 
         .highlight-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 80px;
             align-items: center;
         }
 
         .highlight-text h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            margin-bottom: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.25;
         }
 
         .highlight-text p {
             color: var(--text-secondary);
-            font-size: 1.1rem;
-            margin-bottom: 24px;
+            font-size: 1.05rem;
+            margin-bottom: 20px;
+            line-height: 1.75;
+        }
+
+        .highlight-text p strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .highlight-text code {
+            background: var(--bg-card);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            border: 1px solid var(--border);
+            font-family: 'SF Mono', Monaco, monospace;
         }
 
         .highlight-image {
-            border-radius: 16px;
+            border-radius: 20px;
             overflow: hidden;
             box-shadow:
-                0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                0 0 0 1px var(--border);
+                0 30px 60px -15px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border-subtle);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .highlight-image:hover {
+            transform: scale(1.02);
         }
 
         .highlight-image img {
@@ -370,28 +571,44 @@
 
         /* Download Section */
         .download {
-            padding: 100px 0;
+            padding: 120px 0;
             text-align: center;
         }
 
         .download-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 60px 40px;
-            max-width: 700px;
+            background: linear-gradient(160deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 72px 48px;
+            max-width: 720px;
             margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.5;
         }
 
         .download h2 {
-            font-size: 2rem;
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
             margin-bottom: 16px;
+            font-weight: 600;
         }
 
         .download p {
-            color: var(--text-primary);
-            opacity: 0.8;
-            margin-bottom: 32px;
+            color: var(--text-secondary);
+            margin-bottom: 36px;
+            font-size: 1.05rem;
         }
 
         .download-options {
@@ -620,39 +837,43 @@
 
         /* Footer */
         footer {
-            padding: 40px 0;
-            border-top: 1px solid var(--border);
+            padding: 60px 0 40px;
+            border-top: 1px solid var(--border-subtle);
             text-align: center;
+            background: linear-gradient(180deg, transparent, rgba(0,0,0,0.2));
         }
 
         .footer-privacy {
-            font-size: 1.1rem;
-            margin-bottom: 20px;
+            font-size: 1.05rem;
+            margin-bottom: 28px;
+            letter-spacing: 0.02em;
         }
 
         .footer-privacy strong {
             color: var(--accent);
+            font-weight: 600;
         }
 
         .footer-links {
             display: flex;
-            gap: 24px;
+            gap: 32px;
             justify-content: center;
-            margin-bottom: 20px;
+            margin-bottom: 28px;
         }
 
         .footer-links a {
-            color: var(--text-secondary);
+            color: var(--text-muted);
             text-decoration: none;
             font-size: 0.9rem;
+            transition: color 0.2s;
         }
 
         .footer-links a:hover {
-            color: var(--text-primary);
+            color: var(--accent);
         }
 
         .footer-copy {
-            color: var(--text-secondary);
+            color: var(--text-muted);
             font-size: 0.85rem;
         }
 
@@ -698,6 +919,7 @@
                 SaneBar
             </a>
             <div class="nav-links">
+                <a href="#demo">Demo</a>
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
@@ -713,15 +935,15 @@
 
     <section class="hero">
         <div class="container">
-            <div class="privacy-badge">
+            <div class="privacy-badge animate-in delay-1">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
                 100% On-Device
             </div>
-            <h1>Bring Sanity to your Menu Bar</h1>
-            <p class="subtitle">The privacy-first menu bar manager that hides the clutter and secures the rest. The <em>only</em> one with Touch ID protection.</p>
-            <div class="cta-buttons">
+            <h1 class="animate-in delay-2">Bring <em>Sanity</em> to your Menu Bar</h1>
+            <p class="subtitle animate-in delay-3">The privacy-first menu bar manager that hides the clutter and secures the rest. The <em>only</em> one with Touch ID protection.</p>
+            <div class="cta-buttons animate-in delay-4">
                 <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -737,8 +959,26 @@
                     View on GitHub
                 </a>
             </div>
-            <div class="hero-image">
+            <div class="hero-image animate-in delay-5">
                 <img src="images/hero.png" alt="SaneBar - Find any menu bar icon instantly">
+            </div>
+        </div>
+    </section>
+
+    <section class="before-after" id="demo">
+        <div class="container">
+            <h2 class="section-title">One Click to Hide</h2>
+            <p class="section-subtitle">Toggle between all icons visible and your curated essentials. One click to hide, one click to reveal.</p>
+            <div class="comparison-images">
+                <div class="comparison-item">
+                    <span class="comparison-label">Icons Revealed</span>
+                    <img src="images/before.png" alt="Menu bar with all icons revealed">
+                </div>
+                <div class="comparison-arrow">→</div>
+                <div class="comparison-item">
+                    <span class="comparison-label">Icons Hidden</span>
+                    <img src="images/after.png" alt="Clean menu bar with icons hidden by SaneBar">
+                </div>
             </div>
         </div>
     </section>
@@ -874,7 +1114,7 @@
                     <p>Perfect for shared workspaces, presentations, or anyone who values their privacy.</p>
                 </div>
                 <div class="highlight-image">
-                    <img src="images/privacy.png" alt="Touch ID protection settings">
+                    <img src="images/privacy.png" alt="Privacy settings showing Touch ID authentication toggle">
                 </div>
             </div>
         </div>
@@ -884,12 +1124,27 @@
         <div class="container">
             <div class="highlight-content">
                 <div class="highlight-text">
+                    <h2>Recover notch-hidden icons.</h2>
+                    <p>MacBook Pro notch hiding your icons? SaneBar's exclusive <strong>Menu Bar Spacing</strong> control makes icons tighter, giving you more room.</p>
+                    <p>System-level spacing from 1-10. Recover icons that macOS pushed under the notch. No other app offers this.</p>
+                </div>
+                <div class="highlight-image">
+                    <img src="images/spacing.png" alt="Menu bar spacing control">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="highlight">
+        <div class="container">
+            <div class="highlight-content">
+                <div class="highlight-text">
                     <h2>Scriptable and snappy.</h2>
                     <p>Control your menu bar with global hotkeys, gestures, or AppleScript. Build SaneBar into your Focus Modes and automation workflows.</p>
                     <p>Commands: <code>toggle</code>, <code>show</code>, <code>hide</code> &mdash; integrate with Raycast, Alfred, Keyboard Maestro, or Shortcuts.</p>
                 </div>
                 <div class="highlight-image">
-                    <img src="images/automation.png" alt="Keyboard shortcuts and automation">
+                    <img src="images/shortcuts.png" alt="Keyboard shortcuts and automation">
                 </div>
             </div>
         </div>
