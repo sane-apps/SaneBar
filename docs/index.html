@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SaneBar - The Privacy-First Menu Bar Manager for macOS</title>
     <meta name="description" content="Hide menu bar clutter, lock sensitive icons behind Touch ID, and find any app instantly. 100% on-device, no analytics.">
+    <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
     <link rel="icon" type="image/png" href="images/icon.png">
+    <!-- Canonical URL placeholder -->
     <link rel="canonical" href="https://sanebar.app/" />
 
     <!-- Open Graph -->
@@ -14,35 +16,42 @@
     <meta property="og:image" content="images/hero.png">
     <meta property="og:type" content="website">
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@500;600&family=SF+Pro+Text:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SaneBar - Privacy-First Menu Bar Manager">
+    <meta name="twitter:description" content="The only menu bar manager that locks your hidden icons behind Touch ID.">
+    <meta name="twitter:image" content="images/hero.png">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SaneBar",
+      "operatingSystem": "macOS",
+      "applicationCategory": "UtilitiesApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
+      "image": "https://sanebar.app/images/icon.png",
+      "downloadUrl": "https://github.com/stephanjoseph/SaneBar/releases"
+    }
+    </script>
 
     <style>
         :root {
-            --bg-primary: #08080c;
-            --bg-secondary: #0f0f14;
-            --bg-card: #14141c;
-            --accent: #4f8ffa;
-            --accent-glow: rgba(79, 143, 250, 0.3);
-            --text-primary: #f5f5f8;
-            --text-secondary: #8888a0;
-            --text-muted: #5a5a70;
-            --border: #2a2a38;
-            --border-subtle: #1e1e28;
-            --success: #34d399;
-
-            /* macOS menu bar colors */
-            --menubar-bg: #2d2d2d;
-            --menubar-text: rgba(255, 255, 255, 0.9);
-
-            /* Find Icon window colors */
-            --window-bg: rgba(58, 58, 62, 0.95);
-            --window-border: rgba(255, 255, 255, 0.1);
-            --tab-active: #d4a520;
-            --tab-inactive: #3a3a3c;
-            --icon-bg: #2c2c2e;
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --text-primary: #f0f0f5;
+            --text-secondary: #a0a0b0;
+            --success: #22c55e;
+            --border: #2a2a3a;
         }
 
         * {
@@ -52,41 +61,45 @@
         }
 
         body {
-            font-family: 'DM Sans', -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
-        /* Ambient background */
-        .ambient {
+        /* Gradient background */
+        .gradient-bg {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background:
-                radial-gradient(ellipse at 20% 0%, rgba(79, 143, 250, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 100%, rgba(120, 80, 200, 0.06) 0%, transparent 50%);
-            pointer-events: none;
+                radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                var(--bg-primary);
             z-index: -1;
         }
 
         .container {
-            max-width: 960px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 0 24px;
         }
 
-        /* Nav */
+        /* Navigation */
         nav {
             padding: 20px 0;
-            border-bottom: 1px solid var(--border);
-            background: rgba(8, 8, 12, 0.9);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 15, 0.85); /* Slightly increased opacity */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            position: sticky;
-            top: 0;
             z-index: 100;
+            border-bottom: 1px solid var(--border);
         }
 
         nav .container {
@@ -98,28 +111,29 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--text-primary);
+            font-size: 1.25rem;
             text-decoration: none;
+            color: var(--text-primary);
         }
 
         .logo img {
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
         }
 
         .nav-links {
             display: flex;
-            gap: 24px;
+            gap: 32px;
+            align-items: center;
         }
 
         .nav-links a {
             color: var(--text-secondary);
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             transition: color 0.2s;
         }
 
@@ -127,549 +141,289 @@
             color: var(--text-primary);
         }
 
-        /* Hero */
+        .nav-links a.btn-primary {
+            color: #ffffff;
+        }
+        
+        /* Refactored inline style */
+        .btn-donate {
+            padding: 10px 20px !important;
+            color: #ffffff !important;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .btn-donate svg {
+            margin-right: 6px;
+        }
+
+        .nav-links a.btn-primary:hover {
+            color: #ffffff;
+        }
+
+        /* Hero Section */
         .hero {
+            padding: 160px 0 80px;
             text-align: center;
-            padding: 80px 0 48px;
         }
 
         .hero h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(2.5rem, 6vw, 3.5rem);
-            font-weight: 500;
-            margin-bottom: 16px;
-            letter-spacing: -0.02em;
-        }
-
-        .hero h1 em {
-            font-style: italic;
-            color: var(--accent);
-        }
-
-        .hero p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            max-width: 480px;
-            margin: 0 auto;
-        }
-
-        .hero code {
-            background: var(--bg-card);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: 'SF Mono', monospace;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        /* Demo Section */
-        .demo-section {
-            padding: 32px 0 80px;
-        }
-
-        .demo-label {
-            text-align: center;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: var(--text-muted);
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 700;
             margin-bottom: 20px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
         }
 
-        /* ========== ACCURATE MENU BAR ========== */
-        .menubar-container {
-            margin-bottom: 32px;
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
         }
 
-        .menubar {
-            background: linear-gradient(180deg, #3a3a3a 0%, #2d2d2d 100%);
-            border-radius: 8px;
-            padding: 0 12px;
-            height: 25px;
+        .cta-buttons {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-            font-size: 13px;
-            font-weight: 400;
-            color: var(--menubar-text);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .menubar-left {
-            display: flex;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .apple-logo {
-            font-size: 14px;
-            opacity: 0.95;
-        }
-
-        .app-menus {
-            display: flex;
-            gap: 18px;
-        }
-
-        .app-menus span {
-            font-weight: 600;
-        }
-
-        .app-menus span:first-child {
-            font-weight: 600;
-        }
-
-        .app-menus span:not(:first-child) {
-            font-weight: 400;
-        }
-
-        .menubar-right {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* Hidden icons section */
-        .hidden-section {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .hidden-section.collapsed {
-            max-width: 0;
-            opacity: 0;
-            gap: 0;
-        }
-
-        .hidden-section:not(.collapsed) {
-            max-width: 300px;
-            opacity: 1;
-        }
-
-        .menubar-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            flex-shrink: 0;
-        }
-
-        /* Specific icon styles matching screenshot */
-        .icon-zoom {
-            background: #2d8cff;
-            color: white;
-            font-size: 8px;
-            font-weight: 700;
-            padding: 2px 4px;
-            border-radius: 3px;
-            letter-spacing: -0.5px;
-        }
-
-        .icon-wifi {
-            font-size: 14px;
-        }
-
-        .icon-airdrop {
-            font-size: 13px;
-        }
-
-        .icon-bluetooth {
-            color: #0a84ff;
-            font-size: 13px;
-        }
-
-        .icon-screen {
-            width: 8px;
-            height: 8px;
-            background: #ff9f0a;
-            border-radius: 50%;
-        }
-
-        .icon-spotlight {
-            font-size: 14px;
-        }
-
-        /* The spacer */
-        .spacer {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-            font-weight: 300;
-            padding: 0 6px;
-            user-select: none;
-            flex-shrink: 0;
-        }
-
-        /* Always visible section */
-        .visible-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .temp-display {
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .battery-display {
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .mem-display {
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: -0.3px;
-        }
-
-        .sanebar-toggle {
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: transform 0.15s, filter 0.15s;
-            margin-left: 4px;
-        }
-
-        .sanebar-toggle:hover {
-            transform: scale(1.1);
-            filter: brightness(1.2);
-        }
-
-        .sanebar-toggle:active {
-            transform: scale(0.95);
-        }
-
-        .click-hint {
-            text-align: center;
-            margin-top: 14px;
-            font-size: 0.7rem;
-            color: var(--text-muted);
-        }
-
-        .click-hint span {
-            background: var(--bg-card);
-            padding: 5px 14px;
-            border-radius: 20px;
-            border: 1px solid var(--border-subtle);
-        }
-
-        /* ========== FIND ICON WINDOW ========== */
-        .find-icon-window {
-            background: var(--window-bg);
-            border-radius: 12px;
-            border: 1px solid var(--window-border);
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-            max-width: 440px;
-            margin: 0 auto;
-        }
-
-        /* Window title bar */
-        .window-titlebar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            background: rgba(50, 50, 54, 0.8);
-        }
-
-        .traffic-lights {
-            display: flex;
-            gap: 8px;
-        }
-
-        .traffic-light {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .light-red { background: #ff5f57; }
-        .light-yellow { background: #febc2e; }
-        .light-green { background: #28c840; }
-
-        .window-title {
-            font-size: 13px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.85);
-        }
-
-        .window-close {
-            width: 20px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.5);
-            cursor: pointer;
-        }
-
-        /* Main tabs */
-        .main-tabs {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            padding: 12px 16px;
-            background: rgba(45, 45, 48, 0.5);
-        }
-
-        .main-tab {
-            padding: 6px 20px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-            background: var(--tab-inactive);
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .main-tab:hover {
-            background: #4a4a4c;
-        }
-
-        .main-tab.active {
-            background: var(--tab-active);
-            color: #000;
-        }
-
-        .tab-actions {
-            display: flex;
-            gap: 12px;
-            margin-left: 16px;
-        }
-
-        .tab-action {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .tab-action:hover {
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        /* Category filters */
-        .category-filters {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            flex-wrap: wrap;
-        }
-
-        .category-pill {
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
-            transition: all 0.15s;
-            background: transparent;
-            border: none;
-        }
-
-        .category-pill:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .category-pill.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-        }
-
-        .category-pill.add-custom {
-            color: rgba(255, 255, 255, 0.4);
-        }
-
-        /* Icon grid */
-        .icon-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 16px;
-            padding: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 60px;
         }
 
-        .app-icon-item {
-            display: flex;
-            flex-direction: column;
+        .btn {
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            transition: opacity 0.25s, transform 0.25s;
         }
 
-        .app-icon-item.faded {
-            opacity: 0.3;
-            transform: scale(0.95);
+        .btn-primary {
+            background: var(--accent);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
-        .app-icon-wrapper {
-            width: 64px;
-            height: 64px;
-            background: var(--icon-bg);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--text-secondary);
+        }
+
+        .hero-image {
+            max-width: 900px;
+            margin: 0 auto;
+            border-radius: 16px;
             overflow: hidden;
+            background: var(--bg-card);
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border);
         }
 
-        .app-icon-wrapper img {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
+        .hero-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+            min-height: 200px;
+            object-fit: contain;
         }
 
-        /* Recreate actual app icons */
-        .icon-control-center {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
-            border-radius: 10px;
-            display: flex;
+        /* Privacy Badge */
+        .privacy-badge {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-        }
-
-        .icon-control-center::before {
-            content: '';
-            width: 28px;
-            height: 28px;
-            background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
-            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='4' width='8' height='4' rx='2'/%3E%3Crect x='2' y='10' width='12' height='4' rx='2'/%3E%3Crect x='2' y='16' width='6' height='4' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
-            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='4' width='8' height='4' rx='2'/%3E%3Crect x='2' y='10' width='12' height='4' rx='2'/%3E%3Crect x='2' y='16' width='6' height='4' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
-        }
-
-        .icon-systemui {
-            width: 44px;
-            height: 44px;
-            background: #e5e5e7;
-            border-radius: 10px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 3px;
-            padding: 8px;
-        }
-
-        .icon-systemui span {
-            background: #8e8e93;
-            border-radius: 2px;
-        }
-
-        .icon-spotlight-large {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-        }
-
-        .icon-cleaner {
-            width: 44px;
-            height: 44px;
-            background: #ff3b30;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .icon-cleaner::before {
-            content: '↻';
-            font-size: 24px;
-            color: white;
-        }
-
-        .icon-cleaner::after {
-            content: 'PRO';
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            font-size: 6px;
-            font-weight: 700;
-            background: #ff9500;
-            color: white;
-            padding: 1px 3px;
-            border-radius: 2px;
-        }
-
-        .icon-pipit {
-            width: 44px;
-            height: 44px;
-            background: #f5f5f7;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-        }
-
-        .icon-zoom-large {
-            width: 44px;
-            height: 44px;
-            background: #2d8cff;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .app-icon-label {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-        }
-
-        /* Window footer */
-        .window-footer {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.4);
-        }
-
-        /* ========== REST OF PAGE ========== */
-        .section-title {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            gap: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--success);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.875rem;
             font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .section-subtitle {
             text-align: center;
             color: var(--text-secondary);
-            margin-bottom: 40px;
-            font-size: 1rem;
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto 60px;
         }
 
-        /* Comparison Section */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            margin-bottom: 16px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            height: 40px;
+        }
+        
+        .feature-icon svg {
+            width: 32px;
+            height: 32px;
+            stroke-width: 1.5;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Highlight Section */
+        .highlight {
+            padding: 100px 0;
+        }
+
+        .highlight-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .highlight-text h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .highlight-text p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 24px;
+        }
+
+        .highlight-image {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border);
+        }
+
+        .highlight-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .highlight.reverse .highlight-content {
+            direction: rtl;
+        }
+
+        .highlight.reverse .highlight-content > * {
+            direction: ltr;
+        }
+
+        /* Download Section */
+        .download {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .download-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 60px 40px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .download h2 {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+
+        .download p {
+            color: var(--text-primary);
+            opacity: 0.8;
+            margin-bottom: 32px;
+        }
+
+        .download-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .download-option-text {
+            color: var(--text-primary);
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        .brew-command {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .brew-command code {
+            color: var(--accent);
+        }
+
+        /* Comparison Table */
         .comparison {
-            padding: 80px 0;
+            padding: 100px 0;
         }
 
         .comparison-table-wrapper {
@@ -773,317 +527,169 @@
             text-decoration: underline;
         }
 
-        /* Download Section */
-        .download-section {
+        /* Support Section */
+        .support {
             padding: 80px 0;
             text-align: center;
         }
 
-        .download-card {
+        .support-options {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        
+        .support-subtitle {
+             font-style: italic; 
+             max-width: 500px;
+             margin: 0 auto 32px;
+        }
+        
+        .support-subtitle span {
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .crypto-addresses {
+            max-width: 600px;
+            margin: 0 auto;
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 48px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .download-card h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.75rem;
-            margin-bottom: 8px;
-        }
-
-        .download-card > p {
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-        }
-
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--accent);
-            color: white;
-            padding: 16px 32px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 1rem;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-bottom: 20px;
-        }
-
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px var(--accent-glow);
-        }
-
-        .download-alt {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .download-alt code {
-            background: var(--bg-secondary);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-family: 'SF Mono', monospace;
-            font-size: 0.8rem;
-            border: 1px solid var(--border);
-            display: inline-block;
-            margin-top: 8px;
-        }
-
-        /* Support Section */
-        .support {
-            padding: 60px 0;
-            text-align: center;
-            border-top: 1px solid var(--border);
-        }
-
-        .support p {
-            color: var(--text-secondary);
-            max-width: 400px;
-            margin: 0 auto 24px;
-            font-size: 0.95rem;
-        }
-
-        .support p em {
-            font-style: italic;
-        }
-
-        .github-sponsor-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #c96198;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: transform 0.2s, opacity 0.2s;
-        }
-
-        .github-sponsor-btn:hover {
-            transform: translateY(-2px);
-            opacity: 0.9;
-        }
-
-        .crypto-section {
-            margin-top: 32px;
-        }
-
-        .crypto-toggle {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            margin-bottom: 16px;
+            border-radius: 12px;
+            padding: 24px;
+            display: block;
         }
 
         .crypto-grid {
             display: flex;
             flex-direction: column;
             gap: 12px;
-            max-width: 500px;
-            margin: 0 auto;
         }
 
         .crypto-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            background: var(--bg-secondary);
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
         }
 
-        .crypto-item img {
-            width: 20px;
-            height: 20px;
+        .crypto-logo {
+            flex-shrink: 0;
+            border-radius: 50%;
         }
 
-        .crypto-item code {
-            font-family: 'SF Mono', monospace;
-            font-size: 0.7rem;
+        .crypto-addr {
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             color: var(--text-secondary);
             cursor: pointer;
-            transition: color 0.2s;
+            transition: all 0.2s;
             flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            text-align: left;
+            word-break: break-all;
+            border: 1px solid transparent;
         }
 
-        .crypto-item code:hover {
-            color: var(--text-primary);
+        .crypto-btc:hover .crypto-addr {
+            background: rgba(247, 147, 26, 0.2);
+            color: #F7931A;
+            border-color: #F7931A;
+        }
+
+        .crypto-sol:hover .crypto-addr {
+            background: rgba(153, 69, 255, 0.2);
+            color: #9945FF;
+            border-color: #9945FF;
+        }
+
+        .crypto-zec:hover .crypto-addr {
+            background: rgba(244, 183, 40, 0.2);
+            color: #F4B728;
+            border-color: #F4B728;
         }
 
         .crypto-hint {
-            font-size: 0.75rem;
-            color: var(--text-muted);
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: 500;
             margin-top: 12px;
         }
 
         /* Footer */
         footer {
             padding: 40px 0;
+            border-top: 1px solid var(--border);
             text-align: center;
-            color: var(--text-muted);
-            font-size: 0.85rem;
         }
 
         .footer-privacy {
-            margin-bottom: 16px;
-            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .footer-privacy strong {
+            color: var(--accent);
         }
 
         .footer-links {
             display: flex;
             gap: 24px;
             justify-content: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
-        footer a {
+        .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
+            font-size: 0.9rem;
         }
 
-        footer a:hover {
+        .footer-links a:hover {
             color: var(--text-primary);
         }
 
-        /* Features Grid */
-        .features-grid {
-            padding: 80px 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 32px;
-        }
-
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 32px;
-            text-align: left;
-            transition: transform 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent);
-        }
-
-        .feature-card img {
-            width: 100%;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .feature-card h3 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-        }
-
-        .feature-card p {
+        .footer-copy {
             color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        /* Testimonials */
-        .testimonials {
-            padding: 60px 0 100px;
-            text-align: center;
-        }
-
-        .testimonial-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-top: 40px;
-        }
-
-        .testimonial-item {
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid var(--border-subtle);
-            text-align: left;
-            position: relative;
-        }
-
-        .testimonial-text {
-            font-style: italic;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-            font-size: 1rem;
-        }
-
-        .testimonial-author {
-            color: var(--text-muted);
             font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .testimonial-author::before {
-            content: "";
-            width: 12px;
-            height: 1px;
-            background: var(--text-muted);
         }
 
         /* Responsive */
-        @media (max-width: 600px) {
-            .hero {
-                padding: 60px 0 32px;
-            }
-
-            .hero h1 {
-                font-size: 2rem;
-            }
-
-            .menubar {
-                font-size: 11px;
-                height: 22px;
-            }
-
-            .app-menus {
+        @media (max-width: 768px) {
+            .nav-links {
                 display: none;
             }
 
-            .find-icon-window {
-                margin: 0 -12px;
-                border-radius: 0;
+            .highlight-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
             }
 
-            .icon-grid {
-                gap: 12px;
-                padding: 16px;
+            .highlight.reverse .highlight-content {
+                direction: ltr;
             }
 
-            .app-icon-wrapper {
-                width: 56px;
-                height: 56px;
+            .hero {
+                padding: 120px 0 60px;
             }
 
-            .comparison-table {
-                font-size: 0.85rem;
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
             }
 
-            .download-card {
-                padding: 32px 24px;
+            .btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
-    <div class="ambient"></div>
+    <div class="gradient-bg"></div>
 
     <nav>
         <div class="container">
@@ -1092,87 +698,156 @@
                 SaneBar
             </a>
             <div class="nav-links">
+                <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
-                <a href="#download">Download</a>
+                <a href="#support" class="btn btn-primary btn-donate">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                    Donate
+                </a>
             </div>
         </div>
     </nav>
 
     <section class="hero">
         <div class="container">
-            <h1>One Click. <em>Instant Clarity.</em></h1>
-            <p>Everything left of the <code>/</code> disappears. Everything right stays visible. That's it.</p>
+            <div class="privacy-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                100% On-Device
+            </div>
+            <h1>Bring Sanity to your Menu Bar</h1>
+            <p class="subtitle">The privacy-first menu bar manager that hides the clutter and secures the rest. The <em>only</em> one with Touch ID protection.</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download for macOS
+                </a>
+                <a href="https://github.com/stephanjoseph/SaneBar" class="btn btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
+            <div class="hero-image">
+                <img src="images/hero.png" alt="SaneBar - Find any menu bar icon instantly">
+            </div>
         </div>
     </section>
 
-    <section class="showcase">
+    <section class="features" id="features">
         <div class="container">
-            <div class="screenshot-container">
-                <div class="menubar-preview">
-                    <img src="images/menubar-revealed.png" alt="SaneBar Revealed State" class="menubar-img">
+            <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+            <p class="section-subtitle">Built for power users who value privacy, speed, and control.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Lock Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <h3>Touch ID Protection</h3>
+                    <p>Lock hidden icons behind Touch ID or your password. Protect crypto wallets, messaging apps, and VPNs from prying eyes.</p>
                 </div>
-                <div class="find-window-preview">
-                    <img src="images/find-icon.png" alt="Find Icon Window" class="window-img">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Search Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                    <h3>Power Search</h3>
+                    <p>Find and click any menu bar app instantly, even if it's hidden behind the Notch. Keyboard-driven workflow.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Zap/Lightning Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                    <h3>Per-Icon Hotkeys</h3>
+                    <p>Assign global shortcuts to your most-used menu bar apps. One keystroke to open any menu.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Terminal/Command Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
+                    </div>
+                    <h3>AppleScript Ready</h3>
+                    <p>Full automation support. Build SaneBar into Shortcuts, Focus Modes, and your existing workflows.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Lightbulb/Triggers Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18h6"></path>
+                            <path d="M10 22h4"></path>
+                            <path d="M15.09 14c.18-.9.93-1.54 1.86-1.78A7 7 0 1 0 3 12"></path>
+                            <path d="M12 2v2"></path>
+                            <path d="M12 20v2"></path>
+                            <path d="M22 12h-2"></path>
+                            <path d="M2 12h2"></path>
+                        </svg>
+                    </div>
+                    <h3>Smart Triggers</h3>
+                    <p>Auto-show icons on low battery, specific WiFi networks, or when certain apps launch.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <!-- Brush/Native Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2.69l5.74 5.74-5.74 5.74-5.74-5.74 5.74-5.74z"></path>
+                            <path d="M12 14.17v5.66"></path>
+                            <path d="M12 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path>
+                        </svg>
+                    </div>
+                    <h3>Native & Lightweight</h3>
+                    <p>Pure Swift and SwiftUI. No Electron bloat. Feels like part of macOS.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <style>
-        .showcase {
-            padding: 40px 0 80px;
-            text-align: center;
-        }
-        
-        .screenshot-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 48px;
-        }
-
-        .menubar-preview {
-            width: 100%;
-            max-width: 800px;
-            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.3));
-        }
-
-        .menubar-img {
-            width: 100%;
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .find-window-preview {
-            max-width: 440px;
-            filter: drop-shadow(0 30px 60px rgba(0,0,0,0.5));
-        }
-
-        .window-img {
-            width: 100%;
-            border-radius: 12px;
-            border: 1px solid var(--window-border);
-        }
-    </style>
-
-    <section class="features">
+    <section class="highlight" id="privacy">
         <div class="container">
-            <div class="features-grid">
-                <div class="feature-card">
-                    <img src="images/spacing.png" alt="Menu Bar Spacing Control">
-                    <h3>Notch-Friendly Recovery</h3>
-                    <p>Recover hidden icons on MacBook Pros by tightening the gap between items. Perfect for the "notch" era where screen real estate is at a premium.</p>
+            <div class="highlight-content">
+                <div class="highlight-text">
+                    <h2>Your icons, for your eyes only.</h2>
+                    <p>Most menu bar managers just tuck icons away. SaneBar <strong>locks</strong> them. Require Touch ID or your password to reveal sensitive apps.</p>
+                    <p>Perfect for shared workspaces, presentations, or anyone who values their privacy.</p>
                 </div>
-                <div class="feature-card">
-                    <img src="images/shortcuts.png" alt="Keyboard Shortcuts">
-                    <h3>Keyboard-First Workflow</h3>
-                    <p>Assign global hotkeys to individual menu bar items. Launch Zoom, toggle Wi-Fi, or check battery without ever lifting your hands from the keys.</p>
+                <div class="highlight-image">
+                    <img src="images/privacy.png" alt="Touch ID protection settings">
                 </div>
-                <div class="feature-card">
-                    <img src="images/privacy.png" alt="Privacy First Design">
-                    <h3>0% Telemetry. 100% Privacy.</h3>
-                    <p>SaneBar has no network permissions. No analytics, no "phone home," no tracking. Just a clean menu bar and peace of mind.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="highlight reverse">
+        <div class="container">
+            <div class="highlight-content">
+                <div class="highlight-text">
+                    <h2>Scriptable and snappy.</h2>
+                    <p>Control your menu bar with global hotkeys, gestures, or AppleScript. Build SaneBar into your Focus Modes and automation workflows.</p>
+                    <p>Commands: <code>toggle</code>, <code>show</code>, <code>hide</code> &mdash; integrate with Raycast, Alfred, Keyboard Maestro, or Shortcuts.</p>
+                </div>
+                <div class="highlight-image">
+                    <img src="images/automation.png" alt="Keyboard shortcuts and automation">
                 </div>
             </div>
         </div>
@@ -1181,7 +856,7 @@
     <section class="comparison" id="compare">
         <div class="container">
             <h2 class="section-title">How SaneBar Stacks Up</h2>
-            <p class="section-subtitle">We built what we wished existed.</p>
+            <p class="section-subtitle">We built what we wished existed. Here's how it compares.</p>
             <div class="comparison-table-wrapper">
                 <table class="comparison-table">
                     <thead>
@@ -1252,8 +927,8 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">Free & Open Source</span>
-                                <span class="feature-desc">Audit the code yourself</span>
+                                <span class="feature-label">Free</span>
+                                <span class="feature-desc">No cost to use</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="cross">$16</span></td>
@@ -1263,25 +938,14 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">Menu Bar Spacing</span>
-                                <span class="feature-desc">Control icon spacing system-wide</span>
+                                <span class="feature-label">Open Source</span>
+                                <span class="feature-desc">Audit the code yourself</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Visual Zones</span>
-                                <span class="feature-desc">Dividers to organize icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">
@@ -1297,44 +961,29 @@
                     </tbody>
                 </table>
             </div>
-            <p class="comparison-footnote">* Bartender changed ownership in 2024 with <a href="https://creativerly.com/new-ownership-loads-of-concerns-bartenders-lack-of-transparency/" target="_blank" rel="noopener">limited transparency</a>.</p>
+            <p class="comparison-footnote">* Bartender changed ownership in 2024 with <a href="https://creativerly.com/new-ownership-loads-of-concerns-bartenders-lack-of-transparency/" target="_blank" rel="noopener">limited transparency</a>. It requires screen recording permissions.</p>
         </div>
     </section>
 
-    <section class="testimonials">
-        <div class="container">
-            <h2 class="section-title">Loved by Mac Users</h2>
-            <p class="section-subtitle">Join thousands decluttering their workspace in 2026.</p>
-            
-            <div class="testimonial-grid">
-                <div class="testimonial-item">
-                    <p class="testimonial-text">"Thank you for this awesome software! It works great and is more stable than Ice."</p>
-                    <div class="testimonial-author">u/a_tsygankov (Reddit)</div>
-                </div>
-                <div class="testimonial-item">
-                    <p class="testimonial-text">"I am using it now and there are no shadow clicks as seen in other menu bar managers."</p>
-                    <div class="testimonial-author">u/Elegant_Mobile4311 (Reddit)</div>
-                </div>
-                <div class="testimonial-item">
-                    <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
-                    <div class="testimonial-author">u/JustABro_2321 (Reddit)</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="download-section" id="download">
+    <section class="download" id="download">
         <div class="container">
             <div class="download-card">
                 <h2>Ready to declutter?</h2>
                 <p>Free and open source. macOS 15 Sequoia or later.</p>
-                <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="download-btn">
-                    ↓ Download SaneBar v1.0.3
-                </a>
-                <p class="download-alt">
-                    or install via Homebrew:<br>
-                    <code>brew install --cask sanebar</code>
-                </p>
+                <div class="download-options">
+                    <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download SaneBar v1.0.3
+                    </a>
+                    <p class="download-option-text">or install via Homebrew:</p>
+                    <div class="brew-command">
+                        <code>brew install --cask sanebar</code>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1342,61 +991,58 @@
     <section class="support" id="support">
         <div class="container">
             <h2 class="section-title">Support SaneBar</h2>
-            <p>
+            <p class="section-subtitle support-subtitle">
                 <em>"The worker is worthy of his wages."</em><br>
-                If it's worth something to you, please donate.
+                — 1 Timothy 5:18<br><br>
+                This app is free because I hate corporations,<br>
+                not because I'm a filthy commie.<br><br>
+                If it's worth something to you,<br>
+                please donate so I can make a living.<br><br>
+                <span>Much love — Mr. Sane</span>
             </p>
-            <a href="https://github.com/sponsors/stephanjoseph" class="github-sponsor-btn" target="_blank" rel="noopener">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
-                Sponsor on GitHub
-            </a>
-            <div class="crypto-section">
-                <p class="crypto-toggle">or donate with crypto</p>
+            <div class="crypto-addresses">
                 <div class="crypto-grid">
-                    <div class="crypto-item">
-                        <img src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/btc.svg" alt="BTC">
-                        <code onclick="copyToClipboard(this)">3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke</code>
+                    <div class="crypto-item crypto-btc">
+                        <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/btc.svg" alt="BTC" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke</code>
                     </div>
-                    <div class="crypto-item">
-                        <img src="https://cryptologos.cc/logos/solana-sol-logo.svg" alt="SOL">
-                        <code onclick="copyToClipboard(this)">FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ</code>
+                    <div class="crypto-item crypto-sol">
+                        <img class="crypto-logo" src="https://cryptologos.cc/logos/solana-sol-logo.svg" alt="SOL" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ</code>
                     </div>
-                    <div class="crypto-item">
-                        <img src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/zec.svg" alt="ZEC">
-                        <code onclick="copyToClipboard(this)">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
+                    <div class="crypto-item crypto-zec">
+                        <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/zec.svg" alt="ZEC" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
                     </div>
                 </div>
-                <p class="crypto-hint">Click address to copy</p>
+                <p class="crypto-hint">Click any address to copy</p>
             </div>
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <p class="footer-privacy"><strong>0% Telemetry</strong> · <strong>0% Spying</strong> · <strong>100% On-Device</strong></p>
+            <p class="footer-privacy"><strong>0% Telemetry</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
             <div class="footer-links">
                 <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/blob/main/PRIVACY.md">Privacy</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/issues">Support</a>
                 <a href="https://github.com/stephanjoseph/SaneBar/blob/main/LICENSE">MIT License</a>
             </div>
-            <p>&copy; 2026 SaneBar</p>
+            <p class="footer-copy">&copy; 2026 SaneBar</p>
         </div>
     </footer>
 
     <script>
-        // Copy to clipboard
+        function toggleCrypto() {
+            const el = document.getElementById('crypto-addresses');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
         function copyToClipboard(el) {
-            const text = el.textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                const original = el.textContent;
-                el.textContent = 'Copied!';
-                setTimeout(() => {
-                    el.textContent = original;
-                }, 1500);
-            });
+            navigator.clipboard.writeText(el.textContent);
+            const orig = el.textContent;
+            el.textContent = 'Copied!';
+            setTimeout(() => el.textContent = orig, 1500);
         }
     </script>
 </body>
