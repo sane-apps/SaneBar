@@ -6,7 +6,7 @@
     <title>SaneBar - The Privacy-First Menu Bar Manager for macOS</title>
     <meta name="description" content="Hide menu bar clutter, lock sensitive icons behind Touch ID, and find any app instantly. 100% on-device, no analytics.">
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
-    <link rel="icon" type="image/png" href="images/icon.png">
+    <link rel="icon" type="image/png" href="images/branding.png">
     <!-- Canonical URL placeholder -->
     <link rel="canonical" href="https://sanebar.app/" />
 
@@ -41,7 +41,7 @@
         "priceCurrency": "USD"
       },
       "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
-      "image": "https://sanebar.app/images/icon.png",
+      "image": "https://sanebar.app/images/branding.png",
       "downloadUrl": "https://github.com/stephanjoseph/SaneBar/releases"
     }
     </script>
@@ -56,8 +56,8 @@
             --accent-glow: rgba(79, 143, 250, 0.25);
             --accent-subtle: rgba(79, 143, 250, 0.08);
             --text-primary: #f5f5f8;
-            --text-secondary: #9898a8;
-            --text-muted: #6b6b7b;
+            --text-secondary: #c0c0d0;
+            --text-muted: #a0a0b0;
             --success: #34d399;
             --success-soft: rgba(52, 211, 153, 0.15);
             --border: #252530;
@@ -328,28 +328,221 @@
             object-fit: contain;
         }
 
+        /* Hero Carousel */
+        .hero-carousel {
+            max-width: 420px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .carousel-container {
+            position: relative;
+            border-radius: 16px;
+            background: var(--bg-card);
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border);
+        }
+
+        .carousel-slide {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .carousel-slide.active {
+            display: block;
+        }
+
+        .carousel-slide img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 16px;
+        }
+
+        .carousel-caption {
+            background: var(--accent);
+            color: white;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            border-radius: 100px;
+            margin: 20px auto;
+            display: inline-block;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .carousel-caption-wrapper {
+            text-align: center;
+        }
+
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding-bottom: 10px;
+        }
+
+        .carousel-dots .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .carousel-dots .dot.active {
+            background: var(--accent);
+            transform: scale(1.2);
+        }
+
+        .carousel-dots .dot:hover {
+            background: var(--accent-soft);
+        }
+
         /* Privacy Badge */
-        .privacy-badge {
+        .badge-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+
+        .privacy-badge, .tahoe-badge {
             display: inline-flex;
             align-items: center;
             gap: 10px;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+
+        .privacy-badge {
             background: var(--success-soft);
             border: 1px solid rgba(52, 211, 153, 0.25);
             color: var(--success);
-            padding: 10px 20px;
-            border-radius: 100px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-bottom: 32px;
-            letter-spacing: 0.02em;
             box-shadow: 0 2px 12px rgba(52, 211, 153, 0.15);
         }
 
-        /* Before/After Section */
+        .tahoe-badge {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #a78bfa;
+            box-shadow: 0 2px 12px rgba(139, 92, 246, 0.15);
+        }
+
+        /* Before/After Section - Click to Toggle */
         .before-after {
             padding: 80px 0;
         }
 
+        .demo-container {
+            max-width: 800px;
+            margin: 40px auto 0;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .demo-menubar {
+            background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            min-height: 28px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-menubar:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 32px rgba(79, 143, 250, 0.15);
+        }
+
+        .demo-icons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .demo-icons span {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .demo-separator {
+            color: rgba(255,255,255,0.5);
+            font-weight: 300;
+            font-size: 18px;
+            margin: 0 4px;
+            transition: opacity 0.4s ease;
+        }
+
+        .demo-sanebar-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .demo-menubar.hidden .demo-icons {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        .demo-menubar.hidden .demo-separator {
+            opacity: 0;
+        }
+
+        .demo-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+
+        .demo-label .state {
+            font-weight: 600;
+            color: var(--accent);
+            min-width: 80px;
+        }
+
+        .demo-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-subtle);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.95rem;
+            color: var(--accent);
+            margin-top: 16px;
+        }
+
+        .demo-hint svg {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Legacy comparison styles (keeping for other sections) */
         .comparison-images {
             display: flex;
             align-items: center;
@@ -429,6 +622,16 @@
             line-height: 1.7;
         }
 
+        .section-subtitle code {
+            background: var(--bg-card);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.95em;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -500,6 +703,66 @@
             line-height: 1.65;
         }
 
+        a.feature-card {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            cursor: pointer;
+        }
+
+        a.feature-card h3 {
+            color: var(--text-primary);
+        }
+
+        /* Lightbox Modal */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .lightbox-close:hover {
+            opacity: 1;
+        }
+
+        #lightbox-caption {
+            color: var(--text-secondary);
+            margin-top: 20px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
         /* Highlight Section */
         .highlight {
             padding: 120px 0;
@@ -537,7 +800,7 @@
             background: var(--bg-card);
             padding: 3px 8px;
             border-radius: 6px;
-            font-size: 0.9em;
+            font-size: 0.95em;
             border: 1px solid var(--border);
             font-family: 'SF Mono', Monaco, monospace;
         }
@@ -619,9 +882,8 @@
         }
         
         .download-option-text {
-            color: var(--text-primary);
-            opacity: 0.7;
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
         }
 
         .brew-command {
@@ -630,7 +892,7 @@
             border-radius: 8px;
             padding: 12px 20px;
             font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: var(--text-secondary);
         }
 
@@ -704,7 +966,7 @@
 
         .feature-desc {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             color: var(--text-secondary);
         }
 
@@ -721,7 +983,7 @@
 
         .note {
             color: #f59e0b;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             vertical-align: super;
             margin-left: 1px;
             font-weight: 600;
@@ -729,9 +991,8 @@
 
         .comparison-footnote {
             text-align: center;
-            color: var(--text-primary);
-            opacity: 0.7;
-            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
             margin-top: 24px;
         }
 
@@ -800,7 +1061,7 @@
             background: var(--bg-primary);
             padding: 8px 12px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s;
@@ -829,7 +1090,7 @@
         }
 
         .crypto-hint {
-            font-size: 0.8rem;
+            font-size: 0.95rem;
             color: var(--accent);
             font-weight: 500;
             margin-top: 12px;
@@ -862,9 +1123,9 @@
         }
 
         .footer-links a {
-            color: var(--text-muted);
+            color: var(--text-secondary);
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             transition: color 0.2s;
         }
 
@@ -873,12 +1134,97 @@
         }
 
         .footer-copy {
-            color: var(--text-muted);
-            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            padding: 80px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: left;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .feature-card img {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .feature-card h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Testimonials */
+        .testimonials {
+            padding: 60px 0 100px;
+            text-align: center;
+        }
+
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .testimonial-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border-subtle);
+            text-align: left;
+            position: relative;
+        }
+
+        .testimonial-text {
+            font-style: italic;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            font-size: 1rem;
+        }
+
+        .testimonial-author {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .testimonial-author::before {
+            content: "";
+            width: 12px;
+            height: 1px;
+            background: var(--text-muted);
         }
 
         /* Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 600px) {
+
             .nav-links {
                 display: none;
             }
@@ -912,10 +1258,17 @@
 <body>
     <div class="gradient-bg"></div>
 
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="Screenshot">
+        <p id="lightbox-caption"></p>
+    </div>
+
     <nav>
         <div class="container">
             <a href="#" class="logo">
-                <img src="images/icon.png" alt="SaneBar">
+                <img src="images/branding.png" alt="SaneBar">
                 SaneBar
             </a>
             <div class="nav-links">
@@ -935,14 +1288,23 @@
 
     <section class="hero">
         <div class="container">
-            <div class="privacy-badge animate-in delay-1">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                100% On-Device
+            <div class="badge-container animate-in delay-1">
+                <div class="privacy-badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    100% On-Device
+                </div>
+                <div class="tahoe-badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    macOS Tahoe Ready
+                </div>
             </div>
             <h1 class="animate-in delay-2">Bring <em>Sanity</em> to your Menu Bar</h1>
-            <p class="subtitle animate-in delay-3">The privacy-first menu bar manager that hides the clutter and secures the rest. The <em>only</em> one with Touch ID protection.</p>
+            <p class="subtitle animate-in delay-3">The <em>only</em> menu bar manager with Touch ID protection. Works flawlessly on macOS Tahoe while others break.</p>
             <div class="cta-buttons animate-in delay-4">
                 <a href="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -959,8 +1321,27 @@
                     View on GitHub
                 </a>
             </div>
-            <div class="hero-image animate-in delay-5">
-                <img src="images/hero.png" alt="SaneBar - Find any menu bar icon instantly">
+            <!-- Tutorial Carousel - auto-cycles through the workflow -->
+            <div class="hero-carousel animate-in delay-5">
+                <div class="carousel-container">
+                    <div class="carousel-slide active">
+                        <img src="images/find-icon-rightclick-menu.png" alt="Step 1: Right-click any icon">
+                    </div>
+                    <div class="carousel-slide">
+                        <img src="images/find-icon-move-hover.png" alt="Step 2: Select Move to Visible">
+                    </div>
+                    <div class="carousel-slide">
+                        <img src="images/find-icon-visible.png" alt="Step 3: Done! Icon moved">
+                    </div>
+                </div>
+                <div class="carousel-caption-wrapper">
+                    <div class="carousel-caption" id="carouselCaption">1. Right-click any icon</div>
+                </div>
+                <div class="carousel-dots">
+                    <span class="dot active" onclick="goToSlide(0)"></span>
+                    <span class="dot" onclick="goToSlide(1)"></span>
+                    <span class="dot" onclick="goToSlide(2)"></span>
+                </div>
             </div>
         </div>
     </section>
@@ -968,16 +1349,41 @@
     <section class="before-after" id="demo">
         <div class="container">
             <h2 class="section-title">One Click to Hide</h2>
-            <p class="section-subtitle">Toggle between all icons visible and your curated essentials. One click to hide, one click to reveal.</p>
-            <div class="comparison-images">
-                <div class="comparison-item">
-                    <span class="comparison-label">Icons Revealed</span>
-                    <img src="images/before.png" alt="Menu bar with all icons revealed">
+            <p class="section-subtitle">
+                <code>[Hidden apps]</code> <strong>/</strong> <code>[Visible apps]</code> <svg viewBox="0 0 24 24" fill="currentColor" style="height: 1.2em; width: 1.2em; vertical-align: middle; display: inline-block;"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg><br>
+                <span style="color: var(--text-secondary); font-size: 0.95em;">Click the SaneBar icon to hide everything left of the separator.</span>
+            </p>
+            <div class="demo-container" onclick="toggleDemo()">
+                <div class="demo-menubar" id="demoMenubar">
+                    <!-- Hidden icons (left of separator) - 8 icons for dramatic effect -->
+                    <div class="demo-icons">
+                        <span>🔐</span>
+                        <span>💬</span>
+                        <span>🎵</span>
+                        <span>☁️</span>
+                        <span>📡</span>
+                        <span>🔋</span>
+                        <span>📶</span>
+                        <span>🕐</span>
+                    </div>
+                    <!-- Separator - hides with icons -->
+                    <span class="demo-separator">/</span>
+                    <!-- SaneBar icon - ALWAYS visible (SF Symbol: line.3.horizontal.decrease) -->
+                    <svg class="demo-sanebar-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="2" y="5" width="20" height="2" rx="1"/>
+                        <rect x="4" y="11" width="16" height="2" rx="1"/>
+                        <rect x="6" y="17" width="12" height="2" rx="1"/>
+                    </svg>
                 </div>
-                <div class="comparison-arrow">→</div>
-                <div class="comparison-item">
-                    <span class="comparison-label">Icons Hidden</span>
-                    <img src="images/after.png" alt="Clean menu bar with icons hidden by SaneBar">
+                <div class="demo-label">
+                    <span class="state" id="demoState">Revealed</span>
+                    <span style="color: var(--text-secondary);">— all icons visible</span>
+                </div>
+                <div class="demo-hint">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                    </svg>
+                    Click to toggle (just like the real app)
                 </div>
             </div>
         </div>
@@ -988,68 +1394,65 @@
             <h2 class="section-title">Everything you need. Nothing you don't.</h2>
             <p class="section-subtitle">Built for power users who value privacy, speed, and control.</p>
             <div class="feature-grid">
-                <div class="feature-card">
+                <!-- 1. Touch ID Lock - THE unique selling point -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Lock Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
                     </div>
-                    <h3>Touch ID Protection</h3>
-                    <p>Lock hidden icons behind Touch ID or your password. Protect crypto wallets, messaging apps, and VPNs from prying eyes.</p>
-                </div>
-                <div class="feature-card">
+                    <h3>Touch ID Lock</h3>
+                    <p>The <strong>only</strong> menu bar manager with biometric security. Perfect for shared workspaces and presentations.</p>
+                </a>
+                <!-- 2. Power Search - finds icons anywhere -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Power Search — Find any icon, assign shortcuts, move between zones')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Search Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
                     </div>
                     <h3>Power Search</h3>
-                    <p>Find and click any menu bar app instantly, even if it's hidden behind the Notch. Keyboard-driven workflow.</p>
-                </div>
-                <div class="feature-card">
+                    <p>Find any icon instantly—even behind the Notch. Assign per-app hotkeys, move icons between Hidden and Visible zones.</p>
+                </a>
+                <!-- 3. Keyboard Shortcuts - global hotkeys + automation -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/shortcuts.png', 'Keyboard Shortcuts — Global hotkeys and AppleScript automation')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Zap/Lightning Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                         </svg>
                     </div>
-                    <h3>Per-Icon Hotkeys</h3>
-                    <p>Assign global shortcuts to your most-used menu bar apps. One keystroke to open any menu.</p>
-                </div>
-                <div class="feature-card">
+                    <h3>Keyboard Shortcuts</h3>
+                    <p>Global hotkeys to toggle, show, hide, or search. AppleScript for Raycast, Alfred, Keyboard Maestro, and Shortcuts.</p>
+                </a>
+                <!-- 4. Smart Triggers - auto-show on conditions -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-advanced-top.png', 'Smart Triggers — Auto-show on battery, WiFi, or app launch')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Terminal/Command Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="4 17 10 11 4 5"></polyline>
-                            <line x1="12" y1="19" x2="20" y2="19"></line>
-                        </svg>
-                    </div>
-                    <h3>AppleScript Ready</h3>
-                    <p>Full automation support. Build SaneBar into Shortcuts, Focus Modes, and your existing workflows.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <!-- Lightbulb/Triggers Icon -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 18h6"></path>
-                            <path d="M10 22h4"></path>
-                            <path d="M15.09 14c.18-.9.93-1.54 1.86-1.78A7 7 0 1 0 3 12"></path>
-                            <path d="M12 2v2"></path>
-                            <path d="M12 20v2"></path>
-                            <path d="M22 12h-2"></path>
-                            <path d="M2 12h2"></path>
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                     </div>
                     <h3>Smart Triggers</h3>
-                    <p>Auto-show icons on low battery, specific WiFi networks, or when certain apps launch.</p>
-                </div>
-                <div class="feature-card">
+                    <p>Auto-reveal icons when battery is low, specific apps launch, or you connect to certain WiFi networks.</p>
+                </a>
+                <!-- 5. Gestures & Auto-hide - MISSING BEFORE! -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-general-bottom.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Spacing Icon -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
+                            <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
+                            <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path>
+                            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
+                        </svg>
+                    </div>
+                    <h3>Gestures & Auto-hide</h3>
+                    <p>Hover near the top to reveal. Two-finger scroll up. Auto-hide after 1-10 seconds. Your choice.</p>
+                </a>
+                <!-- 6. Menu Bar Spacing - unique feature -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/spacing.png', 'Menu Bar Spacing — Tighter icons, recover notch-hidden apps')" class="feature-card">
+                    <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="5" y1="9" x2="5" y2="15"></line>
                             <line x1="9" y1="9" x2="9" y2="15"></line>
@@ -1060,23 +1463,25 @@
                         </svg>
                     </div>
                     <h3>Menu Bar Spacing</h3>
-                    <p>Tighter icons, more room. Recover icons hidden behind the Notch with system-level spacing control.</p>
-                </div>
-                <div class="feature-card">
+                    <p>MacBook Pro notch hiding icons? System-wide spacing (1-10) gives you more room.</p>
+                </a>
+                <!-- 7. Custom Appearance - Liquid Glass, tint, dividers -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-advanced-appearance.png', 'Custom Appearance — Liquid Glass, tint, shadow, borders, dividers')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Divider Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="2" x2="12" y2="22"></line>
-                            <circle cx="6" cy="12" r="2"></circle>
-                            <circle cx="18" cy="12" r="2"></circle>
+                            <circle cx="13.5" cy="6.5" r="0.5"></circle>
+                            <circle cx="17.5" cy="10.5" r="0.5"></circle>
+                            <circle cx="8.5" cy="7.5" r="0.5"></circle>
+                            <circle cx="6.5" cy="12.5" r="0.5"></circle>
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"></path>
                         </svg>
                     </div>
-                    <h3>Visual Zones</h3>
-                    <p>Add dividers to organize your menu bar. Lines, dots, or spaces - up to 12 customizable separators.</p>
-                </div>
-                <div class="feature-card">
+                    <h3>Custom Appearance</h3>
+                    <p>Liquid Glass on macOS Tahoe. Tint colors, shadows, borders, rounded corners. Up to 12 dividers.</p>
+                </a>
+                <!-- 8. Icon Management - core feature -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Icon Management — Browse Hidden, Visible, or All icons')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Move Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="5 9 2 12 5 15"></polyline>
                             <polyline points="9 5 12 2 15 5"></polyline>
@@ -1087,64 +1492,52 @@
                         </svg>
                     </div>
                     <h3>Icon Management</h3>
-                    <p>Browse Hidden, Visible, or All icons. Move any icon between hidden and visible with one click.</p>
-                </div>
-                <div class="feature-card">
+                    <p>Browse Hidden, Visible, or All icons. Right-click any icon to move it between zones instantly.</p>
+                </a>
+                <!-- 9. Open Source - trust, privacy -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-about.png', 'Open Source — 100% local, no analytics, audit the code yourself')" class="feature-card">
                     <div class="feature-icon">
-                        <!-- Brush/Native Icon -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2.69l5.74 5.74-5.74 5.74-5.74-5.74 5.74-5.74z"></path>
-                            <path d="M12 14.17v5.66"></path>
-                            <path d="M12 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path>
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <path d="M9 12l2 2 4-4"/>
                         </svg>
                     </div>
-                    <h3>Native & Lightweight</h3>
-                    <p>Pure Swift and SwiftUI. No Electron bloat. Feels like part of macOS.</p>
-                </div>
+                    <h3>Open Source</h3>
+                    <p>100% on-device. Zero network calls. No analytics. Audit the code yourself on GitHub.</p>
+                </a>
             </div>
         </div>
     </section>
 
-    <section class="highlight" id="privacy">
+    <section class="testimonials">
         <div class="container">
-            <div class="highlight-content">
-                <div class="highlight-text">
-                    <h2>Your icons, for your eyes only.</h2>
-                    <p>Most menu bar managers just tuck icons away. SaneBar <strong>locks</strong> them. Require Touch ID or your password to reveal sensitive apps.</p>
-                    <p>Perfect for shared workspaces, presentations, or anyone who values their privacy.</p>
+            <h2 class="section-title">Loved by Mac Users</h2>
+            <p class="section-subtitle">Join thousands decluttering their workspace in 2026.</p>
+            
+            <div class="testimonial-grid">
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design. In an era of surveillance capitalism, SaneBar's silence is its loudest feature."</p>
+                    <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
                 </div>
-                <div class="highlight-image">
-                    <img src="images/privacy.png" alt="Privacy settings showing Touch ID authentication toggle">
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"Great app, I just switched from Ice. I really like its minimalism and simplicity. It just works and very well."</p>
+                    <div class="testimonial-author">u/nxnayx (Reddit)</div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="highlight reverse">
-        <div class="container">
-            <div class="highlight-content">
-                <div class="highlight-text">
-                    <h2>Recover notch-hidden icons.</h2>
-                    <p>MacBook Pro notch hiding your icons? SaneBar's exclusive <strong>Menu Bar Spacing</strong> control makes icons tighter, giving you more room.</p>
-                    <p>System-level spacing from 1-10. Recover icons that macOS pushed under the notch. No other app offers this.</p>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
+                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
                 </div>
-                <div class="highlight-image">
-                    <img src="images/spacing.png" alt="Menu bar spacing control">
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"You already have 'Reveal when I scroll up in the menu bar' — exactly how I use Ice. I like it very much!"</p>
+                    <div class="testimonial-author">u/Kin_KC (Reddit)</div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="highlight">
-        <div class="container">
-            <div class="highlight-content">
-                <div class="highlight-text">
-                    <h2>Scriptable and snappy.</h2>
-                    <p>Control your menu bar with global hotkeys, gestures, or AppleScript. Build SaneBar into your Focus Modes and automation workflows.</p>
-                    <p>Commands: <code>toggle</code>, <code>show</code>, <code>hide</code> &mdash; integrate with Raycast, Alfred, Keyboard Maestro, or Shortcuts.</p>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I am using it now and there are no shadow clicks as seen in other menu bar managers."</p>
+                    <div class="testimonial-author">u/Elegant_Mobile4311 (Reddit)</div>
                 </div>
-                <div class="highlight-image">
-                    <img src="images/shortcuts.png" alt="Keyboard shortcuts and automation">
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
+                    <div class="testimonial-author">u/JustABro_2321 (Reddit)</div>
                 </div>
             </div>
         </div>
@@ -1167,6 +1560,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- UNIQUE TO SANEBAR (humble brag zone) -->
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">Touch ID Lock</span>
@@ -1180,26 +1574,16 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">100% Private</span>
-                                <span class="feature-desc">No network calls, no analytics</span>
+                                <span class="feature-label">Menu Bar Spacing</span>
+                                <span class="feature-desc">Recover icons hidden by the notch</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span><span class="note">*</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Power Search</span>
-                                <span class="feature-desc">Find any icon by name</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                         </tr>
+                        <!-- SANEBAR ADVANTAGE (few others have) -->
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">AppleScript</span>
@@ -1208,6 +1592,29 @@
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Visual Zones</span>
+                                <span class="feature-desc">Dividers to organize icons</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <!-- COMMON FEATURES -->
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Power Search</span>
+                                <span class="feature-desc">Find any icon by name</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                         </tr>
@@ -1224,50 +1631,6 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">Free</span>
-                                <span class="feature-desc">No cost to use</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">$16</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Open Source</span>
-                                <span class="feature-desc">Audit the code yourself</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Menu Bar Spacing</span>
-                                <span class="feature-desc">Control icon spacing system-wide</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Visual Zones</span>
-                                <span class="feature-desc">Dividers to organize icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
                                 <span class="feature-label">Icon Management</span>
                                 <span class="feature-desc">Move icons between hidden/visible</span>
                             </td>
@@ -1276,6 +1639,29 @@
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <!-- TRUST & VALUE -->
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">100% Private</span>
+                                <span class="feature-desc">No network calls, no analytics</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span><span class="note">*</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Free & Open Source</span>
+                                <span class="feature-desc">Audit the code yourself</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">$16</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">
@@ -1364,16 +1750,87 @@
     </footer>
 
     <script>
+        // Hero Carousel - auto-rotates every 2.5 seconds
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.carousel-slide');
+        const dots = document.querySelectorAll('.carousel-dots .dot');
+        const caption = document.getElementById('carouselCaption');
+        const captions = [
+            '1. Right-click any icon',
+            '2. Select "Move to Visible"',
+            '3. Done! Icon moved'
+        ];
+
+        function goToSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            dots[currentSlide].classList.remove('active');
+            currentSlide = n;
+            if (currentSlide >= slides.length) currentSlide = 0;
+            if (currentSlide < 0) currentSlide = slides.length - 1;
+            slides[currentSlide].classList.add('active');
+            dots[currentSlide].classList.add('active');
+            caption.textContent = captions[currentSlide];
+        }
+
+        function nextSlide() {
+            goToSlide(currentSlide + 1);
+        }
+
+        // Auto-rotate every 2.5 seconds
+        setInterval(nextSlide, 2500);
+
+        // Demo toggle - mimics SaneBar's click-to-hide behavior
+        // Structure: [Hidden apps] [/] [Visible apps] [SaneBar icon]
+        // Click SaneBar icon → everything LEFT of / disappears
+        function toggleDemo() {
+            const menubar = document.getElementById('demoMenubar');
+            const state = document.getElementById('demoState');
+            const desc = state.nextElementSibling;
+            menubar.classList.toggle('hidden');
+            if (menubar.classList.contains('hidden')) {
+                state.textContent = 'Hidden';
+                desc.textContent = '— clutter gone';
+            } else {
+                state.textContent = 'Revealed';
+                desc.textContent = '— all icons visible';
+            }
+        }
+
         function toggleCrypto() {
             const el = document.getElementById('crypto-addresses');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
+
         function copyToClipboard(el) {
             navigator.clipboard.writeText(el.textContent);
             const orig = el.textContent;
             el.textContent = 'Copied!';
             setTimeout(() => el.textContent = orig, 1500);
         }
+
+        // Lightbox Modal for feature cards
+        function openLightbox(src, caption) {
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-img');
+            const cap = document.getElementById('lightbox-caption');
+            img.src = src;
+            cap.textContent = caption || '';
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scroll
+        }
+
+        // Close lightbox with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
     </script>
 </body>
 </html>
