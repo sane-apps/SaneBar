@@ -85,6 +85,7 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let icon: NSImage?
     let policy: Policy
     let category: AppCategory
+    let xPosition: CGFloat?
 
     /// For Control Center items: the specific menu extra identifier
     /// e.g., "com.apple.menuextra.battery", "com.apple.menuextra.wifi"
@@ -100,17 +101,18 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         menuExtraIdentifier ?? id
     }
 
-    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil) {
+    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil) {
         self.id = id
         self.name = name
         self.icon = icon
         self.policy = policy
         self.category = category
         self.menuExtraIdentifier = menuExtraIdentifier
+        self.xPosition = xPosition
     }
 
     /// Create a Control Center item with an SF Symbol icon
-    static func controlCenterItem(name: String, identifier: String) -> RunningApp {
+    static func controlCenterItem(name: String, identifier: String, xPosition: CGFloat? = nil) -> RunningApp {
         let symbolName = iconForMenuExtra(identifier)
         // Create SF Symbol with proper configuration for visibility
         var icon: NSImage?
@@ -131,7 +133,8 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             icon: icon,
             policy: .accessory,
             category: .system,
-            menuExtraIdentifier: identifier
+            menuExtraIdentifier: identifier,
+            xPosition: xPosition
         )
     }
 
@@ -152,10 +155,11 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         }
     }
 
-    init(app: NSRunningApplication) {
+    init(app: NSRunningApplication, xPosition: CGFloat? = nil) {
         self.id = app.bundleIdentifier ?? UUID().uuidString
         self.name = app.localizedName ?? "Unknown"
         self.icon = app.icon
+        self.xPosition = xPosition
 
         switch app.activationPolicy {
         case .regular:

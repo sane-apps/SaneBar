@@ -363,8 +363,9 @@ final class HoverServiceProtocolMock: HoverServiceProtocol {
     }
 }
 
-final class StatusBarControllerProtocolMock: StatusBarControllerProtocol {
-    init() { }
+@MainActor
+final class StatusBarControllerProtocolMock: StatusBarControllerProtocol, @unchecked Sendable {
+    nonisolated init() { }
     init(mainItem: NSStatusItem? = nil, separatorItem: NSStatusItem? = nil) {
         self.mainItem = mainItem
         self.separatorItem = separatorItem
@@ -390,13 +391,13 @@ final class StatusBarControllerProtocolMock: StatusBarControllerProtocol {
     }
 
     private(set) var createMenuCallCount = 0
-    var createMenuArgValues = [(toggleAction: Selector, findIconAction: Selector, settingsAction: Selector, checkForUpdatesAction: Selector, quitAction: Selector, target: AnyObject)]()
-    var createMenuHandler: ((Selector, Selector, Selector, Selector, Selector, AnyObject) -> NSMenu)?
-    func createMenu(toggleAction: Selector, findIconAction: Selector, settingsAction: Selector, checkForUpdatesAction: Selector, quitAction: Selector, target: AnyObject) -> NSMenu {
+    var createMenuArgValues = [MenuConfiguration]()
+    var createMenuHandler: ((MenuConfiguration) -> NSMenu)?
+    func createMenu(configuration: MenuConfiguration) -> NSMenu {
         createMenuCallCount += 1
-        createMenuArgValues.append((toggleAction, findIconAction, settingsAction, checkForUpdatesAction, quitAction, target))
+        createMenuArgValues.append(configuration)
         if let createMenuHandler = createMenuHandler {
-            return createMenuHandler(toggleAction, findIconAction, settingsAction, checkForUpdatesAction, quitAction, target)
+            return createMenuHandler(configuration)
         }
         fatalError("createMenuHandler returns can't have a default value thus its handler must be set")
     }

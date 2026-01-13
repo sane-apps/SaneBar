@@ -2,28 +2,6 @@ import SwiftUI
 import AppKit
 import KeyboardShortcuts
 
-// MARK: - Visual Effect Background
-
-/// NSVisualEffectView wrapper for proper vibrancy on older macOS
-private struct VisualEffectBackground: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active  // Keep effect active even when not key window
-        view.isEmphasized = true
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-    }
-}
-
 // MARK: - MenuBarSearchView
 
 /// SwiftUI view for finding (and clicking) menu bar icons.
@@ -56,8 +34,9 @@ struct MenuBarSearchView: View {
     @State private var refreshTask: Task<Void, Never>?
 
     @State private var hotkeyApp: RunningApp?
-    @State private var selectedGroupId: UUID? = nil  // nil = show smart groups, non-nil = custom group
-    @State private var selectedSmartCategory: AppCategory? = nil  // nil = "All" within smart view
+    // Fix: Implicit Optional Initialization Violation
+    @State private var selectedGroupId: UUID?
+    @State private var selectedSmartCategory: AppCategory?
     @State private var isCreatingGroup = false
     @State private var newGroupName = ""
     @State private var showMoveInstructions = false
@@ -107,6 +86,11 @@ struct MenuBarSearchView: View {
         // Filter by search text
         if !searchText.isEmpty {
             apps = apps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+
+        // Sort by X position for Hidden/Visible modes (matching visual order)
+        if mode != .all {
+            apps.sort { ($0.xPosition ?? 0) < ($1.xPosition ?? 0) }
         }
 
         return apps
@@ -164,7 +148,7 @@ struct MenuBarSearchView: View {
             moveInstructionsForHidden ? "Move to Visible" : "Move to Hidden",
             isPresented: $showMoveInstructions
         ) {
-            Button("OK") { }
+            Button("OK") { } 
         } message: {
             if moveInstructionsForHidden {
                 Text("To show this icon:\n\n⌘-drag it to the RIGHT of the / separator in your menu bar.")
@@ -268,7 +252,8 @@ struct MenuBarSearchView: View {
     private var controls: some View {
         HStack(spacing: 10) {
             Picker("", selection: modeBinding) {
-                ForEach(Mode.allCases) { mode in
+                ForEach(Mode.allCases) {
+                    mode in 
                     Text(mode.title).tag(mode)
                 }
             }
@@ -314,7 +299,8 @@ struct MenuBarSearchView: View {
                 )
 
                 // Smart category tabs (auto-detected from apps)
-                ForEach(availableCategories, id: \.self) { category in
+                ForEach(availableCategories, id: \.self) {
+                    category in
                     SmartGroupTab(
                         title: category.rawValue,
                         icon: category.iconName,
@@ -334,7 +320,8 @@ struct MenuBarSearchView: View {
                 }
 
                 // User-created custom groups (drop targets for icons)
-                ForEach(menuBarManager.settings.iconGroups) { group in
+                ForEach(menuBarManager.settings.iconGroups) {
+                    group in
                     let groupId = group.id
                     GroupTabButton(
                         title: group.name,
@@ -415,7 +402,7 @@ struct MenuBarSearchView: View {
         guard !trimmedName.isEmpty else { return }
 
         // Limit total groups to prevent performance issues
-        guard menuBarManager.settings.iconGroups.count < maxGroupCount else {
+        guard menuBarManager.settings.iconGroups.count < maxGroupCount else { 
             // Silently fail - UI should prevent this
             return
         }
@@ -611,7 +598,7 @@ struct MenuBarSearchView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
 
-            Text("No matches for \"\(searchText)\"")
+            Text("No matches for \(searchText)")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -633,7 +620,8 @@ struct MenuBarSearchView: View {
                     alignment: .leading,  // Align grid content to left
                     spacing: grid.spacing
                 ) {
-                    ForEach(filteredApps) { app in
+                    ForEach(filteredApps) {
+                        app in
                         MenuBarAppTile(
                             app: app,
                             iconSize: grid.iconSize,
@@ -792,133 +780,6 @@ struct MenuBarSearchView: View {
 
 }
 
-// MARK: - Tile
-
-private struct MenuBarAppTile: View {
-    let app: RunningApp
-    let iconSize: CGFloat
-    let tileSize: CGFloat
-    let onActivate: () -> Void
-    let onSetHotkey: () -> Void
-    var onRemoveFromGroup: (() -> Void)?
-
-    /// Whether this icon is currently in the hidden section
-    var isHidden: Bool = false
-    /// Callback when user wants to toggle hidden status (shows instructions)
-    var onToggleHidden: (() -> Void)?
-
-    /// Whether to show app name below icon (for users with many apps)
-    var showName: Bool = true
-
-    var body: some View {
-        Button(action: onActivate) {
-            VStack(spacing: 4) {
-                // Icon container
-                ZStack {
-                    RoundedRectangle(cornerRadius: max(8, iconSize * 0.18))
-                        .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
-
-                    Group {
-                        if let icon = app.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                        } else {
-                            Image(systemName: "app.fill")
-                                .resizable()
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: iconSize * 0.7, height: iconSize * 0.7)
-                }
-                .frame(width: iconSize, height: iconSize)
-
-                // App name below icon
-                if showName {
-                    Text(app.name)
-                        .font(.system(size: max(9, iconSize * 0.18)))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(width: tileSize - 4)
-                }
-            }
-            .frame(width: tileSize, height: showName ? tileSize + 16 : tileSize)
-        }
-        .buttonStyle(.plain)
-        .draggable(app.id)  // Enable drag with bundle ID as payload
-        .help(app.name)
-        .contextMenu {
-            Button("Open") {
-                onActivate()
-            }
-            Button("Set Hotkey…") {
-                onSetHotkey()
-            }
-            if let toggleAction = onToggleHidden {
-                Divider()
-                Button(isHidden ? "Move to Visible" : "Move to Hidden") {
-                    toggleAction()
-                }
-            }
-            if let removeAction = onRemoveFromGroup {
-                Divider()
-                Button("Remove from Group", role: .destructive) {
-                    removeAction()
-                }
-            }
-        }
-        .accessibilityLabel(Text(app.name))
-    }
-}
-
-// MARK: - Smart Group Tab (with icon)
-
-private struct SmartGroupTab: View {
-    let title: String
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: isSelected ? .medium : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? .white.opacity(0.15) : .clear)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Group Tab Button (custom groups)
-
-private struct GroupTabButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: isSelected ? .medium : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? Color.accentColor.opacity(0.25) : .clear)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 #Preview {
-    MenuBarSearchView(onDismiss: {})
+    MenuBarSearchView(onDismiss: {}) 
 }

@@ -84,14 +84,14 @@ struct StatusBarControllerTests {
         }
         let target = DummyTarget()
 
-        let menu = controller.createMenu(
+        let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
-        )
+        ))
 
         // Should have: Find Icon, separator, Settings, Check for Updates, separator, Quit
         #expect(menu.items.count == 6, "Menu should have 6 items (4 commands + 2 separators)")
@@ -131,14 +131,14 @@ struct StatusBarControllerTests {
         }
         let target = DummyTarget()
 
-        let menu = controller.createMenu(
+        let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
-        )
+        ))
 
         // Non-separator items should have target set
         for item in menu.items where !item.isSeparatorItem {
@@ -168,14 +168,14 @@ struct StatusBarControllerTests {
         }
         let target = DummyTarget()
 
-        let menu = controller.createMenu(
+        let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
-        )
+        ))
 
         // Verify each menu item has an action
         let findIconItem = menu.items[0]
@@ -204,14 +204,14 @@ struct StatusBarControllerTests {
         }
         let target = DummyTarget()
 
-        let menu = controller.createMenu(
+        let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit),
             target: target
-        )
+        ))
 
         // Get settings item and verify it can be invoked
         let settingsItem = menu.items[2]

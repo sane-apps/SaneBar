@@ -4,6 +4,17 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarController")
 
+// MARK: - Menu Configuration
+
+struct MenuConfiguration {
+    let toggleAction: Selector
+    let findIconAction: Selector
+    let settingsAction: Selector
+    let checkForUpdatesAction: Selector
+    let quitAction: Selector
+    let target: AnyObject
+}
+
 // MARK: - StatusBarControllerProtocol
 
 /// @mockable
@@ -13,14 +24,7 @@ protocol StatusBarControllerProtocol {
     var separatorItem: NSStatusItem? { get }
 
     func iconName(for state: HidingState) -> String
-    func createMenu(
-        toggleAction: Selector,
-        findIconAction: Selector,
-        settingsAction: Selector,
-        checkForUpdatesAction: Selector,
-        quitAction: Selector,
-        target: AnyObject
-    ) -> NSMenu
+    func createMenu(configuration: MenuConfiguration) -> NSMenu
 }
 
 // MARK: - StatusBarController
@@ -237,22 +241,15 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Menu Creation
 
     /// Create the status menu with provided actions
-    func createMenu(
-        toggleAction: Selector,
-        findIconAction: Selector,
-        settingsAction: Selector,
-        checkForUpdatesAction: Selector,
-        quitAction: Selector,
-        target: AnyObject
-    ) -> NSMenu {
+    func createMenu(configuration: MenuConfiguration) -> NSMenu {
         let menu = NSMenu()
 
         let findItem = NSMenuItem(
             title: "Find Icon...",
-            action: findIconAction,
+            action: configuration.findIconAction,
             keyEquivalent: " "
         )
-        findItem.target = target
+        findItem.target = configuration.target
         findItem.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(findItem)
 
@@ -260,28 +257,28 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         let settingsItem = NSMenuItem(
             title: "Settings...",
-            action: settingsAction,
+            action: configuration.settingsAction,
             keyEquivalent: ","
         )
-        settingsItem.target = target
+        settingsItem.target = configuration.target
         menu.addItem(settingsItem)
 
         let updateItem = NSMenuItem(
             title: "Check for Updates...",
-            action: checkForUpdatesAction,
+            action: configuration.checkForUpdatesAction,
             keyEquivalent: ""
         )
-        updateItem.target = target
+        updateItem.target = configuration.target
         menu.addItem(updateItem)
 
         menu.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(
             title: "Quit SaneBar",
-            action: quitAction,
+            action: configuration.quitAction,
             keyEquivalent: "q"
         )
-        quitItem.target = target
+        quitItem.target = configuration.target
         menu.addItem(quitItem)
 
         return menu
