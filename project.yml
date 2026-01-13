@@ -87,8 +87,8 @@ targets:
       base:
         PRODUCT_NAME: SaneBar
         PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-        MARKETING_VERSION: "1.0.3"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "1.0.4"
+        CURRENT_PROJECT_VERSION: "4"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
         SWIFT_VERSION: 6.0

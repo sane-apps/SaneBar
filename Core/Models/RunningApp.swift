@@ -86,12 +86,70 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let policy: Policy
     let category: AppCategory
 
-    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other) {
+    /// For Control Center items: the specific menu extra identifier
+    /// e.g., "com.apple.menuextra.battery", "com.apple.menuextra.wifi"
+    let menuExtraIdentifier: String?
+
+    /// Whether this is an individual Control Center item (Battery, WiFi, etc.)
+    var isControlCenterItem: Bool {
+        menuExtraIdentifier != nil
+    }
+
+    /// Unique identifier for deduplication - uses menuExtraIdentifier if present
+    var uniqueId: String {
+        menuExtraIdentifier ?? id
+    }
+
+    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil) {
         self.id = id
         self.name = name
         self.icon = icon
         self.policy = policy
         self.category = category
+        self.menuExtraIdentifier = menuExtraIdentifier
+    }
+
+    /// Create a Control Center item with an SF Symbol icon
+    static func controlCenterItem(name: String, identifier: String) -> RunningApp {
+        let symbolName = iconForMenuExtra(identifier)
+        // Create SF Symbol with proper configuration for visibility
+        var icon: NSImage?
+        if let baseIcon = NSImage(systemSymbolName: symbolName, accessibilityDescription: name) {
+            // Configure the symbol to render in a visible color
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+            icon = baseIcon.withSymbolConfiguration(config)
+            icon?.isTemplate = false  // Render with actual colors, not as template
+        }
+        // Fallback to gearshape if symbol fails
+        if icon == nil {
+            icon = NSImage(systemSymbolName: "gearshape", accessibilityDescription: name)
+            icon?.isTemplate = false
+        }
+        return RunningApp(
+            id: "com.apple.controlcenter",
+            name: name,
+            icon: icon,
+            policy: .accessory,
+            category: .system,
+            menuExtraIdentifier: identifier
+        )
+    }
+
+    /// Map menu extra identifiers to SF Symbols
+    private static func iconForMenuExtra(_ identifier: String) -> String {
+        switch identifier {
+        case "com.apple.menuextra.battery": return "battery.100"
+        case "com.apple.menuextra.wifi": return "wifi"
+        case "com.apple.menuextra.bluetooth": return "bluetooth"
+        case "com.apple.menuextra.clock": return "clock"
+        case "com.apple.menuextra.airdrop": return "airdrop"
+        case "com.apple.menuextra.focusmode": return "moon.fill"
+        case "com.apple.menuextra.controlcenter": return "switch.2"
+        case "com.apple.menuextra.display": return "display"
+        case "com.apple.menuextra.sound": return "speaker.wave.2"
+        case "com.apple.menuextra.airplay": return "airplayvideo"
+        default: return "circle.grid.2x2"
+        }
     }
 
     init(app: NSRunningApplication) {
@@ -112,6 +170,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
 
         // Detect category from app bundle
         self.category = Self.detectCategory(for: app)
+
+        // Regular apps don't have a menu extra identifier
+        self.menuExtraIdentifier = nil
     }
 
     /// Detect app category from bundle's Info.plist
