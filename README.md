@@ -10,17 +10,17 @@
 
 Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
-![SaneBar Find Hidden Icon](marketing/screenshots/find-icon-window.png)
+![SaneBar Find Hidden Icon](docs/images/find-icon.png)
 
 | Icons Revealed | Icons Hidden |
 |----------------|--------------|
-| ![Menu bar with all icons revealed](marketing/screenshots/menubar-revealed.png) | ![Clean menu bar with icons hidden](marketing/screenshots/menubar-hidden.png) |
+| ![Menu bar with all icons revealed](docs/images/menubar-revealed.png) | ![Clean menu bar with icons hidden](docs/images/menubar-hidden.png) |
 
 ---
 
 ## Download
 
-**[Download SaneBar v1.0.3](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.3/SaneBar-1.0.3.dmg)** (macOS 15 Sequoia or later)
+**[Download SaneBar v1.0.4](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.4/SaneBar-1.0.4.dmg)** (macOS 15 Sequoia or later)
 
 Or via Homebrew:
 ```bash
@@ -48,7 +48,7 @@ Icons to the **right** of SaneBar = always visible
 - **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID** or password. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
 - **100% On-Device** — No analytics. No telemetry. No network requests. Everything stays on your Mac.
 
-![Privacy Settings](marketing/screenshots/advanced-settings-top.png)
+![Privacy Settings](docs/images/settings-advanced-top.png)
 
 ### Power Search
 - **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
@@ -60,7 +60,7 @@ Icons to the **right** of SaneBar = always visible
 - **Smart Triggers** — Auto-show on WiFi network, app launch, or low battery
 - **Profiles** — Save different setups for work, home, or presentations
 
-![Shortcuts and Automation](marketing/screenshots/shortcuts-settings.png)
+![Shortcuts and Automation](docs/images/shortcuts.png)
 
 ### Core
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\\)
@@ -162,7 +162,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 **Your data stays on your Mac.** SaneBar makes zero network requests. No analytics. No telemetry. No account.
 
-![100% On-Device](marketing/screenshots/about-settings.png)
+![100% On-Device](docs/images/settings-about.png)
 
 [Full privacy details](PRIVACY.md)
 

@@ -92,9 +92,22 @@ struct GeneralSettingsView: View {
                 DisclosureGroup("How to organize your menu bar") {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("**⌘+drag** icons to rearrange them", systemImage: "hand.draw")
-                        Label("Icons **left of the separator** get hidden", systemImage: "eye.slash")
-                        Label("Icons **right of SaneBar** stay visible", systemImage: "eye")
-                        Label("**Click SaneBar** to show/hide", systemImage: "cursorarrow.click.2")
+                        Label("Icons left of **/** get hidden", systemImage: "eye.slash")
+                        HStack(spacing: 4) {
+                            Label("Icons between **/** and", systemImage: "eye")
+                            Image(systemName: "line.3.horizontal.decrease")
+                            Text("stay visible")
+                        }
+                        HStack(spacing: 4) {
+                            Text("The")
+                            Image(systemName: "line.3.horizontal.decrease")
+                            Text("icon is always visible")
+                        }
+                        HStack(spacing: 4) {
+                            Text("**Click**")
+                            Image(systemName: "line.3.horizontal.decrease")
+                            Text("to show/hide")
+                        }
                         if menuBarManager.hasNotch {
                             Label("You have a notch — keep important icons on the right", systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)

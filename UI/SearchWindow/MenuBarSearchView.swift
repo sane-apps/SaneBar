@@ -144,6 +144,11 @@ struct MenuBarSearchView: View {
             refreshApps()
             startPermissionMonitoring()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .menuBarIconsDidChange)) { _ in
+            // Icons were moved - refresh the list
+            loadCachedApps()
+            refreshApps(force: true)
+        }
         .onChange(of: storedMode) { _, _ in
             loadCachedApps()
             refreshApps()
@@ -357,10 +362,10 @@ struct MenuBarSearchView: View {
                     isCreatingGroup = true
                 } label: {
                     Label("Custom", systemImage: "plus")
-                        .font(.system(size: 11))
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                         .background(
                             Capsule()
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
@@ -522,7 +527,7 @@ struct MenuBarSearchView: View {
             Text("Right-click an icon for hotkeys")
                 .foregroundStyle(.tertiary)
         }
-        .font(.system(size: 12))
+        .font(.system(size: 13))
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(.white.opacity(0.05))
@@ -643,9 +648,10 @@ struct MenuBarSearchView: View {
                             onToggleHidden: mode == .all ? nil : {
                                 // Capture values before async work to avoid race conditions
                                 let bundleID = app.id
+                                let menuExtraId = app.menuExtraIdentifier  // For Control Center items
                                 let toHidden = (mode == .visible)
 
-                                menuBarManager.moveIcon(bundleID: bundleID, toHidden: toHidden)
+                                menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, toHidden: toHidden)
 
                                 // Delay refresh to let the CGEvent drag complete (~200ms for move)
                                 Task { @MainActor in
@@ -877,10 +883,10 @@ private struct SmartGroupTab: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11, weight: isSelected ? .medium : .regular))
+                .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                 .foregroundStyle(isSelected ? .primary : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(
                     Capsule()
                         .fill(isSelected ? .white.opacity(0.15) : .clear)
@@ -900,10 +906,10 @@ private struct GroupTabButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11, weight: isSelected ? .medium : .regular))
+                .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                 .foregroundStyle(isSelected ? .primary : .secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(
                     Capsule()
                         .fill(isSelected ? Color.accentColor.opacity(0.25) : .clear)

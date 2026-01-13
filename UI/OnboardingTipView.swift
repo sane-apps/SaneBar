@@ -126,7 +126,7 @@ struct OnboardingTipView: View {
                 .buttonStyle(.bordered)
 
                 Text("Toggle **SaneBar** ON in the list, then come back here.")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.tertiary)
             }
 

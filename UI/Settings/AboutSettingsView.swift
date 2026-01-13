@@ -9,72 +9,69 @@ struct AboutSettingsView: View {
     @State private var isCheckingForUpdates = false
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
 
             // App identity
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text("SaneBar")
-                    .font(.title2)
+                    .font(.title)
                     .fontWeight(.semibold)
 
-                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
-                   let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
-                    Text("Version \(version) (\(build))")
+                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                    Text("Version \(version)")
+                        .font(.body)
                         .foregroundStyle(.secondary)
                 }
+
+                Text("Made by Mr. Sane, USA")
+                    .font(.body)
+                    .foregroundStyle(.tertiary)
             }
 
-            // Privacy - simple inline
-            HStack(spacing: 4) {
-                Label("Privacy First", systemImage: "lock.shield.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                Text("·")
-                    .foregroundStyle(.secondary)
-                Text("No analytics. No telemetry. Your data stays on your Mac.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            // Update section - clean and simple
-            VStack(spacing: 8) {
-                HStack {
-                    Button {
-                        checkForUpdates()
-                    } label: {
-                        if isCheckingForUpdates {
+            // Update section
+            VStack(spacing: 10) {
+                Button {
+                    checkForUpdates()
+                } label: {
+                    if isCheckingForUpdates {
+                        HStack(spacing: 6) {
                             ProgressView()
                                 .scaleEffect(0.7)
-                                .frame(width: 16, height: 16)
-                        } else {
-                            Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
+                                .frame(width: 14, height: 14)
+                            Text("Checking...")
                         }
-                    }
-                    .disabled(isCheckingForUpdates)
-
-                    if let lastCheck = menuBarManager.settings.lastUpdateCheck {
-                        Text("Last checked: \(lastCheck, style: .relative) ago")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                    } else {
+                        Text("Check for Updates")
                     }
                 }
+                .buttonStyle(.bordered)
+                .disabled(isCheckingForUpdates)
 
-                Toggle("Check automatically on launch", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
+                Toggle("Check automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
                     .toggleStyle(.checkbox)
-                    .font(.caption)
+                    .font(.body)
                     .onChange(of: menuBarManager.settings.checkForUpdatesAutomatically) { _, _ in
                         menuBarManager.saveSettings()
                     }
             }
+
+            // Trust info - not clickable, just text
+            HStack(spacing: 16) {
+                Label("100% Local", systemImage: "laptopcomputer")
+                Label("No Analytics", systemImage: "eye.slash")
+                Label("Open Source", systemImage: "lock.open")
+            }
+            .font(.body)
+            .foregroundStyle(.secondary)
             .padding(.vertical, 8)
 
             // Links row
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 Link(destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!) {
                     Label("GitHub", systemImage: "link")
                 }
@@ -99,7 +96,7 @@ struct AboutSettingsView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            .font(.system(size: 13))
+            .font(.system(size: 14))
 
             Spacer()
 
@@ -108,7 +105,7 @@ struct AboutSettingsView: View {
                 showResetConfirmation = true
             } label: {
                 Text("Reset to Defaults")
-                    .font(.caption)
+                    .font(.body)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.tertiary)
@@ -226,7 +223,7 @@ struct AboutSettingsView: View {
                             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
                             SOFTWARE.
                             """)
-                            .font(.system(.caption, design: .monospaced))
+                            .font(.system(.footnote, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                         }
@@ -264,7 +261,7 @@ struct AboutSettingsView: View {
                             .font(.system(size: 14, weight: .medium, design: .serif))
                             .italic()
                         Text("— 1 Timothy 5:18")
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
@@ -309,12 +306,12 @@ private struct CryptoAddressRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.blue)
-                .frame(width: 32, alignment: .leading)
+                .frame(width: 36, alignment: .leading)
 
             Text(address)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: 13, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -330,10 +327,11 @@ private struct CryptoAddressRow: View {
                 }
             } label: {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
             }
             .buttonStyle(.borderless)
             .foregroundStyle(copied ? .green : .secondary)
         }
     }
 }
+

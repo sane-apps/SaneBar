@@ -163,7 +163,7 @@ struct AdvancedSettingsView: View {
                             VStack(alignment: .leading) {
                                 Text(profile.name)
                                 Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption)
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()

@@ -19,7 +19,7 @@ struct PositionWarningView: View {
             HStack(spacing: 4) {
                 Text("**⌘+drag** the separator left of")
                 Image(systemName: "line.3.horizontal.decrease.circle")
-                    .font(.caption)
+                    .font(.callout)
             }
             .font(.callout)
         }

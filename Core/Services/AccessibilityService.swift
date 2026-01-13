@@ -22,6 +22,13 @@ private extension Notification.Name {
     static let AXPermissionsChanged = Notification.Name(rawValue: "com.apple.accessibility.api")
 }
 
+// MARK: - Public Notifications
+
+extension Notification.Name {
+    /// Posted when menu bar icons have been moved/reorganized
+    static let menuBarIconsDidChange = Notification.Name("com.sanebar.menuBarIconsDidChange")
+}
+
 // MARK: - AccessibilityService
 
 /// Service for interacting with other apps' menu bar items via Accessibility API.
@@ -58,12 +65,12 @@ final class AccessibilityService: ObservableObject {
     /// Cache for menu bar item positions to avoid expensive rescans
     private var menuBarItemCache: [(app: RunningApp, x: CGFloat)] = []
     private var menuBarItemCacheTime: Date = .distantPast
-    private let menuBarItemCacheValiditySeconds: TimeInterval = 60.0
+    private let menuBarItemCacheValiditySeconds: TimeInterval = 5.0  // Refresh every 5 seconds for accurate positions
 
     /// Cache for menu bar item owners (apps only, no positions) - used by Find Icon
     private var menuBarOwnersCache: [RunningApp] = []
     private var menuBarOwnersCacheTime: Date = .distantPast
-    private let menuBarOwnersCacheValiditySeconds: TimeInterval = 300.0
+    private let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0  // Refresh every 10 seconds for responsive UI
 
     private var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     private var menuBarItemsRefreshTask: Task<[(app: RunningApp, x: CGFloat)], Never>?
@@ -216,16 +223,35 @@ final class AccessibilityService: ObservableObject {
                 Self.scanMenuBarOwnerPIDs(candidatePIDs: candidatePIDs)
             }.value
 
-            var seenBundleIDs = Set<String>()
+            var seenIds = Set<String>()
             var apps: [RunningApp] = []
             apps.reserveCapacity(pidsWithExtras.count)
+            var controlCenterPID: pid_t?
 
             for pid in pidsWithExtras {
                 guard let app = NSRunningApplication(processIdentifier: pid),
                       let bundleID = app.bundleIdentifier else { continue }
-                guard !seenBundleIDs.contains(bundleID) else { continue }
-                seenBundleIDs.insert(bundleID)
+
+                // Special case: Control Center - remember its PID for later expansion
+                if bundleID == "com.apple.controlcenter" {
+                    controlCenterPID = pid
+                    continue  // Don't add the collapsed entry
+                }
+
+                guard !seenIds.contains(bundleID) else { continue }
+                seenIds.insert(bundleID)
                 apps.append(RunningApp(app: app))
+            }
+
+            // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
+            if let ccPID = controlCenterPID {
+                let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
+                for item in ccItems {
+                    let key = item.app.uniqueId
+                    guard !seenIds.contains(key) else { continue }
+                    seenIds.insert(key)
+                    apps.append(item.app)
+                }
             }
 
             let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
@@ -265,10 +291,17 @@ final class AccessibilityService: ObservableObject {
             }.value
 
             var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
+            var controlCenterPID: pid_t?
 
             for (pid, x) in pidMinX {
                 guard let app = NSRunningApplication(processIdentifier: pid),
                       let bundleID = app.bundleIdentifier else { continue }
+
+                // Special case: Control Center - remember its PID for later expansion
+                if bundleID == "com.apple.controlcenter" {
+                    controlCenterPID = pid
+                    continue  // Don't add the collapsed entry
+                }
 
                 if let existing = appPositions[bundleID] {
                     if x < existing.x {
@@ -276,6 +309,15 @@ final class AccessibilityService: ObservableObject {
                     }
                 } else {
                     appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+                }
+            }
+
+            // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
+            if let ccPID = controlCenterPID {
+                let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
+                for item in ccItems {
+                    let key = item.app.uniqueId
+                    appPositions[key] = item
                 }
             }
 
@@ -332,15 +374,36 @@ final class AccessibilityService: ObservableObject {
             }
         }
 
-        // Map to RunningApp (unique by bundle ID)
-        var seenBundleIDs = Set<String>()
+        // Map to RunningApp (unique by bundle ID or menuExtraIdentifier)
+        var seenIds = Set<String>()
         var apps: [RunningApp] = []
+        var controlCenterPID: pid_t?
+
         for pid in pids {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
-            guard !seenBundleIDs.contains(bundleID) else { continue }
-            seenBundleIDs.insert(bundleID)
+
+            // Special case: Control Center - remember its PID for later expansion
+            if bundleID == "com.apple.controlcenter" {
+                controlCenterPID = pid
+                continue  // Don't add the collapsed entry
+            }
+
+            guard !seenIds.contains(bundleID) else { continue }
+            seenIds.insert(bundleID)
             apps.append(RunningApp(app: app))
+        }
+
+        // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
+        if let ccPID = controlCenterPID {
+            let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
+            logger.debug("Expanded Control Center into \(ccItems.count) individual owners")
+            for item in ccItems {
+                let key = item.app.uniqueId
+                guard !seenIds.contains(key) else { continue }
+                seenIds.insert(key)
+                apps.append(item.app)
+            }
         }
 
         let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
@@ -438,11 +501,19 @@ final class AccessibilityService: ObservableObject {
 
         logger.debug("Scanned candidate apps, found \(results.count) menu bar items")
 
-        // Convert to RunningApps (unique by bundle ID, taking the minimum x position per app)
+        // Convert to RunningApps (unique by bundle ID or menuExtraIdentifier)
         var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
+        var controlCenterPID: pid_t?
+
         for (pid, x) in results {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
+
+            // Special case: Control Center - remember its PID for later expansion
+            if bundleID == "com.apple.controlcenter" {
+                controlCenterPID = pid
+                continue  // Don't add the collapsed entry
+            }
 
             // Keep the minimum x position for each app (most hidden position)
             if let existing = appPositions[bundleID] {
@@ -451,6 +522,17 @@ final class AccessibilityService: ObservableObject {
                 }
             } else {
                 appPositions[bundleID] = (app: RunningApp(app: app), x: x)
+            }
+        }
+
+        // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
+        if let ccPID = controlCenterPID {
+            let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
+            logger.debug("Expanded Control Center into \(ccItems.count) individual items")
+            for item in ccItems {
+                // Use uniqueId (menuExtraIdentifier) as the key for Control Center items
+                let key = item.app.uniqueId
+                appPositions[key] = item
             }
         }
 
@@ -498,6 +580,60 @@ final class AccessibilityService: ObservableObject {
             let elapsed = Date().timeIntervalSince(startTime)
             logger.info("Menu bar cache pre-warmed in \(String(format: "%.2f", elapsed))s")
         }
+    }
+
+    // MARK: - Control Center Item Enumeration
+
+    /// Enumerates individual Control Center items (Battery, WiFi, Clock, etc.)
+    /// Returns virtual RunningApp instances for each item with positions.
+    ///
+    /// Control Center owns multiple independent menu bar icons under a single bundle ID.
+    /// This method extracts each as a separate entry using AXIdentifier and AXDescription.
+    private nonisolated static func enumerateControlCenterItems(pid: pid_t) -> [(app: RunningApp, x: CGFloat)] {
+        var results: [(app: RunningApp, x: CGFloat)] = []
+
+        let appElement = AXUIElementCreateApplication(pid)
+
+        var extrasBar: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+        guard result == .success, let bar = extrasBar else { return results }
+        guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return results }
+        // swiftlint:disable:next force_cast
+        let barElement = bar as! AXUIElement
+
+        var children: CFTypeRef?
+        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+        guard childResult == .success, let items = children as? [AXUIElement] else { return results }
+
+        for item in items {
+            // Get AXIdentifier (e.g., "com.apple.menuextra.battery")
+            var identifierValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+            guard let identifier = identifierValue as? String, !identifier.isEmpty else { continue }
+
+            // Get AXDescription (e.g., "Battery")
+            var descValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
+            let description = (descValue as? String) ?? identifier.components(separatedBy: ".").last ?? "Unknown"
+
+            // Get position
+            var positionValue: CFTypeRef?
+            let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+            var xPos: CGFloat = 0
+            if posResult == .success, let posValue = positionValue, CFGetTypeID(posValue) == AXValueGetTypeID() {
+                var point = CGPoint.zero
+                // swiftlint:disable:next force_cast
+                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                    xPos = point.x
+                }
+            }
+
+            // Create virtual RunningApp for this Control Center item
+            let virtualApp = RunningApp.controlCenterItem(name: description, identifier: identifier)
+            results.append((app: virtualApp, x: xPos))
+        }
+
+        return results
     }
 
     // MARK: - Scanning Helpers
@@ -628,11 +764,13 @@ final class AccessibilityService: ObservableObject {
     /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag
     /// - Parameters:
     ///   - bundleID: The bundle ID of the app whose icon to move
+    ///   - menuExtraId: For Control Center items, the specific menu extra identifier (e.g., "com.apple.menuextra.battery")
     ///   - toHidden: If true, move LEFT of separator (hidden). If false, move RIGHT (visible).
-    ///   - separatorX: The X position of the separator's LEFT edge
+    ///   - separatorX: The X position of the separator's RIGHT edge
+    ///   - mainIconX: The X position of the main SaneBar icon's LEFT edge (visible zone boundary)
     /// - Returns: True if successful
-    func moveMenuBarIcon(bundleID: String, toHidden: Bool, separatorX: CGFloat) -> Bool {
-        logger.error("🔧 moveMenuBarIcon: bundleID=\(bundleID), toHidden=\(toHidden), separatorX=\(separatorX)")
+    func moveMenuBarIcon(bundleID: String, menuExtraId: String? = nil, toHidden: Bool, separatorX: CGFloat, mainIconX: CGFloat? = nil) -> Bool {
+        logger.error("🔧 moveMenuBarIcon: bundleID=\(bundleID), menuExtraId=\(menuExtraId ?? "nil"), toHidden=\(toHidden), separatorX=\(separatorX), mainIconX=\(mainIconX ?? -1)")
 
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -640,24 +778,44 @@ final class AccessibilityService: ObservableObject {
         }
 
         // Find the icon's current position
-        guard let iconPosition = getMenuBarIconPosition(bundleID: bundleID) else {
-            logger.error("🔧 Could not find icon position for \(bundleID)")
+        guard let iconPosition = getMenuBarIconPosition(bundleID: bundleID, menuExtraId: menuExtraId) else {
+            logger.error("🔧 Could not find icon position for \(bundleID) (menuExtraId: \(menuExtraId ?? "nil"))")
             return false
         }
 
         logger.error("🔧 Icon position: x=\(iconPosition.x), width=\(iconPosition.width)")
 
         // SaneBar menu bar layout:
-        // [Apple] [App Menus] ... [HIDDEN ICONS] | SEPARATOR | [VISIBLE ICONS] ...
+        // [Apple] [App Menus] ... [HIDDEN ICONS] | SEPARATOR | [VISIBLE ICONS] [SaneBar Icon ≡] [System tray]
         //
         // LEFT of separator (lower X) = HIDDEN
-        // RIGHT of separator (higher X) = VISIBLE
+        // RIGHT of separator but LEFT of main SaneBar icon = VISIBLE
         //
         // To HIDE: drag icon to LEFT of separator (targetX < separatorX)
-        // To SHOW: drag icon to RIGHT of separator (targetX > separatorX)
-        let targetX: CGFloat = toHidden ? (separatorX - 100) : (separatorX + 100)
+        // To SHOW: drag icon to RIGHT of separator but LEFT of main icon (separatorX < targetX < mainIconX)
+        let targetX: CGFloat
+        if toHidden {
+            // Move to hidden zone - left of separator
+            targetX = separatorX - 100
+        } else if let mainX = mainIconX {
+            // Move to visible zone - between separator and main SaneBar icon
+            // Target the midpoint of the visible zone for best placement
+            let visibleZoneWidth = mainX - separatorX
+            if visibleZoneWidth > 50 {
+                // Place icon 30px to the right of separator (near the separator end of visible zone)
+                targetX = separatorX + 30
+            } else {
+                // Very narrow visible zone - place in the middle
+                targetX = separatorX + (visibleZoneWidth / 2)
+            }
+            logger.error("🔧 Visible zone: separator=\(separatorX), mainIcon=\(mainX), width=\(visibleZoneWidth)")
+        } else {
+            // Fallback if mainIconX not provided - just use separator + 100
+            targetX = separatorX + 100
+            logger.error("🔧 Warning: mainIconX not provided, using fallback targetX=\(targetX)")
+        }
 
-        logger.error("🔧 Target X: \(targetX) (toHidden=\(toHidden), separator=\(separatorX))")
+        logger.error("🔧 Target X: \(targetX) (toHidden=\(toHidden), separator=\(separatorX), mainIcon=\(mainIconX ?? -1))")
 
         // CGEvent uses top-left screen coordinates (Quartz coordinate system)
         // Menu bar is at y=0 to y≈24, middle is around y=12
@@ -674,7 +832,10 @@ final class AccessibilityService: ObservableObject {
     }
 
     /// Get the position and size of a menu bar icon
-    private func getMenuBarIconPosition(bundleID: String) -> (x: CGFloat, width: CGFloat)? {
+    /// - Parameters:
+    ///   - bundleID: The bundle ID of the app
+    ///   - menuExtraId: For Control Center items, the specific AXIdentifier to find
+    private func getMenuBarIconPosition(bundleID: String, menuExtraId: String? = nil) -> (x: CGFloat, width: CGFloat)? {
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
             return nil
         }
@@ -692,8 +853,30 @@ final class AccessibilityService: ObservableObject {
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
         guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { return nil }
 
-        // Get the first (usually only) menu bar item for this app
-        let item = items[0]
+        // Find the correct item - either by menuExtraId or just take the first one
+        var targetItem: AXUIElement?
+
+        if let extraId = menuExtraId {
+            // For Control Center items, find the specific one by AXIdentifier
+            for item in items {
+                var identifierValue: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                if let identifier = identifierValue as? String, identifier == extraId {
+                    targetItem = item
+                    logger.debug("🔧 Found Control Center item with identifier: \(extraId)")
+                    break
+                }
+            }
+            if targetItem == nil {
+                logger.error("🔧 Could not find Control Center item with identifier: \(extraId)")
+                return nil
+            }
+        } else {
+            // For regular apps, take the first item
+            targetItem = items[0]
+        }
+
+        guard let item = targetItem else { return nil }
 
         // Get position
         var positionValue: CFTypeRef?

@@ -19,7 +19,7 @@ struct ShortcutsSettingsView: View {
             Section {
                 HStack {
                     Text("osascript -e 'tell app \"SaneBar\" to toggle'")
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
                     Spacer()
                     Button {
