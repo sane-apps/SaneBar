@@ -214,8 +214,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Show onboarding on first launch
             self.showOnboardingIfNeeded()
 
-            // Check for updates on launch if enabled (with rate limiting)
-            self.checkForUpdatesOnLaunchIfEnabled()
+            // Sync update settings to Sparkle
+            self.syncUpdateConfiguration()
 
             logger.info("Deferred UI setup complete")
         }
@@ -237,7 +237,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
-            checkForUpdatesAction: #selector(checkForUpdates),
+            checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
             quitAction: #selector(quitApp),
             target: self
         ))
@@ -273,6 +273,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateNetworkTrigger(enabled: newSettings.showOnNetworkChange)
                 self?.triggerService.updateBatteryMonitoring(enabled: newSettings.showOnLowBattery)
                 self?.updateHoverService()
+                self?.syncUpdateConfiguration()
             }
             .store(in: &cancellables)
     }

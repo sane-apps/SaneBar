@@ -28,5 +28,13 @@
 	<true/>
 	<key>OSAScriptingDefinition</key>
 	<string>SaneBar.sdef</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://stephanjoseph.github.io/SaneBar/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=</string>
 </dict>
 </plist>

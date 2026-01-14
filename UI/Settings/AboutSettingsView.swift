@@ -6,7 +6,6 @@ struct AboutSettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showLicenses = false
     @State private var showSupport = false
-    @State private var isCheckingForUpdates = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -36,21 +35,11 @@ struct AboutSettingsView: View {
             // Update section
             VStack(spacing: 10) {
                 Button {
-                    checkForUpdates()
+                    menuBarManager.userDidClickCheckForUpdates()
                 } label: {
-                    if isCheckingForUpdates {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .frame(width: 14, height: 14)
-                            Text("Checking...")
-                        }
-                    } else {
-                        Text("Check for Updates")
-                    }
+                    Text("Check for Updates")
                 }
                 .buttonStyle(.bordered)
-                .disabled(isCheckingForUpdates)
 
                 Toggle("Check automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
                     .toggleStyle(.checkbox)
@@ -127,55 +116,6 @@ struct AboutSettingsView: View {
         }
     }
 
-    // MARK: - Update Check
-
-    private func checkForUpdates() {
-        isCheckingForUpdates = true
-        Task {
-            let result = await menuBarManager.updateService.checkForUpdates()
-            menuBarManager.settings.lastUpdateCheck = Date()
-            menuBarManager.saveSettings()
-
-            await MainActor.run {
-                isCheckingForUpdates = false
-                showUpdateResult(result)
-            }
-        }
-    }
-
-    private func showUpdateResult(_ result: UpdateResult) {
-        let alert = NSAlert()
-
-        switch result {
-        case .upToDate:
-            alert.messageText = "You're up to date!"
-            alert.informativeText = "SaneBar is running the latest version."
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
-
-        case .updateAvailable(let version, let releaseURL):
-            let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-            alert.messageText = "Update Available"
-            alert.informativeText = "SaneBar \(version) is available. You're currently running \(currentVersion)."
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "View Release")
-            alert.addButton(withTitle: "Later")
-
-            if alert.runModal() == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(releaseURL)
-            }
-            return
-
-        case .error(let message):
-            alert.messageText = "Update Check Failed"
-            alert.informativeText = message
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "OK")
-        }
-
-        alert.runModal()
-    }
-
     // MARK: - Licenses Sheet
 
     private var licensesSheet: some View {
@@ -205,23 +145,62 @@ struct AboutSettingsView: View {
 
                             Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
-                            Permission is hereby granted, free of charge, to any person obtaining a copy \
-                            of this software and associated documentation files (the "Software"), to deal \
-                            in the Software without restriction, including without limitation the rights \
-                            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \
-                            copies of the Software, and to permit persons to whom the Software is \
+                            Permission is hereby granted, free of charge, to any person obtaining a copy \ 
+                            of this software and associated documentation files (the "Software"), to deal \ 
+                            in the Software without restriction, including without limitation the rights \ 
+                            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell \ 
+                            copies of the Software, and to permit persons to whom the Software is \ 
                             furnished to do so, subject to the following conditions:
 
-                            The above copyright notice and this permission notice shall be included in all \
+                            The above copyright notice and this permission notice shall be included in all \ 
                             copies or substantial portions of the Software.
 
-                            THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \
-                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \
-                            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \
-                            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \
-                            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \
-                            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \
+                            THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \ 
+                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, \ 
+                            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \ 
+                            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER \ 
+                            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, \ 
+                            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \ 
                             SOFTWARE.
+                            """)
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Link("Sparkle", destination: URL(string: "https://sparkle-project.org")!)
+                                .font(.headline)
+
+                            Text("""
+                            Copyright (c) 2006-2013 Andy Matuschak.
+                            Copyright (c) 2009-2013 Elgato Systems GmbH.
+                            Copyright (c) 2011-2014 Kornel Lesiński.
+                            Copyright (c) 2015-2017 Mayur Pawashe.
+                            Copyright (c) 2014 C.W. Betts.
+                            Copyright (c) 2014 Petroules Corporation.
+                            Copyright (c) 2014 Big Nerd Ranch.
+                            All rights reserved.
+
+                            Permission is hereby granted, free of charge, to any person obtaining a copy of
+                            this software and associated documentation files (the "Software"), to deal in
+                            the Software without restriction, including without limitation the rights to
+                            use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+                            of the Software, and to permit persons to whom the Software is furnished to do
+                            so, subject to the following conditions:
+
+                            The above copyright notice and this permission notice shall be included in all
+                            copies or substantial portions of the Software.
+
+                            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+                            FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+                            COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+                            IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+                            CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                             """)
                             .font(.system(.footnote, design: .monospaced))
                             .foregroundStyle(.secondary)
@@ -334,4 +313,3 @@ private struct CryptoAddressRow: View {
         }
     }
 }
-

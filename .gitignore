@@ -141,3 +141,4 @@ BUG_TRACKING.md
 Output/
 .claude/audit_log.jsonl
 .claude/learnings.jsonl
+sparkle_private_key.txt

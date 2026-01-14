@@ -58,8 +58,8 @@ extension MenuBarManager {
 
     @objc func checkForUpdates(_ sender: Any?) {
         logger.info("Menu: Check for Updates")
-        Task {
-            await performUpdateCheck()
+        Task { @MainActor in
+            userDidClickCheckForUpdates()
         }
     }
     
