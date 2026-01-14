@@ -86,7 +86,7 @@ targets:
         NSAppleEventsUsageDescription: "SaneBar needs to control other applications to manage your menu bar items."
         NSAccessibilityUsageDescription: "SaneBar needs accessibility permissions to detect and manage menu bar items."
         LSApplicationCategoryType: "public.app-category.utilities"
-        SUFeedURL: "https://stephanjoseph.github.io/SaneBar/appcast.xml"
+        SUFeedURL: "https://sanebar.com/appcast.xml"
         SUEnableSystemProfiling: false
         SUEnableAutomaticChecks: true
         SUPublicEDKey: "7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU="
