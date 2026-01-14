@@ -1,8 +1,9 @@
 import SwiftUI
-import LaunchAtLogin
+import ServiceManagement
 
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @State private var launchAtLogin = false
 
     private var showDockIconBinding: Binding<Bool> {
         Binding(
@@ -18,9 +19,13 @@ struct GeneralSettingsView: View {
         Form {
             // 1. Startup - most users want this
             Section {
-                LaunchAtLogin.Toggle {
-                    Text("Open SaneBar when I log in")
-                }
+                Toggle("Open SaneBar when I log in", isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { newValue in
+                        launchAtLogin = newValue
+                        setLaunchAtLogin(newValue)
+                    }
+                ))
                 Toggle("Show in Dock", isOn: showDockIconBinding)
             } header: {
                 Text("Startup")
@@ -120,6 +125,31 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .onChange(of: menuBarManager.settings) { _, _ in
             menuBarManager.saveSettings()
+        }
+        .onAppear {
+            checkLaunchAtLogin()
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            print("Failed to set launch at login: \(error)")
+            launchAtLogin = !launchAtLogin
+        }
+    }
+
+    private func checkLaunchAtLogin() {
+        do {
+            let status = try SMAppService.mainApp.status
+            launchAtLogin = (status == .enabled)
+        } catch {
+            launchAtLogin = false
         }
     }
 }

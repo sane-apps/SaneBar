@@ -41,7 +41,6 @@
 		8E33C3A54BBCC58D221E0B84 /* KeyboardShortcutsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */; };
 		932BE8FBAB4F339E3D598B1E /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */; };
 		934FDF51421C0B4CE930737B /* MenuBarSearchTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */; };
-		9428EB7B846206973BA5FF5E /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = E9C15D05272B9E2F506E6168 /* LaunchAtLogin */; };
 		959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */; };
 		989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */; };
 		990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */; };
@@ -162,7 +161,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */,
-				9428EB7B846206973BA5FF5E /* LaunchAtLogin in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -383,7 +381,6 @@
 			name = SaneBar;
 			packageProductDependencies = (
 				E264258C707319B447D489AC /* KeyboardShortcuts */,
-				E9C15D05272B9E2F506E6168 /* LaunchAtLogin */,
 			);
 			productName = SaneBar;
 			productReference = E2110BC48727749AB5BC8606 /* SaneBar.app */;
@@ -420,7 +417,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-				4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -823,14 +819,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
-			};
-		};
 		D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
@@ -846,11 +834,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
-		};
-		E9C15D05272B9E2F506E6168 /* LaunchAtLogin */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */;
-			productName = LaunchAtLogin;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
