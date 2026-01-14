@@ -301,8 +301,16 @@ jobs:
         run: |
           # Update download links in docs/index.html
           if [ -f docs/index.html ]; then
-            sed -i '' "s|/v${OLD_VERSION}/SaneBar-${OLD_VERSION}.dmg|/v${VERSION}/SaneBar-${VERSION}.dmg|g" docs/index.html
-            echo "Updated website download links from v${OLD_VERSION} to v${VERSION}"
+            # Replace old specific link OR generic releases link with new specific link
+            sed -i '' "s|https://github.com/stephanjoseph/SaneBar/releases/tag/v${OLD_VERSION}|https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg|g" docs/index.html
+            sed -i '' "s|https://github.com/stephanjoseph/SaneBar/releases/download/v${OLD_VERSION}/SaneBar-${OLD_VERSION}.dmg|https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg|g" docs/index.html
+            sed -i '' "s|https://github.com/stephanjoseph/SaneBar/releases|https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg|g" docs/index.html
+            
+            # Update button text
+            sed -i '' "s|Download SaneBar v${OLD_VERSION}|Download SaneBar v${VERSION}|g" docs/index.html
+            sed -i '' "s|View Releases on GitHub|Download SaneBar v${VERSION}|g" docs/index.html
+            
+            echo "Updated website download links and button text to v${VERSION}"
           fi
 
       - name: Commit version bump and website update
