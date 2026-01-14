@@ -80,62 +80,144 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         case unknown
     }
 
-    let id: String  // bundleIdentifier
+    /// Owning app/process bundle identifier (e.g. com.apple.systemuiserver).
+    /// This is the identifier we should use for activation/move operations.
+    let bundleId: String
     let name: String
     let icon: NSImage?
     let policy: Policy
     let category: AppCategory
     let xPosition: CGFloat?
+    let width: CGFloat?
 
-    /// For Control Center items: the specific menu extra identifier
+    /// For system-owned menu extras (Control Center/SystemUIServer): the specific menu extra identifier
     /// e.g., "com.apple.menuextra.battery", "com.apple.menuextra.wifi"
+    ///
+    /// For some third-party status items, this may also contain a stable AX identifier if provided.
     let menuExtraIdentifier: String?
 
-    /// Whether this is an individual Control Center item (Battery, WiFi, etc.)
+    /// For non-system apps that expose multiple status items under the same bundle id,
+    /// this identifies which AX child we represent.
+    let statusItemIndex: Int?
+
+    /// Whether this is an individual system menu extra item (Battery, Wi‑Fi, etc.)
     var isControlCenterItem: Bool {
-        menuExtraIdentifier != nil
+        (bundleId == "com.apple.controlcenter" || bundleId == "com.apple.systemuiserver") && (menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") ?? false)
     }
 
-    /// Unique identifier for deduplication - uses menuExtraIdentifier if present
+    /// Unique identifier for deduplication/UI identity - uses menuExtraIdentifier if present
     var uniqueId: String {
-        menuExtraIdentifier ?? id
+        if let menuExtraIdentifier {
+            // Preserve legacy identity for Apple menu extras so groups/tiles remain stable.
+            if menuExtraIdentifier.hasPrefix("com.apple.menuextra.") {
+                return menuExtraIdentifier
+            }
+            // Third-party AX identifiers are not guaranteed to be globally unique.
+            return "\(bundleId)::axid:\(menuExtraIdentifier)"
+        }
+        if let statusItemIndex {
+            return "\(bundleId)::statusItem:\(statusItemIndex)"
+        }
+        return bundleId
     }
 
-    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil) {
-        self.id = id
+    /// SwiftUI identity: must be unique per tile.
+    /// For menu extras this is the `menuExtraIdentifier`; for normal apps it's the bundle id.
+    var id: String { uniqueId }
+
+    init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, statusItemIndex: Int? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
+        self.bundleId = id
         self.name = name
         self.icon = icon
         self.policy = policy
         self.category = category
         self.menuExtraIdentifier = menuExtraIdentifier
+        self.statusItemIndex = statusItemIndex
         self.xPosition = xPosition
+        self.width = width
     }
 
     /// Create a Control Center item with an SF Symbol icon
-    static func controlCenterItem(name: String, identifier: String, xPosition: CGFloat? = nil) -> RunningApp {
+    static func controlCenterItem(name: String, identifier: String, xPosition: CGFloat? = nil, width: CGFloat? = nil) -> RunningApp {
+        menuExtraItem(ownerBundleId: "com.apple.controlcenter", name: name, identifier: identifier, xPosition: xPosition, width: width)
+    }
+
+    /// Create a system-owned menu extra item (e.g. Wi‑Fi, Battery) with an SF Symbol icon.
+    /// This is used to represent individual items owned by system processes like Control Center or SystemUIServer.
+    static func menuExtraItem(ownerBundleId: String, name: String, identifier: String, xPosition: CGFloat? = nil, width: CGFloat? = nil) -> RunningApp {
+        let resolvedName = displayNameForMenuExtra(identifier) ?? sanitizeMenuExtraLabel(name) ?? (identifier.components(separatedBy: ".").last ?? "Menu Extra")
         let symbolName = iconForMenuExtra(identifier)
-        // Create SF Symbol with proper configuration for visibility
+
         var icon: NSImage?
-        if let baseIcon = NSImage(systemSymbolName: symbolName, accessibilityDescription: name) {
-            // Configure the symbol to render in a visible color
+        if let baseIcon = NSImage(systemSymbolName: symbolName, accessibilityDescription: resolvedName) {
             let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
             icon = baseIcon.withSymbolConfiguration(config)
-            icon?.isTemplate = false  // Render with actual colors, not as template
         }
-        // Fallback to gearshape if symbol fails
+
         if icon == nil {
-            icon = NSImage(systemSymbolName: "gearshape", accessibilityDescription: name)
-            icon?.isTemplate = false
+            icon = NSImage(systemSymbolName: "gearshape", accessibilityDescription: resolvedName)
         }
+
         return RunningApp(
-            id: "com.apple.controlcenter",
-            name: name,
+            id: ownerBundleId,
+            name: resolvedName,
             icon: icon,
             policy: .accessory,
             category: .system,
             menuExtraIdentifier: identifier,
-            xPosition: xPosition
+            statusItemIndex: nil,
+            xPosition: xPosition,
+            width: width
         )
+    }
+
+    private static func displayNameForMenuExtra(_ identifier: String) -> String? {
+        switch identifier {
+        case "com.apple.menuextra.battery": return "Battery"
+        case "com.apple.menuextra.wifi": return "Wi-Fi"
+        case "com.apple.menuextra.bluetooth": return "Bluetooth"
+        case "com.apple.menuextra.clock": return "Clock"
+        case "com.apple.menuextra.airdrop": return "AirDrop"
+        case "com.apple.menuextra.focusmode": return "Focus"
+        case "com.apple.menuextra.controlcenter": return "Control Center"
+        case "com.apple.menuextra.display": return "Display"
+        case "com.apple.menuextra.sound": return "Sound"
+        case "com.apple.menuextra.airplay": return "AirPlay"
+        default:
+            return nil
+        }
+    }
+
+    private static func sanitizeMenuExtraLabel(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        // Remove control characters and SF Symbols private-use glyphs.
+        func isControlScalar(_ value: UInt32) -> Bool {
+            value < 0x20 || (value >= 0x7F && value <= 0x9F)
+        }
+
+        func isPrivateUseScalar(_ value: UInt32) -> Bool {
+            // Unicode Private Use Areas
+            // - BMP:          U+E000 ... U+F8FF
+            // - Plane 15:     U+F0000 ... U+FFFFD
+            // - Plane 16:     U+100000 ... U+10FFFD
+            (value >= 0xE000 && value <= 0xF8FF) ||
+            (value >= 0xF0000 && value <= 0xFFFFD) ||
+            (value >= 0x100000 && value <= 0x10FFFD)
+        }
+
+        var scalars: [UnicodeScalar] = []
+        scalars.reserveCapacity(trimmed.unicodeScalars.count)
+
+        for scalar in trimmed.unicodeScalars {
+            let v = scalar.value
+            if isControlScalar(v) || isPrivateUseScalar(v) { continue }
+            scalars.append(scalar)
+        }
+
+        let cleaned = String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? nil : cleaned
     }
 
     /// Map menu extra identifiers to SF Symbols
@@ -155,11 +237,12 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         }
     }
 
-    init(app: NSRunningApplication, xPosition: CGFloat? = nil) {
-        self.id = app.bundleIdentifier ?? UUID().uuidString
+    init(app: NSRunningApplication, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
+        self.bundleId = app.bundleIdentifier ?? UUID().uuidString
         self.name = app.localizedName ?? "Unknown"
         self.icon = app.icon
         self.xPosition = xPosition
+        self.width = width
 
         switch app.activationPolicy {
         case .regular:
@@ -175,8 +258,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         // Detect category from app bundle
         self.category = Self.detectCategory(for: app)
 
-        // Regular apps don't have a menu extra identifier
-        self.menuExtraIdentifier = nil
+        // Regular apps may still provide a stable AX identifier per status item.
+        self.menuExtraIdentifier = menuExtraIdentifier
+        self.statusItemIndex = statusItemIndex
     }
 
     /// Detect app category from bundle's Info.plist

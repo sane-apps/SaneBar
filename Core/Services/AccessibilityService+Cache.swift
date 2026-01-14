@@ -12,7 +12,7 @@ extension AccessibilityService {
     }
 
     func cachedMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
-        menuBarItemCache
+        menuBarItemCache.map { (app: $0.app, x: $0.x) }
     }
 
     // MARK: - Async Refresh (Non-blocking)
@@ -89,80 +89,23 @@ extension AccessibilityService {
 
         let now = Date()
         if now.timeIntervalSince(menuBarItemCacheTime) < menuBarItemCacheValiditySeconds && !menuBarItemCache.isEmpty {
-            return menuBarItemCache
+            return menuBarItemCache.map { (app: $0.app, x: $0.x) }
         }
 
         if let task = menuBarItemsRefreshTask {
-            return await task.value
+            let items = await task.value
+            return items.map { (app: $0.app, x: $0.x) }
         }
 
-        let task = Task<[(app: RunningApp, x: CGFloat)], Never> {
-            // Candidate apps list must be gathered on the main thread.
-            let candidatePIDs: [pid_t] = NSWorkspace.shared.runningApplications.compactMap { app in
-                guard let bundleID = app.bundleIdentifier else { return nil }
-                guard bundleID != Bundle.main.bundleIdentifier else { return nil }
-                return app.processIdentifier
-            }
-
-            let pidMinX = await Task.detached(priority: .utility) {
-                Self.scanMenuBarAppMinXPositions(candidatePIDs: candidatePIDs)
-            }.value
-
-            var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
-            var controlCenterPID: pid_t?
-
-            for (pid, x) in pidMinX {
-                guard let app = NSRunningApplication(processIdentifier: pid),
-                      let bundleID = app.bundleIdentifier else { continue }
-
-                // Special case: Control Center - remember its PID for later expansion
-                if bundleID == "com.apple.controlcenter" {
-                    controlCenterPID = pid
-                    continue  // Don't add the collapsed entry
-                }
-
-                if let existing = appPositions[bundleID] {
-                    if x < existing.x {
-                        appPositions[bundleID] = (app: RunningApp(app: app, xPosition: x), x: x)
-                    }
-                } else {
-                    appPositions[bundleID] = (app: RunningApp(app: app, xPosition: x), x: x)
-                }
-            }
-
-            // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
-            if let ccPID = controlCenterPID {
-                let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
-                for item in ccItems {
-                    let key = item.app.uniqueId
-                    
-                    // Ensure xPosition is preserved in RunningApp
-                    var appWithX = item.app
-                    if appWithX.xPosition == nil {
-                        appWithX = RunningApp(
-                            id: item.app.id,
-                            name: item.app.name,
-                            icon: item.app.icon,
-                            policy: item.app.policy,
-                            category: item.app.category,
-                            menuExtraIdentifier: item.app.menuExtraIdentifier,
-                            xPosition: item.x
-                        )
-                    }
-                    appPositions[key] = (app: appWithX, x: item.x)
-                }
-            }
-
-            let apps = Array(appPositions.values).sorted { $0.x < $1.x }
-            self.menuBarItemCache = apps
-            self.menuBarItemCacheTime = Date()
-            return apps
+        let task = Task<[(app: RunningApp, x: CGFloat, width: CGFloat)], Never> {
+            // Use the authoritative scanner (includes width) and benefits from its caching.
+            self.listMenuBarItemsWithPositions()
         }
 
         menuBarItemsRefreshTask = task
         let result = await task.value
         menuBarItemsRefreshTask = nil
-        return result
+        return result.map { (app: $0.app, x: $0.x) }
     }
     
     /// Invalidates all menu bar caches, forcing a fresh scan on next call.

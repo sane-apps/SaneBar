@@ -4,6 +4,14 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Scanning")
 
 extension AccessibilityService {
+
+    private struct ScannedStatusItem {
+        let pid: pid_t
+        let itemIndex: Int?
+        let x: CGFloat
+        let width: CGFloat
+        let axIdentifier: String?
+    }
     
     // MARK: - System Wide Search
 
@@ -46,6 +54,7 @@ extension AccessibilityService {
         var seenIds = Set<String>()
         var apps: [RunningApp] = []
         var controlCenterPID: pid_t?
+        var systemUIServerPID: pid_t?
 
         for pid in pids {
             guard let app = NSRunningApplication(processIdentifier: pid),
@@ -54,6 +63,12 @@ extension AccessibilityService {
             // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
                 controlCenterPID = pid
+                continue  // Don't add the collapsed entry
+            }
+
+            // Special case: SystemUIServer - it often owns system menu extras like Wi‑Fi
+            if bundleID == "com.apple.systemuiserver" {
+                systemUIServerPID = pid
                 continue  // Don't add the collapsed entry
             }
 
@@ -74,6 +89,18 @@ extension AccessibilityService {
             }
         }
 
+        // Expand SystemUIServer into individual items (Wi‑Fi, Bluetooth, etc.)
+        if let suPID = systemUIServerPID {
+            let suItems = Self.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
+            logger.debug("Expanded SystemUIServer into \(suItems.count) individual owners")
+            for item in suItems {
+                let key = item.app.uniqueId
+                guard !seenIds.contains(key) else { continue }
+                seenIds.insert(key)
+                apps.append(item.app)
+            }
+        }
+
         let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
 
         // Update cache
@@ -85,7 +112,7 @@ extension AccessibilityService {
     }
 
     /// Returns menu bar items, with position info.
-    func listMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
+    func listMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat, width: CGFloat)] {
         guard isTrusted else {
             logger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
@@ -111,7 +138,7 @@ extension AccessibilityService {
         logger.debug("Scanning \(candidateApps.count) candidate apps (filtered from \(NSWorkspace.shared.runningApplications.count) total)")
 
         // Scan candidate applications for their menu bar extras
-        var results: [(pid: pid_t, x: CGFloat)] = []
+        var results: [ScannedStatusItem] = []
 
         for runningApp in candidateApps {
             let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
@@ -132,12 +159,43 @@ extension AccessibilityService {
 
             guard childResult == .success, let items = children as? [AXUIElement] else { continue }
 
-            for item in items {
+            func axString(_ value: CFTypeRef?) -> String? {
+                if let s = value as? String { return s }
+                if let attributed = value as? NSAttributedString { return attributed.string }
+                return nil
+            }
+
+            let usesPerItemIdentity = items.count > 1
+
+            // Prefer stable AX identifiers when they exist and are unique within this app.
+            var identifiersByIndex: [Int: String] = [:]
+            if usesPerItemIdentity {
+                var identifiers: [String] = []
+                identifiers.reserveCapacity(items.count)
+                for (index, item) in items.enumerated() {
+                    var identifierValue: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                    if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+                        identifiers.append(id)
+                        identifiersByIndex[index] = id
+                    }
+                }
+
+                // Only use identifiers if we have at least one and they don't collide.
+                if !identifiers.isEmpty {
+                    let uniqueCount = Set(identifiers).count
+                    if uniqueCount != identifiers.count {
+                        identifiersByIndex.removeAll(keepingCapacity: true)
+                    }
+                }
+            }
+
+            for (index, item) in items.enumerated() {
+                // Get Position
                 var positionValue: CFTypeRef?
                 let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
                 var xPos: CGFloat = 0
-
                 if posResult == .success, let posValue = positionValue {
                     if CFGetTypeID(posValue) == AXValueGetTypeID() {
                         var point = CGPoint.zero
@@ -148,17 +206,50 @@ extension AccessibilityService {
                     }
                 }
 
-                results.append((pid: runningApp.processIdentifier, x: xPos))
+                // Get Size (Width)
+                var sizeValue: CFTypeRef?
+                let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+
+                var width: CGFloat = 0
+                if sizeResult == .success, let sValue = sizeValue {
+                    if CFGetTypeID(sValue) == AXValueGetTypeID() {
+                        var size = CGSize.zero
+                        // swiftlint:disable:next force_cast
+                        if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
+                            width = size.width
+                        }
+                    }
+                }
+
+                // If the app exposes multiple status items, keep them distinct.
+                // Otherwise preserve the legacy identity (bundleId-only).
+                let itemIndex: Int? = usesPerItemIdentity ? index : nil
+                results.append(
+                    ScannedStatusItem(
+                        pid: runningApp.processIdentifier,
+                        itemIndex: itemIndex,
+                        x: xPos,
+                        width: width,
+                        axIdentifier: identifiersByIndex[index]
+                    )
+                )
             }
         }
 
         logger.debug("Scanned candidate apps, found \(results.count) menu bar items")
 
         // Convert to RunningApps (unique by bundle ID or menuExtraIdentifier)
-        var appPositions: [String: (app: RunningApp, x: CGFloat)] = [:]
+        var appPositions: [String: (app: RunningApp, x: CGFloat, width: CGFloat)] = [:]
         var controlCenterPID: pid_t?
+        var systemUIServerPID: pid_t?
 
-        for (pid, x) in results {
+        for scanned in results {
+            let pid = scanned.pid
+            let itemIndex = scanned.itemIndex
+            let axIdentifier = scanned.axIdentifier
+            let x = scanned.x
+            let width = scanned.width
+
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
 
@@ -168,13 +259,23 @@ extension AccessibilityService {
                 continue  // Don't add the collapsed entry
             }
 
-            // Keep the minimum x position for each app (most hidden position)
-            if let existing = appPositions[bundleID] {
-                if x < existing.x {
-                    appPositions[bundleID] = (app: RunningApp(app: app, xPosition: x), x: x)
-                }
+            // Special case: SystemUIServer - remember its PID for later expansion
+            if bundleID == "com.apple.systemuiserver" {
+                systemUIServerPID = pid
+                continue  // Don't add the collapsed entry
+            }
+
+            let appModel = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: x, width: width)
+            let key = appModel.uniqueId
+
+            // If we somehow see duplicate keys, keep the more-leftward X (stable sort).
+            if let existing = appPositions[key] {
+                let newX = min(existing.x, x)
+                let newWidth = max(existing.width, width)
+                let updatedApp = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: newX, width: newWidth)
+                appPositions[key] = (app: updatedApp, x: newX, width: newWidth)
             } else {
-                appPositions[bundleID] = (app: RunningApp(app: app, xPosition: x), x: x)
+                appPositions[key] = (app: appModel, x: x, width: width)
             }
         }
 
@@ -186,20 +287,46 @@ extension AccessibilityService {
                 // Use uniqueId (menuExtraIdentifier) as the key for Control Center items
                 let key = item.app.uniqueId
                 
-                // Ensure xPosition is preserved in RunningApp
-                var appWithX = item.app
-                if appWithX.xPosition == nil {
-                    appWithX = RunningApp(
-                        id: item.app.id,
+                // Ensure xPosition and width are preserved in RunningApp
+                var appWithProps = item.app
+                if appWithProps.xPosition == nil || appWithProps.width == nil {
+                    appWithProps = RunningApp(
+                        id: item.app.bundleId,
                         name: item.app.name,
                         icon: item.app.icon,
                         policy: item.app.policy,
                         category: item.app.category,
                         menuExtraIdentifier: item.app.menuExtraIdentifier,
-                        xPosition: item.x
+                        xPosition: item.x,
+                        width: item.width
                     )
                 }
-                appPositions[key] = (app: appWithX, x: item.x)
+                appPositions[key] = (app: appWithProps, x: item.x, width: item.width)
+            }
+        }
+
+        // Expand SystemUIServer into individual items (Wi‑Fi, Bluetooth, etc.)
+        if let suPID = systemUIServerPID {
+            let suItems = Self.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
+            logger.debug("Expanded SystemUIServer into \(suItems.count) individual items")
+            for item in suItems {
+                let key = item.app.uniqueId
+
+                var appWithProps = item.app
+                if appWithProps.xPosition == nil || appWithProps.width == nil {
+                    appWithProps = RunningApp(
+                        id: item.app.bundleId,
+                        name: item.app.name,
+                        icon: item.app.icon,
+                        policy: item.app.policy,
+                        category: item.app.category,
+                        menuExtraIdentifier: item.app.menuExtraIdentifier,
+                        xPosition: item.x,
+                        width: item.width
+                    )
+                }
+
+                appPositions[key] = (app: appWithProps, x: item.x, width: item.width)
             }
         }
 
@@ -222,8 +349,14 @@ extension AccessibilityService {
     ///
     /// Control Center owns multiple independent menu bar icons under a single bundle ID.
     /// This method extracts each as a separate entry using AXIdentifier and AXDescription.
-    internal nonisolated static func enumerateControlCenterItems(pid: pid_t) -> [(app: RunningApp, x: CGFloat)] {
-        var results: [(app: RunningApp, x: CGFloat)] = []
+    internal nonisolated static func enumerateControlCenterItems(pid: pid_t) -> [(app: RunningApp, x: CGFloat, width: CGFloat)] {
+        enumerateMenuExtraItems(pid: pid, ownerBundleId: "com.apple.controlcenter")
+    }
+
+    /// Enumerates individual system menu extra items owned by a single process (e.g. Control Center, SystemUIServer).
+    /// Returns virtual RunningApp instances for each item with positions.
+    internal nonisolated static func enumerateMenuExtraItems(pid: pid_t, ownerBundleId: String) -> [(app: RunningApp, x: CGFloat, width: CGFloat)] {
+        var results: [(app: RunningApp, x: CGFloat, width: CGFloat)] = []
 
         let appElement = AXUIElementCreateApplication(pid)
 
@@ -239,15 +372,35 @@ extension AccessibilityService {
         guard childResult == .success, let items = children as? [AXUIElement] else { return results }
 
         for item in items {
-            // Get AXIdentifier (e.g., "com.apple.menuextra.battery")
+            func axString(_ value: CFTypeRef?) -> String? {
+                if let s = value as? String { return s }
+                if let attributed = value as? NSAttributedString { return attributed.string }
+                return nil
+            }
+
+            // Get AXIdentifier (e.g., "com.apple.menuextra.wifi"). If it doesn't exist, it's usually not a user-facing item.
             var identifierValue: CFTypeRef?
             AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-            guard let identifier = identifierValue as? String, !identifier.isEmpty else { continue }
+            guard let rawIdentifier = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !rawIdentifier.isEmpty else {
+                continue
+            }
 
-            // Get AXDescription (e.g., "Battery")
+            // SystemUIServer/Control Center can expose internal children; only keep real menu extras.
+            if ownerBundleId.hasPrefix("com.apple."), !rawIdentifier.hasPrefix("com.apple.menuextra.") {
+                continue
+            }
+
+            let identifier = rawIdentifier
+
+            // Prefer stable, human labels. Title is often more useful than Description.
+            var titleValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
+
             var descValue: CFTypeRef?
             AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
-            let description = (descValue as? String) ?? identifier.components(separatedBy: ".").last ?? "Unknown"
+
+            let rawLabel = axString(titleValue) ?? axString(descValue) ?? identifier.components(separatedBy: ".").last ?? "Unknown"
 
             // Get position
             var positionValue: CFTypeRef?
@@ -261,9 +414,20 @@ extension AccessibilityService {
                 }
             }
 
-            // Create virtual RunningApp for this Control Center item
-            let virtualApp = RunningApp.controlCenterItem(name: description, identifier: identifier)
-            results.append((app: virtualApp, x: xPos))
+            // Get Size (Width)
+            var sizeValue: CFTypeRef?
+            let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+            var width: CGFloat = 0
+            if sizeResult == .success, let sValue = sizeValue, CFGetTypeID(sValue) == AXValueGetTypeID() {
+                var size = CGSize.zero
+                // swiftlint:disable:next force_cast
+                if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
+                    width = size.width
+                }
+            }
+
+            let virtualApp = RunningApp.menuExtraItem(ownerBundleId: ownerBundleId, name: rawLabel, identifier: identifier, xPosition: xPos, width: width)
+            results.append((app: virtualApp, x: xPos, width: width))
         }
 
         return results

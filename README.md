@@ -199,8 +199,8 @@ Free to use! If SaneBar helps you, star this repo.
 git clone https://github.com/stephanjoseph/SaneBar.git
 cd SaneBar
 bundle install
-./Scripts/SaneMaster.rb verify
-./Scripts/SaneMaster.rb launch
+./scripts/SaneMaster.rb verify
+./scripts/SaneMaster.rb launch
 ```
 
 ### Project Structure
@@ -215,7 +215,7 @@ SaneBar/
 │   ├── Settings/           # Modular settings tabs
 │   └── SearchWindow/       # Find Hidden Icon UI
 ├── Tests/                  # 165 unit tests with mocks
-├── Scripts/                # Build automation (SaneMaster.rb)
+├── scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```
 

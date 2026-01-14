@@ -34,9 +34,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// When true, the user explicitly chose to keep icons revealed ("Reveal All")
     /// and we should not auto-hide until they explicitly hide again.
     @Published private(set) var isRevealPinned: Bool = false
-    
-    /// Tracks whether the status menu is currently open
-    @Published var isMenuOpen: Bool = false
 
     // MARK: - Screen Detection
 
@@ -63,20 +60,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Status Items
 
     /// Main SaneBar icon you click (always visible)
-    internal var mainStatusItem: NSStatusItem?
+    private var mainStatusItem: NSStatusItem?
     /// Separator that expands to hide items (the actual delimiter)
-    internal var separatorItem: NSStatusItem?
-    internal var statusMenu: NSMenu?
+    private var separatorItem: NSStatusItem?
+    private var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
 
     // MARK: - Subscriptions
 
     private var cancellables = Set<AnyCancellable>()
-    internal var positionMonitorTask: Task<Void, Never>?
+    private var positionMonitorTask: Task<Void, Never>?
     /// Counter for consecutive invalid position checks (debounce for drag operations)
-    internal var invalidPositionCount = 0
+    private var invalidPositionCount = 0
     /// Threshold before triggering warning (3 checks × 500ms = 1.5 seconds)
-    internal let invalidPositionThreshold = 3
+    private let invalidPositionThreshold = 3
 
     // MARK: - Initialization
 
@@ -148,11 +145,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     
     /// Detects if running in a headless environment (CI, tests without window server)
     private func isRunningInHeadlessEnvironment() -> Bool {
-        // Allow UI tests to force UI loading via environment variable
-        if ProcessInfo.processInfo.environment["SANEBAR_UI_TESTING"] != nil {
-            return false
-        }
-
         // Check for common CI environment variables
         let env = ProcessInfo.processInfo.environment
         if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {
@@ -233,14 +225,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         separatorItem = statusBarController.separatorItem
 
         // Setup menu using controller, attach to separator
-        statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
+        statusMenu = statusBarController.createMenu(
             toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
             checkForUpdatesAction: #selector(checkForUpdates),
             quitAction: #selector(quitApp),
             target: self
-        ))
+        )
         separatorItem?.menu = statusMenu
         statusMenu?.delegate = self
 
@@ -251,6 +243,29 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Validate positions on startup (with delay for UI to settle)
         validatePositionsOnStartup()
+    }
+
+    @objc private func statusItemClicked(_ sender: Any?) {
+        guard let event = NSApp.currentEvent else { return }
+
+        switch StatusBarController.clickType(from: event) {
+        case .optionClick:
+            logger.info("Option-click: opening Power Search")
+            SearchWindowController.shared.toggle()
+        case .leftClick:
+            toggleHiddenItems()
+        case .rightClick:
+            showStatusMenu()
+        }
+    }
+
+    private func showStatusMenu() {
+        guard let statusMenu = statusMenu,
+              let item = mainStatusItem,
+              let button = item.button else { return }
+        logger.info("Right-click: showing menu")
+        // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
+        item.popUpMenu(statusMenu)
     }
 
     private func setupObservers() {
@@ -423,6 +438,159 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
+    // MARK: - Position Validation
+
+    /// Returns true if separator is correctly positioned (LEFT of main icon)
+    /// Returns true if we can't determine position (assume valid on startup)
+    private func validateSeparatorPosition() -> Bool {
+        // If buttons aren't ready, assume valid (don't block on startup)
+        guard let mainButton = mainStatusItem?.button,
+              let separatorButton = separatorItem?.button else {
+            logger.debug("validateSeparatorPosition: buttons not ready - assuming valid")
+            return true
+        }
+
+        // If windows aren't ready, assume valid (don't block on startup)
+        guard let mainWindow = mainButton.window,
+              let separatorWindow = separatorButton.window else {
+            logger.debug("validateSeparatorPosition: windows not ready - assuming valid")
+            return true
+        }
+
+        let mainFrame = mainWindow.frame
+        let separatorFrame = separatorWindow.frame
+
+        // If frames are zero/invalid, assume valid (UI not ready)
+        if mainFrame.width == 0 || separatorFrame.width == 0 {
+            logger.debug("validateSeparatorPosition: frames not ready - assuming valid")
+            return true
+        }
+
+        // CRITICAL: Check if both windows are on the same screen
+        // In multi-display setups, each display has its own menu bar, and coordinates
+        // are in unified screen space. Comparing coordinates across different screens
+        // will produce false positives (e.g., separator at x=6476 on external display,
+        // main at x=1496 on built-in display).
+        // See: https://github.com/stephanjoseph/SaneBar/issues/11
+        if mainWindow.screen != separatorWindow.screen {
+            logger.debug("validateSeparatorPosition: items on different screens - assuming valid (multi-display transition)")
+            return true
+        }
+
+        // Check: separator must be LEFT of main icon (lower X in screen coordinates)
+        // Menu bar: LEFT = lower X, RIGHT = higher X
+        let separatorRightEdge = separatorFrame.origin.x + separatorFrame.width
+        let mainLeftEdge = mainFrame.origin.x
+
+        if separatorRightEdge > mainLeftEdge {
+            logger.warning("Position error: separator (right edge \(separatorRightEdge)) is RIGHT of main (left edge \(mainLeftEdge))")
+            return false
+        }
+
+        logger.debug("Position valid: separator right=\(separatorRightEdge), main left=\(mainLeftEdge)")
+        return true
+    }
+
+    /// Validates positions on startup with a delay to let UI settle
+    /// If validation passes, hides the items. If it fails, shows a warning and stays expanded.
+    func validatePositionsOnStartup() {
+        // Delay to let status items get their final positions (2s for safety)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self else { return }
+            if self.validateSeparatorPosition() {
+                // Position is valid - safe to hide
+                logger.info("Startup position validation passed - hiding items")
+                Task {
+                    await self.hidingService.hide()
+                }
+            } else {
+                // Position is wrong - stay expanded and warn user
+                logger.warning("Startup position validation failed! Staying expanded.")
+                self.showPositionWarning()
+            }
+
+            // Start continuous position monitoring to prevent separator from eating main icon
+            self.startPositionMonitoring()
+
+            // Pre-warm Find Icon cache so first open is instant
+            AccessibilityService.shared.prewarmCache()
+        }
+    }
+
+    // MARK: - Continuous Position Monitoring
+
+    /// Monitor separator position continuously to prevent it from "eating" the main icon
+    /// If user drags separator to an invalid position while items are hidden, auto-expand
+    private func startPositionMonitoring() {
+        positionMonitorTask?.cancel()
+
+        positionMonitorTask = Task { [weak self] in
+            while !Task.isCancelled {
+                // Check every 500ms - balance between responsiveness and CPU usage
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                guard !Task.isCancelled else { break }
+
+                await MainActor.run {
+                    self?.checkPositionAndAutoExpand()
+                }
+            }
+        }
+    }
+
+    /// Check position and auto-expand if separator is eating the main icon
+    private func checkPositionAndAutoExpand() {
+        // Only check when hidden - that's when the 10,000px spacer can push the main icon off
+        guard self.hidingState == .hidden else {
+            self.invalidPositionCount = 0  // Reset when not hidden
+            return
+        }
+
+        // If position is invalid, increment counter (debounce for drag operations)
+        if !self.validateSeparatorPosition() {
+            self.invalidPositionCount += 1
+
+            // Only trigger after sustained invalid position (allows drag-through)
+            if self.invalidPositionCount >= self.invalidPositionThreshold {
+                logger.warning("⚠️ POSITION EMERGENCY: Separator in invalid position for \(self.invalidPositionCount) checks. Auto-expanding...")
+                Task {
+                    await self.hidingService.show()
+                }
+                self.showPositionWarning()
+                self.invalidPositionCount = 0  // Reset after triggering
+            } else {
+                logger.debug("Position invalid, count: \(self.invalidPositionCount)/\(self.invalidPositionThreshold)")
+            }
+        } else {
+            // Position is valid - reset counter
+            if self.invalidPositionCount > 0 {
+                logger.debug("Position valid again, resetting counter from \(self.invalidPositionCount)")
+            }
+            self.invalidPositionCount = 0
+        }
+    }
+
+    /// Stop position monitoring (called on deinit or when appropriate)
+    private func stopPositionMonitoring() {
+        positionMonitorTask?.cancel()
+        positionMonitorTask = nil
+    }
+
+    private func showPositionWarning() {
+        guard let button = mainStatusItem?.button else { return }
+
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 300, height: 120)
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView: PositionWarningView())
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+
+        // Auto-close after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            popover.close()
+        }
+    }
+
     // MARK: - Privacy Auth
 
     private func authenticate(reason: String) async -> Bool {
@@ -447,6 +615,122 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         statusBarController.updateAppearance(for: hidingState)
     }
 
+    // MARK: - NSMenuDelegate
+
+    func menuWillOpen(_ menu: NSMenu) {
+        logger.debug("Menu will open - checking targets...")
+        for item in menu.items where !item.isSeparatorItem {
+            let targetStatus = item.target == nil ? "nil" : "set"
+            logger.debug("  '\(item.title)': target=\(targetStatus)")
+        }
+    }
+
+    // MARK: - Menu Actions
+
+    @objc private func menuToggleHiddenItems(_ sender: Any?) {
+        logger.info("Menu: Toggle Hidden Items")
+        toggleHiddenItems()
+    }
+
+    @objc private func openSettings(_ sender: Any?) {
+        logger.info("Menu: Opening Settings")
+        SettingsOpener.open()
+    }
+
+    @objc private func openFindIcon(_ sender: Any?) {
+        logger.info("Menu: Find Icon")
+        SearchWindowController.shared.toggle()
+    }
+
+    @objc private func quitApp(_ sender: Any?) {
+        logger.info("Menu: Quit")
+        NSApplication.shared.terminate(nil)
+    }
+
+    @objc private func checkForUpdates(_ sender: Any?) {
+        logger.info("Menu: Check for Updates")
+        Task {
+            await performUpdateCheck()
+        }
+    }
+
+    /// Performs the update check and shows appropriate alert
+    private func performUpdateCheck() async {
+        let result = await updateService.checkForUpdates()
+
+        // Update last check time
+        settings.lastUpdateCheck = Date()
+        saveSettings()
+
+        await MainActor.run {
+            showUpdateResult(result)
+        }
+    }
+
+    private func showUpdateResult(_ result: UpdateResult) {
+        let alert = NSAlert()
+
+        switch result {
+        case .upToDate:
+            alert.messageText = "You're up to date!"
+            alert.informativeText = "SaneBar is running the latest version."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+
+        case .updateAvailable(let version, let releaseURL):
+            alert.messageText = "Update Available"
+            alert.informativeText = "SaneBar \(version) is available. You're currently running \(currentAppVersion)."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "View Release")
+            alert.addButton(withTitle: "Later")
+
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(releaseURL)
+            }
+            return
+
+        case .error(let message):
+            alert.messageText = "Update Check Failed"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+        }
+
+        alert.runModal()
+    }
+
+    private var currentAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
+    /// Check for updates on launch if enabled, with rate limiting (max once per day)
+    private func checkForUpdatesOnLaunchIfEnabled() {
+        guard settings.checkForUpdatesAutomatically else { return }
+
+        // Rate limit: only check once per day
+        if let lastCheck = settings.lastUpdateCheck {
+            let hoursSinceLastCheck = Date().timeIntervalSince(lastCheck) / 3600
+            if hoursSinceLastCheck < 24 {
+                logger.debug("Skipping auto update check - last check was \(hoursSinceLastCheck) hours ago")
+                return
+            }
+        }
+
+        logger.info("Auto-checking for updates on launch")
+        Task {
+            let result = await updateService.checkForUpdates()
+            settings.lastUpdateCheck = Date()
+            saveSettings()
+
+            // Only show alert if update is available (don't bother user with "up to date")
+            if case .updateAvailable = result {
+                await MainActor.run {
+                    showUpdateResult(result)
+                }
+            }
+        }
+    }
+
     // MARK: - Spacers
 
     /// Update spacer items based on settings
@@ -456,6 +740,67 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             style: settings.spacerStyle,
             width: settings.spacerWidth
         )
+    }
+
+    // MARK: - Icon Moving
+
+    /// Get the separator's right edge X position (for moving icons)
+    /// Returns nil if separator position can't be determined
+    func getSeparatorRightEdgeX() -> CGFloat? {
+        guard let separatorButton = separatorItem?.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+        let frame = separatorWindow.frame
+        guard frame.width > 0 else { return nil }
+        return frame.origin.x + frame.width
+    }
+
+    /// Move an icon to hidden or visible position
+    /// - Parameters:
+    ///   - bundleID: The bundle ID of the app to move
+    ///   - toHidden: True to hide, false to show
+    /// - Returns: True if successful
+    func moveIcon(bundleID: String, toHidden: Bool) -> Bool {
+        // Use .error level for visibility (notice level is often filtered)
+        logger.error("🔧 moveIcon called: bundleID=\(bundleID), toHidden=\(toHidden)")
+
+        // IMPORTANT: If moving FROM hidden TO visible, we need to expand (show) first
+        // so the icon is actually on screen and draggable
+        let wasHidden = hidingState == .hidden
+        if !toHidden && wasHidden {
+            logger.error("🔧 Expanding hidden section first using show()...")
+            Task { await hidingService.show() }
+        }
+
+        // Use async to give UI time to settle if we expanded
+        let delay: TimeInterval = (!toHidden && wasHidden) ? 0.4 : 0.0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
+            guard let separatorX = getSeparatorRightEdgeX() else {
+                logger.error("🔧 Cannot get separator position for icon move")
+                return
+            }
+
+            logger.error("🔧 Separator X position: \(separatorX)")
+
+            let success = AccessibilityService.shared.moveMenuBarIcon(
+                bundleID: bundleID,
+                toHidden: toHidden,
+                separatorX: separatorX
+            )
+
+            logger.error("🔧 moveMenuBarIcon returned: \(success)")
+
+            if success {
+                // Refresh after a short delay to let the system settle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    AccessibilityService.shared.invalidateMenuBarItemCache()
+                }
+            }
+        }
+
+        return true  // Return true since operation is async
     }
 
     // MARK: - Onboarding

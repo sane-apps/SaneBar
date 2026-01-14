@@ -10,8 +10,8 @@ packages:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0
   LaunchAtLogin:
-    url: https://github.com/sindresorhus/LaunchAtLogin-Modern
-    from: 1.0.0
+    url: https://github.com/sindresorhus/LaunchAtLogin
+    from: 5.0.0
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -83,6 +83,9 @@ targets:
       properties:
         NSAppleScriptEnabled: true
         OSAScriptingDefinition: SaneBar.sdef
+        NSAppleEventsUsageDescription: "SaneBar needs to control other applications to manage your menu bar items."
+        NSAccessibilityUsageDescription: "SaneBar needs accessibility permissions to detect and manage menu bar items."
+        LSApplicationCategoryType: "public.app-category.utilities"
     settings:
       base:
         PRODUCT_NAME: SaneBar
@@ -120,6 +123,7 @@ targets:
     bundleId: com.sanebar.SaneBarTests
     deploymentTarget:
       macOS: 15.0
+    testTarget: SaneBar
     sources:
       - Tests
     dependencies:

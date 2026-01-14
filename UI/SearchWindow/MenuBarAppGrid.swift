@@ -31,17 +31,11 @@ struct MenuBarAppGrid: View {
                             onActivate: { onActivate(app) },
                             onSetHotkey: { onSetHotkey(app) },
                             onRemoveFromGroup: selectedGroupId.map { groupId in
-                                { onRemoveFromGroup(app.id, groupId) }
+                                { onRemoveFromGroup(app.bundleId, groupId) }
                             },
                             isHidden: mode == "hidden",
                             onToggleHidden: mode == "all" ? nil : {
-                                onMoveIcon(app.id, app.menuExtraIdentifier, mode == "visible")
-                                
-                                // Delay refresh to let the CGEvent drag complete
-                                Task { @MainActor in
-                                    try? await Task.sleep(for: .milliseconds(400))
-                                    onRefresh()
-                                }
+                                onMoveIcon(app.bundleId, app.menuExtraIdentifier, mode == "visible")
                             }
                         )
                     }

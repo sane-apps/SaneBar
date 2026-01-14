@@ -31,6 +31,8 @@ struct MenuBarAppTile: View {
                         if let icon = app.icon {
                             Image(nsImage: icon)
                                 .resizable()
+                                .renderingMode(icon.isTemplate ? .template : .original)
+                                .foregroundStyle(icon.isTemplate ? .secondary : .primary)
                         } else {
                             Image(systemName: "app.fill")
                                 .resizable()
@@ -55,7 +57,7 @@ struct MenuBarAppTile: View {
             .frame(width: tileSize, height: showName ? tileSize + 16 : tileSize)
         }
         .buttonStyle(.plain)
-        .draggable(app.id)  // Enable drag with bundle ID as payload
+        .draggable(app.bundleId)  // Enable drag with bundle ID as payload
         .help(app.name)
         .contextMenu {
             Button("Open") {

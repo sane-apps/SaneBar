@@ -63,7 +63,7 @@ final class AccessibilityService: ObservableObject {
     // MARK: - Menu Bar Item Cache
 
     /// Cache for menu bar item positions to avoid expensive rescans
-    internal var menuBarItemCache: [(app: RunningApp, x: CGFloat)] = []
+    internal var menuBarItemCache: [(app: RunningApp, x: CGFloat, width: CGFloat)] = []
     internal var menuBarItemCacheTime: Date = .distantPast
     internal let menuBarItemCacheValiditySeconds: TimeInterval = 5.0  // Refresh every 5 seconds for accurate positions
 
@@ -73,7 +73,7 @@ final class AccessibilityService: ObservableObject {
     internal let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0  // Refresh every 10 seconds for responsive UI
 
     internal var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
-    internal var menuBarItemsRefreshTask: Task<[(app: RunningApp, x: CGFloat)], Never>?
+    internal var menuBarItemsRefreshTask: Task<[(app: RunningApp, x: CGFloat, width: CGFloat)], Never>?
 
     // MARK: - Initialization
 
@@ -143,7 +143,7 @@ final class AccessibilityService: ObservableObject {
     // MARK: - API Verification
 
     /// Checks if we have accessibility permissions (legacy - prefer `isGranted` property)
-    var isTrusted: Bool {
+    nonisolated var isTrusted: Bool {
         AXIsProcessTrusted()
     }
 

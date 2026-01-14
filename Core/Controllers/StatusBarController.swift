@@ -244,6 +244,17 @@ final class StatusBarController: StatusBarControllerProtocol {
     func createMenu(configuration: MenuConfiguration) -> NSMenu {
         let menu = NSMenu()
 
+        let toggleItem = NSMenuItem(
+            title: "Toggle Hidden Items",
+            action: configuration.toggleAction,
+            keyEquivalent: "\\"
+        )
+        toggleItem.target = configuration.target
+        toggleItem.keyEquivalentModifierMask = [.command]
+        menu.addItem(toggleItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let findItem = NSMenuItem(
             title: "Find Icon...",
             action: configuration.findIconAction,

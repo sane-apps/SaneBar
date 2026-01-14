@@ -11,16 +11,6 @@ enum HidingState: String, Codable, Sendable {
     case expanded            // Hidden items are visible
 }
 
-// MARK: - StatusItemProtocol
-
-/// Protocol to abstract NSStatusItem for testing
-@MainActor
-protocol StatusItemProtocol: AnyObject {
-    var length: CGFloat { get set }
-}
-
-extension NSStatusItem: StatusItemProtocol {}
-
 // MARK: - HidingServiceProtocol
 
 /// @mockable
@@ -29,7 +19,7 @@ protocol HidingServiceProtocol {
     var state: HidingState { get }
     var isAnimating: Bool { get }
 
-    func configure(delimiterItem: StatusItemProtocol)
+    func configure(delimiterItem: NSStatusItem)
     func toggle() async
     func show() async
     func hide() async
@@ -69,7 +59,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Configuration
 
     /// The delimiter status item whose length we toggle
-    private weak var delimiterItem: StatusItemProtocol?
+    private weak var delimiterItem: NSStatusItem?
 
     // MARK: - Initialization
 
@@ -80,7 +70,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Configuration
 
     /// Set the delimiter status item that controls hiding
-    func configure(delimiterItem: StatusItemProtocol) {
+    func configure(delimiterItem: NSStatusItem) {
         self.delimiterItem = delimiterItem
 
         // IMPORTANT: Start EXPANDED (not collapsed) so we can validate positions first

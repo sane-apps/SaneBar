@@ -14,7 +14,7 @@
 
 | Path | Purpose |
 |------|---------|
-| `Scripts/SaneMaster.rb` | Build tool - use instead of raw xcodebuild |
+| `scripts/SaneMaster.rb` | Build tool - use instead of raw xcodebuild |
 | `Core/` | Foundation types, Managers, Services |
 | `Core/Services/` | Accessibility API wrappers, permission handling |
 | `Core/Models/` | Data models (StatusItemModel, etc.) |
@@ -29,24 +29,24 @@
 
 ```bash
 # Build & Test
-./Scripts/SaneMaster.rb verify          # Build + unit tests
-./Scripts/SaneMaster.rb test_mode       # Kill -> Build -> Launch -> Logs
-./Scripts/SaneMaster.rb logs --follow   # Stream live logs
-./Scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
+./scripts/SaneMaster.rb verify          # Build + unit tests
+./scripts/SaneMaster.rb test_mode       # Kill -> Build -> Launch -> Logs
+./scripts/SaneMaster.rb logs --follow   # Stream live logs
+./scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
 
 # Memory Health (MCP Knowledge Graph)
-./Scripts/SaneMaster.rb mh              # Check entity/token counts
-./Scripts/SaneMaster.rb mcompact        # Compact verbose entities
-./Scripts/SaneMaster.rb mcleanup        # Generate MCP cleanup commands
+./scripts/SaneMaster.rb mh              # Check entity/token counts
+./scripts/SaneMaster.rb mcompact        # Compact verbose entities
+./scripts/SaneMaster.rb mcleanup        # Generate MCP cleanup commands
 
 # Circuit Breaker (Failure Tracking)
-./Scripts/SaneMaster.rb breaker_status  # Check if breaker is OPEN/CLOSED
-./Scripts/SaneMaster.rb breaker_errors  # Show failure messages
-./Scripts/SaneMaster.rb reset_breaker   # Reset after investigation
+./scripts/SaneMaster.rb breaker_status  # Check if breaker is OPEN/CLOSED
+./scripts/SaneMaster.rb breaker_errors  # Show failure messages
+./scripts/SaneMaster.rb reset_breaker   # Reset after investigation
 
 # Session Management
-./Scripts/SaneMaster.rb session_end     # End session + memory prompt
-./Scripts/SaneMaster.rb compliance      # Show session compliance report
+./scripts/SaneMaster.rb session_end     # End session + memory prompt
+./scripts/SaneMaster.rb compliance      # Show session compliance report
 ```
 
 ---
@@ -65,10 +65,10 @@
 
 ```bash
 # Always verify these exist before coding:
-./Scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
-./Scripts/SaneMaster.rb verify_api kAXExtrasMenuBarAttribute Accessibility
-./Scripts/SaneMaster.rb verify_api AXUIElementCopyAttributeValue Accessibility
-./Scripts/SaneMaster.rb verify_api SMAppService ServiceManagement
+./scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
+./scripts/SaneMaster.rb verify_api kAXExtrasMenuBarAttribute Accessibility
+./scripts/SaneMaster.rb verify_api AXUIElementCopyAttributeValue Accessibility
+./scripts/SaneMaster.rb verify_api SMAppService ServiceManagement
 ```
 
 ---
@@ -80,7 +80,7 @@ SaneBar has automated SOP enforcement via hooks:
 **Circuit Breaker** (`.claude/circuit_breaker.json`):
 - Trips at: 3x same error OR 5 total failures
 - When tripped: Edit/Bash tools blocked until reset
-- Reset: `./Scripts/SaneMaster.rb reset_breaker`
+- Reset: `./scripts/SaneMaster.rb reset_breaker`
 
 **Memory Thresholds** (auto-checked at session start/end):
 - Entities: 60 (warn), 80 (critical)

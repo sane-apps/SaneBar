@@ -247,15 +247,40 @@ module StateManager
       state
     end
 
-    # File locking for concurrent access
+    # File locking for concurrent access with timeout
+    # Uses non-blocking lock with retry to prevent infinite hangs
+    LOCK_TIMEOUT = 2.0  # seconds - must be less than hook timeout (5s)
+    LOCK_RETRY_INTERVAL = 0.05  # 50ms between retries
+
     def with_lock
       FileUtils.mkdir_p(File.dirname(LOCK_FILE))
       File.open(LOCK_FILE, File::RDWR | File::CREAT, 0o644) do |f|
-        f.flock(File::LOCK_EX)
+        deadline = Time.now + LOCK_TIMEOUT
+        locked = false
+
+        # Try non-blocking lock with timeout
+        while Time.now < deadline
+          # LOCK_NB = non-blocking, returns immediately
+          if f.flock(File::LOCK_EX | File::LOCK_NB)
+            locked = true
+            break
+          end
+          sleep(LOCK_RETRY_INTERVAL)
+        end
+
+        unless locked
+          # Timeout! Remove stale lock and try once more
+          warn "⚠️  StateManager lock timeout - clearing stale lock"
+          f.flock(File::LOCK_UN) rescue nil
+
+          # Force acquire (last resort - better than hanging)
+          f.flock(File::LOCK_EX | File::LOCK_NB) rescue nil
+        end
+
         begin
           yield
         ensure
-          f.flock(File::LOCK_UN)
+          f.flock(File::LOCK_UN) rescue nil
         end
       end
     end

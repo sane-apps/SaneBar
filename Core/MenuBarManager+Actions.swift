@@ -8,10 +8,29 @@ extension MenuBarManager {
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
+        logger.debug("Menu will open")
+        isMenuOpen = true
+        
+        // Cancel any pending auto-rehide to prevent the menu from being
+        // forcefully closed if the bar retracts while the user is navigating.
+        hidingService.cancelRehide()
+        
         logger.debug("Menu will open - checking targets...")
         for item in menu.items where !item.isSeparatorItem {
             let targetStatus = item.target == nil ? "nil" : "set"
             logger.debug("  '\(item.title)': target=\(targetStatus)")
+        }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        logger.debug("Menu did close")
+        isMenuOpen = false
+        
+        // If we are expanded and auto-rehide is enabled, restart the timer
+        // so the bar doesn't stay stuck open after a menu interaction.
+        if hidingState == .expanded && settings.autoRehide && !isRevealPinned {
+            logger.debug("Restarting auto-rehide timer after menu close")
+            hidingService.scheduleRehide(after: settings.rehideDelay)
         }
     }
 
@@ -45,6 +64,12 @@ extension MenuBarManager {
     }
     
     @objc func statusItemClicked(_ sender: Any?) {
+        // Prevent interaction during animation to avoid race conditions
+        if hidingService.isAnimating {
+            logger.info("Ignoring click while animating")
+            return
+        }
+
         guard let event = NSApp.currentEvent else { return }
 
         switch StatusBarController.clickType(from: event) {

@@ -59,9 +59,9 @@ extension MenuBarManager {
     ///   - menuExtraId: For Control Center items, the specific menu extra identifier
     ///   - toHidden: True to hide, false to show
     /// - Returns: True if successful
-    func moveIcon(bundleID: String, menuExtraId: String? = nil, toHidden: Bool) -> Bool {
+    func moveIcon(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil, toHidden: Bool) -> Bool {
         logger.info("🔧 ========== MOVE ICON START ==========")
-        logger.info("🔧 moveIcon: bundleID=\(bundleID), menuExtraId=\(menuExtraId ?? "nil"), toHidden=\(toHidden)")
+        logger.info("🔧 moveIcon: bundleID=\(bundleID, privacy: .public), menuExtraId=\(menuExtraId ?? "nil", privacy: .public), toHidden=\(toHidden, privacy: .public)")
         logger.info("🔧 Current hidingState: \(String(describing: self.hidingState))")
 
         // Log current positions BEFORE any action
@@ -72,55 +72,73 @@ extension MenuBarManager {
             logger.info("🔧 Main icon left edge BEFORE: \(mainX)")
         }
 
-        // If moving FROM hidden TO visible, expand (show) first so icon is draggable
+        // IMPORTANT:
+        // When the bar is hidden, the separator's *right edge* becomes extremely large
+        // (because the separator length expands). Using that value for "Move to Hidden"
+        // produces a target X far to the right, so the move appears to do nothing.
+        //
+        // Fix: for moves INTO the hidden zone, use the separator's LEFT edge.
+        // For moves INTO the visible zone, ensure we're expanded, then use the RIGHT edge.
+
         let wasHidden = hidingState == .hidden
         logger.info("🔧 wasHidden: \(wasHidden)")
-        if !toHidden && wasHidden {
-            logger.info("🔧 Expanding hidden icons first...")
-            Task { await hidingService.show() }
-        }
 
-        // Minimal delay only if we needed to expand
-        let delay: TimeInterval = (!toHidden && wasHidden) ? 0.3 : 0.05
-        logger.info("🔧 Using delay: \(delay)s")
+        // Important: avoid blocking the MainActor while simulating Cmd+drag.
+        // Any UI stalls here can make the Find Icon window appear to "collapse".
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            logger.info("🔧 After delay, getting separator position...")
-            guard let separatorX = getSeparatorRightEdgeX() else {
+            // If moving FROM hidden TO visible, expand first so icon is draggable.
+            if !toHidden && wasHidden {
+                logger.info("🔧 Expanding hidden icons first...")
+                await self.hidingService.show()
+                try? await Task.sleep(for: .milliseconds(300))
+            } else {
+                // Tiny settle delay so status item window frames are stable.
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+
+            logger.info("🔧 Getting separator position for move...")
+            let separatorX: CGFloat? = await MainActor.run {
+                if toHidden {
+                    return self.getSeparatorOriginX()
+                }
+                return self.getSeparatorRightEdgeX()
+            }
+
+            guard let separatorX else {
                 logger.error("🔧 Cannot get separator position - ABORTING")
                 return
             }
-            logger.info("🔧 Separator X for move: \(separatorX)")
+            logger.info("🔧 Separator for move: X=\(separatorX)")
 
-            // Get main SaneBar icon position to define visible zone boundary
-            let mainIconX = getMainStatusItemLeftEdgeX()
-            logger.info("🔧 Main SaneBar icon X for move: \(mainIconX ?? -1)")
+            let accessibilityService = await MainActor.run { AccessibilityService.shared }
 
-            let success = AccessibilityService.shared.moveMenuBarIcon(
+            let success = accessibilityService.moveMenuBarIcon(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
                 toHidden: toHidden,
-                separatorX: separatorX,
-                mainIconX: mainIconX
+                separatorX: separatorX
             )
-            logger.info("🔧 moveMenuBarIcon returned: \(success)")
+            logger.info("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
 
-            // Force refresh the search window data after move
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+            // Allow Cmd+drag to complete before refreshing.
+            try? await Task.sleep(for: .milliseconds(250))
+
+            await MainActor.run {
                 logger.info("🔧 Triggering post-move refresh...")
-                // Invalidate any cached icon positions
                 AccessibilityService.shared.invalidateMenuBarItemCache()
-                // Post notification that icons may have moved
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-
-                // If we auto-expanded to facilitate a move, re-hide now
-                if !toHidden && wasHidden {
-                    logger.info("🔧 Move complete - re-hiding items...")
-                    Task { await hidingService.hide() }
-                }
-
-                logger.info("🔧 ========== MOVE ICON END ==========")
             }
+
+            // If we auto-expanded to facilitate a move, re-hide now.
+            if !toHidden && wasHidden {
+                logger.info("🔧 Move complete - re-hiding items...")
+                await self.hidingService.hide()
+            }
+
+            logger.info("🔧 ========== MOVE ICON END ==========")
         }
 
         return true

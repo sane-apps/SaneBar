@@ -487,9 +487,9 @@ final class HidingServiceProtocolMock: HidingServiceProtocol {
     var isAnimating: Bool = false
 
     private(set) var configureCallCount = 0
-    var configureArgValues = [NSStatusItem]()
-    var configureHandler: ((NSStatusItem) -> ())?
-    func configure(delimiterItem: NSStatusItem) {
+    var configureArgValues = [StatusItemProtocol]()
+    var configureHandler: ((StatusItemProtocol) -> ())?
+    func configure(delimiterItem: StatusItemProtocol) {
         configureCallCount += 1
         configureArgValues.append(delimiterItem)
         if let configureHandler = configureHandler {

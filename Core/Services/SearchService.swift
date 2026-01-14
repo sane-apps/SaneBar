@@ -1,5 +1,8 @@
 import AppKit
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchService")
 
 // MARK: - SearchServiceProtocol
 
@@ -45,6 +48,34 @@ protocol SearchServiceProtocol: Sendable {
 final class SearchService: SearchServiceProtocol {
     static let shared = SearchService()
 
+    @MainActor
+    private func menuBarScreenFrame() -> CGRect? {
+        // Prefer the actual screen hosting our status items.
+        if let screen = MenuBarManager.shared.mainStatusItem?.button?.window?.screen {
+            return screen.frame
+        }
+        return NSScreen.main?.frame
+    }
+
+    @MainActor
+    private func separatorOriginXForClassification() -> CGFloat? {
+        MenuBarManager.shared.getSeparatorOriginX()
+    }
+
+    private func isOffscreen(x: CGFloat, in screenFrame: CGRect) -> Bool {
+        // Small margin to avoid flapping due to tiny coordinate jitter.
+        let margin: CGFloat = 6
+        return x < (screenFrame.minX - margin) || x > (screenFrame.maxX + margin)
+    }
+
+    private func isHiddenRelativeToSeparator(itemX: CGFloat, itemWidth: CGFloat?, separatorX: CGFloat) -> Bool {
+        // Use midX to avoid edge jitter when items are near the separator.
+        let width = max(1, itemWidth ?? 22)
+        let midX = itemX + (width / 2)
+        let margin: CGFloat = 6
+        return midX < (separatorX - margin)
+    }
+
     func getRunningApps() async -> [RunningApp] {
         // Run on main actor because accessing NSWorkspace.runningApplications is main-thread bound
         await MainActor.run {
@@ -71,59 +102,143 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func cachedMenuBarApps() -> [RunningApp] {
-        AccessibilityService.shared.cachedMenuBarItemOwners()
+        // Use position-aware cache for 'All' so we can sort spatially
+        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+        return items.map { $0.app }
     }
 
     @MainActor
     func cachedHiddenMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
-        // Hidden icons are LEFT of the separator's left edge (lower X values)
-        guard let separatorX = MenuBarManager.shared.getSeparatorOriginX() else {
-            return []
+
+        // Classify by separator position (works even when temporarily expanded for moving)
+        if let separatorX = separatorOriginXForClassification() {
+            logger.debug("cachedHidden: using separatorX=\(separatorX, privacy: .public) for classification")
+            let apps = items
+                .filter { isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .map { $0.app }
+            logger.debug("cachedHidden: found \(apps.count, privacy: .public) hidden apps")
+            logIdentityHealth(apps: apps, context: "cachedHidden")
+            return apps
         }
-        return items
-            .filter { $0.x < separatorX }
-            .map { $0.app }
+
+        // Fallback: if separator can't be located, approximate by offscreen or negative X.
+        guard let frame = menuBarScreenFrame() else {
+            return items.filter { $0.x < 0 }.map { $0.app }
+        }
+
+        let apps = items.filter { isOffscreen(x: $0.x, in: frame) }.map { $0.app }
+
+        logIdentityHealth(apps: apps, context: "cachedHidden")
+        return apps
     }
 
     @MainActor
     func cachedVisibleMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
-        // Visible icons are RIGHT of the separator's left edge (higher X values)
-        guard let separatorX = MenuBarManager.shared.getSeparatorOriginX() else {
-            return []
+
+        // Classify by separator position (works even when temporarily expanded for moving)
+        if let separatorX = separatorOriginXForClassification() {
+            logger.debug("cachedVisible: using separatorX=\(separatorX, privacy: .public) for classification")
+            let apps = items
+                .filter { !isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .map { $0.app }
+            logger.debug("cachedVisible: found \(apps.count, privacy: .public) visible apps")
+            logIdentityHealth(apps: apps, context: "cachedVisible")
+            return apps
         }
-        return items
-            .filter { $0.x >= separatorX }
-            .map { $0.app }
+
+        // Fallback: when separator unavailable, treat all items as visible
+        logger.debug("cachedVisible: no separator, returning all \(items.count, privacy: .public) items")
+        return items.map { $0.app }
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
-        await AccessibilityService.shared.refreshMenuBarItemOwners()
+        // Refresh positions to ensure 'All' is sorted spatially
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        return items.map { $0.app }
     }
 
     func refreshHiddenMenuBarApps() async -> [RunningApp] {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        // Hidden icons are LEFT of the separator's left edge (lower X values)
-        let separatorX = await MainActor.run {
-            MenuBarManager.shared.getSeparatorOriginX()
+        let (separatorX, frame) = await MainActor.run {
+            (self.separatorOriginXForClassification(), self.menuBarScreenFrame())
         }
-        guard let separatorX else {
-            return []
+
+        if let separatorX {
+            let apps = items
+                .filter { self.isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .map { $0.app }
+            await MainActor.run {
+                self.logIdentityHealth(apps: apps, context: "refreshHidden")
+            }
+            return apps
         }
-        return items.filter { $0.x < separatorX }.map { $0.app }
+
+        guard let frame else {
+            return items.filter { $0.x < 0 }.map { $0.app }
+        }
+
+        let apps = items.filter { self.isOffscreen(x: $0.x, in: frame) }.map { $0.app }
+        await MainActor.run {
+            self.logIdentityHealth(apps: apps, context: "refreshHidden")
+        }
+        return apps
     }
 
     func refreshVisibleMenuBarApps() async -> [RunningApp] {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        // Visible icons are RIGHT of the separator's left edge (higher X values)
-        let separatorX = await MainActor.run {
-            MenuBarManager.shared.getSeparatorOriginX()
+        let (separatorX, frame) = await MainActor.run {
+            (self.separatorOriginXForClassification(), self.menuBarScreenFrame())
         }
-        guard let separatorX else {
-            return []
+
+        // Classify by separator position (works even when temporarily expanded)
+        if let separatorX {
+            let apps = items
+                .filter { !self.isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .map { $0.app }
+            await MainActor.run {
+                self.logIdentityHealth(apps: apps, context: "refreshVisible")
+            }
+            return apps
         }
-        return items.filter { $0.x >= separatorX }.map { $0.app }
+
+        // Not hiding: treat everything as visible.
+        _ = frame // keep for potential future debug; intentionally unused.
+        let apps = items.map { $0.app }
+        await MainActor.run {
+            self.logIdentityHealth(apps: apps, context: "refreshVisible")
+        }
+        return apps
+    }
+
+    @MainActor
+    private func logIdentityHealth(apps: [RunningApp], context: String) {
+        guard !apps.isEmpty else {
+            logger.debug("Find Icon list empty (\(context, privacy: .public))")
+            return
+        }
+
+        var countsById: [String: Int] = [:]
+        countsById.reserveCapacity(apps.count)
+        for app in apps {
+            countsById[app.id, default: 0] += 1
+        }
+
+        let uniqueCount = countsById.count
+        let duplicateIds = countsById.filter { $0.value > 1 }
+
+        logger.debug("Find Icon \(context, privacy: .public): count=\(apps.count, privacy: .public) uniqueIds=\(uniqueCount, privacy: .public) dupIds=\(duplicateIds.count, privacy: .public)")
+
+        if !duplicateIds.isEmpty {
+            let sample = duplicateIds.prefix(10).map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
+            logger.error("Find Icon \(context, privacy: .public): DUPLICATE ids detected: \(sample, privacy: .public)")
+        }
+
+        // Helpful sample of what the UI will render.
+        for app in apps.prefix(12) {
+            logger.debug("Find Icon sample (\(context, privacy: .public)): id=\(app.id, privacy: .public) bundleId=\(app.bundleId, privacy: .public) menuExtraId=\(app.menuExtraIdentifier ?? "nil", privacy: .public) name=\(app.name, privacy: .public)")
+        }
     }
 
     @MainActor
@@ -138,12 +253,12 @@ final class SearchService: SearchServiceProtocol {
         }
 
         // 3. Perform Virtual Click on the menu bar item
-        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(for: app.id)
+        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(bundleID: app.bundleId, menuExtraId: app.menuExtraIdentifier, statusItemIndex: app.statusItemIndex)
 
         if !clickSuccess {
             // Fallback: Just activate the app normally (user can then click the now-visible icon)
             let workspace = NSWorkspace.shared
-            if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.id }) {
+            if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.bundleId }) {
                 runningApp.activate()
             }
         }

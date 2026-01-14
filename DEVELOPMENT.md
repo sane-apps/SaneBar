@@ -14,6 +14,7 @@ Real failures from past sessions. Don't repeat them.
 | **Assumed permission flow** | Called AX functions before checking `AXIsProcessTrusted()`. Silent failures. | Check permission state first |
 | **Skipped xcodegen** | Created `HidingService.swift`, "file not found" for 20 minutes | `xcodegen generate` after new files |
 | **Kept guessing** | Menu bar traversal wrong 4 times. Finally checked apple-docs MCP. | Stop at 2, investigate |
+| **Classified Hidden as "offscreen"** | Find Icon showed **Hidden empty** + **Visible everything** (because SaneBar hides via separator expansion, not by pushing icons off-screen). | Hidden/Visible is **separator-relative**: compare icon X against `separatorItem.window.frame.origin.x` |
 | **Deleted "unused" file** | Periphery said unused, but `ServiceContainer` needed it. Broke build. | Grep before delete |
 
 **The #1 differentiator**: Skimming this SOP = 5/10 sessions. Internalizing it = 8+/10.
@@ -34,22 +35,22 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 
 1. **Read Rule #0 first** (Section "The Rules") - It's about HOW to use all other rules
 2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneBar/` unless user explicitly requests it
-3. **Use SaneMaster.rb for everything** - `./Scripts/SaneMaster.rb verify` for build+test, never raw `xcodebuild`
+3. **Use SaneMaster.rb for everything** - `./scripts/SaneMaster.rb verify` for build+test, never raw `xcodebuild`
 4. **Self-rate after every task** - Rate yourself 1-10 on SOP adherence (see Self-Rating section)
 
-Bootstrap runs automatically via SessionStart hook. If it fails, run `./Scripts/SaneMaster.rb doctor`.
+Bootstrap runs automatically via SessionStart hook. If it fails, run `./scripts/SaneMaster.rb doctor`.
 
 **Your first action when user says "check our SOP" or "use our SOP":**
 ```bash
-./Scripts/SaneMaster.rb bootstrap  # Verify environment (may already have run)
-./Scripts/SaneMaster.rb verify     # Build + unit tests
+./scripts/SaneMaster.rb bootstrap  # Verify environment (may already have run)
+./scripts/SaneMaster.rb verify     # Build + unit tests
 ```
 
 **Key Commands:**
 ```bash
-./Scripts/SaneMaster.rb verify     # Build + test (~30s)
-./Scripts/SaneMaster.rb test_mode  # Kill → Build → Launch → Logs (full cycle)
-./Scripts/SaneMaster.rb logs --follow  # Stream live logs
+./scripts/SaneMaster.rb verify     # Build + test (~30s)
+./scripts/SaneMaster.rb test_mode  # Kill → Build → Launch → Logs (full cycle)
+./scripts/SaneMaster.rb logs --follow  # Stream live logs
 ```
 
 **System**: macOS 26.2 (Tahoe), Apple Silicon, Ruby 3.4+
@@ -88,7 +89,7 @@ Bootstrap runs automatically via SessionStart hook. If it fails, run `./Scripts/
 ❌ DON'T: Assume an API exists from memory or web search
 
 ```bash
-./Scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
+./scripts/SaneMaster.rb verify_api AXUIElementCreateSystemWide Accessibility
 ```
 
 ```
@@ -126,12 +127,12 @@ Stopping IS compliance. Guessing a 3rd time is the violation. See **Research Pro
 
 ### #5: SANEMASTER OR DISASTER
 
-✅ DO: Use `./Scripts/SaneMaster.rb` for all build/test operations
+✅ DO: Use `./scripts/SaneMaster.rb` for all build/test operations
 ❌ DON'T: Use raw xcodebuild or swift commands
 
 ```
-🟢 RIGHT: ./Scripts/SaneMaster.rb verify
-🟢 RIGHT: ./Scripts/SaneMaster.rb test_mode
+🟢 RIGHT: ./scripts/SaneMaster.rb verify
+🟢 RIGHT: ./scripts/SaneMaster.rb test_mode
 🔴 WRONG: xcodebuild -scheme SaneBar build
 🔴 WRONG: swift build (bypassing project tools)
 ```
@@ -142,13 +143,13 @@ Stopping IS compliance. Guessing a 3rd time is the violation. See **Research Pro
 ❌ DON'T: Skip steps or assume it works
 
 ```bash
-./Scripts/SaneMaster.rb verify    # BUILD
+./scripts/SaneMaster.rb verify    # BUILD
 killall -9 SaneBar                # KILL
-./Scripts/SaneMaster.rb launch    # LAUNCH
-./Scripts/SaneMaster.rb logs --follow  # LOG
+./scripts/SaneMaster.rb launch    # LAUNCH
+./scripts/SaneMaster.rb logs --follow  # LOG
 ```
 
-Or just: `./Scripts/SaneMaster.rb test_mode`
+Or just: `./scripts/SaneMaster.rb test_mode`
 
 ```
 🟢 RIGHT: "Feature done → verify → kill → launch → check logs"
@@ -284,7 +285,7 @@ Approve?
 
 ### Steps
 
-[Rule #5: USE SANEMASTER] - `./Scripts/SaneMaster.rb clean --nuclear`
+[Rule #5: USE SANEMASTER] - `./scripts/SaneMaster.rb clean --nuclear`
 [Rule #9: NEW FILE = XCODEGEN] - Already ran for asset catalog
 
 [Rule #7: TESTS FOR FIXES] - Create tests:
@@ -296,9 +297,9 @@ Approve?
   - BUG-002: URL scheme opens default browser
 
 [Rule #6: FULL CYCLE] - Verify fixes:
-  - `./Scripts/SaneMaster.rb verify`
+  - `./scripts/SaneMaster.rb verify`
   - `killall -9 SaneBar`
-  - `./Scripts/SaneMaster.rb launch`
+  - `./scripts/SaneMaster.rb launch`
   - Manual: Confirm custom icon visible, Settings opens System Settings
 
 [Rule #4: GREEN BEFORE DONE] - All tests pass before claiming complete
@@ -371,7 +372,7 @@ After research, present findings in this format:
 ...
 
 ### Verification
-- [ ] ./Scripts/SaneMaster.rb verify passes
+- [ ] ./scripts/SaneMaster.rb verify passes
 - [ ] Manual test: [specific check]
 ```
 
@@ -402,9 +403,9 @@ Success resets the counter. Normal iterative development (fail → fix → fail 
 ### Commands
 
 ```bash
-./Scripts/SaneMaster.rb breaker_status  # Check if tripped
-./Scripts/SaneMaster.rb breaker_errors  # See what failed
-./Scripts/SaneMaster.rb reset_breaker   # Unblock (after plan approved)
+./scripts/SaneMaster.rb breaker_status  # Check if tripped
+./scripts/SaneMaster.rb breaker_errors  # See what failed
+./scripts/SaneMaster.rb reset_breaker   # Unblock (after plan approved)
 ```
 
 ### Recovery Flow
@@ -417,7 +418,7 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
          ▼
 ┌─────────────────────────────────────────────┐
 │  1. READ ERRORS                             │
-│     ./Scripts/SaneMaster.rb breaker_errors  │
+│     ./scripts/SaneMaster.rb breaker_errors  │
 ├─────────────────────────────────────────────┤
 │  2. RESEARCH (use ALL tools above)          │
 │     - What API am I misusing?               │
@@ -430,7 +431,7 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 │     - Propose specific fix steps            │
 ├─────────────────────────────────────────────┤
 │  4. USER APPROVES PLAN                      │
-│     User runs: ./Scripts/SaneMaster.rb      │
+│     User runs: ./scripts/SaneMaster.rb      │
 │                reset_breaker                │
 └─────────────────────────────────────────────┘
          │
@@ -447,25 +448,25 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 ### SaneMaster Commands
 
 ```bash
-./Scripts/SaneMaster.rb verify          # Build + tests
-./Scripts/SaneMaster.rb verify --clean  # Full clean build
-./Scripts/SaneMaster.rb test_mode       # Kill → Build → Launch → Logs
-./Scripts/SaneMaster.rb launch          # Launch app
-./Scripts/SaneMaster.rb logs --follow   # Stream live logs
-./Scripts/SaneMaster.rb clean --nuclear # Deep clean (all caches)
-./Scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
-./Scripts/SaneMaster.rb session_end     # End session with memory capture
+./scripts/SaneMaster.rb verify          # Build + tests
+./scripts/SaneMaster.rb verify --clean  # Full clean build
+./scripts/SaneMaster.rb test_mode       # Kill → Build → Launch → Logs
+./scripts/SaneMaster.rb launch          # Launch app
+./scripts/SaneMaster.rb logs --follow   # Stream live logs
+./scripts/SaneMaster.rb clean --nuclear # Deep clean (all caches)
+./scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
+./scripts/SaneMaster.rb session_end     # End session with memory capture
 ```
 
 ### Tool Decision Matrix
 
 | Situation | Tool to Use | Why |
 |-----------|-------------|-----|
-| **Need API signature/existence** | `./Scripts/SaneMaster.rb verify_api` | SDK is source of truth (Rule #2) |
+| **Need API signature/existence** | `./scripts/SaneMaster.rb verify_api` | SDK is source of truth (Rule #2) |
 | **Need API usage examples** | `apple-docs` MCP | Rich examples, WWDC context |
 | **Need library docs (KeyboardShortcuts, etc.)** | `context7` MCP | Real-time docs from source |
-| **Build/test the project** | `./Scripts/SaneMaster.rb verify` | Always use SaneMaster (Rule #5) |
-| **Generate mock classes** | `./Scripts/SaneMaster.rb gen_mock` (Mockolo) | Fast protocol→mock generation |
+| **Build/test the project** | `./scripts/SaneMaster.rb verify` | Always use SaneMaster (Rule #5) |
+| **Generate mock classes** | `./scripts/SaneMaster.rb gen_mock` (Mockolo) | Fast protocol→mock generation |
 | **GitHub issues/PRs** | `github` MCP | Create issues, review PRs |
 | **Remember context across sessions** | `memory` MCP | Persistent knowledge graph |
 
@@ -506,9 +507,9 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 /sane-loop "Fix: [describe bug]
 
 SOP Requirements (verify before completing):
-1. ./Scripts/SaneMaster.rb verify passes
-2. killall -9 SaneBar && ./Scripts/SaneMaster.rb launch
-3. ./Scripts/SaneMaster.rb logs --follow (check for errors)
+1. ./scripts/SaneMaster.rb verify passes
+2. killall -9 SaneBar && ./scripts/SaneMaster.rb launch
+3. ./scripts/SaneMaster.rb logs --follow (check for errors)
 4. Regression test added in Tests/
 5. BUG_TRACKING.md updated
 6. Self-rating 1-10 provided
@@ -546,7 +547,7 @@ SaneBar/
 ├── Core/           # Managers, Services, Models
 ├── UI/             # SwiftUI views
 ├── Tests/          # Unit tests
-├── Scripts/        # SaneMaster automation
+├── scripts/        # SaneMaster automation
 └── SaneBarApp.swift
 ```
 
@@ -557,4 +558,4 @@ SaneBar/
 | Problem | Fix |
 |---------|-----|
 | Ghost beeps / no launch | `xcodegen generate` |
-| Phantom build errors | `./Scripts/SaneMaster.rb clean --nuclear` |
+| Phantom build errors | `./scripts/SaneMaster.rb clean --nuclear` |

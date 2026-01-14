@@ -76,7 +76,7 @@ struct MenuBarSearchView: View {
         if let groupId = selectedGroupId,
            let group = menuBarManager.settings.iconGroups.first(where: { $0.id == groupId }) {
             let bundleIds = Set(group.appBundleIds)
-            apps = apps.filter { bundleIds.contains($0.id) }
+            apps = apps.filter { bundleIds.contains($0.bundleId) }
         }
         // Filter by smart category (when no custom group selected)
         else if let category = selectedSmartCategory {
@@ -88,10 +88,9 @@ struct MenuBarSearchView: View {
             apps = apps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
 
-        // Sort by X position for Hidden/Visible modes (matching visual order)
-        if mode != .all {
-            apps.sort { ($0.xPosition ?? 0) < ($1.xPosition ?? 0) }
-        }
+        // Sort by X position for ALL modes (Hidden, Visible, and All)
+        // This ensures the grid always matches the visual menu bar order (Left-to-Right)
+        apps.sort { ($0.xPosition ?? 0) < ($1.xPosition ?? 0) }
 
         return apps
     }
@@ -629,23 +628,18 @@ struct MenuBarSearchView: View {
                             onActivate: { activateApp(app) },
                             onSetHotkey: { hotkeyApp = app },
                             onRemoveFromGroup: selectedGroupId.map { groupId in
-                                { removeAppFromGroup(bundleId: app.id, groupId: groupId) }
+                                { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
                             },
                             isHidden: mode == .hidden,
                             // Only show move button in Hidden/Visible views (not All)
                             onToggleHidden: mode == .all ? nil : {
                                 // Capture values before async work to avoid race conditions
-                                let bundleID = app.id
+                                let bundleID = app.bundleId
                                 let menuExtraId = app.menuExtraIdentifier  // For Control Center items
+                                let statusItemIndex = app.statusItemIndex
                                 let toHidden = (mode == .visible)
 
-                                menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, toHidden: toHidden)
-
-                                // Delay refresh to let the CGEvent drag complete (~200ms for move)
-                                Task { @MainActor in
-                                    try? await Task.sleep(for: .milliseconds(400))
-                                    refreshApps(force: true)
-                                }
+                                menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
                             }
                         )
                     }
@@ -738,6 +732,8 @@ struct MenuBarSearchView: View {
                 if let icon = app.icon {
                     Image(nsImage: icon)
                         .resizable()
+                        .renderingMode(icon.isTemplate ? .template : .original)
+                        .foregroundStyle(icon.isTemplate ? .secondary : .primary)
                         .frame(width: 28, height: 28)
                 } else {
                     Image(systemName: "app.fill")
@@ -756,15 +752,15 @@ struct MenuBarSearchView: View {
                 Text("Hotkey:")
                     .foregroundStyle(.secondary)
 
-                KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: app.id))
-                    .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: app.id))) { _, newShortcut in
+                KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: app.bundleId))
+                    .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: app.bundleId))) { _, newShortcut in
                         if let shortcut = newShortcut {
-                            menuBarManager.settings.iconHotkeys[app.id] = KeyboardShortcutData(
+                            menuBarManager.settings.iconHotkeys[app.bundleId] = KeyboardShortcutData(
                                 keyCode: UInt16(shortcut.key?.rawValue ?? 0),
                                 modifiers: shortcut.modifiers.rawValue
                             )
                         } else {
-                            menuBarManager.settings.iconHotkeys.removeValue(forKey: app.id)
+                            menuBarManager.settings.iconHotkeys.removeValue(forKey: app.bundleId)
                         }
 
                         menuBarManager.saveSettings()

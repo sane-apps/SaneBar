@@ -45,6 +45,97 @@ MCP_PROCESS_PATTERNS = %w[
   worker-service.cjs
 ].freeze
 
+# Clean up stale Claude subagent processes from previous sessions
+# These accumulate when Task tool spawns agents that don't get cleaned up
+def cleanup_stale_claude_subagents
+  # Get current session's process tree to avoid killing ourselves
+  current_pid = Process.pid
+  current_ppid = Process.ppid
+
+  # Find the main claude session PID (our grandparent or great-grandparent)
+  # We need to protect the entire current process tree
+  protected_pids = [current_pid, current_ppid]
+
+  # Walk up the process tree to find all ancestors
+  begin
+    ppid = current_ppid
+    5.times do  # Max 5 levels up
+      break if ppid <= 1
+      protected_pids << ppid
+      parent_info = `ps -o ppid= -p #{ppid} 2>/dev/null`.strip
+      ppid = parent_info.to_i
+    end
+  rescue StandardError
+    # Ignore errors walking process tree
+  end
+
+  killed = []
+
+  # Find all claude processes
+  ps_output = `ps -eo pid,ppid,etime,pcpu,command 2>/dev/null`
+  return 0 if ps_output.empty?
+
+  ps_output.each_line do |line|
+    next if line =~ /^\s*PID/  # Skip header
+    next unless line.include?('/.local/bin/claude') && line.include?('--output-format stream-json')
+
+    # Parse: PID PPID ELAPSED CPU% COMMAND
+    parts = line.strip.split(/\s+/, 5)
+    next if parts.length < 5
+
+    pid = parts[0].to_i
+    ppid = parts[1].to_i
+    elapsed = parts[2]  # Format: [[DD-]HH:]MM:SS
+    cpu = parts[3].to_f
+
+    # Skip if in our protected process tree
+    next if protected_pids.include?(pid) || protected_pids.include?(ppid)
+
+    # Parse elapsed time to minutes
+    minutes = parse_elapsed_to_minutes(elapsed)
+
+    # Kill subagents that are:
+    # - More than 10 minutes old AND
+    # - Using less than 1% CPU (idle/stuck)
+    if minutes >= 10 && cpu < 1.0
+      begin
+        Process.kill('TERM', pid)
+        killed << { pid: pid, age_min: minutes.round, cpu: cpu }
+      rescue Errno::ESRCH, Errno::EPERM
+        # Process already dead or no permission
+      end
+    end
+  end
+
+  if killed.any?
+    warn ''
+    warn "🧹 Cleaned #{killed.length} stale Claude subagent#{killed.length > 1 ? 's' : ''}:"
+    killed.first(5).each { |p| warn "   PID #{p[:pid]} (#{p[:age_min]}min old, #{p[:cpu]}% CPU)" }
+    warn "   ... and #{killed.length - 5} more" if killed.length > 5
+    warn ''
+  end
+
+  killed.length
+rescue StandardError => e
+  log_debug "Claude subagent cleanup error: #{e.message}"
+  0
+end
+
+# Parse ps elapsed time format [[DD-]HH:]MM:SS to minutes
+def parse_elapsed_to_minutes(elapsed)
+  parts = elapsed.split(/[-:]/)
+  case parts.length
+  when 2  # MM:SS
+    parts[0].to_i
+  when 3  # HH:MM:SS
+    parts[0].to_i * 60 + parts[1].to_i
+  when 4  # DD-HH:MM:SS
+    parts[0].to_i * 1440 + parts[1].to_i * 60 + parts[2].to_i
+  else
+    0
+  end
+end
+
 # Log files to rotate (max 100KB each)
 LOG_FILES_TO_ROTATE = %w[
   sanetools.log
@@ -122,8 +213,8 @@ def cleanup_orphaned_mcp_processes
       start_time = Time.parse(start_str)
       age_hours = ((current_time - start_time) / 3600.0).round(1)
 
-      # Kill processes older than 1 hour (definitely orphaned)
-      if age_hours >= 1.0
+      # Kill processes older than 15 minutes (likely orphaned from crash)
+      if age_hours >= 0.25
         Process.kill('TERM', pid)
         killed << { pid: pid, age: age_hours, cmd: parts[5][0..50] }
       end
@@ -439,6 +530,8 @@ begin
   log_debug "ensure_claude_dir done"
   cleanup_orphaned_mcp_processes  # Clean zombies from previous sessions
   log_debug "cleanup_orphaned_mcp_processes done"
+  cleanup_stale_claude_subagents  # Clean orphaned Task tool subagents
+  log_debug "cleanup_stale_claude_subagents done"
   rotate_log_files                # Prevent unbounded log growth
   log_debug "rotate_log_files done"
   reset_session_state

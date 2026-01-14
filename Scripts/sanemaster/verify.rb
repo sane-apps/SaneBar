@@ -280,12 +280,15 @@ module SaneMasterModules
     end
 
     def build_test_command(include_ui)
+      cmd = "xcodebuild test -scheme SaneBar -destination 'platform=macOS,arch=arm64' -only-testing:SaneBarTests"
+      
       if include_ui
-        # UI tests not yet implemented - warn and run unit tests only
-        puts '  ⚠️  UI tests not available (SaneBarUITests directory does not exist)'
-        puts '  📦 Running unit tests only...'
+        # Enable UI testing mode via environment variable
+        # This tells MenuBarManager to load the UI even in test context
+        return "SANEBAR_UI_TESTING=1 #{cmd} 2>&1"
       end
-      "xcodebuild test -scheme SaneBar -destination 'platform=macOS,arch=arm64' -only-testing:SaneBarTests 2>&1"
+      
+      "#{cmd} 2>&1"
     end
 
     def execute_with_logging(cmd, timeout_seconds)

@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0DE723F29A946495E5D47227 /* AccessibilityService+Cache.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */; };
 		0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60BA8814BDB7CD86196B556 /* UpdateService.swift */; };
 		13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C33525F13C653C654FBABD /* SearchWindowTests.swift */; };
+		15889E6AE2438B01F6972FC7 /* MenuBarManager+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */; };
 		177462570C47D2B4DB5E35D9 /* NetworkTriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E1A335FE5120D24D104B40 /* NetworkTriggerServiceTests.swift */; };
 		17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56253053D08930BD23085754 /* IconHotkeysService.swift */; };
 		1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E264258C707319B447D489AC /* KeyboardShortcuts */; };
@@ -24,14 +26,20 @@
 		5688BE185598444C9246B5A2 /* MenuBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */; };
 		568DF28CA44E4228C14694D3 /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */; };
 		5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */; };
+		5E91FF531D873FAB0E322841 /* MenuBarSearchStatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */; };
+		66BCFA8F93EFC723A031C3D8 /* MenuBarManager+Monitoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D93DF4197A294EA81FE0597 /* MenuBarManager+Monitoring.swift */; };
 		6EB978727259DBDB0C8D3604 /* HoverService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0B1C1B3F989733A71F1C53 /* HoverService.swift */; };
 		7348B2397B78857F7F0F5067 /* SettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2C108D39FB5084CC3C11DA /* SettingsController.swift */; };
+		7FE0E1A0A93B6BBFC56B1326 /* AccessibilityService+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */; };
 		7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */; };
 		8149B82E4E317A035AEEB406 /* PositionWarningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB11C5E4ADAE059C90B232B0 /* PositionWarningView.swift */; };
 		81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */; };
 		85B23B36890D6B156C4DC865 /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */; };
+		8744768503F12066A091A477 /* MenuBarAppGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */; };
 		8A701E459F4DC1FFD01F7080 /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B169D11639EA3855736D56D3 /* SearchService.swift */; };
 		8E33C3A54BBCC58D221E0B84 /* KeyboardShortcutsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */; };
+		932BE8FBAB4F339E3D598B1E /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */; };
+		934FDF51421C0B4CE930737B /* MenuBarSearchTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */; };
 		9428EB7B846206973BA5FF5E /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = E9C15D05272B9E2F506E6168 /* LaunchAtLogin */; };
 		959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */; };
 		989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */; };
@@ -48,18 +56,23 @@
 		B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */; };
 		B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */; };
 		BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 279B371659C5F49AC26F024E /* Mocks.swift */; };
+		BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */; };
 		C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */; };
+		C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
 		ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */; };
+		EFCDC9F3D3DF1EFE55E497F5 /* MenuBarManager+Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */; };
 		F2B3FB6C4A975BB22A83EF62 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FB5A5E19E67E44650AC8FED0 /* Localizable.strings */; };
 		F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
 		F650F18E449852345CEB3FA6 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2608C1CE315884BF17942B22 /* AdvancedSettingsView.swift */; };
+		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
 		FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */; };
 		FB7CE69BC52130B02564CF53 /* TriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */; };
 		FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */; };
+		FEBDB811798D1032E6ED595E /* MenuBarManager+IconMoving.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,7 +88,10 @@
 /* Begin PBXFileReference section */
 		0752D3D1CCD73101C00C78C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingService.swift; sourceTree = "<group>"; };
+		14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Scanning.swift"; sourceTree = "<group>"; };
+		173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchStatusViews.swift; sourceTree = "<group>"; };
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
+		1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchTabs.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
 		2608C1CE315884BF17942B22 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
@@ -90,18 +106,24 @@
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityServiceTests.swift; sourceTree = "<group>"; };
 		4C0B1C1B3F989733A71F1C53 /* HoverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverService.swift; sourceTree = "<group>"; };
+		4D93DF4197A294EA81FE0597 /* MenuBarManager+Monitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Monitoring.swift"; sourceTree = "<group>"; };
 		56253053D08930BD23085754 /* IconHotkeysService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysService.swift; sourceTree = "<group>"; };
+		612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Updates.swift"; sourceTree = "<group>"; };
 		67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SaneBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
 		6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppTile.swift; sourceTree = "<group>"; };
+		6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Actions.swift"; sourceTree = "<group>"; };
 		70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppearanceServiceTests.swift; sourceTree = "<group>"; };
 		7386E7B1B55EE182670DC1FF /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommandsTests.swift; sourceTree = "<group>"; };
 		7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTipView.swift; sourceTree = "<group>"; };
+		942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppGrid.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceServiceTests.swift; sourceTree = "<group>"; };
+		A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Interaction.swift"; sourceTree = "<group>"; };
 		A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUITests.swift; sourceTree = "<group>"; };
 		AB11C5E4ADAE059C90B232B0 /* PositionWarningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionWarningView.swift; sourceTree = "<group>"; };
 		AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarTests.swift; sourceTree = "<group>"; };
@@ -109,11 +131,15 @@
 		B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
 		B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingServiceTests.swift; sourceTree = "<group>"; };
+		B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+IconMoving.swift"; sourceTree = "<group>"; };
 		B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchView.swift; sourceTree = "<group>"; };
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
+		B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
 		C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
 		CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingServiceTests.swift; sourceTree = "<group>"; };
+		CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
+		CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Cache.swift"; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
@@ -144,6 +170,10 @@
 		069C3A0FC8F35C1CEEE6717E /* SearchWindow */ = {
 			isa = PBXGroup;
 			children = (
+				942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */,
+				6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */,
+				173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */,
+				1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */,
 				B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */,
 				9911A7251AE151FCA164258D /* SearchWindowController.swift */,
 			);
@@ -156,6 +186,7 @@
 				7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */,
 				AB11C5E4ADAE059C90B232B0 /* PositionWarningView.swift */,
 				6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */,
+				9C3C6E73E33B43B37B3BB914 /* Components */,
 				069C3A0FC8F35C1CEEE6717E /* SearchWindow */,
 				8B3B0395225A66EBED761B56 /* Settings */,
 			);
@@ -201,6 +232,7 @@
 				26C33525F13C653C654FBABD /* SearchWindowTests.swift */,
 				DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */,
 				D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */,
+				CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */,
 				FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */,
 				950DDE1E30D9E518020538CE /* Mocks */,
 			);
@@ -235,6 +267,10 @@
 			isa = PBXGroup;
 			children = (
 				1905495077B20635EBB95815 /* MenuBarManager.swift */,
+				6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */,
+				B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */,
+				4D93DF4197A294EA81FE0597 /* MenuBarManager+Monitoring.swift */,
+				612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */,
 				13A5496922BE222586C82A3D /* Controllers */,
 				9B59B9EFDE3FBE4F62C13BDD /* Models */,
 				F4D16756A6A53AD0A4F56F30 /* Services */,
@@ -259,6 +295,14 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		9C3C6E73E33B43B37B3BB914 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
 		D14A5D400198233C0D7C948F /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -272,6 +316,9 @@
 			isa = PBXGroup;
 			children = (
 				9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */,
+				CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */,
+				A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */,
+				14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */,
 				3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */,
 				94B8376513461FDCE0D56D48 /* HidingService.swift */,
 				4C0B1C1B3F989733A71F1C53 /* HoverService.swift */,
@@ -362,7 +409,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-				39041A02CE7188B0B094F557 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
+				4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -431,6 +478,7 @@
 				13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */,
 				F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */,
 				4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */,
+				C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */,
 				FB7CE69BC52130B02564CF53 /* TriggerServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -440,6 +488,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				85B23B36890D6B156C4DC865 /* AboutSettingsView.swift in Sources */,
+				0DE723F29A946495E5D47227 /* AccessibilityService+Cache.swift in Sources */,
+				7FE0E1A0A93B6BBFC56B1326 /* AccessibilityService+Interaction.swift in Sources */,
+				F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */,
 				A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */,
 				F650F18E449852345CEB3FA6 /* AdvancedSettingsView.swift in Sources */,
 				7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */,
@@ -449,8 +500,16 @@
 				6EB978727259DBDB0C8D3604 /* HoverService.swift in Sources */,
 				17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */,
 				B207D8C90670B575527260F2 /* KeyboardShortcutsService.swift in Sources */,
+				8744768503F12066A091A477 /* MenuBarAppGrid.swift in Sources */,
+				BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */,
 				4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */,
+				15889E6AE2438B01F6972FC7 /* MenuBarManager+Actions.swift in Sources */,
+				FEBDB811798D1032E6ED595E /* MenuBarManager+IconMoving.swift in Sources */,
+				66BCFA8F93EFC723A031C3D8 /* MenuBarManager+Monitoring.swift in Sources */,
+				EFCDC9F3D3DF1EFE55E497F5 /* MenuBarManager+Updates.swift in Sources */,
 				C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */,
+				5E91FF531D873FAB0E322841 /* MenuBarSearchStatusViews.swift in Sources */,
+				934FDF51421C0B4CE930737B /* MenuBarSearchTabs.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
 				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
@@ -468,6 +527,7 @@
 				F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */,
 				A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */,
 				0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */,
+				932BE8FBAB4F339E3D598B1E /* VisualEffectBackground.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -634,7 +694,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -700,7 +760,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -751,12 +811,12 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		39041A02CE7188B0B094F557 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
+		4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
+			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				minimumVersion = 5.0.0;
 			};
 		};
 		D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
@@ -777,7 +837,7 @@
 		};
 		E9C15D05272B9E2F506E6168 /* LaunchAtLogin */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 39041A02CE7188B0B094F557 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
+			package = 4C7BE23CA4E98AB9B1DE19FC /* XCRemoteSwiftPackageReference "LaunchAtLogin" */;
 			productName = LaunchAtLogin;
 		};
 /* End XCSwiftPackageProductDependency section */

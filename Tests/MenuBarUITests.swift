@@ -113,7 +113,7 @@ struct MenuBarUITests {
         #expect(result.contains("Right of separator = always visible"), "Settings should say 'Right of separator = always visible'")
     }
 
-    @Test("Menu has expected items: Toggle, Settings, Quit", .disabled("Requires running app"))
+    @Test("Menu has expected items: Toggle, Find Icon, Settings, Updates, Quit", .disabled("Requires running app"))
     func testMenuHasExpectedItems() throws {
         let script = """
         tell application "System Events"
@@ -129,7 +129,9 @@ struct MenuBarUITests {
 
         let result = try runAppleScript(script)
         #expect(result.contains("Toggle Hidden Items"), "Menu should have Toggle Hidden Items")
+        #expect(result.contains("Find Icon..."), "Menu should have Find Icon...")
         #expect(result.contains("Settings"), "Menu should have Settings")
+        #expect(result.contains("Check for Updates..."), "Menu should have Check for Updates...")
         #expect(result.contains("Quit SaneBar"), "Menu should have Quit SaneBar")
     }
 

@@ -23,15 +23,55 @@ func shell(_ command: String) -> (output: String, exitCode: Int32) {
 }
 
 func runAppleScript(_ script: String) -> Bool {
-    var error: NSDictionary?
-    if let scriptObject = NSAppleScript(source: script) {
-        scriptObject.executeAndReturnError(&error)
-        if let err = error {
-            print("❌ AppleScript Error: \(err)")
-            return false
-        }
+    // Use osascript via Process (no quoting/escaping issues).
+    // Automation permissions are usually granted to the hosting app (Terminal/iTerm/VS Code).
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+    process.arguments = ["-e", script]
+
+    let outputPipe = Pipe()
+    let errorPipe = Pipe()
+    process.standardOutput = outputPipe
+    process.standardError = errorPipe
+
+    do {
+        try process.run()
+    } catch {
+        print("❌ Failed to run osascript: \(error)")
+        return false
+    }
+    process.waitUntilExit()
+
+    let outData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+    let errData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+    let output = String(data: outData, encoding: .utf8) ?? ""
+    let errorOutput = String(data: errData, encoding: .utf8) ?? ""
+    let combined = (output + "\n" + errorOutput).trimmingCharacters(in: .whitespacesAndNewlines)
+
+    if process.terminationStatus == 0 {
         return true
     }
+
+    // Common failure: macOS blocks Apple Events until user allows Automation permission.
+    // Error number -1743: "Not authorized to send Apple events".
+    if combined.contains("-1743") || combined.localizedCaseInsensitiveContains("Not authorized") {
+        let termProgram = ProcessInfo.processInfo.environment["TERM_PROGRAM"] ?? "(unknown)"
+        print("\n❌ macOS blocked this test: the app running this terminal session is not allowed to control SaneBar.")
+        print("\nYou appear to be running from: TERM_PROGRAM=\(termProgram)")
+        print("\nFix (one-time):")
+        print("1) Open System Settings → Privacy & Security → Automation")
+        print("2) Find the app you are actually using (Terminal / iTerm / Visual Studio Code)")
+        print("3) Turn ON permission to control ‘SaneBar’")
+        print("\nAlso required for moving icons:")
+        print("4) Privacy & Security → Accessibility → turn ON that same app")
+        print("\nThen re-run this script.")
+
+        _ = shell("open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation'")
+        _ = shell("open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'")
+        return false
+    }
+
+    print("❌ AppleScript failed (exit \(process.terminationStatus)). Output:\n\(combined)")
     return false
 }
 
