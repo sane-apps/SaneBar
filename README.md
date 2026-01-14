@@ -20,7 +20,7 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
 ## Download
 
-**[Download SaneBar v1.0.4](https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.4/SaneBar-1.0.4.dmg)** (macOS 15 Sequoia or later)
+**[View All Releases](https://github.com/stephanjoseph/SaneBar/releases)** (macOS 15 Sequoia or later)
 
 Or via Homebrew:
 ```bash
