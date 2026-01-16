@@ -120,6 +120,11 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Last time we checked for updates (for rate limiting)
     var lastUpdateCheck: Date?
 
+    // MARK: - Icon Visibility
+
+    /// Hide the main SaneBar icon (show only divider)
+    var hideMainIcon: Bool = false
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -152,6 +157,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
+        hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -162,6 +168,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case showOnHover, hoverDelay, showOnScroll
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
+        case hideMainIcon
     }
 }
 

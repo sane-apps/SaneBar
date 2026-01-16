@@ -251,6 +251,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Validate positions on startup (with delay for UI to settle)
         validatePositionsOnStartup()
+
+        // Apply main icon visibility based on settings
+        updateMainIconVisibility()
     }
 
     private func setupObservers() {
@@ -274,8 +277,18 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.triggerService.updateBatteryMonitoring(enabled: newSettings.showOnLowBattery)
                 self?.updateHoverService()
                 self?.syncUpdateConfiguration()
+                self?.updateMainIconVisibility()
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Main Icon Visibility
+
+    /// Show or hide the main SaneBar icon based on settings
+    func updateMainIconVisibility() {
+        guard let mainItem = mainStatusItem else { return }
+        mainItem.isVisible = !settings.hideMainIcon
+        logger.info("Main icon visibility: \(mainItem.isVisible ? "visible" : "hidden")")
     }
 
     private func updateAppearance() {
