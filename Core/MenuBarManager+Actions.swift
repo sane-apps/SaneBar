@@ -91,11 +91,15 @@ extension MenuBarManager {
     }
 
     func showStatusMenu() {
+        // Use separator if main icon is hidden
+        let item = settings.hideMainIcon ? separatorItem : mainStatusItem
+        
         guard let statusMenu = statusMenu,
-              let item = mainStatusItem,
-              let button = item.button else { return } // Removed redundant nil check on button
-        logger.info("Right-click: showing menu")
+              let targetItem = item,
+              targetItem.button != nil else { return }
+              
+        logger.info("Showing status menu (anchor: \(self.settings.hideMainIcon ? "separator" : "main icon"))")
         // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
-        item.popUpMenu(statusMenu)
+        targetItem.popUpMenu(statusMenu)
     }
 }
