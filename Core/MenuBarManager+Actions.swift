@@ -12,7 +12,7 @@ extension MenuBarManager {
         let mainHasMenu = (mainStatusItem?.menu != nil)
         let sepHasMenu = (separatorItem?.menu != nil)
         logger.debug("Menu will open (event=\(String(describing: event?.type.rawValue)) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu))")
-        let eventType = event?.type.rawValue ?? -1
+        let eventType = event.map { Int($0.type.rawValue) } ?? -1
         let buttonNumber = event?.buttonNumber ?? -1
         print("[MenuBarManager] menuWillOpen eventType=\(eventType) button=\(buttonNumber) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu)")
 
