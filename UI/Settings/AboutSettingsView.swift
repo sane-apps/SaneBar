@@ -8,40 +8,40 @@ struct AboutSettingsView: View {
     @State private var showSupport = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             Spacer()
 
             // App identity
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 72, height: 72)
+                .frame(width: 96, height: 96)
+                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
 
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 Text("SaneBar")
-                    .font(.title)
-                    .fontWeight(.semibold)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
 
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                     Text("Version \(version)")
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
-
-                Text("Made by Mr. Sane, USA")
-                    .font(.body)
-                    .foregroundStyle(.tertiary)
             }
 
-
-            // Trust info - not clickable, just text
-            HStack(spacing: 16) {
-                Label("100% Local", systemImage: "laptopcomputer")
-                Label("No Analytics", systemImage: "eye.slash")
-                Label("Open Source", systemImage: "lock.open")
+            // Trust info (Capsule style)
+            HStack(spacing: 0) {
+                Text("Made by Mr. Sane in USA")
+                    .fontWeight(.medium)
+                Text(" • ")
+                Text("100% Local")
+                Text(" • ")
+                Text("No Analytics")
             }
-            .font(.body)
+            .font(.callout)
             .foregroundStyle(.secondary)
-            .padding(.vertical, 8)
+            .padding(.top, 4)
 
             // Links row
             HStack(spacing: 16) {
@@ -49,14 +49,16 @@ struct AboutSettingsView: View {
                     Label("GitHub", systemImage: "link")
                 }
                 .buttonStyle(.bordered)
-
+                .controlSize(.large)
+                
                 Button {
                     showLicenses = true
                 } label: {
                     Label("Licenses", systemImage: "doc.text")
                 }
                 .buttonStyle(.bordered)
-
+                .controlSize(.large)
+                
                 Button {
                     showSupport = true
                 } label: {
@@ -68,35 +70,19 @@ struct AboutSettingsView: View {
                     }
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .font(.system(size: 14))
+            .padding(.top, 12)
 
             Spacer()
-
-            // Reset - subtle at bottom
-            Button(role: .destructive) {
-                showResetConfirmation = true
-            } label: {
-                Text("Reset to Defaults")
-                    .font(.body)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tertiary)
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showLicenses) {
             licensesSheet
         }
         .sheet(isPresented: $showSupport) {
             supportSheet
-        }
-        .alert("Reset Settings?", isPresented: $showResetConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                menuBarManager.resetToDefaults()
-            }
-        } message: {
-            Text("This will reset all settings to their defaults. This cannot be undone.")
         }
     }
 

@@ -9,6 +9,7 @@ struct GeneralSettingsView: View {
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
+    @State private var showingResetAlert = false
 
     private var showDockIconBinding: Binding<Bool> {
         Binding(
@@ -109,6 +110,18 @@ struct GeneralSettingsView: View {
                         .controlSize(.small)
                     }
                 }
+                
+                // 5. Troubleshooting
+                CompactSection("Troubleshooting") {
+                    CompactRow("Reset App") {
+                        Button("Reset to Defaults…") {
+                            showingResetAlert = true
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .foregroundStyle(.red)
+                    }
+                }
             }
             .padding(20)
         }
@@ -122,6 +135,14 @@ struct GeneralSettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Save your current configuration to restore later.")
+        }
+        .alert("Reset Settings?", isPresented: $showingResetAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                menuBarManager.resetToDefaults()
+            }
+        } message: {
+            Text("This will reset all settings to their defaults. This cannot be undone.")
         }
     }
 
