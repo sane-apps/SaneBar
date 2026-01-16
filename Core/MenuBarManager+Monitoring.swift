@@ -11,6 +11,12 @@ extension MenuBarManager {
     /// Returns true if separator is correctly positioned (LEFT of main icon)
     /// Returns true if we can't determine position (assume valid on startup)
     func validateSeparatorPosition() -> Bool {
+        // If main icon is hidden (divider-only mode), position checks are irrelevant
+        // logic: The separator IS the leftmost item, so it can't be "misplaced" relative to a hidden anchor.
+        if settings.hideMainIcon {
+            return true
+        }
+        
         // If buttons aren't ready, assume valid (don't block on startup)
         guard let mainButton = mainStatusItem?.button,
               let separatorButton = separatorItem?.button else {
