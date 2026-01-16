@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 struct SpaceAnalyzerView: View {
-    @State private var menuBarItems: [(app: RunningApp, x: CGFloat, width: CGFloat)] = []
+    @State private var menuBarItems: [AccessibilityService.MenuBarItemPosition] = []
     @State private var totalWidth: CGFloat = 0
     @State private var usedWidth: CGFloat = 0
     @State private var isLoading = true
@@ -131,15 +131,7 @@ struct SpaceAnalyzerView: View {
             }
             
             // Scan items
-            // We need to access the new signature of listMenuBarItemsWithPositions
-            // Note: AccessibilityService runs on main thread for scans usually, but we should check concurrency
-            let items = accessibilityService.listMenuBarItemsWithPositions() // This returns [(app: RunningApp, x: CGFloat)] based on previous signature
-            // Wait, I updated the signature inside the implementation but did I update the return type in the protocol/public interface? 
-            // AccessibilityService is a class, not a protocol. I updated the method.
-            // But I need to check if listMenuBarItemsWithPositions returns tuple with width now.
-            // In my previous step I updated 'results' var inside scan function, but did I update the return type of the function signature itself?
-            // Let's re-read the changes to be sure.
-            
+            let items = accessibilityService.listMenuBarItemsWithPositions()
             self.menuBarItems = items
             self.usedWidth = items.reduce(0) { $0 + $1.width }
             self.isLoading = false

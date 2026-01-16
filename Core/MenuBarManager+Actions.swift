@@ -70,13 +70,20 @@ extension MenuBarManager {
             return
         }
 
-        guard let event = NSApp.currentEvent else { return }
+        guard let event = NSApp.currentEvent else {
+            logger.warning("statusItemClicked: No current event available")
+            return
+        }
 
-        switch StatusBarController.clickType(from: event) {
+        let clickType = StatusBarController.clickType(from: event)
+        logger.info("statusItemClicked: event type=\(event.type.rawValue), clickType=\(String(describing: clickType))")
+
+        switch clickType {
         case .optionClick:
             logger.info("Option-click: opening Power Search")
             SearchWindowController.shared.toggle()
         case .leftClick:
+            logger.info("Left-click: calling toggleHiddenItems()")
             toggleHiddenItems()
         case .rightClick:
             showStatusMenu()

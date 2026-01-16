@@ -251,8 +251,7 @@ struct MenuBarSearchView: View {
     private var controls: some View {
         HStack(spacing: 10) {
             Picker("", selection: modeBinding) {
-                ForEach(Mode.allCases) {
-                    mode in 
+                ForEach(Mode.allCases) { mode in 
                     Text(mode.title).tag(mode)
                 }
             }
@@ -298,8 +297,7 @@ struct MenuBarSearchView: View {
                 )
 
                 // Smart category tabs (auto-detected from apps)
-                ForEach(availableCategories, id: \.self) {
-                    category in
+                ForEach(availableCategories, id: \.self) { category in
                     SmartGroupTab(
                         title: category.rawValue,
                         icon: category.iconName,
@@ -319,8 +317,7 @@ struct MenuBarSearchView: View {
                 }
 
                 // User-created custom groups (drop targets for icons)
-                ForEach(menuBarManager.settings.iconGroups) {
-                    group in
+                ForEach(menuBarManager.settings.iconGroups) { group in
                     let groupId = group.id
                     GroupTabButton(
                         title: group.name,
@@ -619,8 +616,7 @@ struct MenuBarSearchView: View {
                     alignment: .leading,  // Align grid content to left
                     spacing: grid.spacing
                 ) {
-                    ForEach(filteredApps) {
-                        app in
+                    ForEach(filteredApps) { app in
                         MenuBarAppTile(
                             app: app,
                             iconSize: grid.iconSize,

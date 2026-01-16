@@ -352,6 +352,63 @@ log_info "Release build complete!"
 log_info "========================================"
 log_info "DMG: ${FINAL_DMG}"
 log_info "Version: ${VERSION}"
+
+# Generate Sparkle Signature and Homebrew Hash
+if command -v swift >/dev/null 2>&1; then
+    log_info ""
+    log_info "--- Generating Release Metadata ---"
+    
+    # Calculate SHA256
+    SHA256=$(shasum -a 256 "${FINAL_DMG}" | awk '{print $1}')
+    
+    # Try to fetch Sparkle Private Key
+    SPARKLE_KEY=$(security find-generic-password -w -s "https://sparkle-project.org" -a "EdDSA Private Key" 2>/dev/null || echo "")
+    
+    if [ -n "$SPARKLE_KEY" ]; then
+        # Create temp signing script
+        SIGN_SCRIPT=$(mktemp /tmp/sign_dmg.XXXXXX.swift)
+        cat > "$SIGN_SCRIPT" << 'EOF'
+import Foundation
+import CryptoKit
+guard CommandLine.arguments.count == 3,
+      let data = FileManager.default.contents(atPath: CommandLine.arguments[1]),
+      let keyData = Data(base64Encoded: CommandLine.arguments[2]) else { exit(1) }
+let key = try Curve25519.Signing.PrivateKey(rawRepresentation: keyData)
+print(try key.signature(for: data).base64EncodedString())
+EOF
+        
+        SIGNATURE=$(swift "$SIGN_SCRIPT" "${FINAL_DMG}" "$SPARKLE_KEY" 2>/dev/null || echo "")
+        rm -f "$SIGN_SCRIPT"
+        
+        if [ -n "$SIGNATURE" ]; then
+            FILE_SIZE=$(stat -f%z "${FINAL_DMG}")
+            DATE=$(date +"%a, %d %b %Y %H:%M:%S %z")
+            
+            echo -e "${GREEN}Sparkle AppCast Item:${NC}"
+            echo "<item>"
+            echo "    <title>${VERSION}</title>"
+            echo "    <pubDate>${DATE}</pubDate>"
+            echo "    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>"
+            echo "    <enclosure url=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\""
+            echo "               sparkle:version=\"${VERSION}\""
+            echo "               sparkle:shortVersionString=\"${VERSION}\""
+            echo "               length=\"${FILE_SIZE}\""
+            echo "               type=\"application/x-apple-diskimage\""
+            echo "               sparkle:edSignature=\"${SIGNATURE}\"/>"
+            echo "</item>"
+        else
+            log_warn "Failed to generate Sparkle signature (Check Swift/Key format)"
+        fi
+    else
+        log_warn "Sparkle Private Key not found in Keychain. Skipping signature generation."
+    fi
+    
+    echo ""
+    echo -e "${GREEN}Homebrew Cask info:${NC}"
+    echo "version \"${VERSION}\""
+    echo "sha256 \"${SHA256}\""
+fi
+
 log_info ""
 log_info "To test: open \"${FINAL_DMG}\""
 log_info "To upload: Upload to GitHub Releases"

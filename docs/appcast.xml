@@ -3,6 +3,28 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.6</title>
+            <pubDate>Wed, 15 Jan 2026 19:16:20 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>🐛 Bug Fixes</h2>
+                <ul>
+                    <li><strong>Fixed</strong>: Welcome page text no longer truncates</li>
+                    <li><strong>Fixed</strong>: Visual zones options now always visible in settings</li>
+                    <li><strong>Fixed</strong>: Gatekeeper now properly recognizes notarization</li>
+                    <li><strong>Improved</strong>: Better diagnostic logging for troubleshooting</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.6/SaneBar-1.0.6.dmg"
+                       sparkle:version="1.0.6"
+                       sparkle:shortVersionString="1.0.6"
+                       length="2192618"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="D0+tJrA22Vwm0XaJzkMjQqGyB8UaupcOyf7hyo1rz6SAAv9e3cnZTOk7Oe3cDk2P71dj/TLx+jEmK20vWz+DCQ=="/>
+        </item>
+        <item>
             <title>1.0.5</title>
             <pubDate>Wed, 14 Jan 2026 18:40:16 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>

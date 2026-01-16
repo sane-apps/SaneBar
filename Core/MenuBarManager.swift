@@ -344,8 +344,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             // If we're about to SHOW (hidden -> expanded), optionally gate with auth.
             if hidingState == .hidden, settings.requireAuthToShowHiddenIcons {
+                logger.info("Auth required to show hidden icons, prompting...")
                 let ok = await authenticate(reason: "Show hidden menu bar icons")
-                guard ok else { return }
+                guard ok else {
+                    logger.info("Auth failed or cancelled, aborting toggle")
+                    return
+                }
             }
 
             // If about to hide, validate position first
@@ -359,7 +363,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.info("Position valid, proceeding to hide")
             }
 
+            logger.info("Calling hidingService.toggle()...")
             await hidingService.toggle()
+            logger.info("hidingService.toggle() completed, new state: \(self.hidingService.state.rawValue)")
 
             // If user explicitly hid everything, unpin.
             if hidingService.state == .hidden {

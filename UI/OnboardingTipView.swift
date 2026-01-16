@@ -112,6 +112,7 @@ struct OnboardingTipView: View {
                 Text("For the **Find Icon** feature to work, SaneBar needs Accessibility permission.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Button {
                     // Actually open System Settings to the Accessibility pane

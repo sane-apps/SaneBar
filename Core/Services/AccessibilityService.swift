@@ -62,8 +62,15 @@ final class AccessibilityService: ObservableObject {
 
     // MARK: - Menu Bar Item Cache
 
+    /// Public struct to avoid "Large Tuple" lint errors
+    struct MenuBarItemPosition: Equatable, Sendable {
+        let app: RunningApp
+        let x: CGFloat
+        let width: CGFloat
+    }
+
     /// Cache for menu bar item positions to avoid expensive rescans
-    internal var menuBarItemCache: [(app: RunningApp, x: CGFloat, width: CGFloat)] = []
+    internal var menuBarItemCache: [MenuBarItemPosition] = []
     internal var menuBarItemCacheTime: Date = .distantPast
     internal let menuBarItemCacheValiditySeconds: TimeInterval = 5.0  // Refresh every 5 seconds for accurate positions
 
@@ -73,7 +80,7 @@ final class AccessibilityService: ObservableObject {
     internal let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0  // Refresh every 10 seconds for responsive UI
 
     internal var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
-    internal var menuBarItemsRefreshTask: Task<[(app: RunningApp, x: CGFloat, width: CGFloat)], Never>?
+    internal var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
 
     // MARK: - Initialization
 

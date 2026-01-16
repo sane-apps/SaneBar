@@ -11,8 +11,8 @@ extension AccessibilityService {
         menuBarOwnersCache
     }
 
-    func cachedMenuBarItemsWithPositions() -> [(app: RunningApp, x: CGFloat)] {
-        menuBarItemCache.map { (app: $0.app, x: $0.x) }
+    func cachedMenuBarItemsWithPositions() -> [MenuBarItemPosition] {
+        menuBarItemCache
     }
 
     // MARK: - Async Refresh (Non-blocking)
@@ -84,20 +84,19 @@ extension AccessibilityService {
         return result
     }
 
-    func refreshMenuBarItemsWithPositions() async -> [(app: RunningApp, x: CGFloat)] {
+    func refreshMenuBarItemsWithPositions() async -> [MenuBarItemPosition] {
         guard isTrusted else { return [] }
 
         let now = Date()
         if now.timeIntervalSince(menuBarItemCacheTime) < menuBarItemCacheValiditySeconds && !menuBarItemCache.isEmpty {
-            return menuBarItemCache.map { (app: $0.app, x: $0.x) }
+            return menuBarItemCache
         }
 
         if let task = menuBarItemsRefreshTask {
-            let items = await task.value
-            return items.map { (app: $0.app, x: $0.x) }
+            return await task.value
         }
 
-        let task = Task<[(app: RunningApp, x: CGFloat, width: CGFloat)], Never> {
+        let task = Task<[MenuBarItemPosition], Never> {
             // Use the authoritative scanner (includes width) and benefits from its caching.
             self.listMenuBarItemsWithPositions()
         }
@@ -105,7 +104,7 @@ extension AccessibilityService {
         menuBarItemsRefreshTask = task
         let result = await task.value
         menuBarItemsRefreshTask = nil
-        return result.map { (app: $0.app, x: $0.x) }
+        return result
     }
     
     /// Invalidates all menu bar caches, forcing a fresh scan on next call.

@@ -78,20 +78,20 @@ struct AdvancedSettingsView: View {
 
                 Stepper("Extra dividers: \(menuBarManager.settings.spacerCount)", value: $menuBarManager.settings.spacerCount, in: 0...12)
 
-                if menuBarManager.settings.spacerCount > 0 {
-                    Picker("Divider style", selection: $menuBarManager.settings.spacerStyle) {
-                        Text("Line").tag(SaneBarSettings.SpacerStyle.line)
-                        Text("Dot").tag(SaneBarSettings.SpacerStyle.dot)
-                    }
-                    .pickerStyle(.segmented)
-
-                    Picker("Divider width", selection: $menuBarManager.settings.spacerWidth) {
-                        Text("Compact").tag(SaneBarSettings.SpacerWidth.compact)
-                        Text("Normal").tag(SaneBarSettings.SpacerWidth.normal)
-                        Text("Wide").tag(SaneBarSettings.SpacerWidth.wide)
-                    }
-                    .pickerStyle(.segmented)
+                Picker("Divider style", selection: $menuBarManager.settings.spacerStyle) {
+                    Text("Line").tag(SaneBarSettings.SpacerStyle.line)
+                    Text("Dot").tag(SaneBarSettings.SpacerStyle.dot)
                 }
+                .pickerStyle(.segmented)
+                .disabled(menuBarManager.settings.spacerCount == 0)
+
+                Picker("Divider width", selection: $menuBarManager.settings.spacerWidth) {
+                    Text("Compact").tag(SaneBarSettings.SpacerWidth.compact)
+                    Text("Normal").tag(SaneBarSettings.SpacerWidth.normal)
+                    Text("Wide").tag(SaneBarSettings.SpacerWidth.wide)
+                }
+                .pickerStyle(.segmented)
+                .disabled(menuBarManager.settings.spacerCount == 0)
             } header: {
                 Text("Appearance")
             } footer: {
