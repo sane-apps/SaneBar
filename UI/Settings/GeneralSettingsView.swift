@@ -35,8 +35,8 @@ struct GeneralSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // 1. Startup Status
-                CompactSection("Startup & Visibility") {
-                    CompactToggle(label: "Open SaneBar when I log in", isOn: Binding(
+                CompactSection("Startup") {
+                    CompactToggle(label: "Start automatically at login", isOn: Binding(
                         get: { launchAtLogin },
                         set: { newValue in
                             launchAtLogin = newValue
@@ -44,18 +44,18 @@ struct GeneralSettingsView: View {
                         }
                     ))
                     CompactDivider()
-                    CompactToggle(label: "Show SaneBar icon in Dock", isOn: showDockIconBinding)
+                    CompactToggle(label: "Show app in Dock", isOn: showDockIconBinding)
                     CompactDivider()
-                    CompactToggle(label: "Hide Menu Bar icon (divider only)", isOn: hideMainIconBinding)
+                    CompactToggle(label: "Hide main SaneBar icon", isOn: hideMainIconBinding)
                 }
 
                 // 2. Privacy (Auth)
-                CompactSection("Privacy") {
-                    CompactToggle(label: "Require ID/Password to show hidden icons", isOn: $menuBarManager.settings.requireAuthToShowHiddenIcons)
+                CompactSection("Security") {
+                    CompactToggle(label: "Require password to show icons", isOn: $menuBarManager.settings.requireAuthToShowHiddenIcons)
                 }
                 
                 // 3. Updates
-                CompactSection("Updates") {
+                CompactSection("Software Updates") {
                     CompactToggle(label: "Check for updates automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
                     CompactDivider()
                     CompactRow("Actions") {
@@ -68,7 +68,7 @@ struct GeneralSettingsView: View {
                 }
                 
                 // 4. Profiles
-                CompactSection("Profiles") {
+                CompactSection("Saved Profiles") {
                     if savedProfiles.isEmpty {
                         CompactRow("Saved") {
                             Text("No saved profiles")
@@ -90,7 +90,7 @@ struct GeneralSettingsView: View {
                                         deleteProfile(profile)
                                     } label: {
                                         Image(systemName: "trash")
-                                            .foregroundStyle(.secondary)
+                                        .foregroundStyle(.secondary)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -112,7 +112,7 @@ struct GeneralSettingsView: View {
                 }
                 
                 // 5. Troubleshooting
-                CompactSection("Troubleshooting") {
+                CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
                             showingResetAlert = true

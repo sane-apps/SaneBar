@@ -8,12 +8,12 @@ struct RulesSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // 1. Behavior (Hiding)
-                CompactSection("Auto-Hiding") {
-                    CompactToggle(label: "Auto-hide after revealing", isOn: $menuBarManager.settings.autoRehide)
+                CompactSection("Hiding Behavior") {
+                    CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
                     
                     if menuBarManager.settings.autoRehide {
                         CompactDivider()
-                        CompactRow("Delay") {
+                        CompactRow("Wait before hiding") {
                             HStack {
                                 Text("\(Int(menuBarManager.settings.rehideDelay))s")
                                     .monospacedDigit()
@@ -25,8 +25,8 @@ struct RulesSettingsView: View {
                 }
 
                 // 2. Gestures (Revealing)
-                CompactSection("Gestures") {
-                    CompactToggle(label: "Reveal on hover (near top edge)", isOn: $menuBarManager.settings.showOnHover)
+                CompactSection("Revealing") {
+                    CompactToggle(label: "Show when mouse hovers top edge", isOn: $menuBarManager.settings.showOnHover)
                     
                     if menuBarManager.settings.showOnHover {
                         CompactDivider()
@@ -42,22 +42,22 @@ struct RulesSettingsView: View {
                     }
                     
                     CompactDivider()
-                    CompactToggle(label: "Reveal on menu bar scroll", isOn: $menuBarManager.settings.showOnScroll)
+                    CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
                 }
 
                 // 3. Triggers (Automation)
-                CompactSection("Smart Triggers") {
+                CompactSection("Automatic Triggers") {
                     // Battery
-                    CompactToggle(label: "Show when battery is low", isOn: $menuBarManager.settings.showOnLowBattery)
+                    CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
                     
                     CompactDivider()
                     
                     // App Launch
-                    CompactToggle(label: "Show when apps launch", isOn: $menuBarManager.settings.showOnAppLaunch)
+                    CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
                     
                     if menuBarManager.settings.showOnAppLaunch {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Trigger Apps")
+                            Text("If these apps open:")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 4)
@@ -74,7 +74,7 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     // Network
-                    CompactToggle(label: "Show on specific networks", isOn: $menuBarManager.settings.showOnNetworkChange)
+                    CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
                     
                     if menuBarManager.settings.showOnNetworkChange {
                         VStack(alignment: .leading, spacing: 8) {
