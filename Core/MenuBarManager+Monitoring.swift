@@ -149,6 +149,13 @@ extension MenuBarManager {
     }
 
     func showPositionWarning() {
+        // Double-check: If main icon is hidden, we logically CANNOT be misplaced relative to it.
+        // Also suppress warning to avoid annoyance.
+        if settings.hideMainIcon {
+            logger.info("showPositionWarning suppressed because hideMainIcon is enabled")
+            return
+        }
+        
         guard let button = mainStatusItem?.button else { return }
 
         let popover = NSPopover()
