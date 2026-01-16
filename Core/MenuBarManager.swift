@@ -285,10 +285,32 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Main Icon Visibility
 
     /// Show or hide the main SaneBar icon based on settings
+    /// When main icon is hidden, separator becomes the primary click target for toggle
     func updateMainIconVisibility() {
-        guard let mainItem = mainStatusItem else { return }
-        mainItem.isVisible = !settings.hideMainIcon
-        logger.info("Main icon visibility: \(mainItem.isVisible ? "visible" : "hidden")")
+        guard let mainItem = mainStatusItem,
+              let separator = separatorItem else { return }
+
+        let hideMainIcon = settings.hideMainIcon
+        mainItem.isVisible = !hideMainIcon
+
+        // When main icon is hidden, separator needs to handle left-clicks for toggle
+        if hideMainIcon {
+            // Wire separator button to handle clicks
+            if let button = separator.button {
+                button.action = #selector(statusItemClicked(_:))
+                button.target = self
+                button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            }
+            logger.info("Main icon hidden - separator now handles left-click toggle")
+        } else {
+            // Main icon visible - separator only needs right-click menu (no action needed)
+            if let button = separator.button {
+                button.action = nil
+                button.target = nil
+                button.sendAction(on: [.rightMouseUp]) // Menu only on right-click
+            }
+            logger.info("Main icon visible - separator menu-only mode")
+        }
     }
 
     private func updateAppearance() {
