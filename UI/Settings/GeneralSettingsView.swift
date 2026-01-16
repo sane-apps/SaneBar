@@ -15,6 +15,16 @@ struct GeneralSettingsView: View {
         )
     }
 
+    private var hideMainIconBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.hideMainIcon },
+            set: { newValue in
+                menuBarManager.settings.hideMainIcon = newValue
+                menuBarManager.updateMainIconVisibility()
+            }
+        )
+    }
+
     var body: some View {
         Form {
             // 1. Startup - most users want this
@@ -27,6 +37,7 @@ struct GeneralSettingsView: View {
                     }
                 ))
                 Toggle("Show in Dock", isOn: showDockIconBinding)
+                Toggle("Hide SaneBar icon (show divider only)", isOn: hideMainIconBinding)
             } header: {
                 Text("Startup")
             }
