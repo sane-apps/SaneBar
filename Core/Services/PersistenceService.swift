@@ -25,6 +25,14 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case wide
     }
 
+    enum DividerStyle: String, Codable, CaseIterable, Sendable {
+        case slash          // / (Default)
+        case backslash      // \
+        case pipe           // |
+        case pipeThin       // ❘
+        case dot            // •
+    }
+
     /// User-created icon group for organizing menu bar apps
     struct IconGroup: Codable, Sendable, Equatable, Identifiable {
         var id: UUID = UUID()
@@ -125,6 +133,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Hide the main SaneBar icon (show only divider)
     var hideMainIcon: Bool = false
 
+    /// Style of the main divider (/, \, |, etc.)
+    var dividerStyle: DividerStyle = .slash
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -158,6 +169,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
+        dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -168,7 +180,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case showOnHover, hoverDelay, showOnScroll
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
-        case hideMainIcon
+        case hideMainIcon, dividerStyle
     }
 }
 

@@ -209,10 +209,43 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     private func configureSeparatorButton(_ button: NSStatusBarButton) {
-        // Use a literal "/" marker so it stays legible at all sizes/themes.
+        // Default to slash style
+        updateSeparatorStyle(.slash)
+    }
+
+    /// Update the separator style (icon/text and width)
+    func updateSeparatorStyle(_ style: SaneBarSettings.DividerStyle) {
+        guard let separator = separatorItem, let button = separator.button else { return }
+
+        // Reset state
         button.image = nil
-        button.title = "/"
+        button.title = ""
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+
+        switch style {
+        case .slash:
+            button.title = "/"
+            separator.length = 14 // Reduced from 20 (User feedback #16)
+        case .backslash:
+            button.title = "\\"
+            separator.length = 14
+        case .pipe:
+            button.title = "|"
+            separator.length = 12
+        case .pipeThin:
+            button.title = "❘"
+            button.font = NSFont.systemFont(ofSize: 13, weight: .light)
+            separator.length = 12
+        case .dot:
+            button.image = NSImage(
+                systemSymbolName: "circle.fill",
+                accessibilityDescription: "Separator"
+            )
+            // Scale down the dot
+            button.image?.size = NSSize(width: 6, height: 6)
+            separator.length = 12
+        }
+
         button.alphaValue = 0.7
     }
 
