@@ -49,8 +49,8 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Autosave Names
 
-    nonisolated static let mainAutosaveName = "SaneBar_main"
-    nonisolated static let separatorAutosaveName = "SaneBar_separator"
+    nonisolated static let mainAutosaveName = "SaneBar_main_v2"
+    nonisolated static let separatorAutosaveName = "SaneBar_separator_v2"
 
     // MARK: - Icon Names
 
