@@ -14,6 +14,7 @@
 		15889E6AE2438B01F6972FC7 /* MenuBarManager+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */; };
 		177462570C47D2B4DB5E35D9 /* NetworkTriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E1A335FE5120D24D104B40 /* NetworkTriggerServiceTests.swift */; };
 		17C5B2B5EA61DA13CF1A96C6 /* IconHotkeysService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56253053D08930BD23085754 /* IconHotkeysService.swift */; };
+		1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */; };
 		1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E264258C707319B447D489AC /* KeyboardShortcuts */; };
 		2090850565B21ED74CFCD06F /* SpaceAnalyzerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F81708F4F6205FE057FBCEA /* SpaceAnalyzerView.swift */; };
 		22A389BF0FF36E955E7D94FE /* MenuBarSpacingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */; };
@@ -148,6 +149,7 @@
 		CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Cache.swift"; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
+		D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSettingsComponents.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
 		DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsControllerTests.swift; sourceTree = "<group>"; };
 		E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManagerTests.swift; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 			isa = PBXGroup;
 			children = (
 				BFAF741A121B164D6E1CACE3 /* AccessibilityPermissionView.swift */,
+				D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */,
 				B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */,
 			);
 			path = Components;
@@ -513,6 +516,7 @@
 				A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */,
 				F650F18E449852345CEB3FA6 /* AdvancedSettingsView.swift in Sources */,
 				7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */,
+				1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */,
 				ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */,
 				FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */,
 				2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */,

@@ -76,6 +76,14 @@ struct AdvancedSettingsView: View {
                     }
                 }
 
+                Picker("SaneBar Divider", selection: $menuBarManager.settings.dividerStyle) {
+                    Text("/  Slash").tag(SaneBarSettings.DividerStyle.slash)
+                    Text("|  Pipe").tag(SaneBarSettings.DividerStyle.pipe)
+                    Text("\\  Backslash").tag(SaneBarSettings.DividerStyle.backslash)
+                    Text("❘  Thin Pipe").tag(SaneBarSettings.DividerStyle.pipeThin)
+                    Text("•  Dot").tag(SaneBarSettings.DividerStyle.dot)
+                }
+
                 Stepper("Extra dividers: \(menuBarManager.settings.spacerCount)", value: $menuBarManager.settings.spacerCount, in: 0...12)
 
                 Picker("Divider style", selection: $menuBarManager.settings.spacerStyle) {

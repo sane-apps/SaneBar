@@ -254,6 +254,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
+        updateDividerStyle()
     }
 
     private func setupObservers() {
@@ -278,8 +279,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateHoverService()
                 self?.syncUpdateConfiguration()
                 self?.updateMainIconVisibility()
+                self?.updateDividerStyle()
             }
             .store(in: &cancellables)
+    }
+
+    private func updateDividerStyle() {
+        statusBarController.updateSeparatorStyle(settings.dividerStyle)
     }
 
     // MARK: - Main Icon Visibility
