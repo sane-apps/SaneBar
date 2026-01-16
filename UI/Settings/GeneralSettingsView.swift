@@ -4,6 +4,11 @@ import ServiceManagement
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var launchAtLogin = false
+    
+    // Profiles Logic
+    @State private var savedProfiles: [SaneBarProfile] = []
+    @State private var showingSaveProfileAlert = false
+    @State private var newProfileName = ""
 
     private var showDockIconBinding: Binding<Bool> {
         Binding(
@@ -28,8 +33,8 @@ struct GeneralSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // 1. Startup
-                CompactSection("Startup") {
+                // 1. Startup Status
+                CompactSection("Startup & Visibility") {
                     CompactToggle(label: "Open SaneBar when I log in", isOn: Binding(
                         get: { launchAtLogin },
                         set: { newValue in
@@ -38,106 +43,90 @@ struct GeneralSettingsView: View {
                         }
                     ))
                     CompactDivider()
-                    CompactToggle(label: "Show in Dock", isOn: showDockIconBinding)
+                    CompactToggle(label: "Show SaneBar icon in Dock", isOn: showDockIconBinding)
                     CompactDivider()
-                    CompactToggle(label: "Hide SaneBar icon (show divider only)", isOn: hideMainIconBinding)
+                    CompactToggle(label: "Hide Menu Bar icon (divider only)", isOn: hideMainIconBinding)
                 }
 
-                // 2. Quick help
-                CompactSection("Can't find an icon?") {
-                    CompactRow("Actions") {
-                        HStack {
-                            Button {
-                                if menuBarManager.hidingState == .hidden {
-                                    menuBarManager.showHiddenItems()
-                                } else {
-                                    menuBarManager.hideHiddenItems()
-                                }
-                            } label: {
-                                Label(menuBarManager.hidingState == .hidden ? "Reveal All" : "Hide All",
-                                      systemImage: menuBarManager.hidingState == .hidden ? "eye" : "eye.slash")
-                            }
-                            .controlSize(.small)
-                            
-                            Button {
-                                Task { @MainActor in
-                                    SearchWindowController.shared.toggle()
-                                }
-                            } label: {
-                                Label("Find Icon…", systemImage: "magnifyingglass")
-                            }
-                            .controlSize(.small)
-                        }
-                    }
-                    CompactDivider()
-                    HStack {
-                        Text("\"Find Icon\" shows all menu bar icons and lets you click any of them.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-                }
-
-                // 3. Behavior
-                CompactSection("When I reveal hidden icons…") {
-                    CompactToggle(label: "Auto-hide after a few seconds", isOn: $menuBarManager.settings.autoRehide)
-                    if menuBarManager.settings.autoRehide {
-                        CompactDivider()
-                        CompactRow("Delay") {
-                            HStack {
-                                Text("Wait \(Int(menuBarManager.settings.rehideDelay))s")
-                                Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1...10, step: 1)
-                                    .labelsHidden()
-                            }
-                        }
-                    }
-                }
-
-                // 4. Gesture triggers
-                CompactSection("Gestures") {
-                    CompactToggle(label: "Reveal when I hover near the top", isOn: $menuBarManager.settings.showOnHover)
-                    if menuBarManager.settings.showOnHover {
-                        CompactDivider()
-                        CompactRow("Hover Delay") {
-                            HStack {
-                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05...0.5, step: 0.05)
-                                    .frame(width: 100)
-                                Text("\(Int(menuBarManager.settings.hoverDelay * 1000))ms")
-                                    .monospacedDigit()
-                                    .frame(width: 50, alignment: .trailing)
-                            }
-                        }
-                    }
-                    CompactDivider()
-                    CompactToggle(label: "Reveal when I scroll up in the menu bar", isOn: $menuBarManager.settings.showOnScroll)
+                // 2. Privacy (Auth)
+                CompactSection("Privacy") {
+                    CompactToggle(label: "Require ID/Password to show hidden icons", isOn: $menuBarManager.settings.requireAuthToShowHiddenIcons)
                 }
                 
-                // 5. Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("How to organize")
-                        .font(.headline)
-                        .padding(.leading, 4)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("**⌘+drag** icons to rearrange them", systemImage: "hand.draw")
-                        Label("Icons left of **/** get hidden", systemImage: "eye.slash")
-                        HStack(spacing: 4) {
-                            Label("Icons between **/** and", systemImage: "eye")
-                            Image(systemName: "line.3.horizontal.decrease")
-                            Text("stay visible")
+                // 3. Updates
+                CompactSection("Updates") {
+                    CompactToggle(label: "Check for updates automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
+                    CompactDivider()
+                    CompactRow("Actions") {
+                        Button("Check Now") {
+                            menuBarManager.userDidClickCheckForUpdates()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                
+                // 4. Profiles
+                CompactSection("Profiles") {
+                    if savedProfiles.isEmpty {
+                        CompactRow("Saved") {
+                            Text("No saved profiles")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        ForEach(savedProfiles) { profile in
+                            CompactRow(profile.name) {
+                                HStack {
+                                    Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Button("Load") { loadProfile(profile) }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                    
+                                    Button {
+                                        deleteProfile(profile)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            CompactDivider()
                         }
                     }
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 8)
+                    
+                    CompactDivider()
+                    
+                    CompactRow("Current Settings") {
+                        Button("Save as Profile…") {
+                            newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
+                            showingSaveProfileAlert = true
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
             }
             .padding(20)
         }
+        .onAppear {
+            checkLaunchAtLogin()
+            loadProfiles()
+        }
+        .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
+            TextField("Name", text: $newProfileName)
+            Button("Save") { saveCurrentProfile() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Save your current configuration to restore later.")
+        }
     }
 
+    // MARK: - Startup Helpers
+    
     private func setLaunchAtLogin(_ enabled: Bool) {
         do {
             if enabled {
@@ -157,6 +146,42 @@ struct GeneralSettingsView: View {
             launchAtLogin = (status == .enabled)
         } catch {
             launchAtLogin = false
+        }
+    }
+    
+    // MARK: - Profile Helpers
+    
+    private func loadProfiles() {
+        do {
+            savedProfiles = try PersistenceService.shared.listProfiles()
+        } catch {
+            print("[SaneBar] Failed to load profiles: \(error)")
+        }
+    }
+
+    private func saveCurrentProfile() {
+        guard !newProfileName.isEmpty else { return }
+        var profile = SaneBarProfile(name: newProfileName, settings: menuBarManager.settings)
+        profile.modifiedAt = Date()
+        do {
+            try PersistenceService.shared.saveProfile(profile)
+            loadProfiles()
+        } catch {
+            print("[SaneBar] Failed to save profile: \(error)")
+        }
+    }
+
+    private func loadProfile(_ profile: SaneBarProfile) {
+        menuBarManager.settings = profile.settings
+        menuBarManager.saveSettings()
+    }
+
+    private func deleteProfile(_ profile: SaneBarProfile) {
+        do {
+            try PersistenceService.shared.deleteProfile(id: profile.id)
+            loadProfiles()
+        } catch {
+            print("[SaneBar] Failed to delete profile: \(error)")
         }
     }
 }
