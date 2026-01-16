@@ -18,8 +18,9 @@ struct CompactSection<Content: View>: View {
             VStack(spacing: 0) {
                 content
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             .padding(.horizontal, 2)
         }
     }
@@ -41,8 +42,8 @@ struct CompactRow<Content: View>: View {
             content
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 
@@ -60,8 +61,8 @@ struct CompactToggle: View {
                 .controlSize(.small)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 

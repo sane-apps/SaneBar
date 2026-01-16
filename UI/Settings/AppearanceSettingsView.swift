@@ -81,18 +81,18 @@ struct AppearanceSettingsView: View {
                 }
 
                 // 2. Menu Bar Visuals
-                CompactSection("Menu Bar Tint") {
+                CompactSection("Menu Bar Style") {
                     CompactToggle(label: "Custom Appearance", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
                     
                     if menuBarManager.settings.menuBarAppearance.isEnabled {
                         CompactDivider()
                         
                         if MenuBarAppearanceSettings.supportsLiquidGlass {
-                            CompactToggle(label: "Liquid Glass Effect", isOn: $menuBarManager.settings.menuBarAppearance.useLiquidGlass)
+                            CompactToggle(label: "Translucent Background", isOn: $menuBarManager.settings.menuBarAppearance.useLiquidGlass)
                             CompactDivider()
                         }
                         
-                        CompactRow("Color") {
+                        CompactRow("Tint Color") {
                             ColorPicker("", selection: Binding(
                                 get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
                                 set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
@@ -132,17 +132,17 @@ struct AppearanceSettingsView: View {
                     }
                 }
                 
-                // 3. System Spacing
-                CompactSection("System Spacing") {
-                    CompactToggle(label: "Tighter Icon Spacing (System-wide)", isOn: tighterSpacingEnabled)
+                // 3. Menu Bar Layout
+                CompactSection("Menu Bar Layout") {
+                    CompactToggle(label: "Reduce space between icons", isOn: tighterSpacingEnabled)
                     
                     if menuBarManager.settings.menuBarSpacing != nil {
                         CompactDivider()
-                        CompactRow("Spacing") {
+                        CompactRow("Item Spacing") {
                             Stepper("\(spacingBinding.wrappedValue)pt", value: spacingBinding, in: 1...20)
                         }
                         CompactDivider()
-                        CompactRow("Padding") {
+                        CompactRow("Click Area") {
                             Stepper("\(paddingBinding.wrappedValue)pt", value: paddingBinding, in: 1...20)
                         }
                         
@@ -150,7 +150,7 @@ struct AppearanceSettingsView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
-                            Text("Requires logout to apply fully.")
+                            Text("Log out to verify changes.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
