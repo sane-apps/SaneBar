@@ -8,7 +8,31 @@ extension MenuBarManager {
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
-        logger.debug("Menu will open")
+        let event = NSApp.currentEvent
+        let mainHasMenu = (mainStatusItem?.menu != nil)
+        let sepHasMenu = (separatorItem?.menu != nil)
+        logger.debug("Menu will open (event=\(String(describing: event?.type.rawValue)) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu))")
+        let eventType = event?.type.rawValue ?? -1
+        let buttonNumber = event?.buttonNumber ?? -1
+        print("[MenuBarManager] menuWillOpen eventType=\(eventType) button=\(buttonNumber) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu)")
+
+        let isRightClick: Bool = {
+            guard let event else { return false }
+            if event.type == .rightMouseUp || event.type == .rightMouseDown { return true }
+            if event.type == .leftMouseUp || event.type == .leftMouseDown {
+                if event.modifierFlags.contains(.control) { return true }
+            }
+            return event.buttonNumber == 1
+        }()
+
+        if !isRightClick {
+            logger.warning("Menu opened from non-right click; cancelling and toggling instead")
+            menu.cancelTracking()
+            isMenuOpen = false
+            toggleHiddenItems()
+            return
+        }
+
         isMenuOpen = true
         
         // Cancel any pending auto-rehide to prevent the menu from being
@@ -64,6 +88,19 @@ extension MenuBarManager {
     }
     
     @objc func statusItemClicked(_ sender: Any?) {
+        // Ensure no status item has an attached menu (left-click must not open menu)
+        mainStatusItem?.menu = nil
+        separatorItem?.menu = nil
+        mainStatusItem?.button?.menu = nil
+        separatorItem?.button?.menu = nil
+
+        if let button = sender as? NSStatusBarButton {
+            let id = button.identifier?.rawValue ?? "nil"
+            let hasMenu = (button.menu != nil)
+            logger.debug("statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
+            print("[MenuBarManager] statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
+        }
+
         // Prevent interaction during animation to avoid race conditions
         if hidingService.isAnimating {
             logger.info("Ignoring click while animating")
@@ -71,12 +108,15 @@ extension MenuBarManager {
         }
 
         guard let event = NSApp.currentEvent else {
-            logger.warning("statusItemClicked: No current event available")
+            logger.warning("statusItemClicked: No current event available; defaulting to left click")
+            print("[MenuBarManager] statusItemClicked: no event")
+            toggleHiddenItems()
             return
         }
 
         let clickType = StatusBarController.clickType(from: event)
         logger.info("statusItemClicked: event type=\(event.type.rawValue), clickType=\(String(describing: clickType))")
+        print("[MenuBarManager] statusItemClicked eventType=\(event.type.rawValue) button=\(event.buttonNumber) modifiers=\(event.modifierFlags.rawValue) clickType=\(clickType)")
 
         switch clickType {
         case .optionClick:
@@ -91,14 +131,11 @@ extension MenuBarManager {
     }
 
     func showStatusMenu() {
-        // Use separator if main icon is hidden
-        let item = settings.hideMainIcon ? separatorItem : mainStatusItem
-        
-        guard let statusMenu = statusMenu,
-              let targetItem = item,
+          guard let statusMenu = statusMenu,
+              let targetItem = mainStatusItem,
               targetItem.button != nil else { return }
-              
-        logger.info("Showing status menu (anchor: \(self.settings.hideMainIcon ? "separator" : "main icon"))")
+
+          logger.info("Showing status menu (anchor: main icon)")
         // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
         targetItem.popUpMenu(statusMenu)
     }

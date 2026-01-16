@@ -104,84 +104,61 @@ struct MenuBarManagerTests {
 
     // MARK: - Position Validation Edge Cases (BUG: Separator Eating Main Icon)
 
-    @Test("Position validation: separator right edge overlapping main left edge is invalid")
+    @Test("Position validation: separator left edge overlapping main left edge is invalid")
     func testSeparatorOverlappingMainIsInvalid() {
-        // The actual validation checks if separator's RIGHT EDGE is past main's LEFT EDGE
-        let separatorOriginX: CGFloat = 100
-        let separatorWidth: CGFloat = 100
-        let separatorRightEdge = separatorOriginX + separatorWidth  // 200
-
+        // Validation checks separator LEFT EDGE relative to main LEFT EDGE
+        let separatorLeftEdge: CGFloat = 150
         let mainLeftEdge: CGFloat = 150
 
-        // separatorRightEdge (200) > mainLeftEdge (150) → INVALID (separator overlaps main)
-        let isInvalid = separatorRightEdge > mainLeftEdge
+        // separatorLeftEdge (150) >= mainLeftEdge (150) → INVALID
+        let isInvalid = separatorLeftEdge >= mainLeftEdge
 
         #expect(isInvalid, "Separator overlapping main icon MUST be invalid - would eat the main icon")
     }
 
-    @Test("Position validation: separator completely left of main is valid")
+    @Test("Position validation: separator left of main is valid")
     func testSeparatorCompletelyLeftIsValid() {
-        let separatorOriginX: CGFloat = 100
-        let separatorWidth: CGFloat = 50
-        let separatorRightEdge = separatorOriginX + separatorWidth  // 150
-
+        let separatorLeftEdge: CGFloat = 100
         let mainLeftEdge: CGFloat = 200
 
-        // separatorRightEdge (150) <= mainLeftEdge (200) → VALID
-        let isValid = separatorRightEdge <= mainLeftEdge
+        // separatorLeftEdge (100) < mainLeftEdge (200) → VALID
+        let isValid = separatorLeftEdge < mainLeftEdge
 
         #expect(isValid, "Separator completely left of main icon should be valid")
     }
 
-    @Test("Position validation: separator barely touching main is invalid")
+    @Test("Position validation: separator touching main is invalid")
     func testSeparatorTouchingMainIsInvalid() {
-        // Even if just touching (not overlapping), treat as invalid for safety
-        let separatorOriginX: CGFloat = 100
-        let separatorWidth: CGFloat = 100
-        let separatorRightEdge = separatorOriginX + separatorWidth  // 200
-
+        let separatorLeftEdge: CGFloat = 200
         let mainLeftEdge: CGFloat = 200  // Exactly touching
 
-        // separatorRightEdge (200) > mainLeftEdge (200) is FALSE
-        // But with > (strict), touching is actually OK
-        // Let's document this edge case - it's borderline
-        let wouldBeInvalidWithStrictGreater = separatorRightEdge > mainLeftEdge
+        // separatorLeftEdge (200) >= mainLeftEdge (200) → INVALID
+        let isInvalid = separatorLeftEdge >= mainLeftEdge
 
-        #expect(!wouldBeInvalidWithStrictGreater,
-                "Exactly touching is borderline - strict > means touching is technically OK")
+        #expect(isInvalid,
+                "Exactly touching is invalid - separator must be strictly left of main")
     }
 
-    @Test("Position validation must work when separator is 10000px wide (hidden state)")
+    @Test("Position validation ignores separator width (hidden state)")
     func testValidationWithHiddenStateSeparatorWidth() {
-        // When items are hidden, separator is 10,000px wide
-        // This is the critical case - if separator position is wrong, 10,000px pushes everything off!
-        let separatorOriginX: CGFloat = 1000
-        let separatorWidth: CGFloat = 10_000  // Hidden state width
-        let separatorRightEdge = separatorOriginX + separatorWidth  // 11,000
-
+        // When items are hidden, separator is 10,000px wide, but
+        // validation should only care about the separator's LEFT edge.
+        let separatorLeftEdge: CGFloat = 1000
         let mainLeftEdge: CGFloat = 1200
-        let screenWidth: CGFloat = 2560  // Typical MacBook Pro display
 
-        // separatorRightEdge (11,000) is WAY past mainLeftEdge (1,200)
-        // AND way past screen width - main icon is pushed WAY off screen
-        let isInvalid = separatorRightEdge > mainLeftEdge
+        // separatorLeftEdge (1,000) < mainLeftEdge (1,200) → VALID
+        let isValid = separatorLeftEdge < mainLeftEdge
 
-        #expect(isInvalid, "With 10,000px separator width, main icon WILL be pushed off screen")
-        #expect(separatorRightEdge > screenWidth, "10,000px separator extends past entire screen")
+        #expect(isValid, "Hidden state should remain valid as long as separator is left of main")
     }
 
-    @Test("Position validation should pass when separator is 20px wide (expanded state)")
+    @Test("Position validation should pass when separator is left of main (expanded state)")
     func testValidationWithExpandedStateSeparatorWidth() {
-        // When items are expanded (visible), separator is only 20px wide
-        // Position validation is less critical in this state
-        let separatorOriginX: CGFloat = 1000
-        let separatorWidth: CGFloat = 20  // Expanded state width
-        let separatorRightEdge = separatorOriginX + separatorWidth  // 1,020
-
+        let separatorLeftEdge: CGFloat = 1000
         let mainLeftEdge: CGFloat = 1200
 
-        // separatorRightEdge (1,020) <= mainLeftEdge (1,200) → VALID
-        let isValid = separatorRightEdge <= mainLeftEdge
+        // separatorLeftEdge (1,000) < mainLeftEdge (1,200) → VALID
+        let isValid = separatorLeftEdge < mainLeftEdge
 
         #expect(isValid, "With 20px separator, main icon is safely to the right")
     }

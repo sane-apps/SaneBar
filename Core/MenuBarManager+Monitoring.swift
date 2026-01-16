@@ -34,6 +34,21 @@ extension MenuBarManager {
         let mainFrame = mainWindow.frame
         let separatorFrame = separatorWindow.frame
 
+        guard let mainScreen = mainWindow.screen, let sepScreen = separatorWindow.screen else {
+            logger.debug("validateSeparatorPosition: window screen not ready - assuming valid")
+            return true
+        }
+
+        if mainScreen == sepScreen {
+            let menuBarY = mainScreen.frame.maxY - NSStatusBar.system.thickness
+            let mainDeltaY = abs(mainFrame.origin.y - menuBarY)
+            let sepDeltaY = abs(separatorFrame.origin.y - menuBarY)
+            if mainDeltaY > NSStatusBar.system.thickness || sepDeltaY > NSStatusBar.system.thickness {
+                logger.debug("validateSeparatorPosition: windows not at menu bar yet (mainY=\(mainFrame.origin.y), sepY=\(separatorFrame.origin.y))")
+                return true
+            }
+        }
+
         // If frames are zero/invalid, assume valid (UI not ready)
         if mainFrame.width == 0 || separatorFrame.width == 0 {
             logger.debug("validateSeparatorPosition: frames not ready - assuming valid")
@@ -44,22 +59,38 @@ extension MenuBarManager {
         // In multi-display setups, each display has its own menu bar, and coordinates
         // are in unified screen space. Comparing coordinates across different screens
         // will produce false positives.
-        if mainWindow.screen != separatorWindow.screen {
+        if mainScreen != sepScreen {
             logger.debug("validateSeparatorPosition: items on different screens - assuming valid (multi-display transition)")
             return true
         }
 
         // Check: separator must be LEFT of main icon (lower X in screen coordinates)
         // Menu bar: LEFT = lower X, RIGHT = higher X
-        let separatorRightEdge = separatorFrame.origin.x + separatorFrame.width
+        let separatorLeftEdge = separatorFrame.origin.x
         let mainLeftEdge = mainFrame.origin.x
 
-        if separatorRightEdge > mainLeftEdge {
-            logger.warning("Position error: separator (right edge \(separatorRightEdge)) is RIGHT of main (left edge \(mainLeftEdge))")
+        if separatorLeftEdge >= mainLeftEdge {
+            if ProcessInfo.processInfo.environment["SANEBAR_FORCE_WINDOW_NUDGE"] == "1", !swapAttempted {
+                logger.error("Position error detected; attempting forced swap before warning")
+                print("[MenuBarManager] Position error detected; attempting forced swap before warning")
+                swapAttempted = true
+
+                statusBarController.forceSwapItems()
+                mainStatusItem = statusBarController.mainItem
+                separatorItem = statusBarController.separatorItem
+                if let separator = separatorItem {
+                    hidingService.configure(delimiterItem: separator)
+                }
+                clearStatusItemMenus()
+                updateMainIconVisibility()
+                return true
+            }
+
+            logger.warning("Position error: separator (left edge \(separatorLeftEdge)) is RIGHT of main (left edge \(mainLeftEdge))")
             return false
         }
 
-        logger.debug("Position valid: separator right=\(separatorRightEdge), main left=\(mainLeftEdge)")
+        logger.debug("Position valid: separator left=\(separatorLeftEdge), main left=\(mainLeftEdge)")
         return true
     }
 
