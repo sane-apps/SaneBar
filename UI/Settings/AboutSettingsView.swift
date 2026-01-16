@@ -32,22 +32,6 @@ struct AboutSettingsView: View {
                     .foregroundStyle(.tertiary)
             }
 
-            // Update section
-            VStack(spacing: 10) {
-                Button {
-                    menuBarManager.userDidClickCheckForUpdates()
-                } label: {
-                    Text("Check for Updates")
-                }
-                .buttonStyle(.bordered)
-
-                Toggle("Check automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
-                    .toggleStyle(.checkbox)
-                    .font(.body)
-                    .onChange(of: menuBarManager.settings.checkForUpdatesAutomatically) { _, _ in
-                        menuBarManager.saveSettings()
-                    }
-            }
 
             // Trust info - not clickable, just text
             HStack(spacing: 16) {
