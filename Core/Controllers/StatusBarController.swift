@@ -381,7 +381,6 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // Separator is visual-only; no click handling
 
-        let env = ProcessInfo.processInfo.environment
         if env["SANEBAR_FORCE_TEXT_ICON"] == "1" {
             separatorItem.button?.image = nil
             separatorItem.button?.title = "/"
