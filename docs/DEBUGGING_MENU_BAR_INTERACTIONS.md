@@ -1,190 +1,173 @@
-# Debugging Menu Bar Interactions (Click + Order)
+# Menu Bar Interactions & Positioning
 
-## Intended Behavior (Product / UX)
-- Left-click on the main SaneBar icon toggles hide/show.
-- Right-click opens the context menu (Find Icon, Settings, Updates, Quit).
-- The separator ("/") is **visual-only** and should not be interactive.
+## Quick Reference
 
-## Evidence in Project Docs
-- Right-click menu is the intended entry point for Find Icon and Settings.
-  - See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) (context menu screenshot entry).
-  - See [marketing/feature-requests.md](marketing/feature-requests.md) (right-click menu request & implementation).
+### Click Behavior
+- **Left-click** on main SaneBar icon → Toggle hide/show
+- **Right-click** on main icon → Context menu (Find Icon, Settings, Quit)
+- **Separator ("/")** → Visual-only, not interactive
 
-## Competitor Behavior (Reference)
-- **Dozer**: Left-click toggles hide/show; right-click opens settings.
-- **Hidden Bar**: Single arrow icon; click toggles hide/show; no left-click menu.
-- **Ice**: Multiple reveal triggers (click empty menu bar area, hover, scroll). Menu actions are separate from reveal action.
-- **Bartender** (closed source): Left-click reveals; right-click opens preferences/context.
+### The Ice Pattern
 
-## Apple API Notes
-- `NSStatusItem.menu` **auto-opens** on click. If set, left-click will show the menu and bypass custom action handling.
-- For custom left/right behavior:
-  - Keep `NSStatusItem.menu` == nil.
-  - Set `NSStatusBarButton.target` / `action`.
-  - Use `sendAction(on:)` to listen for right-click, then call `popUpMenu()` manually.
+SaneBar uses the same positioning pattern as [Ice](https://github.com/jordanbaird/Ice), a popular open-source menu bar manager.
 
-Relevant docs:
-- https://developer.apple.com/documentation/appkit/nsstatusitem
-- https://developer.apple.com/documentation/appkit/nsstatusbarbutton
-- https://developer.apple.com/documentation/appkit/nsmenu
+```swift
+// 1. SEED positions in UserDefaults BEFORE creating items
+private static func seedPositionsIfNeeded() {
+    let defaults = UserDefaults.standard
+    let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
+    let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
 
-## Regression Pattern (Observed)
-- The hide-main-icon + “anchor menu to separator” changes can cause the **menu to attach to the wrong status item**.
-- When swap/recovery logic reassigns status items, old menu references may persist and left-click opens the menu.
-- Any path that sets `statusItem.menu = statusMenu` reintroduces left-click menu behavior.
+    if defaults.object(forKey: mainKey) == nil {
+        defaults.set(0, forKey: mainKey)  // 0 = rightmost
+    }
+    if defaults.object(forKey: sepKey) == nil {
+        defaults.set(1, forKey: sepKey)   // 1 = second from right
+    }
+}
 
-## Hard Rule for Stability
-1. **Never attach** a menu to any `NSStatusItem` (main or separator).
-2. Always use right-click (`statusItemClicked`) to call `popUpMenu(statusMenu)`.
-3. Always clear both:
-   - `statusItem.menu`
-   - `statusItem.button?.menu`
-   after swaps/recovery and during setup.
+// 2. CREATE items AFTER seeding
+init() {
+    Self.seedPositionsIfNeeded()
 
-## Positioning + Warning Regression Fix (2026-01)
-Symptoms observed:
-- False “Separator Misplaced” warnings while behavior was correct.
-- Both icons launching far to the left of existing items instead of near Control Center.
+    self.mainItem = NSStatusBar.system.statusItem(withLength: variableLength)
+    self.mainItem.autosaveName = Self.mainAutosaveName
 
-Root causes:
-- Validation used **separator right edge**, which becomes huge in hidden state and trips warnings.
-- Missing/left-biased autosave positions caused default placement on the far left.
+    self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+    self.separatorItem.autosaveName = Self.separatorAutosaveName
+}
+```
 
-Fixes applied:
-- **Validate using separator left edge** only (width is ignored for correctness).
-- **Seed default positions** near the right edge on first run or when cached values are clearly far-left.
+### Hiding Mechanism
 
-Regression tests:
-- Menu-bar position edge cases updated in [Tests/MenuBarManagerTests.swift](Tests/MenuBarManagerTests.swift).
+NSStatusItem.length controls visibility:
 
-## Files to Audit First
-- [Core/MenuBarManager.swift](Core/MenuBarManager.swift)
-- [Core/MenuBarManager+Actions.swift](Core/MenuBarManager+Actions.swift)
-- [Core/MenuBarManager+Monitoring.swift](Core/MenuBarManager+Monitoring.swift)
-- [Core/Controllers/StatusBarController.swift](Core/Controllers/StatusBarController.swift)
+| State | Separator Length | Effect |
+|-------|------------------|--------|
+| Expanded | 20px | Normal divider appearance |
+| Collapsed | 10,000px | Pushes hidden items off-screen |
 
-## Quick Runtime Verification
-- Log whether `mainStatusItem.menu` or `separatorItem.menu` is non-nil at click time.
-- If `menuWillOpen` triggers on a left click, cancel tracking and toggle hide/show instead.
+Items aren't removed, just pushed off the right edge of the screen.
 
 ---
 
-## NSStatusItem X-Coordinate System (CRITICAL)
+## Key Rules
 
-**This caused a multi-day debugging session. Do not forget.**
+### Rule 1: Ordinal Positions, Not Pixel Coordinates
 
-### The Rule
-```
-HIGH X value (1200+) = RIGHT side of menu bar (near Control Center, clock)
-LOW X value (0-200)  = LEFT side of menu bar (near Apple menu)
-```
+macOS interprets position values as ordering hints (0 = rightmost, 1 = second, etc.), not pixel coordinates.
 
-### Why This Matters
-- macOS stores status item positions in UserDefaults as X-coordinates
-- Key format: `NSStatusItem Preferred Position <autosaveName>`
-- These values persist across app launches and are restored automatically
-- **Corrupted/wrong values cause icons to appear offscreen or far-left**
+### Rule 2: Seed BEFORE Create
 
-### The Bug Pattern (2026-01-16)
-1. Old code (`ensureDefaultPositions()`) wrote x=100, x=120 thinking "low = safe default"
-2. These values placed icons on the FAR LEFT, not the right
-3. macOS dutifully restored these wrong positions on every launch
-4. Icons appeared offscreen or in wrong location
-5. Misdiagnosed as "WindowServer corruption" when it was just bad preference data
+macOS reads the position from UserDefaults when the item is created. Seeding after creation has no effect.
 
-### The Fix Pattern
+### Rule 3: Trust macOS
+
+Seed positions once correctly, use autosaveName, and let macOS handle placement. No recovery logic needed.
+
+### Rule 4: Cache Positions Before Removal
+
+macOS deletes position data when removing an NSStatusItem or setting `isVisible = false`. Cache and restore:
+
 ```swift
-// In seedDefaultPositionsIfNeeded():
-let mainTooLeft = (mainNumber?.doubleValue ?? 9999) < 200  // Detect bad values
-let base = max(1200, rightEdge - 160)                      // Seed correct values
+deinit {
+    let cached = StatusItemDefaults[.preferredPosition, autosaveName]
+    NSStatusBar.system.removeStatusItem(statusItem)
+    StatusItemDefaults[.preferredPosition, autosaveName] = cached
+}
 ```
 
-### Debugging Checklist (Before Assuming "macOS Bug")
-1. **Dump current position values**: `SANEBAR_DUMP_STATUSITEM_PREFS=1`
-2. **Check if values are suspiciously low** (< 200 = left side)
-3. **Clear and reseed**: `SANEBAR_CLEAR_STATUSITEM_PREFS=1`
-4. **Verify after 1-2 seconds** - macOS needs time to settle positions
+---
 
-### Environment Flags for Position Debugging
-| Flag | Purpose |
+## NSStatusItem Position System
+
+### UserDefaults Keys
+
+macOS stores positions with this key format:
+```
+NSStatusItem Preferred Position <autosaveName>
+```
+
+### Ordinal Values
+
+| Value | Meaning |
+|-------|---------|
+| 0 | Rightmost position (near Control Center) |
+| 1 | Second from right |
+| 2 | Third from right |
+
+### Position Persistence
+
+- Positions persist across app launches
+- Stored in the app's UserDefaults domain
+- User can manually reposition with Cmd+drag
+
+---
+
+## Debugging Checklist
+
+### Icons in Wrong Position?
+
+1. **Check stored positions**:
+   ```bash
+   defaults read com.sanebar.app | grep -i "NSStatusItem"
+   ```
+
+2. **Verify seeding happened**:
+   - Position 0 should exist for main icon
+   - Position 1 should exist for separator
+
+3. **Test with fresh prefs**:
+   ```bash
+   defaults delete com.sanebar.app
+   ```
+
+### Icons Not Appearing?
+
+1. Check if items were created (log in StatusBarController.init)
+2. Verify autosaveNames are being set
+3. Check window layer (should be 25 for status items)
+
+---
+
+## Anti-Patterns to Avoid
+
+| Approach | Why It Fails |
+|----------|--------------|
+| Pixel X-coordinates | macOS expects ordinal values (0,1,2) |
+| Create before seeding | macOS reads position on creation |
+| Recovery/validation logic | Unnecessary if initialization is correct |
+| Disabling autosaveName | Loses position persistence |
+| Complex coordinate calculations | Simple ordinal values work |
+| Continuous position monitoring | Single correct initialization is sufficient |
+
+---
+
+## Reference Implementation
+
+Ice source code provides the authoritative pattern:
+
+- **StatusItemDefaults.swift**: UserDefaults key proxy
+- **ControlItem.swift**: Item creation with seeding pattern
+- **MigrationManager.swift**: Version upgrades and position migration
+
+Repository: https://github.com/jordanbaird/Ice
+
+---
+
+## Files
+
+| File | Purpose |
 |------|---------|
-| `SANEBAR_DUMP_STATUSITEM_PREFS=1` | Log current stored positions |
-| `SANEBAR_CLEAR_STATUSITEM_PREFS=1` | Clear stored positions |
-| `SANEBAR_DISABLE_AUTOSAVE=1` | Don't use autosaveName (fresh positions) |
-| `SANEBAR_STATUSITEM_DELAY_MS=3000` | Delay item creation |
+| `Core/Controllers/StatusBarController.swift` | Item creation, position seeding |
+| `Core/Services/HidingService.swift` | Length toggle for hide/show |
+| `Core/MenuBarManager.swift` | Overall orchestration |
 
 ---
 
-## Lessons Learned (Anti-Patterns to Avoid)
+## Environment Variables
 
-### 1. Don't Misdiagnose Data Problems as System Corruption
-**Bad**: "WindowServer has deep corruption that survives Safe Boot"
-**Good**: "What values are actually being restored? Are they correct?"
-
-When status items appear in wrong positions:
-- First check: What X-coordinates are stored in preferences?
-- Second check: Are those values sensible (1000+ for right side)?
-- Third check: Is the app writing bad values somewhere?
-
-### 2. Don't Build Workarounds Before Understanding Root Cause
-**Bad**: Recovery/nudge mechanisms to move windows after creation
-**Good**: Fix the source data so windows are created in correct position
-
-The nudge/recovery code added complexity. The actual fix was 30 lines in `seedDefaultPositionsIfNeeded()`.
-
-### 3. Validate Using the Right Edge (Literally)
-**Bad**: Check separator's right edge (width=10000 when hidden → false positives)
-**Good**: Check separator's LEFT edge only (stable regardless of hidden state)
-
-### 4. Test with Fresh Preferences
-Before concluding "macOS is broken", test with:
-```bash
-defaults delete com.sanebar.app
-# or
-SANEBAR_CLEAR_STATUSITEM_PREFS=1 SANEBAR_DISABLE_AUTOSAVE=1 ./run_app
-```
-
-If it works with fresh prefs, the bug is in stored data, not macOS.
-
----
-
-## Autosave is DISABLED (2026-01-17)
-
-**CRITICAL:** `autosaveName` is intentionally NOT used for status items.
-
-### Why Autosave is Disabled
-
-Setting `autosaveName` on an NSStatusItem causes macOS to restore cached positions from an **unknown source** that is NOT the ByHost preferences. Even after clearing:
-- `~/Library/Preferences/ByHost/.GlobalPreferences.*.plist`
-- App's UserDefaults domain
-- All CFPreferences for the autosave keys
-
-...macOS STILL restores corrupted position data when `autosaveName` is assigned.
-
-### The Symptom
-
-1. App launches with correct icon order (separator left, main right)
-2. When `autosaveName` is assigned, icons instantly move to wrong positions
-3. Order reverses and/or icons move to far left
-
-### The Solution
-
-Status items are created WITHOUT `autosaveName`:
-```swift
-separatorItem.autosaveName = nil
-mainItem.autosaveName = nil
-```
-
-This means positions don't persist across launches, but they are always CORRECT.
-
-### Creation Order Matters
-
-```swift
-// CORRECT: separator FIRST, main SECOND
-self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
-self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-```
-
-macOS places newer items to the **RIGHT** of existing items, so:
-- Separator (created first) → LEFT position
-- Main (created second) → RIGHT position (near Control Center)
+| Variable | Purpose | Status |
+|----------|---------|--------|
+| `SANEBAR_UI_TESTING` | Enable UI testing mode | Active |
+| `SANEBAR_STATUSITEM_DELAY_MS` | Delay item creation | Active |

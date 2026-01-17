@@ -64,19 +64,48 @@
 
 ---
 
-## ⚠️ Status Item Positioning Issues - READ THIS FIRST
+## ⚠️ NSStatusItem Positioning - THE ICE PATTERN
 
-**If icons are: offscreen, wrong position, far-left, disappearing, or "corrupted":**
+**SaneBar uses the Ice pattern for positioning. Do NOT reinvent the wheel.**
 
-→ **READ: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`**
+→ **Full docs: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`**
 
-Key facts:
-- HIGH X (1200+) = RIGHT side (near Control Center)
-- LOW X (0-200) = LEFT side (near Apple menu)
-- Old bug wrote x=100 thinking it meant "right" - it's backwards
-- Test with fresh prefs before assuming "macOS bug": `SANEBAR_CLEAR_STATUSITEM_PREFS=1`
+### The Pattern (10 lines, battle-tested)
 
-Debug flags: `SANEBAR_DUMP_STATUSITEM_PREFS=1`, `SANEBAR_DISABLE_AUTOSAVE=1`
+```swift
+// 1. SEED ordinal positions in UserDefaults BEFORE creating items
+private static func seedPositionsIfNeeded() {
+    let defaults = UserDefaults.standard
+    if defaults.object(forKey: "NSStatusItem Preferred Position \(mainAutosaveName)") == nil {
+        defaults.set(0, forKey: "NSStatusItem Preferred Position \(mainAutosaveName)")  // 0 = rightmost
+    }
+    if defaults.object(forKey: "NSStatusItem Preferred Position \(separatorAutosaveName)") == nil {
+        defaults.set(1, forKey: "NSStatusItem Preferred Position \(separatorAutosaveName)")  // 1 = second
+    }
+}
+
+// 2. CREATE items AFTER seeding, assign autosaveName
+init() {
+    Self.seedPositionsIfNeeded()
+    self.mainItem = NSStatusBar.system.statusItem(withLength: variableLength)
+    self.mainItem.autosaveName = Self.mainAutosaveName
+    // ...
+}
+```
+
+### Key Rules
+
+| Rule | Why |
+|------|-----|
+| Seed BEFORE create | macOS reads position on item creation |
+| Use ordinal (0,1,2), not pixels | macOS interprets as ordering hints |
+| Trust macOS | No recovery/validation/nudge logic needed |
+| Reference: [Ice](https://github.com/jordanbaird/Ice) | The authoritative implementation |
+
+### Reference
+
+- Pattern based on [Ice](https://github.com/jordanbaird/Ice) implementation
+- See `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md` for full details
 
 ---
 
