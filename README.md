@@ -46,13 +46,14 @@ Icons to the **right** of SaneBar = always visible
 ## Features
 
 ### Privacy First
-- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID** or password. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
+- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **system authentication** (password prompt). Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
 - **100% On-Device** — No analytics. No telemetry. No network requests. Everything stays on your Mac.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
 ### Power Search
 - **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
+- **Keyboard Navigation** — Arrow keys to navigate, Enter to select, Escape to close
 - **Virtual Click** — Activate menu bar items without seeing them
 - **Per-Icon Hotkeys** — Global shortcuts for your most-used menu bar apps
 
@@ -89,7 +90,7 @@ Quickly find and activate any menu bar app without lifting your hands from the k
 1. **Option-click** the SaneBar icon, or use the menu **Find Icon…** (default hotkey: ⌘⇧Space)
 2. Type an app name and press **Return**
 3. SaneBar will reveal hidden icons and **virtually click** the app's menu bar item
-4. After 5 seconds, icons automatically hide again
+4. After a configurable delay (default 15 seconds), icons automatically hide again
 
 This works even if the icon is physically hidden behind the Notch or off-screen!
 
@@ -135,11 +136,11 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (Touch ID), software updates, saved profiles |
+| **General** | Launch at login, show in Dock, security (authentication lock), software updates, saved profiles |
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
 | **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
-| **About** | Version info, privacy badge, licenses, support |
+| **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Revealing Gestures (Settings → Rules)
 - **Hover near top** — Show hidden icons when you move cursor to the top of the screen
@@ -217,7 +218,7 @@ SaneBar/
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
 │   └── SearchWindow/       # Find Hidden Icon UI
-├── Tests/                  # 165 unit tests with mocks
+├── Tests/                  # 241 unit tests with mocks
 ├── scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```
@@ -232,10 +233,10 @@ SaneBar/
 osascript -e 'tell app "SaneBar" to toggle'
 
 # Show hidden items
-osascript -e 'tell app "SaneBar" to show'
+osascript -e 'tell app "SaneBar" to show hidden'
 
 # Hide items
-osascript -e 'tell app "SaneBar" to hide'
+osascript -e 'tell app "SaneBar" to hide items'
 ```
 
 </details>
