@@ -21,16 +21,6 @@ struct GeneralSettingsView: View {
         )
     }
 
-    private var hideMainIconBinding: Binding<Bool> {
-        Binding(
-            get: { menuBarManager.settings.hideMainIcon },
-            set: { newValue in
-                menuBarManager.settings.hideMainIcon = newValue
-                menuBarManager.updateMainIconVisibility()
-            }
-        )
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -45,8 +35,6 @@ struct GeneralSettingsView: View {
                     ))
                     CompactDivider()
                     CompactToggle(label: "Show app in Dock", isOn: showDockIconBinding)
-                    CompactDivider()
-                    CompactToggle(label: "Hide main SaneBar icon", isOn: hideMainIconBinding)
                 }
 
                 // 2. Privacy (Auth)

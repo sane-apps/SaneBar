@@ -27,6 +27,7 @@
 		4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */; };
 		4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */; };
 		4ECC88AA8C791C2C7F57D673 /* AccessibilityService+MenuExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86E43D8C4F0157E62129DA8C /* AccessibilityService+MenuExtras.swift */; };
+		52CA526D7051C5335C1FA578 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 583211FE52C03A065E1078F8 /* KeyboardShortcuts */; };
 		5688BE185598444C9246B5A2 /* MenuBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */; };
 		568DF28CA44E4228C14694D3 /* RunningApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */; };
 		5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */; };
@@ -64,9 +65,12 @@
 		BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 279B371659C5F49AC26F024E /* Mocks.swift */; };
 		BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */; };
 		C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */; };
+		C35BFCDC472B79D2A61B6EEE /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF5E3E22CDA201F6FCBD42F /* main.swift */; };
 		C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
+		C8BE0F2DA79D48E5DCB1AB88 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 559CC16A1F18750B4B3C5181 /* main.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
+		D6013AAFA6A212A3F5F53243 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DD013004C464D00120BBD8C8 /* Sparkle */; };
 		E76C0E436818A68318131627 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9A64F4720057AEA3A9D2BF /* AppearanceSettingsView.swift */; };
 		ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */; };
 		EFCDC9F3D3DF1EFE55E497F5 /* MenuBarManager+Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */; };
@@ -113,10 +117,13 @@
 		41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityServiceTests.swift; sourceTree = "<group>"; };
 		4C0B1C1B3F989733A71F1C53 /* HoverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverService.swift; sourceTree = "<group>"; };
 		4D93DF4197A294EA81FE0597 /* MenuBarManager+Monitoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Monitoring.swift"; sourceTree = "<group>"; };
+		559CC16A1F18750B4B3C5181 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		56253053D08930BD23085754 /* IconHotkeysService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysService.swift; sourceTree = "<group>"; };
+		5CF5E3E22CDA201F6FCBD42F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Updates.swift"; sourceTree = "<group>"; };
 		67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SaneBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
+		6A369AE14605717F7F4E52EF /* MinimalTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MinimalTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppTile.swift; sourceTree = "<group>"; };
 		6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Actions.swift"; sourceTree = "<group>"; };
@@ -173,6 +180,15 @@
 			files = (
 				1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */,
 				9428EB7B846206973BA5FF5E /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B4CA7E2D7D69498A40048FB5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52CA526D7051C5335C1FA578 /* KeyboardShortcuts in Frameworks */,
+				D6013AAFA6A212A3F5F53243 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -262,8 +278,10 @@
 		60D7115FA8248A53889C5923 = {
 			isa = PBXGroup;
 			children = (
+				559CC16A1F18750B4B3C5181 /* main.swift */,
 				1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */,
 				90F8FA130E087A281C816B2A /* Core */,
+				FD994F31E36FD3A72CA7E0D7 /* MinimalTest */,
 				409A8D62B36CC252BED0A4E4 /* Resources */,
 				5FE61272586955420BA4EDE2 /* Tests */,
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
@@ -331,6 +349,7 @@
 		D14A5D400198233C0D7C948F /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				6A369AE14605717F7F4E52EF /* MinimalTest.app */,
 				E2110BC48727749AB5BC8606 /* SaneBar.app */,
 				67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */,
 			);
@@ -359,6 +378,14 @@
 				D60BA8814BDB7CD86196B556 /* UpdateService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		FD994F31E36FD3A72CA7E0D7 /* MinimalTest */ = {
+			isa = PBXGroup;
+			children = (
+				5CF5E3E22CDA201F6FCBD42F /* main.swift */,
+			);
+			path = MinimalTest;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -404,6 +431,26 @@
 			productReference = E2110BC48727749AB5BC8606 /* SaneBar.app */;
 			productType = "com.apple.product-type.application";
 		};
+		DA40EC9BBE5F8188BFF11254 /* MinimalTest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1395628C52A935B2AA6F6F4E /* Build configuration list for PBXNativeTarget "MinimalTest" */;
+			buildPhases = (
+				2E6D48ECFB97C4A81A805A73 /* Sources */,
+				B4CA7E2D7D69498A40048FB5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MinimalTest;
+			packageProductDependencies = (
+				583211FE52C03A065E1078F8 /* KeyboardShortcuts */,
+				DD013004C464D00120BBD8C8 /* Sparkle */,
+			);
+			productName = MinimalTest;
+			productReference = 6A369AE14605717F7F4E52EF /* MinimalTest.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -418,6 +465,10 @@
 						ProvisioningStyle = Manual;
 					};
 					1951DC8E5DD83CFDC1E5875B = {
+						DevelopmentTeam = M78L6FXD48;
+						ProvisioningStyle = Manual;
+					};
+					DA40EC9BBE5F8188BFF11254 = {
 						DevelopmentTeam = M78L6FXD48;
 						ProvisioningStyle = Manual;
 					};
@@ -441,6 +492,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				DA40EC9BBE5F8188BFF11254 /* MinimalTest */,
 				1951DC8E5DD83CFDC1E5875B /* SaneBar */,
 				020A0F6219F4EE96F9923799 /* SaneBarTests */,
 			);
@@ -482,6 +534,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2E6D48ECFB97C4A81A805A73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C35BFCDC472B79D2A61B6EEE /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6CB7510505531FA222E573BD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -560,6 +620,7 @@
 				A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */,
 				0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */,
 				932BE8FBAB4F339E3D598B1E /* VisualEffectBackground.swift in Sources */,
+				C8BE0F2DA79D48E5DCB1AB88 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -585,6 +646,75 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		1C41397EA87A37265834C0A2 /* ProdDebug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+			};
+			name = ProdDebug;
+		};
 		3A13B0DCEB3CB1B18D4E82BD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -653,6 +783,24 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
+		};
+		3EA9FF42938CA3926B6E46F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.MinimalTest;
+				PRODUCT_NAME = MinimalTest;
+				SDKROOT = macosx;
+			};
+			name = Release;
 		};
 		51F2DD30EF60F6181D970AD8 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -736,13 +884,58 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0.6;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.dev;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 				VALID_ARCHS = arm64;
 			};
 			name = Debug;
+		};
+		6C0074C52BFC898F664312DC /* ProdDebug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = M78L6FXD48;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = SaneBar/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
+				PRODUCT_NAME = SaneBar;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				VALID_ARCHS = arm64;
+			};
+			name = ProdDebug;
+		};
+		A5C51A0102CCC0A5510E4823 /* ProdDebug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.MinimalTest;
+				PRODUCT_NAME = MinimalTest;
+				SDKROOT = macosx;
+			};
+			name = ProdDebug;
 		};
 		B24286DDA1D88CB4A3727DF3 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -762,6 +955,24 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SaneBar.app/Contents/MacOS/SaneBar";
 			};
 			name = Debug;
+		};
+		C9366832D93F725434ABB888 /* ProdDebug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.SaneBarTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SaneBar.app/Contents/MacOS/SaneBar";
+			};
+			name = ProdDebug;
 		};
 		CFE7648E9EBDC2FBEB99D95E /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -810,13 +1021,42 @@
 			};
 			name = Release;
 		};
+		F84531B2C3F844B8EF9D19C3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.MinimalTest;
+				PRODUCT_NAME = MinimalTest;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1395628C52A935B2AA6F6F4E /* Build configuration list for PBXNativeTarget "MinimalTest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F84531B2C3F844B8EF9D19C3 /* Debug */,
+				A5C51A0102CCC0A5510E4823 /* ProdDebug */,
+				3EA9FF42938CA3926B6E46F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		522DFAB53E640DC8E2C4B75C /* Build configuration list for PBXProject "SaneBar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3A13B0DCEB3CB1B18D4E82BD /* Debug */,
+				1C41397EA87A37265834C0A2 /* ProdDebug */,
 				51F2DD30EF60F6181D970AD8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -826,6 +1066,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B24286DDA1D88CB4A3727DF3 /* Debug */,
+				C9366832D93F725434ABB888 /* ProdDebug */,
 				CFE7648E9EBDC2FBEB99D95E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -835,6 +1076,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				59DF50E9125FC13FB6614A65 /* Debug */,
+				6C0074C52BFC898F664312DC /* ProdDebug */,
 				E718AB92A2E30FF70EB33906 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -863,6 +1105,16 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		32CC34138D2C1CE77F8B2AE8 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		583211FE52C03A065E1078F8 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+		DD013004C464D00120BBD8C8 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;

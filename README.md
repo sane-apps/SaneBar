@@ -12,9 +12,11 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
 ![SaneBar Find Hidden Icon](docs/images/find-icon.png)
 
-| Icons Revealed | Icons Hidden |
-|----------------|--------------|
-| ![Menu bar with all icons revealed](docs/images/menubar-revealed.png) | ![Clean menu bar with icons hidden](docs/images/menubar-hidden.png) |
+### Icons Revealed
+![Menu bar with all icons revealed](docs/images/menubar-revealed.png)
+
+### Icons Hidden
+![Clean menu bar with icons hidden](docs/images/menubar-hidden.png)
 
 ---
 
@@ -24,8 +26,7 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
 Or via Homebrew:
 ```bash
-brew tap stephanjoseph/sanebar
-brew install --cask sanebar
+brew install --cask stephanjoseph/sanebar/sanebar
 ```
 
 ---
@@ -48,7 +49,7 @@ Icons to the **right** of SaneBar = always visible
 - **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID** or password. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
 - **100% On-Device** — No analytics. No telemetry. No network requests. Everything stays on your Mac.
 
-![Privacy Settings](docs/images/settings-advanced-top.png)
+![Privacy Settings](docs/images/settings-general.png)
 
 ### Power Search
 - **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
@@ -60,7 +61,7 @@ Icons to the **right** of SaneBar = always visible
 - **Smart Triggers** — Auto-show on WiFi network, app launch, or low battery
 - **Profiles** — Save different setups for work, home, or presentations
 
-![Shortcuts and Automation](docs/images/shortcuts.png)
+![Rules and Automation](docs/images/settings-rules.png)
 
 ### Core
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\\)
@@ -74,6 +75,8 @@ Icons to the **right** of SaneBar = always visible
 ### Customization
 - **Liquid Glass** — Beautiful translucent styling on macOS 26 Tahoe
 - **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
+
+![Appearance Settings](docs/images/settings-appearance.png)
 
 Works perfectly on Macs with Notch. **100% private** — no network requests, no analytics, no account.
 
@@ -100,15 +103,15 @@ Assign a specific global hotkey to any menu bar app.
 
 ### 🎨 Bar Styling
 Customize the look of your menu bar panel.
-- Go to **Settings → Advanced → Appearance**
-- Enable "Custom menu bar style"
-- On macOS 26 Tahoe: Enable **Liquid Glass** for the native translucent look
-- On older macOS: Adjust **Tint**, **Opacity**, **Shadow**, **Border**, and **Corner Radius**
+- Go to **Settings → Appearance**
+- Enable "Custom Appearance"
+- On macOS 26 Tahoe: Enable **Translucent Background** for the native Liquid Glass look
+- On older macOS: Adjust **Tint Color**, **Opacity**, **Shadow**, **Border**, and **Rounded Corners**
 
 ### 💾 Profiles
 Save different menu bar configurations for different contexts (e.g., "Work", "Gaming", "Presentation").
-- Go to **Settings → Advanced → Profiles**
-- Click **Save Current Settings as Profile…**
+- Go to **Settings → General → Saved Profiles**
+- Click **Save as Profile…**
 - Restore any profile with a single click
 
 ---
@@ -122,7 +125,7 @@ If you have 50+ apps, macOS might hide some of them behind the camera housing (t
 1. **Hiding**: SaneBar pushes unused icons safely off-screen so your menu bar looks clean
 2. **Safety Lock**: If SaneBar itself would get pushed off-screen, it refuses to hide to ensure you never lose control
 3. **Find Hidden Icon**: Can't see an icon because it's behind the Notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible
-4. **Tighter Icon Spacing**: Reduce system-wide menu bar spacing to fit more icons. Go to **Settings → Advanced** and enable "Tighter menu bar icons" (requires logout)
+4. **Tighter Icon Spacing**: Reduce system-wide menu bar spacing to fit more icons. Go to **Settings → Appearance** and enable "Reduce space between icons" (requires logout)
 
 ---
 
@@ -132,28 +135,28 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, auto-hide delay, gesture triggers |
+| **General** | Launch at login, show in Dock, security (Touch ID), software updates, saved profiles |
+| **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
+| **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
-| **Advanced** | Profiles, always-visible apps, triggers, appearance |
-| **About** | Version info, privacy badge, licenses |
+| **About** | Version info, privacy badge, licenses, support |
 
-### Gesture Triggers (Settings → General)
+### Revealing Gestures (Settings → Rules)
 - **Hover near top** — Show hidden icons when you move cursor to the top of the screen
 - **Scroll up** — Two-finger scroll up in the menu bar reveals hidden icons
 
-### Smart Triggers (Settings → Advanced → Automation)
+### Automatic Triggers (Settings → Rules)
 - **Low Battery** — Auto-show when battery drops below threshold
-- **App Launch** — Show when specific apps start (enter bundle IDs)
-- **WiFi Networks** — Show on specific networks (enter SSIDs or click "Add current network")
+- **App Launch** — Show when specific apps start
+- **Wi-Fi Change** — Show on specific networks (click "Add current network")
 
-### System Icon Spacing (Settings → Advanced)
+### Icon Spacing (Settings → Appearance)
 
 Reduce the spacing between **all** menu bar icons system-wide to fit more icons before they get hidden by the notch.
 
-- **Enable**: Toggle "Tighter menu bar icons" in Advanced Settings
+- **Enable**: Toggle "Reduce space between icons" in Appearance Settings
 - **Defaults**: Ships with notch-friendly values (spacing=4, padding=4)
 - **Logout required**: macOS reads these settings at login, so you must log out and back in for changes to take effect
-- **System-wide**: This affects ALL apps, not just SaneBar. It modifies macOS user defaults (`NSStatusItemSpacing` and `NSStatusItemSelectionPadding`)
 - **Reversible**: Disable the toggle and log out to restore default spacing
 
 ---

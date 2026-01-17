@@ -9,27 +9,24 @@ struct AppleScriptCommandsTests {
 
     // MARK: - Command Class Existence Tests
 
-    @Test("ToggleCommand class exists and inherits from SaneBarScriptCommand")
+    @Test("ToggleCommand class exists and inherits directly from NSScriptCommand")
     func testToggleCommandExists() {
         let command = ToggleCommand()
 
-        #expect(command is SaneBarScriptCommand, "ToggleCommand should inherit from SaneBarScriptCommand")
         #expect(command is NSScriptCommand, "ToggleCommand should be an NSScriptCommand")
     }
 
-    @Test("ShowCommand class exists and inherits from SaneBarScriptCommand")
+    @Test("ShowCommand class exists and inherits directly from NSScriptCommand")
     func testShowCommandExists() {
         let command = ShowCommand()
 
-        #expect(command is SaneBarScriptCommand, "ShowCommand should inherit from SaneBarScriptCommand")
         #expect(command is NSScriptCommand, "ShowCommand should be an NSScriptCommand")
     }
 
-    @Test("HideCommand class exists and inherits from SaneBarScriptCommand")
+    @Test("HideCommand class exists and inherits directly from NSScriptCommand")
     func testHideCommandExists() {
         let command = HideCommand()
 
-        #expect(command is SaneBarScriptCommand, "HideCommand should inherit from SaneBarScriptCommand")
         #expect(command is NSScriptCommand, "HideCommand should be an NSScriptCommand")
     }
 
@@ -98,16 +95,17 @@ struct AppleScriptCommandsTests {
 
     // MARK: - Base Class Tests
 
-    @Test("SaneBarScriptCommand is base class for all commands")
+    // MARK: - Base Class Tests
+
+    @Test("All commands are NSScriptCommand subclasses")
     func testBaseClass() {
         let toggle = ToggleCommand()
         let show = ShowCommand()
         let hide = HideCommand()
 
-        // All should be SaneBarScriptCommand
-        #expect(toggle is SaneBarScriptCommand)
-        #expect(show is SaneBarScriptCommand)
-        #expect(hide is SaneBarScriptCommand)
+        #expect(toggle is NSScriptCommand)
+        #expect(show is NSScriptCommand)
+        #expect(hide is NSScriptCommand)
     }
 
     // MARK: - Command Semantics Tests

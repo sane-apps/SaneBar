@@ -199,6 +199,66 @@ stateDiagram-v2
     init --> headless: isRunningInHeadlessEnvironment()
     init --> deferring: !headless
 
+---
+
+## 9. Status Item Recovery/Positioning Setup (Debug Workflow)
+
+This captures the **2026‑01‑16 positioning fix** workflow and the env‑flagged recovery path used on the `sj` account.
+
+```mermaid
+stateDiagram-v2
+    [*] --> launch
+
+    launch --> deferred_ui: SANEBAR_STATUSITEM_DELAY_MS (delay creation)
+    launch --> immediate_ui: no delay
+
+    deferred_ui --> status_items_created
+    immediate_ui --> status_items_created
+
+    status_items_created --> validate_positions
+    validate_positions --> expanded: valid positions
+    validate_positions --> swap_attempt: separator right of main
+    swap_attempt --> expanded: swap successful
+    swap_attempt --> expanded: swap skipped
+
+    expanded --> recovery_check: SANEBAR_ENABLE_RECOVERY=1
+    recovery_check --> reset_items: offscreen or misaligned
+    recovery_check --> expanded: on-screen
+
+    reset_items --> nudge_windows: SANEBAR_FORCE_WINDOW_NUDGE=1
+    nudge_windows --> expanded: windows moved to menu bar
+
+    expanded --> user_interaction
+
+    note right of status_items_created
+        SANEBAR_DISABLE_AUTOSAVE=1
+        SANEBAR_FORCE_VISIBLE=1
+        SANEBAR_FORCE_TEXT_ICON=1 (debug)
+    end note
+
+    note right of nudge_windows
+        Windows positioned near right
+        inset to avoid Control Center/clock
+        windows ordered front
+    end note
+```
+
+### Known Good Debug Recipe (sj account)
+
+```
+SANEBAR_STATUSITEM_DELAY_MS=3000
+SANEBAR_DISABLE_AUTOSAVE=1
+SANEBAR_FORCE_VISIBLE=1
+SANEBAR_ENABLE_RECOVERY=1
+SANEBAR_FORCE_WINDOW_NUDGE=1
+SANEBAR_FORCE_TEXT_ICON=1
+```
+
+### Expected Visual Outcome
+- Main icon appears (text “SB” when forced)
+- Separator appears (“/”)
+- Both are in the menu bar on the right side
+
     headless --> [*]: Skip UI setup
 
     deferring --> setupComplete: 100ms delay (WindowServer ready)

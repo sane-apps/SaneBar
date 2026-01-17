@@ -66,3 +66,82 @@ Regression tests:
 ## Quick Runtime Verification
 - Log whether `mainStatusItem.menu` or `separatorItem.menu` is non-nil at click time.
 - If `menuWillOpen` triggers on a left click, cancel tracking and toggle hide/show instead.
+
+---
+
+## NSStatusItem X-Coordinate System (CRITICAL)
+
+**This caused a multi-day debugging session. Do not forget.**
+
+### The Rule
+```
+HIGH X value (1200+) = RIGHT side of menu bar (near Control Center, clock)
+LOW X value (0-200)  = LEFT side of menu bar (near Apple menu)
+```
+
+### Why This Matters
+- macOS stores status item positions in UserDefaults as X-coordinates
+- Key format: `NSStatusItem Preferred Position <autosaveName>`
+- These values persist across app launches and are restored automatically
+- **Corrupted/wrong values cause icons to appear offscreen or far-left**
+
+### The Bug Pattern (2026-01-16)
+1. Old code (`ensureDefaultPositions()`) wrote x=100, x=120 thinking "low = safe default"
+2. These values placed icons on the FAR LEFT, not the right
+3. macOS dutifully restored these wrong positions on every launch
+4. Icons appeared offscreen or in wrong location
+5. Misdiagnosed as "WindowServer corruption" when it was just bad preference data
+
+### The Fix Pattern
+```swift
+// In seedDefaultPositionsIfNeeded():
+let mainTooLeft = (mainNumber?.doubleValue ?? 9999) < 200  // Detect bad values
+let base = max(1200, rightEdge - 160)                      // Seed correct values
+```
+
+### Debugging Checklist (Before Assuming "macOS Bug")
+1. **Dump current position values**: `SANEBAR_DUMP_STATUSITEM_PREFS=1`
+2. **Check if values are suspiciously low** (< 200 = left side)
+3. **Clear and reseed**: `SANEBAR_CLEAR_STATUSITEM_PREFS=1`
+4. **Verify after 1-2 seconds** - macOS needs time to settle positions
+
+### Environment Flags for Position Debugging
+| Flag | Purpose |
+|------|---------|
+| `SANEBAR_DUMP_STATUSITEM_PREFS=1` | Log current stored positions |
+| `SANEBAR_CLEAR_STATUSITEM_PREFS=1` | Clear stored positions |
+| `SANEBAR_DISABLE_AUTOSAVE=1` | Don't use autosaveName (fresh positions) |
+| `SANEBAR_STATUSITEM_DELAY_MS=3000` | Delay item creation |
+
+---
+
+## Lessons Learned (Anti-Patterns to Avoid)
+
+### 1. Don't Misdiagnose Data Problems as System Corruption
+**Bad**: "WindowServer has deep corruption that survives Safe Boot"
+**Good**: "What values are actually being restored? Are they correct?"
+
+When status items appear in wrong positions:
+- First check: What X-coordinates are stored in preferences?
+- Second check: Are those values sensible (1000+ for right side)?
+- Third check: Is the app writing bad values somewhere?
+
+### 2. Don't Build Workarounds Before Understanding Root Cause
+**Bad**: Recovery/nudge mechanisms to move windows after creation
+**Good**: Fix the source data so windows are created in correct position
+
+The nudge/recovery code added complexity. The actual fix was 30 lines in `seedDefaultPositionsIfNeeded()`.
+
+### 3. Validate Using the Right Edge (Literally)
+**Bad**: Check separator's right edge (width=10000 when hidden → false positives)
+**Good**: Check separator's LEFT edge only (stable regardless of hidden state)
+
+### 4. Test with Fresh Preferences
+Before concluding "macOS is broken", test with:
+```bash
+defaults delete com.sanebar.app
+# or
+SANEBAR_CLEAR_STATUSITEM_PREFS=1 SANEBAR_DISABLE_AUTOSAVE=1 ./run_app
+```
+
+If it works with fresh prefs, the bug is in stored data, not macOS.
