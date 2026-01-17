@@ -127,10 +127,10 @@ extension AccessibilityService {
 
         logger.error("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
 
-        // Calculate target position (simple approach from auditor reference)
-        // If moving to hidden: go LEFT of separator (separatorX - 50)
-        // If moving to visible: go RIGHT of separator (separatorX + 50)
-        let targetX: CGFloat = toHidden ? (separatorX - 50) : (separatorX + 50)
+        // Calculate target position - keep it simple, just get on the correct SIDE of separator
+        // Hidden: LEFT of separator (into hidden zone)
+        // Visible: Just RIGHT of separator (between separator and main icon, not past main icon!)
+        let targetX: CGFloat = toHidden ? (separatorX - 50) : (separatorX + 15)
         
         logger.error("🔧 Target X: \(targetX, privacy: .public)")
 

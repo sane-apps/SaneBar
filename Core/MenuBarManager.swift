@@ -75,13 +75,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Subscriptions
 
     private var cancellables = Set<AnyCancellable>()
-    internal var positionMonitorTask: Task<Void, Never>?
-    /// Counter for consecutive invalid position checks (debounce for drag operations)
-    internal var invalidPositionCount = 0
-    /// Threshold before triggering warning (3 checks × 500ms = 1.5 seconds)
-    internal let invalidPositionThreshold = 3
-    var swapAttempted = false
-    private var recoveryAttemptCount = 0
 
     // MARK: - Initialization
 
@@ -111,7 +104,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         super.init()
 
         logger.info("MenuBarManager init starting...")
-        print("[MenuBarManager] SANEBAR_ENABLE_RECOVERY=\(ProcessInfo.processInfo.environment["SANEBAR_ENABLE_RECOVERY"] ?? "nil")")
 
         // Skip UI initialization in headless/test environments
         // CI environments don't have a window server, so NSStatusItem creation will crash
@@ -244,11 +236,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.configureHoverService()
             self.showOnboardingIfNeeded()
             self.syncUpdateConfiguration()
-            self.validatePositionsOnStartup()
             self.updateMainIconVisibility()
             self.updateDividerStyle()
-
-            self.scheduleOffscreenRecoveryCheck()
 
             logger.info("External items setup complete")
         }
@@ -301,128 +290,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Sync update settings to Sparkle
             self.syncUpdateConfiguration()
 
-            self.scheduleOffscreenRecoveryCheck()
-
             logger.info("Deferred UI setup complete")
         }
-    }
-
-    private func scheduleOffscreenRecoveryCheck() {
-        guard ProcessInfo.processInfo.environment["SANEBAR_ENABLE_RECOVERY"] == "1" else { return }
-
-        logger.info("Scheduling offscreen recovery check")
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            self?.attemptOffscreenRecoveryIfNeeded()
-        }
-    }
-
-    private func attemptOffscreenRecoveryIfNeeded() {
-        guard recoveryAttemptCount < 3 else { return }
-        guard let mainWindow = mainStatusItem?.button?.window,
-              let sepWindow = separatorItem?.button?.window else {
-                        print("[MenuBarManager] Recovery check skipped: status item windows unavailable")
-            logger.warning("Recovery check skipped: status item windows unavailable")
-            return
-        }
-
-        let mainFrame = mainWindow.frame
-        let sepFrame = sepWindow.frame
-        guard let screen = mainWindow.screen ?? sepWindow.screen else {
-            logger.info("Recovery check deferred: window screen not ready")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.attemptOffscreenRecoveryIfNeeded()
-            }
-            return
-        }
-        let menuBarY: CGFloat = screen.frame.maxY - NSStatusBar.system.thickness
-        let mainDeltaY = abs(mainFrame.origin.y - menuBarY)
-        let sepDeltaY = abs(sepFrame.origin.y - menuBarY)
-        let offscreen = mainDeltaY > NSStatusBar.system.thickness ||
-            sepDeltaY > NSStatusBar.system.thickness
-
-        guard offscreen else { return }
-
-        logger.error("Offscreen detected (mainY=\(mainFrame.origin.y) sepY=\(sepFrame.origin.y) menuBarY=\(menuBarY)) - attempting recovery reset")
-
-        recoveryAttemptCount += 1
-        logger.error("Status items appear offscreen; attempting recovery reset")
-
-        statusBarController.resetStatusItems(autosaveEnabled: false, forceVisible: true)
-        mainStatusItem = statusBarController.mainItem
-        separatorItem = statusBarController.separatorItem
-
-        statusBarController.configureStatusItems(
-            clickAction: #selector(statusItemClicked),
-            target: self
-        )
-
-        statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(menuToggleHiddenItems),
-            findIconAction: #selector(openFindIcon),
-            settingsAction: #selector(openSettings),
-            checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
-            quitAction: #selector(quitApp),
-            target: self
-        ))
-        statusMenu?.delegate = self
-
-        if let separator = separatorItem {
-            hidingService.configure(delimiterItem: separator)
-        }
-
-        updateMainIconVisibility()
-
-        if ProcessInfo.processInfo.environment["SANEBAR_FORCE_WINDOW_NUDGE"] == "1" {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                self?.nudgeStatusItemWindows()
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            self?.attemptOffscreenRecoveryIfNeeded()
-        }
-    }
-
-    private func nudgeStatusItemWindows() {
-        let screen = mainStatusItem?.button?.window?.screen
-            ?? separatorItem?.button?.window?.screen
-            ?? NSScreen.main
-        guard let screen = screen else { return }
-        let menuBarY = screen.frame.maxY - NSStatusBar.system.thickness
-        let rightInset: CGFloat = min(300, max(140, screen.frame.width * 0.15))
-        let mainX = screen.frame.maxX - rightInset
-        let sepX = mainX - 40
-
-        if let mainWindow = mainStatusItem?.button?.window {
-            mainWindow.setFrameOrigin(NSPoint(x: mainX, y: menuBarY))
-            mainWindow.orderFrontRegardless()
-        }
-        if let sepWindow = separatorItem?.button?.window {
-            sepWindow.setFrameOrigin(NSPoint(x: sepX, y: menuBarY))
-            sepWindow.orderFrontRegardless()
-        }
-
-        if let mainWindow = mainStatusItem?.button?.window,
-           let sepWindow = separatorItem?.button?.window {
-            let separatorLeftEdge = sepWindow.frame.origin.x
-            let mainLeftEdge = mainWindow.frame.origin.x
-            if separatorLeftEdge >= mainLeftEdge {
-                statusBarController.forceSwapItems()
-                mainStatusItem = statusBarController.mainItem
-                separatorItem = statusBarController.separatorItem
-                // Menu is shown via right-click on main icon
-                if let separator = separatorItem {
-                    hidingService.configure(delimiterItem: separator)
-                }
-                clearStatusItemMenus()
-                updateMainIconVisibility()
-            }
-        }
-
-        let screenFrameString = NSStringFromRect(screen.frame)
-        logger.error("Nudged status item windows to x=\(sepX)/\(mainX), y=\(menuBarY) screen=\(screenFrameString)")
-        print("[MenuBarManager] Nudged status item windows to x=\(sepX)/\(mainX), y=\(menuBarY) screen=\(screenFrameString)")
     }
 
     private func setupStatusItem() {
@@ -460,47 +329,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             hidingService.configure(delimiterItem: separator)
         }
 
-        // Validate positions on startup (with delay for UI to settle)
-        validatePositionsOnStartup()
-
-        // Normalize item order after UI settles (separator should be left of main)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { [weak self] in
-            guard let self = self else { return }
-            guard let mainWindow = self.mainStatusItem?.button?.window,
-                  let separatorWindow = self.separatorItem?.button?.window,
-                  let screen = mainWindow.screen,
-                  screen == separatorWindow.screen else { return }
-
-            let menuBarY = screen.frame.maxY - NSStatusBar.system.thickness
-            let mainDeltaY = abs(mainWindow.frame.origin.y - menuBarY)
-            let sepDeltaY = abs(separatorWindow.frame.origin.y - menuBarY)
-            guard mainDeltaY <= NSStatusBar.system.thickness,
-                  sepDeltaY <= NSStatusBar.system.thickness else { return }
-
-            let separatorLeftEdge = separatorWindow.frame.origin.x
-            let mainLeftEdge = mainWindow.frame.origin.x
-            guard separatorLeftEdge >= mainLeftEdge else { return }
-
-            self.statusBarController.forceSwapItems()
-            self.mainStatusItem = self.statusBarController.mainItem
-            self.separatorItem = self.statusBarController.separatorItem
-            // Menu is shown via right-click on main icon
-            if let separator = self.separatorItem {
-                self.hidingService.configure(delimiterItem: separator)
-            }
-            self.clearStatusItemMenus()
-            self.updateMainIconVisibility()
-        }
-
-        scheduleOffscreenRecoveryCheck()
-
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
         updateDividerStyle()
 
-        if ProcessInfo.processInfo.environment["SANEBAR_FORCE_WINDOW_NUDGE"] == "1" {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { [weak self] in
-                self?.nudgeStatusItemWindows()
+        // Hide icons on startup (default behavior)
+        // Give UI time to settle, then hide
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            Task {
+                await self.hidingService.hide()
+                logger.info("Initial hide complete")
             }
         }
     }
@@ -659,18 +498,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 }
             }
 
-            // If about to hide, validate position first
-            if hidingState == .expanded {
-                logger.info("State is expanded, validating position before hiding...")
-                guard validateSeparatorPosition() else {
-                    logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide")
-                    showPositionWarning()
-                    return
-                }
-                logger.info("Position valid, proceeding to hide")
-            }
-
-            logger.info("Calling hidingService.toggle()...")
             await hidingService.toggle()
             logger.info("hidingService.toggle() completed, new state: \(self.hidingService.state.rawValue)")
 
@@ -726,13 +553,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         Task {
             isRevealPinned = false
             hidingService.cancelRehide()
-
-            // Safety check: verify separator is LEFT of main icon before hiding
-            guard validateSeparatorPosition() else {
-                logger.warning("⚠️ Separator is RIGHT of main icon - refusing to hide to prevent eating the main icon")
-                showPositionWarning()
-                return
-            }
             await hidingService.hide()
         }
     }

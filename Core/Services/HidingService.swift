@@ -83,13 +83,11 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     func configure(delimiterItem: StatusItemProtocol) {
         self.delimiterItem = delimiterItem
 
-        // IMPORTANT: Start EXPANDED (not collapsed) so we can validate positions first
-        // MenuBarManager.validatePositionsOnStartup() will call hide() after validation passes
-        // This prevents the separator from "eating" apps if positioned incorrectly
+        // Start EXPANDED (not collapsed)
         delimiterItem.length = StatusItemLength.expanded
         state = .expanded
 
-        logger.info("HidingService configured with delimiter - starting expanded for position validation")
+        logger.info("HidingService configured with delimiter")
     }
 
     // MARK: - Show/Hide Operations

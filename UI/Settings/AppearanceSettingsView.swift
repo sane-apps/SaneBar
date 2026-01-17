@@ -139,11 +139,11 @@ struct AppearanceSettingsView: View {
                     if menuBarManager.settings.menuBarSpacing != nil {
                         CompactDivider()
                         CompactRow("Item Spacing") {
-                            Stepper("\(spacingBinding.wrappedValue)pt", value: spacingBinding, in: 1...20)
+                            Stepper("\(spacingBinding.wrappedValue)pt", value: spacingBinding, in: 1...10)
                         }
                         CompactDivider()
                         CompactRow("Click Area") {
-                            Stepper("\(paddingBinding.wrappedValue)pt", value: paddingBinding, in: 1...20)
+                            Stepper("\(paddingBinding.wrappedValue)pt", value: paddingBinding, in: 1...10)
                         }
                         
                         CompactDivider()
