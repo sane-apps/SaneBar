@@ -11,7 +11,9 @@ module SaneMasterModules
     def launch_app(args)
       puts '🚀 --- [ SANEMASTER LAUNCH ] ---'
 
+      build_config = ENV['SANEBAR_BUILD_CONFIG'] || 'Debug'
       dd_path = File.expand_path("~/Library/Developer/Xcode/DerivedData/#{project_name}-*/Build/Products/Debug")
+      dd_path = dd_path.sub('/Debug', "/#{build_config}")
       app_path = Dir.glob(File.join(dd_path, "#{project_name}.app")).first
 
       unless app_path && File.exist?(app_path)
@@ -55,11 +57,20 @@ module SaneMasterModules
       capture_logs = args.include?('--logs')
       env_vars = {}
       env_vars['VERIFY_PIP'] = ENV['VERIFY_PIP'] if ENV['VERIFY_PIP']
+      ENV.each do |key, value|
+        env_vars[key] = value if key.start_with?('SANEBAR_')
+      end
+
+      direct_launch = env_vars.any?
 
       if capture_logs
         puts '📝 Capturing logs to stdout...'
         pid = spawn(env_vars, "#{app_path}/Contents/MacOS/#{project_name}")
         Process.wait(pid)
+      elsif direct_launch
+        pid = spawn(env_vars, "#{app_path}/Contents/MacOS/#{project_name}")
+        Process.detach(pid)
+        puts '✅ App launched with SANEBAR_* overrides'
       else
         system(env_vars, "open '#{app_path}'")
         puts '✅ App launched (fresh build verified)'
@@ -227,7 +238,8 @@ module SaneMasterModules
 
     def build_app # rubocop:disable Naming/PredicateMethod -- performs action, not just a query
       puts '4️⃣  Building app...'
-      build_success = system("xcodebuild -scheme #{project_name} -destination \"platform=macOS\" build 2>&1 | grep -E \"(BUILD|error:)\" | tail -5")
+      build_config = ENV['SANEBAR_BUILD_CONFIG'] || 'Debug'
+      build_success = system("xcodebuild -scheme #{project_name} -configuration #{build_config} -destination \"platform=macOS\" build 2>&1 | grep -E \"(BUILD|error:)\" | tail -5")
       unless build_success
         puts '   ❌ Build failed! Fix errors before continuing.'
         return false

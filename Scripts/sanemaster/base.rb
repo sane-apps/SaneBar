@@ -7,6 +7,7 @@ require 'tmpdir'
 require 'optparse'
 require 'set'
 require 'time'
+require 'yaml'
 
 module SaneMasterModules
   # Shared constants and utilities used across all modules

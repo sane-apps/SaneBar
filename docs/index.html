@@ -672,6 +672,28 @@
             opacity: 1;
         }
 
+        /* Special highlight for Touch ID card - the flagship feature */
+        .feature-card.featured {
+            background:
+                radial-gradient(ellipse at 90% 50%, rgba(79, 143, 250, 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 30%, rgba(79, 143, 250, 0.15) 0%, transparent 40%),
+                radial-gradient(ellipse at 95% 70%, rgba(59, 130, 246, 0.2) 0%, transparent 45%),
+                linear-gradient(135deg, #0a1628 0%, #0d1f3c 50%, #081020 100%);
+            border-color: rgba(79, 143, 250, 0.3);
+            box-shadow:
+                0 0 40px rgba(79, 143, 250, 0.15),
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .feature-card.featured:hover {
+            border-color: rgba(79, 143, 250, 0.5);
+            box-shadow:
+                0 0 60px rgba(79, 143, 250, 0.25),
+                0 20px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
         .feature-icon {
             margin-bottom: 20px;
             color: var(--accent);
@@ -1408,7 +1430,7 @@
             <p class="section-subtitle">Built for power users who value privacy, speed, and control.</p>
             <div class="feature-grid">
                 <!-- 1. Touch ID Lock - THE unique selling point -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons')" class="feature-card featured">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -1430,7 +1452,7 @@
                     <p>Find any icon instantly—even behind the Notch. Assign per-app hotkeys, move icons between Hidden and Visible zones.</p>
                 </a>
                 <!-- 3. Keyboard Shortcuts - global hotkeys + automation -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/shortcuts.png', 'Keyboard Shortcuts — Global hotkeys and AppleScript automation')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-shortcuts.png', 'Keyboard Shortcuts — Global hotkeys and AppleScript automation')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -1440,7 +1462,7 @@
                     <p>Global hotkeys to toggle, show, hide, or search. AppleScript for Raycast, Alfred, Keyboard Maestro, and Shortcuts.</p>
                 </a>
                 <!-- 4. Smart Triggers - auto-show on conditions -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-advanced-top.png', 'Smart Triggers — Auto-show on battery, WiFi, or app launch')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on battery, WiFi, or app launch')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -1451,7 +1473,7 @@
                     <p>Auto-reveal icons when battery is low, specific apps launch, or you connect to certain WiFi networks.</p>
                 </a>
                 <!-- 5. Gestures & Auto-hide - MISSING BEFORE! -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-general-bottom.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
@@ -1479,7 +1501,7 @@
                     <p>MacBook Pro notch hiding icons? System-wide spacing (1-10) gives you more room.</p>
                 </a>
                 <!-- 7. Custom Appearance - Liquid Glass, tint, dividers -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-advanced-appearance.png', 'Custom Appearance — Liquid Glass, tint, shadow, borders, dividers')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-appearance.png', 'Custom Appearance — Liquid Glass, tint, shadow, borders, dividers')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="13.5" cy="6.5" r="0.5"></circle>
@@ -1710,7 +1732,7 @@
                     </a>
                     <p class="download-option-text">or install via Homebrew:</p>
                     <div class="brew-command">
-                        <code>brew install --cask sanebar</code>
+                        <code>brew install --cask stephanjoseph/sanebar/sanebar</code>
                     </div>
                 </div>
             </div>

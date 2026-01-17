@@ -214,8 +214,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func setupStatusItem() {
-        // Delegate status item creation to controller
-        statusBarController.createStatusItems(
+        // Configure status items (already created as property initializers)
+        statusBarController.configureStatusItems(
             clickAction: #selector(statusItemClicked),
             target: self
         )

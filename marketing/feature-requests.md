@@ -179,7 +179,25 @@
 
 ## Bug Reports / UX Issues
 
-### 1. Global Shortcut Conflicts
+### 1. Menu Bar Tint Not Working on M4 Macs
+**Priority: HIGH** | **Status: Open (GitHub #20)**
+
+| Requester | Environment | Notes |
+|-----------|-------------|-------|
+| Reddit user | M4 Air, dark mode | Tint flashes on boot only |
+| MaxGave (GitHub) | M4, Sequoia, normal mode | No tint at all, toggle doesn't help |
+| u/digger27410 (Reddit) | M4 Air, Tahoe 26.2, dark mode, Reduce Transparency ON | Height changes but color doesn't; Ice works |
+
+**Key Finding (Jan 16, 2026):**
+- Toggle causes bar HEIGHT to increase slightly, but color doesn't change
+- Ice's tint works on same hardware → different implementation technique needed
+- Possible causes: Reduce Transparency setting, M4 GPU/display stack incompatibility
+
+**Action:** Investigate how Ice implements tint overlay vs our approach.
+
+---
+
+### 2. Global Shortcut Conflicts
 **Priority: HIGH** | **Status: Fixed (v1.0.3)**
 
 | Requester | Issue | Notes |
@@ -259,6 +277,7 @@
 3. **Evaluate Later**
    - Secondary menu bar row
    - Third-party overlay detection (Atoll, etc.)
+   - Reduce Transparency compatibility for tint (see Issue #20)
 
 ---
 
@@ -269,6 +288,29 @@
 | ujc-cjw | "Finally, a replacement app has arrived—I'm so glad! It's been working perfectly so far." | Reddit r/macapps |
 | bleducnx | "The product is very stable and offers a wide range of options." | Discord |
 | u/a_tsygankov | "I really like that I can adjust SaneBar's behavior with AppleScript" | Reddit r/macapps |
+
+---
+
+## Technical Investigations
+
+### Reduce Transparency Compatibility (Issue #20)
+**Priority: LOW** | **Status: Deferred**
+
+**Problem:** Menu bar tint doesn't work when macOS "Reduce Transparency" is enabled (System Settings → Accessibility → Display).
+
+**Reports:** M4 MacBook Air users report tint flashes on boot but doesn't persist. Confirmed working on M4 with Reduce Transparency OFF.
+
+**Research (Jan 17, 2026):**
+- SaneBar uses SwiftUI `Rectangle().fill(Color.opacity())` - relies on compositor blending
+- Ice uses AppKit `NSView.draw()` with `NSColor.setFill(); rect.fill()` - Core Graphics direct drawing
+- Ice also uses different window styleMask: `.fullSizeContentView, .nonactivatingPanel`
+- Both approaches use alpha values, so unclear why Ice would work if we don't
+
+**Fix Options:**
+1. Quick test: Add `.fullSizeContentView, .nonactivatingPanel` to window styleMask
+2. Full port: Rewrite `MenuBarOverlayView` as `NSView` subclass with `draw(_:)` override (2-4 hours, risk of new bugs)
+
+**Decision:** Defer until we confirm users actually need Reduce Transparency ON. Not worth the regression risk for an edge case.
 
 ---
 

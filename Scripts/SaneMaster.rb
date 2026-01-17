@@ -138,7 +138,24 @@ class SaneMaster
   ].freeze
 
   def initialize
-    @bundle_id = 'com.sanebar.app'
+    @bundle_id = resolve_bundle_id
+  end
+
+  def resolve_bundle_id
+    env_id = ENV['SANEBAR_BUNDLE_ID']
+    return env_id if env_id && !env_id.empty?
+
+    project_yml = File.join(Dir.pwd, 'project.yml')
+    return 'com.sanebar.app' unless File.exist?(project_yml)
+
+    begin
+      data = YAML.load_file(project_yml)
+      debug_id = data.dig('targets', 'SaneBar', 'settings', 'configs', 'Debug', 'PRODUCT_BUNDLE_IDENTIFIER')
+      base_id = data.dig('targets', 'SaneBar', 'settings', 'base', 'PRODUCT_BUNDLE_IDENTIFIER')
+      debug_id || base_id || 'com.sanebar.app'
+    rescue StandardError
+      'com.sanebar.app'
+    end
   end
 
   def run(args)

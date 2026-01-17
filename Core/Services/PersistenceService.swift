@@ -52,7 +52,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var rehideDelay: TimeInterval = 3.0
 
     /// Number of spacers to show (0-12)
-    var spacerCount: Int = 2  // Default to 2 dividers for better notch compatibility
+    var spacerCount: Int = 0  // Default to 0 dividers
 
     /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line

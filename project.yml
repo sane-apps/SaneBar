@@ -5,6 +5,11 @@ options:
     macOS: 15.0
   xcodeVersion: 16.0
 
+configs:
+  Debug: debug
+  ProdDebug: debug
+  Release: release
+
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
@@ -71,6 +76,7 @@ targets:
     deploymentTarget:
       macOS: 15.0
     sources:
+      - main.swift
       - SaneBarApp.swift
       - Core
       - UI
@@ -107,9 +113,15 @@ targets:
         CODE_SIGN_INJECT_BASE_ENTITLEMENTS: YES
       configs:
         Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.dev
+          CODE_SIGN_IDENTITY: "Apple Development"
+          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
+        ProdDebug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
         Release:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           CODE_SIGN_IDENTITY: "Developer ID Application: Stephan Joseph (M78L6FXD48)"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
     postCompileScripts:
@@ -121,10 +133,32 @@ targets:
           fi
         name: Run SwiftLint
 
+  MinimalTest:
+    type: application
+    platform: macOS
+    bundleId: com.sanebar.minimaltest
+    deploymentTarget:
+      macOS: 15.0
+    sources:
+      - MinimalTest
+    dependencies:
+      - package: KeyboardShortcuts
+      - package: Sparkle
+    settings:
+      base:
+        PRODUCT_NAME: MinimalTest
+        DEVELOPMENT_TEAM: M78L6FXD48
+        CODE_SIGN_STYLE: Manual
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "Apple Development"
+        Release:
+          CODE_SIGN_IDENTITY: "Apple Development"
+
   SaneBarTests:
     type: bundle.unit-test
     platform: macOS
-    bundleId: com.sanebar.SaneBarTests
+    bundleId: com.sanebar.appTests
     deploymentTarget:
       macOS: 15.0
     testTarget: SaneBar

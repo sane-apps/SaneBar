@@ -223,6 +223,26 @@ ensure_cmd xcrun
 ensure_cmd hdiutil
 ensure_cmd ditto
 
+verify_archive_bundle_id() {
+    local archive_app_path="${ARCHIVE_PATH}/Products/Applications/${APP_NAME}.app"
+    if [ ! -d "${archive_app_path}" ]; then
+        log_error "Archive app not found at ${archive_app_path}"
+        exit 1
+    fi
+
+    local archive_bundle_id
+    archive_bundle_id=$(defaults read "${archive_app_path}/Contents/Info" CFBundleIdentifier 2>/dev/null || true)
+    if [ -z "${archive_bundle_id}" ]; then
+        log_error "Unable to read CFBundleIdentifier from archive app"
+        exit 1
+    fi
+
+    if [ "${archive_bundle_id}" != "${BUNDLE_ID}" ]; then
+        log_error "Bundle ID mismatch: expected ${BUNDLE_ID}, got ${archive_bundle_id}"
+        exit 1
+    fi
+}
+
 if [ "$SKIP_BUILD" = false ]; then
     # Build archive
     # Note: Don't override CODE_SIGN_IDENTITY - let project.yml handle it
@@ -240,6 +260,8 @@ if [ "$SKIP_BUILD" = false ]; then
         log_error "Archive build failed! Check ${BUILD_DIR}/build.log"
         exit 1
     fi
+
+    verify_archive_bundle_id
 fi
 
 # Create export options plist

@@ -366,17 +366,14 @@ final class HoverServiceProtocolMock: HoverServiceProtocol {
 @MainActor
 final class StatusBarControllerProtocolMock: StatusBarControllerProtocol, @unchecked Sendable {
     nonisolated init() { }
-    init(mainItem: NSStatusItem? = nil, separatorItem: NSStatusItem? = nil) {
+    init(mainItem: NSStatusItem, separatorItem: NSStatusItem) {
         self.mainItem = mainItem
         self.separatorItem = separatorItem
     }
 
-
-
-    var mainItem: NSStatusItem? = nil
-
-
-    var separatorItem: NSStatusItem? = nil
+    // Non-optional status items (matching protocol)
+    var mainItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    var separatorItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: 20)
 
     private(set) var iconNameCallCount = 0
     var iconNameArgValues = [HidingState]()

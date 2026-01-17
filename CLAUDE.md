@@ -51,6 +51,22 @@
 
 ---
 
+## ⚠️ Status Item Positioning Issues - READ THIS FIRST
+
+**If icons are: offscreen, wrong position, far-left, disappearing, or "corrupted":**
+
+→ **READ: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`**
+
+Key facts:
+- HIGH X (1200+) = RIGHT side (near Control Center)
+- LOW X (0-200) = LEFT side (near Apple menu)
+- Old bug wrote x=100 thinking it meant "right" - it's backwards
+- Test with fresh prefs before assuming "macOS bug": `SANEBAR_CLEAR_STATUSITEM_PREFS=1`
+
+Debug flags: `SANEBAR_DUMP_STATUSITEM_PREFS=1`, `SANEBAR_DISABLE_AUTOSAVE=1`
+
+---
+
 ## SaneBar-Specific Patterns
 
 - **Accessibility API**: All menu bar scanning uses `AXUIElement` APIs

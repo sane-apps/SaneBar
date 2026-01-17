@@ -93,31 +93,26 @@ struct StatusBarControllerTests {
             target: target
         ))
 
-        // Should have: Toggle, separator, Find Icon, separator, Settings, Check for Updates, separator, Quit
-        #expect(menu.items.count == 8, "Menu should have 8 items (5 commands + 3 separators)")
-
-        // Check Toggle item
-        let toggleItem = menu.items[0]
-        #expect(toggleItem.title == "Toggle Hidden Items")
-        #expect(toggleItem.keyEquivalent == "\\")
+        // Should have: Find Icon, separator, Settings, Check for Updates, separator, Quit
+        #expect(menu.items.count == 6, "Menu should have 6 items (4 commands + 2 separators)")
 
         // Check Find Icon item
-        let findIconItem = menu.items[2]
+        let findIconItem = menu.items[0]
         #expect(findIconItem.title == "Find Icon...")
         #expect(findIconItem.keyEquivalent == " ")
 
         // Check Settings item
-        let settingsItem = menu.items[4]
+        let settingsItem = menu.items[2]
         #expect(settingsItem.title == "Settings...")
         #expect(settingsItem.keyEquivalent == ",")
 
         // Check Check for Updates item
-        let checkUpdatesItem = menu.items[5]
+        let checkUpdatesItem = menu.items[3]
         #expect(checkUpdatesItem.title == "Check for Updates...")
         #expect(checkUpdatesItem.keyEquivalent.isEmpty)
 
         // Check Quit item
-        let quitItem = menu.items[7]
+        let quitItem = menu.items[5]
         #expect(quitItem.title == "Quit SaneBar")
         #expect(quitItem.keyEquivalent == "q")
     }
@@ -183,13 +178,11 @@ struct StatusBarControllerTests {
         ))
 
         // Verify each menu item has an action
-        let toggleItem = menu.items[0]
-        let findIconItem = menu.items[2]
-        let settingsItem = menu.items[4]
-        let checkForUpdatesItem = menu.items[5]
-        let quitItem = menu.items[7]
+        let findIconItem = menu.items[0]
+        let settingsItem = menu.items[2]
+        let checkForUpdatesItem = menu.items[3]
+        let quitItem = menu.items[5]
 
-        #expect(toggleItem.action == #selector(DummyTarget.toggle), "Toggle item should have toggle action")
         #expect(findIconItem.action == #selector(DummyTarget.findIcon), "Find Icon item should have findIcon action")
         #expect(settingsItem.action == #selector(DummyTarget.settings), "Settings item should have settings action")
         #expect(checkForUpdatesItem.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
@@ -264,13 +257,14 @@ struct StatusBarControllerTests {
 
     // MARK: - Initialization Tests
 
-    @Test("StatusBarController initializes without creating status items")
+    @Test("StatusBarController creates status items during initialization")
     @MainActor
-    func testInitializationDoesNotCreateItems() {
+    func testInitializationCreatesItems() {
         let controller = StatusBarController()
 
-        // Items should be nil until createStatusItems is called
-        #expect(controller.mainItem == nil)
-        #expect(controller.separatorItem == nil)
+        // Items are created as property initializers (like Hidden Bar/Dozer pattern)
+        // This ensures proper WindowServer positioning
+        #expect(controller.mainItem.button != nil)
+        #expect(controller.separatorItem.button != nil)
     }
 }
