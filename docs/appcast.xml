@@ -3,6 +3,34 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.7</title>
+            <pubDate>Sat, 17 Jan 2026 11:24:20 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>🎉 What's New in 1.0.7</h2>
+                <ul>
+                    <li><strong>Hide SaneBar Icon</strong>: Option to completely hide the main icon</li>
+                    <li><strong>In-App Issue Reporting</strong>: Report bugs directly from the app</li>
+                    <li><strong>Keyboard Navigation</strong>: Arrow keys work in Find Icon search</li>
+                    <li><strong>Settings Redesign</strong>: New sidebar architecture</li>
+                </ul>
+                <h2>🐛 Bug Fixes</h2>
+                <ul>
+                    <li>Separator handles clicks when main icon is hidden</li>
+                    <li>Context menu anchors correctly</li>
+                    <li>Default positions reset properly</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.7/SaneBar-1.0.7.dmg"
+                       sparkle:version="1.0.7"
+                       sparkle:shortVersionString="1.0.7"
+                       length="2273570"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="wGCpg+aamZN3FFMHBw7ikM24Y8lFThOcqTE3Djd28IQCtvZ71AGIEXJOtFo25c6Q9NldYn6YHao8HuoHXc/eBQ=="/>
+        </item>
+        <item>
             <title>1.0.6</title>
             <pubDate>Wed, 15 Jan 2026 19:16:20 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>

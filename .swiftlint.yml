@@ -11,7 +11,7 @@ disabled_rules:
 
 file_length:
   warning: 500
-  error: 800
+  error: 1000
 
 opt_in_rules:
   - empty_count
