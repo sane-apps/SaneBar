@@ -1,6 +1,19 @@
 # SaneBar Project Configuration
 
 > Project-specific settings that override/extend the global ~/CLAUDE.md
+
+---
+
+## Key Documentation
+
+| Document | When to Use |
+|----------|-------------|
+| [BUG_TRACKING.md](BUG_TRACKING.md) | Report bugs, check GitHub issue status |
+| [ROADMAP.md](ROADMAP.md) | Feature status, what's planned |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Full SOP, 12 rules, compliance |
+| [.claude/rules/](/.claude/rules/README.md) | Code style rules by file type |
+| [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) | Positioning bugs, coordinate system |
+
 ---
 
 ## PRIME DIRECTIVE (from ~/CLAUDE.md)
@@ -108,6 +121,101 @@ SaneBar has automated SOP enforcement via hooks:
 - `edit_validator.rb` - File location/size checks
 - `test_quality_checker.rb` - Detects tautology tests
 - `audit_logger.rb` - Decision trail to `.claude/audit_log.jsonl`
+
+---
+
+## MCP Tool Optimization (TOKEN SAVERS)
+
+### XcodeBuildMCP Session Setup
+At session start, set defaults ONCE to avoid repeating on every build:
+```
+mcp__XcodeBuildMCP__session-set-defaults:
+  projectPath: /Users/sj/SaneBar/SaneBar.xcodeproj
+  scheme: SaneBar
+  arch: arm64
+```
+Note: SaneBar is a **macOS app** - no simulator needed. Use `build_macos`, `test_macos`, `build_run_macos`.
+
+### claude-mem 3-Layer Workflow (10x Token Savings)
+```
+1. search(query, project: "SaneBar") → Get index with IDs (~50-100 tokens/result)
+2. timeline(anchor=ID)              → Get context around results
+3. get_observations([IDs])          → Fetch ONLY filtered IDs
+```
+**Always add `project: "SaneBar"` to searches for isolation.**
+
+### apple-docs Optimization
+- `compact: true` works on `list_technologies`, `get_sample_code`, `wwdc` (NOT on `search_apple_docs`)
+- `analyze_api analysis="all"` for comprehensive API analysis
+- `apple_docs` as universal entry point (auto-routes queries)
+
+### context7 for Library Docs
+- `resolve-library-id` FIRST, then `query-docs`
+- SwiftUI ID: `/websites/developer_apple_swiftui` (13,515 snippets!)
+
+### macos-automator (493 Pre-Built Scripts)
+- `get_scripting_tips search_term: "keyword"` to find scripts
+- `get_scripting_tips list_categories: true` to browse
+- 13 categories including `13_developer` (92 Xcode/dev scripts)
+
+### github MCP
+- `search_code` to find patterns in public repos
+- `search_repositories` to find reference implementations
+
+---
+
+## Claude Code Features (USE THESE!)
+
+### Key Commands to Remember
+
+| Command | When to Use | Shortcut |
+|---------|-------------|----------|
+| `/rewind` | Rollback code AND conversation after errors | `Esc+Esc` |
+| `/context` | Visualize context window token usage | - |
+| `/compact [instructions]` | Optimize memory with focus | - |
+| `/stats` | See usage patterns (press `r` for date range) | - |
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Esc+Esc` | Rewind to checkpoint |
+| `Shift+Tab` | Cycle permission modes (Normal → Auto-Accept → Plan) |
+| `Option+T` | Toggle extended thinking |
+| `Ctrl+O` | Toggle verbose mode |
+| `Ctrl+B` | Background running task |
+
+### Smart /compact Instructions
+
+Don't just run `/compact` - give it focus instructions:
+```
+/compact keep SaneBar accessibility patterns and bug fixes, archive general Swift tips
+```
+
+### Project Skills (Auto-Discovered)
+
+Skills in `.claude/skills/` activate automatically based on context:
+
+| Skill | Triggers When |
+|-------|---------------|
+| `session-context-manager` | Checking memory health, session state |
+| `memory-compactor` | Memory full, tokens high, need to archive |
+| `codebase-explorer` | Searching code, finding implementations |
+| `feature-reminders` | Claude checks itself for feature suggestions |
+
+### Use Explore Subagent for Searches
+
+For large codebase searches, delegate to Explore subagent (Haiku-powered, saves context):
+```
+Task tool with subagent_type: Explore
+```
+
+### Auto-Reminders Active
+
+Hooks will remind about features at appropriate times:
+- `/rewind` suggested after errors
+- `/context` suggested every 5 edits
+- Explore subagent suggested for complex searches
 
 ---
 

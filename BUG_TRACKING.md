@@ -1,6 +1,22 @@
 # SaneBar Bug Tracking
 
+> **Single source of truth for all bugs.** GitHub issues link here, not vice versa.
+> See also: `marketing/feature-requests.md` for user-requested features.
+
 ---
+
+## GitHub Issues Cross-Reference
+
+| GitHub | Title | Status | Internal Ref |
+|--------|-------|--------|--------------|
+| [#21](https://github.com/stephanjoseph/SaneBar/issues/21) | Icons hidden behind notch | Open | See BUG-021 below |
+| [#20](https://github.com/stephanjoseph/SaneBar/issues/20) | M4 tint not working | Open | See BUG-020 below |
+| [#18](https://github.com/stephanjoseph/SaneBar/issues/18) | Hiding icons not working | Open | See BUG-022 below |
+| [#16](https://github.com/stephanjoseph/SaneBar/issues/16) | Design improvements | Open | UI suggestions, not bugs |
+| [#12](https://github.com/stephanjoseph/SaneBar/issues/12) | Hide SaneBar icon | Reopened | Feature request |
+
+---
+
 ## ⚠️ WORKING BASELINE - Commit 3cb6e9b (2026-01-13)
 
 **Icon Moving**: Functional for all apps except VibeProxy (BUG-018)
@@ -11,7 +27,112 @@
 
 ---
 
-## Active Bugs
+## Active Bugs (GitHub-Tracked)
+
+### BUG-020: Menu bar tint not working on M4 Macs
+**GitHub**: [#20](https://github.com/stephanjoseph/SaneBar/issues/20)
+**Status**: INVESTIGATING
+**Priority**: HIGH
+
+**Symptom**: Menu bar tint flashes briefly on boot/shutdown but doesn't persist during normal use on M4 Macs.
+
+**Environment**: M4 MacBook Air, dark mode, macOS Sequoia/Tahoe
+
+**Related Issues** (from legacy tracking):
+- Liquid Glass effect hides menu bar content
+- Liquid Glass tint color not applied (grey only)
+- Rounded corners toggle has no visible effect
+
+**Root Cause (suspected)**: SwiftUI compositor blending vs AppKit Core Graphics direct drawing. Ice uses different approach that works.
+
+**Research (Jan 17, 2026)**:
+- SaneBar: SwiftUI `Rectangle().fill(Color.opacity())` - relies on compositor
+- Ice: AppKit `NSView.draw()` with `NSColor.setFill(); rect.fill()` - direct drawing
+- Ice also uses `.fullSizeContentView, .nonactivatingPanel` styleMask
+
+**Action Items**:
+- [ ] Test adding `.fullSizeContentView, .nonactivatingPanel` to window styleMask
+- [ ] Consider rewriting `MenuBarOverlayView` as `NSView` subclass if quick fix fails
+
+---
+
+### BUG-021: Icons hidden behind notch on internal display
+**GitHub**: [#21](https://github.com/stephanjoseph/SaneBar/issues/21)
+**Status**: KNOWN LIMITATION
+**Priority**: MEDIUM
+
+**Symptom**: Switching from external monitor to internal MacBook display causes icons to get hidden by notch.
+
+**Environment**: M4 MacBook Air, external + internal display setup
+
+**Root Cause**: SaneBar doesn't auto-detect or rescue notch-hidden icons. Same behavior as other menu bar managers.
+
+**Workaround**: Settings → Advanced → Enable "Tighter menu bar icons" (spacing 4). Requires logout.
+
+**Decision**: Document as known limitation. Future feature: notch-aware overflow menu.
+
+---
+
+### BUG-022: Hiding icons not working for some users
+**GitHub**: [#18](https://github.com/stephanjoseph/SaneBar/issues/18)
+**Status**: INVESTIGATING
+**Priority**: HIGH
+
+**Symptom**: User drags icons to left of SaneBar icon but clicking SaneBar icon does nothing.
+
+**Environment**: macOS Sequoia 15.7.2, v1.0.5
+
+**Root Cause**: Unknown - may be separator position issue or accessibility permission problem.
+
+**Action Items**:
+- [ ] Request more details from user (screenshot of Console logs)
+- [ ] Check if this relates to BUG-016 (separator misplaced on screen switch)
+
+---
+
+## Active Bugs (Internal)
+
+### BUG-023: Dock icon appears on startup even when disabled
+**Status**: OPEN
+**Priority**: HIGH
+**Reported**: 2026-01-10
+
+**Symptom**: App shows in the Dock on startup even when "Show in Dock" is OFF. Toggling the setting on/off fixes it.
+
+**Suspected Area**: `SaneBarApp.swift` - `ActivationPolicyManager.applyInitialPolicy()` timing or re-application
+
+**Action Items**:
+- [ ] Debug activation policy initialization sequence
+- [ ] Check if setting is read before policy is applied
+
+---
+
+### BUG-024: Reveal All should toggle + override auto-hide
+**Status**: OPEN
+**Priority**: MEDIUM
+**Reported**: 2026-01-10
+
+**Symptom**: "Reveal All" should become a two-way toggle (Reveal All → Hide All). When manually revealed, it should trump auto-hide logic.
+
+**Action Items**:
+- [ ] Add toggle state to Reveal All button
+- [ ] Override auto-hide timer when manually revealed
+
+---
+
+### BUG-025: Support/Donate view blocks settings tabs
+**Status**: OPEN
+**Priority**: MEDIUM
+**Reported**: 2026-01-11
+
+**Symptom**: Opening the Support/Donate UI prevents switching between Settings tabs; user must close Settings to exit.
+
+**Action Items**:
+- [ ] Fix sheet presentation to not block tab navigation
+- [ ] Consider using popover instead of sheet
+
+---
+
 ### BUG-018: VibeProxy icon cannot be moved via Find Icon
 
 **Status**: KNOWN LIMITATION (2026-01-13)

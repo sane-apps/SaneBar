@@ -248,6 +248,21 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 </details>
 
+<details>
+<summary>Documentation for contributors</summary>
+
+| Document | Purpose |
+|----------|---------|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [SECURITY.md](SECURITY.md) | Security policy and reporting |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [ROADMAP.md](ROADMAP.md) | Feature status overview |
+| [BUG_TRACKING.md](BUG_TRACKING.md) | Bug reports with GitHub links |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Development rules and SOP |
+| [FEATURE_PLAN.md](FEATURE_PLAN.md) | Implementation plans |
+
+</details>
+
 ---
 
 ## License
