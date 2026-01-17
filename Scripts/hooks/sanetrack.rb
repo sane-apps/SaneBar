@@ -99,6 +99,10 @@ def check_tautologies(tool_name, tool_input)
   "   Fix: Replace with meaningful assertions that test actual behavior"
 end
 
+# === FEATURE REMINDER COOLDOWNS ===
+# Don't spam reminders - minimum time between same reminder type
+REMINDER_COOLDOWN = 300  # 5 minutes in seconds
+
 # === ERROR PATTERNS ===
 
 ERROR_PATTERN = Regexp.union(
@@ -293,6 +297,74 @@ def summarize_input(input)
     input['prompt']&.to_s&.slice(0, 50) || input[:prompt]&.to_s&.slice(0, 50)
 end
 
+# === FEATURE REMINDERS ===
+# Suggest underutilized features at appropriate moments
+
+def should_remind?(reminder_type)
+  reminders = StateManager.get(:reminders) || {}
+  last_at = reminders["#{reminder_type}_at".to_sym]
+  return true unless last_at
+
+  begin
+    time_since = Time.now - Time.parse(last_at)
+    time_since >= REMINDER_COOLDOWN
+  rescue ArgumentError
+    true  # If timestamp is invalid, allow reminder
+  end
+end
+
+def record_reminder(reminder_type)
+  StateManager.update(:reminders) do |r|
+    r ||= {}
+    r["#{reminder_type}_at".to_sym] = Time.now.iso8601
+    r["#{reminder_type}_count".to_sym] = (r["#{reminder_type}_count".to_sym] || 0) + 1
+    r
+  end
+end
+
+def emit_rewind_reminder(error_count)
+  return unless should_remind?(:rewind)
+
+  record_reminder(:rewind)
+
+  warn ''
+  if error_count >= 2
+    warn '🔄 CONSIDER /rewind - Multiple errors suggest research before retry'
+    warn '   Press Esc+Esc to rollback code AND conversation to last checkpoint'
+  else
+    warn '💡 TIP: /rewind can rollback this change if needed (Esc+Esc shortcut)'
+  end
+  warn ''
+end
+
+def emit_context_reminder(edit_count)
+  return unless edit_count % 5 == 0 && edit_count > 0  # Every 5 edits
+  return unless should_remind?(:context)
+
+  record_reminder(:context)
+
+  warn ''
+  warn "💡 TIP: After #{edit_count} edits - try /context to visualize token usage"
+  warn '   Helps identify what\'s consuming your context window'
+  warn ''
+end
+
+def emit_explore_reminder(tool_name, tool_input)
+  return unless %w[Grep Glob].include?(tool_name)
+
+  pattern = tool_input['pattern'] || tool_input[:pattern] || ''
+  return unless pattern.include?('**') || pattern.length > 30  # Complex search
+
+  return unless should_remind?(:explore)
+
+  record_reminder(:explore)
+
+  warn ''
+  warn '💡 TIP: For large codebase searches, use Task with subagent_type: Explore'
+  warn '   Haiku-powered exploration saves context tokens'
+  warn ''
+end
+
 # === LOGGING ===
 
 def log_action(tool_name, result_type)
@@ -378,6 +450,10 @@ def process_result(tool_name, tool_input, tool_response)
     log_action_for_learning(tool_name, tool_input, false, error_sig)
 
     log_action(tool_name, 'failure')
+
+    # === FEATURE REMINDER: Suggest /rewind on errors ===
+    cb = StateManager.get(:circuit_breaker)
+    emit_rewind_reminder(cb[:failures] || 0) if cb[:failures] && cb[:failures] >= 1
   else
     reset_failure_count(tool_name)
     track_edit(tool_name, tool_input, tool_response)
@@ -393,6 +469,15 @@ def process_result(tool_name, tool_input, tool_response)
     log_action_for_learning(tool_name, tool_input, true, nil)
 
     log_action(tool_name, 'success')
+
+    # === FEATURE REMINDER: Suggest /context after edits ===
+    if EDIT_TOOLS.include?(tool_name)
+      edits = StateManager.get(:edits)
+      emit_context_reminder(edits[:count] || 0)
+    end
+
+    # === FEATURE REMINDER: Suggest Explore subagent for complex searches ===
+    emit_explore_reminder(tool_name, tool_input)
 
     # === GIT PUSH REMINDER ===
     # After successful git commit, check if push is needed

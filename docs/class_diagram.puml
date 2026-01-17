@@ -1,0 +1,879 @@
+@startuml
+' STYLE START
+hide empty members
+skinparam shadowing false
+' STYLE END
+set namespaceSeparator none
+
+
+class "SettingsControllerProtocol" as SettingsControllerProtocol << (P, GoldenRod) protocol >> { 
+  ~settings : SaneBarSettings
+  ~settingsPublisher : AnyPublisher<SaneBarSettings, Never>
+  ~load()
+  ~save() 
+}
+class "StatusBarControllerProtocol" as StatusBarControllerProtocol << (P, GoldenRod) protocol >> { 
+  ~mainItem : NSStatusItem
+  ~separatorItem : NSStatusItem
+  ~iconName(for:)
+  ~createMenu(configuration:) 
+}
+class "DiagnosticsServiceProtocol" as DiagnosticsServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~collectDiagnostics() 
+}
+class "StatusItemProtocol" as StatusItemProtocol << (P, GoldenRod) protocol >> { 
+  ~length : CGFloat 
+}
+class "HidingServiceProtocol" as HidingServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~state : HidingState
+  ~isAnimating : Bool
+  ~configure(delimiterItem:)
+  ~toggle()
+  ~show()
+  ~hide() 
+}
+class "HoverServiceProtocol" as HoverServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~isEnabled : Bool
+  ~scrollEnabled : Bool
+  ~trackMouseLeave : Bool
+  ~start()
+  ~stop() 
+}
+class "KeyboardShortcutsServiceProtocol" as KeyboardShortcutsServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~registerAllHandlers()
+  ~unregisterAllHandlers() 
+}
+class "MenuBarAppearanceServiceProtocol" as MenuBarAppearanceServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~updateAppearance(_:)
+  ~show()
+  ~hide() 
+}
+class "MenuBarSpacingServiceProtocol" as MenuBarSpacingServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~currentSpacing()
+  ~currentSelectionPadding()
+  ~setSpacing(_:)
+  ~setSelectionPadding(_:)
+  ~resetToDefaults()
+  ~attemptGracefulRefresh() 
+}
+class "NetworkTriggerServiceProtocol" as NetworkTriggerServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~currentSSID : String?
+  ~configure(menuBarManager:)
+  ~startMonitoring()
+  ~stopMonitoring() 
+}
+class "PersistenceServiceProtocol" as PersistenceServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~saveSettings(_:)
+  ~loadSettings()
+  ~clearAll() 
+}
+class "SearchServiceProtocol" as SearchServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~getRunningApps()
+  ~getMenuBarApps()
+  ~getHiddenMenuBarApps()
+  ~cachedMenuBarApps()
+  ~cachedHiddenMenuBarApps()
+  ~cachedVisibleMenuBarApps()
+  ~refreshMenuBarApps()
+  ~refreshHiddenMenuBarApps()
+  ~refreshVisibleMenuBarApps()
+  ~activate(app:) 
+}
+class "TriggerServiceProtocol" as TriggerServiceProtocol << (P, GoldenRod) protocol >> { 
+  ~configure(menuBarManager:)
+  ~stopMonitoring() 
+}
+class "MenuBarManager" as MenuBarManager << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  ~hidingState : HidingState
+  ~settings : SaneBarSettings
+  ~isRevealPinned : Bool
+  ~isMenuOpen : Bool
+  -isAuthenticating : Bool
+  ~hasNotch : Bool
+  ~hidingService : HidingService
+  ~persistenceService : PersistenceServiceProtocol
+  ~settingsController : SettingsController
+  ~statusBarController : StatusBarController
+  ~triggerService : TriggerService
+  ~iconHotkeysService : IconHotkeysService
+  ~appearanceService : MenuBarAppearanceService
+  ~networkTriggerService : NetworkTriggerService
+  ~hoverService : HoverService
+  ~updateService : UpdateService
+  ~mainStatusItem : NSStatusItem?
+  ~separatorItem : NSStatusItem?
+  ~statusMenu : NSMenu?
+  -onboardingPopover : NSPopover?
+  -usingExternalItems
+  -cancellables
+  ~init(hidingService:persistenceService:settingsController:statusBarController:triggerService:iconHotkeysService:appearanceService:networkTriggerService:hoverService:updateService:)
+  -configureHoverService()
+  -isRunningInHeadlessEnvironment()
+  ~useExistingItems(main:separator:)
+  -deferredUISetup()
+  -setupStatusItem()
+  -setupObservers()
+  ~clearStatusItemMenus()
+  -updateDividerStyle()
+  ~updateMainIconVisibility()
+  -updateAppearance()
+  -updateHoverService()
+  -updateNetworkTrigger(enabled:)
+  -loadSettings()
+  ~saveSettings()
+  ~resetToDefaults()
+  ~toggleHiddenItems()
+  ~showHiddenItemsNow(trigger:)
+  ~scheduleRehideFromSearch(after:)
+  ~showHiddenItems()
+  ~hideHiddenItems()
+  -authenticate(reason:)
+  -updateStatusItemAppearance()
+  ~updateSpacers()
+  -showOnboardingIfNeeded()
+  -showOnboardingPopover()
+  -completeOnboarding() 
+}
+class "RevealTrigger" as MenuBarManager.RevealTrigger << (E, LightSteelBlue) enum >> { 
+  ~hotkey
+  ~search
+  ~automation
+  ~settingsButton
+  ~findIcon 
+}
+class "SettingsController" as SettingsController << (C, DarkSeaGreen) >> { 
+  ~settings : SaneBarSettings
+  ~settingsPublisher : AnyPublisher<SaneBarSettings, Never>
+  -persistence : PersistenceServiceProtocol
+  ~init(persistence:)
+  ~load()
+  ~loadOrDefault()
+  ~save()
+  ~saveQuietly()
+  ~update(_:)
+  ~resetToDefaults() 
+}
+class "MenuConfiguration" as MenuConfiguration << (S, SkyBlue) struct >> { 
+  ~toggleAction : Selector
+  ~findIconAction : Selector
+  ~settingsAction : Selector
+  ~checkForUpdatesAction : Selector
+  ~quitAction : Selector
+  ~target : AnyObject 
+}
+class "StatusBarController" as StatusBarController << (C, DarkSeaGreen) >> { 
+  ~mainItem : NSStatusItem
+  ~separatorItem : NSStatusItem
+  -spacerItems : [NSStatusItem]
+  ~{static} mainAutosaveName
+  ~{static} separatorAutosaveName
+  ~{static} iconExpanded
+  ~{static} iconHidden
+  ~{static} maxSpacerCount
+  ~init()
+  -{static} seedPositionsIfNeeded()
+  ~configureStatusItems(clickAction:target:)
+  -configureMainButton(_:action:target:)
+  -configureSeparatorButton(_:)
+  ~iconName(for:)
+  ~updateAppearance(for:)
+  -makeMainSymbolImage(name:)
+  ~updateSeparatorStyle(_:isHidden:)
+  ~createMenu(configuration:)
+  ~updateSpacers(count:style:width:)
+  -configureSpacer(_:style:)
+  ~{static} clickType(from:) 
+}
+class "ClickType" as StatusBarController.ClickType << (E, LightSteelBlue) enum >> { 
+  ~leftClick
+  ~rightClick
+  ~optionClick 
+}
+class "MenuBarManager" as MenuBarManager0 << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  ~hidingState : HidingState
+  ~settings : SaneBarSettings
+  ~isRevealPinned : Bool
+  ~isMenuOpen : Bool
+  -isAuthenticating : Bool
+  ~hasNotch : Bool
+  ~hidingService : HidingService
+  ~persistenceService : PersistenceServiceProtocol
+  ~settingsController : SettingsController
+  ~statusBarController : StatusBarController
+  ~triggerService : TriggerService
+  ~iconHotkeysService : IconHotkeysService
+  ~appearanceService : MenuBarAppearanceService
+  ~networkTriggerService : NetworkTriggerService
+  ~hoverService : HoverService
+  ~updateService : UpdateService
+  ~mainStatusItem : NSStatusItem?
+  ~separatorItem : NSStatusItem?
+  ~statusMenu : NSMenu?
+  -onboardingPopover : NSPopover?
+  -usingExternalItems
+  -cancellables
+  ~init(hidingService:persistenceService:settingsController:statusBarController:triggerService:iconHotkeysService:appearanceService:networkTriggerService:hoverService:updateService:)
+  -configureHoverService()
+  -isRunningInHeadlessEnvironment()
+  ~useExistingItems(main:separator:)
+  -deferredUISetup()
+  -setupStatusItem()
+  -setupObservers()
+  ~clearStatusItemMenus()
+  -updateDividerStyle()
+  ~updateMainIconVisibility()
+  -updateAppearance()
+  -updateHoverService()
+  -updateNetworkTrigger(enabled:)
+  -loadSettings()
+  ~saveSettings()
+  ~resetToDefaults()
+  ~toggleHiddenItems()
+  ~showHiddenItemsNow(trigger:)
+  ~scheduleRehideFromSearch(after:)
+  ~showHiddenItems()
+  ~hideHiddenItems()
+  -authenticate(reason:)
+  -updateStatusItemAppearance()
+  ~updateSpacers()
+  -showOnboardingIfNeeded()
+  -showOnboardingPopover()
+  -completeOnboarding() 
+}
+class "RevealTrigger" as MenuBarManager.RevealTrigger1 << (E, LightSteelBlue) enum >> { 
+  ~hotkey
+  ~search
+  ~automation
+  ~settingsButton
+  ~findIcon 
+}
+class "AppCategory" as AppCategory << (E, LightSteelBlue) enum >> { 
+  ~productivity
+  ~social
+  ~utilities
+  ~creativity
+  ~entertainment
+  ~infoAndReading
+  ~finance
+  ~shopping
+  ~healthAndFitness
+  ~travel
+  ~games
+  ~foodAndDrinks
+  ~developerTools
+  ~system
+  ~other
+  ~{static} from(categoryType:)
+  ~iconName : String 
+}
+class "RunningApp" as RunningApp << (S, SkyBlue) struct >> { 
+  ~bundleId : String
+  ~name : String
+  ~icon : NSImage?
+  ~policy : Policy
+  ~category : AppCategory
+  ~xPosition : CGFloat?
+  ~width : CGFloat?
+  ~menuExtraIdentifier : String?
+  ~statusItemIndex : Int?
+  ~isControlCenterItem : Bool
+  ~uniqueId : String
+  ~id : String
+  ~init(id:name:icon:policy:category:menuExtraIdentifier:statusItemIndex:xPosition:width:)
+  ~{static} controlCenterItem(name:identifier:xPosition:width:)
+  ~{static} menuExtraItem(ownerBundleId:name:identifier:xPosition:width:)
+  -{static} displayNameForMenuExtra(_:)
+  -{static} sanitizeMenuExtraLabel(_:)
+  -{static} iconForMenuExtra(_:)
+  ~init(app:statusItemIndex:menuExtraIdentifier:xPosition:width:)
+  -{static} detectCategory(for:) 
+}
+class "Policy" as RunningApp.Policy << (E, LightSteelBlue) enum >> { 
+  ~regular
+  ~accessory
+  ~prohibited
+  ~unknown 
+}
+class "SaneBarProfile" as SaneBarProfile << (S, SkyBlue) struct >> { 
+  ~id : UUID
+  ~name : String
+  ~settings : SaneBarSettings
+  ~createdAt : Date
+  ~modifiedAt : Date
+  ~init(id:name:settings:) 
+}
+class "AccessibilityService" as AccessibilityService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  ~isGranted : Bool
+  -permissionMonitorTask : Task<Void, Never>?
+  -streamContinuations : [UUID: AsyncStream<Bool>.Continuation]
+  ~menuBarItemCache : [MenuBarItemPosition]
+  ~menuBarItemCacheTime : Date
+  ~menuBarItemCacheValiditySeconds : TimeInterval
+  ~menuBarOwnersCache : [RunningApp]
+  ~menuBarOwnersCacheTime : Date
+  ~menuBarOwnersCacheValiditySeconds : TimeInterval
+  ~menuBarOwnersRefreshTask : Task<[RunningApp], Never>?
+  ~menuBarItemsRefreshTask : Task<[MenuBarItemPosition], Never>?
+  -init()
+  ~deinit
+  ~permissionStream(includeInitial:)
+  -startPermissionMonitoring()
+  -checkAndUpdatePermissionStatus()
+  ~isTrusted : Bool
+  ~requestAccessibility() 
+}
+class "MenuBarItemPosition" as AccessibilityService.MenuBarItemPosition << (S, SkyBlue) struct >> { 
+  ~app : RunningApp
+  ~x : CGFloat
+  ~width : CGFloat 
+}
+class "ScannedStatusItem" as AccessibilityService.ScannedStatusItem << (S, SkyBlue) struct >> { 
+  ~pid : pid_t
+  ~itemIndex : Int?
+  ~x : CGFloat
+  ~width : CGFloat
+  ~axIdentifier : String? 
+}
+class "SaneBarScriptCommand" as SaneBarScriptCommand << (C, DarkSeaGreen) >> { 
+  ~menuBarManager : MenuBarManager 
+}
+class "ToggleCommand" as ToggleCommand << (C, DarkSeaGreen) >> { 
+  ~performDefaultImplementation() 
+}
+class "ShowCommand" as ShowCommand << (C, DarkSeaGreen) >> { 
+  ~performDefaultImplementation() 
+}
+class "HideCommand" as HideCommand << (C, DarkSeaGreen) >> { 
+  ~performDefaultImplementation() 
+}
+class "DiagnosticReport" as DiagnosticReport << (S, SkyBlue) struct >> { 
+  ~appVersion : String
+  ~buildNumber : String
+  ~macOSVersion : String
+  ~hardwareModel : String
+  ~recentLogs : [LogEntry]
+  ~settingsSummary : String
+  ~collectedAt : Date
+  ~toMarkdown(userDescription:)
+  -formattedLogs : String 
+}
+class "LogEntry" as DiagnosticReport.LogEntry << (S, SkyBlue) struct >> { 
+  ~timestamp : Date
+  ~level : String
+  ~message : String 
+}
+class "DiagnosticsService" as DiagnosticsService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  -subsystem
+  ~collectDiagnostics()
+  -appVersion : String
+  -buildNumber : String
+  -macOSVersion : String
+  -hardwareModel : String
+  -collectRecentLogs()
+  -collectSettingsSummary()
+  -sanitize(_:) 
+}
+class "HidingState" as HidingState << (E, LightSteelBlue) enum >> { 
+  ~hidden
+  ~expanded 
+}
+class "StatusItemLength" as StatusItemLength << (E, LightSteelBlue) enum >> { 
+  ~{static} expanded : CGFloat
+  ~{static} collapsed : CGFloat 
+}
+class "HidingService" as HidingService << (C, DarkSeaGreen) >> { 
+  ~state : HidingState
+  ~isAnimating
+  -delimiterItem : StatusItemProtocol?
+  ~init()
+  ~configure(delimiterItem:)
+  ~toggle()
+  ~show()
+  ~hide()
+  -rehideTask : Task<Void, Never>?
+  ~scheduleRehide(after:)
+  ~cancelRehide() 
+}
+class "HoverService" as HoverService << (C, DarkSeaGreen) >> { 
+  ~isEnabled : Bool
+  ~scrollEnabled : Bool
+  ~trackMouseLeave : Bool
+  ~onTrigger : ((TriggerReason) -> Void)?
+  ~onLeaveMenuBar : (() -> Void)?
+  ~hoverDelay : TimeInterval
+  -detectionZoneHeight : CGFloat
+  -leaveThreshold : CGFloat
+  -globalMonitor : Any?
+  -hoverTimer : Timer?
+  -isMouseInMenuBar
+  -lastScrollTime : Date
+  ~init()
+  ~deinit
+  ~start()
+  ~stop()
+  -updateMonitoringState()
+  -startMonitoring()
+  -stopMonitoring()
+  -handleEvent(_:)
+  -handleMouseMoved(_:)
+  -handleScrollWheel(_:)
+  -isInMenuBarRegion(_:)
+  -distanceFromMenuBarTop(_:)
+  -scheduleHoverTrigger()
+  -cancelHoverTimer() 
+}
+class "TriggerReason" as HoverService.TriggerReason << (E, LightSteelBlue) enum >> { 
+  ~hover
+  ~scroll 
+}
+class "IconHotkeysService" as IconHotkeysService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  -menuBarManager : MenuBarManager?
+  -registeredShortcuts : Set<String>
+  ~configure(with:)
+  ~registerHotkeys(from:)
+  -registerHotkey(for:shortcut:)
+  ~unregisterAllHotkeys()
+  -handleHotkey(for:)
+  -activateApp(bundleID:)
+  ~{static} shortcutName(for:) 
+}
+class "KeyboardShortcutsService" as KeyboardShortcutsService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  -menuBarManager : MenuBarManager?
+  ~init(menuBarManager:)
+  ~configure(with:)
+  ~registerAllHandlers()
+  ~unregisterAllHandlers()
+  ~setDefaultsIfNeeded() 
+}
+class "MenuBarAppearanceSettings" as MenuBarAppearanceSettings << (S, SkyBlue) struct >> { 
+  ~isEnabled : Bool
+  ~useLiquidGlass : Bool
+  ~tintColor : String
+  ~tintOpacity : Double
+  ~hasShadow : Bool
+  ~shadowOpacity : Double
+  ~hasBorder : Bool
+  ~borderColor : String
+  ~borderWidth : Double
+  ~hasRoundedCorners : Bool
+  ~cornerRadius : Double
+  ~{static} supportsLiquidGlass : Bool 
+}
+class "MenuBarAppearanceService" as MenuBarAppearanceService << (C, DarkSeaGreen) >> { 
+  -overlayWindow : NSWindow?
+  -overlayViewModel : MenuBarOverlayViewModel?
+  -screenObserver : Any?
+  ~init()
+  ~teardown()
+  -setupScreenObserver()
+  ~updateAppearance(_:)
+  ~show()
+  ~hide()
+  -ensureOverlayExists()
+  -repositionOverlay()
+  -calculateMenuBarFrame() 
+}
+class "MenuBarOverlayViewModel" as MenuBarOverlayViewModel << (C, DarkSeaGreen) >> { 
+  ~settings 
+}
+class "MenuBarOverlayView" as MenuBarOverlayView << (S, SkyBlue) struct >> { 
+  ~viewModel : MenuBarOverlayViewModel
+  ~body : some View
+  -mainAppearanceLayer : some View
+  -liquidGlassLayer : some View
+  -fallbackTintLayer : some View
+  -overlayShape : some Shape 
+}
+class "AnyShape" as AnyShape << (S, SkyBlue) struct >> { 
+  -pathBuilder : @Sendable (CGRect) -> Path
+  ~init(_:)
+  ~path(in:) 
+}
+class "MenuBarSpacingError" as MenuBarSpacingError << (E, LightSteelBlue) enum >> { 
+  ~valueOutOfRange(_:)
+  ~commandFailed(_:)
+  ~errorDescription : String? 
+}
+class "MenuBarSpacingService" as MenuBarSpacingService << (C, DarkSeaGreen) >> { 
+  -{static} spacingKey
+  -{static} paddingKey
+  -{static} validRange
+  ~{static} shared
+  ~currentSpacing()
+  ~currentSelectionPadding()
+  ~setSpacing(_:)
+  ~setSelectionPadding(_:)
+  ~resetToDefaults()
+  ~attemptGracefulRefresh()
+  -readDefaultsInt(_:)
+  -writeDefaultsInt(_:value:)
+  -deleteDefaultsKey(_:)
+  -runDefaults(_:) 
+}
+class "NetworkTriggerService" as NetworkTriggerService << (C, DarkSeaGreen) >> { 
+  -wifiClient
+  -isMonitoring
+  -menuBarManager : MenuBarManager?
+  ~currentSSID : String?
+  ~configure(menuBarManager:)
+  ~startMonitoring()
+  ~stopMonitoring()
+  -handleNetworkChange()
+  ~ssidDidChangeForWiFiInterface(withName:)
+  ~linkDidChangeForWiFiInterface(withName:)
+  ~clientConnectionInterrupted()
+  ~clientConnectionInvalidated() 
+}
+class "SaneBarSettings" as SaneBarSettings << (S, SkyBlue) struct >> { 
+  ~autoRehide : Bool
+  ~rehideDelay : TimeInterval
+  ~findIconRehideDelay : TimeInterval
+  ~spacerCount : Int
+  ~spacerStyle : SpacerStyle
+  ~spacerWidth : SpacerWidth
+  ~showOnAppLaunch : Bool
+  ~triggerApps : [String]
+  ~iconHotkeys : [String: KeyboardShortcutData]
+  ~iconGroups : [IconGroup]
+  ~showOnLowBattery : Bool
+  ~hasCompletedOnboarding : Bool
+  ~requireAuthToShowHiddenIcons : Bool
+  ~menuBarAppearance : MenuBarAppearanceSettings
+  ~showOnNetworkChange : Bool
+  ~triggerNetworks : [String]
+  ~showDockIcon : Bool
+  ~showOnHover : Bool
+  ~hoverDelay : TimeInterval
+  ~showOnScroll : Bool
+  ~menuBarSpacing : Int?
+  ~menuBarSelectionPadding : Int?
+  ~checkForUpdatesAutomatically : Bool
+  ~lastUpdateCheck : Date?
+  ~hideMainIcon : Bool
+  ~dividerStyle : DividerStyle
+  ~init()
+  ~init(from:) 
+}
+class "SpacerStyle" as SaneBarSettings.SpacerStyle << (E, LightSteelBlue) enum >> { 
+  ~line
+  ~dot 
+}
+class "SpacerWidth" as SaneBarSettings.SpacerWidth << (E, LightSteelBlue) enum >> { 
+  ~compact
+  ~normal
+  ~wide 
+}
+class "DividerStyle" as SaneBarSettings.DividerStyle << (E, LightSteelBlue) enum >> { 
+  ~slash
+  ~backslash
+  ~pipe
+  ~pipeThin
+  ~dot 
+}
+class "IconGroup" as SaneBarSettings.IconGroup << (S, SkyBlue) struct >> { 
+  ~id : UUID
+  ~name : String
+  ~appBundleIds : [String]
+  ~init(name:appBundleIds:) 
+}
+class "CodingKeys" as SaneBarSettings.CodingKeys << (E, LightSteelBlue) enum >> { 
+  ~autoRehide
+  ~iconHotkeys
+  ~menuBarAppearance
+  ~requireAuthToShowHiddenIcons
+  ~showOnHover
+  ~menuBarSpacing
+  ~checkForUpdatesAutomatically
+  ~hideMainIcon 
+}
+class "KeyboardShortcutData" as KeyboardShortcutData << (S, SkyBlue) struct >> { 
+  ~keyCode : UInt16
+  ~modifiers : UInt 
+}
+class "PersistenceService" as PersistenceService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  -fileManager
+  -appSupportDirectory : URL
+  -settingsFileURL : URL
+  -encoder : JSONEncoder
+  -decoder
+  ~saveSettings(_:)
+  ~loadSettings()
+  ~clearAll()
+  -profilesDirectory : URL
+  -profileFileURL(for:)
+  ~saveProfile(_:)
+  ~loadProfile(id:)
+  ~listProfiles()
+  ~deleteProfile(id:) 
+}
+class "PersistenceError" as PersistenceError << (E, LightSteelBlue) enum >> { 
+  ~profileNotFound
+  ~limitReached
+  ~errorDescription : String? 
+}
+class "SearchService" as SearchService << (C, DarkSeaGreen) >> { 
+  ~{static} shared
+  -menuBarScreenFrame()
+  -separatorOriginXForClassification()
+  -isOffscreen(x:in:)
+  -isHiddenRelativeToSeparator(itemX:itemWidth:separatorX:)
+  ~getRunningApps()
+  ~getMenuBarApps()
+  ~getHiddenMenuBarApps()
+  ~cachedMenuBarApps()
+  ~cachedHiddenMenuBarApps()
+  ~cachedVisibleMenuBarApps()
+  ~refreshMenuBarApps()
+  ~refreshHiddenMenuBarApps()
+  ~refreshVisibleMenuBarApps()
+  -logIdentityHealth(apps:context:)
+  ~activate(app:) 
+}
+class "TriggerService" as TriggerService << (C, DarkSeaGreen) >> { 
+  -menuBarManager : MenuBarManager?
+  -cancellables
+  -batteryCheckTimer : Timer?
+  -lastBatteryWarningLevel : IOPSLowBatteryWarningLevel
+  ~init()
+  ~configure(menuBarManager:)
+  ~updateBatteryMonitoring(enabled:)
+  -startBatteryMonitor()
+  -stopBatteryMonitor()
+  -setupAppLaunchObserver()
+  -handleAppLaunch(_:)
+  -checkBatteryLevel()
+  ~stopMonitoring() 
+}
+class "UpdateService" as UpdateService << (C, DarkSeaGreen) >> { 
+  -updaterController : SPUStandardUpdaterController?
+  ~init()
+  ~checkForUpdates()
+  ~automaticallyChecksForUpdates : Bool 
+}
+class "MenuBarManager" as MenuBarManager2 << (X, Orchid) extension >> { 
+  ~menuWillOpen(_:)
+  ~menuDidClose(_:)
+  ~menuToggleHiddenItems(_:)
+  ~openSettings(_:)
+  ~openFindIcon(_:)
+  ~quitApp(_:)
+  ~checkForUpdates(_:)
+  ~statusItemClicked(_:)
+  ~showStatusMenu() 
+}
+class "MenuBarManager" as MenuBarManager3 << (X, Orchid) extension >> { 
+  ~getSeparatorOriginX()
+  ~getSeparatorRightEdgeX()
+  ~getMainStatusItemLeftEdgeX()
+  ~moveIcon(bundleID:menuExtraId:statusItemIndex:toHidden:) 
+}
+class "MenuBarManager" as MenuBarManager4 << (X, Orchid) extension >> { 
+  ~userDidClickCheckForUpdates()
+  ~syncUpdateConfiguration() 
+}
+class "MenuBarManager" as MenuBarManager5 << (X, Orchid) extension >> { 
+  ~menuWillOpen(_:)
+  ~menuDidClose(_:)
+  ~menuToggleHiddenItems(_:)
+  ~openSettings(_:)
+  ~openFindIcon(_:)
+  ~quitApp(_:)
+  ~checkForUpdates(_:)
+  ~statusItemClicked(_:)
+  ~showStatusMenu() 
+}
+class "MenuBarManager" as MenuBarManager6 << (X, Orchid) extension >> { 
+  ~getSeparatorOriginX()
+  ~getSeparatorRightEdgeX()
+  ~getMainStatusItemLeftEdgeX()
+  ~moveIcon(bundleID:menuExtraId:statusItemIndex:toHidden:) 
+}
+class "MenuBarManager" as MenuBarManager7 << (X, Orchid) extension >> { 
+  ~userDidClickCheckForUpdates()
+  ~syncUpdateConfiguration() 
+}
+class "SaneBarProfile" as SaneBarProfile8 << (X, Orchid) extension >> { 
+  ~{static} generateName(basedOn:) 
+}
+class "Name" as Notification.Name << (X, Orchid) extension >> { 
+  -{static} AXPermissionsChanged 
+}
+class "Name" as Notification.Name9 << (X, Orchid) extension >> { 
+  ~{static} menuBarIconsDidChange 
+}
+class "AccessibilityService" as AccessibilityService10 << (X, Orchid) extension >> { 
+  ~cachedMenuBarItemOwners()
+  ~cachedMenuBarItemsWithPositions()
+  ~refreshMenuBarItemOwners()
+  ~refreshMenuBarItemsWithPositions()
+  ~invalidateMenuBarItemCache()
+  ~prewarmCache() 
+}
+class "AccessibilityService" as AccessibilityService11 << (X, Orchid) extension >> { 
+  ~clickMenuBarItem(for:)
+  ~clickMenuBarItem(bundleID:menuExtraId:statusItemIndex:)
+  -clickSystemWideItem(for:menuExtraId:statusItemIndex:)
+  -performPress(on:)
+  ~moveMenuBarIcon(bundleID:menuExtraId:statusItemIndex:toHidden:separatorX:)
+  -getMenuBarIconFrame(bundleID:menuExtraId:statusItemIndex:)
+  -performCmdDrag(from:to:) 
+}
+class "AccessibilityService" as AccessibilityService12 << (X, Orchid) extension >> { 
+  ~{static} enumerateControlCenterItems(pid:)
+  ~{static} enumerateMenuExtraItems(pid:ownerBundleId:) 
+}
+class "AccessibilityService" as AccessibilityService13 << (X, Orchid) extension >> { 
+  ~listMenuBarItemOwners()
+  ~listMenuBarItemsWithPositions()
+  ~{static} scanMenuBarOwnerPIDs(candidatePIDs:)
+  ~{static} scanMenuBarAppMinXPositions(candidatePIDs:) 
+}
+class "DiagnosticReport" as DiagnosticReport14 << (X, Orchid) extension >> { 
+  ~gitHubIssueURL(title:userDescription:) 
+}
+class "NSStatusItem" as NSStatusItem << (X, Orchid) extension >> {  
+}
+class "Name" as Notification.Name15 << (X, Orchid) extension >> { 
+  ~{static} hiddenSectionShown
+  ~{static} hiddenSectionHidden 
+}
+class "Name" as KeyboardShortcuts.Name << (X, Orchid) extension >> { 
+  ~{static} toggleHiddenItems
+  ~{static} showHiddenItems
+  ~{static} hideItems
+  ~{static} openSettings
+  ~{static} searchMenuBar 
+}
+class "Color" as Color << (X, Orchid) extension >> { 
+  ~init(hex:)
+  ~toHex() 
+}
+ObservableObject <|.. SettingsControllerProtocol : inherits
+Sendable <|.. DiagnosticsServiceProtocol : inherits
+AnyObject <|.. StatusItemProtocol : inherits
+Sendable <|.. PersistenceServiceProtocol : inherits
+Sendable <|.. SearchServiceProtocol : inherits
+NSObject <|-- MenuBarManager : inherits
+ObservableObject <|-- MenuBarManager : inherits
+NSMenuDelegate <|-- MenuBarManager : inherits
+String -- MenuBarManager.RevealTrigger : inherits
+Sendable -- MenuBarManager.RevealTrigger : inherits
+ObservableObject <|-- SettingsController : inherits
+SettingsControllerProtocol <|.. SettingsController : conforms to
+StatusBarControllerProtocol <|.. StatusBarController : conforms to
+NSObject <|-- MenuBarManager : inherits
+ObservableObject <|-- MenuBarManager : inherits
+NSMenuDelegate <|-- MenuBarManager : inherits
+String -- MenuBarManager.RevealTrigger : inherits
+Sendable -- MenuBarManager.RevealTrigger : inherits
+String -- AppCategory : inherits
+CaseIterable -- AppCategory : inherits
+Sendable -- AppCategory : inherits
+Identifiable <|-- RunningApp : inherits
+Hashable <|-- RunningApp : inherits
+"@unchecked Sendable" <|-- RunningApp : inherits
+String -- RunningApp.Policy : inherits
+Codable -- RunningApp.Policy : inherits
+Sendable -- RunningApp.Policy : inherits
+Codable <|-- SaneBarProfile : inherits
+Identifiable <|-- SaneBarProfile : inherits
+Sendable <|-- SaneBarProfile : inherits
+ObservableObject <|-- AccessibilityService : inherits
+Equatable <|-- AccessibilityService.MenuBarItemPosition : inherits
+Sendable <|-- AccessibilityService.MenuBarItemPosition : inherits
+NSScriptCommand <|-- SaneBarScriptCommand : inherits
+SaneBarScriptCommand <|-- ToggleCommand : inherits
+SaneBarScriptCommand <|-- ShowCommand : inherits
+SaneBarScriptCommand <|-- HideCommand : inherits
+Sendable <|-- DiagnosticReport : inherits
+Sendable <|-- DiagnosticReport.LogEntry : inherits
+DiagnosticsServiceProtocol <|.. DiagnosticsService : conforms to
+"@unchecked Sendable" <|-- DiagnosticsService : inherits
+String -- HidingState : inherits
+Codable -- HidingState : inherits
+Sendable -- HidingState : inherits
+ObservableObject <|-- HidingService : inherits
+HidingServiceProtocol <|.. HidingService : conforms to
+HoverServiceProtocol <|.. HoverService : conforms to
+KeyboardShortcutsServiceProtocol <|.. KeyboardShortcutsService : conforms to
+Codable <|-- MenuBarAppearanceSettings : inherits
+Sendable <|-- MenuBarAppearanceSettings : inherits
+Equatable <|-- MenuBarAppearanceSettings : inherits
+ObservableObject <|-- MenuBarAppearanceService : inherits
+MenuBarAppearanceServiceProtocol <|.. MenuBarAppearanceService : conforms to
+View <|-- MenuBarOverlayView : inherits
+Shape <|-- AnyShape : inherits
+"@unchecked Sendable" <|-- AnyShape : inherits
+Error -- MenuBarSpacingError : inherits
+LocalizedError -- MenuBarSpacingError : inherits
+MenuBarSpacingServiceProtocol <|.. MenuBarSpacingService : conforms to
+NSObject <|-- NetworkTriggerService : inherits
+NetworkTriggerServiceProtocol <|.. NetworkTriggerService : conforms to
+CWEventDelegate <|-- NetworkTriggerService : inherits
+Codable <|-- SaneBarSettings : inherits
+Sendable <|-- SaneBarSettings : inherits
+Equatable <|-- SaneBarSettings : inherits
+String -- SaneBarSettings.SpacerStyle : inherits
+Codable -- SaneBarSettings.SpacerStyle : inherits
+CaseIterable -- SaneBarSettings.SpacerStyle : inherits
+Sendable -- SaneBarSettings.SpacerStyle : inherits
+String -- SaneBarSettings.SpacerWidth : inherits
+Codable -- SaneBarSettings.SpacerWidth : inherits
+CaseIterable -- SaneBarSettings.SpacerWidth : inherits
+Sendable -- SaneBarSettings.SpacerWidth : inherits
+String -- SaneBarSettings.DividerStyle : inherits
+Codable -- SaneBarSettings.DividerStyle : inherits
+CaseIterable -- SaneBarSettings.DividerStyle : inherits
+Sendable -- SaneBarSettings.DividerStyle : inherits
+Codable <|-- SaneBarSettings.IconGroup : inherits
+Sendable <|-- SaneBarSettings.IconGroup : inherits
+Equatable <|-- SaneBarSettings.IconGroup : inherits
+Identifiable <|-- SaneBarSettings.IconGroup : inherits
+String -- SaneBarSettings.CodingKeys : inherits
+CodingKey -- SaneBarSettings.CodingKeys : inherits
+Codable <|-- KeyboardShortcutData : inherits
+Sendable <|-- KeyboardShortcutData : inherits
+Hashable <|-- KeyboardShortcutData : inherits
+PersistenceServiceProtocol <|.. PersistenceService : conforms to
+"@unchecked Sendable" <|-- PersistenceService : inherits
+Error -- PersistenceError : inherits
+LocalizedError -- PersistenceError : inherits
+SearchServiceProtocol <|.. SearchService : conforms to
+ObservableObject <|-- TriggerService : inherits
+TriggerServiceProtocol <|.. TriggerService : conforms to
+NSObject <|-- UpdateService : inherits
+ObservableObject <|-- UpdateService : inherits
+StatusItemProtocol <|.. NSStatusItem : conforms to
+MenuBarManager +-- MenuBarManager.RevealTrigger
+StatusBarController +-- StatusBarController.ClickType
+MenuBarManager0 +-- MenuBarManager.RevealTrigger1
+RunningApp +-- RunningApp.Policy
+AccessibilityService +-- AccessibilityService.MenuBarItemPosition
+AccessibilityService13 +-- AccessibilityService.ScannedStatusItem
+DiagnosticReport +-- DiagnosticReport.LogEntry
+HoverService +-- HoverService.TriggerReason
+SaneBarSettings +-- SaneBarSettings.SpacerStyle
+SaneBarSettings +-- SaneBarSettings.SpacerWidth
+SaneBarSettings +-- SaneBarSettings.DividerStyle
+SaneBarSettings +-- SaneBarSettings.IconGroup
+SaneBarSettings +-- SaneBarSettings.CodingKeys
+MenuBarManager <.. MenuBarManager2 : ext
+MenuBarManager <.. MenuBarManager3 : ext
+MenuBarManager <.. MenuBarManager4 : ext
+MenuBarManager <.. MenuBarManager5 : ext
+MenuBarManager <.. MenuBarManager6 : ext
+MenuBarManager <.. MenuBarManager7 : ext
+SaneBarProfile <.. SaneBarProfile8 : ext
+AccessibilityService <.. AccessibilityService10 : ext
+AccessibilityService <.. AccessibilityService11 : ext
+AccessibilityService <.. AccessibilityService12 : ext
+AccessibilityService <.. AccessibilityService13 : ext
+DiagnosticReport <.. DiagnosticReport14 : ext
+@enduml

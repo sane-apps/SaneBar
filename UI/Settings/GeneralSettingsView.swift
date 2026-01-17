@@ -1,10 +1,12 @@
 import SwiftUI
 import ServiceManagement
+import LocalAuthentication
 
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var launchAtLogin = false
-    
+    @State private var isAuthenticating = false  // Prevent duplicate auth prompts
+
     // Profiles Logic
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
@@ -19,6 +21,53 @@ struct GeneralSettingsView: View {
                 ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
             }
         )
+    }
+
+    /// Custom binding that requires auth to DISABLE the security setting
+    private var requireAuthBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.requireAuthToShowHiddenIcons },
+            set: { newValue in
+                let currentValue = menuBarManager.settings.requireAuthToShowHiddenIcons
+
+                // Enabling: allow immediately
+                if newValue == true && currentValue == false {
+                    menuBarManager.settings.requireAuthToShowHiddenIcons = true
+                    return
+                }
+
+                // Disabling: require auth first (if currently enabled)
+                // Guard against duplicate auth requests
+                if currentValue == true && newValue == false && !isAuthenticating {
+                    isAuthenticating = true
+                    Task {
+                        let authenticated = await authenticateToDisable()
+                        await MainActor.run {
+                            if authenticated {
+                                menuBarManager.settings.requireAuthToShowHiddenIcons = false
+                            }
+                            isAuthenticating = false
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    private func authenticateToDisable() async -> Bool {
+        let context = LAContext()
+        context.localizedCancelTitle = "Cancel"
+
+        var error: NSError?
+        let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+            ? .deviceOwnerAuthentication
+            : .deviceOwnerAuthenticationWithBiometrics
+
+        return await withCheckedContinuation { continuation in
+            context.evaluatePolicy(policy, localizedReason: "Disable password protection for hidden icons") { success, _ in
+                continuation.resume(returning: success)
+            }
+        }
     }
 
     var body: some View {
@@ -39,7 +88,7 @@ struct GeneralSettingsView: View {
 
                 // 2. Privacy (Auth)
                 CompactSection("Security") {
-                    CompactToggle(label: "Require password to show icons", isOn: $menuBarManager.settings.requireAuthToShowHiddenIcons)
+                    CompactToggle(label: "Require password to show icons", isOn: requireAuthBinding)
                 }
                 
                 // 3. Updates
@@ -181,8 +230,27 @@ struct GeneralSettingsView: View {
     }
 
     private func loadProfile(_ profile: SaneBarProfile) {
-        menuBarManager.settings = profile.settings
-        menuBarManager.saveSettings()
+        let currentAuthEnabled = menuBarManager.settings.requireAuthToShowHiddenIcons
+        let profileAuthEnabled = profile.settings.requireAuthToShowHiddenIcons
+
+        // SECURITY: If current auth is ON and profile would turn it OFF, require auth first
+        if currentAuthEnabled && !profileAuthEnabled && !isAuthenticating {
+            isAuthenticating = true
+            Task {
+                let authenticated = await authenticateToDisable()
+                await MainActor.run {
+                    if authenticated {
+                        menuBarManager.settings = profile.settings
+                        menuBarManager.saveSettings()
+                    }
+                    isAuthenticating = false
+                }
+            }
+        } else {
+            // No auth needed - either auth is off, or profile keeps it on
+            menuBarManager.settings = profile.settings
+            menuBarManager.saveSettings()
+        }
     }
 
     private func deleteProfile(_ profile: SaneBarProfile) {

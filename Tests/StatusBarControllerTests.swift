@@ -72,8 +72,6 @@ struct StatusBarControllerTests {
         // These should all be valid SF Symbol names
         #expect(!StatusBarController.iconExpanded.isEmpty)
         #expect(!StatusBarController.iconHidden.isEmpty)
-        #expect(!StatusBarController.separatorIcon.isEmpty)
-        #expect(!StatusBarController.spacerIcon.isEmpty)
     }
 
     // MARK: - Menu Creation Tests

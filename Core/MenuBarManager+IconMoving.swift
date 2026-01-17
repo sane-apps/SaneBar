@@ -83,6 +83,9 @@ extension MenuBarManager {
         let wasHidden = hidingState == .hidden
         logger.info("🔧 wasHidden: \(wasHidden)")
 
+        // SECURITY: If moving from hidden to visible, use auth-protected reveal path
+        let needsAuthCheck = !toHidden && wasHidden && settings.requireAuthToShowHiddenIcons
+
         // Important: avoid blocking the MainActor while simulating Cmd+drag.
         // Any UI stalls here can make the Find Icon window appear to "collapse".
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -91,7 +94,16 @@ extension MenuBarManager {
             // If moving FROM hidden TO visible, expand first so icon is draggable.
             if !toHidden && wasHidden {
                 logger.info("🔧 Expanding hidden icons first...")
-                await self.hidingService.show()
+                // SECURITY: Use auth-guarded path instead of direct hidingService.show()
+                if needsAuthCheck {
+                    let revealed = await self.showHiddenItemsNow(trigger: .findIcon)
+                    guard revealed else {
+                        logger.info("🔧 Auth failed or cancelled - aborting icon move")
+                        return
+                    }
+                } else {
+                    await self.hidingService.show()
+                }
                 try? await Task.sleep(for: .milliseconds(300))
             } else {
                 // Tiny settle delay so status item window frames are stable.

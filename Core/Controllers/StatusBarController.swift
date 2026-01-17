@@ -148,31 +148,41 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Separator Style (Settings Feature)
 
-    func updateSeparatorStyle(_ style: SaneBarSettings.DividerStyle) {
+    /// Update separator visual style. Only sets length if not hidden (to avoid overriding HidingService's collapsed length)
+    func updateSeparatorStyle(_ style: SaneBarSettings.DividerStyle, isHidden: Bool = false) {
         guard let button = separatorItem.button else { return }
 
         button.image = nil
         button.title = ""
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
+        // Determine the visual length for this style (only applies when expanded)
+        let styleLength: CGFloat
         switch style {
         case .slash:
             button.title = "/"
-            separatorItem.length = 14
+            styleLength = 14
         case .backslash:
             button.title = "\\"
-            separatorItem.length = 14
+            styleLength = 14
         case .pipe:
             button.title = "|"
-            separatorItem.length = 12
+            styleLength = 12
         case .pipeThin:
             button.title = "❘"
             button.font = NSFont.systemFont(ofSize: 13, weight: .light)
-            separatorItem.length = 12
+            styleLength = 12
         case .dot:
             button.image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Separator")
             button.image?.size = NSSize(width: 6, height: 6)
-            separatorItem.length = 12
+            styleLength = 12
+        }
+
+        // IMPORTANT: Only set length if NOT hidden!
+        // When hidden, HidingService sets length to 10000 to push items off screen.
+        // Setting length here would override that and cause state/visual mismatch.
+        if !isHidden {
+            separatorItem.length = styleLength
         }
 
         button.alphaValue = 0.7

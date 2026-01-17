@@ -33,16 +33,18 @@ SANELOOP_ARCHIVE_DIR = File.join(CLAUDE_DIR, 'saneloop-archive')
 EDIT_STATE_FILE = File.join(CLAUDE_DIR, 'edit_state.json')
 SUMMARY_VALIDATED_FILE = File.join(CLAUDE_DIR, 'summary_validated.json')
 
-# MCP process patterns to clean up (orphaned from previous sessions)
-MCP_PROCESS_PATTERNS = %w[
-  mcp-server
-  xcodebuildmcp
-  chroma-mcp
-  context7-mcp
-  apple-docs-mcp
-  mcp-server-github
-  mcp-server-memory
-  worker-service.cjs
+# Process patterns to clean up (orphaned from previous sessions)
+# Includes MCP servers AND other Claude Code related processes
+ORPHAN_PROCESS_PATTERNS = [
+  'mcp-server',
+  'xcodebuildmcp',
+  'chroma-mcp',
+  'context7-mcp',
+  'apple-docs-mcp',
+  'mcp-server-github',
+  'mcp-server-memory',
+  'worker-service.cjs',
+  'log stream'  # SaneBar log capture processes
 ].freeze
 
 # Clean up stale Claude subagent processes from previous sessions
@@ -178,9 +180,10 @@ rescue StandardError => e
   0
 end
 
-# Clean up orphaned MCP processes from previous sessions
+# Clean up orphaned processes from previous sessions
 # These accumulate when Claude Code exits without proper cleanup
-def cleanup_orphaned_mcp_processes
+# Includes MCP servers, log streams, and other background processes
+def cleanup_orphaned_processes
   # Get current session's parent PID to avoid killing our own processes
   current_ppid = Process.ppid
   killed = []
@@ -195,7 +198,7 @@ def cleanup_orphaned_mcp_processes
     next if line =~ /^\s*PID/ # Skip header
 
     # Check if this line matches any MCP pattern
-    next unless MCP_PROCESS_PATTERNS.any? { |pattern| line.include?(pattern) }
+    next unless ORPHAN_PROCESS_PATTERNS.any? { |pattern| line.include?(pattern) }
 
     # Parse the line: PID PPID LSTART(day month date time year) COMMAND
     parts = line.strip.split(/\s+/, 6)
@@ -528,8 +531,8 @@ begin
   log_debug "Starting session_start hook"
   ensure_claude_dir
   log_debug "ensure_claude_dir done"
-  cleanup_orphaned_mcp_processes  # Clean zombies from previous sessions
-  log_debug "cleanup_orphaned_mcp_processes done"
+  cleanup_orphaned_processes  # Clean zombies from previous sessions
+  log_debug "cleanup_orphaned_processes done"
   cleanup_stale_claude_subagents  # Clean orphaned Task tool subagents
   log_debug "cleanup_stale_claude_subagents done"
   rotate_log_files                # Prevent unbounded log growth

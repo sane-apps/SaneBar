@@ -35,9 +35,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// When true, the user explicitly chose to keep icons revealed ("Reveal All")
     /// and we should not auto-hide until they explicitly hide again.
     @Published private(set) var isRevealPinned: Bool = false
-    
+
     /// Tracks whether the status menu is currently open
     @Published var isMenuOpen: Bool = false
+
+    /// Guards against duplicate auth prompts
+    private var isAuthenticating: Bool = false
 
     // MARK: - Screen Detection
 
@@ -354,11 +357,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
             .store(in: &cancellables)
 
-        // Observe settings changes to update all dependent services
+        // Observe settings changes to update all dependent services and persist
         $settings
             .dropFirst() // Skip initial value
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newSettings in
+                print("[AUTH DEBUG] Settings changed - requireAuth: \(newSettings.requireAuthToShowHiddenIcons)")
                 self?.updateSpacers()
                 self?.updateAppearance()
                 self?.updateNetworkTrigger(enabled: newSettings.showOnNetworkChange)
@@ -367,6 +371,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.syncUpdateConfiguration()
                 self?.updateMainIconVisibility()
                 self?.updateDividerStyle()
+                self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
     }
@@ -379,7 +384,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func updateDividerStyle() {
-        statusBarController.updateSeparatorStyle(settings.dividerStyle)
+        let isHidden = hidingService.state == .hidden
+        statusBarController.updateSeparatorStyle(settings.dividerStyle, isHidden: isHidden)
     }
 
     // MARK: - Main Icon Visibility
@@ -482,16 +488,27 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         case search
         case automation
         case settingsButton
+        case findIcon
     }
 
     func toggleHiddenItems() {
         Task {
-            logger.info("toggleHiddenItems() called, current state: \(self.hidingState.rawValue)")
+            let currentState = hidingService.state
+            let authRequired = settings.requireAuthToShowHiddenIcons
+            logger.info("toggleHiddenItems() called - state: \(currentState.rawValue), authSetting: \(authRequired)")
 
             // If we're about to SHOW (hidden -> expanded), optionally gate with auth.
-            if hidingState == .hidden, settings.requireAuthToShowHiddenIcons {
+            // Use hidingService.state directly (not cached hidingState) to avoid sync issues
+            if currentState == .hidden, authRequired {
+                // Guard against duplicate auth prompts
+                guard !isAuthenticating else {
+                    logger.info("Auth already in progress, skipping duplicate prompt")
+                    return
+                }
+                isAuthenticating = true
                 logger.info("Auth required to show hidden icons, prompting...")
                 let ok = await authenticate(reason: "Show hidden menu bar icons")
+                isAuthenticating = false
                 guard ok else {
                     logger.info("Auth failed or cancelled, aborting toggle")
                     return
@@ -519,7 +536,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
         if settings.requireAuthToShowHiddenIcons {
+            guard !isAuthenticating else { return false }
+            isAuthenticating = true
             let ok = await authenticate(reason: "Show hidden menu bar icons")
+            isAuthenticating = false
             guard ok else { return false }
         }
 

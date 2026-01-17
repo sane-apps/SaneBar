@@ -108,6 +108,19 @@ module StateManager
         github: { verified: false, last_success: nil, last_failure: nil, failure_count: 0 }
       }
     },
+    # === FEATURE REMINDERS ===
+    # Track when we last suggested features like /rewind, /compact, /context
+    # to avoid spamming reminders
+    reminders: {
+      rewind_at: nil,
+      rewind_count: 0,
+      context_at: nil,
+      context_count: 0,
+      compact_at: nil,
+      compact_count: 0,
+      explore_at: nil,
+      explore_count: 0
+    },
     # === REFUSAL TO READ TRACKING ===
     # Detects when AI is blocked repeatedly for same reason but keeps trying
     # instead of reading the message and following instructions
