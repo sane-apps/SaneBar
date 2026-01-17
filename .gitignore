@@ -29,6 +29,8 @@ Packages/**/.swiftpm/
 # Build artifacts
 build/
 .build/
+.build-logs/
+.build-minimal/
 *.backup*
 vendor/
 .bundle/
@@ -54,6 +56,13 @@ releases/
 .claude/failure_state.json
 .claude/audit.jsonl
 .claude/prompt_log.jsonl
+.claude/SESSION_HANDOFF_*.md
+.claude/archive/
+.claude/*.log.old
+.claude/*count*.json
+.claude/enforcement_log.jsonl
+.claude/sanetrack.log.old
+.claude/sanetools.log.old
 .claude/research_*.json*
 .claude/enforcement_*.json
 .claude/memory_checked.json
@@ -142,3 +151,11 @@ Output/
 .claude/audit_log.jsonl
 .claude/learnings.jsonl
 sparkle_private_key.txt
+
+# Local tools
+.serena/
+
+# Local test artifacts
+MinimalTest/
+*.bak
+project.yml.bak
