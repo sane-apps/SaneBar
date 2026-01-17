@@ -7,6 +7,28 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [1.0.7] - 2026-01-17
+
+### Added
+- **Hide SaneBar Icon**: Option to completely hide the main icon (separator handles clicks)
+- **In-App Issue Reporting**: Report bugs directly from the app
+- **Keyboard Navigation**: Arrow keys work in Find Icon search results
+- **Open Source Community Files**: CONTRIBUTING, SECURITY, CODE_OF_CONDUCT guides
+
+### Changed
+- **Settings Redesign**: New sidebar architecture for easier navigation
+- **Plain English Terminology**: Clearer labels throughout settings
+- **Compact Settings Layout**: More efficient use of space
+- **Divider Styles**: Improved visual options for section dividers
+
+### Fixed
+- Separator now handles left-click when main icon is hidden
+- Context menu anchors correctly when main icon is hidden
+- Default menu bar positions reset properly
+- Status item placement validation improved
+
+---
+
 ## [1.0.6] - 2026-01-14
 
 ### Changed
