@@ -26,6 +26,8 @@ struct MenuBarSearchView: View {
 
     @State private var searchText = ""
     @State private var isSearchVisible = false
+    @FocusState private var isSearchFieldFocused: Bool
+    @State private var selectedAppIndex: Int?
 
     @State private var menuBarApps: [RunningApp] = []
     @State private var isRefreshing = false
@@ -142,6 +144,13 @@ struct MenuBarSearchView: View {
         }
         .sheet(item: $hotkeyApp) { app in
             hotkeySheet(for: app)
+        }
+        .onKeyPress { keyPress in
+            handleKeyPress(keyPress)
+        }
+        .onChange(of: filteredApps.count) { _, _ in
+            // Reset selection when filter results change
+            selectedAppIndex = nil
         }
         .alert(
             moveInstructionsForHidden ? "Move to Visible" : "Move to Hidden",
@@ -455,6 +464,7 @@ struct MenuBarSearchView: View {
             TextField("Filter by name…", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.body)
+                .focused($isSearchFieldFocused)
 
             if !searchText.isEmpty {
                 Button {
@@ -616,7 +626,7 @@ struct MenuBarSearchView: View {
                     alignment: .leading,  // Align grid content to left
                     spacing: grid.spacing
                 ) {
-                    ForEach(filteredApps) { app in
+                    ForEach(Array(filteredApps.enumerated()), id: \.element.id) { index, app in
                         MenuBarAppTile(
                             app: app,
                             iconSize: grid.iconSize,
@@ -627,7 +637,6 @@ struct MenuBarSearchView: View {
                                 { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
                             },
                             isHidden: mode == .hidden,
-                            // Only show move button in Hidden/Visible views (not All)
                             onToggleHidden: mode == .all ? nil : {
                                 // Capture values before async work to avoid race conditions
                                 let bundleID = app.bundleId
@@ -636,7 +645,8 @@ struct MenuBarSearchView: View {
                                 let toHidden = (mode == .visible)
 
                                 menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
-                            }
+                            },
+                            isSelected: selectedAppIndex == index
                         )
                     }
                 }
@@ -710,6 +720,111 @@ struct MenuBarSearchView: View {
             await service.activate(app: app)
             onDismiss()
         }
+    }
+
+    // MARK: - Keyboard Navigation
+
+    /// Whether keyboard navigation should be active (not when modals are open)
+    private var isKeyboardNavigationActive: Bool {
+        !isCreatingGroup && hotkeyApp == nil
+    }
+
+    private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
+        // Don't capture keys when modals/popovers are open
+        // Let them handle their own keyboard events
+        guard isKeyboardNavigationActive else {
+            return .ignored
+        }
+
+        // If search field is focused, let it handle most keys
+        if isSearchFieldFocused {
+            switch keyPress.key {
+            case .downArrow:
+                // Exit search field and select first app
+                isSearchFieldFocused = false
+                selectedAppIndex = filteredApps.isEmpty ? nil : 0
+                return .handled
+            case .upArrow:
+                // Exit search field and select last app
+                isSearchFieldFocused = false
+                selectedAppIndex = filteredApps.isEmpty ? nil : filteredApps.count - 1
+                return .handled
+            case .return:
+                // Activate first match while typing
+                if let first = filteredApps.first {
+                    activateApp(first)
+                    return .handled
+                }
+                return .ignored
+            default:
+                return .ignored  // Let TextField handle it
+            }
+        }
+
+        // Grid navigation mode
+        switch keyPress.key {
+        case .downArrow:
+            moveSelection(by: 1)
+            return .handled
+        case .upArrow:
+            moveSelection(by: -1)
+            return .handled
+        case .leftArrow:
+            moveSelectionHorizontal(by: -1)
+            return .handled
+        case .rightArrow:
+            moveSelectionHorizontal(by: 1)
+            return .handled
+        case .return:
+            // Activate selected app
+            if let index = selectedAppIndex, index < filteredApps.count {
+                activateApp(filteredApps[index])
+                return .handled
+            } else if let first = filteredApps.first {
+                // No selection - activate first app
+                activateApp(first)
+                return .handled
+            }
+            return .ignored
+        default:
+            // Letter keys auto-show search and start typing
+            if let char = keyPress.characters.first, char.isLetter || char.isNumber {
+                showSearchAndFocus()
+                // The character will be typed into the now-focused search field
+                return .ignored  // Let the character through to TextField
+            }
+            return .ignored
+        }
+    }
+
+    private func showSearchAndFocus() {
+        withAnimation(.easeInOut(duration: 0.12)) {
+            isSearchVisible = true
+        }
+        // Delay focus slightly to ensure field is visible
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            isSearchFieldFocused = true
+        }
+    }
+
+    private func moveSelection(by delta: Int) {
+        guard !filteredApps.isEmpty else { return }
+
+        if let current = selectedAppIndex {
+            let newIndex = current + delta
+            if newIndex >= 0 && newIndex < filteredApps.count {
+                selectedAppIndex = newIndex
+            }
+        } else {
+            // No selection - start from first or last
+            selectedAppIndex = delta > 0 ? 0 : filteredApps.count - 1
+        }
+    }
+
+    private func moveSelectionHorizontal(by delta: Int) {
+        // For now, treat left/right same as up/down (linear navigation)
+        // Could be enhanced later with grid-aware navigation using column count
+        moveSelection(by: delta)
     }
 
     private func hotkeySheet(for app: RunningApp) -> some View {

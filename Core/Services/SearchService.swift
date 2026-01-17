@@ -264,9 +264,12 @@ final class SearchService: SearchServiceProtocol {
         }
 
         // 4. ALWAYS auto-hide after Find Icon use (seamless experience)
-        // Give user 5 seconds to interact with the menu, then hide
+        // Give user time to interact with the opened menu before hiding.
+        // Configurable delay (default 15s) allows browsing through menus without feeling rushed.
+        // Note: When icons hide, any open menu from that icon closes (macOS behavior).
         if didReveal {
-            MenuBarManager.shared.scheduleRehideFromSearch(after: 5.0)
+            let delay = MenuBarManager.shared.settings.findIconRehideDelay
+            MenuBarManager.shared.scheduleRehideFromSearch(after: delay)
         }
     }
 }

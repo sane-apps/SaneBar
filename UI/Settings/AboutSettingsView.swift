@@ -6,6 +6,7 @@ struct AboutSettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showLicenses = false
     @State private var showSupport = false
+    @State private var showFeedback = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -71,6 +72,14 @@ struct AboutSettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+
+                Button {
+                    showFeedback = true
+                } label: {
+                    Label("Report Issue", systemImage: "ladybug")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
             .padding(.top, 12)
 
@@ -83,6 +92,9 @@ struct AboutSettingsView: View {
         }
         .sheet(isPresented: $showSupport) {
             supportSheet
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackView()
         }
     }
 

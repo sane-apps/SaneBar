@@ -19,6 +19,9 @@ struct MenuBarAppTile: View {
     /// Whether to show app name below icon (for users with many apps)
     var showName: Bool = true
 
+    /// Whether this tile is selected via keyboard navigation
+    var isSelected: Bool = false
+
     var body: some View {
         Button(action: onActivate) {
             VStack(spacing: 4) {
@@ -55,6 +58,14 @@ struct MenuBarAppTile: View {
                 }
             }
             .frame(width: tileSize, height: showName ? tileSize + 16 : tileSize)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
         }
         .buttonStyle(.plain)
         .draggable(app.bundleId)  // Enable drag with bundle ID as payload

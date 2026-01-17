@@ -125,10 +125,10 @@ final class StatusBarController: StatusBarControllerProtocol {
             // Ensure title is cleared so image-only mode doesn't show stale text
             button.title = ""
 
-            // Try SF Symbol first
+            // Try SF Symbol first (template images auto-tint for menu bar)
             if let image = makeMainSymbolImage(name: Self.iconHidden) {
                 button.image = image
-                button.contentTintColor = NSColor.labelColor
+                // Don't set contentTintColor - let template image handle menu bar appearance
                 print("[StatusBarController] Main button image set to \(Self.iconHidden)")
             } else {
                 // Fallback to text if SF Symbol fails
@@ -188,7 +188,7 @@ final class StatusBarController: StatusBarControllerProtocol {
             button.title = ""
             if let image = makeMainSymbolImage(name: Self.iconHidden) {
                 button.image = image
-                button.contentTintColor = NSColor.labelColor
+                // Don't set contentTintColor - let template image handle menu bar appearance
             } else {
                 button.title = "≡"
             }
@@ -512,7 +512,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.title = ""
         button.identifier = NSUserInterfaceItemIdentifier("SaneBar.main")
         button.image = makeMainSymbolImage(name: Self.iconHidden)
-        button.contentTintColor = NSColor.labelColor
+        // Don't set contentTintColor - let template image handle menu bar appearance
         configureActionButton(button, action: action, target: target)
     }
 
@@ -583,12 +583,17 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Ensure image-only mode doesn't show stale text
         button.title = ""
         button.image = makeMainSymbolImage(name: iconName(for: state))
-        button.contentTintColor = NSColor.labelColor
+        // Don't set contentTintColor - let template image handle menu bar appearance
     }
 
     private func makeMainSymbolImage(name: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        return NSImage(systemSymbolName: name, accessibilityDescription: "SaneBar")?.withSymbolConfiguration(config)
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: "SaneBar")?.withSymbolConfiguration(config) else {
+            return nil
+        }
+        // Ensure template mode for proper menu bar appearance (white on dark, black on light)
+        image.isTemplate = true
+        return image
     }
 
     // MARK: - Menu Creation

@@ -51,6 +51,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Delay before auto-rehiding in seconds
     var rehideDelay: TimeInterval = 3.0
 
+    /// Delay before rehiding after Find Icon search (seconds)
+    /// Longer than regular rehide to allow browsing opened menus
+    var findIconRehideDelay: TimeInterval = 15.0
+
     /// Number of spacers to show (0-12)
     var spacerCount: Int = 0  // Default to 0 dividers
 
@@ -144,6 +148,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         autoRehide = try container.decodeIfPresent(Bool.self, forKey: .autoRehide) ?? true
         rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 3.0
+        findIconRehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .findIconRehideDelay) ?? 15.0
         spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 2
         spacerStyle = try container.decodeIfPresent(SpacerStyle.self, forKey: .spacerStyle) ?? .line
         spacerWidth = try container.decodeIfPresent(SpacerWidth.self, forKey: .spacerWidth) ?? .normal
@@ -173,7 +178,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case autoRehide, rehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
+        case autoRehide, rehideDelay, findIconRehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
         case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case requireAuthToShowHiddenIcons

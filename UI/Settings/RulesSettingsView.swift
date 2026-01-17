@@ -10,7 +10,7 @@ struct RulesSettingsView: View {
                 // 1. Behavior (Hiding)
                 CompactSection("Hiding Behavior") {
                     CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
-                    
+
                     if menuBarManager.settings.autoRehide {
                         CompactDivider()
                         CompactRow("Wait before hiding") {
@@ -18,6 +18,15 @@ struct RulesSettingsView: View {
                                 Text("\(Int(menuBarManager.settings.rehideDelay))s")
                                     .monospacedDigit()
                                 Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1...60, step: 1)
+                                    .labelsHidden()
+                            }
+                        }
+                        CompactDivider()
+                        CompactRow("Wait after Find Icon") {
+                            HStack {
+                                Text("\(Int(menuBarManager.settings.findIconRehideDelay))s")
+                                    .monospacedDigit()
+                                Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5...60, step: 5)
                                     .labelsHidden()
                             }
                         }
