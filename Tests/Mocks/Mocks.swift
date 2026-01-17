@@ -330,9 +330,10 @@ final class NetworkTriggerServiceProtocolMock: NetworkTriggerServiceProtocol {
 
 final class HoverServiceProtocolMock: HoverServiceProtocol {
     init() { }
-    init(isEnabled: Bool = false, scrollEnabled: Bool = false) {
+    init(isEnabled: Bool = false, scrollEnabled: Bool = false, trackMouseLeave: Bool = false) {
         self.isEnabled = isEnabled
         self.scrollEnabled = scrollEnabled
+        self.trackMouseLeave = trackMouseLeave
     }
 
 
@@ -341,6 +342,9 @@ final class HoverServiceProtocolMock: HoverServiceProtocol {
 
     private(set) var scrollEnabledSetCallCount = 0
     var scrollEnabled: Bool = false { didSet { scrollEnabledSetCallCount += 1 } }
+
+    private(set) var trackMouseLeaveSetCallCount = 0
+    var trackMouseLeave: Bool = false { didSet { trackMouseLeaveSetCallCount += 1 } }
 
     private(set) var startCallCount = 0
     var startHandler: (() -> ())?

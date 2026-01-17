@@ -2,6 +2,15 @@ import Testing
 import AppKit
 @testable import SaneBar
 
+// MARK: - Menu Item Lookup Helper
+
+extension NSMenu {
+    /// Find a menu item by its title (safer than hardcoded indices)
+    func item(titled title: String) -> NSMenuItem? {
+        items.first { $0.title == title }
+    }
+}
+
 // MARK: - StatusBarControllerTests
 
 @Suite("StatusBarController Tests")
@@ -96,25 +105,22 @@ struct StatusBarControllerTests {
         // Should have: Find Icon, separator, Settings, Check for Updates, separator, Quit
         #expect(menu.items.count == 6, "Menu should have 6 items (4 commands + 2 separators)")
 
-        // Check Find Icon item
-        let findIconItem = menu.items[0]
-        #expect(findIconItem.title == "Find Icon...")
-        #expect(findIconItem.keyEquivalent == " ")
+        // Use named lookups (resilient to menu reordering)
+        let findIconItem = menu.item(titled: "Find Icon...")
+        #expect(findIconItem != nil, "Menu should have Find Icon item")
+        #expect(findIconItem?.keyEquivalent == " ")
 
-        // Check Settings item
-        let settingsItem = menu.items[2]
-        #expect(settingsItem.title == "Settings...")
-        #expect(settingsItem.keyEquivalent == ",")
+        let settingsItem = menu.item(titled: "Settings...")
+        #expect(settingsItem != nil, "Menu should have Settings item")
+        #expect(settingsItem?.keyEquivalent == ",")
 
-        // Check Check for Updates item
-        let checkUpdatesItem = menu.items[3]
-        #expect(checkUpdatesItem.title == "Check for Updates...")
-        #expect(checkUpdatesItem.keyEquivalent.isEmpty)
+        let checkUpdatesItem = menu.item(titled: "Check for Updates...")
+        #expect(checkUpdatesItem != nil, "Menu should have Check for Updates item")
+        #expect(checkUpdatesItem?.keyEquivalent.isEmpty == true)
 
-        // Check Quit item
-        let quitItem = menu.items[5]
-        #expect(quitItem.title == "Quit SaneBar")
-        #expect(quitItem.keyEquivalent == "q")
+        let quitItem = menu.item(titled: "Quit SaneBar")
+        #expect(quitItem != nil, "Menu should have Quit item")
+        #expect(quitItem?.keyEquivalent == "q")
     }
 
     @Test("createMenu sets correct target on all items")
@@ -177,16 +183,16 @@ struct StatusBarControllerTests {
             target: target
         ))
 
-        // Verify each menu item has an action
-        let findIconItem = menu.items[0]
-        let settingsItem = menu.items[2]
-        let checkForUpdatesItem = menu.items[3]
-        let quitItem = menu.items[5]
+        // Verify each menu item has an action (using named lookups)
+        let findIconItem = menu.item(titled: "Find Icon...")
+        let settingsItem = menu.item(titled: "Settings...")
+        let checkForUpdatesItem = menu.item(titled: "Check for Updates...")
+        let quitItem = menu.item(titled: "Quit SaneBar")
 
-        #expect(findIconItem.action == #selector(DummyTarget.findIcon), "Find Icon item should have findIcon action")
-        #expect(settingsItem.action == #selector(DummyTarget.settings), "Settings item should have settings action")
-        #expect(checkForUpdatesItem.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
-        #expect(quitItem.action == #selector(DummyTarget.quit), "Quit item should have quit action")
+        #expect(findIconItem?.action == #selector(DummyTarget.findIcon), "Find Icon item should have findIcon action")
+        #expect(settingsItem?.action == #selector(DummyTarget.settings), "Settings item should have settings action")
+        #expect(checkForUpdatesItem?.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
+        #expect(quitItem?.action == #selector(DummyTarget.quit), "Quit item should have quit action")
     }
 
     @Test("Settings menu item is invokable")
@@ -213,8 +219,12 @@ struct StatusBarControllerTests {
             target: target
         ))
 
-        // Get settings item and verify it can be invoked
-        let settingsItem = menu.items[4]
+        // Get settings item by name and verify it can be invoked
+        guard let settingsItem = menu.item(titled: "Settings...") else {
+            Issue.record("Settings menu item not found")
+            return
+        }
+
         #expect(settingsItem.target != nil, "Settings item must have a target")
         #expect(settingsItem.action != nil, "Settings item must have an action")
 

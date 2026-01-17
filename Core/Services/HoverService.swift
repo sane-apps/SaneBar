@@ -11,6 +11,7 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "HoverServic
 protocol HoverServiceProtocol {
     var isEnabled: Bool { get set }
     var scrollEnabled: Bool { get set }
+    var trackMouseLeave: Bool { get set }
     func start()
     func stop()
 }
@@ -40,22 +41,22 @@ final class HoverService: HoverServiceProtocol {
     var isEnabled: Bool = false {
         didSet {
             guard isEnabled != oldValue else { return }
-            if isEnabled || scrollEnabled {
-                startMonitoring()
-            } else {
-                stopMonitoring()
-            }
+            updateMonitoringState()
         }
     }
 
     var scrollEnabled: Bool = false {
         didSet {
             guard scrollEnabled != oldValue else { return }
-            if isEnabled || scrollEnabled {
-                startMonitoring()
-            } else {
-                stopMonitoring()
-            }
+            updateMonitoringState()
+        }
+    }
+
+    /// Enable mouse leave tracking for auto-rehide (independent of hover trigger)
+    var trackMouseLeave: Bool = false {
+        didSet {
+            guard trackMouseLeave != oldValue else { return }
+            updateMonitoringState()
         }
     }
 
@@ -90,8 +91,8 @@ final class HoverService: HoverServiceProtocol {
     // MARK: - Public API
 
     func start() {
-        // Start monitoring if either hover or scroll is enabled
-        guard isEnabled || scrollEnabled else { return }
+        // Start monitoring if any feature needs it
+        guard isEnabled || scrollEnabled || trackMouseLeave else { return }
         startMonitoring()
     }
 
@@ -100,6 +101,15 @@ final class HoverService: HoverServiceProtocol {
     }
 
     // MARK: - Private Methods
+
+    /// Update monitoring state based on all relevant properties
+    private func updateMonitoringState() {
+        if isEnabled || scrollEnabled || trackMouseLeave {
+            startMonitoring()
+        } else {
+            stopMonitoring()
+        }
+    }
 
     private func startMonitoring() {
         guard globalMonitor == nil else { return }
@@ -142,8 +152,8 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func handleMouseMoved(_ event: NSEvent) {
-        // Only process hover if hover is enabled
-        guard isEnabled else { return }
+        // Need at least one feature enabled to process mouse movement
+        guard isEnabled || trackMouseLeave else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         let inMenuBar = isInMenuBarRegion(mouseLocation)
@@ -151,14 +161,20 @@ final class HoverService: HoverServiceProtocol {
         if inMenuBar && !isMouseInMenuBar {
             // Entered menu bar region
             isMouseInMenuBar = true
-            scheduleHoverTrigger()
+            // Only trigger hover reveal if hover-to-show is enabled
+            if isEnabled {
+                scheduleHoverTrigger()
+            }
         } else if !inMenuBar && isMouseInMenuBar {
             // Left menu bar region
             let distanceFromMenuBar = distanceFromMenuBarTop(mouseLocation)
             if distanceFromMenuBar > leaveThreshold {
                 isMouseInMenuBar = false
                 cancelHoverTimer()
-                onLeaveMenuBar?()
+                // Fire leave callback for auto-rehide (if trackMouseLeave enabled)
+                if trackMouseLeave {
+                    onLeaveMenuBar?()
+                }
             }
         }
     }

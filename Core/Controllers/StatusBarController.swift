@@ -56,8 +56,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Autosave Names
     // NOTE: Increment version to clear corrupted position cache without changing bundle ID
 
-    nonisolated static let mainAutosaveName = "SaneBar_main_v6"
-    nonisolated static let separatorAutosaveName = "SaneBar_separator_v6"
+    // v9: Fixed creation order (separator first, main second) so macOS positions correctly
+    nonisolated static let mainAutosaveName = "SaneBar_main_v9"
+    nonisolated static let separatorAutosaveName = "SaneBar_separator_v9"
 
     // MARK: - Icon Names
 
@@ -86,22 +87,27 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         logger.info("Creating status items in init...")
 
-        // CRITICAL: Create main FIRST, then separator SECOND.
-        // macOS inserts newer status items to the LEFT of existing items.
-        // Creating separator second places it LEFT of the main icon (lower x).
-        self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // VERIFIED WORKING: Create separator FIRST, then main SECOND.
+        // macOS places newer items to the RIGHT of existing items.
+        // Visual result: / ≡ (separator left, main right near Control Center)
         self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-        // Set autosaveName AFTER creation - this triggers position restoration from UserDefaults
+        // DISABLED: autosaveName causes macOS to restore corrupted cached positions
+        // from an unknown source (not ByHost prefs). Until we understand where macOS
+        // caches these positions, we cannot use autosaveName safely.
+        // Users will need to reposition items after each launch, but at least they'll
+        // be in the correct ORDER (separator left, main right).
         let env = ProcessInfo.processInfo.environment
-        if env["SANEBAR_DISABLE_AUTOSAVE"] == "1" {
+        if env["SANEBAR_ENABLE_AUTOSAVE"] == "1" {
+            // Only enable autosave if explicitly requested for testing
+            mainItem.autosaveName = StatusBarController.mainAutosaveName
+            separatorItem.autosaveName = StatusBarController.separatorAutosaveName
+            print("[StatusBarController] Autosave ENABLED via SANEBAR_ENABLE_AUTOSAVE=1")
+        } else {
             separatorItem.autosaveName = nil
             mainItem.autosaveName = nil
-            print("[StatusBarController] Autosave disabled via SANEBAR_DISABLE_AUTOSAVE=1")
-        } else {
-            separatorItem.autosaveName = StatusBarController.separatorAutosaveName
-            mainItem.autosaveName = StatusBarController.mainAutosaveName
-            seedDefaultPositionsIfNeeded()
+            print("[StatusBarController] Autosave disabled (default) - positions will be correct but not persisted")
         }
 
         if env["SANEBAR_CLEAR_STATUSITEM_PREFS"] == "1" {
@@ -168,8 +174,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         NSStatusBar.system.removeStatusItem(mainItem)
         NSStatusBar.system.removeStatusItem(separatorItem)
 
-        self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Create separator FIRST, main SECOND (macOS puts newer items to the RIGHT)
         self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if autosaveEnabled {
             separatorItem.autosaveName = StatusBarController.separatorAutosaveName
@@ -264,6 +271,9 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         let rightEdge = screen.frame.maxX
         let base = max(1200, rightEdge - 160)
+        // Position main at highest X (rightmost, near Control Center)
+        // Position separator 24px to the LEFT of main (lower X)
+        // HIGH X = RIGHT side, LOW X = LEFT side
         let mainPosition = NSNumber(value: Double(base))
         let separatorPosition = NSNumber(value: Double(base - 24))
 

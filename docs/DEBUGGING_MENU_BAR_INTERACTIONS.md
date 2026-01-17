@@ -145,3 +145,46 @@ SANEBAR_CLEAR_STATUSITEM_PREFS=1 SANEBAR_DISABLE_AUTOSAVE=1 ./run_app
 ```
 
 If it works with fresh prefs, the bug is in stored data, not macOS.
+
+---
+
+## Autosave is DISABLED (2026-01-17)
+
+**CRITICAL:** `autosaveName` is intentionally NOT used for status items.
+
+### Why Autosave is Disabled
+
+Setting `autosaveName` on an NSStatusItem causes macOS to restore cached positions from an **unknown source** that is NOT the ByHost preferences. Even after clearing:
+- `~/Library/Preferences/ByHost/.GlobalPreferences.*.plist`
+- App's UserDefaults domain
+- All CFPreferences for the autosave keys
+
+...macOS STILL restores corrupted position data when `autosaveName` is assigned.
+
+### The Symptom
+
+1. App launches with correct icon order (separator left, main right)
+2. When `autosaveName` is assigned, icons instantly move to wrong positions
+3. Order reverses and/or icons move to far left
+
+### The Solution
+
+Status items are created WITHOUT `autosaveName`:
+```swift
+separatorItem.autosaveName = nil
+mainItem.autosaveName = nil
+```
+
+This means positions don't persist across launches, but they are always CORRECT.
+
+### Creation Order Matters
+
+```swift
+// CORRECT: separator FIRST, main SECOND
+self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+```
+
+macOS places newer items to the **RIGHT** of existing items, so:
+- Separator (created first) → LEFT position
+- Main (created second) → RIGHT position (near Control Center)
