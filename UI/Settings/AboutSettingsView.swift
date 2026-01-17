@@ -228,20 +228,38 @@ struct AboutSettingsView: View {
                     .padding(.top, 8)
 
                     // Personal message
-                    Text("This app is free because I hate corporations, not because I'm a filthy commie. If it's worth something to you, please donate so I can make a living.")
+                    Text("I need your help to keep SaneBar alive. Your support — whether one-time or monthly — makes this possible. Thank you.")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    Text("Much love,\n— Mr. Sane")
+                    Text("— Mr. Sane")
                         .font(.system(size: 13, weight: .medium))
                         .multilineTextAlignment(.center)
 
                     Divider()
                         .padding(.horizontal, 40)
 
+                    // GitHub Sponsors
+                    Link(destination: URL(string: "https://github.com/sponsors/stephanjoseph")!) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.pink)
+                            Text("Sponsor on GitHub")
+                                .fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(.pink.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+
                     // Crypto addresses
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("Or send crypto:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.tertiary)
                         CryptoAddressRow(label: "BTC", address: "3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke")
                         CryptoAddressRow(label: "SOL", address: "FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ")
                         CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
