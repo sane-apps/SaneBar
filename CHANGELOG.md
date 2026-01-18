@@ -7,6 +7,21 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [1.0.8] - 2026-01-17
+
+### Added
+- **Code Tracing Tools**: `button_map.rb` and `trace_flow.rb` scripts for debugging UI flows
+- **Class Diagram**: PlantUML visualization of codebase architecture
+
+### Changed
+- **Ice Pattern**: Simplified NSStatusItem positioning (removed 880 lines of cruft)
+- **Session Management**: Improved hooks for development workflow
+
+### Fixed
+- Test suite references to removed StatusBarController constants
+
+---
+
 ## [1.0.7] - 2026-01-17
 
 ### Added
