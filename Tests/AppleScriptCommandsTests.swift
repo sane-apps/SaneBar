@@ -12,22 +12,23 @@ struct AppleScriptCommandsTests {
     @Test("ToggleCommand class exists and inherits directly from NSScriptCommand")
     func testToggleCommandExists() {
         let command = ToggleCommand()
-
-        #expect(command is NSScriptCommand, "ToggleCommand should be an NSScriptCommand")
+        // Verify the type hierarchy via class name (avoids 'is' tautology warning)
+        let superclassName = String(describing: type(of: command).superclass())
+        #expect(superclassName.contains("NSScriptCommand") || superclassName.contains("SaneBarScriptCommand"), "ToggleCommand should inherit from NSScriptCommand")
     }
 
     @Test("ShowCommand class exists and inherits directly from NSScriptCommand")
     func testShowCommandExists() {
         let command = ShowCommand()
-
-        #expect(command is NSScriptCommand, "ShowCommand should be an NSScriptCommand")
+        let superclassName = String(describing: type(of: command).superclass())
+        #expect(superclassName.contains("NSScriptCommand") || superclassName.contains("SaneBarScriptCommand"), "ShowCommand should inherit from NSScriptCommand")
     }
 
     @Test("HideCommand class exists and inherits directly from NSScriptCommand")
     func testHideCommandExists() {
         let command = HideCommand()
-
-        #expect(command is NSScriptCommand, "HideCommand should be an NSScriptCommand")
+        let superclassName = String(describing: type(of: command).superclass())
+        #expect(superclassName.contains("NSScriptCommand") || superclassName.contains("SaneBarScriptCommand"), "HideCommand should inherit from NSScriptCommand")
     }
 
     // MARK: - Command Return Value Tests
@@ -99,13 +100,14 @@ struct AppleScriptCommandsTests {
 
     @Test("All commands are NSScriptCommand subclasses")
     func testBaseClass() {
-        let toggle = ToggleCommand()
-        let show = ShowCommand()
-        let hide = HideCommand()
+        // Verify inheritance via superclass check (avoids 'is' tautology warning)
+        let toggleSuper = String(describing: ToggleCommand.superclass())
+        let showSuper = String(describing: ShowCommand.superclass())
+        let hideSuper = String(describing: HideCommand.superclass())
 
-        #expect(toggle is NSScriptCommand)
-        #expect(show is NSScriptCommand)
-        #expect(hide is NSScriptCommand)
+        #expect(toggleSuper.contains("NSScriptCommand") || toggleSuper.contains("SaneBarScriptCommand"))
+        #expect(showSuper.contains("NSScriptCommand") || showSuper.contains("SaneBarScriptCommand"))
+        #expect(hideSuper.contains("NSScriptCommand") || hideSuper.contains("SaneBarScriptCommand"))
     }
 
     // MARK: - Command Semantics Tests
@@ -164,10 +166,14 @@ struct AppleScriptCommandsTests {
             "HideCommand": "hide"
         ]
 
-        // Verify class names exist
-        #expect(ToggleCommand.self != nil)
-        #expect(ShowCommand.self != nil)
-        #expect(HideCommand.self != nil)
+        // Verify class names exist via NSStringFromClass (avoids metatype-to-nil comparison)
+        let toggleName = NSStringFromClass(ToggleCommand.self)
+        let showName = NSStringFromClass(ShowCommand.self)
+        let hideName = NSStringFromClass(HideCommand.self)
+
+        #expect(!toggleName.isEmpty, "ToggleCommand class should exist")
+        #expect(!showName.isEmpty, "ShowCommand class should exist")
+        #expect(!hideName.isEmpty, "HideCommand class should exist")
 
         #expect(expectedMappings.count == 3, "All commands have SDEF mappings")
     }
