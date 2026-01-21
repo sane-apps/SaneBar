@@ -8,12 +8,12 @@
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
     <link rel="icon" type="image/png" href="images/branding.png">
     <!-- Canonical URL placeholder -->
-    <link rel="canonical" href="https://sanebar.app/" />
+    <link rel="canonical" href="https://sanebar.com/" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="SaneBar - Privacy-First Menu Bar Manager">
     <meta property="og:description" content="Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.">
-    <meta property="og:image" content="https://sanebar.app/images/og-image.png">
+    <meta property="og:image" content="https://sanebar.com/images/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
@@ -22,7 +22,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="SaneBar - Privacy-First Menu Bar Manager">
     <meta name="twitter:description" content="The only menu bar manager that locks your hidden icons behind Touch ID.">
-    <meta name="twitter:image" content="https://sanebar.app/images/og-image.png">
+    <meta name="twitter:image" content="https://sanebar.com/images/og-image.png">
 
     <!-- Fonts: Elegant typography for luxury feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,8 +43,8 @@
         "priceCurrency": "USD"
       },
       "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
-      "image": "https://sanebar.app/images/branding.png",
-      "downloadUrl": "https://github.com/stephanjoseph/SaneBar/releases"
+      "image": "https://sanebar.com/images/branding.png",
+      "downloadUrl": "https://github.com/sane-apps/SaneBar/releases"
     }
     </script>
 
@@ -183,6 +183,21 @@
             border-radius: 8px;
         }
 
+        .logo-family {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid var(--border);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .logo-family:hover {
+            color: var(--accent);
+        }
+
         .nav-links {
             display: flex;
             gap: 32px;
@@ -254,6 +269,22 @@
             color: var(--text-primary);
             font-style: normal;
             font-weight: 500;
+        }
+
+        .trust-badges {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+            font-size: 1.17rem;
+            color: var(--text-muted);
+        }
+
+        .trust-badges span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .cta-buttons {
@@ -402,6 +433,31 @@
 
         .carousel-dots .dot:hover {
             background: var(--accent-soft);
+        }
+
+        /* Carousel Progress Bar - tight at top */
+        .carousel-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            border-radius: 16px 16px 0 0;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .carousel-progress-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            animation: carouselProgress 2s linear infinite;
+        }
+
+        @keyframes carouselProgress {
+            from { width: 0%; }
+            to { width: 100%; }
         }
 
         /* Privacy Badge */
@@ -1164,6 +1220,104 @@
             margin-top: 12px;
         }
 
+        /* Cross-Sell Section */
+        .more-apps {
+            padding: 80px 0;
+            background: linear-gradient(180deg, transparent, rgba(79, 143, 250, 0.03));
+        }
+
+        .more-apps h2 {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .more-apps-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            font-size: 1.1rem;
+        }
+
+        .more-apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .app-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .app-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .app-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .app-card-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .app-card-tagline {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .app-card-cta {
+            color: var(--accent);
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .app-card:hover .app-card-cta {
+            gap: 10px;
+        }
+
+        .more-apps-hub {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .more-apps-hub a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+
+        .more-apps-hub a:hover {
+            color: var(--accent);
+        }
+
         /* Footer */
         footer {
             padding: 60px 0 40px;
@@ -1246,38 +1400,80 @@
             font-size: 0.95rem;
         }
 
-        /* Testimonials */
+        /* Testimonials - Scrolling */
         .testimonials {
             padding: 60px 0 100px;
             text-align: center;
+            overflow: hidden;
         }
 
-        .testimonial-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
+        .testimonial-scroll {
+            overflow: hidden;
             margin-top: 40px;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+
+        .testimonial-track {
+            display: flex;
+            gap: 20px;
+            animation: testimonialScroll 18s linear infinite;
+            width: max-content;
+        }
+
+        .testimonial-track:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes testimonialScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
         }
 
         .testimonial-item {
-            background: rgba(255, 255, 255, 0.03);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
             border-radius: 16px;
-            padding: 24px;
-            border: 1px solid var(--border-subtle);
+            padding: 24px 28px;
+            border: 1px solid var(--border);
             text-align: left;
             position: relative;
+            min-width: 340px;
+            max-width: 340px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .testimonial-item:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(79, 143, 250, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .testimonial-item::before {
+            content: '"';
+            position: absolute;
+            top: 16px;
+            left: 20px;
+            font-size: 3rem;
+            color: var(--accent);
+            opacity: 0.3;
+            font-family: Georgia, serif;
+            line-height: 1;
         }
 
         .testimonial-text {
             font-style: italic;
             color: var(--text-primary);
             margin-bottom: 16px;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            padding-left: 8px;
         }
 
         .testimonial-author {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 500;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1285,9 +1481,10 @@
 
         .testimonial-author::before {
             content: "";
-            width: 12px;
-            height: 1px;
-            background: var(--text-muted);
+            width: 16px;
+            height: 2px;
+            background: var(--accent);
+            opacity: 0.5;
         }
 
         /* Responsive */
@@ -1339,11 +1536,12 @@
                 <img src="images/branding.png" alt="SaneBar">
                 SaneBar
             </a>
+            <!-- <a href="https://saneapps.com" class="logo-family">Part of the SaneApps family</a> -->
             <div class="nav-links">
                 <a href="#demo">Demo</a>
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
-                <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
+                <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
                 <a href="#support" class="btn btn-primary btn-donate">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -1356,23 +1554,13 @@
 
     <section class="hero">
         <div class="container">
-            <div class="badge-container animate-in delay-1">
-                <div class="privacy-badge">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                    100% On-Device
-                </div>
-                <div class="tahoe-badge">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 6v6l4 2"/>
-                    </svg>
-                    macOS Tahoe Ready
-                </div>
-            </div>
             <h1 class="animate-in delay-2">Bring <em>Sanity</em> to your Menu Bar</h1>
             <p class="subtitle animate-in delay-3">The <em>only</em> menu bar manager with Touch ID protection. Works flawlessly on macOS Tahoe while others break.</p>
+            <div class="trust-badges animate-in delay-3">
+                <span>🔒 No spying</span>
+                <span>💵 No subscription</span>
+                <span>🛠️ Actively maintained</span>
+            </div>
             <div class="cta-buttons animate-in delay-4">
                 <a href="https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1382,7 +1570,7 @@
                     </svg>
                     Download — $5
                 </a>
-                <a href="https://github.com/stephanjoseph/SaneBar" class="btn btn-secondary">
+                <a href="https://github.com/sane-apps/SaneBar" class="btn btn-secondary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                     </svg>
@@ -1392,6 +1580,9 @@
             <!-- Tutorial Carousel - auto-cycles through the workflow -->
             <div class="hero-carousel animate-in delay-5">
                 <div class="carousel-container">
+                    <div class="carousel-progress">
+                        <div class="carousel-progress-bar" id="carouselProgress"></div>
+                    </div>
                     <div class="carousel-slide active">
                         <img src="images/find-icon-rightclick-menu.png" alt="Step 1: Right-click any icon">
                     </div>
@@ -1418,7 +1609,7 @@
         <div class="container">
             <h2 class="section-title">One Click to Hide</h2>
             <p class="section-subtitle">
-                <code>[Hidden apps]</code> <strong>/</strong> <code>[Visible apps]</code> <svg viewBox="0 0 24 24" fill="currentColor" style="height: 1.2em; width: 1.2em; vertical-align: middle; display: inline-block;"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg><br>
+                <code>[Hidden]</code> <strong>/</strong> <code>[Always visible]</code> <svg viewBox="0 0 24 24" fill="currentColor" style="height: 1.2em; width: 1.2em; vertical-align: middle; display: inline-block;"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg> <code>[Always visible]</code><br>
                 <span style="color: var(--text-secondary); font-size: 0.95em;">Click the SaneBar icon to hide everything left of the separator.</span>
             </p>
             <div class="demo-container" onclick="toggleDemo()">
@@ -1495,7 +1686,7 @@
                     <p>Global hotkeys to toggle, show, hide, or search. AppleScript for Raycast, Alfred, Keyboard Maestro, and Shortcuts.</p>
                 </a>
                 <!-- 4. Smart Triggers - auto-show on conditions -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on battery, WiFi, or app launch')" class="feature-card">
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on Focus Mode, battery, WiFi, or app launch')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -1503,7 +1694,7 @@
                         </svg>
                     </div>
                     <h3>Smart Triggers</h3>
-                    <p>Auto-reveal icons when battery is low, specific apps launch, or you connect to certain WiFi networks.</p>
+                    <p>Auto-reveal icons when Focus Mode changes, battery is low, apps launch, or you connect to certain WiFi networks.</p>
                 </a>
                 <!-- 5. Gestures & Auto-hide - MISSING BEFORE! -->
                 <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding')" class="feature-card">
@@ -1581,8 +1772,11 @@
         <div class="container">
             <h2 class="section-title">Loved by Mac Users</h2>
             <p class="section-subtitle">Join thousands decluttering their workspace in 2026.</p>
-            
-            <div class="testimonial-grid">
+        </div>
+        <!-- Full-width scrolling testimonials -->
+        <div class="testimonial-scroll">
+            <div class="testimonial-track">
+                <!-- Original testimonials -->
                 <div class="testimonial-item">
                     <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design. In an era of surveillance capitalism, SaneBar's silence is its loudest feature."</p>
                     <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
@@ -1607,6 +1801,39 @@
                     <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
                     <div class="testimonial-author">u/JustABro_2321 (Reddit)</div>
                 </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"🥈 Best free pick. If you prefer free/open source, SaneBar is a very strong runner-up with thoughtful features—power search, auto-hide triggers, hotkeys, and Touch ID locking."</p>
+                    <div class="testimonial-author">Mac Nerd Newsletter</div>
+                </div>
+                <!-- Duplicated for seamless loop -->
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design. In an era of surveillance capitalism, SaneBar's silence is its loudest feature."</p>
+                    <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"Great app, I just switched from Ice. I really like its minimalism and simplicity. It just works and very well."</p>
+                    <div class="testimonial-author">u/nxnayx (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
+                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"You already have 'Reveal when I scroll up in the menu bar' — exactly how I use Ice. I like it very much!"</p>
+                    <div class="testimonial-author">u/Kin_KC (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I am using it now and there are no shadow clicks as seen in other menu bar managers."</p>
+                    <div class="testimonial-author">u/Elegant_Mobile4311 (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
+                    <div class="testimonial-author">u/JustABro_2321 (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"🥈 Best free pick. If you prefer free/open source, SaneBar is a very strong runner-up with thoughtful features—power search, auto-hide triggers, hotkeys, and Touch ID locking."</p>
+                    <div class="testimonial-author">Mac Nerd Newsletter</div>
+                </div>
             </div>
         </div>
     </section>
@@ -1614,7 +1841,7 @@
     <section class="comparison" id="compare">
         <div class="container">
             <h2 class="section-title">How SaneBar Stacks Up</h2>
-            <p class="section-subtitle">We built what we wished existed. Here's how it compares.</p>
+            <p class="section-subtitle">Other menu bar apps may spy, charge forever, or disappear. SaneBar is open source, 100% private, and yours forever.</p>
             <div class="comparison-table-wrapper">
                 <table class="comparison-table">
                     <thead>
@@ -1759,7 +1986,7 @@
                 Your support — whether one-time or monthly — makes this possible.<br><br>
                 <span>Thank you. — Mr. Sane</span>
             </p>
-            <a href="https://github.com/sponsors/stephanjoseph" class="btn btn-primary github-sponsor-btn" target="_blank" rel="noopener">
+            <a href="https://github.com/sponsors/sane-apps" class="btn btn-primary github-sponsor-btn" target="_blank" rel="noopener">
                 <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" style="margin-right: 8px;">
                     <path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z"/>
                 </svg>
@@ -1785,16 +2012,46 @@
         </div>
     </section>
 
+    <!--
+    <section class="more-apps">
+        <div class="container">
+            <h2 class="section-title">More from Sane Apps</h2>
+            <p class="more-apps-subtitle">Privacy-first Mac utilities that don't suck</p>
+            <div class="more-apps-grid">
+                <a href="https://saneclip.com" class="app-card">
+                    <div class="app-card-header">
+                        <img src="images/saneclip-icon.png" alt="SaneClip" class="app-card-icon">
+                        <div class="app-card-name">SaneClip</div>
+                    </div>
+                    <p class="app-card-tagline">Clipboard manager that respects your privacy. Unlimited history, quick search, pin favorites.</p>
+                    <span class="app-card-cta">Learn more →</span>
+                </a>
+                <a href="https://github.com/sane-apps/SaneHosts" class="app-card">
+                    <div class="app-card-header">
+                        <img src="images/sanehosts-icon.png" alt="SaneHosts" class="app-card-icon">
+                        <div class="app-card-name">SaneHosts</div>
+                    </div>
+                    <p class="app-card-tagline">Manage your /etc/hosts with a beautiful GUI. Block ads and trackers at the system level.</p>
+                    <span class="app-card-cta">Learn more →</span>
+                </a>
+            </div>
+            <div class="more-apps-hub">
+                <a href="https://saneapps.com">See all apps at saneapps.com →</a>
+            </div>
+        </div>
+    </section>
+    -->
+
     <footer>
         <div class="container">
             <p class="footer-privacy"><strong>0% Telemetry</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
             <div class="footer-links">
-                <a href="https://github.com/stephanjoseph/SaneBar">GitHub</a>
-                <a href="https://github.com/stephanjoseph/SaneBar/blob/main/PRIVACY.md">Privacy</a>
-                <a href="https://github.com/stephanjoseph/SaneBar/issues">Support</a>
-                <a href="https://github.com/stephanjoseph/SaneBar/blob/main/LICENSE">MIT License</a>
+                <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
+                <a href="https://github.com/sane-apps/SaneBar/blob/main/PRIVACY.md">Privacy</a>
+                <a href="https://github.com/sane-apps/SaneBar/issues">Support</a>
+                <a href="https://github.com/sane-apps/SaneBar/blob/main/LICENSE">MIT License</a>
             </div>
-            <p class="footer-copy">&copy; 2026 SaneBar</p>
+            <p class="footer-copy">Made with care by Mr. Sane &nbsp;•&nbsp; &copy; 2026 SaneBar</p>
         </div>
     </footer>
 
@@ -1810,6 +2067,14 @@
             '3. Done! Icon moved'
         ];
 
+        const progressBar = document.getElementById('carouselProgress');
+
+        function resetProgressBar() {
+            progressBar.style.animation = 'none';
+            progressBar.offsetHeight; // Trigger reflow
+            progressBar.style.animation = 'carouselProgress 2s linear';
+        }
+
         function goToSlide(n) {
             slides[currentSlide].classList.remove('active');
             dots[currentSlide].classList.remove('active');
@@ -1819,14 +2084,16 @@
             slides[currentSlide].classList.add('active');
             dots[currentSlide].classList.add('active');
             caption.textContent = captions[currentSlide];
+            resetProgressBar();
         }
 
         function nextSlide() {
             goToSlide(currentSlide + 1);
         }
 
-        // Auto-rotate every 2.5 seconds
-        setInterval(nextSlide, 2500);
+        // Auto-rotate every 2 seconds (matches progress bar)
+        setInterval(nextSlide, 2000);
+        resetProgressBar(); // Start progress bar on load
 
         // Demo toggle - mimics SaneBar's click-to-hide behavior
         // Structure: [Hidden apps] [/] [Visible apps] [SaneBar icon]
