@@ -21,14 +21,11 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 ---
 
 ## Download
+Sanebar.com 
 
-**[View All Releases](https://github.com/stephanjoseph/SaneBar/releases)** (macOS 15 Sequoia or later)
-
-Or via Homebrew:
-```bash
-brew install --cask stephanjoseph/sanebar/sanebar
-```
-
+Option 1. $5 for .DMG and free upgrades for life! (Thanks for making this sustainable!) 
+Option 2. Build using Xcode (once) updates will come through the app thereafter. 
+HomeBrew is not supported, all updates come through the app. 
 ---
 
 ## How It Works
