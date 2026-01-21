@@ -10,6 +10,8 @@
 
 Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
+[![SaneBar Demo - Hide Icons & Lock with Touch ID](https://img.youtube.com/vi/I6U3APV-998/maxresdefault.jpg)](https://www.youtube.com/watch?v=I6U3APV-998)
+
 ![SaneBar Find Hidden Icon](docs/images/find-icon.png)
 
 ### Icons Revealed
