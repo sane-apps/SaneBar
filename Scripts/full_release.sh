@@ -157,7 +157,7 @@ NEW_ITEM="        <item>
                 <p>$RELEASE_NOTES</p>
                 ]]>
             </description>
-            <enclosure url=\"https://github.com/stephanjoseph/SaneBar/releases/download/v$VERSION/SaneBar-$VERSION.dmg\"
+            <enclosure url=\"https://github.com/sane-apps/SaneBar/releases/download/v$VERSION/SaneBar-$VERSION.dmg\"
                        sparkle:version=\"$VERSION\"
                        sparkle:shortVersionString=\"$VERSION\"
                        length=\"$DMG_SIZE\"
@@ -175,42 +175,7 @@ git commit -m "Update appcast for v$VERSION"
 git push origin main
 log_success "Appcast updated and pushed"
 
-# Step 9: Update Homebrew cask
-log_step "Updating Homebrew Cask"
-
-HOMEBREW_DIR="/tmp/homebrew-sanebar-$$"
-git clone https://github.com/stephanjoseph/homebrew-sanebar.git "$HOMEBREW_DIR"
-cd "$HOMEBREW_DIR"
-
-cat > Casks/sanebar.rb << EOF
-cask "sanebar" do
-  version "$VERSION"
-  sha256 "$SHA256"
-
-  url "https://github.com/stephanjoseph/SaneBar/releases/download/v#{version}/SaneBar-#{version}.dmg"
-  name "SaneBar"
-  desc "Privacy-focused menu bar manager for macOS"
-  homepage "https://github.com/stephanjoseph/SaneBar"
-
-  depends_on macos: ">= :sequoia"
-
-  app "SaneBar.app"
-
-  zap trash: [
-    "~/Library/Preferences/com.sanebar.app.plist",
-    "~/Library/Application Support/SaneBar",
-  ]
-end
-EOF
-
-git add -A
-git commit -m "Update to v$VERSION"
-git push origin main
-cd "$PROJECT_DIR"
-rm -rf "$HOMEBREW_DIR"
-log_success "Homebrew cask updated"
-
-# Step 10: Verification
+# Step 9: Verification
 log_step "Verifying All Endpoints"
 
 echo "Checking GitHub Release..."
@@ -218,14 +183,6 @@ if gh release view "v$VERSION" &>/dev/null; then
     log_success "GitHub Release: OK"
 else
     log_warn "GitHub Release: Check manually"
-fi
-
-echo "Checking Homebrew cask..."
-CASK_VERSION=$(gh api repos/stephanjoseph/homebrew-sanebar/contents/Casks/sanebar.rb --jq '.content' | base64 -d | grep 'version "' | head -1)
-if echo "$CASK_VERSION" | grep -q "$VERSION"; then
-    log_success "Homebrew cask: OK (shows $VERSION)"
-else
-    log_warn "Homebrew cask: May be cached, shows $CASK_VERSION"
 fi
 
 # Final summary
@@ -236,8 +193,8 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo "Summary:"
 echo "  - DMG: $DMG_PATH"
-echo "  - GitHub: https://github.com/stephanjoseph/SaneBar/releases/tag/v$VERSION"
-echo "  - Homebrew: brew install --cask stephanjoseph/sanebar/sanebar"
+echo "  - GitHub: https://github.com/sane-apps/SaneBar/releases/tag/v$VERSION"
+echo "  - Website: Upload DMG to sanebar.com for purchase"
 echo "  - Appcast: Updated in docs/appcast.xml"
 echo ""
 echo -e "${YELLOW}Manual steps remaining:${NC}"

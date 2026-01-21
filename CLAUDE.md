@@ -4,6 +4,20 @@
 
 ---
 
+## Project Location
+
+| Path | Description |
+|------|-------------|
+| **This project** | `~/SaneApps/apps/SaneBar/` |
+| **Save outputs** | `~/SaneApps/apps/SaneBar/outputs/` |
+| **Screenshots** | `~/Desktop/Screenshots/` (label with project prefix) |
+| **Shared UI** | `~/SaneApps/infra/SaneUI/` |
+| **Hooks/tooling** | `~/SaneApps/infra/SaneProcess/` |
+
+**Sister apps:** SaneClip, SaneVideo, SaneSync, SaneHosts, SaneAI, SaneScript
+
+---
+
 ## Key Documentation
 
 | Document | When to Use |
@@ -13,6 +27,28 @@
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Full SOP, 12 rules, compliance |
 | [.claude/rules/](/.claude/rules/README.md) | Code style rules by file type |
 | [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) | Positioning bugs, coordinate system |
+
+---
+
+## Sane Philosophy
+
+```
+┌─────────────────────────────────────────────────────┐
+│           BEFORE YOU SHIP, ASK:                     │
+│                                                     │
+│  1. Does this REDUCE fear or create it?             │
+│  2. Power: Does user have control?                  │
+│  3. Love: Does this help people?                    │
+│  4. Sound Mind: Is this clear and calm?             │
+│                                                     │
+│  Grandma test: Would her life be better?            │
+│                                                     │
+│  "Not fear, but power, love, sound mind"            │
+│  — 2 Timothy 1:7                                    │
+└─────────────────────────────────────────────────────┘
+```
+
+→ Full philosophy: `~/SaneApps/meta/Brand/NORTH_STAR.md`
 
 ---
 
@@ -113,8 +149,8 @@ init() {
 
 - **Accessibility API**: All menu bar scanning uses `AXUIElement` APIs
 - **Verify APIs**: Always run `verify_api` before using Apple Accessibility APIs
-- **Permission Flow**: `UI/Onboarding/PermissionRequestView.swift` handles AX permission
-- **Services**: Located in `Core/Services/` (AccessibilityService, PermissionService, etc.)
+- **Permission Flow**: `UI/Onboarding/WelcomeView.swift` handles AX permission
+- **Services**: Located in `Core/Services/` (AccessibilityService, DiagnosticsService, etc.)
 - **State**: `@Observable` classes for UI state, actors for concurrent services
 
 ---
@@ -145,11 +181,12 @@ SaneBar has automated SOP enforcement via hooks:
 - Tokens: 8,000 (warn), 12,000 (critical)
 - Archive: Old entities moved to `.claude/memory_archive.jsonl`
 
-**Hooks Active** (in `.claude/settings.json`):
-- `circuit_breaker.rb` - Pre-tool failure tracking
-- `edit_validator.rb` - File location/size checks
-- `test_quality_checker.rb` - Detects tautology tests
-- `audit_logger.rb` - Decision trail to `.claude/audit_log.jsonl`
+**Hooks Active** (via SaneProcess in `.claude/settings.json`):
+- `session_start.rb` - Project context, memory health, MCP verification
+- `saneprompt.rb` - Prompt intelligence, staging detection
+- `sanetools.rb` - Pre-tool checks: MCP verification, circuit breaker, edit validation
+- `sanetrack.rb` - Post-tool: failure tracking, feature reminders, tautology detection
+- `sanestop.rb` - Session summary, SOP score, weak spot tracking
 
 ---
 
@@ -159,7 +196,7 @@ SaneBar has automated SOP enforcement via hooks:
 At session start, set defaults ONCE to avoid repeating on every build:
 ```
 mcp__XcodeBuildMCP__session-set-defaults:
-  projectPath: /Users/sj/SaneBar/SaneBar.xcodeproj
+  projectPath: /Users/sj/SaneApps/apps/SaneBar/SaneBar.xcodeproj
   scheme: SaneBar
   arch: arm64
 ```

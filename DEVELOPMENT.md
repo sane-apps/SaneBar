@@ -4,6 +4,28 @@
 
 ---
 
+## Sane Philosophy
+
+```
+┌─────────────────────────────────────────────────────┐
+│           BEFORE YOU SHIP, ASK:                     │
+│                                                     │
+│  1. Does this REDUCE fear or create it?             │
+│  2. Power: Does user have control?                  │
+│  3. Love: Does this help people?                    │
+│  4. Sound Mind: Is this clear and calm?             │
+│                                                     │
+│  Grandma test: Would her life be better?            │
+│                                                     │
+│  "Not fear, but power, love, sound mind"            │
+│  — 2 Timothy 1:7                                    │
+└─────────────────────────────────────────────────────┘
+```
+
+→ Full philosophy: `~/SaneApps/meta/Brand/NORTH_STAR.md`
+
+---
+
 ## ⚠️ THIS HAS BURNED YOU
 
 Real failures from past sessions. Don't repeat them.

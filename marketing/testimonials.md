@@ -41,6 +41,31 @@
 
 ---
 
+## Comparison Reviews
+
+### Mac Nerd Newsletter — January 2026
+
+> **Context**: A detailed comparison of menu bar managers (Bartender, Barbee, Ice, SaneBar, etc.) sent to newsletter subscribers.
+
+**Key Rankings:**
+- 🏆 **Barbee** — Top Pick (Balanced Power & Reliability)
+- 🥈 **SaneBar** — Second Choice (Free & Actively Maintained)
+- 🥉 **Ice** — Honorable Mention (OSS + lightweight but buggy recently)
+
+**SaneBar Highlights from the Review:**
+
+| Quote | Context |
+|-------|---------|
+| "If you prefer free/open source, **SaneBar is a very strong runner-up with thoughtful features**." | Final verdict |
+| "Actively maintained in 2026 with modern features like **power search, auto-hide triggers, hotkeys, customizable appearance, and even Touch ID locking**." | Feature list |
+| "It's reported to be **100% on-device and private**, which matters if you care about surveillance risk and permissions." | Privacy angle |
+| "Reddit user quotes praise it — **people switching from Ice** enjoying its simplicity." | User feedback |
+| "**Best free pick**" | Verdict summary |
+
+**Source**: Email from Mac Nerd (`macnerd1@proton.me`) — January 2026
+
+---
+
 ## Testimonial Sources
 
 - **r/macapps**: [Reddit thread](https://reddit.com/r/macapps) - Jan 2026 launch post

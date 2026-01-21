@@ -21,7 +21,7 @@
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.8/SaneBar-1.0.8.dmg"
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.8/SaneBar-1.0.8.dmg"
                        sparkle:version="1.0.8"
                        sparkle:shortVersionString="1.0.8"
                        length="2235012"
@@ -49,7 +49,7 @@
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.7/SaneBar-1.0.7.dmg"
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.7/SaneBar-1.0.7.dmg"
                        sparkle:version="1.0.7"
                        sparkle:shortVersionString="1.0.7"
                        length="2273570"
@@ -71,7 +71,7 @@
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.6/SaneBar-1.0.6.dmg"
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.6/SaneBar-1.0.6.dmg"
                        sparkle:version="1.0.6"
                        sparkle:shortVersionString="1.0.6"
                        length="2192618"
@@ -91,7 +91,7 @@
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://github.com/stephanjoseph/SaneBar/releases/download/v1.0.5/SaneBar-1.0.5.dmg"
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.5/SaneBar-1.0.5.dmg"
                        sparkle:version="1.0.5"
                        sparkle:shortVersionString="1.0.5"
                        length="2191392"

@@ -211,39 +211,13 @@ module SanePromptIntelligence
     staging
   end
 
-  def format_memory_staging_context(staging)
-    return nil unless staging
-
-    entity = staging['suggested_entity']
-    return nil unless entity
-
-    lines = []
-    lines << 'MEMORY MCP UPDATE NEEDED:'
-    lines << ''
-    lines << 'Previous session staged high-value learnings. Save to Memory MCP:'
-    lines << ''
-    lines << "Entity: #{entity['name']}"
-    lines << "Type: #{entity['type']}"
-    lines << 'Observations:'
-    entity['observations'].each { |obs| lines << "  - #{obs}" }
-    lines << ''
-    lines << 'ACTION REQUIRED: Call mcp__memory__create_entities or mcp__memory__add_observations'
-    lines << "Then delete: #{MEMORY_STAGING_FILE}"
-
-    lines.join("\n")
+  # NOTE: Memory staging removed Jan 2026 - memory MCP no longer exists
+  # Memory learnings now auto-captured by Sane-Mem (localhost:37777)
+  def format_memory_staging_context(_staging)
+    nil # Memory MCP removed
   end
 
   def mark_memory_staging_processed
-    return unless File.exist?(MEMORY_STAGING_FILE)
-
-    # Mark as processed (don't delete - Claude will delete after saving)
-    staging = JSON.parse(File.read(MEMORY_STAGING_FILE)) rescue nil
-    return unless staging
-
-    staging['needs_memory_update'] = false
-    staging['processed_at'] = Time.now.iso8601
-    File.write(MEMORY_STAGING_FILE, JSON.pretty_generate(staging))
-  rescue StandardError
-    # Don't fail on staging errors
+    # No-op: Memory MCP removed
   end
 end

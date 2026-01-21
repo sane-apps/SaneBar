@@ -10,6 +10,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## [1.0.8] - 2026-01-17
 
 ### Added
+- **Focus Mode Trigger**: Auto-show hidden icons when macOS Focus Mode changes (Work, Personal, Do Not Disturb, etc.)
 - **Code Tracing Tools**: `button_map.rb` and `trace_flow.rb` scripts for debugging UI flows
 - **Class Diagram**: PlantUML visualization of codebase architecture
 
@@ -48,7 +49,9 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ### Changed
 - Enabled Sparkle auto-update framework
-- Updated appcast and Homebrew cask for automatic updates
+- Updated appcast for automatic updates
+
+> **Note:** Homebrew distribution discontinued as of Jan 2026. See GitHub #26.
 
 ---
 
@@ -112,4 +115,4 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## Version Numbering
 
 - v1.0.1 and v1.0.4 were skipped due to build/release pipeline issues
-- Tags: https://github.com/stephanjoseph/SaneBar/tags
+- Tags: https://github.com/sane-apps/SaneBar/tags

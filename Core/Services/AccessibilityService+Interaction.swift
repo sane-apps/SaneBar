@@ -238,10 +238,15 @@ extension AccessibilityService {
         return CGRect(origin: origin, size: size)
     }
 
+    /// Thread-safe box for cross-thread value passing (semaphore provides synchronization)
+    private final class ResultBox: @unchecked Sendable {
+        var value: Bool = false
+    }
+
     /// Perform a Cmd+drag operation using CGEvent (runs on background thread)
     nonisolated private func performCmdDrag(from: CGPoint, to: CGPoint) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
-        var didPostEvents = false
+        let result = ResultBox()
 
         DispatchQueue.global(qos: .userInitiated).async {
             guard let mouseDown = CGEvent(
@@ -293,7 +298,7 @@ extension AccessibilityService {
             mouseUp.post(tap: .cghidEventTap)
             Thread.sleep(forTimeInterval: 0.02)
 
-            didPostEvents = true
+            result.value = true
 
             Task { @MainActor in
                 AccessibilityService.shared.invalidateMenuBarItemCache()
@@ -303,7 +308,7 @@ extension AccessibilityService {
         }
 
         _ = semaphore.wait(timeout: .now() + 1.0)
-        return didPostEvents
+        return result.value
     }
 
 }

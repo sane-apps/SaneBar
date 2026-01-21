@@ -86,6 +86,10 @@
 | On specific WiFi networks | Toggle | `settings.showOnNetworkChange` |
 | - Network names | TextField | Comma-separated |
 | - Add current network (SSID) | Button | Shows current SSID |
+| When Focus Mode changes | Toggle | `settings.showOnFocusModeChange` |
+| - Focus Mode names | List | `settings.triggerFocusModes` |
+| - Add current Focus Mode | Button | Shows current active Focus |
+| - Add "(Focus Off)" | Button | Trigger when Focus turns off |
 
 ### Section: Appearance
 | Control | Type | Code Reference |
@@ -161,7 +165,7 @@
 ### Links Row
 | Control | Type | Destination |
 |---------|------|-------------|
-| GitHub | Link button | `https://github.com/stephanjoseph/SaneBar` |
+| GitHub | Link button | `https://github.com/sane-apps/SaneBar` |
 | Licenses | Button | Opens licenses sheet |
 | Support | Button | Opens support sheet (heart icon, crypto addresses) |
 

@@ -1,0 +1,479 @@
+{"timestamp":"2026-01-04T20:41:33-05:00","edits":0,"unique_files":0,"research_done":1,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T20:44:32-05:00","edits":0,"unique_files":0,"research_done":1,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:50:31-05:00","edits":3,"unique_files":2,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:54:14-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:55:35-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:56:21-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:57:18-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:58:10-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:58:49-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T22:59:45-05:00","edits":4,"unique_files":3,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:01:02-05:00","edits":0,"unique_files":0,"research_done":0,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:04:00-05:00","edits":0,"unique_files":0,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:04:47-05:00","edits":0,"unique_files":0,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:05:23-05:00","edits":0,"unique_files":0,"research_done":5,"failures":3,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:08:40-05:00","edits":0,"unique_files":0,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:11:55-05:00","edits":0,"unique_files":0,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:14:23-05:00","edits":1,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:15:29-05:00","edits":2,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:22:18-05:00","edits":2,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:26:21-05:00","edits":3,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-04T23:27:29-05:00","edits":3,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T00:14:41-05:00","edits":6,"unique_files":5,"research_done":1,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T00:28:28-05:00","edits":7,"unique_files":5,"research_done":3,"failures":1,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T00:34:15-05:00","edits":7,"unique_files":5,"research_done":3,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T00:46:10-05:00","edits":7,"unique_files":5,"research_done":3,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T01:28:13-05:00","edits":17,"unique_files":7,"research_done":3,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T02:20:35-05:00","edits":17,"unique_files":7,"research_done":3,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T09:47:49-05:00","edits":17,"unique_files":7,"research_done":3,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T10:04:56-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T10:07:47-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T10:09:06-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T10:09:49-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T10:11:55-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:15:36-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:16:57-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:50:22-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:52:50-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:55:39-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T12:56:45-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:05:42-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:26:59-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:29:03-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:29:37-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:33:37-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:39:22-05:00","edits":18,"unique_files":8,"research_done":4,"failures":1,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:41:00-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:42:38-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:43:58-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:45:08-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:47:18-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:53:59-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:54:25-05:00","edits":18,"unique_files":8,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T14:59:05-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:00:43-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:02:32-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:08:26-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:12:27-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:17:53-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:20:45-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:22:35-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:24:12-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:24:49-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:26:01-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:28:57-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:29:53-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:31:05-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:31:52-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:34:19-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-05T15:34:42-05:00","edits":19,"unique_files":9,"research_done":4,"failures":0,"blocks":0,"halted":false}
+{"timestamp":"2026-01-06T11:10:47-05:00","edits":3,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T11:16:37-05:00","edits":3,"unique_files":1,"research_done":5,"failures":0,"blocks":0,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T11:26:01-05:00","edits":9,"unique_files":3,"research_done":5,"failures":0,"blocks":7,"halted":false,"violations":{"Rule #2":6,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T11:39:17-05:00","edits":10,"unique_files":3,"research_done":5,"failures":0,"blocks":8,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T11:40:22-05:00","edits":10,"unique_files":3,"research_done":5,"failures":0,"blocks":8,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T11:41:27-05:00","edits":10,"unique_files":3,"research_done":5,"failures":0,"blocks":8,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T11:44:18-05:00","edits":10,"unique_files":3,"research_done":5,"failures":0,"blocks":8,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T11:55:32-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":13,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":5},"sop_score":8}
+{"timestamp":"2026-01-06T11:58:03-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":14,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-06T11:58:40-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":14,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-06T11:59:58-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":14,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-06T12:02:29-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":14,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-06T12:03:15-05:00","edits":11,"unique_files":3,"research_done":5,"failures":0,"blocks":14,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-06T12:05:17-05:00","edits":12,"unique_files":3,"research_done":5,"failures":0,"blocks":18,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":9},"sop_score":8}
+{"timestamp":"2026-01-06T12:14:36-05:00","edits":12,"unique_files":3,"research_done":5,"failures":0,"blocks":18,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":9},"sop_score":8}
+{"timestamp":"2026-01-06T12:25:43-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":21,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-06T12:41:13-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":21,"halted":false,"violations":{"bypass_attempt":10,"Rule #2":3},"sop_score":8}
+{"timestamp":"2026-01-06T12:44:56-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":11,"Rule #2":3,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:46:14-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":11,"Rule #2":3,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:48:47-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":10,"Rule #2":3,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:53:06-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":8,"Rule #2":3,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:55:11-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"Rule #2":3,"bypass_attempt":7,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:55:28-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":2,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:56:20-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":2,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:56:49-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":2,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T12:57:11-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":23,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":2,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T13:04:28-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":24,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":2,"unknown":1},"sop_score":7}
+{"timestamp":"2026-01-06T14:37:35-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":24,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T15:02:08-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":24,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T15:02:30-05:00","edits":13,"unique_files":3,"research_done":5,"failures":0,"blocks":24,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T15:04:01-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{"Rule #2":1,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-06T18:35:07-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T21:46:43-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T21:59:54-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T22:01:22-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T22:02:26-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":26,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T22:02:54-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":28,"halted":false,"violations":{"bypass_attempt":2},"sop_score":9}
+{"timestamp":"2026-01-06T22:09:51-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":28,"halted":false,"violations":{"bypass_attempt":2},"sop_score":9}
+{"timestamp":"2026-01-06T22:10:26-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":28,"halted":false,"violations":{"bypass_attempt":2},"sop_score":9}
+{"timestamp":"2026-01-06T22:13:52-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":28,"halted":false,"violations":{"bypass_attempt":2},"sop_score":9}
+{"timestamp":"2026-01-06T22:17:34-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":29,"halted":false,"violations":{"bypass_attempt":3},"sop_score":9}
+{"timestamp":"2026-01-06T22:18:14-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":29,"halted":false,"violations":{"bypass_attempt":3},"sop_score":9}
+{"timestamp":"2026-01-06T22:20:58-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":29,"halted":false,"violations":{"bypass_attempt":3},"sop_score":9}
+{"timestamp":"2026-01-06T22:22:52-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":30,"halted":false,"violations":{"bypass_attempt":4},"sop_score":9}
+{"timestamp":"2026-01-06T22:23:33-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":30,"halted":false,"violations":{"bypass_attempt":4},"sop_score":9}
+{"timestamp":"2026-01-06T22:27:13-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{"bypass_attempt":5},"sop_score":9}
+{"timestamp":"2026-01-06T22:38:34-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{"bypass_attempt":5},"sop_score":9}
+{"timestamp":"2026-01-06T23:34:39-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T23:35:14-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T23:36:08-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T23:36:54-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":31,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-06T23:38:01-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":32,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-06T23:38:33-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":32,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-06T23:42:14-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":32,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-06T23:45:03-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":32,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-06T23:45:58-05:00","edits":14,"unique_files":3,"research_done":5,"failures":0,"blocks":32,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-06T23:47:38-05:00","edits":15,"unique_files":4,"research_done":5,"failures":0,"blocks":34,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":1},"sop_score":8}
+{"timestamp":"2026-01-06T23:51:44-05:00","edits":16,"unique_files":4,"research_done":5,"failures":0,"blocks":36,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-06T23:54:08-05:00","edits":16,"unique_files":4,"research_done":5,"failures":0,"blocks":36,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-06T23:55:29-05:00","edits":16,"unique_files":4,"research_done":5,"failures":0,"blocks":36,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-06T23:58:03-05:00","edits":16,"unique_files":4,"research_done":5,"failures":0,"blocks":36,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-07T00:03:47-05:00","edits":29,"unique_files":7,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":5,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T00:04:28-05:00","edits":29,"unique_files":7,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":5,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T00:06:39-05:00","edits":29,"unique_files":7,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T00:07:09-05:00","edits":29,"unique_files":7,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T00:08:54-05:00","edits":30,"unique_files":8,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":16},"sop_score":8}
+{"timestamp":"2026-01-07T07:59:06-05:00","edits":32,"unique_files":9,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-07T07:59:50-05:00","edits":32,"unique_files":9,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-07T08:39:18-05:00","edits":32,"unique_files":9,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":2},"sop_score":8}
+{"timestamp":"2026-01-07T08:48:56-05:00","edits":33,"unique_files":10,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":3},"sop_score":8}
+{"timestamp":"2026-01-07T12:43:16-05:00","edits":37,"unique_files":11,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T12:45:57-05:00","edits":37,"unique_files":11,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T12:48:14-05:00","edits":37,"unique_files":11,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T12:55:33-05:00","edits":38,"unique_files":12,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:15:41-05:00","edits":38,"unique_files":12,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:17:24-05:00","edits":38,"unique_files":12,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:17:58-05:00","edits":38,"unique_files":12,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:22:28-05:00","edits":38,"unique_files":12,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:24:06-05:00","edits":39,"unique_files":13,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":6,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:30:02-05:00","edits":40,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-07T13:32:59-05:00","edits":41,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-07T13:37:46-05:00","edits":41,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-07T13:39:56-05:00","edits":41,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-07T13:44:47-05:00","edits":41,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:47:07-05:00","edits":42,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:50:00-05:00","edits":42,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-07T13:56:57-05:00","edits":44,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":6,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:02:42-05:00","edits":46,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:04:33-05:00","edits":46,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:06:50-05:00","edits":46,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:10:39-05:00","edits":50,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:15:58-05:00","edits":50,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:18:43-05:00","edits":50,"unique_files":14,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:21:27-05:00","edits":54,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:23:47-05:00","edits":54,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-07T14:28:05-05:00","edits":55,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T14:29:31-05:00","edits":55,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":15},"sop_score":8}
+{"timestamp":"2026-01-07T14:31:00-05:00","edits":55,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15},"sop_score":9}
+{"timestamp":"2026-01-07T14:31:44-05:00","edits":55,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15},"sop_score":9}
+{"timestamp":"2026-01-07T14:32:35-05:00","edits":55,"unique_files":16,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14},"sop_score":9}
+{"timestamp":"2026-01-07T14:37:03-05:00","edits":57,"unique_files":17,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16},"sop_score":9}
+{"timestamp":"2026-01-07T14:40:56-05:00","edits":57,"unique_files":17,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16},"sop_score":9}
+{"timestamp":"2026-01-07T14:44:05-05:00","edits":57,"unique_files":17,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16},"sop_score":9}
+{"timestamp":"2026-01-07T15:01:24-05:00","edits":72,"unique_files":19,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":26},"sop_score":9}
+{"timestamp":"2026-01-07T15:08:40-05:00","edits":78,"unique_files":19,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":32},"sop_score":9}
+{"timestamp":"2026-01-07T16:07:16-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"unknown":5},"sop_score":9}
+{"timestamp":"2026-01-07T17:05:47-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"unknown":5},"sop_score":9}
+{"timestamp":"2026-01-08T08:50:01-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T08:51:35-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:34:39-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:37:15-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:38:30-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:39:11-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:41:24-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:42:30-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-08T19:43:01-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-08T19:51:57-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-08T19:52:29-05:00","edits":83,"unique_files":20,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1},"sop_score":9}
+{"timestamp":"2026-01-08T19:55:13-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T19:56:07-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T19:56:40-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T19:59:38-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:02:07-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:02:59-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:04:12-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:07:21-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:09:26-05:00","edits":87,"unique_files":22,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:18:42-05:00","edits":89,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":6},"sop_score":8}
+{"timestamp":"2026-01-08T20:45:19-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:45:59-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:50:31-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:51:15-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:51:56-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:52:50-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:53:34-05:00","edits":90,"unique_files":23,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-08T20:55:10-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:57:23-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T20:58:33-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:01:36-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:02:47-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:03:32-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:05:27-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:07:53-05:00","edits":91,"unique_files":24,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":4},"sop_score":8}
+{"timestamp":"2026-01-08T21:14:47-05:00","edits":96,"unique_files":25,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-08T21:19:30-05:00","edits":101,"unique_files":26,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":13,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-08T21:25:41-05:00","edits":107,"unique_files":31,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":18,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-08T21:26:22-05:00","edits":107,"unique_files":31,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":18,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-08T21:28:25-05:00","edits":107,"unique_files":31,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":18,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-08T22:16:06-05:00","edits":107,"unique_files":31,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"bypass_attempt":5},"sop_score":8}
+{"timestamp":"2026-01-08T22:46:46-05:00","edits":132,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":25},"sop_score":8}
+{"timestamp":"2026-01-08T23:07:01-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":29},"sop_score":8}
+{"timestamp":"2026-01-08T23:10:32-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":29},"sop_score":8}
+{"timestamp":"2026-01-08T23:19:36-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":29},"sop_score":8}
+{"timestamp":"2026-01-08T23:22:12-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":29},"sop_score":8}
+{"timestamp":"2026-01-08T23:23:07-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":29,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-08T23:24:11-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":29,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-09T11:24:51-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T11:27:48-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T11:29:48-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T11:33:08-05:00","edits":136,"unique_files":37,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T11:40:07-05:00","edits":157,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T11:40:58-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":23,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-09T12:54:04-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T12:55:06-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":2},"sop_score":9}
+{"timestamp":"2026-01-09T12:59:54-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":2},"sop_score":9}
+{"timestamp":"2026-01-09T13:00:07-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":2,"Rule #1":1},"sop_score":8}
+{"timestamp":"2026-01-09T14:18:30-05:00","edits":159,"unique_files":41,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-09T14:25:22-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:26:43-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:27:19-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:28:12-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:29:28-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:30:11-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:35:43-05:00","edits":162,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-09T14:43:27-05:00","edits":166,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7},"sop_score":9}
+{"timestamp":"2026-01-09T14:51:17-05:00","edits":167,"unique_files":42,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T14:54:41-05:00","edits":168,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T14:56:24-05:00","edits":168,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T15:04:40-05:00","edits":173,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-09T15:04:56-05:00","edits":173,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:06:47-05:00","edits":173,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:06:55-05:00","edits":173,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:08:25-05:00","edits":173,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:10:48-05:00","edits":177,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":18,"bypass_attempt":5,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:11:49-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:18:06-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:18:13-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:21:31-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:23:14-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:27:46-05:00","edits":178,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16,"bypass_attempt":6,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:58:20-05:00","edits":183,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":8,"Rule #2":11,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T15:59:21-05:00","edits":183,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":9,"Rule #2":11,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T16:00:21-05:00","edits":183,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"bypass_attempt":8,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T16:00:57-05:00","edits":183,"unique_files":43,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":8,"Rule #1":2,"Rule #2":10},"sop_score":7}
+{"timestamp":"2026-01-09T16:04:05-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":1,"Rule #2":12,"bypass_attempt":9},"sop_score":7}
+{"timestamp":"2026-01-09T16:05:33-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":9},"sop_score":8}
+{"timestamp":"2026-01-09T16:18:17-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:20:24-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:21:12-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:22:04-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:22:49-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:26:33-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:27:50-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:32:54-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:34:30-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:36:20-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:37:31-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:38:24-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:40:30-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:42:45-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:44:22-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:45:14-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:46:20-05:00","edits":185,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T16:53:40-05:00","edits":187,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":9},"sop_score":8}
+{"timestamp":"2026-01-09T16:53:51-05:00","edits":187,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":9},"sop_score":8}
+{"timestamp":"2026-01-09T16:58:31-05:00","edits":191,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":8},"sop_score":8}
+{"timestamp":"2026-01-09T16:59:17-05:00","edits":191,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":8},"sop_score":8}
+{"timestamp":"2026-01-09T17:02:29-05:00","edits":191,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T17:03:02-05:00","edits":192,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":1,"Rule #2":7},"sop_score":8}
+{"timestamp":"2026-01-09T17:05:06-05:00","edits":196,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11},"sop_score":9}
+{"timestamp":"2026-01-09T17:06:06-05:00","edits":196,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11},"sop_score":9}
+{"timestamp":"2026-01-09T17:07:06-05:00","edits":196,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T17:12:52-05:00","edits":196,"unique_files":45,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T17:14:34-05:00","edits":198,"unique_files":47,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":13,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T17:17:20-05:00","edits":198,"unique_files":47,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":13,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T17:17:56-05:00","edits":198,"unique_files":47,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":13,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T17:19:23-05:00","edits":198,"unique_files":47,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":13,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-09T17:23:52-05:00","edits":200,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-09T17:25:54-05:00","edits":200,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-09T17:29:36-05:00","edits":202,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-09T17:29:46-05:00","edits":202,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-09T17:30:36-05:00","edits":202,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-09T17:33:50-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":5},"sop_score":8}
+{"timestamp":"2026-01-09T17:34:33-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":5},"sop_score":8}
+{"timestamp":"2026-01-09T17:35:16-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:36:34-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:37:29-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:47:25-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:48:34-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:49:24-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:51:23-05:00","edits":206,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:54:35-05:00","edits":207,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":20,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:54:55-05:00","edits":207,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":20,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T17:56:26-05:00","edits":207,"unique_files":48,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":20,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-09T18:05:04-05:00","edits":212,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":8,"Rule #2":16},"sop_score":8}
+{"timestamp":"2026-01-09T19:03:07-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5},"sop_score":9}
+{"timestamp":"2026-01-09T19:03:23-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:03:52-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:03:59-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:10:29-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":1,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:11:40-05:00","edits":213,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":1,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:19:13-05:00","edits":219,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-09T19:35:46-05:00","edits":220,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":2,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T19:36:33-05:00","edits":220,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":2,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T19:37:27-05:00","edits":220,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":2,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T19:40:16-05:00","edits":220,"unique_files":49,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":2,"Rule #1":2},"sop_score":7}
+{"timestamp":"2026-01-09T19:45:19-05:00","edits":227,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15,"bypass_attempt":2,"Rule #1":3},"sop_score":7}
+{"timestamp":"2026-01-09T19:48:25-05:00","edits":227,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":15,"bypass_attempt":2,"Rule #1":4},"sop_score":7}
+{"timestamp":"2026-01-09T19:51:19-05:00","edits":228,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":16,"bypass_attempt":2,"Rule #1":4},"sop_score":7}
+{"timestamp":"2026-01-09T19:51:39-05:00","edits":229,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":2,"Rule #1":4},"sop_score":7}
+{"timestamp":"2026-01-09T19:53:03-05:00","edits":230,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":18,"bypass_attempt":2,"Rule #1":4},"sop_score":7}
+{"timestamp":"2026-01-09T19:54:12-05:00","edits":231,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:55:21-05:00","edits":231,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:55:55-05:00","edits":231,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:56:19-05:00","edits":231,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:57:22-05:00","edits":232,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":20,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:57:40-05:00","edits":233,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T19:58:11-05:00","edits":234,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":22,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:00:14-05:00","edits":238,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":26,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:02:03-05:00","edits":239,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":27,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:03:37-05:00","edits":241,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":28,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:05:05-05:00","edits":243,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":30,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:06:32-05:00","edits":244,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:07:42-05:00","edits":245,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":32,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:09:18-05:00","edits":248,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":35,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:10:38-05:00","edits":249,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":36,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:13:12-05:00","edits":250,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:14:31-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":36,"bypass_attempt":1,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:16:20-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:16:49-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":2,"Rule #1":5},"sop_score":7}
+{"timestamp":"2026-01-09T20:23:54-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":5,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:25:54-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":5,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:28:31-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":5,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:30:14-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":5,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:32:02-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":4,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:35:25-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":4,"Rule #2":32,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:47:41-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":2,"Rule #2":25,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-09T20:50:05-05:00","edits":252,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":25,"Rule #1":1,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-10T11:36:37-05:00","edits":255,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":3},"sop_score":8}
+{"timestamp":"2026-01-10T11:40:17-05:00","edits":255,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":3},"sop_score":8}
+{"timestamp":"2026-01-10T11:41:20-05:00","edits":255,"unique_files":50,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":3},"sop_score":8}
+{"timestamp":"2026-01-10T11:46:55-05:00","edits":256,"unique_files":51,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":5},"sop_score":8}
+{"timestamp":"2026-01-10T11:51:01-05:00","edits":256,"unique_files":51,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":5},"sop_score":8}
+{"timestamp":"2026-01-10T12:15:08-05:00","edits":261,"unique_files":52,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":5,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T12:32:22-05:00","edits":261,"unique_files":52,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":8},"sop_score":8}
+{"timestamp":"2026-01-10T12:39:39-05:00","edits":261,"unique_files":52,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T12:40:43-05:00","edits":261,"unique_files":52,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T12:42:21-05:00","edits":261,"unique_files":52,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T12:48:49-05:00","edits":275,"unique_files":54,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":20},"sop_score":8}
+{"timestamp":"2026-01-10T15:18:14-05:00","edits":277,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":2},"sop_score":9}
+{"timestamp":"2026-01-10T15:24:37-05:00","edits":287,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-10T15:25:27-05:00","edits":287,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":12,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-10T15:31:23-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-10T15:33:48-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T15:47:12-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T15:57:43-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T15:58:43-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T16:00:13-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-10T16:03:17-05:00","edits":289,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-10T16:09:48-05:00","edits":294,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-10T16:13:22-05:00","edits":294,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":5},"sop_score":8}
+{"timestamp":"2026-01-10T16:16:16-05:00","edits":297,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":22,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-10T16:18:53-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":22},"sop_score":8}
+{"timestamp":"2026-01-10T16:19:11-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":22},"sop_score":8}
+{"timestamp":"2026-01-10T16:20:23-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":22,"bypass_attempt":6},"sop_score":8}
+{"timestamp":"2026-01-10T16:25:36-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":12},"sop_score":8}
+{"timestamp":"2026-01-10T16:26:55-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":12},"sop_score":8}
+{"timestamp":"2026-01-10T16:29:24-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":12},"sop_score":8}
+{"timestamp":"2026-01-10T16:29:46-05:00","edits":299,"unique_files":56,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":6,"Rule #2":12},"sop_score":8}
+{"timestamp":"2026-01-10T16:38:48-05:00","edits":300,"unique_files":57,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T16:39:27-05:00","edits":300,"unique_files":57,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T16:40:58-05:00","edits":300,"unique_files":57,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T16:49:38-05:00","edits":300,"unique_files":57,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T16:52:04-05:00","edits":300,"unique_files":57,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":11},"sop_score":8}
+{"timestamp":"2026-01-10T16:54:34-05:00","edits":302,"unique_files":59,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":13},"sop_score":8}
+{"timestamp":"2026-01-10T16:58:25-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":14},"sop_score":8}
+{"timestamp":"2026-01-10T16:59:42-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":14},"sop_score":8}
+{"timestamp":"2026-01-10T17:01:27-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:03:43-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:11:08-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":9},"sop_score":8}
+{"timestamp":"2026-01-10T17:12:14-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":9},"sop_score":8}
+{"timestamp":"2026-01-10T17:13:08-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:13:54-05:00","edits":303,"unique_files":60,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:15:00-05:00","edits":304,"unique_files":61,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":8,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:34:57-05:00","edits":304,"unique_files":61,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-10T17:36:25-05:00","edits":306,"unique_files":61,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:38:17-05:00","edits":307,"unique_files":62,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:40:53-05:00","edits":307,"unique_files":62,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:44:35-05:00","edits":307,"unique_files":62,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:50:09-05:00","edits":307,"unique_files":62,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:51:43-05:00","edits":307,"unique_files":62,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":7,"bypass_attempt":3},"sop_score":8}
+{"timestamp":"2026-01-10T17:57:54-05:00","edits":311,"unique_files":65,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":9,"bypass_attempt":4},"sop_score":8}
+{"timestamp":"2026-01-10T18:03:51-05:00","edits":316,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":13},"sop_score":8}
+{"timestamp":"2026-01-10T18:09:31-05:00","edits":316,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":4,"Rule #2":13},"sop_score":8}
+{"timestamp":"2026-01-10T19:39:10-05:00","edits":319,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-10T19:41:43-05:00","edits":319,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-10T19:43:12-05:00","edits":319,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-10T19:45:38-05:00","edits":319,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-10T19:46:37-05:00","edits":319,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":3},"sop_score":9}
+{"timestamp":"2026-01-10T19:47:54-05:00","edits":320,"unique_files":70,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4},"sop_score":9}
+{"timestamp":"2026-01-10T19:50:06-05:00","edits":321,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-10T19:52:50-05:00","edits":321,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-10T19:54:01-05:00","edits":321,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":5,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-11T13:27:34-05:00","edits":321,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-11T13:30:30-05:00","edits":321,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-11T13:44:54-05:00","edits":323,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":2},"sop_score":9}
+{"timestamp":"2026-01-11T13:52:19-05:00","edits":325,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"Rule #1":1},"sop_score":8}
+{"timestamp":"2026-01-11T13:53:47-05:00","edits":325,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"Rule #1":1},"sop_score":8}
+{"timestamp":"2026-01-11T13:54:16-05:00","edits":325,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":4,"Rule #1":1},"sop_score":8}
+{"timestamp":"2026-01-11T13:56:17-05:00","edits":327,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":6,"Rule #1":1},"sop_score":8}
+{"timestamp":"2026-01-11T13:57:19-05:00","edits":327,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":6,"Rule #1":1,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:04:02-05:00","edits":332,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"Rule #1":1,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:05:53-05:00","edits":332,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"Rule #1":1,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:06:00-05:00","edits":332,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"Rule #1":1,"bypass_attempt":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:07:15-05:00","edits":332,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"Rule #1":1,"bypass_attempt":2},"sop_score":7}
+{"timestamp":"2026-01-11T14:08:24-05:00","edits":332,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":11,"Rule #1":1,"bypass_attempt":2},"sop_score":7}
+{"timestamp":"2026-01-11T14:18:06-05:00","edits":335,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"Rule #1":2,"bypass_attempt":2},"sop_score":7}
+{"timestamp":"2026-01-11T14:18:12-05:00","edits":335,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"Rule #1":2,"bypass_attempt":2},"sop_score":7}
+{"timestamp":"2026-01-11T14:21:20-05:00","edits":335,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":14,"Rule #1":2,"bypass_attempt":3},"sop_score":7}
+{"timestamp":"2026-01-11T14:31:58-05:00","edits":349,"unique_files":71,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":28,"Rule #1":2,"bypass_attempt":3},"sop_score":7}
+{"timestamp":"2026-01-11T14:36:10-05:00","edits":351,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":30,"Rule #1":2,"bypass_attempt":4},"sop_score":7}
+{"timestamp":"2026-01-11T14:40:12-05:00","edits":354,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"Rule #1":2,"bypass_attempt":5},"sop_score":7}
+{"timestamp":"2026-01-11T14:44:15-05:00","edits":355,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":32,"Rule #1":2,"bypass_attempt":6},"sop_score":7}
+{"timestamp":"2026-01-11T14:46:57-05:00","edits":355,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":2,"Rule #2":31,"bypass_attempt":6},"sop_score":7}
+{"timestamp":"2026-01-11T14:51:07-05:00","edits":357,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":32,"bypass_attempt":6,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:52:36-05:00","edits":359,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":6,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:55:34-05:00","edits":360,"unique_files":72,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":35,"bypass_attempt":8,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T14:59:19-05:00","edits":365,"unique_files":73,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":38,"bypass_attempt":8,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T15:00:24-05:00","edits":365,"unique_files":73,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":37,"bypass_attempt":12,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T15:02:43-05:00","edits":365,"unique_files":73,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":36,"bypass_attempt":13,"Rule #1":1},"sop_score":7}
+{"timestamp":"2026-01-11T15:05:20-05:00","edits":369,"unique_files":73,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":1,"Rule #2":37,"bypass_attempt":12},"sop_score":7}
+{"timestamp":"2026-01-11T15:07:20-05:00","edits":375,"unique_files":73,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":39,"bypass_attempt":11},"sop_score":8}
+{"timestamp":"2026-01-11T15:23:39-05:00","edits":380,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":37,"bypass_attempt":13},"sop_score":8}
+{"timestamp":"2026-01-11T15:26:02-05:00","edits":382,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":37,"bypass_attempt":13},"sop_score":8}
+{"timestamp":"2026-01-11T15:28:04-05:00","edits":383,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":37,"bypass_attempt":13},"sop_score":8}
+{"timestamp":"2026-01-11T15:31:58-05:00","edits":383,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":13},"sop_score":8}
+{"timestamp":"2026-01-11T15:32:40-05:00","edits":383,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":34,"bypass_attempt":13},"sop_score":8}
+{"timestamp":"2026-01-11T15:35:52-05:00","edits":383,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":12,"Rule #2":32},"sop_score":8}
+{"timestamp":"2026-01-11T15:45:26-05:00","edits":386,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-11T15:47:05-05:00","edits":386,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-11T15:48:27-05:00","edits":386,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-11T15:50:24-05:00","edits":386,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":29,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-11T15:53:50-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":31,"bypass_attempt":10},"sop_score":8}
+{"timestamp":"2026-01-11T15:57:14-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":30,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-11T15:58:10-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":27,"bypass_attempt":7},"sop_score":8}
+{"timestamp":"2026-01-11T15:59:10-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":7,"Rule #2":25},"sop_score":8}
+{"timestamp":"2026-01-11T16:00:45-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":25},"sop_score":8}
+{"timestamp":"2026-01-11T16:02:07-05:00","edits":390,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":3,"Rule #2":25},"sop_score":8}
+{"timestamp":"2026-01-11T16:03:43-05:00","edits":391,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":26,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-11T16:05:41-05:00","edits":391,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":22,"bypass_attempt":2},"sop_score":8}
+{"timestamp":"2026-01-11T16:08:09-05:00","edits":392,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"bypass_attempt":2,"Rule #2":17},"sop_score":8}
+{"timestamp":"2026-01-11T16:11:08-05:00","edits":392,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-11T16:13:18-05:00","edits":392,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":17,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-11T16:16:47-05:00","edits":397,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-11T16:19:32-05:00","edits":397,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":19,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-11T16:23:47-05:00","edits":401,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":21},"sop_score":9}
+{"timestamp":"2026-01-11T16:24:57-05:00","edits":402,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #2":22},"sop_score":9}
+{"timestamp":"2026-01-11T20:16:44-05:00","edits":415,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{},"sop_score":10}
+{"timestamp":"2026-01-11T20:28:27-05:00","edits":415,"unique_files":74,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":1,"bypass_attempt":1},"sop_score":8}
+{"timestamp":"2026-01-11T20:29:56-05:00","edits":417,"unique_files":75,"research_done":5,"failures":0,"blocks":50,"halted":false,"violations":{"Rule #1":1,"bypass_attempt":2,"Rule #2":2},"sop_score":7}

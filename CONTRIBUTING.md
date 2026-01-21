@@ -8,7 +8,7 @@ Thanks for your interest in contributing to SaneBar! This document explains how 
 
 ```bash
 # Clone the repo
-git clone https://github.com/stephanjoseph/SaneBar.git
+git clone https://github.com/sane-apps/SaneBar.git
 cd SaneBar
 
 # Install dependencies
@@ -89,7 +89,7 @@ For detailed coding rules, see [.claude/rules/README.md](.claude/rules/README.md
 
 ### Before You Start
 
-1. Check [GitHub Issues](https://github.com/stephanjoseph/SaneBar/issues) for existing discussions
+1. Check [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) for existing discussions
 2. For significant changes, open an issue first to discuss the approach
 
 ### Pull Request Process
@@ -175,7 +175,7 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Please be r
 
 ## Questions?
 
-- Open a [GitHub Issue](https://github.com/stephanjoseph/SaneBar/issues)
-- Check existing [Discussions](https://github.com/stephanjoseph/SaneBar/discussions) (if enabled)
+- Open a [GitHub Issue](https://github.com/sane-apps/SaneBar/issues)
+- Check existing [Discussions](https://github.com/sane-apps/SaneBar/discussions) (if enabled)
 
 Thank you for contributing!

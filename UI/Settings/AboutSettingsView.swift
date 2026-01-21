@@ -46,7 +46,7 @@ struct AboutSettingsView: View {
 
             // Links row
             HStack(spacing: 16) {
-                Link(destination: URL(string: "https://github.com/stephanjoseph/SaneBar")!) {
+                Link(destination: URL(string: "https://github.com/sane-apps/SaneBar")!) {
                     Label("GitHub", systemImage: "link")
                 }
                 .buttonStyle(.bordered)
@@ -241,7 +241,7 @@ struct AboutSettingsView: View {
                         .padding(.horizontal, 40)
 
                     // GitHub Sponsors
-                    Link(destination: URL(string: "https://github.com/sponsors/stephanjoseph")!) {
+                    Link(destination: URL(string: "https://github.com/sponsors/sane-apps")!) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
                                 .foregroundStyle(.pink)

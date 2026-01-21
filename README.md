@@ -1,8 +1,8 @@
 # SaneBar
 
-[![License: MIT](https://img.shields.io/github/license/stephanjoseph/SaneBar)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/stephanjoseph/SaneBar)](https://github.com/stephanjoseph/SaneBar/releases)
-[![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/stephanjoseph/SaneBar/releases)
+[![License: MIT](https://img.shields.io/github/license/sane-apps/SaneBar)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
+[![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
@@ -21,11 +21,13 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 ---
 
 ## Download
-www.Sanebar.com 
 
-**Option 1. $5 for .DMG and free upgrades for life! (Thanks for making this sustainable!) 
-**Option 2. Build using Xcode (once) updates will come through the app thereafter. 
-**HomeBrew is not supported, all updates come through the app. 
+SaneBar is open source. You are welcome to clone the repo and build it yourself for free. If you'd like to support development and get a ready-to-use, notarized version, you can purchase the DMG for $5 at **[sanebar.com](https://sanebar.com)**.
+
+**Note:** Homebrew is not supported. All software updates are delivered directly through the app.
+
+**Requirements:** macOS 15 Sequoia or later
+
 ---
 
 ## How It Works
@@ -35,8 +37,8 @@ www.Sanebar.com
 3. **Option-click** the SaneBar icon to open Power Search
 4. That's it!
 
-Icons to the **left** of SaneBar = can be hidden  
-Icons to the **right** of SaneBar = always visible
+Icons to the **left** of the Separator (`|`) = can be hidden  
+Icons to the **right** of the Separator (`|`) = always visible
 
 ---
 
@@ -56,13 +58,13 @@ Icons to the **right** of SaneBar = always visible
 
 ### Automation Ready
 - **AppleScript Support** — Full scripting integration for Shortcuts and automation workflows
-- **Smart Triggers** — Auto-show on WiFi network, app launch, or low battery
+- **Smart Triggers** — Auto-show on Focus Mode, WiFi network, app launch, or low battery
 - **Profiles** — Save different setups for work, home, or presentations
 
 ![Rules and Automation](docs/images/settings-rules.png)
 
 ### Core
-- **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\\)
+- **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
 - **⌘+drag to organize** — Choose which icons hide and which stay visible
 - **Auto-hide** — Icons disappear after a configurable delay
 
@@ -147,6 +149,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 - **Low Battery** — Auto-show when battery drops below threshold
 - **App Launch** — Show when specific apps start
 - **Wi-Fi Change** — Show on specific networks (click "Add current network")
+- **Focus Mode** — Show when macOS Focus Mode changes (Work, Personal, etc.)
 
 ### Icon Spacing (Settings → Appearance)
 
@@ -197,7 +200,7 @@ Free to use! If SaneBar helps you, star this repo.
 ### Build
 
 ```bash
-git clone https://github.com/stephanjoseph/SaneBar.git
+git clone https://github.com/sane-apps/SaneBar.git
 cd SaneBar
 bundle install
 ./scripts/SaneMaster.rb verify

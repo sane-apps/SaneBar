@@ -24,6 +24,7 @@
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
+		44E37A74C3AE370683F08F7C /* SaneUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9146DE18EA818507DD9C5AE1 /* SaneUI */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
 		4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */; };
 		4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */; };
@@ -53,6 +54,7 @@
 		996C746D150C4ADE190C86DB /* RulesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */; };
 		9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */; };
 		A0C50D5E25A04B6896F997D6 /* AccessibilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */; };
+		A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */; };
 		A31A1121AA09ACA4DB5061D0 /* SearchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9911A7251AE151FCA164258D /* SearchWindowController.swift */; };
 		A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */; };
 		A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1779B5B710715DD106EE34 /* TriggerService.swift */; };
@@ -64,6 +66,7 @@
 		B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */; };
 		BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 279B371659C5F49AC26F024E /* Mocks.swift */; };
 		BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */; };
+		BE9903FEBD4138A0207ABD1F /* Backgrounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = C341796679514B8BAEF48E22 /* Backgrounds.swift */; };
 		C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */; };
 		C35BFCDC472B79D2A61B6EEE /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF5E3E22CDA201F6FCBD42F /* main.swift */; };
 		C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */; };
@@ -72,6 +75,7 @@
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
 		D6013AAFA6A212A3F5F53243 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DD013004C464D00120BBD8C8 /* Sparkle */; };
 		E76C0E436818A68318131627 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9A64F4720057AEA3A9D2BF /* AppearanceSettingsView.swift */; };
+		E7985007531E3C34AEC4B6C8 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */; };
 		ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */; };
 		EFCDC9F3D3DF1EFE55E497F5 /* MenuBarManager+Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */; };
 		F2B3FB6C4A975BB22A83EF62 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FB5A5E19E67E44650AC8FED0 /* Localizable.strings */; };
@@ -116,6 +120,7 @@
 		3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommands.swift; sourceTree = "<group>"; };
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityServiceTests.swift; sourceTree = "<group>"; };
+		46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		4C0B1C1B3F989733A71F1C53 /* HoverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverService.swift; sourceTree = "<group>"; };
 		559CC16A1F18750B4B3C5181 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		56253053D08930BD23085754 /* IconHotkeysService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysService.swift; sourceTree = "<group>"; };
@@ -135,6 +140,7 @@
 		86E43D8C4F0157E62129DA8C /* AccessibilityService+MenuExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+MenuExtras.swift"; sourceTree = "<group>"; };
 		942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppGrid.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
+		957722D9C0FDB1AD278BD2A8 /* SaneUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SaneUI; path = ../Projects/SaneUI; sourceTree = SOURCE_ROOT; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesSettingsView.swift; sourceTree = "<group>"; };
@@ -152,11 +158,13 @@
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
 		B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
 		BFAF741A121B164D6E1CACE3 /* AccessibilityPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermissionView.swift; sourceTree = "<group>"; };
+		C341796679514B8BAEF48E22 /* Backgrounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backgrounds.swift; sourceTree = "<group>"; };
 		C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
 		CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingServiceTests.swift; sourceTree = "<group>"; };
 		CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
 		CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Cache.swift"; sourceTree = "<group>"; };
+		D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModeService.swift; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSettingsComponents.swift; sourceTree = "<group>"; };
@@ -180,6 +188,7 @@
 			files = (
 				1DC8F575031401E9D2A5F64F /* KeyboardShortcuts in Frameworks */,
 				9428EB7B846206973BA5FF5E /* Sparkle in Frameworks */,
+				44E37A74C3AE370683F08F7C /* SaneUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +223,7 @@
 				7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */,
 				6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */,
 				9C3C6E73E33B43B37B3BB914 /* Components */,
+				DD3ACAD89E4993B47949F32C /* Onboarding */,
 				069C3A0FC8F35C1CEEE6717E /* SearchWindow */,
 				8B3B0395225A66EBED761B56 /* Settings */,
 			);
@@ -281,11 +291,20 @@
 				1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */,
 				90F8FA130E087A281C816B2A /* Core */,
 				FD994F31E36FD3A72CA7E0D7 /* MinimalTest */,
+				87CCE63AA9875766C2200640 /* Packages */,
 				409A8D62B36CC252BED0A4E4 /* Resources */,
 				5FE61272586955420BA4EDE2 /* Tests */,
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
 				D14A5D400198233C0D7C948F /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		87CCE63AA9875766C2200640 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				957722D9C0FDB1AD278BD2A8 /* SaneUI */,
+			);
+			name = Packages;
 			sourceTree = "<group>";
 		};
 		8B3B0395225A66EBED761B56 /* Settings */ = {
@@ -339,6 +358,7 @@
 			children = (
 				BFAF741A121B164D6E1CACE3 /* AccessibilityPermissionView.swift */,
 				E2D027630FBC2AD0F663CD9E /* AppPickerView.swift */,
+				C341796679514B8BAEF48E22 /* Backgrounds.swift */,
 				D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */,
 				B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */,
 			);
@@ -355,6 +375,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		DD3ACAD89E4993B47949F32C /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
 		F4D16756A6A53AD0A4F56F30 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -365,6 +393,7 @@
 				14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */,
 				3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */,
 				1467BD772D883402EE5C2E56 /* DiagnosticsService.swift */,
+				D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */,
 				94B8376513461FDCE0D56D48 /* HidingService.swift */,
 				4C0B1C1B3F989733A71F1C53 /* HoverService.swift */,
 				56253053D08930BD23085754 /* IconHotkeysService.swift */,
@@ -426,6 +455,7 @@
 			packageProductDependencies = (
 				E264258C707319B447D489AC /* KeyboardShortcuts */,
 				32CC34138D2C1CE77F8B2AE8 /* Sparkle */,
+				9146DE18EA818507DD9C5AE1 /* SaneUI */,
 			);
 			productName = SaneBar;
 			productReference = E2110BC48727749AB5BC8606 /* SaneBar.app */;
@@ -487,6 +517,7 @@
 			packageReferences = (
 				D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				E4EC3BBBFC9148B9088FFF41 /* XCLocalSwiftPackageReference "../Projects/SaneUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -515,6 +546,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		ACD4857716FE2B4BB6D40D67 /* Run SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -583,9 +615,11 @@
 				78364D2694684C7224FA4CC9 /* AppPickerView.swift in Sources */,
 				E76C0E436818A68318131627 /* AppearanceSettingsView.swift in Sources */,
 				7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */,
+				BE9903FEBD4138A0207ABD1F /* Backgrounds.swift in Sources */,
 				1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */,
 				2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */,
 				7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */,
+				A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */,
 				ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */,
 				FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */,
 				2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */,
@@ -620,6 +654,7 @@
 				A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */,
 				0E7FB86AB6F428B3297AA492 /* UpdateService.swift in Sources */,
 				932BE8FBAB4F339E3D598B1E /* VisualEffectBackground.swift in Sources */,
+				E7985007531E3C34AEC4B6C8 /* WelcomeView.swift in Sources */,
 				C8BE0F2DA79D48E5DCB1AB88 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -876,7 +911,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = M78L6FXD48;
-				ENABLE_PREVIEWS = YES;
+				ENABLE_PREVIEWS = NO;
+				ENABLE_XOJIT_PREVIEWS = NO;
 				INFOPLIST_FILE = SaneBar/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -904,7 +940,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = M78L6FXD48;
-				ENABLE_PREVIEWS = YES;
+				ENABLE_PREVIEWS = NO;
+				ENABLE_XOJIT_PREVIEWS = NO;
 				INFOPLIST_FILE = SaneBar/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1005,7 +1042,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = M78L6FXD48;
-				ENABLE_PREVIEWS = YES;
+				ENABLE_PREVIEWS = NO;
+				ENABLE_XOJIT_PREVIEWS = NO;
 				INFOPLIST_FILE = SaneBar/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1084,13 +1122,20 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		E4EC3BBBFC9148B9088FFF41 /* XCLocalSwiftPackageReference "../Projects/SaneUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Projects/SaneUI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.0;
+				minimumVersion = 2.8.0;
 			};
 		};
 		D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
@@ -1098,7 +1143,7 @@
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
+				minimumVersion = 2.4.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -1113,6 +1158,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
+		};
+		9146DE18EA818507DD9C5AE1 /* SaneUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SaneUI;
 		};
 		DD013004C464D00120BBD8C8 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

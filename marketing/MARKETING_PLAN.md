@@ -61,7 +61,7 @@ acquisition raised trust concerns in 2024. Would love to share more
 for Indie App Spotlight.
 
 — Mr. Sane
-https://stephanjoseph.github.io/SaneBar/
+https://sanebar.com
 ```
 
 ### 3. Directory Submissions (All Free)
@@ -242,7 +242,7 @@ The **Bartender acquisition controversy (2024)** created an opening:
 |------|----------------------|
 | **Reddit karma building** | Requires your Reddit account & authentic engagement |
 | **Product Hunt engagement** | 4 weeks of comments/upvotes from your account |
-| **Send emails** | Outreach needs to come from stephanjoseph2007@gmail.com |
+| **Send emails** | Outreach needs to come from hi@saneapps.com |
 | **BetaList payment** | $129 requires your payment method |
 | **Respond to comments** | Post-launch engagement must be authentic |
 

@@ -22,9 +22,9 @@ I built SaneBar after the Bartender acquisition raised trust concerns in 2024. I
 It's free, works on macOS 15 Sequoia and the upcoming Tahoe with Liquid Glass support, and was built pair-programming with Claude AI.
 
 **Links:**
-- Website: https://stephanjoseph.github.io/SaneBar/
-- GitHub: https://github.com/stephanjoseph/SaneBar
-- Download: `brew install --cask stephanjoseph/sanebar/sanebar`
+- Website: https://sanebar.com
+- GitHub: https://github.com/sane-apps/SaneBar (open source, build from source free)
+- Purchase: $5 at sanebar.com (notarized DMG)
 
 Happy to provide screenshots, promo codes, or answer any questions.
 
@@ -37,7 +37,7 @@ Stephan
 
 **App Name:** SaneBar
 **Tagline:** Privacy-first menu bar manager for macOS
-**Website:** https://stephanjoseph.github.io/SaneBar/
+**Website:** https://sanebar.com/
 
 **Description:**
 SaneBar is a free, open-source menu bar manager for macOS that hides clutter and keeps everything accessible. Unlike other menu bar apps, SaneBar makes zero network requests — your data never leaves your Mac.
@@ -63,8 +63,8 @@ Built as a privacy-focused alternative after trust concerns around the Bartender
 **App Name:** SaneBar
 **Version:** 1.0.5
 **Developer:** Stephan Joseph
-**Website:** https://stephanjoseph.github.io/SaneBar/
-**Download URL:** https://github.com/stephanjoseph/SaneBar/releases
+**Website:** https://sanebar.com/
+**Download URL:** https://github.com/sane-apps/SaneBar/releases
 **License:** MIT (Free, Open Source)
 **OS:** macOS 15.0+ (Sequoia)
 
@@ -90,7 +90,7 @@ Features:
 **App Name:** SaneBar
 **Platform:** macOS
 **Price:** Free (Open Source)
-**App Store / Website:** https://stephanjoseph.github.io/SaneBar/
+**App Store / Website:** https://sanebar.com/
 
 **Short Description:**
 Privacy-first menu bar manager. Hide clutter, lock icons behind Touch ID, find any app with Power Search. 100% on-device, open source.
@@ -118,7 +118,7 @@ SaneBar has [X] GitHub stars and has been featured on [MacMenuBar / wherever]. H
 
 Best,
 Stephan
-https://github.com/stephanjoseph/SaneBar
+https://github.com/sane-apps/SaneBar
 
 ---
 
@@ -141,7 +141,7 @@ The twist: I built the entire thing pair-programming with Claude. 241 unit tests
 Would love to share more if you're interested in the indie/privacy angle or the AI development story.
 
 Stephan
-https://stephanjoseph.github.io/SaneBar/
+https://sanebar.com/
 
 ---
 

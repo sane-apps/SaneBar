@@ -28,7 +28,7 @@ We have explicitly configured Sparkle to maximize privacy:
 ### What Happens Technically
 
 When SaneBar checks for updates (either automatically or when you click "Check for Updates"):
-1. It requests a static file: `https://stephanjoseph.github.io/SaneBar/appcast.xml`
+1. It requests a static file: `https://sanebar.com/appcast.xml`
 2. This is a standard HTTP GET request (your IP is visible to GitHub Pages, as with any website)
 3. **No other data is sent.**
 
@@ -141,7 +141,7 @@ You'll see zero results unless you're actively checking for updates.
 ## Open Source
 
 SaneBar is fully open source. Every line of code is auditable:
-https://github.com/stephanjoseph/SaneBar
+https://github.com/sane-apps/SaneBar
 
 If you find any privacy concern, please open an issue.
 
@@ -149,4 +149,4 @@ If you find any privacy concern, please open an issue.
 
 ## Contact
 
-Questions about privacy? Open an issue on GitHub or email: stephanjoseph2007@gmail.com
+Questions about privacy? Open an issue on GitHub or email: hi@saneapps.com

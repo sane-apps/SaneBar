@@ -1,66 +1,40 @@
-# Session Handoff: SaneBar Marketing
+# Session Handoff: SaneBar Marketing & Maintenance
 
-> **Next Session**: Execute marketing plan with $200 budget
+> **Next Session**: Refactor `sanetools.rb` and continue marketing execution.
 
 ---
 
-## What's Done
+## What's Done (Jan 21, 2026)
 
-### Monetization ✅
-- **Lemon Squeezy**: Product live at $5, checkout URL integrated
-- **Website**: "Download — $5" buttons working
-- **In-app**: GitHub Sponsors + Crypto donation options
-- **Messaging**: Unified "I need your help" tone everywhere
+### Infrastructure ✅
+- **Gemini CLI**: Successfully transitioned from Claude.
+- **Refactoring**:
+    - `scripts/hooks/sanetrack.rb` → Split into modular `lib/sanetrack/*.rb`. Verified with self-test.
+    - `scripts/hooks/test/tier_tests.rb` → Split into `tiers/*.rb`. Verified (most tests passed, some `sanetools` failures unrelated to refactor).
+- **Environment**: Added `GEMINI.md` context. Symlinked `.gemini -> .claude`.
 
-### Marketing Research ✅
-- Full plan saved to `marketing/MARKETING_PLAN.md`
-- Channels researched: Product Hunt, Reddit, HN, review sites, influencers
-- Budget allocated: $129 BetaList + $71 reserve
+### Marketing ✅
+- **9to5Mac**: Email draft prepared.
+- **AlternativeTo**: Submission prepared.
+- **GitHub Outreach**: Checked opportunities. "Hidden Bar" issue #339 has activity.
+- **Website**: Updated `index.html` to hide "SaneApps" family links until other sites are ready. Verified local preview.
 
-### Infrastructure (Jan 17) ✅
-- **www.sanebar.com**: Fixed DNS (CNAME → sanebar.com) + GitHub Pages cert
-- **Domain**: Squarespace-managed, transfer to Cloudflare eligible ~March 6, 2026
-- **Screenshots**: All current as of Jan 16 in `docs/images/` (settings-*.png = new sidebar UI)
+### Testing ✅
+- **Fixed Tests**: Updated `AppleScriptCommandsTests.swift` to support intermediate `SaneBarScriptCommand` class.
+- **Verification**: `SaneMaster.rb verify` passed 206/206 tests.
 
 ---
 
 ## Next Session: Execute This
 
-### Immediate Actions (Free)
-1. ~~**Submit to MacMenuBar.com**~~ ✅ Done (emailed Jan 17)
-2. **Email 9to5Mac** — michaelb@9to5mac.com with pitch (template in plan)
-3. **Submit to AlternativeTo** — As Bartender/Hidden Bar alternative
-4. **Start Reddit karma** — Comment in r/macapps for 2 weeks before posting
+### Immediate Actions
+1. **Push Changes**: Run `git push origin main` (Authentication failed in session).
+2. **Fix Sanetools Tests**: Investigate why `sanetools.rb` blocked valid reads in the test suite (Exit 1 vs 0).
+3. **Continue Refactoring**: Split `sanetools.rb` (738 lines) using the same pattern as `sanetrack.rb`.
 
-### Week 2-3
-5. **Product Hunt teaser page** — Collect followers
-6. **Product Hunt weekend launch** — Saturday/Sunday for less competition
-7. **BetaList expedited** — $129 for 100-200 signups
-
-### Week 4
-8. **Hacker News Show HN** — Technical pitch
-9. **r/macapps post** — "I built a Bartender alternative"
-
----
-
-## Key Insight
-
-The **Bartender acquisition (2024)** created a trust vacuum. Position SaneBar as:
-- The privacy-focused alternative
-- 100% on-device, open source
-- No sketchy ownership
-
-This is your competitive angle.
-
----
-
-## Files to Reference
-
-| File | Purpose |
-|------|---------|
-| `marketing/MARKETING_PLAN.md` | Full marketing strategy |
-| `docs/index.html` | Website (already updated) |
-| `UI/Settings/AboutSettingsView.swift` | In-app support (already updated) |
+### Marketing (Week 2)
+4. **Product Hunt Teaser**: Create "Coming Soon" page.
+5. **BetaList**: Consider expedited listing ($129).
 
 ---
 

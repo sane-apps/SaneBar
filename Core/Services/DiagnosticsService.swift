@@ -245,7 +245,7 @@ extension DiagnosticReport {
     func gitHubIssueURL(title: String, userDescription: String) -> URL? {
         let body = toMarkdown(userDescription: userDescription)
 
-        var components = URLComponents(string: "https://github.com/stephanjoseph/SaneBar/issues/new")
+        var components = URLComponents(string: "https://github.com/sane-apps/SaneBar/issues/new")
         components?.queryItems = [
             URLQueryItem(name: "title", value: title),
             URLQueryItem(name: "body", value: body),

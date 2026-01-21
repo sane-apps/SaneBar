@@ -238,54 +238,14 @@ jobs:
 
           ## Installation
 
-          ### Homebrew (Recommended)
-          \`\`\`bash
-          brew tap stephanjoseph/sanebar
-          brew install --cask sanebar
-          \`\`\`
+          ### Purchase (\$5)
+          Download the notarized DMG at [sanebar.com](https://sanebar.com).
 
-          ### Direct Download
-          Download the DMG below and drag SaneBar to Applications.
+          ### Build from Source (Free)
+          Clone from [GitHub](https://github.com/sane-apps/SaneBar) and build with Xcode.
 
           ---
-          *Released automatically on ${RELEASE_DATE}*" \
-            "$DMG_PATH"
-
-      - name: Update Homebrew Cask
-        env:
-          HOMEBREW_PAT: ${{ secrets.HOMEBREW_PAT }}
-          VERSION: ${{ needs.check-changes.outputs.new_version }}
-        run: |
-          DMG_PATH="$RUNNER_TEMP/${{ env.APP_NAME }}-${VERSION}.dmg"
-
-          # Calculate SHA256
-          SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
-
-          # Clone homebrew repo
-          git clone "https://x-access-token:${HOMEBREW_PAT}@github.com/stephanjoseph/homebrew-sanebar.git" $RUNNER_TEMP/homebrew
-          cd $RUNNER_TEMP/homebrew
-
-          # Update cask file
-          cat > Casks/sanebar.rb << EOF
-          cask "sanebar" do
-            version "${VERSION}"
-            sha256 "${SHA256}"
-
-            url "https://github.com/stephanjoseph/SaneBar/releases/download/v#{version}/SaneBar-#{version}.dmg"
-            name "SaneBar"
-            desc "Privacy-focused menu bar manager for macOS"
-            homepage "https://github.com/stephanjoseph/SaneBar"
-
-            depends_on macos: ">= :sequoia"
-
-            app "SaneBar.app"
-
-            zap trash: [
-              "~/Library/Preferences/com.sanebar.app.plist",
-              "~/Library/Application Support/SaneBar",
-            ]
-          end
-          EOF
+          *Released automatically on ${RELEASE_DATE}*"
 
           # Commit and push
           git config user.name "GitHub Actions"
@@ -303,9 +263,9 @@ jobs:
           if [ -f docs/index.html ]; then
             # Replace old specific link OR generic releases link with new specific link
             # Use strict matching (href="...") to avoid partial matches
-            sed -i '' "s|href=\"https://github.com/stephanjoseph/SaneBar/releases/tag/v${OLD_VERSION}\"|href=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
-            sed -i '' "s|href=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${OLD_VERSION}/SaneBar-${OLD_VERSION}.dmg\"|href=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
-            sed -i '' "s|href=\"https://github.com/stephanjoseph/SaneBar/releases\"|href=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
+            sed -i '' "s|href=\"https://github.com/sane-apps/SaneBar/releases/tag/v${OLD_VERSION}\"|href=\"https://github.com/sane-apps/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
+            sed -i '' "s|href=\"https://github.com/sane-apps/SaneBar/releases/download/v${OLD_VERSION}/SaneBar-${OLD_VERSION}.dmg\"|href=\"https://github.com/sane-apps/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
+            sed -i '' "s|href=\"https://github.com/sane-apps/SaneBar/releases\"|href=\"https://github.com/sane-apps/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\"|g" docs/index.html
             
             # Update button text
             sed -i '' "s|Download SaneBar v${OLD_VERSION}|Download SaneBar v${VERSION}|g" docs/index.html

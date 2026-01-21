@@ -135,9 +135,9 @@ module SaneMasterModules
       sop_mcps = {
         'apple-docs' => { package: '@mweinbach/apple-docs-mcp@latest', required: true },
         'github' => { package: '@modelcontextprotocol/server-github', required: true },
-        'memory' => { package: '@modelcontextprotocol/server-memory', required: true },
         'context7' => { package: '@upstash/context7-mcp@latest', required: true },
-        'XcodeBuildMCP' => { package: 'xcodebuildmcp@latest', required: true }
+        'XcodeBuildMCP' => { package: 'xcodebuildmcp@latest', required: true },
+        'macos-automator' => { package: '@steipete/macos-automator-mcp', required: true }
       }
 
       config_paths = ['.mcp.json', '.cursor/mcp.json']

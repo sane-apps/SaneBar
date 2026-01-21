@@ -8,7 +8,7 @@ Here is my strategic plan for your GitHub and Website as your interim Head of Ma
 
 Since this is a system utility, users need to trust that it isn't stealing data. Your GitHub is your credibility badge.
 
-Repo Name: stephanjoseph/SaneBar  
+Repo Name: sane-apps/SaneBar  
 Description: "The privacy-first menu bar manager for macOS. Native, lightweight, and scriptable."
 
 #### **The README.md Structure**
@@ -27,7 +27,7 @@ Don't just dump code here. Treat the README as a landing page for developers and
 * **Privacy Pledge:**  
   * Include the content from the "About" screen: *"No analytics. No telemetry. No network requests."* This is a massive selling point against competitors who have recently faced privacy backlashes.  
 * **Installation:**  
-  * brew install \--cask sanebar (If you haven't submitted to Homebrew yet, do it immediately. It is essential for this target market).  
+  * Purchase at sanebar.com ($5) or build from source on GitHub (free).  
 * **Issues/Roadmap:**  
   * Keep a pinned issue of "Coming Soon" features to show the project is alive.
 

@@ -1,0 +1,55 @@
+# Outreach Configuration for SaneBar
+# Used by: ~/.claude/skills/outreach/check.rb
+
+project:
+  name: "SaneBar"
+  url: "https://sanebar.com"
+  tagline: "Clean up your menu bar. Keep your head."
+
+competitors:
+  - repo: "jordanbaird/Ice"
+    name: "Ice"
+    keywords:
+      - "alternative"
+      - "replacement"
+      - "switched to"
+      - "any other app"
+      - "macOS 26"
+      - "Tahoe"
+      - "broken"
+      - "abandoned"
+      - "not maintained"
+    min_age_days: 7
+
+  - repo: "dwarvesf/hidden"
+    name: "Hidden Bar"
+    keywords:
+      - "alternative"
+      - "replacement"
+      - "not working"
+      - "broken"
+      - "macOS 26"
+      - "macOS 15"
+      - "abandoned"
+    min_age_days: 3  # Explicitly abandoned, faster response OK
+
+  - repo: "Mortennn/Dozer"
+    name: "Dozer"
+    keywords:
+      - "alternative"
+      - "not working"
+      - "macOS 15"
+      - "macOS 26"
+    min_age_days: 3  # Abandoned since 2023
+
+# Features SaneBar has that competitors lack/struggle with
+features_we_have:
+  - "spacers between icons"
+  - "macOS 26 (Tahoe) native support"
+  - "low memory footprint"
+  - "active maintenance"
+  - "AppleScript support"
+
+output:
+  notify: true
+  log_file: "marketing/outreach_log.md"
