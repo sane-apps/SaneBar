@@ -22,7 +22,14 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         if let window = window, window.isVisible {
             close()
         } else {
-            show()
+            // Check auth if required
+            Task {
+                if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
+                    let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                    guard authorized else { return }
+                }
+                show()
+            }
         }
     }
 

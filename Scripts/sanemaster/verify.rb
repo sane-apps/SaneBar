@@ -125,14 +125,15 @@ module SaneMasterModules
     def audit_project
       puts '🔍 --- [ SANEMASTER ACCESSIBILITY AUDIT ] ---'
 
-      project_path = 'SaneBar.xcodeproj/project.pbxproj'
-      unless File.exist?(project_path)
-        puts "❌ Project file not found. Run 'xcodegen generate' first."
+      # Auto-detect .xcodeproj in current directory
+      project_dir = Dir.glob('*.xcodeproj').first
+      unless project_dir && File.exist?(project_dir)
+        puts "❌ No .xcodeproj found. Run 'xcodegen generate' first."
         return
       end
 
       require 'xcodeproj'
-      project = Xcodeproj::Project.open(project_path)
+      project = Xcodeproj::Project.open(project_dir)
       swift_files = project.files.select { |f| f.path.end_with?('.swift') && !f.path.include?('Test') }.map(&:real_path)
 
       puts '📂 Scanning Swift files for missing identifiers...'

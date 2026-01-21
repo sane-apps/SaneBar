@@ -51,6 +51,7 @@ struct SettingsView: View {
         }
         .groupBoxStyle(GlassGroupBoxStyle())
         .frame(minWidth: 700, minHeight: 450)
+        .background(SaneGradientBackground())
     }
     
     // MARK: - Icons

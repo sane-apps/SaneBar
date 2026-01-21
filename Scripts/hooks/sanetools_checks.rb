@@ -255,7 +255,7 @@ module SaneToolsChecks
       unless complete
         return "SUBAGENT BYPASS BLOCKED\n" \
                "Task appears to be for editing: #{prompt[0..50]}...\n" \
-               "Complete research first (5 categories)."
+               "Complete research first (4 categories)."
       end
 
       nil
@@ -272,19 +272,19 @@ module SaneToolsChecks
       missing = research_categories.keys.reject { |cat| research[cat] }
 
       # Build specific instructions for each missing category
+      # NOTE: Memory category removed Jan 2026 - using Sane-Mem for auto-capture
       missing_instructions = missing.map do |cat|
         case cat
-        when :memory then "  1. MEMORY: mcp__memory__read_graph (check past bugs/patterns)"
-        when :docs then "  2. DOCS: mcp__apple-docs or mcp__context7 (verify APIs exist)"
-        when :web then "  3. WEB: WebSearch (current best practices)"
-        when :github then "  4. GITHUB: mcp__github__search_* (external examples)"
-        when :local then "  5. LOCAL: Read/Grep/Glob (understand existing code)"
+        when :docs then "  1. DOCS: mcp__apple-docs or mcp__context7 (verify APIs exist)"
+        when :web then "  2. WEB: WebSearch (current best practices)"
+        when :github then "  3. GITHUB: mcp__github__search_* (external examples)"
+        when :local then "  4. LOCAL: Read/Grep/Glob (understand existing code)"
         else "  #{cat}: Complete this research category"
         end
       end.join("\n")
 
       "RESEARCH INCOMPLETE - READ THIS CAREFULLY\n" \
-      "Cannot edit until ALL 5 research categories are done.\n" \
+      "Cannot edit until ALL 4 research categories are done.\n" \
       "\n" \
       "MISSING (do these NOW):\n" \
       "#{missing_instructions}\n" \
@@ -293,20 +293,8 @@ module SaneToolsChecks
       "The research prevents wasted attempts. Do it ONCE, succeed ONCE."
     end
 
-    def check_global_mutations(tool_name, global_mutation_pattern, research_categories)
-      return nil unless tool_name.match?(global_mutation_pattern)
-
-      research = StateManager.get(:research)
-      complete = research_categories.keys.all? { |cat| research[cat] }
-
-      return nil if complete
-
-      missing = research_categories.keys.reject { |cat| research[cat] }
-      "GLOBAL MUTATION BLOCKED\n" \
-      "Tool '#{tool_name}' affects ALL projects (MCP memory is shared).\n" \
-      "Complete research first. Missing: #{missing.join(', ')}\n" \
-      "Use mcp__memory__read_graph to understand current state before mutating."
-    end
+    # NOTE: check_global_mutations removed Jan 2026 - memory MCP no longer exists
+    # Was used to block mutations to shared MCP memory without research first
 
     def check_external_mutations(tool_name, external_mutation_pattern, research_categories)
       return nil unless tool_name.match?(external_mutation_pattern)
@@ -548,11 +536,12 @@ module SaneToolsChecks
         end
       end
 
-      return nil if timestamps.length < 5
+      # NOTE: Changed from 5 to 4 categories (Jan 2026) - memory MCP removed
+      return nil if timestamps.length < 4
 
       span = timestamps.max - timestamps.min
       if span < GAMING_THRESHOLDS[:rapid_research_seconds]
-        return "All 5 research categories in #{span.round}s (expected: >30s)"
+        return "All 4 research categories in #{span.round}s (expected: >30s)"
       end
 
       nil
@@ -623,8 +612,8 @@ module SaneToolsChecks
     MEMORY_STAGING_FILE = File.join(CLAUDE_DIR, 'memory_staging.json')
 
     # MCP verification tools (read-only operations to prove connectivity)
+    # NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) for auto-capture
     MCP_VERIFICATION_INFO = {
-      memory: { name: 'Memory', tool: 'mcp__memory__read_graph' },
       apple_docs: { name: 'Apple Docs', tool: 'mcp__apple-docs__search_apple_docs' },
       context7: { name: 'Context7', tool: 'mcp__context7__resolve-library-id' },
       github: { name: 'GitHub', tool: 'mcp__github__search_repositories' }
@@ -672,7 +661,7 @@ module SaneToolsChecks
       end.join("\n")
 
       msg = "MCP VERIFICATION INCOMPLETE\n" \
-            "Cannot edit until all 4 MCPs are verified this session.\n" \
+            "Cannot edit until all 3 MCPs are verified this session.\n" \
             "\n" \
             "Unverified MCPs (run each tool once to verify):\n" \
             "#{unverified_list}\n"
@@ -718,18 +707,18 @@ module SaneToolsChecks
       # If 3 edits didn't work, your understanding is wrong - research AGAIN
       StateManager.reset(:research)
 
+      # NOTE: Memory category removed Jan 2026 - using Sane-Mem for auto-capture
       "EDIT ATTEMPT LIMIT REACHED\n" \
       "You've made #{count} edit attempts and they didn't work.\n" \
       "STOP. Your understanding is wrong. Research AGAIN from scratch.\n" \
       "\n" \
       "Research has been RESET. You MUST redo the FULL SaneLoop process:\n" \
-      "  1. Memory - check past bugs and patterns (mcp__memory__read_graph)\n" \
-      "  2. Docs - verify APIs exist (apple-docs, context7)\n" \
-      "  3. Web - current best practices (WebSearch)\n" \
-      "  4. GitHub - external examples (mcp__github__search_*)\n" \
-      "  5. Local - understand existing code (Read, Grep, Glob)\n" \
+      "  1. Docs - verify APIs exist (apple-docs, context7)\n" \
+      "  2. Web - current best practices (WebSearch)\n" \
+      "  3. GitHub - external examples (mcp__github__search_*)\n" \
+      "  4. Local - understand existing code (Read, Grep, Glob)\n" \
       "\n" \
-      "All 5 categories are now MISSING. Complete them all to continue.\n" \
+      "All 4 categories are now MISSING. Complete them all to continue.\n" \
       "\n" \
       "This is not punishment - it's the process that ALWAYS works.\n" \
       "Today's session proved it: full research found the 700+ iteration failure."

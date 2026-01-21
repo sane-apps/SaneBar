@@ -411,7 +411,7 @@ EOF
             echo "    <title>${VERSION}</title>"
             echo "    <pubDate>${DATE}</pubDate>"
             echo "    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>"
-            echo "    <enclosure url=\"https://github.com/stephanjoseph/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\""
+            echo "    <enclosure url=\"https://github.com/sane-apps/SaneBar/releases/download/v${VERSION}/SaneBar-${VERSION}.dmg\""
             echo "               sparkle:version=\"${VERSION}\""
             echo "               sparkle:shortVersionString=\"${VERSION}\""
             echo "               length=\"${FILE_SIZE}\""
@@ -426,9 +426,9 @@ EOF
     fi
     
     echo ""
-    echo -e "${GREEN}Homebrew Cask info:${NC}"
-    echo "version \"${VERSION}\""
-    echo "sha256 \"${SHA256}\""
+    echo -e "${GREEN}Release Info:${NC}"
+    echo "Version: ${VERSION}"
+    echo "SHA256: ${SHA256}"
 fi
 
 log_info ""

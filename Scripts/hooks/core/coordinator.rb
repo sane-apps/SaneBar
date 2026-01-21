@@ -39,9 +39,9 @@ class Coordinator
     /verify\.rb/
   ].freeze
 
+  # NOTE: Memory MCP tools removed Jan 2026 - using Sane-Mem (localhost:37777) instead
   RESEARCH_TOOLS = %w[
     Read Glob Grep WebSearch WebFetch Task
-    mcp__memory__read_graph mcp__memory__search_nodes
     mcp__apple-docs__ mcp__context7__ mcp__github__
   ].freeze
 

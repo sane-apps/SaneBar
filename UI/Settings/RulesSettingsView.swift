@@ -84,7 +84,7 @@ struct RulesSettingsView: View {
 
                     // Network
                     CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
-                    
+
                     if menuBarManager.settings.showOnNetworkChange {
                         VStack(alignment: .leading, spacing: 8) {
                             if let ssid = menuBarManager.networkTriggerService.currentSSID {
@@ -101,7 +101,7 @@ struct RulesSettingsView: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                             }
-                            
+
                             ForEach(menuBarManager.settings.triggerNetworks, id: \.self) { network in
                                 HStack {
                                     Text(network)
@@ -117,6 +117,73 @@ struct RulesSettingsView: View {
                                 .padding(8)
                                 .background(Color.secondary.opacity(0.1))
                                 .cornerRadius(6)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 4)
+                    }
+
+                    CompactDivider()
+
+                    // Focus Mode
+                    CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
+
+                    if menuBarManager.settings.showOnFocusModeChange {
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Add current Focus Mode button
+                            if let currentMode = menuBarManager.focusModeService.currentFocusMode {
+                                Button {
+                                    if !menuBarManager.settings.triggerFocusModes.contains(currentMode) {
+                                        menuBarManager.settings.triggerFocusModes.append(currentMode)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "moon.fill")
+                                        Text("Add current: \(currentMode)")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+
+                            // Add "(Focus Off)" option
+                            if !menuBarManager.settings.triggerFocusModes.contains("(Focus Off)") {
+                                Button {
+                                    menuBarManager.settings.triggerFocusModes.append("(Focus Off)")
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "moon")
+                                        Text("Add: (Focus Off)")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+
+                            // List of configured trigger modes
+                            ForEach(menuBarManager.settings.triggerFocusModes, id: \.self) { mode in
+                                HStack {
+                                    Image(systemName: mode == "(Focus Off)" ? "moon" : "moon.fill")
+                                        .foregroundStyle(.secondary)
+                                    Text(mode)
+                                    Spacer()
+                                    Button {
+                                        menuBarManager.settings.triggerFocusModes.removeAll { $0 == mode }
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(8)
+                                .background(Color.secondary.opacity(0.1))
+                                .cornerRadius(6)
+                            }
+
+                            if menuBarManager.settings.triggerFocusModes.isEmpty {
+                                Text("No Focus Modes configured. Enable a Focus Mode in System Settings to add it here.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .padding(.vertical, 8)

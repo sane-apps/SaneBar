@@ -471,7 +471,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // are in unified screen space. Comparing coordinates across different screens
         // will produce false positives (e.g., separator at x=6476 on external display,
         // main at x=1496 on built-in display).
-        // See: https://github.com/stephanjoseph/SaneBar/issues/11
+        // See: https://github.com/sane-apps/SaneBar/issues/11
         if mainWindow.screen != separatorWindow.screen {
             logger.debug("validateSeparatorPosition: items on different screens - assuming valid (multi-display transition)")
             return true

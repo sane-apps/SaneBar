@@ -42,7 +42,7 @@ ORPHAN_PROCESS_PATTERNS = [
   'context7-mcp',
   'apple-docs-mcp',
   'mcp-server-github',
-  'mcp-server-memory',
+  'mcp-server-memory',  # DEPRECATED (Jan 2026) - kept for legacy cleanup
   'worker-service.cjs',
   'log stream'  # SaneBar log capture processes
 ].freeze
@@ -362,21 +362,9 @@ MEMORY_STAGING_FILE = File.join(CLAUDE_DIR, 'memory_staging.json')
 def check_pending_mcp_actions
   pending = []
 
-  # Check memory staging
-  if File.exist?(MEMORY_STAGING_FILE)
-    begin
-      staging = JSON.parse(File.read(MEMORY_STAGING_FILE))
-      if staging['needs_memory_update']
-        pending << {
-          type: 'memory_staging',
-          message: "Memory staging needs saving: #{staging['suggested_entity']&.dig('name') || 'learnings'}",
-          action: 'Call mcp__memory__create_entities then delete memory_staging.json'
-        }
-      end
-    rescue StandardError
-      # Ignore parse errors
-    end
-  end
+  # NOTE: Memory staging check removed Jan 2026 - memory MCP no longer exists
+  # Memory learnings now auto-captured by Sane-Mem (localhost:37777)
+  # Legacy staging files can be safely deleted if found
 
   if pending.any?
     warn ''
@@ -394,46 +382,18 @@ def check_pending_mcp_actions
   pending
 end
 
-# Memory health check on cached data
-# Thresholds match memory.rb: 60 entities, 8000 tokens
-ENTITY_WARN = 40  # Lower threshold for early warning
-TOKEN_WARN = 6000
-
+# NOTE: Memory health check removed Jan 2026 - memory MCP no longer exists
+# Memory learnings now auto-captured by Sane-Mem (localhost:37777)
+# Sane-Mem has its own health monitoring
 def check_memory_health
-  memory_file = File.join(CLAUDE_DIR, 'memory.json')
-
-  # Silent if no memory file - not an error condition
-  return unless File.exist?(memory_file)
-
-  begin
-    memory = JSON.parse(File.read(memory_file))
-    entities = memory['entities'] || []
-    entity_count = entities.count
-
-    # Estimate tokens (~4 chars per token)
-    est_tokens = (File.size(memory_file) / 4.0).round
-
-    # Check for verbose entities (>15 observations each)
-    verbose = entities.count { |e| (e['observations'] || []).count > 15 }
-
-    # Only warn if bloat detected - routine status goes to JSON context
-    if entity_count > ENTITY_WARN || est_tokens > TOKEN_WARN || verbose > 3
-      warn '⚠️  MEMORY BLOAT DETECTED'
-      warn "   Entities: #{entity_count}/#{ENTITY_WARN} | Tokens: ~#{est_tokens}/#{TOKEN_WARN}"
-      warn "   Verbose entities (>15 obs): #{verbose}" if verbose > 0
-      warn '   Run: ./Scripts/SaneMaster.rb mh        # Full health report'
-      warn '   Run: ./Scripts/SaneMaster.rb mcompact  # Trim verbose entities'
-    end
-  rescue StandardError
-    # Silent on parse errors - not critical
-  end
+  # No-op: Memory MCP removed, using Sane-Mem instead
 end
 
 # === MCP VERIFICATION SYSTEM ===
 # Reset verification for new session and prompt Claude to verify MCPs
 
+# NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) instead
 MCP_VERIFICATION_TOOLS = {
-  memory: 'mcp__memory__read_graph',
   apple_docs: 'mcp__apple-docs__search_apple_docs',
   context7: 'mcp__context7__resolve-library-id',
   github: 'mcp__github__search_repositories'
@@ -521,6 +481,7 @@ def build_session_context
     context_parts << ""
     context_parts << "MCP verification: Required before editing"
     context_parts << "Verify by calling: memory read_graph, apple-docs search, context7 resolve, github search"
+    context_parts << "Serena: Call mcp__plugin_serena_serena__activate_project with project path"
   end
 
   context_parts.join("\n")

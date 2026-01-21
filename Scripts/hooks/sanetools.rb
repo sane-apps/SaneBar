@@ -32,15 +32,12 @@ LOG_FILE = File.expand_path('../../.claude/sanetools.log', __dir__)
 
 EDIT_TOOLS = %w[Edit Write NotebookEdit].freeze
 RESEARCH_TOOLS = %w[Read Grep Glob WebSearch WebFetch Task].freeze
-MEMORY_TOOLS = %w[mcp__memory__read_graph mcp__memory__search_nodes].freeze
 
 # === INTELLIGENCE: Bootstrap Whitelist ===
 # These tools ALWAYS allowed to prevent circular blocking
 # CRITICAL: Categorize by DAMAGE POTENTIAL, not by name!
+# NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) instead
 BOOTSTRAP_TOOL_PATTERN = Regexp.union(
-  /^mcp__memory__read_graph$/,
-  /^mcp__memory__search_nodes$/,
-  /^mcp__memory__open_nodes$/,
   /^Read$/,
   /^Grep$/,
   /^Glob$/,
@@ -55,12 +52,7 @@ BOOTSTRAP_TOOL_PATTERN = Regexp.union(
 ).freeze
 
 # === MUTATION PATTERNS (require research) ===
-
-GLOBAL_MUTATION_PATTERN = Regexp.union(
-  /^mcp__memory__delete_/,
-  /^mcp__memory__create_/,
-  /^mcp__memory__add_/
-).freeze
+# NOTE: Memory MCP patterns removed - using Sane-Mem instead
 
 EXTERNAL_MUTATION_PATTERN = Regexp.union(
   /^mcp__github__create_/,
@@ -122,12 +114,9 @@ BASH_FILE_WRITE_PATTERN = Regexp.union(
 EDIT_KEYWORDS = %w[edit write create modify change update add remove delete fix patch].freeze
 
 # === RESEARCH CATEGORIES ===
+# NOTE: Memory category removed Jan 2026 - using Sane-Mem (localhost:37777) for auto-capture
 
 RESEARCH_CATEGORIES = {
-  memory: {
-    tools: %w[mcp__memory__read_graph mcp__memory__search_nodes],
-    task_patterns: [/memory/i, /past bugs/i, /previous/i, /history/i]
-  },
   docs: {
     tools: %w[mcp__apple-docs__* mcp__context7__*],
     task_patterns: [/docs/i, /documentation/i, /apple-docs/i, /context7/i, /api/i]
@@ -184,8 +173,8 @@ def track_research(tool_name, tool_input)
 
   # Reset edit attempt counter ONLY when:
   # 1. We just did research (research_done is true), AND
-  # 2. ALL 5 categories are now complete
-  # Not just one tool - the FULL investigation (all 5 categories)
+  # 2. ALL 4 categories are now complete
+  # Not just one tool - the FULL investigation (all 4 categories)
   # This is the SaneLoop process - it ALWAYS pays off
   if research_done
     research = StateManager.get(:research)
@@ -409,12 +398,7 @@ def process_tool(tool_name, tool_input)
     return 2
   end
 
-  # Check global mutations
-  if (reason = SaneToolsChecks.check_global_mutations(tool_name, GLOBAL_MUTATION_PATTERN, RESEARCH_CATEGORIES))
-    log_action(tool_name, true, reason)
-    output_block(reason, tool_name)
-    return 2
-  end
+  # NOTE: check_global_mutations removed Jan 2026 - memory MCP no longer exists
 
   # Check external mutations
   if (reason = SaneToolsChecks.check_external_mutations(tool_name, EXTERNAL_MUTATION_PATTERN, RESEARCH_CATEGORIES))

@@ -9,11 +9,11 @@
 
 | GitHub | Title | Status | Internal Ref |
 |--------|-------|--------|--------------|
-| [#21](https://github.com/stephanjoseph/SaneBar/issues/21) | Icons hidden behind notch | Open | See BUG-021 below |
-| [#20](https://github.com/stephanjoseph/SaneBar/issues/20) | M4 tint not working | Open | See BUG-020 below |
-| [#18](https://github.com/stephanjoseph/SaneBar/issues/18) | Hiding icons not working | Open | See BUG-022 below |
-| [#16](https://github.com/stephanjoseph/SaneBar/issues/16) | Design improvements | Open | UI suggestions, not bugs |
-| [#12](https://github.com/stephanjoseph/SaneBar/issues/12) | Hide SaneBar icon | Reopened | Feature request |
+| [#21](https://github.com/sane-apps/SaneBar/issues/21) | Icons hidden behind notch | Open | See BUG-021 below |
+| [#20](https://github.com/sane-apps/SaneBar/issues/20) | M4 tint not working | Open | See BUG-020 below |
+| [#18](https://github.com/sane-apps/SaneBar/issues/18) | Hiding icons not working | Open | See BUG-022 below |
+| [#16](https://github.com/sane-apps/SaneBar/issues/16) | Design improvements | Open | UI suggestions, not bugs |
+| [#12](https://github.com/sane-apps/SaneBar/issues/12) | Hide SaneBar icon | Reopened | Feature request |
 
 ---
 
@@ -30,7 +30,7 @@
 ## Active Bugs (GitHub-Tracked)
 
 ### BUG-020: Menu bar tint not working on M4 Macs
-**GitHub**: [#20](https://github.com/stephanjoseph/SaneBar/issues/20)
+**GitHub**: [#20](https://github.com/sane-apps/SaneBar/issues/20)
 **Status**: INVESTIGATING
 **Priority**: HIGH
 
@@ -57,7 +57,7 @@
 ---
 
 ### BUG-021: Icons hidden behind notch on internal display
-**GitHub**: [#21](https://github.com/stephanjoseph/SaneBar/issues/21)
+**GitHub**: [#21](https://github.com/sane-apps/SaneBar/issues/21)
 **Status**: KNOWN LIMITATION
 **Priority**: MEDIUM
 
@@ -74,7 +74,7 @@
 ---
 
 ### BUG-022: Hiding icons not working for some users
-**GitHub**: [#18](https://github.com/stephanjoseph/SaneBar/issues/18)
+**GitHub**: [#18](https://github.com/sane-apps/SaneBar/issues/18)
 **Status**: INVESTIGATING
 **Priority**: HIGH
 
@@ -130,6 +130,100 @@
 **Action Items**:
 - [ ] Fix sheet presentation to not block tab navigation
 - [ ] Consider using popover instead of sheet
+
+---
+
+## Improvements from SaneClip (Port These)
+
+> These patterns were developed in SaneClip and should be ported to SaneBar.
+
+### IMP-001: Security-by-Default
+**Priority**: HIGH
+**Source**: SaneClip `UI/Settings/SettingsView.swift`
+
+**Pattern**: Reducing any security setting requires system authentication (Touch ID or password). No master toggle needed - it's automatic.
+
+**Behavior**:
+- Turning ON protections → no auth needed
+- Turning OFF protections → always requires auth
+- Removing items from exclusion lists → always requires auth
+
+**Implementation**:
+```swift
+private func authenticateForSecurityChange(reason: String, onSuccess: @escaping () -> Void) {
+    let context = LAContext()
+    var error: NSError?
+    let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        ? .deviceOwnerAuthenticationWithBiometrics
+        : .deviceOwnerAuthentication
+
+    context.evaluatePolicy(policy, localizedReason: reason) { success, _ in
+        DispatchQueue.main.async {
+            if success { onSuccess() }
+        }
+    }
+}
+```
+
+**Action Items**:
+- [ ] Add `authenticateForSecurityChange()` to SettingsView
+- [ ] Wrap all "reduce security" actions with auth call
+
+---
+
+### IMP-002: Dock Visibility on Launch (Fixes BUG-023)
+**Priority**: HIGH
+**Source**: SaneClip `SettingsModel.swift`
+
+**Pattern**: Apply dock visibility setting immediately in `SettingsModel.init()`, not just when toggled.
+
+**Fix**:
+```swift
+init() {
+    // ... load all settings from UserDefaults ...
+    applyDockVisibility() // Apply immediately on init
+}
+
+private func applyDockVisibility() {
+    NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+}
+```
+
+**Action Items**:
+- [ ] Add `applyDockVisibility()` call to SettingsModel.init()
+- [ ] Verify dock state matches setting on fresh launch
+
+---
+
+### IMP-003: Settings UI Aesthetics
+**Priority**: MEDIUM
+**Source**: SaneClip `UI/Settings/SettingsView.swift`
+
+**Components to port**:
+- `SettingsGradientBackground` - Glass effect with gradient
+- `CompactSection` - Row-based sections with rounded corners
+- `CompactRow`, `CompactToggle`, `CompactDivider` - Consistent padding/alignment
+- `VisualEffectBlur` - NSVisualEffectView wrapper for dark mode
+
+**Action Items**:
+- [ ] Review SaneClip SettingsView.swift for component implementations
+- [ ] Decide which aesthetic elements to adopt
+
+---
+
+### IMP-004: Row-Based Exclusion List UI
+**Priority**: MEDIUM
+**Source**: SaneClip `UI/Settings/SettingsView.swift`
+
+**Pattern**: Clean row layout instead of chips/tags for exclusion lists:
+- Each item on its own row
+- X button right-aligned
+- "Add..." button (not dropdown menu)
+- File picker opens directly to relevant folder
+
+**Action Items**:
+- [ ] Review current SaneBar exclusion UI
+- [ ] Implement row-based pattern if applicable
 
 ---
 

@@ -143,13 +143,14 @@ def handle_safemode_command(prompt)
     warn ''
     true
   elsif cmd.start_with?('reset research') || cmd == 'rr-'
-    # Reset research tracking (forces re-doing all 5 categories)
+    # Reset research tracking (forces re-doing all 4 categories)
+    # NOTE: Changed from 5 to 4 (Jan 2026) - memory MCP removed
     StateManager.reset(:research)
     log_reset('research', 'User reset research requirements')
     warn ''
     warn 'RESEARCH RESET'
-    warn '  All 5 research categories cleared.'
-    warn '  Must complete: memory, docs, web, github, local'
+    warn '  All 4 research categories cleared.'
+    warn '  Must complete: docs, web, github, local'
     warn '  This is NOT a bypass - you must actually do the research.'
     warn ''
     true
@@ -160,7 +161,7 @@ def handle_safemode_command(prompt)
     warn ''
     warn '  rb-  / reset breaker   → Clear circuit breaker (after 3+ failures)'
     warn '  reset blocks / unblock → Clear block counters (after repeated blocks)'
-    warn '  rr- / reset research   → Clear research (forces redo all 5 categories)'
+    warn '  rr- / reset research   → Clear research (forces redo all 4 categories)'
     warn ''
     warn 'Resets are LOGGED and do NOT disable hooks.'
     warn 'They allow retry - the hooks still enforce rules.'
@@ -428,7 +429,8 @@ def output_context(prompt_type, rules, triggers, prompt, frustrations = [], dete
   # User insight: "ANY code change is a big task" - no more "no big deal" syndrome
   lines << ''
   lines << 'WORKFLOW STRUCTURE (auto-injected):'
-  lines << '  1. Research ALL 5 categories before editing (memory, docs, web, github, local)'
+  # NOTE: Changed from 5 to 4 categories (Jan 2026) - memory MCP removed
+  lines << '  1. Research ALL 4 categories before editing (docs, web, github, local)'
   lines << '  2. Define acceptance criteria: what does "done" look like?'
   lines << '  3. Edits blocked until research complete (sanetools enforces)'
   lines << '  4. Self-rate SOP compliance when done'
@@ -592,10 +594,9 @@ def process_prompt(prompt)
   # 6. Get learned patterns from previous sessions
   learned_patterns = get_learned_patterns
 
-  # 7. Check for memory staging from previous session
-  memory_staging = check_memory_staging
-  # Mark as processed so it doesn't repeat on every prompt
-  mark_memory_staging_processed if memory_staging
+  # 7. Memory staging removed (Jan 2026) - memory MCP no longer exists
+  # Memory learnings now auto-captured by Sane-Mem (localhost:37777)
+  memory_staging = nil
 
   # === END INTELLIGENCE ===
 
@@ -613,15 +614,8 @@ def process_prompt(prompt)
     warn ''
   end
 
-  # Output memory staging reminder to user
-  if memory_staging
-    warn ''
-    warn '=' * 50
-    warn 'MEMORY MCP UPDATE PENDING'
-    warn 'Previous session staged learnings - Claude will save to Memory MCP'
-    warn '=' * 50
-    warn ''
-  end
+  # NOTE: Memory staging output removed (Jan 2026) - memory MCP no longer exists
+  # Memory learnings now auto-captured by Sane-Mem (localhost:37777)
 
   # Output context to Claude (stdout)
   output_context(prompt_type, rules, triggers, prompt, frustrations, detected_reqs, learning_warning, learned_patterns, memory_staging)

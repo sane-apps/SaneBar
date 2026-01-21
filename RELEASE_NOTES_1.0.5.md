@@ -33,10 +33,11 @@
 
 ## 📦 Installation
 
-### Via Homebrew (Recommended)
-```bash
-brew install --cask sanebar
-```
+### Purchase ($5)
+Download the notarized DMG at [sanebar.com](https://sanebar.com).
+
+### Build from Source (Free)
+Clone from [GitHub](https://github.com/sane-apps/SaneBar) and build with Xcode.
 
 ### Manual Installation
 1. Download `SaneBar-1.0.5.dmg`
@@ -54,4 +55,4 @@ This release is:
 
 ---
 
-**Full Changelog**: https://github.com/stephanjoseph/SaneBar/compare/v1.0.4...v1.0.5
+**Full Changelog**: https://github.com/sane-apps/SaneBar/compare/v1.0.4...v1.0.5

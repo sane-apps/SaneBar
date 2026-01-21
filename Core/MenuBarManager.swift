@@ -61,6 +61,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     let iconHotkeysService: IconHotkeysService
     let appearanceService: MenuBarAppearanceService
     let networkTriggerService: NetworkTriggerService
+    let focusModeService: FocusModeService
     let hoverService: HoverService
     let updateService: UpdateService
 
@@ -90,6 +91,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         iconHotkeysService: IconHotkeysService? = nil,
         appearanceService: MenuBarAppearanceService? = nil,
         networkTriggerService: NetworkTriggerService? = nil,
+        focusModeService: FocusModeService? = nil,
         hoverService: HoverService? = nil,
         updateService: UpdateService? = nil
     ) {
@@ -101,6 +103,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.iconHotkeysService = iconHotkeysService ?? IconHotkeysService.shared
         self.appearanceService = appearanceService ?? MenuBarAppearanceService()
         self.networkTriggerService = networkTriggerService ?? NetworkTriggerService()
+        self.focusModeService = focusModeService ?? FocusModeService()
         self.hoverService = hoverService ?? HoverService()
         self.updateService = updateService ?? UpdateService()
 
@@ -236,6 +239,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.networkTriggerService.startMonitoring()
             }
 
+            self.focusModeService.configure(menuBarManager: self)
+            if self.settings.showOnFocusModeChange {
+                self.focusModeService.startMonitoring()
+            }
+
             self.configureHoverService()
             self.showOnboardingIfNeeded()
             self.syncUpdateConfiguration()
@@ -282,6 +290,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.networkTriggerService.configure(menuBarManager: self)
             if self.settings.showOnNetworkChange {
                 self.networkTriggerService.startMonitoring()
+            }
+
+            // Configure Focus Mode trigger
+            self.focusModeService.configure(menuBarManager: self)
+            if self.settings.showOnFocusModeChange {
+                self.focusModeService.startMonitoring()
             }
 
             // Configure hover service
@@ -362,10 +376,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .dropFirst() // Skip initial value
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newSettings in
-                print("[AUTH DEBUG] Settings changed - requireAuth: \(newSettings.requireAuthToShowHiddenIcons)")
                 self?.updateSpacers()
                 self?.updateAppearance()
                 self?.updateNetworkTrigger(enabled: newSettings.showOnNetworkChange)
+                self?.updateFocusModeTrigger(enabled: newSettings.showOnFocusModeChange)
                 self?.triggerService.updateBatteryMonitoring(enabled: newSettings.showOnLowBattery)
                 self?.updateHoverService()
                 self?.syncUpdateConfiguration()
@@ -451,6 +465,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             networkTriggerService.startMonitoring()
         } else {
             networkTriggerService.stopMonitoring()
+        }
+    }
+
+    private func updateFocusModeTrigger(enabled: Bool) {
+        if enabled {
+            focusModeService.startMonitoring()
+        } else {
+            focusModeService.stopMonitoring()
         }
     }
 
@@ -579,7 +601,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Privacy Auth
 
-    private func authenticate(reason: String) async -> Bool {
+    func authenticate(reason: String) async -> Bool {
         let context = LAContext()
         context.localizedCancelTitle = "Cancel"
 

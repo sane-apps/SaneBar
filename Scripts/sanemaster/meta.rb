@@ -556,7 +556,8 @@ module SaneMasterModules
         servers = mcp['mcpServers'] || {}
 
         # NOTE: XcodeBuildMCP is configured globally, not per-project
-        required = %w[apple-docs github memory context7]
+        # NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) instead
+        required = %w[apple-docs github context7]
 
         required.each do |name|
           if servers[name]

@@ -103,6 +103,15 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// When true, app uses .regular mode (Dock icon visible)
     var showDockIcon: Bool = false
 
+    // MARK: - Focus Mode Triggers
+
+    /// Show hidden items when Focus Mode changes to a trigger mode
+    var showOnFocusModeChange: Bool = false
+
+    /// Focus Mode names that trigger showing hidden items (e.g., "Work", "Personal")
+    /// Also supports special value "(Focus Off)" to trigger when Focus turns off
+    var triggerFocusModes: [String] = []
+
     // MARK: - Hover & Gesture Triggers
 
     /// Show hidden icons when hovering near the menu bar
@@ -166,6 +175,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnNetworkChange = try container.decodeIfPresent(Bool.self, forKey: .showOnNetworkChange) ?? false
         triggerNetworks = try container.decodeIfPresent([String].self, forKey: .triggerNetworks) ?? []
         showDockIcon = try container.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? false
+        showOnFocusModeChange = try container.decodeIfPresent(Bool.self, forKey: .showOnFocusModeChange) ?? false
+        triggerFocusModes = try container.decodeIfPresent([String].self, forKey: .triggerFocusModes) ?? []
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.15
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
@@ -181,6 +192,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case autoRehide, rehideDelay, findIconRehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
         case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
+        case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll
         case menuBarSpacing, menuBarSelectionPadding

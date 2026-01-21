@@ -23,6 +23,8 @@ require 'time'
 require_relative 'core/state_manager'
 
 LOG_FILE = File.expand_path('../../.claude/sanestop.log', __dir__)
+# DEPRECATED: Memory staging file no longer used (Jan 2026) - Memory MCP removed
+# Kept for reference in case old files need cleanup
 MEMORY_STAGING_FILE = File.expand_path('../../.claude/memory_staging.json', __dir__)
 
 # === CONFIGURATION ===
@@ -93,47 +95,15 @@ rescue StandardError
   # Don't fail on state errors
 end
 
-# === MEMORY MCP STAGING ===
-# Stage high-value learnings for Claude to save to Memory MCP
-# Hook can't call MCP directly, so we stage for next session start
+# === MEMORY MCP STAGING (DEPRECATED - Jan 2026) ===
+# Memory MCP has been removed. Memory learnings are now auto-captured by
+# Sane-Mem (localhost:37777) via hooks.
+#
+# This stub function exists to prevent NoMethodError calls from main().
 
-def stage_memory_learnings(violations, sop_score)
-  return if violations.empty? && sop_score >= 9  # Nothing notable to save
-
-  patterns = StateManager.get(:patterns)
-  weak_spots = patterns&.dig(:weak_spots) || {}
-
-  # Only stage if we have significant learnings
-  significant_weak_spots = weak_spots.select { |_k, v| v.to_i >= 3 }
-  return if significant_weak_spots.empty? && violations.empty?
-
-  staging = {
-    timestamp: Time.now.iso8601,
-    project: File.basename(Dir.pwd),
-    session_score: sop_score,
-    violations_this_session: violations.transform_keys(&:to_s),
-    cumulative_weak_spots: significant_weak_spots,
-    needs_memory_update: true
-  }
-
-  # Generate suggested Memory entity
-  if significant_weak_spots.any?
-    top_weak = significant_weak_spots.max_by { |_k, v| v }
-    staging[:suggested_entity] = {
-      name: "SOP-WeakSpot-#{staging[:project]}",
-      type: "LearningPattern",
-      observations: [
-        "Weak spot: Rule #{top_weak[0]} with #{top_weak[1]} cumulative violations",
-        "Session score: #{sop_score}/10",
-        "Recorded: #{Time.now.strftime('%Y-%m-%d')}"
-      ]
-    }
-  end
-
-  FileUtils.mkdir_p(File.dirname(MEMORY_STAGING_FILE))
-  File.write(MEMORY_STAGING_FILE, JSON.pretty_generate(staging))
-rescue StandardError
-  # Don't fail on staging errors
+def stage_memory_learnings(_violations, _sop_score)
+  # No-op: Memory MCP removed (Jan 2026)
+  # Learnings auto-captured by Sane-Mem
 end
 
 # === TODO ENFORCEMENT (inspired by jarrodwatts/claude-code-config) ===
