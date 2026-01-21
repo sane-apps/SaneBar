@@ -21,11 +21,11 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 ---
 
 ## Download
-Sanebar.com 
+www.Sanebar.com 
 
-Option 1. $5 for .DMG and free upgrades for life! (Thanks for making this sustainable!) 
-Option 2. Build using Xcode (once) updates will come through the app thereafter. 
-HomeBrew is not supported, all updates come through the app. 
+**Option 1. $5 for .DMG and free upgrades for life! (Thanks for making this sustainable!) 
+**Option 2. Build using Xcode (once) updates will come through the app thereafter. 
+**HomeBrew is not supported, all updates come through the app. 
 ---
 
 ## How It Works
