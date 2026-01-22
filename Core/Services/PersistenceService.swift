@@ -121,10 +121,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var hoverDelay: TimeInterval = 0.25
 
     /// Show hidden icons when scrolling up in the menu bar
-    var showOnScroll: Bool = true
+    var showOnScroll: Bool = false
 
     /// Show hidden icons when clicking in the menu bar
-    var showOnClick: Bool = true
+    var showOnClick: Bool = false
 
     // MARK: - System Icon Spacing
 

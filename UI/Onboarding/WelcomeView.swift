@@ -7,7 +7,7 @@ import AppKit
 public struct WelcomeView: View {
     @State private var currentPage = 0
     let onComplete: () -> Void
-    private let totalPages = 5
+    private let totalPages = 6
 
     public init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -25,8 +25,10 @@ public struct WelcomeView: View {
                 case 2:
                     PowerFeaturesPage()
                 case 3:
-                    WhyDifferentPage()
+                    PermissionsPage()
                 case 4:
+                    WhyDifferentPage()
+                case 5:
                     SanePromisePage()
                 default:
                     WelcomeActionPage()
@@ -371,7 +373,96 @@ private struct FeatureCard: View {
     }
 }
 
-// MARK: - Page 4: Why We're Different
+// MARK: - Page 4: Permissions & Gestures
+
+private struct PermissionsPage: View {
+    @ObservedObject private var menuBarManager = MenuBarManager.shared
+
+    var body: some View {
+        VStack(spacing: 32) {
+            Image(systemName: "hand.tap.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(.blue)
+
+            VStack(spacing: 8) {
+                Text("Smart Gestures")
+                    .font(.system(size: 28, weight: .bold))
+                Text("Optional ways to reveal your icons.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 16) {
+                GestureToggleRow(
+                    icon: "scroll",
+                    title: "Scroll to Show",
+                    description: "Scroll up on the menu bar to reveal icons.",
+                    isOn: $menuBarManager.settings.showOnScroll
+                )
+
+                GestureToggleRow(
+                    icon: "cursorarrow.click",
+                    title: "Click to Show",
+                    description: "Click an empty space in the menu bar to reveal.",
+                    isOn: $menuBarManager.settings.showOnClick
+                )
+            }
+            .padding(.horizontal, 40)
+
+            VStack(spacing: 12) {
+                Text("⚠️ These features require **Accessibility** and **Input Monitoring** permissions to work while you are using other apps.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 500)
+
+                Button("Open System Settings") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.top, 8)
+        }
+        .padding(32)
+    }
+}
+
+private struct GestureToggleRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundStyle(.blue)
+                .frame(width: 40, height: 40)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                Text(description)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.05))
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Page 5: Why We're Different
 
 private struct WhyDifferentPage: View {
     var body: some View {

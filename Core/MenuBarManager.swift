@@ -647,31 +647,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         guard !settings.hasCompletedOnboarding else { return }
 
         // Delay slightly to ensure menu bar is fully set up
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.showOnboardingPopover()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            OnboardingController.shared.show()
         }
-    }
-
-    private func showOnboardingPopover() {
-        guard let button = mainStatusItem?.button else { return }
-
-        let popover = NSPopover()
-        popover.contentSize = NSSize(width: 320, height: 240)
-        popover.behavior = .transient
-
-        let hostingController = NSHostingController(rootView: OnboardingTipView(onDismiss: { [weak self] in
-            self?.completeOnboarding()
-        }))
-        popover.contentViewController = hostingController
-
-        onboardingPopover = popover
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-    }
-
-    private func completeOnboarding() {
-        onboardingPopover?.close()
-        onboardingPopover = nil
-        settings.hasCompletedOnboarding = true
-        saveSettings()
     }
 }

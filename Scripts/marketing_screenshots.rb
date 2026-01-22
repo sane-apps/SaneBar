@@ -19,48 +19,49 @@ require 'json'
 SCREENSHOT_TOOL = '/Users/sj/Library/Python/3.13/bin/screenshot'
 OUTPUT_DIR = File.expand_path('../marketing/screenshots', __dir__)
 TEMP_DIR = '/tmp/marketing_screenshots'
+APP_NAME = File.basename(File.expand_path('..', __dir__))
 
 # Screenshot definitions - customize per app
 # Each shot defines: app name, window title filter, output filename, description
 # Optional: tab (toolbar button to click), scroll (0.0-1.0 scroll position)
 SHOTS = {
   'settings-general' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     tab: 'General',
     scroll: 0.0,
     filename: 'general-settings.png',
     description: 'General settings tab'
   },
   'settings-shortcuts' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     tab: 'Shortcuts',
     scroll: 0.0,
     filename: 'shortcuts-settings.png',
     description: 'Keyboard shortcuts tab'
   },
   'settings-advanced-top' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     tab: 'Advanced',
     scroll: 0.0,
     filename: 'advanced-settings-top.png',
     description: 'Advanced settings (Privacy & Auto-show)'
   },
   'settings-advanced-spacing' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     tab: 'Advanced',
     scroll: 0.5,
     filename: 'advanced-settings-spacing.png',
     description: 'Advanced settings (System Icon Spacing)'
   },
   'settings-about' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     tab: 'About',
     scroll: 0.0,
     filename: 'about-settings.png',
     description: 'About tab'
   },
   'find-icon' => {
-    app: 'SaneBar',
+    app: APP_NAME,
     title: nil, # No navigation needed
     filename: 'find-icon-window.png',
     description: 'Find Icon search window'
@@ -82,9 +83,9 @@ SHOTS = {
   }
 }.freeze
 
-# Control SaneBar via AppleScript
+# Control App via AppleScript
 def sanebar_command(cmd)
-  system('osascript', '-e', "tell application \"SaneBar\" to #{cmd}")
+  system('osascript', '-e', "tell application \"#{APP_NAME}\" to #{cmd}")
   sleep 0.5  # Wait for animation
 end
 
