@@ -130,8 +130,8 @@ extension AccessibilityService {
 
         // Calculate target position - keep it simple, just get on the correct SIDE of separator
         // Hidden: LEFT of separator (into hidden zone)
-        // Visible: Just RIGHT of separator (between separator and main icon, not past main icon!)
-        let targetX: CGFloat = toHidden ? (separatorX - 50) : (separatorX + 15)
+        // Visible: Further RIGHT of separator (+100 to ensure reliability)
+        let targetX: CGFloat = toHidden ? (separatorX - 50) : (separatorX + 100)
         
         logger.error("🔧 Target X: \(targetX, privacy: .public)")
 
@@ -301,7 +301,7 @@ extension AccessibilityService {
 
             // Finish drag
             mouseUp.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.01)
+            Thread.sleep(forTimeInterval: 0.1) // Let the 'drop' settle before restoring cursor
 
             // Restore original cursor position immediately
             if let restoreEvent = CGEvent(
