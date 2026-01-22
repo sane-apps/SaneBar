@@ -70,6 +70,9 @@ final class HoverService: HoverServiceProtocol {
         }
     }
 
+    /// Temporarily suspend all triggers (e.g. when Find Icon window is open)
+    var isSuspended: Bool = false
+
     /// Called when hover/scroll should reveal icons
     var onTrigger: ((TriggerReason) -> Void)?
 
@@ -77,7 +80,7 @@ final class HoverService: HoverServiceProtocol {
     var onLeaveMenuBar: (() -> Void)?
 
     /// Delay before triggering (prevents accidental triggers)
-    var hoverDelay: TimeInterval = 0.15
+    var hoverDelay: TimeInterval = 0.25
 
     /// Height of the hover detection zone (typically menu bar height)
     private let detectionZoneHeight: CGFloat = 24
@@ -165,7 +168,7 @@ final class HoverService: HoverServiceProtocol {
 
     private func handleMouseMoved(_ event: NSEvent) {
         // Need at least one feature enabled to process mouse movement
-        guard isEnabled || trackMouseLeave else { return }
+        guard (isEnabled || trackMouseLeave) && !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         let inMenuBar = isInMenuBarRegion(mouseLocation)
@@ -192,7 +195,7 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func handleScrollWheel(_ event: NSEvent) {
-        guard scrollEnabled else { return }
+        guard scrollEnabled && !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
@@ -205,17 +208,19 @@ final class HoverService: HoverServiceProtocol {
             guard now.timeIntervalSince(lastScrollTime) > 0.3 else { return }
             lastScrollTime = now
 
+            cancelHoverTimer() // Deliberate action cancels passive hover timer
             logger.debug("Scroll trigger detected in menu bar")
             onTrigger?(.scroll)
         }
     }
 
     private func handleLeftMouseDown(_ event: NSEvent) {
-        guard clickEnabled else { return }
+        guard clickEnabled && !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
 
+        cancelHoverTimer() // Deliberate action cancels passive hover timer
         logger.debug("Click trigger detected in menu bar")
         onTrigger?(.click)
     }

@@ -48,6 +48,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Notify view to reset search text and focus field
         NotificationCenter.default.post(name: MenuBarSearchView.resetSearchNotification, object: nil)
 
+        // Suspend hover/click triggers while search is open
+        MenuBarManager.shared.hoverService.isSuspended = true
+
         // Position centered below menu bar
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
@@ -66,6 +69,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// Close the search window
     func close() {
         window?.orderOut(nil)
+        // Resume hover/click triggers
+        MenuBarManager.shared.hoverService.isSuspended = false
         // Do NOT set window to nil, we reuse it for performance
     }
 

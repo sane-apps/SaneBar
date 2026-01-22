@@ -574,7 +574,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         let didReveal = hidingService.state == .hidden
         await hidingService.show()
-        if didReveal, settings.autoRehide, !isRevealPinned {
+
+        // Refresh rehide timer on every trigger (Hover/Scroll/Click) to prevent 
+        // icons hiding while the user is still actively interacting with them.
+        if settings.autoRehide && !isRevealPinned {
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
         return didReveal

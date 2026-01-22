@@ -17,13 +17,14 @@ struct HoverServiceTests {
 
         #expect(service.isEnabled == false, "Hover should be disabled by default")
         #expect(service.scrollEnabled == false, "Scroll should be disabled by default")
+        #expect(service.clickEnabled == false, "Click should be disabled by default")
     }
 
-    @Test("HoverService initializes with default delay of 0.15 seconds")
+    @Test("HoverService initializes with default delay of 0.25 seconds")
     func testDefaultHoverDelay() {
         let service = HoverService()
 
-        #expect(service.hoverDelay == 0.15, "Default hover delay should be 0.15s")
+        #expect(service.hoverDelay == 0.25, "Default hover delay should be 0.25s")
     }
 
     // MARK: - Enable/Disable State Machine Tests
@@ -110,6 +111,9 @@ struct HoverServiceTests {
 
         service.onTrigger?(.scroll)
         #expect(receivedReason == .scroll, "Callback should receive scroll reason")
+
+        service.onTrigger?(.click)
+        #expect(receivedReason == .click, "Callback should receive click reason")
     }
 
     @Test("onLeaveMenuBar callback is settable")
@@ -195,12 +199,15 @@ struct HoverServiceTests {
 
     // MARK: - TriggerReason Enum Tests
 
-    @Test("TriggerReason has distinct hover and scroll cases")
+    @Test("TriggerReason has distinct cases")
     func testTriggerReasonCases() {
         let hoverReason = HoverService.TriggerReason.hover
         let scrollReason = HoverService.TriggerReason.scroll
+        let clickReason = HoverService.TriggerReason.click
 
-        #expect(hoverReason != scrollReason, "Hover and scroll should be distinct")
+        #expect(hoverReason != scrollReason)
+        #expect(scrollReason != clickReason)
+        #expect(hoverReason != clickReason)
     }
 
     // MARK: - Protocol Conformance Tests

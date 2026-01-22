@@ -138,28 +138,6 @@ targets:
         name: Run SwiftLint
         basedOnDependencyAnalysis: false
 
-  MinimalTest:
-    type: application
-    platform: macOS
-    bundleId: com.sanebar.minimaltest
-    deploymentTarget:
-      macOS: 15.0
-    sources:
-      - MinimalTest
-    dependencies:
-      - package: KeyboardShortcuts
-      - package: Sparkle
-    settings:
-      base:
-        PRODUCT_NAME: MinimalTest
-        DEVELOPMENT_TEAM: M78L6FXD48
-        CODE_SIGN_STYLE: Manual
-      configs:
-        Debug:
-          CODE_SIGN_IDENTITY: "Apple Development"
-        Release:
-          CODE_SIGN_IDENTITY: "Apple Development"
-
   SaneBarTests:
     type: bundle.unit-test
     platform: macOS

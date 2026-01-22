@@ -118,7 +118,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var showOnHover: Bool = false
 
     /// Delay before hover triggers reveal (in seconds)
-    var hoverDelay: TimeInterval = 0.15
+    var hoverDelay: TimeInterval = 0.25
 
     /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
@@ -181,7 +181,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnFocusModeChange = try container.decodeIfPresent(Bool.self, forKey: .showOnFocusModeChange) ?? false
         triggerFocusModes = try container.decodeIfPresent([String].self, forKey: .triggerFocusModes) ?? []
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
-        hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.15
+        hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
         showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? false
         menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
