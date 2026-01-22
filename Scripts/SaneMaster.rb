@@ -523,10 +523,22 @@ class SaneMaster
       examples: ['clean', 'clean --nuclear']
     },
     'test_mode' => {
-      usage: 'test_mode (or tm)',
+      usage: 'test_mode (or tm) [--fresh]',
       description: 'Interactive debugging workflow: Kill → Build → Launch → Logs',
-      flags: {},
-      examples: %w[test_mode tm]
+      flags: {
+        '--fresh' => 'Clear all app data, settings, and UserDefaults before launching'
+      },
+      examples: ['test_mode', 'tm --fresh']
+    },
+    'launch' => {
+      usage: 'launch [--fresh] [--force] [--logs]',
+      description: 'Launch the application',
+      flags: {
+        '--fresh' => 'Clear all app data, settings, and UserDefaults before launching',
+        '--force' => 'Skip stale build detection',
+        '--logs' => 'Capture logs to stdout (blocks)'
+      },
+      examples: ['launch', 'launch --fresh']
     },
     'doctor' => {
       usage: 'doctor',

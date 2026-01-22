@@ -11,6 +11,8 @@ module SaneMasterModules
     def launch_app(args)
       puts '🚀 --- [ SANEMASTER LAUNCH ] ---'
 
+      clear_data if args.include?('--fresh')
+
       build_config = ENV['SANEBAR_BUILD_CONFIG'] || 'Debug'
       dd_path = File.expand_path("~/Library/Developer/Xcode/DerivedData/#{project_name}-*/Build/Products/Debug")
       dd_path = dd_path.sub('/Debug', "/#{build_config}")
@@ -115,10 +117,12 @@ module SaneMasterModules
       puts "\n✅ Setup complete."
     end
 
-    def enter_test_mode(_args)
+    def enter_test_mode(args)
       puts '🧪 --- [ TEST MODE ] ---'
       puts 'Preparing clean testing environment...'
       puts ''
+
+      clear_data if args.include?('--fresh')
 
       screenshots_dir = File.join(Dir.pwd, 'Screenshots')
       crash_dir = File.expand_path('~/Library/Logs/DiagnosticReports')
@@ -169,6 +173,33 @@ module SaneMasterModules
     end
 
     private
+
+    def clear_data
+      puts "🧹 Clearing app data for a fresh launch..."
+      
+      # 1. Application Support
+      app_support = File.expand_path("~/Library/Application Support/#{project_name}")
+      if Dir.exist?(app_support)
+        puts "   - Removing: #{app_support}"
+        system("rm -rf '#{app_support}'")
+      end
+
+      # 2. UserDefaults
+      # We use @bundle_id which is resolved in SaneMaster initialize
+      bundle_id = @bundle_id || "com.sanebar.app"
+      puts "   - Resetting UserDefaults: #{bundle_id}"
+      system("defaults delete #{bundle_id} 2>/dev/null")
+      
+      # 3. Cache
+      cache_dir = File.expand_path("~/Library/Caches/#{bundle_id}")
+      if Dir.exist?(cache_dir)
+        puts "   - Removing: #{cache_dir}"
+        system("rm -rf '#{cache_dir}'")
+      end
+
+      puts '   ✅ Data cleared'
+      puts ''
+    end
 
     def kill_existing_processes
       puts "1️⃣  Killing existing #{project_name} processes..."

@@ -16,7 +16,7 @@ extension AccessibilityService {
     // MARK: - System Wide Search
 
     /// Best-effort list of apps that currently own a menu bar status item.
-    func listMenuBarItemOwners() -> [RunningApp] {
+    func listMenuBarItemOwners() async -> [RunningApp] {
         guard isTrusted else { return [] }
 
         // Check cache validity - return cached results if still fresh
@@ -25,8 +25,6 @@ extension AccessibilityService {
             logger.debug("Returning cached menu bar owners (\(self.menuBarOwnersCache.count) apps)")
             return menuBarOwnersCache
         }
-
-        var pids = Set<pid_t>()
 
         // Pre-filter: Only scan apps with bundle identifiers
         let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
@@ -37,17 +35,30 @@ extension AccessibilityService {
 
         logger.debug("Scanning \(candidateApps.count) apps for menu bar owners")
 
-        // Scan candidate apps for their menu bar extras
-        for runningApp in candidateApps {
-            let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
+        // Scan candidate apps for their menu bar extras in parallel
+        let discoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
+            for runningApp in candidateApps {
+                group.addTask {
+                    let pid = runningApp.processIdentifier
+                    let appElement = AXUIElementCreateApplication(pid)
 
-            var extrasBar: CFTypeRef?
-            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                    var extrasBar: CFTypeRef?
+                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-            if result == .success {
-                // This app has a menu bar extra
-                pids.insert(runningApp.processIdentifier)
+                    if result == .success {
+                        return pid
+                    }
+                    return nil
+                }
             }
+
+            var pidsSet = Set<pid_t>()
+            for await pid in group {
+                if let pid = pid {
+                    pidsSet.insert(pid)
+                }
+            }
+            return pidsSet
         }
 
         // Map to RunningApp (unique by bundle ID or menuExtraIdentifier)
@@ -56,7 +67,7 @@ extension AccessibilityService {
         var controlCenterPID: pid_t?
         var systemUIServerPID: pid_t?
 
-        for pid in pids {
+        for pid in discoveredPIDs {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = app.bundleIdentifier else { continue }
 
@@ -112,7 +123,7 @@ extension AccessibilityService {
     }
 
     /// Returns menu bar items, with position info.
-    func listMenuBarItemsWithPositions() -> [MenuBarItemPosition] {
+    func listMenuBarItemsWithPositions() async -> [MenuBarItemPosition] {
         guard isTrusted else {
             logger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
@@ -137,106 +148,116 @@ extension AccessibilityService {
 
         logger.debug("Scanning \(candidateApps.count) candidate apps (filtered from \(NSWorkspace.shared.runningApplications.count) total)")
 
-        // Scan candidate applications for their menu bar extras
-        var results: [ScannedStatusItem] = []
+        // Scan candidate applications for their menu bar extras in parallel
+        let results: [ScannedStatusItem] = await withTaskGroup(of: [ScannedStatusItem].self) { group in
+            for runningApp in candidateApps {
+                group.addTask {
+                    let pid = runningApp.processIdentifier
+                    let appElement = AXUIElementCreateApplication(pid)
 
-        for runningApp in candidateApps {
-            let appElement = AXUIElementCreateApplication(runningApp.processIdentifier)
+                    // Try to get this app's extras menu bar (status items)
+                    var extrasBar: CFTypeRef?
+                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-            // Try to get this app's extras menu bar (status items)
-            var extrasBar: CFTypeRef?
-            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                    guard result == .success, let bar = extrasBar else { return [] }
 
-            guard result == .success, let bar = extrasBar else { continue }
+                    // Safe type checking using Core Foundation type IDs
+                    guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return [] }
+                    // swiftlint:disable:next force_cast
+                    let barElement = bar as! AXUIElement
 
-            // Safe type checking using Core Foundation type IDs
-            guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { continue }
-            // swiftlint:disable:next force_cast
-            let barElement = bar as! AXUIElement
+                    var children: CFTypeRef?
+                    let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
 
-            var children: CFTypeRef?
-            let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+                    guard childResult == .success, let items = children as? [AXUIElement] else { return [] }
 
-            guard childResult == .success, let items = children as? [AXUIElement] else { continue }
-
-            func axString(_ value: CFTypeRef?) -> String? {
-                if let s = value as? String { return s }
-                if let attributed = value as? NSAttributedString { return attributed.string }
-                return nil
-            }
-
-            let usesPerItemIdentity = items.count > 1
-
-            // Prefer stable AX identifiers when they exist and are unique within this app.
-            var identifiersByIndex: [Int: String] = [:]
-            if usesPerItemIdentity {
-                var identifiers: [String] = []
-                identifiers.reserveCapacity(items.count)
-                for (index, item) in items.enumerated() {
-                    var identifierValue: CFTypeRef?
-                    AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                    if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
-                        identifiers.append(id)
-                        identifiersByIndex[index] = id
+                    func axString(_ value: CFTypeRef?) -> String? {
+                        if let s = value as? String { return s }
+                        if let attributed = value as? NSAttributedString { return attributed.string }
+                        return nil
                     }
-                }
 
-                // Only use identifiers if we have at least one and they don't collide.
-                if !identifiers.isEmpty {
-                    let uniqueCount = Set(identifiers).count
-                    if uniqueCount != identifiers.count {
-                        identifiersByIndex.removeAll(keepingCapacity: true)
-                    }
-                }
-            }
+                    let usesPerItemIdentity = items.count > 1
+                    var localResults: [ScannedStatusItem] = []
 
-            for (index, item) in items.enumerated() {
-                // Get Position
-                var positionValue: CFTypeRef?
-                let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+                    // Prefer stable AX identifiers when they exist and are unique within this app.
+                    var identifiersByIndex: [Int: String] = [:]
+                    if usesPerItemIdentity {
+                        var identifiers: [String] = []
+                        identifiers.reserveCapacity(items.count)
+                        for (index, item) in items.enumerated() {
+                            var identifierValue: CFTypeRef?
+                            AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                            if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+                                identifiers.append(id)
+                                identifiersByIndex[index] = id
+                            }
+                        }
 
-                var xPos: CGFloat = 0
-                if posResult == .success, let posValue = positionValue {
-                    if CFGetTypeID(posValue) == AXValueGetTypeID() {
-                        var point = CGPoint.zero
-                        // swiftlint:disable:next force_cast
-                        if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
-                            xPos = point.x
+                        // Only use identifiers if we have at least one and they don't collide.
+                        if !identifiers.isEmpty {
+                            let uniqueCount = Set(identifiers).count
+                            if uniqueCount != identifiers.count {
+                                identifiersByIndex.removeAll(keepingCapacity: true)
+                            }
                         }
                     }
-                }
 
-                // Get Size (Width)
-                var sizeValue: CFTypeRef?
-                let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+                    for (index, item) in items.enumerated() {
+                        // Get Position
+                        var positionValue: CFTypeRef?
+                        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
-                var width: CGFloat = 0
-                if sizeResult == .success, let sValue = sizeValue {
-                    if CFGetTypeID(sValue) == AXValueGetTypeID() {
-                        var size = CGSize.zero
-                        // swiftlint:disable:next force_cast
-                        if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
-                            width = size.width
+                        var xPos: CGFloat = 0
+                        if posResult == .success, let posValue = positionValue {
+                            if CFGetTypeID(posValue) == AXValueGetTypeID() {
+                                var point = CGPoint.zero
+                                // swiftlint:disable:next force_cast
+                                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                                    xPos = point.x
+                                }
+                            }
                         }
-                    }
-                }
 
-                // If the app exposes multiple status items, keep them distinct.
-                // Otherwise preserve the legacy identity (bundleId-only).
-                let itemIndex: Int? = usesPerItemIdentity ? index : nil
-                results.append(
-                    ScannedStatusItem(
-                        pid: runningApp.processIdentifier,
-                        itemIndex: itemIndex,
-                        x: xPos,
-                        width: width,
-                        axIdentifier: identifiersByIndex[index]
-                    )
-                )
+                        // Get Size (Width)
+                        var sizeValue: CFTypeRef?
+                        let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+
+                        var width: CGFloat = 0
+                        if sizeResult == .success, let sValue = sizeValue {
+                            if CFGetTypeID(sValue) == AXValueGetTypeID() {
+                                var size = CGSize.zero
+                                // swiftlint:disable:next force_cast
+                                if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
+                                    width = size.width
+                                }
+                            }
+                        }
+
+                        // If the app exposes multiple status items, keep them distinct.
+                        let itemIndex: Int? = usesPerItemIdentity ? index : nil
+                        localResults.append(
+                            ScannedStatusItem(
+                                pid: pid,
+                                itemIndex: itemIndex,
+                                x: xPos,
+                                width: width,
+                                axIdentifier: identifiersByIndex[index]
+                            )
+                        )
+                    }
+                    return localResults
+                }
             }
+
+            var allResults: [ScannedStatusItem] = []
+            for await groupResults in group {
+                allResults.append(contentsOf: groupResults)
+            }
+            return allResults
         }
 
-        logger.debug("Scanned candidate apps, found \(results.count) menu bar items")
+        logger.debug("Scanned candidate apps in parallel, found \(results.count) menu bar items")
 
         // Convert to RunningApps (unique by bundle ID or menuExtraIdentifier)
         var appPositions: [String: MenuBarItemPosition] = [:]
@@ -266,16 +287,20 @@ extension AccessibilityService {
             }
 
             let appModel = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: x, width: width)
-            let key = appModel.uniqueId
+            // Pre-calculate thumbnail for efficient grid rendering (128px is plenty for all grid sizes)
+            let appWithThumbnail = appModel.withThumbnail(size: 128)
+            let key = appWithThumbnail.uniqueId
 
             // If we somehow see duplicate keys, keep the more-leftward X (stable sort).
             if let existing = appPositions[key] {
                 let newX = min(existing.x, x)
                 let newWidth = max(existing.width, width)
+                // Use the new position but keep the thumbnail
                 let updatedApp = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: newX, width: newWidth)
+                    .withThumbnail(size: 128)
                 appPositions[key] = MenuBarItemPosition(app: updatedApp, x: newX, width: newWidth)
             } else {
-                appPositions[key] = MenuBarItemPosition(app: appModel, x: x, width: width)
+                appPositions[key] = MenuBarItemPosition(app: appWithThumbnail, x: x, width: width)
             }
         }
 
@@ -344,71 +369,89 @@ extension AccessibilityService {
 
     // MARK: - Scanning Helpers
 
-    internal nonisolated static func scanMenuBarOwnerPIDs(candidatePIDs: [pid_t]) -> [pid_t] {
-        var pids: [pid_t] = []
-        pids.reserveCapacity(candidatePIDs.count)
-
-        for pid in candidatePIDs {
-            let appElement = AXUIElementCreateApplication(pid)
-            var extrasBar: CFTypeRef?
-            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-            if result == .success {
-                pids.append(pid)
+    internal nonisolated static func scanMenuBarOwnerPIDs(candidatePIDs: [pid_t]) async -> [pid_t] {
+        await withTaskGroup(of: pid_t?.self) { group in
+            for pid in candidatePIDs {
+                group.addTask {
+                    let appElement = AXUIElementCreateApplication(pid)
+                    var extrasBar: CFTypeRef?
+                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                    if result == .success {
+                        return pid
+                    }
+                    return nil
+                }
             }
-        }
 
-        return pids
+            var pids: [pid_t] = []
+            pids.reserveCapacity(candidatePIDs.count)
+            for await pid in group {
+                if let pid = pid {
+                    pids.append(pid)
+                }
+            }
+            return pids
+        }
     }
 
-    internal nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) -> [(pid: pid_t, x: CGFloat)] {
-        var results: [(pid: pid_t, x: CGFloat)] = []
-        results.reserveCapacity(candidatePIDs.count)
+    internal nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) async -> [(pid: pid_t, x: CGFloat)] {
+        await withTaskGroup(of: (pid: pid_t, x: CGFloat)?.self) { group in
+            for pid in candidatePIDs {
+                group.addTask {
+                    let appElement = AXUIElementCreateApplication(pid)
 
-        for pid in candidatePIDs {
-            let appElement = AXUIElementCreateApplication(pid)
+                    var extrasBar: CFTypeRef?
+                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                    guard result == .success, let bar = extrasBar else { return nil }
+                    guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return nil }
+                    // swiftlint:disable:next force_cast
+                    let barElement = bar as! AXUIElement
 
-            var extrasBar: CFTypeRef?
-            let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-            guard result == .success, let bar = extrasBar else { continue }
-            guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { continue }
-            // swiftlint:disable:next force_cast
-            let barElement = bar as! AXUIElement
+                    var children: CFTypeRef?
+                    let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+                    guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { return nil }
 
-            var children: CFTypeRef?
-            let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-            guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { continue }
+                    var minX: CGFloat?
+                    for item in items {
+                        var positionValue: CFTypeRef?
+                        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
-            var minX: CGFloat?
-            for item in items {
-                var positionValue: CFTypeRef?
-                let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+                        var xPos: CGFloat = 0
 
-                var xPos: CGFloat = 0
+                        if posResult == .success, let posValue = positionValue {
+                            if CFGetTypeID(posValue) == AXValueGetTypeID() {
+                                var point = CGPoint.zero
+                                // swiftlint:disable:next force_cast
+                                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                                    xPos = point.x
+                                }
+                            }
+                        }
 
-                if posResult == .success, let posValue = positionValue {
-                    if CFGetTypeID(posValue) == AXValueGetTypeID() {
-                        var point = CGPoint.zero
-                        // swiftlint:disable:next force_cast
-                        if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
-                            xPos = point.x
+                        if let existing = minX {
+                            if xPos < existing {
+                                minX = xPos
+                            }
+                        } else {
+                            minX = xPos
                         }
                     }
-                }
 
-                if let existing = minX {
-                    if xPos < existing {
-                        minX = xPos
+                    if let minX {
+                        return (pid: pid, x: minX)
                     }
-                } else {
-                    minX = xPos
+                    return nil
                 }
             }
 
-            if let minX {
-                results.append((pid: pid, x: minX))
+            var results: [(pid: pid_t, x: CGFloat)] = []
+            results.reserveCapacity(candidatePIDs.count)
+            for await result in group {
+                if let result = result {
+                    results.append(result)
+                }
             }
+            return results
         }
-
-        return results
     }
 }

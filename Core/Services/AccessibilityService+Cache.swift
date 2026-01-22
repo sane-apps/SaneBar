@@ -37,9 +37,7 @@ extension AccessibilityService {
                 return app.processIdentifier
             }
 
-            let pidsWithExtras = await Task.detached(priority: .utility) {
-                Self.scanMenuBarOwnerPIDs(candidatePIDs: candidatePIDs)
-            }.value
+            let pidsWithExtras = await Self.scanMenuBarOwnerPIDs(candidatePIDs: candidatePIDs)
 
             var seenIds = Set<String>()
             var apps: [RunningApp] = []
@@ -98,7 +96,7 @@ extension AccessibilityService {
 
         let task = Task<[MenuBarItemPosition], Never> {
             // Use the authoritative scanner (includes width) and benefits from its caching.
-            self.listMenuBarItemsWithPositions()
+            await self.listMenuBarItemsWithPositions()
         }
 
         menuBarItemsRefreshTask = task

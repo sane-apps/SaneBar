@@ -131,7 +131,7 @@ struct SpaceAnalyzerView: View {
             }
             
             // Scan items
-            let items = accessibilityService.listMenuBarItemsWithPositions()
+            let items = await accessibilityService.listMenuBarItemsWithPositions()
             self.menuBarItems = items
             self.usedWidth = items.reduce(0) { $0 + $1.width }
             self.isLoading = false
