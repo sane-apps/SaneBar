@@ -177,6 +177,7 @@ extension AccessibilityService {
 
     nonisolated private func getMenuBarIconFrame(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGRect? {
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
+            logger.error("🔧 getMenuBarIconFrame: App not found for bundleID: \(bundleID, privacy: .public)")
             return nil
         }
 
@@ -184,14 +185,20 @@ extension AccessibilityService {
 
         var extrasBar: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-        guard result == .success, let bar = extrasBar else { return nil }
+        guard result == .success, let bar = extrasBar else {
+            logger.error("🔧 getMenuBarIconFrame: App \(bundleID, privacy: .public) has no AXExtrasMenuBar (Error: \(result.rawValue))")
+            return nil
+        }
         guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return nil }
         // swiftlint:disable:next force_cast
         let barElement = bar as! AXUIElement
 
         var children: CFTypeRef?
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { return nil }
+        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+            logger.error("🔧 getMenuBarIconFrame: No items found in AXExtrasMenuBar for \(bundleID, privacy: .public)")
+            return nil
+        }
 
         let targetItem: AXUIElement?
         if let extraId = menuExtraId {
