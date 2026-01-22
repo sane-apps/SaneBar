@@ -86,6 +86,12 @@ extension MenuBarManager {
         // SECURITY: If moving from hidden to visible, use auth-protected reveal path
         let needsAuthCheck = !toHidden && wasHidden && settings.requireAuthToShowHiddenIcons
 
+        // Capture original mouse position on MainActor to restore it later accurately.
+        // Cocoa coordinates (bottom-left)
+        let originalLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.screens.first?.frame.height ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+
         // Important: avoid blocking the MainActor while simulating Cmd+drag.
         // Any UI stalls here can make the Find Icon window appear to "collapse".
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -131,7 +137,8 @@ extension MenuBarManager {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 toHidden: toHidden,
-                separatorX: separatorX
+                separatorX: separatorX,
+                originalMouseLocation: originalCGPoint
             )
             logger.info("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
 
