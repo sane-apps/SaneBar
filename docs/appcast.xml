@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.9</title>
+            <pubDate>Thu, 22 Jan 2026 13:34:05 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Maintenance release - Fixes and improvements</p>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.9/SaneBar-1.0.9.dmg"
+                       sparkle:version="1.0.9"
+                       sparkle:shortVersionString="1.0.9"
+                       length="2335600"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="GIt1EF/jmr435G2Pq1Tzz6Ro0uV80D/ryyGfqavKZOldEcRSowlh+BZIi7hbgzBorALxMQYGPLhJ2UFQiKGcAA=="/>
+        </item>
+        <item>
             <title>1.0.8</title>
             <pubDate>Sat, 17 Jan 2026 19:01:07 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
