@@ -3,6 +3,24 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.11</title>
+            <pubDate>Thu, 22 Jan 2026 14:25:39 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Integrated onboarding and branded DMG installer</p>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.11/SaneBar-1.0.11.dmg"
+                       sparkle:version="1.0.11"
+                       sparkle:shortVersionString="1.0.11"
+                       length="2335600"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="O2HzwSMrAQ2PrWwJD7dv2XYelVhXgmiavKn4d9QV9QQYU/xo7Dc1imjYQPmVETgVxQnVu14rB/Y8ZqHaAfOFDQ=="/>
+        </item>
+        <item>
             <title>1.0.10</title>
             <pubDate>Thu, 22 Jan 2026 14:16:05 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
