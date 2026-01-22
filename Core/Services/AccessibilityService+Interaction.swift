@@ -111,7 +111,8 @@ extension AccessibilityService {
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
         toHidden: Bool,
-        separatorX: CGFloat
+        separatorX: CGFloat,
+        originalMouseLocation: CGPoint
     ) -> Bool {
         logger.error("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .public), menuExtraId=\(menuExtraId ?? "nil", privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public)")
 
@@ -143,7 +144,7 @@ extension AccessibilityService {
 
         logger.error("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
 
-        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint)
+        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
         guard didPostEvents else {
             logger.error("🔧 Cmd+drag failed: could not post events")
             return false
@@ -245,15 +246,9 @@ extension AccessibilityService {
     }
 
     /// Perform a Cmd+drag operation using CGEvent (runs on background thread)
-    nonisolated private func performCmdDrag(from: CGPoint, to: CGPoint) -> Bool {
+    nonisolated private func performCmdDrag(from: CGPoint, to: CGPoint, restoreTo originalCGPoint: CGPoint) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let result = ResultBox()
-
-        // Capture original mouse position to restore it later
-        // Cocoa coordinates (bottom-left)
-        let originalLocation = NSEvent.mouseLocation
-        let screenHeight = NSScreen.screens.first?.frame.height ?? 1080
-        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
 
         DispatchQueue.global(qos: .userInitiated).async {
             guard let mouseDown = CGEvent(
