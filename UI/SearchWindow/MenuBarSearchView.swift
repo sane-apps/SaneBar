@@ -25,7 +25,7 @@ struct MenuBarSearchView: View {
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
 
     @State private var searchText = ""
-    @State private var isSearchVisible = false
+    @State private var isSearchVisible = true
     @FocusState private var isSearchFieldFocused: Bool
     @State private var selectedAppIndex: Int?
 
@@ -44,6 +44,8 @@ struct MenuBarSearchView: View {
     @State private var showMoveInstructions = false
     @State private var moveInstructionsForHidden = false  // true if moving FROM hidden TO visible
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+
+    static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
@@ -128,6 +130,17 @@ struct MenuBarSearchView: View {
             loadCachedApps()
             refreshApps()
             startPermissionMonitoring()
+            
+            // Focus search field on appear for instant searching
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isSearchFieldFocused = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Self.resetSearchNotification)) { _ in
+            searchText = ""
+            isSearchVisible = true
+            isSearchFieldFocused = true
+            refreshApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .menuBarIconsDidChange)) { _ in
             // Icons were moved - refresh the list
