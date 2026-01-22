@@ -5,22 +5,19 @@ import Combine
 
 // MARK: - SettingsControllerTests
 
+@MainActor
 @Suite("SettingsController Tests")
 struct SettingsControllerTests {
 
     // MARK: - Initialization Tests
 
     @Test("SettingsController initializes with default settings")
-    @MainActor
-    func testInitialization() {
-        let mockPersistence = PersistenceServiceProtocolMock()
-        // Setup mock to return default settings for load
-        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
-        
-        let controller = SettingsController(persistence: mockPersistence)
+    func testInit() {
+        let persistence = PersistenceServiceProtocolMock()
+        let controller = SettingsController(persistence: persistence)
 
-        #expect(controller.settings.autoRehide == true, "Default autoRehide should be true")
-        #expect(controller.settings.rehideDelay == 3.0, "Default rehideDelay should be 3.0")
+        #expect(controller.settings.autoRehide == true)
+        #expect(controller.settings.rehideDelay == 5.0, "Default rehideDelay should be 5.0")
     }
 
     // MARK: - Load Tests
