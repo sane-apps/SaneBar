@@ -88,7 +88,21 @@ final class StatusBarController: StatusBarControllerProtocol {
         let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
         let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
 
-        // Only seed if not already set (respect user's manual repositioning)
+        // Recovery: if positions are in an extremely high range (e.g. > 100), 
+        // they were likely corrupted or displaced far to the left. Reset them.
+        let mainPos = defaults.integer(forKey: mainKey)
+        let sepPos = defaults.integer(forKey: sepKey)
+
+        if mainPos > 100 {
+            logger.info("Recovering main icon position from \(mainPos)")
+            defaults.set(0, forKey: mainKey)
+        }
+        if sepPos > 100 {
+            logger.info("Recovering separator position from \(sepPos)")
+            defaults.set(1, forKey: sepKey)
+        }
+
+        // Standard seed: only if not already set
         if defaults.object(forKey: mainKey) == nil {
             defaults.set(0, forKey: mainKey)
         }
