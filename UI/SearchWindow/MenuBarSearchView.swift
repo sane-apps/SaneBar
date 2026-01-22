@@ -1,6 +1,9 @@
 import SwiftUI
 import AppKit
 import KeyboardShortcuts
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSearchView")
 
 // MARK: - MenuBarSearchView
 
@@ -25,6 +28,7 @@ struct MenuBarSearchView: View {
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
 
     @State private var searchText = ""
+    @State private var searchTextDebounced = ""
     @State private var isSearchVisible = true
     @FocusState private var isSearchFieldFocused: Bool
     @State private var selectedAppIndex: Int?
@@ -88,8 +92,8 @@ struct MenuBarSearchView: View {
         }
 
         // Filter by search text
-        if !searchText.isEmpty {
-            apps = apps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        if !searchTextDebounced.isEmpty {
+            apps = apps.filter { $0.name.localizedCaseInsensitiveContains(searchTextDebounced) }
         }
 
         // Sort by X position for ALL modes (Hidden, Visible, and All)
@@ -164,6 +168,17 @@ struct MenuBarSearchView: View {
         .onChange(of: filteredApps.count) { _, _ in
             // Reset selection when filter results change
             selectedAppIndex = nil
+        }
+        .onChange(of: searchText) { _, newValue in
+            // Debounce search to save CPU
+            Task {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { return }
+                if searchText == newValue {
+                    logger.debug("Applying debounced search filter: \(newValue, privacy: .public)")
+                    searchTextDebounced = newValue
+                }
+            }
         }
         .alert(
             moveInstructionsForHidden ? "Move to Visible" : "Move to Hidden",

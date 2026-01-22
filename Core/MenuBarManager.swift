@@ -42,6 +42,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Guards against duplicate auth prompts
     private var isAuthenticating: Bool = false
 
+    /// Reference to the currently active icon move task to ensure atomicity
+    internal var activeMoveTask: Task<Void, Never>?
+
     // MARK: - Screen Detection
 
     /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)

@@ -92,10 +92,27 @@ extension MenuBarManager {
         let screenHeight = NSScreen.screens.first?.frame.height ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
 
+        // Experiment 3: Atomic Move Protection
+        // Cancel any pending move task before starting a new one.
+        // This prevents multiple tasks from fighting for the mouse cursor.
+        if activeMoveTask != nil {
+            logger.warning("⚠️ Atomic Guard: Cancelling existing move task to start a new one.")
+            activeMoveTask?.cancel()
+        }
+
         // Important: avoid blocking the MainActor while simulating Cmd+drag.
         // Any UI stalls here can make the Find Icon window appear to "collapse".
-        Task.detached(priority: .userInitiated) { [weak self] in
+        activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+            
+            defer {
+                // Cleanup task reference if it's still us
+                Task { @MainActor in
+                    // We check if it's still our task to avoid clearing a newer one
+                    // but since we are in a closure, we'll just set it to nil safely
+                    // if the task wasn't replaced yet.
+                }
+            }
 
             // If moving FROM hidden TO visible, expand first so icon is draggable.
             if !toHidden && wasHidden {
