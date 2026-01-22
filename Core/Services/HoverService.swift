@@ -11,6 +11,7 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "HoverServic
 protocol HoverServiceProtocol {
     var isEnabled: Bool { get set }
     var scrollEnabled: Bool { get set }
+    var clickEnabled: Bool { get set }
     var trackMouseLeave: Bool { get set }
     func start()
     func stop()
@@ -18,12 +19,13 @@ protocol HoverServiceProtocol {
 
 // MARK: - HoverService
 
-/// Service that monitors mouse position and scroll gestures near the menu bar
+/// Service that monitors mouse position, scroll gestures, and clicks near the menu bar
 /// to trigger showing/hiding of icons.
 ///
 /// Key behaviors:
 /// - Detects when mouse enters the menu bar region
-/// - Optional scroll gesture trigger (two-finger scroll up in menu bar)
+/// - Optional scroll gesture trigger (two-finger scroll in menu bar)
+/// - Optional click trigger (left-click in menu bar)
 /// - Debounces rapid mouse movements to prevent flickering
 /// - Only shows icons when cursor is actually in the menu bar area
 @MainActor
@@ -34,6 +36,7 @@ final class HoverService: HoverServiceProtocol {
     enum TriggerReason {
         case hover
         case scroll
+        case click
     }
 
     // MARK: - Properties
@@ -48,6 +51,13 @@ final class HoverService: HoverServiceProtocol {
     var scrollEnabled: Bool = false {
         didSet {
             guard scrollEnabled != oldValue else { return }
+            updateMonitoringState()
+        }
+    }
+
+    var clickEnabled: Bool = false {
+        didSet {
+            guard clickEnabled != oldValue else { return }
             updateMonitoringState()
         }
     }
@@ -92,7 +102,7 @@ final class HoverService: HoverServiceProtocol {
 
     func start() {
         // Start monitoring if any feature needs it
-        guard isEnabled || scrollEnabled || trackMouseLeave else { return }
+        guard isEnabled || scrollEnabled || clickEnabled || trackMouseLeave else { return }
         startMonitoring()
     }
 
@@ -104,7 +114,7 @@ final class HoverService: HoverServiceProtocol {
 
     /// Update monitoring state based on all relevant properties
     private func updateMonitoringState() {
-        if isEnabled || scrollEnabled || trackMouseLeave {
+        if isEnabled || scrollEnabled || clickEnabled || trackMouseLeave {
             startMonitoring()
         } else {
             stopMonitoring()
@@ -114,10 +124,10 @@ final class HoverService: HoverServiceProtocol {
     private func startMonitoring() {
         guard globalMonitor == nil else { return }
 
-        logger.info("Starting hover/scroll monitoring")
+        logger.info("Starting hover/scroll/click monitoring")
 
-        // Monitor mouse movement and scroll events globally
-        let eventMask: NSEvent.EventTypeMask = [.mouseMoved, .scrollWheel]
+        // Monitor mouse movement, scroll, and click events globally
+        let eventMask: NSEvent.EventTypeMask = [.mouseMoved, .scrollWheel, .leftMouseDown]
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask) { [weak self] event in
             Task { @MainActor in
@@ -134,7 +144,7 @@ final class HoverService: HoverServiceProtocol {
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
             globalMonitor = nil
-            logger.info("Stopped hover/scroll monitoring")
+            logger.info("Stopped hover/scroll/click monitoring")
         }
         cancelHoverTimer()
         isMouseInMenuBar = false
@@ -146,6 +156,8 @@ final class HoverService: HoverServiceProtocol {
             handleMouseMoved(event)
         case .scrollWheel:
             handleScrollWheel(event)
+        case .leftMouseDown:
+            handleLeftMouseDown(event)
         default:
             break
         }
@@ -185,9 +197,9 @@ final class HoverService: HoverServiceProtocol {
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
 
-        // Two-finger scroll up (deltaY > 0) to reveal
+        // Two-finger scroll (any direction) to reveal
         // Require a meaningful scroll amount to avoid accidental triggers
-        if event.scrollingDeltaY > 5 {
+        if abs(event.scrollingDeltaY) > 5 {
             let now = Date()
             // Debounce rapid scrolls
             guard now.timeIntervalSince(lastScrollTime) > 0.3 else { return }
@@ -196,6 +208,16 @@ final class HoverService: HoverServiceProtocol {
             logger.debug("Scroll trigger detected in menu bar")
             onTrigger?(.scroll)
         }
+    }
+
+    private func handleLeftMouseDown(_ event: NSEvent) {
+        guard clickEnabled else { return }
+
+        let mouseLocation = NSEvent.mouseLocation
+        guard isInMenuBarRegion(mouseLocation) else { return }
+
+        logger.debug("Click trigger detected in menu bar")
+        onTrigger?(.click)
     }
 
     private func isInMenuBarRegion(_ point: NSPoint) -> Bool {

@@ -123,6 +123,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
 
+    /// Show hidden icons when clicking in the menu bar
+    var showOnClick: Bool = false
+
     // MARK: - System Icon Spacing
 
     /// System-wide spacing between menu bar icons (1-10, nil = system default)
@@ -180,6 +183,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.15
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
+        showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? false
         menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
         menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
@@ -194,7 +198,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
-        case showOnHover, hoverDelay, showOnScroll
+        case showOnHover, hoverDelay, showOnScroll, showOnClick
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle

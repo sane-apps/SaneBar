@@ -450,10 +450,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private func updateHoverService() {
         hoverService.isEnabled = settings.showOnHover
         hoverService.scrollEnabled = settings.showOnScroll
+        hoverService.clickEnabled = settings.showOnClick
         hoverService.trackMouseLeave = settings.autoRehide
         hoverService.hoverDelay = settings.hoverDelay
 
-        if settings.showOnHover || settings.showOnScroll || settings.autoRehide {
+        if settings.showOnHover || settings.showOnScroll || settings.showOnClick || settings.autoRehide {
             hoverService.start()
         } else {
             hoverService.stop()

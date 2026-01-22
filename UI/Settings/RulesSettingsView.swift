@@ -52,6 +52,9 @@ struct RulesSettingsView: View {
                     
                     CompactDivider()
                     CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
+
+                    CompactDivider()
+                    CompactToggle(label: "Show when clicking on menu bar", isOn: $menuBarManager.settings.showOnClick)
                 }
 
                 // 3. Triggers (Automation)
