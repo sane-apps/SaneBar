@@ -3,7 +3,10 @@ import SwiftUI
 
 // MARK: - SearchWindowController
 
-/// Controller for the floating menu bar search window
+/// Controller for the floating menu bar search window.
+///
+/// **Performance Optimization**: Reuses the window instance to prevent lag
+/// when opening. Re-creating NSWindow + NSHostingView is expensive.
 @MainActor
 final class SearchWindowController: NSObject, NSWindowDelegate {
 
@@ -22,16 +25,28 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         if let window = window, window.isVisible {
             close()
         } else {
-            show()
+            // Check auth if required
+            Task {
+                if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
+                    let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                    guard authorized else { return }
+                }
+                show()
+            }
         }
     }
 
     /// Show the search window
     func show() {
-        // Always create a fresh window to reset state
-        createWindow()
+        // Create window lazily if needed
+        if window == nil {
+            createWindow()
+        }
 
         guard let window = window else { return }
+
+        // Notify view to reset search text and focus field
+        NotificationCenter.default.post(name: MenuBarSearchView.resetSearchNotification, object: nil)
 
         // Position centered below menu bar
         if let screen = NSScreen.main {
@@ -51,15 +66,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// Close the search window
     func close() {
         window?.orderOut(nil)
-        window = nil
+        // Do NOT set window to nil, we reuse it for performance
     }
 
     // MARK: - Window Creation
 
     private func createWindow() {
-        // Close existing window if any
-        window?.orderOut(nil)
-
         let contentView = MenuBarSearchView(onDismiss: { [weak self] in
             self?.close()
         })
@@ -79,14 +91,16 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.level = .floating
+        
         // Clear background for ultraThinMaterial to show through
-        // Fallback: on older macOS, the material degrades gracefully to translucent
         window.backgroundColor = .clear
         window.isOpaque = false
+        
+        // Ensure window stays in memory for reuse but doesn't block termination
         window.isReleasedWhenClosed = false
         window.delegate = self
 
-        // Add shadow and rounded corners
+        // Add shadow
         window.hasShadow = true
 
         self.window = window
@@ -95,10 +109,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResignKey(_ notification: Notification) {
+        // Auto-close when user clicks elsewhere
         close()
     }
 
     func windowWillClose(_ notification: Notification) {
-        window = nil
+        // If user explicitly closes, we can either keep it or nil it.
+        // Keeping it is better for performance.
     }
 }
