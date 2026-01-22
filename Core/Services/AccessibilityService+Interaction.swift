@@ -149,7 +149,8 @@ extension AccessibilityService {
             return false
         }
 
-        Thread.sleep(forTimeInterval: 0.15)
+        // Wait longer for macOS to update the icon's AX position (0.25s)
+        Thread.sleep(forTimeInterval: 0.25)
 
         guard let afterFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
             logger.error("🔧 Icon position AFTER: unable to re-locate icon")
@@ -248,6 +249,12 @@ extension AccessibilityService {
         let semaphore = DispatchSemaphore(value: 0)
         let result = ResultBox()
 
+        // Capture original mouse position to restore it later
+        // Cocoa coordinates (bottom-left)
+        let originalLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.screens.first?.frame.height ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+
         DispatchQueue.global(qos: .userInitiated).async {
             guard let mouseDown = CGEvent(
                 mouseEventSource: nil,
@@ -273,9 +280,11 @@ extension AccessibilityService {
             }
             mouseUp.flags = .maskCommand
 
+            // Start drag
             mouseDown.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.02)
+            Thread.sleep(forTimeInterval: 0.01)
 
+            // Multi-step drag (6 steps for better reliability with macOS WindowServer)
             let steps = 6
             for i in 1...steps {
                 let t = CGFloat(i) / CGFloat(steps)
@@ -291,12 +300,23 @@ extension AccessibilityService {
                 ) {
                     drag.flags = .maskCommand
                     drag.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.01)
+                    Thread.sleep(forTimeInterval: 0.005)
                 }
             }
 
+            // Finish drag
             mouseUp.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.02)
+            Thread.sleep(forTimeInterval: 0.01)
+
+            // Restore original cursor position immediately
+            if let restoreEvent = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .mouseMoved,
+                mouseCursorPosition: originalCGPoint,
+                mouseButton: .left
+            ) {
+                restoreEvent.post(tap: .cghidEventTap)
+            }
 
             result.value = true
 
