@@ -6,6 +6,7 @@
             <title>1.0.9</title>
             <pubDate>Thu, 22 Jan 2026 13:34:05 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>
             <description>
                 <![CDATA[
                 <h2>Changes</h2>
