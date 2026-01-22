@@ -23,6 +23,7 @@
 | **Focus Mode Binding** | ✅ Shipped v1.0.7 | Show icons when Focus Mode changes |
 | **Robust Tint Engine** | 📋 Planned v1.0.10 | CoreGraphics port for Reduce Transparency compatibility |
 | **Per-Display Isolation** | 📋 Planned v1.0.10 | Active-display-only icon reveal logic |
+| **Permanently Hidden Zone** | 📋 Planned v1.1.0 | Secondary "Void" spacer for icons that should never show |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
 | **Migration Tools** | 📋 Planned | Import from Bartender, Ice |
 | Intel (x86_64) support | 📌 Backlog | No test hardware |

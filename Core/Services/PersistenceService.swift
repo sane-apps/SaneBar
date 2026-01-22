@@ -49,14 +49,14 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var autoRehide: Bool = true
 
     /// Delay before auto-rehiding in seconds
-    var rehideDelay: TimeInterval = 3.0
+    var rehideDelay: TimeInterval = 5.0
 
     /// Delay before rehiding after Find Icon search (seconds)
     /// Longer than regular rehide to allow browsing opened menus
     var findIconRehideDelay: TimeInterval = 15.0
 
     /// Number of spacers to show (0-12)
-    var spacerCount: Int = 0  // Default to 0 dividers
+    var spacerCount: Int = 2  // Default to 2 dividers for immediate value discovery
 
     /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line
@@ -121,10 +121,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var hoverDelay: TimeInterval = 0.25
 
     /// Show hidden icons when scrolling up in the menu bar
-    var showOnScroll: Bool = false
+    var showOnScroll: Bool = true
 
     /// Show hidden icons when clicking in the menu bar
-    var showOnClick: Bool = false
+    var showOnClick: Bool = true
 
     // MARK: - System Icon Spacing
 
@@ -138,8 +138,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     // MARK: - Update Checking
 
-    /// Automatically check for updates on launch (off by default for privacy)
-    var checkForUpdatesAutomatically: Bool = false
+    /// Automatically check for updates on launch
+    var checkForUpdatesAutomatically: Bool = true
 
     /// Last time we checked for updates (for rate limiting)
     var lastUpdateCheck: Date?
@@ -159,7 +159,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         autoRehide = try container.decodeIfPresent(Bool.self, forKey: .autoRehide) ?? true
-        rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 3.0
+        rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 5.0
         findIconRehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .findIconRehideDelay) ?? 15.0
         spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 2
         spacerStyle = try container.decodeIfPresent(SpacerStyle.self, forKey: .spacerStyle) ?? .line
@@ -182,11 +182,11 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         triggerFocusModes = try container.decodeIfPresent([String].self, forKey: .triggerFocusModes) ?? []
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
-        showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
-        showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? false
+        showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? true
+        showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? true
         menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
         menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
-        checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? false
+        checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? true
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
         dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
