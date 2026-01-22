@@ -85,6 +85,8 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let bundleId: String
     let name: String
     let icon: NSImage?
+    /// Pre-calculated thumbnail for efficient UI rendering
+    let iconThumbnail: NSImage?
     let policy: Policy
     let category: AppCategory
     let xPosition: CGFloat?
@@ -122,13 +124,71 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     }
 
     /// SwiftUI identity: must be unique per tile.
-    /// For menu extras this is the `menuExtraIdentifier`; for normal apps it's the bundle id.
+    /// For menu extras this is the `uniqueId`; for normal apps it's the bundle id.
     var id: String { uniqueId }
+
+    /// A resized thumbnail of the app icon for efficient grid rendering.
+    /// This is generated on-demand and should ideally be cached.
+    func thumbnail(size: CGFloat) -> NSImage? {
+        guard let icon = icon else { return nil }
+        
+        // If the icon is already a template (SFSymbol), just return it
+        if icon.isTemplate { return icon }
+
+        let targetSize = NSSize(width: size, height: size)
+        
+        // Check if we already have a representation of this size
+        if icon.size == targetSize { return icon }
+
+        let thumbnail = NSImage(size: targetSize)
+        thumbnail.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        icon.draw(in: NSRect(origin: .zero, size: targetSize), from: .zero, operation: .copy, fraction: 1.0)
+        thumbnail.unlockFocus()
+        thumbnail.isTemplate = icon.isTemplate
+        
+        return thumbnail
+    }
+
+    /// Return a copy of this app with a pre-calculated thumbnail
+    func withThumbnail(size: CGFloat) -> RunningApp {
+        if let thumbnail = self.thumbnail(size: size) {
+            // Since RunningApp is a struct, we need to use a private init or make it a var.
+            // But let's just use a specialized init for this.
+            return RunningApp(
+                id: bundleId,
+                name: name,
+                icon: icon,
+                iconThumbnail: thumbnail,
+                policy: policy,
+                category: category,
+                menuExtraIdentifier: menuExtraIdentifier,
+                statusItemIndex: statusItemIndex,
+                xPosition: xPosition,
+                width: width
+            )
+        }
+        return self
+    }
+
+    private init(id: String, name: String, icon: NSImage?, iconThumbnail: NSImage?, policy: Policy, category: AppCategory, menuExtraIdentifier: String?, statusItemIndex: Int?, xPosition: CGFloat?, width: CGFloat?) {
+        self.bundleId = id
+        self.name = name
+        self.icon = icon
+        self.iconThumbnail = iconThumbnail
+        self.policy = policy
+        self.category = category
+        self.menuExtraIdentifier = menuExtraIdentifier
+        self.statusItemIndex = statusItemIndex
+        self.xPosition = xPosition
+        self.width = width
+    }
 
     init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, statusItemIndex: Int? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         self.bundleId = id
         self.name = name
         self.icon = icon
+        self.iconThumbnail = nil // Will be set by specialized inits if needed
         self.policy = policy
         self.category = category
         self.menuExtraIdentifier = menuExtraIdentifier
@@ -241,6 +301,7 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         self.bundleId = app.bundleIdentifier ?? UUID().uuidString
         self.name = app.localizedName ?? "Unknown"
         self.icon = app.icon
+        self.iconThumbnail = nil
         self.xPosition = xPosition
         self.width = width
 

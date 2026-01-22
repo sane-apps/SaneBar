@@ -31,7 +31,7 @@ struct MenuBarAppTile: View {
                         .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
 
                     Group {
-                        if let icon = app.icon {
+                        if let icon = app.iconThumbnail ?? app.icon {
                             Image(nsImage: icon)
                                 .resizable()
                                 .renderingMode(icon.isTemplate ? .template : .original)

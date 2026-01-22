@@ -310,6 +310,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Sync update settings to Sparkle
             self.syncUpdateConfiguration()
 
+            // Pre-warm menu bar icon cache (async background task)
+            AccessibilityService.shared.prewarmCache()
+
             logger.info("Deferred UI setup complete")
         }
     }
