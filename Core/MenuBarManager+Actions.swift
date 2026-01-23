@@ -51,10 +51,10 @@ extension MenuBarManager {
     func menuDidClose(_ menu: NSMenu) {
         logger.debug("Menu did close")
         isMenuOpen = false
-        
+
         // If we are expanded and auto-rehide is enabled, restart the timer
         // so the bar doesn't stay stuck open after a menu interaction.
-        if hidingState == .expanded && settings.autoRehide && !isRevealPinned {
+        if hidingState == .expanded && settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
             logger.debug("Restarting auto-rehide timer after menu close")
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }

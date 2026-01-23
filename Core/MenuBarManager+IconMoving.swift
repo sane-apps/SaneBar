@@ -169,7 +169,9 @@ extension MenuBarManager {
             }
 
             // If we auto-expanded to facilitate a move, re-hide now.
-            if !toHidden && wasHidden {
+            // Check external monitor setting on MainActor
+            let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+            if !toHidden && wasHidden && !shouldSkipHide {
                 logger.info("🔧 Move complete - re-hiding items...")
                 await self.hidingService.hide()
             }

@@ -21,8 +21,8 @@
 | Sparkle auto-updates | ✅ Shipped v1.0.6 | Automatic update checks |
 | **Automatic Triggers** | ✅ Shipped v1.0.6 | Battery, App Launch, Wi-Fi network |
 | **Focus Mode Binding** | ✅ Shipped v1.0.7 | Show icons when Focus Mode changes |
-| **Robust Tint Engine** | 📋 Planned v1.0.10 | CoreGraphics port for Reduce Transparency compatibility |
-| **Per-Display Isolation** | 📋 Planned v1.0.10 | Active-display-only icon reveal logic |
+| **External Monitor Detection** | ✅ Shipped v1.0.14 | Don't hide icons on external monitors |
+| **Per-Display Isolation** | 📋 Planned v1.1.0 | Active-display-only icon reveal logic |
 | **Permanently Hidden Zone** | 📋 Planned v1.1.0 | Secondary "Void" spacer for icons that should never show |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
 | **Migration Tools** | 📋 Planned | Import from Bartender, Ice |
@@ -78,7 +78,56 @@ Features are evaluated on:
 
 | Request | Reason |
 |---------|--------|
-| Second menu bar row | macOS doesn't support multiple NSStatusItem bars |
 | Intel/Hackintosh support | No test hardware, shrinking user base |
 | "Reveal to front" positioning | Edge case for notch overlay apps, high complexity |
 | Icon click-through | High complexity, cursor hijacking risk |
+| Tint + "Reduce Transparency" fix | Requires full AppKit rewrite of overlay system. Watching for simpler community solutions. |
+
+---
+
+## Deferred: Secondary Panel / Dropdown Bar
+
+**Status:** Researched, deferred to v1.1+ (maybe)
+
+**What users want:** A dropdown panel below the menu bar showing hidden icons (like Bartender/Ice).
+
+**Technical Findings (Jan 2026):**
+
+It's simpler than expected. Ice uses a basic `NSPanel`:
+
+```swift
+// Core panel setup - NOT complex
+let panel = NSPanel(
+    contentRect: .zero,
+    styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel, .hudWindow],
+    backing: .buffered,
+    defer: false
+)
+panel.level = .floating              // Floats above normal windows
+panel.backgroundColor = .clear
+panel.isFloatingPanel = true
+panel.collectionBehavior = [
+    .ignoresCycle,                   // Not in Cmd-Tab
+    .moveToActiveSpace,
+    .fullScreenAuxiliary
+]
+panel.animationBehavior = .none      // Instant show/hide
+```
+
+**What's involved:**
+1. Create `HiddenIconsPanel.swift` (~150 lines)
+2. Populate with cached icon grid from AccessibilityService
+3. Position below menu bar on show
+4. Handle click-to-activate icons
+5. Auto-dismiss on click outside or Escape
+
+**Concerns:**
+- Adds another UI surface to maintain
+- Need to handle multi-monitor positioning
+- Click handling complexity (simulating menu bar clicks)
+- Edge cases: fullscreen apps, notch positioning, spaces
+
+**Decision:** Not a "skyscraper" but still adds maintenance burden. Defer until demand increases or current approach proves insufficient for power users with 40+ icons.
+
+**Reference:** `jordanbaird/Ice` - `MenuBarSearchPanel.swift`, `IceBarPanel.swift`
+

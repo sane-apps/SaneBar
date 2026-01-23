@@ -73,7 +73,7 @@ Icons to the **right** of the Separator (`|`) = always visible
 ### Gestures
 - **Hover to reveal** — Move your cursor to the top of the screen to show hidden icons
 - **Scroll to reveal** — Two-finger scroll in the menu bar area
-- **Directional scroll** — Scroll up to show, scroll down to hide (Ice-style, optional)
+- **Directional scroll** — Scroll up to show, scroll down to hide (optional)
 - **Click to toggle** — Left-click in menu bar toggles visibility (optional)
 - **⌘+drag reveal** — All icons appear while rearranging so you can organize freely
 

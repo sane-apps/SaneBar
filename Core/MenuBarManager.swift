@@ -54,6 +54,30 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return screen.auxiliaryTopLeftArea != nil
     }
 
+    /// Returns true if the mouse cursor is currently on an external (non-built-in) monitor
+    var isOnExternalMonitor: Bool {
+        // Find the screen containing the mouse cursor
+        let mouseLocation = NSEvent.mouseLocation
+        guard let screenWithMouse = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) else {
+            // Safe mode: assume external when screen state is uncertain (hot-plug, sleep wake)
+            return true
+        }
+
+        // Get the display ID for the screen with the mouse
+        guard let displayID = screenWithMouse.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
+            // Safe mode: assume external when lookup fails (unusual display config)
+            return true
+        }
+
+        // CGDisplayIsBuiltin returns non-zero for the built-in laptop display
+        return CGDisplayIsBuiltin(displayID) == 0
+    }
+
+    /// Check if hiding should be skipped due to external monitor setting
+    var shouldSkipHideForExternalMonitor: Bool {
+        settings.disableOnExternalMonitor && isOnExternalMonitor
+    }
+
     // MARK: - Services
 
     let hidingService: HidingService
@@ -178,7 +202,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             Task { @MainActor in
                 // Un-pin and allow auto-hide to resume
                 self.isRevealPinned = false
-                if self.settings.autoRehide {
+                if self.settings.autoRehide && !self.shouldSkipHideForExternalMonitor {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
                 }
             }
@@ -187,8 +211,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.onLeaveMenuBar = { [weak self] in
             guard let self = self else { return }
             Task { @MainActor in
-                // Only auto-hide if autoRehide is enabled
-                if self.settings.autoRehide && !self.isRevealPinned {
+                // Only auto-hide if autoRehide is enabled and not on external monitor
+                if self.settings.autoRehide && !self.isRevealPinned && !self.shouldSkipHideForExternalMonitor {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
                 }
             }
@@ -406,6 +430,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self = self else { return }
             Task {
+                // Skip startup hide if user is on external monitor
+                if self.shouldSkipHideForExternalMonitor {
+                    logger.info("Skipping initial hide: user is on external monitor")
+                    return
+                }
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }
@@ -440,7 +469,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
             .store(in: &cancellables)
 
-        // Ice-style "rehide on app change" - hide when user switches to a different app
+        // Rehide on app change - hide when user switches to a different app
         NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.didActivateApplicationNotification)
             .receive(on: DispatchQueue.main)
@@ -449,8 +478,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 // Only trigger if the setting is enabled and icons are currently visible
                 if self.settings.rehideOnAppChange &&
                    self.hidingState == .expanded &&
-                   !self.isRevealPinned {
-                    logger.debug("App changed - triggering auto-hide (Ice-style)")
+                   !self.isRevealPinned &&
+                   !self.shouldSkipHideForExternalMonitor {
+                    logger.debug("App changed - triggering auto-hide")
                     self.hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
                 }
             }
@@ -626,7 +656,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
 
             // Schedule auto-rehide if enabled and we just showed
-            if hidingService.state == .expanded && settings.autoRehide && !isRevealPinned {
+            if hidingService.state == .expanded && settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
                 hidingService.scheduleRehide(after: settings.rehideDelay)
             }
         }
@@ -653,9 +683,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         let didReveal = hidingService.state == .hidden
         await hidingService.show()
 
-        // Refresh rehide timer on every trigger (Hover/Scroll/Click) to prevent 
+        // Refresh rehide timer on every trigger (Hover/Scroll/Click) to prevent
         // icons hiding while the user is still actively interacting with them.
-        if settings.autoRehide && !isRevealPinned {
+        if settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
         return didReveal
@@ -663,7 +693,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Schedule a rehide specifically from Find Icon search (always hides, ignores autoRehide setting)
     func scheduleRehideFromSearch(after delay: TimeInterval) {
-        guard !isRevealPinned else { return }
+        guard !isRevealPinned && !shouldSkipHideForExternalMonitor else { return }
         hidingService.scheduleRehide(after: delay)
     }
 
@@ -675,6 +705,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     func hideHiddenItems() {
         Task {
+            // Skip hiding if user is on external monitor and setting is enabled
+            if shouldSkipHideForExternalMonitor {
+                logger.debug("Skipping hide: user is on external monitor")
+                return
+            }
+
             isRevealPinned = false
             hidingService.cancelRehide()
             await hidingService.hide()
