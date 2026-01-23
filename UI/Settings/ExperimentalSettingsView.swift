@@ -5,71 +5,74 @@ struct ExperimentalSettingsView: View {
     @State private var showingFeedback = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // The honest explanation
-                honestExplanationSection
+        VStack(spacing: 20) {
+            // Welcome message with buttons
+            honestExplanationSection
 
-                // Experimental features
-                if hasExperimentalFeatures {
-                    experimentalFeaturesSection
-                }
-
-                // Easy bug reporting
-                feedbackSection
+            // Experimental features (when available)
+            if hasExperimentalFeatures {
+                experimentalFeaturesSection
             }
-            .padding(20)
+
+            Spacer()
         }
+        .padding(20)
         .sheet(isPresented: $showingFeedback) {
             FeedbackView()
         }
     }
 
-    // MARK: - Honest Explanation
+    // MARK: - Welcome Message
 
     private var honestExplanationSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "flask")
-                    .font(.system(size: 32))
+                    .font(.system(size: 24))
                     .foregroundStyle(.orange)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Experimental Features")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-
-                    Text("Testing in progress")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Hey Sane crew!")
+                    .font(.title3)
+                    .fontWeight(.semibold)
 
                 Spacer()
             }
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Hi! I'm the developer behind SaneBar.")
-                    .fontWeight(.medium)
-
-                Text("""
-                I build and test on a single MacBook Air. That means I can't test every monitor configuration, every app that puts icons in your menu bar, or every edge case that might happen on your setup.
-
-                That's where you come in.
-
-                Features in this section are new and need real-world testing. They work on my machine, but I need your help to make sure they work on yours too.
-                """)
+            Text("Thank you for clicking on this tab.")
                 .foregroundStyle(.secondary)
 
-                HStack(spacing: 8) {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.pink)
-                    Text("Your feedback genuinely helps. Thank you for being part of making SaneBar better.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+            Text("This exists because you all have many different configurations and setups, and I only have my MacBook Air. I'm going to need your help with experimental features and testing.")
+                .foregroundStyle(.secondary)
+
+            Text("If you find a bug, please report it.")
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 6) {
+                Text("❤️")
+                Text("Mr. Sane")
+                    .fontWeight(.medium)
+            }
+            .padding(.top, 4)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Buttons inline
+            HStack {
+                Button {
+                    showingFeedback = true
+                } label: {
+                    Label("Report a Bug", systemImage: "ladybug")
                 }
-                .padding(.top, 4)
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+
+                Text("·")
+                    .foregroundStyle(.secondary)
+
+                Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
+                    Label("View Issues", systemImage: "arrow.up.right.square")
+                }
             }
         }
         .padding(16)
@@ -107,38 +110,6 @@ struct ExperimentalSettingsView: View {
         }
     }
 
-    // MARK: - Feedback Section
-
-    private var feedbackSection: some View {
-        CompactSection("Help Improve SaneBar") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Found a bug? Something not working right?")
-                    .font(.subheadline)
-
-                Text("Reports include your Mac model, macOS version, and recent logs—no personal data. Everything opens in your browser so you can review before submitting.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack {
-                    Button {
-                        showingFeedback = true
-                    } label: {
-                        Label("Report a Bug", systemImage: "ladybug")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-
-                    Spacer()
-
-                    Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
-                        Label("View All Issues", systemImage: "arrow.up.right.square")
-                    }
-                    .font(.caption)
-                }
-                .padding(.top, 4)
-            }
-        }
-    }
 }
 
 #Preview {

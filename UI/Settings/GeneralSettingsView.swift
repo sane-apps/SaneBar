@@ -6,6 +6,7 @@ struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var launchAtLogin = false
     @State private var isAuthenticating = false  // Prevent duplicate auth prompts
+    @State private var isCheckingForUpdates = false  // Debounce update checks
 
     // Profiles Logic
     @State private var savedProfiles: [SaneBarProfile] = []
@@ -82,25 +83,37 @@ struct GeneralSettingsView: View {
                             setLaunchAtLogin(newValue)
                         }
                     ))
+                    .help("Launch SaneBar when you log in to your Mac")
                     CompactDivider()
                     CompactToggle(label: "Show app in Dock", isOn: showDockIconBinding)
+                    .help("Show SaneBar icon in the Dock (menu bar icon always visible)")
                 }
 
                 // 2. Privacy (Auth)
                 CompactSection("Security") {
                     CompactToggle(label: "Require password to show icons", isOn: requireAuthBinding)
+                    .help("Require Touch ID or password to reveal hidden menu bar icons")
                 }
                 
                 // 3. Updates
                 CompactSection("Software Updates") {
                     CompactToggle(label: "Check for updates automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
+                    .help("Periodically check for new versions of SaneBar")
                     CompactDivider()
                     CompactRow("Actions") {
-                        Button("Check Now") {
+                        Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
+                            guard !isCheckingForUpdates else { return }
+                            isCheckingForUpdates = true
                             menuBarManager.userDidClickCheckForUpdates()
+                            // Re-enable after 5 seconds (debounce)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                                isCheckingForUpdates = false
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .disabled(isCheckingForUpdates)
+                        .help("Check for updates right now")
                     }
                 }
                 
@@ -145,9 +158,10 @@ struct GeneralSettingsView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .help("Save all current settings as a named profile")
                     }
                 }
-                
+
                 // 5. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
@@ -157,6 +171,7 @@ struct GeneralSettingsView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         .foregroundStyle(.red)
+                        .help("Reset all settings to factory defaults")
                     }
                 }
             }

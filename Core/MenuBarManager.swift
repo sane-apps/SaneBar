@@ -166,23 +166,23 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     _ = await self.showHiddenItemsNow(trigger: .automation)
 
                 case .scroll(let direction):
-                    if self.settings.gestureToggles {
-                        // Toggle mode: any scroll direction toggles visibility
-                        // Toggle can hide, so respect external monitor setting
-                        if self.shouldSkipHideForExternalMonitor {
-                            _ = await self.showHiddenItemsNow(trigger: .automation)
-                        } else {
-                            self.toggleHiddenItems()
-                        }
-                    } else if self.settings.useDirectionalScroll {
-                        // Ice-style directional: up=show, down=hide
+                    if self.settings.useDirectionalScroll {
+                        // Ice-style directional: up=show, down=hide (standard behavior)
+                        // Takes priority over gestureToggles for scrolling
                         if direction == .up {
                             _ = await self.showHiddenItemsNow(trigger: .automation)
                         } else if !self.shouldSkipHideForExternalMonitor {
                             self.hideHiddenItems()
                         }
+                    } else if self.settings.gestureToggles {
+                        // Legacy toggle mode (any scroll toggles) - for backwards compatibility
+                        if self.shouldSkipHideForExternalMonitor {
+                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                        } else {
+                            self.toggleHiddenItems()
+                        }
                     } else {
-                        // Default: scroll only reveals
+                        // Show only: scroll reveals without hiding
                         _ = await self.showHiddenItemsNow(trigger: .automation)
                     }
 

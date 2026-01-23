@@ -33,6 +33,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case dot            // •
     }
 
+    /// Simplified gesture behavior mode (replaces gestureToggles + useDirectionalScroll)
+    enum GestureMode: String, Codable, CaseIterable, Sendable {
+        case showOnly = "Show only"
+        case showAndHide = "Show and hide"
+    }
+
     /// User-created icon group for organizing menu bar apps
     struct IconGroup: Codable, Sendable, Equatable, Identifiable {
         var id: UUID = UUID()
@@ -133,6 +139,25 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// When true, scroll direction matters: up=show, down=hide (Ice-style)
     /// Only applies when gestureToggles is false
     var useDirectionalScroll: Bool = false
+
+    /// Simplified gesture mode - maps to gestureToggles + useDirectionalScroll
+    /// "Show only": gestures only reveal icons
+    /// "Show and hide": click toggles, scroll is directional (Ice-style)
+    var gestureMode: GestureMode {
+        get {
+            gestureToggles ? .showAndHide : .showOnly
+        }
+        set {
+            switch newValue {
+            case .showOnly:
+                gestureToggles = false
+                useDirectionalScroll = false
+            case .showAndHide:
+                gestureToggles = true
+                useDirectionalScroll = true
+            }
+        }
+    }
 
     /// When true, reveal all icons while user is ⌘+dragging to rearrange (Ice-style)
     var showOnUserDrag: Bool = true

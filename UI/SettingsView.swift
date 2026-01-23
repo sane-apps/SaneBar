@@ -28,7 +28,7 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 180)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
         } detail: {
             switch selectedTab {
             case .general:
