@@ -18,7 +18,7 @@
                        sparkle:shortVersionString="1.0.11"
                        length="2721900"
                        type="application/x-apple-diskimage"
-                       sparkle:edSignature="CSZBj6Jzb6sOfOEoSLHWnwLYRcHt1Mvuodiq9gBxSP5hKV3CDx7/OKsoG0GLLjBbO00TVHfOjcvl1W0/OCGRDw=="/>
+                       sparkle:edSignature="Ywtb3jlCK6nTMYPc+4DXk5sy/A6fjo8HnGSXPS5zaoTYgZt63F632MdRTDGZF9Bsk6m29o+U6J00RbiyLYWAAg=="/>
         </item>
         <item>
             <title>1.0.10</title>
@@ -126,7 +126,7 @@
                 ]]>
             </description>
             <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.6/SaneBar-1.0.6.dmg"
-                       sparkle:version="1.0.6"
+                       sparkle:version="1006"
                        sparkle:shortVersionString="1.0.6"
                        length="2192618"
                        type="application/x-apple-diskimage"
@@ -146,7 +146,7 @@
                 ]]>
             </description>
             <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.5/SaneBar-1.0.5.dmg"
-                       sparkle:version="1.0.5"
+                       sparkle:version="1005"
                        sparkle:shortVersionString="1.0.5"
                        length="2191392"
                        type="application/x-apple-diskimage"
