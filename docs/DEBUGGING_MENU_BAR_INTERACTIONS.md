@@ -171,3 +171,54 @@ Repository: https://github.com/jordanbaird/Ice
 |----------|---------|--------|
 | `SANEBAR_UI_TESTING` | Enable UI testing mode | Active |
 | `SANEBAR_STATUSITEM_DELAY_MS` | Delay item creation | Active |
+
+---
+
+## ⚠️ Debug Build Offscreen Window Issue
+
+### The Problem
+
+When building and launching SaneBar locally via `xcodebuild` (especially with custom `derivedDataPath`), windows may appear **completely offscreen** and become inaccessible. This is a long-standing issue that was previously considered unfixable.
+
+### Symptoms
+
+- Settings window opens but is invisible (offscreen)
+- App launches but no UI appears on any display
+- Cannot interact with the app despite it running
+
+### Potential Fix (Discovered Jan 24, 2026)
+
+**NOT FULLY VERIFIED** - Use at your own risk.
+
+Resetting all app defaults and saved window state may fix the issue:
+
+```bash
+# Reset defaults for both debug and release bundle IDs
+defaults delete com.sanebar.dev
+defaults delete com.sanebar.app
+
+# Remove saved application state (window positions)
+rm -rf ~/Library/Saved\ Application\ State/com.sanebar.dev.savedState
+rm -rf ~/Library/Saved\ Application\ State/com.sanebar.app.savedState
+```
+
+After running these commands, the next app launch should recreate fresh window positions.
+
+### Prevention
+
+A Claude Code hook (`/.claude/hooks/block-sanebar-launch.rb`) blocks local app launches to prevent this issue. Only headless operations are allowed:
+
+| Allowed | Blocked |
+|---------|---------|
+| `xcodebuild build` | `open SaneBar.app` |
+| `xcodebuild test` | `./scripts/SaneMaster.rb test_mode` |
+| Code review (grep/read) | `build_run_macos` |
+
+### Root Cause (Unknown)
+
+The exact cause is unclear. Theories include:
+- Different code signing between Xcode GUI and CLI builds
+- DerivedData path affecting bundle metadata
+- Saved window state incompatibility between build configurations
+
+If you discover the root cause, please document it here.
