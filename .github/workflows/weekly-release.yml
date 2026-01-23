@@ -248,14 +248,8 @@ jobs:
           Clone from [GitHub](https://github.com/sane-apps/SaneBar) and build with Xcode.
 
           ---
-          *Released automatically on ${RELEASE_DATE}*"
-
-          # Commit and push
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add Casks/sanebar.rb
-          git commit -m "Update SaneBar to v${VERSION}"
-          git push
+          *Released automatically on ${RELEASE_DATE}*" \
+            "$DMG_PATH"
 
       - name: Update website download links
         env:
