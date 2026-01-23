@@ -7,7 +7,16 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [1.0.8] - 2026-01-17
+## [1.0.12] - 2026-01-22
+
+### Fixed
+- **Update Reliability**: Fixed a critical issue where auto-updates would fail due to signature verification errors. Updates are now reliable again.
+- **Find Icon Performance**: Fixed "beach ball" hanging and 2-second delays when switching tabs in the "Find Icon" window. Thumbnail loading is now lazy and cached.
+- **Sparkle Signatures**: Corrected EdDSA signatures for previous releases (v1.0.8-v1.0.11) in the appcast feed to allow them to update successfully.
+
+---
+
+
 
 ### Added
 - **Focus Mode Trigger**: Auto-show hidden icons when macOS Focus Mode changes (Work, Personal, Do Not Disturb, etc.)
