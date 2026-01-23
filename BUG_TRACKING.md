@@ -1,7 +1,11 @@
 # SaneBar Bug Tracking
 
-> **Single source of truth for all bugs.** GitHub issues link here, not vice versa.
-> See also: `marketing/feature-requests.md` for user-requested features.
+> **Navigation**
+> | Session | Features | How to Work | Releases | Testimonials |
+> |---------|----------|-------------|----------|--------------|
+> | [SESSION_HANDOFF.md](SESSION_HANDOFF.md) | [marketing/feature-requests.md](marketing/feature-requests.md) | [DEVELOPMENT.md](DEVELOPMENT.md) | [CHANGELOG.md](CHANGELOG.md) | [marketing/testimonials.md](marketing/testimonials.md) |
+
+**Single source of truth for all bugs.** GitHub issues link here, not vice versa.
 
 ---
 
@@ -93,17 +97,17 @@
 ## Active Bugs (Internal)
 
 ### BUG-023: Dock icon appears on startup even when disabled
-**Status**: OPEN
+**Status**: FIXED - PENDING VERIFICATION (2026-01-23)
 **Priority**: HIGH
 **Reported**: 2026-01-10
 
 **Symptom**: App shows in the Dock on startup even when "Show in Dock" is OFF. Toggling the setting on/off fixes it.
 
-**Suspected Area**: `SaneBarApp.swift` - `ActivationPolicyManager.applyInitialPolicy()` timing or re-application
+**Root Cause**: `ActivationPolicyManager.applyInitialPolicy()` used `DispatchQueue.main.async` which deferred policy application, allowing the dock icon to flash briefly on startup.
 
-**Action Items**:
-- [ ] Debug activation policy initialization sequence
-- [ ] Check if setting is read before policy is applied
+**Fix**: Apply dock visibility immediately in `MenuBarManager.loadSettings()` by calling `ActivationPolicyManager.applyPolicy(showDockIcon:)` synchronously right after loading settings from persistence.
+
+**File**: `Core/MenuBarManager.swift:492-494`
 
 ---
 
@@ -121,15 +125,17 @@
 ---
 
 ### BUG-025: Support/Donate view blocks settings tabs
-**Status**: OPEN
+**Status**: FIXED - PENDING VERIFICATION (2026-01-23)
 **Priority**: MEDIUM
 **Reported**: 2026-01-11
 
 **Symptom**: Opening the Support/Donate UI prevents switching between Settings tabs; user must close Settings to exit.
 
-**Action Items**:
-- [ ] Fix sheet presentation to not block tab navigation
-- [ ] Consider using popover instead of sheet
+**Root Cause**: SwiftUI `.sheet()` modifiers are modal and block interaction with parent view, including the tab bar.
+
+**Fix**: Changed from `.sheet()` to `.popover()` presentation for Licenses, Support, and Feedback views. Popovers are non-modal and allow interaction with the parent view.
+
+**File**: `UI/Settings/AboutSettingsView.swift:90-100`
 
 ---
 
@@ -137,9 +143,12 @@
 
 > These patterns were developed in SaneClip and should be ported to SaneBar.
 
-### IMP-001: Security-by-Default
-**Priority**: HIGH
-**Source**: SaneClip `UI/Settings/SettingsView.swift`
+### IMP-001: Security-by-Default (Implemented in v1.0.12)
+**Status**: RESOLVED (2026-01-22)
+**Action Items**:
+- [x] Sparkle Signature Fix (v1.0.12)
+- [x] Find Icon Performance Fix (v1.0.12) (See GH #29)
+
 
 **Pattern**: Reducing any security setting requires system authentication (Touch ID or password). No master toggle needed - it's automatic.
 
@@ -172,26 +181,15 @@ private func authenticateForSecurityChange(reason: String, onSuccess: @escaping 
 ---
 
 ### IMP-002: Dock Visibility on Launch (Fixes BUG-023)
+**Status**: FIXED - PENDING VERIFICATION (2026-01-23)
 **Priority**: HIGH
 **Source**: SaneClip `SettingsModel.swift`
 
 **Pattern**: Apply dock visibility setting immediately in `SettingsModel.init()`, not just when toggled.
 
-**Fix**:
-```swift
-init() {
-    // ... load all settings from UserDefaults ...
-    applyDockVisibility() // Apply immediately on init
-}
+**Implementation**: Added `ActivationPolicyManager.applyPolicy(showDockIcon:)` call in `MenuBarManager.loadSettings()` immediately after loading settings from persistence. This ensures the dock policy is applied synchronously before any UI is shown.
 
-private func applyDockVisibility() {
-    NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
-}
-```
-
-**Action Items**:
-- [ ] Add `applyDockVisibility()` call to SettingsModel.init()
-- [ ] Verify dock state matches setting on fresh launch
+**File**: `Core/MenuBarManager.swift:492-494`
 
 ---
 

@@ -1,71 +1,85 @@
-# Session Handoff - SaneBar
+# Session Handoff - Jan 23 2026 (Updated)
 
-**Date:** 2026-01-21 @ ~3:00 AM
-**Last Feature:** WelcomeView Onboarding
-
----
-
-## Completed This Session
-
-### WelcomeView Onboarding (5 pages)
-Created `UI/Onboarding/WelcomeView.swift` with tutorial-focused onboarding:
-
-1. **Page 1: Welcome + Demo** - Interactive menu bar simulation with "👈 tap" button
-2. **Page 2: How It Works** - Educational explanation of zones (NOT a demo)
-3. **Page 3: Power Features** - Keyboard shortcuts, Touch ID, right-click menu
-4. **Page 4: Why SaneBar?** - Trust badges (🔒 No spying, 💵 No subscription, 🛠️ Maintained)
-5. **Page 5: Sane Philosophy** - 2 Timothy 1:7 + three pillars (Power, Love, Sound Mind)
-
-### Key Design Decisions
-- **Zone layout**: `[Hidden] / [Always visible] [SaneBar icon] [Always visible]`
-- **No grey on grey** - All text uses `.foregroundStyle(.primary)`
-- **Page 2 is explanatory, not interactive** - Diagram with labels, not fake demo
-- **Separator is `/`** not `|`
-
-### Website Updated
-- Updated `docs/index.html` demo section to show correct zone layout
-
-### Files Changed
-- `UI/Onboarding/WelcomeView.swift` - NEW (complete onboarding flow)
-- `SaneBarApp.swift` - Removed temporary preview code
-- `docs/index.html` - Updated zone explanation
-- `~/SaneApps/meta/Brand/SaneApps-Brand-Guidelines.md` - Added reference implementation docs
+> **Navigation**
+> | Bugs | Features | How to Work | Releases | Testimonials |
+> |------|----------|-------------|----------|--------------|
+> | [BUG_TRACKING.md](BUG_TRACKING.md) | [marketing/feature-requests.md](marketing/feature-requests.md) | [DEVELOPMENT.md](DEVELOPMENT.md) | [CHANGELOG.md](CHANGELOG.md) | [marketing/testimonials.md](marketing/testimonials.md) |
 
 ---
 
-## Pending
+## ⚠️ CRITICAL LEARNING FROM THIS SESSION
 
-- [ ] Wire WelcomeView to show on actual first launch (use `@AppStorage("hasCompletedOnboarding")`)
-- [ ] The WelcomeView is built but not integrated into the app launch flow yet
-- [ ] Test Focus Mode manually (from previous session)
-- [ ] Run test suite for regressions
+**Customer-facing text ALWAYS requires explicit approval before posting.**
 
----
+On Jan 23, I posted a reply to GitHub Issue #32 without showing the draft first, AND added a direct GitHub download link that undermined the $5 business model. This happened because I skipped reading this handoff doc at session start.
 
-## Quick Commands
-
-```bash
-# Build
-./scripts/SaneMaster.rb verify      # Build + tests
-./scripts/SaneMaster.rb test_mode   # Kill -> Build -> Launch
-
-# Outreach
-/outreach                           # Check for opportunities
-```
+**Rules:**
+1. Draft customer replies → show to user → wait for approval → post EXACTLY what was approved
+2. Never add content after approval
+3. GitHub releases are PUBLIC - never direct customers there (use Sparkle auto-update)
+4. Cloudflare R2 (`dist.sanebar.com`) exists specifically to avoid public GitHub downloads
 
 ---
 
-## Style Rules (DO NOT VIOLATE)
+## Completed This Session (Jan 23)
 
-- **NO GREY ON GREY** - Forbidden in style guide
-- Use `/` for separator, never `|`
-- Only ONE icon to the right of SaneBar in demos (not multiple)
-- Zone layout: `[Hidden] / [Always visible] [≡] [Always visible]`
+- ✅ Fixed Issue #32 (positioning reset bug) - commit `ab2c1c3`
+- ✅ Released v1.0.13 (build, notarize, GitHub release, appcast)
+- ✅ Replied to Issue #30 (Paolo) - approved by user
+- ✅ Replied to Issue #32 - EDITED to remove unauthorized GitHub link
 
 ---
 
-## Key Patterns Learned
+## 🛑 Previous Status: PAUSED pending Release
 
-- SaneBar zones: Hidden (left of `/`) → Always visible → SaneBar icon → Always visible
-- Marketing framework: Threat → Barriers (2) → Solution (answers both) → Sane Promise
-- Website badges (🔒💵🛠️) are the Sane Philosophy made tangible
+### ⚠️ UNTESTED Bug Fixes (Jan 23)
+The following fixes were implemented but **NOT visually verified** - test on a different machine:
+
+| Bug | Fix | File | Test How |
+|-----|-----|------|----------|
+| BUG-023 | Dock icon on startup | `MenuBarManager.swift:492-494` | Disable "Show in Dock", quit, relaunch - dock should stay empty |
+| BUG-025 | Sheet blocks tabs | `AboutSettingsView.swift:90-100` | Open Support/Licenses, try switching Settings tabs |
+
+Build passes, 236 tests pass, but manual verification needed.
+
+Cloudflare Migration is ready but not live yet. License Verification was rejected (deleted).
+
+### 1. License Verification - REJECTED
+**Decision (Jan 23):** Deleted `feature/license` branch. Too much customer service risk for not enough upside. Hiding GitHub releases via Cloudflare is sufficient friction.
+
+### 2. Cloudflare Migration (`main` / R2)
+- **Status**: Ready but Paused.
+- **Goal**: Move DMG hosting from GitHub Releases to Cloudflare so files aren't public.
+- **Infrastructure**:
+    - R2 Bucket: `sanebar-downloads` (Contains `SaneBar-1.0.12.dmg`).
+    - Worker: Deployed to `dist.sanebar.com` (proxies R2).
+    - DNS: `dist.sanebar.com` -> `192.0.2.1` (Proxied to Worker).
+- **Verification**: `curl https://dist.sanebar.com/SaneBar-1.0.12.dmg` works perfectly.
+- **Pending Action**: Update `appcast.xml` to point to `dist.sanebar.com` instead of GitHub, and delete GitHub Release.
+- **Blocker**: User said "Do not change anything yet."
+
+### 3. Documentation (`main`)
+- **Appcast**: Detailed release notes added for v1.0.12 (Sparkle Fixes + Performance).
+- **Changelog**: Updated with v1.0.12 details.
+
+### 4. Open Bugs (For Next Session)
+The following issues are still open and need attention:
+1. **GitHub #27**: [Bug] (Untitled)
+2. **GitHub #22**: "Accessing the..." (Check details)
+3. **GitHub #21**: "Icons still hidden..."
+4. **GitHub #20**: "Menu bar tint..."
+5. **GitHub #6**: "Finding hidden..."
+
+See `BUG_TRACKING.md` (Active Bugs section) for details.
+
+## Next Session Tasks
+1.  **Test Cloudflare Sparkle Updates** (before going live)
+2.  **Switch to R2**: Update `appcast.xml` to use `dist.sanebar.com` links
+
+---
+
+## Cloudflare Sparkle Testing Plan
+
+**Decision:** Test in SaneClip first (no active users = safe). See SaneClip SESSION_HANDOFF.md for test plan.
+
+**Once SaneClip test passes:** Update SaneBar appcast.xml to use dist.sanebar.com URLs, then delete GitHub releases.

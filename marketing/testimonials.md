@@ -1,7 +1,12 @@
 # SaneBar Testimonials
 
-> User feedback collected from Reddit, GitHub, and other sources.
-> Use these for website, App Store descriptions, and marketing materials.
+> **Navigation**
+> | Session | Bugs | Features | How to Work | Releases |
+> |---------|------|----------|-------------|----------|
+> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [../BUG_TRACKING.md](../BUG_TRACKING.md) | [feature-requests.md](feature-requests.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) |
+
+User feedback collected from Reddit, GitHub, and other sources.
+Use these for website, App Store descriptions, and marketing materials.
 
 ---
 
@@ -63,6 +68,30 @@
 | "**Best free pick**" | Verdict summary |
 
 **Source**: Email from Mac Nerd (`macnerd1@proton.me`) — January 2026
+
+---
+
+### vvmac.fr — January 2026
+
+> **Context**: French Mac blog review of SaneBar 1.0.11. Mixed/cautiously positive — reviewer prefers Barbee for his specific use case but praises SaneBar's features.
+
+**Link**: https://vvmac.fr/wordpress_b/sanebar-1-0-11-il-gere-de-facon-inedite-les-modules-de-barre-de-menus/
+
+**SaneBar Highlights from the Review:**
+
+| Quote (translated) | Context |
+|-------|---------|
+| "Stable and effective" | Overall impression |
+| "Only tool offering Touch ID/password protection" | Security feature praise |
+| "Extensive personalization options" | Customization |
+| "$5 one-time purchase includes all future updates" | Pricing model |
+
+**Criticisms:**
+- Doesn't solve notch-area conflicts for users with many menu bar items
+- Reviewer personally prefers Barbee for his atypical setup
+- Open-source compilation requires technical knowledge
+
+**Verdict**: Conditional recommendation — good for typical users, not for power users with extreme icon counts.
 
 ---
 

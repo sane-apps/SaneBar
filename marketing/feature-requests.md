@@ -1,12 +1,12 @@
 # SaneBar Feature Requests
 
-> Tracking user-requested features from Reddit, GitHub, and support channels.
-> Priority based on: frequency of requests, alignment with vision, implementation effort.
+> **Navigation**
+> | Session | Bugs | How to Work | Releases | Testimonials |
+> |---------|------|-------------|----------|--------------|
+> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [../BUG_TRACKING.md](../BUG_TRACKING.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) | [testimonials.md](testimonials.md) |
 
-**Related docs:**
-- [BUG_TRACKING.md](../BUG_TRACKING.md) - Bug reports with GitHub issue cross-references
-- [ROADMAP.md](../ROADMAP.md) - High-level feature status
-- [FEATURE_PLAN.md](../FEATURE_PLAN.md) - Implementation details
+Tracking user-requested features from Reddit, GitHub, and support channels.
+Priority based on: frequency of requests, alignment with vision, implementation effort.
 
 ---
 
@@ -189,6 +189,28 @@
 **Complexity Assessment:**
 - Speed optimization: MEDIUM (risky to reduce timing without testing)
 - Bulk moves: HIGH (UI changes + loop logic + state management)
+
+---
+
+### 10. Auto-Disable on External Monitors
+**Priority: MEDIUM** | **Requests: 1** | **Status: Open**
+
+| Requester | Request | Notes |
+|-----------|---------|-------|
+| u/genius1soum | "I don't want SaneBar to do its job on my external monitor... It should be able to detect external monitor and hide itself" | Reddit, Jan 23 2026 |
+
+**User's Pain Point:**
+External monitors (24"+) have plenty of space — no need to hide icons. But SaneBar still hides them, forcing the user to click unhide every time they want an icon. Counter-productive on big screens.
+
+**Requested Solutions:**
+1. Auto-detect external monitor (by size or `CGDisplayIsBuiltin`) and disable SaneBar
+2. Option to show icons below notch (like Ice does with NotchNook/MediaMate/Alcove)
+
+**Implementation Notes:**
+- `NSScreen.screens` + `CGDisplayIsBuiltin()` to detect built-in vs external
+- New setting: "Disable on external monitors" toggle
+- Need to handle hot-plugging (monitor connect/disconnect)
+- Estimated effort: 1-2 days
 
 ---
 
