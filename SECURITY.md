@@ -47,7 +47,7 @@ The "Require Authentication to Reveal Hidden Icons" feature is designed as a **c
 - Determined attackers with local access
 - Users who can edit `~/Library/Application Support/SaneBar/settings.json`
 
-The authentication flag is stored in a plaintext JSON file. An attacker with filesystem access could disable it. This is documented in [CODE_REVIEW.md](CODE_REVIEW.md).
+The authentication flag is stored in a plaintext JSON file. An attacker with filesystem access could disable it.
 
 **Remediation considered:** Moving the lock state to the System Keychain. Not implemented due to complexity vs. actual threat model for a menu bar organizer.
 
@@ -67,7 +67,7 @@ An independent code review was conducted in January 2026. Key findings:
 | Plaintext SSID storage | Low | Accepted (local only) |
 | Force casts in AX code | Low | Tracked for fix |
 
-Full report: [CODE_REVIEW.md](CODE_REVIEW.md)
+See findings table above for details.
 
 ---
 

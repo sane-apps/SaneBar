@@ -40,7 +40,7 @@ struct RulesSettingsView: View {
 
                     CompactDivider()
                     CompactToggle(
-                        label: "Don't hide on external monitors",
+                        label: "Always show on external monitors",
                         isOn: $menuBarManager.settings.disableOnExternalMonitor
                     )
                     .help("External monitors have plenty of space—keep icons visible")
@@ -73,20 +73,20 @@ struct RulesSettingsView: View {
                     if menuBarManager.settings.showOnScroll || menuBarManager.settings.showOnClick {
                         CompactDivider()
                         CompactToggle(
-                            label: "Also hide when visible",
+                            label: "Gestures show and hide",
                             isOn: $menuBarManager.settings.gestureToggles
                         )
-                        .help("When enabled, scroll/click will hide icons if they're already visible")
+                        .help("When off, gestures only reveal icons")
                     }
 
                     // Directional scroll option (Ice-style) - only when scroll enabled and toggle mode disabled
                     if menuBarManager.settings.showOnScroll && !menuBarManager.settings.gestureToggles {
                         CompactDivider()
                         CompactToggle(
-                            label: "Scroll direction matters",
+                            label: "Directional scrolling",
                             isOn: $menuBarManager.settings.useDirectionalScroll
                         )
-                        .help("Scroll up = show, scroll down = hide")
+                        .help("Scroll up to show, scroll down to hide")
                     }
 
                     CompactDivider()
