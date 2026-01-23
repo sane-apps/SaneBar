@@ -10,6 +10,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## [1.0.14] - 2026-01-23
 
 ### Added
+- **Experimental Tab**: New Settings tab for beta features and easy bug reporting
 - **Directional Scroll**: Scroll up to show icons, scroll down to hide (optional)
 - **Show When Rearranging**: All icons revealed while ⌘+dragging to reorganize
 - **Hide on App Change**: Auto-hide when switching to a different app (optional)
@@ -18,6 +19,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ### Changed
 - Settings → Rules reorganized with new gesture options
+- Settings sidebar now includes Experimental tab
 - HoverService now detects scroll direction and ⌘+drag gestures
 
 ---
