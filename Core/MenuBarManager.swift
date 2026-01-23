@@ -168,12 +168,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 case .scroll(let direction):
                     if self.settings.gestureToggles {
                         // Toggle mode: any scroll direction toggles visibility
-                        self.toggleHiddenItems()
+                        // Toggle can hide, so respect external monitor setting
+                        if self.shouldSkipHideForExternalMonitor {
+                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                        } else {
+                            self.toggleHiddenItems()
+                        }
                     } else if self.settings.useDirectionalScroll {
                         // Ice-style directional: up=show, down=hide
                         if direction == .up {
                             _ = await self.showHiddenItemsNow(trigger: .automation)
-                        } else {
+                        } else if !self.shouldSkipHideForExternalMonitor {
                             self.hideHiddenItems()
                         }
                     } else {
@@ -183,7 +188,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 case .click:
                     if self.settings.gestureToggles {
-                        self.toggleHiddenItems()
+                        // Toggle can hide, so respect external monitor setting
+                        if self.shouldSkipHideForExternalMonitor {
+                            // On external monitor with setting enabled - only allow show
+                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                        } else {
+                            self.toggleHiddenItems()
+                        }
                     } else {
                         _ = await self.showHiddenItemsNow(trigger: .automation)
                     }

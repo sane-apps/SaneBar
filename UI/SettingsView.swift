@@ -9,8 +9,9 @@ struct SettingsView: View {
         case rules = "Rules"
         case appearance = "Appearance"
         case shortcuts = "Shortcuts"
+        case experimental = "Experimental"
         case about = "About"
-        
+
         var id: String { rawValue }
     }
 
@@ -42,6 +43,9 @@ struct SettingsView: View {
             case .shortcuts:
                 ShortcutsSettingsView()
                     .navigationTitle("Shortcuts")
+            case .experimental:
+                ExperimentalSettingsView()
+                    .navigationTitle("Experimental")
             case .about:
                 AboutSettingsView()
                     .navigationTitle("About")
@@ -62,6 +66,7 @@ struct SettingsView: View {
         case .rules: return "wand.and.stars"
         case .appearance: return "paintpalette"
         case .shortcuts: return "keyboard"
+        case .experimental: return "flask"
         case .about: return "info.circle"
         }
     }
@@ -72,6 +77,7 @@ struct SettingsView: View {
         case .rules: return .purple
         case .appearance: return .blue
         case .shortcuts: return .orange
+        case .experimental: return .orange
         case .about: return .secondary
         }
     }

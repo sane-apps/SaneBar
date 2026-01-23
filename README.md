@@ -144,6 +144,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
 | **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
+| **Experimental** | Beta features being tested, easy bug reporting |
 | **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Revealing Gestures (Settings → Rules)
@@ -264,7 +265,6 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | [ROADMAP.md](ROADMAP.md) | Feature status overview |
 | [BUG_TRACKING.md](BUG_TRACKING.md) | Bug reports with GitHub links |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Development rules and SOP |
-| [FEATURE_PLAN.md](FEATURE_PLAN.md) | Implementation plans |
 
 </details>
 

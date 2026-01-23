@@ -77,6 +77,7 @@
 		E7985007531E3C34AEC4B6C8 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */; };
 		ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */; };
 		EFCDC9F3D3DF1EFE55E497F5 /* MenuBarManager+Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */; };
+		F2A45D40AC6364627D6707A5 /* ExperimentalSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */; };
 		F2B3FB6C4A975BB22A83EF62 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FB5A5E19E67E44650AC8FED0 /* Localizable.strings */; };
 		F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
@@ -152,6 +153,7 @@
 		B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
 		B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingServiceTests.swift; sourceTree = "<group>"; };
 		B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+IconMoving.swift"; sourceTree = "<group>"; };
+		B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalSettingsView.swift; sourceTree = "<group>"; };
 		B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchView.swift; sourceTree = "<group>"; };
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
 		B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 			children = (
 				B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */,
 				AA9A64F4720057AEA3A9D2BF /* AppearanceSettingsView.swift */,
+				B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */,
 				7964193D5AD4625CACDE8EEA /* FeedbackView.swift */,
 				C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */,
 				3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */,
@@ -568,6 +571,7 @@
 				BE9903FEBD4138A0207ABD1F /* Backgrounds.swift in Sources */,
 				1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */,
 				2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */,
+				F2A45D40AC6364627D6707A5 /* ExperimentalSettingsView.swift in Sources */,
 				7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */,
 				A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */,
 				ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */,
@@ -842,7 +846,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1013;
+				CURRENT_PROJECT_VERSION = 1014;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -852,7 +856,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.13;
+				MARKETING_VERSION = 1.0.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.dev;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -871,7 +875,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1013;
+				CURRENT_PROJECT_VERSION = 1014;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -881,7 +885,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.13;
+				MARKETING_VERSION = 1.0.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -956,7 +960,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1013;
+				CURRENT_PROJECT_VERSION = 1014;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -966,7 +970,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.13;
+				MARKETING_VERSION = 1.0.14;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
