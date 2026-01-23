@@ -287,20 +287,18 @@ extension AccessibilityService {
             }
 
             let appModel = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: x, width: width)
-            // Pre-calculate thumbnail for efficient grid rendering (128px is plenty for all grid sizes)
-            let appWithThumbnail = appModel.withThumbnail(size: 128)
-            let key = appWithThumbnail.uniqueId
+            // Skip thumbnail pre-calculation - let UI render lazily for faster scanning with 50+ apps
+            let key = appModel.uniqueId
 
             // If we somehow see duplicate keys, keep the more-leftward X (stable sort).
             if let existing = appPositions[key] {
                 let newX = min(existing.x, x)
                 let newWidth = max(existing.width, width)
-                // Use the new position but keep the thumbnail
+                // Use the new position
                 let updatedApp = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: newX, width: newWidth)
-                    .withThumbnail(size: 128)
                 appPositions[key] = MenuBarItemPosition(app: updatedApp, x: newX, width: newWidth)
             } else {
-                appPositions[key] = MenuBarItemPosition(app: appWithThumbnail, x: x, width: width)
+                appPositions[key] = MenuBarItemPosition(app: appModel, x: x, width: width)
             }
         }
 
