@@ -7,18 +7,25 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [1.0.13] - 2026-01-23
+## [1.0.14] - 2026-01-23
 
 ### Added
-- **Ice-Compatible Features**: Easier migration for users switching from Ice
-  - **Directional Scroll**: Scroll up to show icons, scroll down to hide (Ice-style)
-  - **Show When Rearranging**: All icons revealed while ⌘+dragging to reorganize
-  - **Hide on App Change**: Auto-hide when switching to a different app (Ice-style)
-  - **Gesture Toggle**: Scroll/click can now toggle visibility (show if hidden, hide if visible)
+- **Directional Scroll**: Scroll up to show icons, scroll down to hide (optional)
+- **Show When Rearranging**: All icons revealed while ⌘+dragging to reorganize
+- **Hide on App Change**: Auto-hide when switching to a different app (optional)
+- **Gesture Toggle**: Scroll/click can now toggle visibility (show if hidden, hide if visible)
+- **External Monitor Detection**: Option to keep icons visible on external monitors (plenty of space there)
 
 ### Changed
-- Settings → Rules reorganized with new Ice-compatible options
+- Settings → Rules reorganized with new gesture options
 - HoverService now detects scroll direction and ⌘+drag gestures
+
+---
+
+## [1.0.13] - 2026-01-23
+
+### Fixed
+- **Positioning Reset Bug**: Removed faulty recovery logic that was resetting user icon positions
 
 ---
 

@@ -140,6 +140,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// When true, auto-hide when the focused app changes (Ice-style "focusedApp" strategy)
     var rehideOnAppChange: Bool = false
 
+    /// When true, SaneBar won't hide icons when the mouse is on an external monitor
+    /// (External monitors have plenty of space, no need to hide)
+    var disableOnExternalMonitor: Bool = false
+
     // MARK: - System Icon Spacing
 
     /// System-wide spacing between menu bar icons (1-10, nil = system default)
@@ -202,6 +206,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         useDirectionalScroll = try container.decodeIfPresent(Bool.self, forKey: .useDirectionalScroll) ?? false
         showOnUserDrag = try container.decodeIfPresent(Bool.self, forKey: .showOnUserDrag) ?? true
         rehideOnAppChange = try container.decodeIfPresent(Bool.self, forKey: .rehideOnAppChange) ?? false
+        disableOnExternalMonitor = try container.decodeIfPresent(Bool.self, forKey: .disableOnExternalMonitor) ?? false
         menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
         menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? true
@@ -217,7 +222,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll, showOnClick, gestureToggles
-        case useDirectionalScroll, showOnUserDrag, rehideOnAppChange
+        case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle

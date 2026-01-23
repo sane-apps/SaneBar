@@ -35,8 +35,15 @@ struct RulesSettingsView: View {
                             label: "Hide when app changes",
                             isOn: $menuBarManager.settings.rehideOnAppChange
                         )
-                        .help("Auto-hide when you switch to a different app (Ice-style)")
+                        .help("Auto-hide when you switch to a different app")
                     }
+
+                    CompactDivider()
+                    CompactToggle(
+                        label: "Don't hide on external monitors",
+                        isOn: $menuBarManager.settings.disableOnExternalMonitor
+                    )
+                    .help("External monitors have plenty of space—keep icons visible")
                 }
 
                 // 2. Gestures (Revealing)
@@ -79,7 +86,7 @@ struct RulesSettingsView: View {
                             label: "Scroll direction matters",
                             isOn: $menuBarManager.settings.useDirectionalScroll
                         )
-                        .help("Scroll up = show, scroll down = hide (Ice-style)")
+                        .help("Scroll up = show, scroll down = hide")
                     }
 
                     CompactDivider()
@@ -89,7 +96,7 @@ struct RulesSettingsView: View {
                         label: "Show when rearranging icons",
                         isOn: $menuBarManager.settings.showOnUserDrag
                     )
-                    .help("Reveal all icons while ⌘+dragging to rearrange (Ice-style)")
+                    .help("Reveal all icons while ⌘+dragging to rearrange")
                 }
 
                 // 3. Triggers (Automation)
