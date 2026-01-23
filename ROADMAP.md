@@ -21,13 +21,18 @@
 | Sparkle auto-updates | ✅ Shipped v1.0.6 | Automatic update checks |
 | **Automatic Triggers** | ✅ Shipped v1.0.6 | Battery, App Launch, Wi-Fi network |
 | **Focus Mode Binding** | ✅ Shipped v1.0.7 | Show icons when Focus Mode changes |
-| **External Monitor Detection** | ✅ Shipped v1.0.14 | Don't hide icons on external monitors |
-| **Per-Display Isolation** | 📋 Planned v1.1.0 | Active-display-only icon reveal logic |
+| **External Monitor Detection** | ✅ Shipped v1.0.15 | Keep icons visible on external monitors |
+| **Directional Scroll** | ✅ Shipped v1.0.15 | Scroll up to show, scroll down to hide |
+| **Gesture Toggle** | ✅ Shipped v1.0.15 | Click/scroll toggles visibility |
+| **Hide on App Change** | ✅ Shipped v1.0.15 | Auto-hide when switching apps |
+| **Show When Rearranging** | ✅ Shipped v1.0.15 | Reveal all icons during ⌘+drag |
+| **Ice Migration Tool** | 📋 Planned v1.1.0 | Import from Ice (open source, easy) |
+| **Bartender Migration Tool** | 📋 Planned | Import from Bartender ([help wanted](https://github.com/sane-apps/SaneBar/issues/33)) |
 | **Permanently Hidden Zone** | 📋 Planned v1.1.0 | Secondary "Void" spacer for icons that should never show |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
-| **Migration Tools** | 📋 Planned | Import from Bartender, Ice |
-| Intel (x86_64) support | 📌 Backlog | No test hardware |
-| Second menu bar row | ❌ Not Planned | macOS limitation |
+| **Icon Groups** | 📋 Planned | Categorize icons, filter in Find Icon |
+| Intel (x86_64) support | ❌ Not Planned | No test hardware, shrinking user base |
+| Second menu bar row | ❌ Impossible | macOS has one menu bar row - we can't add another |
 
 ### Automatic Triggers
 
@@ -126,8 +131,9 @@ panel.animationBehavior = .none      // Instant show/hide
 - Need to handle multi-monitor positioning
 - Click handling complexity (simulating menu bar clicks)
 - Edge cases: fullscreen apps, notch positioning, spaces
+- **UX overlap with Find Icon (⌘⇧Space)**: We already have a searchable icon grid — would a dropdown panel be redundant or confusing?
 
-**Decision:** Not a "skyscraper" but still adds maintenance burden. Defer until demand increases or current approach proves insufficient for power users with 40+ icons.
+**Decision:** Deferred indefinitely. Find Icon already solves "access hidden icons quickly." A dropdown panel might fragment the UX without clear benefit. Revisit only if users explicitly ask for it.
 
 **Reference:** `jordanbaird/Ice` - `MenuBarSearchPanel.swift`, `IceBarPanel.swift`
 
