@@ -7,6 +7,27 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [1.0.16] - 2026-01-24
+
+### Added
+- **Hover Tooltips**: 43+ hover explanations across all Settings tabs - hover over any control to see what it does
+- **Smart Triggers in Comparison**: Website now highlights Smart Triggers (battery, Wi-Fi, Focus, app-based auto-reveal)
+
+### Changed
+- **User-Friendly Labels**: Replaced technical jargon with plain English
+  - Corner radius: "14pt" → "Round" (Subtle/Soft/Round/Pill/Circle)
+  - Spacing: "6pt" → "Normal" (Tight/Normal/Roomy/Wide)
+  - Delays: "200ms" → "Quick" (Instant/Quick/Normal/Patient)
+- **Settings Sidebar**: Wider for better readability (180px min, 200px ideal)
+- **Gesture Picker**: Simplified to "Show only" / "Show and hide" options
+- **Experimental Tab**: Friendlier messaging ("Hey Sane crew!")
+- **Comparison Table**: Reordered for impact - unique features first, table-stakes last
+
+### Fixed
+- **Check Now Button**: Added debounce to prevent rapid-fire update checks
+
+---
+
 ## [1.0.15] - 2026-01-23
 
 ### Added
