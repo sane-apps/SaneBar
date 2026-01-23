@@ -3,6 +3,28 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.12</title>
+            <pubDate>Thu, 22 Jan 2026 19:32:05 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>
+            <description>
+                <![CDATA[
+                <h2>🚀 Performance Improvements</h2>
+                <p>This update fixes the "beach ball" spinning cursor issue for users with 50+ applications.</p>
+                <ul>
+                    <li><strong>Instant Tab Switching</strong>: Tabs now switch immediately without reloading.</li>
+                    <li><strong>Optimized Scanning</strong>: Icon scanning is now much faster and doesn't block the UI.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.12/SaneBar-1.0.12.dmg"
+                       sparkle:version="1012"
+                       sparkle:shortVersionString="1.0.12"
+                       length="2774225"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="TFSEsxrywwilf5jLPlKIzqJ3TSKWl/3u8BsrJd6gmky+nib0XdaOfD5+wAT5FU+kLYx3piVm2+kGxBc2GD/jDg=="/>
+        </item>
+        <item>
             <title>1.0.11</title>
             <pubDate>Thu, 22 Jan 2026 14:25:39 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
