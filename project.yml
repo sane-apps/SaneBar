@@ -18,7 +18,8 @@ packages:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.8.0
   SaneUI:
-    path: ../Projects/SaneUI
+    url: https://github.com/sane-apps/SaneUI.git
+    from: 1.0.0
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
