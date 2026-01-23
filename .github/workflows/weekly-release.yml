@@ -21,6 +21,9 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: write
+
 env:
   XCODE_VERSION: '16.4'
   APP_NAME: 'SaneBar'
