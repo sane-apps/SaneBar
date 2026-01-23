@@ -1,10 +1,24 @@
 import AppKit
 import Foundation
+import ServiceManagement
 
 // Entry point for SaneBar
 // Using manual main.swift instead of @main to control initialization timing
 
 let app = NSApplication.shared
+
+// Handle command line arguments
+let args = CommandLine.arguments
+if args.contains("--unregister") {
+    print("[SaneBar] Unregistering from background services...")
+    do {
+        try SMAppService.mainApp.unregister()
+        print("[SaneBar] Successfully unregistered.")
+    } catch {
+        print("[SaneBar] Failed to unregister: \(error)")
+    }
+    exit(0)
+}
 
 // CRITICAL: Set activation policy to .accessory BEFORE app.run()
 // This ensures NSStatusItem windows are created at window layer 25 (status bar layer)

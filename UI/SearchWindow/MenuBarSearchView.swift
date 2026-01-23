@@ -152,8 +152,8 @@ struct MenuBarSearchView: View {
             refreshApps(force: true)
         }
         .onChange(of: storedMode) { _, _ in
+            // Use cached data for instant tab switching - no need to refresh
             loadCachedApps()
-            refreshApps()
         }
         .onDisappear {
             permissionMonitorTask?.cancel()

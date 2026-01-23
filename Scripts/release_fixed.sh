@@ -411,17 +411,19 @@ if command -v swift >/dev/null 2>&1; then
             DATE=$(date +"%a, %d %b %Y %H:%M:%S %z")
             
             echo -e "${GREEN}Sparkle AppCast Item:${NC}"
-            echo "<item>"
-            echo "    <title>${VERSION}</title>"
-            echo "    <pubDate>${DATE}</pubDate>"
-            echo "    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>"
-            echo "    <enclosure url=\"https://github.com/sane-apps/${APP_NAME}/releases/download/v${VERSION}/${APP_NAME}-${VERSION}.dmg\""
-            echo "               sparkle:version=\" ${VERSION}\""
-            echo "               sparkle:shortVersionString=\" ${VERSION}\""
-            echo "               length=\" ${FILE_SIZE}\""
-            echo "               type=\"application/x-apple-diskimage\""
-            echo "               sparkle:edSignature=\" ${SIGNATURE}\""/>"
-            echo "</item>"
+            cat <<EOF
+<item>
+    <title>${VERSION}</title>
+    <pubDate>${DATE}</pubDate>
+    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+    <enclosure url="https://github.com/sane-apps/${APP_NAME}/releases/download/v${VERSION}/${APP_NAME}-${VERSION}.dmg"
+               sparkle:version="${BUILD_NUMBER}"
+               sparkle:shortVersionString="${VERSION}"
+               length="${FILE_SIZE}"
+               type="application/x-apple-diskimage"
+               sparkle:edSignature="${SIGNATURE}"/>
+</item>
+EOF
         else
             log_warn "Failed to generate Sparkle signature Check Swift Key format"
         fi
