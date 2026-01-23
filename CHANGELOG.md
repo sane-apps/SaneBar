@@ -7,7 +7,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [1.0.14] - 2026-01-23
+## [1.0.15] - 2026-01-23
 
 ### Added
 - **Experimental Tab**: New Settings tab for beta features and easy bug reporting

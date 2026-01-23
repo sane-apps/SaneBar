@@ -3,6 +3,30 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.15</title>
+            <pubDate>Thu, 23 Jan 2026 13:00:00 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>🧪 New Features</h2>
+                <ul>
+                    <li><strong>Experimental Tab</strong>: New Settings tab for beta features and easy bug reporting</li>
+                    <li><strong>Directional Scroll</strong>: Scroll up to show icons, scroll down to hide (optional)</li>
+                    <li><strong>External Monitor Detection</strong>: Keep icons visible on external monitors</li>
+                    <li><strong>Gesture Toggle</strong>: Scroll/click can now toggle visibility</li>
+                    <li><strong>Hide on App Change</strong>: Auto-hide when switching apps (optional)</li>
+                    <li><strong>⌘+Drag Reveal</strong>: All icons shown while rearranging</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.15/SaneBar-1.0.15.dmg"
+                       sparkle:version="1015"
+                       sparkle:shortVersionString="1.0.15"
+                       length="2347900"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="AOV3ybcCSPkozgJAM2BZDaj3p6qnCYdgzaH01CRwbTX4EBHn9uc7cwr0tJWDTBF8jqxfGYEjG/PQfSy5mZcgCg=="/>
+        </item>
+        <item>
             <title>1.0.13</title>
             <pubDate>Thu, 23 Jan 2026 09:14:00 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
