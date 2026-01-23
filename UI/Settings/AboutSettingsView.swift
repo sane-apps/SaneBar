@@ -87,13 +87,15 @@ struct AboutSettingsView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: $showLicenses) {
+        // BUG-025 Fix: Use popover instead of sheet to allow tab switching
+        // Sheets are modal and block interaction with parent view (including tab bar)
+        .popover(isPresented: $showLicenses, arrowEdge: .bottom) {
             licensesSheet
         }
-        .sheet(isPresented: $showSupport) {
+        .popover(isPresented: $showSupport, arrowEdge: .bottom) {
             supportSheet
         }
-        .sheet(isPresented: $showFeedback) {
+        .popover(isPresented: $showFeedback, arrowEdge: .bottom) {
             FeedbackView()
         }
     }

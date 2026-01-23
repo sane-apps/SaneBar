@@ -30,6 +30,12 @@ struct RulesSettingsView: View {
                                     .labelsHidden()
                             }
                         }
+                        CompactDivider()
+                        CompactToggle(
+                            label: "Hide when app changes",
+                            isOn: $menuBarManager.settings.rehideOnAppChange
+                        )
+                        .help("Auto-hide when you switch to a different app (Ice-style)")
                     }
                 }
 
@@ -55,6 +61,35 @@ struct RulesSettingsView: View {
 
                     CompactDivider()
                     CompactToggle(label: "Show when clicking on menu bar", isOn: $menuBarManager.settings.showOnClick)
+
+                    // Only show toggle option if scroll or click is enabled
+                    if menuBarManager.settings.showOnScroll || menuBarManager.settings.showOnClick {
+                        CompactDivider()
+                        CompactToggle(
+                            label: "Also hide when visible",
+                            isOn: $menuBarManager.settings.gestureToggles
+                        )
+                        .help("When enabled, scroll/click will hide icons if they're already visible")
+                    }
+
+                    // Directional scroll option (Ice-style) - only when scroll enabled and toggle mode disabled
+                    if menuBarManager.settings.showOnScroll && !menuBarManager.settings.gestureToggles {
+                        CompactDivider()
+                        CompactToggle(
+                            label: "Scroll direction matters",
+                            isOn: $menuBarManager.settings.useDirectionalScroll
+                        )
+                        .help("Scroll up = show, scroll down = hide (Ice-style)")
+                    }
+
+                    CompactDivider()
+
+                    // Show on user drag (Ice-style) - reveal all when ⌘+dragging to rearrange
+                    CompactToggle(
+                        label: "Show when rearranging icons",
+                        isOn: $menuBarManager.settings.showOnUserDrag
+                    )
+                    .help("Reveal all icons while ⌘+dragging to rearrange (Ice-style)")
                 }
 
                 // 3. Triggers (Automation)

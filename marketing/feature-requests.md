@@ -214,6 +214,48 @@ External monitors (24"+) have plenty of space — no need to hide icons. But San
 
 ---
 
+### 11. Scroll/Click to Toggle (Hide When Visible)
+**Priority: MEDIUM** | **Requests: 1** | **Status: ✅ IMPLEMENTED**
+
+| Requester | Request | Notes |
+|-----------|---------|-------|
+| Rembrandt74 / Paolo (GitHub #30) | "Scroll does nothing when icons are visible" | Wants scroll to hide, not just reveal |
+
+**User's Pain Point:**
+Scroll/click gestures only REVEAL hidden icons. Once visible, scrolling again does nothing. User expected toggle behavior (scroll to show, scroll again to hide).
+
+**Implemented (Jan 23, 2026):**
+- New setting: `gestureToggles` (default: false, preserves existing behavior)
+- When enabled, scroll/click in menu bar toggles visibility
+- Hover remains reveal-only (toggling on hover would be annoying)
+- Located in Settings → Rules → Revealing → "Also hide when visible"
+
+**Related Request (NOW IMPLEMENTED):**
+- Suspend auto-hide during ⌘+drag rearranging → See Ice-Compatible Features below
+
+---
+
+### 12. Ice-Compatible Features (Migration from Ice)
+**Priority: HIGH** | **Requests: Multiple** | **Status: ✅ IMPLEMENTED**
+
+| Feature | Ice Setting | SaneBar Setting | Notes |
+|---------|-------------|-----------------|-------|
+| Directional Scroll | up=show, down=hide | `useDirectionalScroll` | Only when toggle mode disabled |
+| Show on User Drag | `showAllSectionsOnUserDrag` | `showOnUserDrag` | Reveal all icons during ⌘+drag |
+| Rehide on App Change | `focusedApp` strategy | `rehideOnAppChange` | Auto-hide when switching apps |
+
+**Implemented (Jan 23, 2026):**
+- **Directional Scroll** (`useDirectionalScroll`): When enabled, scroll up shows icons, scroll down hides them (Ice-style). Mutually exclusive with gesture toggle mode.
+- **Show When Rearranging** (`showOnUserDrag`): When user ⌘+drags to rearrange menu bar icons, all hidden icons are revealed until drag ends. Enabled by default.
+- **Hide When App Changes** (`rehideOnAppChange`): Auto-hides icons when you switch to a different app (Ice's "focusedApp" rehide strategy).
+
+**UI Location:** Settings → Rules
+- "Scroll direction matters" (under Revealing, conditional)
+- "Show when rearranging icons" (under Revealing)
+- "Hide when app changes" (under Hiding Behavior)
+
+---
+
 ## Bug Reports / UX Issues
 
 ### 1. Menu Bar Tint Not Working on M4 Macs

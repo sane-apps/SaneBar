@@ -109,8 +109,8 @@ struct HoverServiceTests {
 
         #expect(receivedReason == .hover, "Callback should receive hover reason")
 
-        service.onTrigger?(.scroll)
-        #expect(receivedReason == .scroll, "Callback should receive scroll reason")
+        service.onTrigger?(.scroll(direction: .up))
+        #expect(receivedReason == .scroll(direction: .up), "Callback should receive scroll reason")
 
         service.onTrigger?(.click)
         #expect(receivedReason == .click, "Callback should receive click reason")
@@ -202,12 +202,18 @@ struct HoverServiceTests {
     @Test("TriggerReason has distinct cases")
     func testTriggerReasonCases() {
         let hoverReason = HoverService.TriggerReason.hover
-        let scrollReason = HoverService.TriggerReason.scroll
+        let scrollUpReason = HoverService.TriggerReason.scroll(direction: .up)
+        let scrollDownReason = HoverService.TriggerReason.scroll(direction: .down)
         let clickReason = HoverService.TriggerReason.click
+        let userDragReason = HoverService.TriggerReason.userDrag
 
-        #expect(hoverReason != scrollReason)
-        #expect(scrollReason != clickReason)
+        // All cases should be distinct
+        #expect(hoverReason != scrollUpReason)
+        #expect(scrollUpReason != scrollDownReason)
+        #expect(scrollUpReason != clickReason)
         #expect(hoverReason != clickReason)
+        #expect(clickReason != userDragReason)
+        #expect(hoverReason != userDragReason)
     }
 
     // MARK: - Protocol Conformance Tests
