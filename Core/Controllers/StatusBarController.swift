@@ -81,32 +81,21 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Position Seeding (Ice Pattern)
 
     /// Seed positions in UserDefaults BEFORE creating status items.
-    /// Position 0 = rightmost (main icon near Control Center)
-    /// Position 1 = second from right (separator, to LEFT of main)
+    /// Only seeds if no position exists yet - respects user's existing arrangement.
+    /// macOS stores these as pixel positions (can be 100s or 1000s), not ordinal.
     private static func seedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
         let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
 
-        // Recovery: if positions are in an extremely high range (e.g. > 100), 
-        // they were likely corrupted or displaced far to the left. Reset them.
-        let mainPos = defaults.integer(forKey: mainKey)
-        let sepPos = defaults.integer(forKey: sepKey)
-
-        if mainPos > 100 {
-            logger.info("Recovering main icon position from \(mainPos)")
-            defaults.set(0, forKey: mainKey)
-        }
-        if sepPos > 100 {
-            logger.info("Recovering separator position from \(sepPos)")
-            defaults.set(1, forKey: sepKey)
-        }
-
-        // Standard seed: only if not already set
+        // Only seed if not already set - never override user positions
+        // Note: macOS stores pixel positions, so values like 720 are normal on wide displays
         if defaults.object(forKey: mainKey) == nil {
+            logger.info("Seeding initial main icon position")
             defaults.set(0, forKey: mainKey)
         }
         if defaults.object(forKey: sepKey) == nil {
+            logger.info("Seeding initial separator position")
             defaults.set(1, forKey: sepKey)
         }
     }
