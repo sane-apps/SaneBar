@@ -24,6 +24,7 @@ If you find a bug, please report it.
 [Report a Bug]  ·  [View Issues →]
 ```
 - Also fix layout so content fits without scrolling
+- Fix Rules UX: Replace conflicting toggles (Gesture toggles / Directional scroll) with a single picker
 
 ---
 

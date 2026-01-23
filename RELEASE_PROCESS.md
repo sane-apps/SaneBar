@@ -5,6 +5,16 @@
 
 ---
 
+## Weekly Release Cadence
+
+| Day | Action |
+|-----|--------|
+| **Mon-Thu** | Develop features, fix bugs |
+| **Friday** | Build & push to appcast. User tests over weekend. |
+| **Monday** | If good, it's live. If not, fix and push again. |
+
+---
+
 ## Quick Reference
 
 | Release Type | Command |
