@@ -3,6 +3,32 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.16</title>
+            <pubDate>Thu, 23 Jan 2026 18:00:00 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>✨ UX Polish</h2>
+                <ul>
+                    <li><strong>Hover Tooltips</strong>: 43+ hover explanations across all Settings tabs</li>
+                    <li><strong>User-Friendly Labels</strong>: "Round" instead of "14pt", "Quick" instead of "200ms"</li>
+                    <li><strong>Wider Sidebar</strong>: Settings navigation easier to read</li>
+                </ul>
+                <br/>
+                <h2>🔧 Fixes</h2>
+                <ul>
+                    <li><strong>Check Now Button</strong>: Added debounce to prevent rapid-fire update checks</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.16/SaneBar-1.0.16.dmg"
+                       sparkle:version="1016"
+                       sparkle:shortVersionString="1.0.16"
+                       length="2794071"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="o4RrVle6tQJnso/+6jvQ7ELkIAo90HJLXCWVSiKnNRTRf2YClIrTrzj4y5Lcf88zdDLhIX3TQL7xTWjEoq5FCQ=="/>
+        </item>
+        <item>
             <title>1.0.15</title>
             <pubDate>Thu, 23 Jan 2026 13:00:00 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
