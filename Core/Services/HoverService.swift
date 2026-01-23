@@ -33,10 +33,16 @@ final class HoverService: HoverServiceProtocol {
 
     // MARK: - Types
 
-    enum TriggerReason {
+    enum TriggerReason: Equatable {
         case hover
-        case scroll
+        case scroll(direction: ScrollDirection)
         case click
+        case userDrag  // ⌘+drag started in menu bar
+    }
+
+    enum ScrollDirection: Equatable {
+        case up    // Positive deltaY (show in Ice-style)
+        case down  // Negative deltaY (hide in Ice-style)
     }
 
     // MARK: - Properties
@@ -62,6 +68,14 @@ final class HoverService: HoverServiceProtocol {
         }
     }
 
+    /// Enable revealing all icons when user is ⌘+dragging to rearrange (Ice-style)
+    var userDragEnabled: Bool = false {
+        didSet {
+            guard userDragEnabled != oldValue else { return }
+            updateMonitoringState()
+        }
+    }
+
     /// Enable mouse leave tracking for auto-rehide (independent of hover trigger)
     var trackMouseLeave: Bool = false {
         didSet {
@@ -76,8 +90,14 @@ final class HoverService: HoverServiceProtocol {
     /// Called when hover/scroll should reveal icons
     var onTrigger: ((TriggerReason) -> Void)?
 
+    /// Called when ⌘+drag ends (user stopped rearranging)
+    var onUserDragEnd: (() -> Void)?
+
     /// Called when mouse leaves menu bar area (optional auto-hide)
     var onLeaveMenuBar: (() -> Void)?
+
+    /// Track whether user is currently ⌘+dragging
+    private var isUserDragging = false
 
     /// Delay before triggering (prevents accidental triggers)
     var hoverDelay: TimeInterval = 0.25
@@ -117,7 +137,7 @@ final class HoverService: HoverServiceProtocol {
 
     /// Update monitoring state based on all relevant properties
     private func updateMonitoringState() {
-        if isEnabled || scrollEnabled || clickEnabled || trackMouseLeave {
+        if isEnabled || scrollEnabled || clickEnabled || userDragEnabled || trackMouseLeave {
             startMonitoring()
         } else {
             stopMonitoring()
@@ -127,17 +147,24 @@ final class HoverService: HoverServiceProtocol {
     private func startMonitoring() {
         guard globalMonitor == nil else { return }
 
-        logger.info("Starting hover/scroll/click monitoring")
+        logger.info("Starting hover/scroll/click/drag monitoring")
 
-        // Monitor mouse movement, scroll, and click events globally
-        let eventMask: NSEvent.EventTypeMask = [.mouseMoved, .scrollWheel, .leftMouseDown]
+        // Monitor mouse movement, scroll, click, drag, and modifier key events globally
+        let eventMask: NSEvent.EventTypeMask = [
+            .mouseMoved,
+            .scrollWheel,
+            .leftMouseDown,
+            .leftMouseDragged,
+            .leftMouseUp,
+            .flagsChanged
+        ]
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask) { [weak self] event in
             Task { @MainActor in
                 self?.handleEvent(event)
             }
         }
-        
+
         if globalMonitor == nil {
             logger.error("Failed to create global monitor - check Accessibility permissions")
         }
@@ -161,6 +188,12 @@ final class HoverService: HoverServiceProtocol {
             handleScrollWheel(event)
         case .leftMouseDown:
             handleLeftMouseDown(event)
+        case .leftMouseDragged:
+            handleLeftMouseDragged(event)
+        case .leftMouseUp:
+            handleLeftMouseUp(event)
+        case .flagsChanged:
+            handleFlagsChanged(event)
         default:
             break
         }
@@ -200,17 +233,20 @@ final class HoverService: HoverServiceProtocol {
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
 
-        // Two-finger scroll (any direction) to reveal
-        // Require a meaningful scroll amount to avoid accidental triggers
-        if abs(event.scrollingDeltaY) > 5 {
+        // Two-finger scroll - require meaningful scroll amount to avoid accidental triggers
+        let deltaY = event.scrollingDeltaY
+        if abs(deltaY) > 5 {
             let now = Date()
             // Debounce rapid scrolls
             guard now.timeIntervalSince(lastScrollTime) > 0.3 else { return }
             lastScrollTime = now
 
             cancelHoverTimer() // Deliberate action cancels passive hover timer
-            logger.debug("Scroll trigger detected in menu bar")
-            onTrigger?(.scroll)
+
+            // Determine scroll direction (positive = scroll up, negative = scroll down)
+            let direction: ScrollDirection = deltaY > 0 ? .up : .down
+            logger.debug("Scroll trigger detected in menu bar: \(deltaY > 0 ? "up" : "down")")
+            onTrigger?(.scroll(direction: direction))
         }
     }
 
@@ -223,6 +259,41 @@ final class HoverService: HoverServiceProtocol {
         cancelHoverTimer() // Deliberate action cancels passive hover timer
         logger.debug("Click trigger detected in menu bar")
         onTrigger?(.click)
+    }
+
+    private func handleLeftMouseDragged(_ event: NSEvent) {
+        guard userDragEnabled && !isSuspended else { return }
+
+        // Check if ⌘ is held down (user is rearranging menu bar icons)
+        guard event.modifierFlags.contains(.command) else { return }
+
+        let mouseLocation = NSEvent.mouseLocation
+        guard isInMenuBarRegion(mouseLocation) else { return }
+
+        // Start user drag if not already dragging
+        if !isUserDragging {
+            isUserDragging = true
+            logger.debug("⌘+drag started in menu bar - revealing all icons")
+            onTrigger?(.userDrag)
+        }
+    }
+
+    private func handleLeftMouseUp(_ event: NSEvent) {
+        // End user drag when mouse is released
+        if isUserDragging {
+            isUserDragging = false
+            logger.debug("⌘+drag ended - allowing auto-hide")
+            onUserDragEnd?()
+        }
+    }
+
+    private func handleFlagsChanged(_ event: NSEvent) {
+        // If ⌘ is released while dragging, end the drag
+        if isUserDragging && !event.modifierFlags.contains(.command) {
+            isUserDragging = false
+            logger.debug("⌘ released during drag - allowing auto-hide")
+            onUserDragEnd?()
+        }
     }
 
     private func isInMenuBarRegion(_ point: NSPoint) -> Bool {

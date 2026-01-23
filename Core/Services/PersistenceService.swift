@@ -126,6 +126,20 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when clicking in the menu bar
     var showOnClick: Bool = false
 
+    /// When true, scroll/click gestures toggle visibility (hide if visible, show if hidden)
+    /// When false, gestures only reveal (default behavior)
+    var gestureToggles: Bool = false
+
+    /// When true, scroll direction matters: up=show, down=hide (Ice-style)
+    /// Only applies when gestureToggles is false
+    var useDirectionalScroll: Bool = false
+
+    /// When true, reveal all icons while user is ⌘+dragging to rearrange (Ice-style)
+    var showOnUserDrag: Bool = true
+
+    /// When true, auto-hide when the focused app changes (Ice-style "focusedApp" strategy)
+    var rehideOnAppChange: Bool = false
+
     // MARK: - System Icon Spacing
 
     /// System-wide spacing between menu bar icons (1-10, nil = system default)
@@ -184,6 +198,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? true
         showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? true
+        gestureToggles = try container.decodeIfPresent(Bool.self, forKey: .gestureToggles) ?? false
+        useDirectionalScroll = try container.decodeIfPresent(Bool.self, forKey: .useDirectionalScroll) ?? false
+        showOnUserDrag = try container.decodeIfPresent(Bool.self, forKey: .showOnUserDrag) ?? true
+        rehideOnAppChange = try container.decodeIfPresent(Bool.self, forKey: .rehideOnAppChange) ?? false
         menuBarSpacing = try container.decodeIfPresent(Int.self, forKey: .menuBarSpacing)
         menuBarSelectionPadding = try container.decodeIfPresent(Int.self, forKey: .menuBarSelectionPadding)
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? true
@@ -198,7 +216,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
-        case showOnHover, hoverDelay, showOnScroll, showOnClick
+        case showOnHover, hoverDelay, showOnScroll, showOnClick, gestureToggles
+        case useDirectionalScroll, showOnUserDrag, rehideOnAppChange
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle

@@ -135,7 +135,52 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             guard let self = self else { return }
             Task { @MainActor in
                 logger.debug("Hover trigger received: \(String(describing: reason))")
-                _ = await self.showHiddenItemsNow(trigger: .automation)
+
+                switch reason {
+                case .hover:
+                    // Hover always reveals only (toggling on hover would be annoying)
+                    _ = await self.showHiddenItemsNow(trigger: .automation)
+
+                case .scroll(let direction):
+                    if self.settings.gestureToggles {
+                        // Toggle mode: any scroll direction toggles visibility
+                        self.toggleHiddenItems()
+                    } else if self.settings.useDirectionalScroll {
+                        // Ice-style directional: up=show, down=hide
+                        if direction == .up {
+                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                        } else {
+                            self.hideHiddenItems()
+                        }
+                    } else {
+                        // Default: scroll only reveals
+                        _ = await self.showHiddenItemsNow(trigger: .automation)
+                    }
+
+                case .click:
+                    if self.settings.gestureToggles {
+                        self.toggleHiddenItems()
+                    } else {
+                        _ = await self.showHiddenItemsNow(trigger: .automation)
+                    }
+
+                case .userDrag:
+                    // ⌘+drag: reveal all icons so user can rearrange
+                    _ = await self.showHiddenItemsNow(trigger: .automation)
+                    // Pin the reveal so auto-hide doesn't kick in while dragging
+                    self.isRevealPinned = true
+                }
+            }
+        }
+
+        hoverService.onUserDragEnd = { [weak self] in
+            guard let self = self else { return }
+            Task { @MainActor in
+                // Un-pin and allow auto-hide to resume
+                self.isRevealPinned = false
+                if self.settings.autoRehide {
+                    self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
+                }
             }
         }
 
@@ -394,6 +439,22 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
+
+        // Ice-style "rehide on app change" - hide when user switches to a different app
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didActivateApplicationNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                // Only trigger if the setting is enabled and icons are currently visible
+                if self.settings.rehideOnAppChange &&
+                   self.hidingState == .expanded &&
+                   !self.isRevealPinned {
+                    logger.debug("App changed - triggering auto-hide (Ice-style)")
+                    self.hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func clearStatusItemMenus() {
@@ -457,10 +518,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.isEnabled = settings.showOnHover
         hoverService.scrollEnabled = settings.showOnScroll
         hoverService.clickEnabled = settings.showOnClick
+        hoverService.userDragEnabled = settings.showOnUserDrag
         hoverService.trackMouseLeave = settings.autoRehide
         hoverService.hoverDelay = settings.hoverDelay
 
-        if settings.showOnHover || settings.showOnScroll || settings.showOnClick || settings.autoRehide {
+        let needsMonitoring = settings.showOnHover ||
+                              settings.showOnScroll ||
+                              settings.showOnClick ||
+                              settings.showOnUserDrag ||
+                              settings.autoRehide
+
+        if needsMonitoring {
             hoverService.start()
         } else {
             hoverService.stop()
@@ -488,6 +556,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private func loadSettings() {
         settingsController.loadOrDefault()
         settings = settingsController.settings
+
+        // BUG-023 Fix: Apply dock visibility IMMEDIATELY on settings load
+        // This prevents the dock icon from flashing visible on startup when disabled
+        ActivationPolicyManager.applyPolicy(showDockIcon: settings.showDockIcon)
     }
 
     func saveSettings() {
