@@ -21,7 +21,7 @@
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://github.com/sane-apps/SaneBar/releases/download/v1.0.16/SaneBar-1.0.16.dmg"
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.16.dmg"
                        sparkle:version="1016"
                        sparkle:shortVersionString="1.0.16"
                        length="2794071"
