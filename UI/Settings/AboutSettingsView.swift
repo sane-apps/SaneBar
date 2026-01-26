@@ -33,11 +33,11 @@ struct AboutSettingsView: View {
 
             // Trust info (Capsule style)
             HStack(spacing: 0) {
-                Text("Made by Mr. Sane in USA")
+                Text("Made with ❤️ in 🇺🇸")
                     .fontWeight(.medium)
-                Text(" • ")
-                Text("100% Local")
-                Text(" • ")
+                Text(" · ")
+                Text("100% On-Device")
+                Text(" · ")
                 Text("No Analytics")
             }
             .font(.callout)
