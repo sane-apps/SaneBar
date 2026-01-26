@@ -80,7 +80,9 @@ enum SettingsOpener {
     @MainActor private static var windowDelegate: SettingsWindowDelegate?
 
     @MainActor static func open() {
-        NSApp.setActivationPolicy(.regular)
+        // DON'T force .regular here - respect the user's showDockIcon setting
+        // An .accessory app CAN have visible windows (the dock icon just won't show)
+        // This fixes the bug where dock icon appears when Settings opens despite setting being OFF
         NSApp.activate(ignoringOtherApps: true)
 
         if let window = settingsWindow, window.isVisible {

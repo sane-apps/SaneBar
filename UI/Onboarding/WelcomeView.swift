@@ -401,10 +401,10 @@ private struct PermissionsPage: View {
                 )
 
                 GestureToggleRow(
-                    icon: "cursorarrow.click",
-                    title: "Click to Show",
-                    description: "Click an empty space in the menu bar to reveal.",
-                    isOn: $menuBarManager.settings.showOnClick
+                    icon: "hand.point.up.left",
+                    title: "Hover to Show",
+                    description: "Hover over the menu bar to reveal icons.",
+                    isOn: $menuBarManager.settings.showOnHover
                 )
             }
             .padding(.horizontal, 40)
@@ -489,7 +489,7 @@ private struct WhyDifferentPage: View {
             .padding(.top, 8)
 
             // Comparison callout
-            Text("Bartender was acquired and now phones home.\nIce breaks on Tahoe. Dozer is abandoned.\nSaneBar just works.")
+            Text("Bartender was acquired and now spies on you.\nIce breaks on Tahoe. Dozer is abandoned.\nSaneBar just works.")
                 .font(.system(size: 13))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)

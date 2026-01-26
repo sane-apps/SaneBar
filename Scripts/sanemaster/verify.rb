@@ -574,6 +574,136 @@ module SaneMasterModules
       # UI tests not yet implemented - return empty array
       []
     end
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CLEAN SYSTEM - Remove orphaned artifacts across all SaneApps
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    # Known production bundle IDs — everything else is orphaned
+    SANE_PRODUCTION_DOMAINS = %w[
+      com.sanebar.app
+      com.saneclip.app
+      com.saneapps.SaneHosts
+      com.sanesync.SaneSync
+      com.sanevideo.app
+      com.sanescript.SaneScript
+    ].freeze
+
+    # Patterns that indicate orphaned UserDefaults domains
+    ORPHAN_PATTERNS = [
+      /\.dev$/,              # Debug bundle IDs
+      /\.tests\./,           # Test-scoped domains
+      /UITests\.xctrunner$/, # UI test runner
+      /SaneHosts2$/          # Renamed bundle IDs
+    ].freeze
+
+    def clean_system(args)
+      dry_run = args.include?('--dry-run')
+      puts "🧹 --- [ CLEAN SYSTEM#{dry_run ? ' (DRY RUN)' : ''} ] ---"
+      puts
+
+      orphans = find_orphan_defaults
+      dmgs = find_mounted_dmgs
+      stale_dd = find_stale_derived_data
+
+      if orphans.empty? && dmgs.empty? && stale_dd.empty?
+        puts '✅ System is clean. No orphaned artifacts found.'
+        return
+      end
+
+      # Report orphaned UserDefaults
+      unless orphans.empty?
+        puts "📋 Orphaned UserDefaults: #{orphans.size}"
+        # Group by type for readable output
+        grouped = orphans.group_by { |d| d.match?(/\.tests\./) ? 'test' : 'dev/stale' }
+        grouped.each do |type, domains|
+          puts "   #{type}: #{domains.size} domains"
+          domains.first(3).each { |d| puts "     - #{d}" }
+          puts "     ... and #{domains.size - 3} more" if domains.size > 3
+        end
+        puts
+      end
+
+      # Report mounted DMGs
+      unless dmgs.empty?
+        puts "💿 Mounted SaneApp DMGs: #{dmgs.size}"
+        dmgs.each { |d| puts "   - #{d}" }
+        puts
+      end
+
+      # Report stale DerivedData
+      unless stale_dd.empty?
+        puts "🗂️  Stale DerivedData: #{stale_dd.size}"
+        stale_dd.each { |d| puts "   - #{File.basename(d)}" }
+        puts
+      end
+
+      if dry_run
+        puts '⏸️  Dry run — no changes made. Run without --dry-run to clean.'
+        return
+      end
+
+      # Clean orphaned defaults
+      unless orphans.empty?
+        puts '🗑️  Removing orphaned UserDefaults...'
+        plist_dir = File.expand_path('~/Library/Preferences')
+        removed = 0
+        orphans.each do |domain|
+          plist = File.join(plist_dir, "#{domain}.plist")
+          if File.exist?(plist)
+            system('trash', plist)
+            removed += 1
+          else
+            system('defaults', 'delete', domain, out: File::NULL, err: File::NULL)
+            removed += 1
+          end
+        end
+        system('killall', 'cfprefsd', out: File::NULL, err: File::NULL)
+        puts "   ✅ Removed #{removed} orphaned domains"
+      end
+
+      # Eject DMGs
+      dmgs.each do |vol|
+        system('hdiutil', 'detach', vol, out: File::NULL, err: File::NULL)
+        puts "   ✅ Ejected #{vol}"
+      end
+
+      # Clean stale DerivedData
+      stale_dd.each do |dd|
+        system('trash', dd)
+        puts "   ✅ Trashed #{File.basename(dd)}"
+      end
+
+      puts
+      puts '✅ System cleanup complete.'
+    end
+
+    private
+
+    def find_orphan_defaults
+      domains = `defaults domains 2>/dev/null`.strip.split(',').map(&:strip)
+      domains.select do |d|
+        d.match?(/sane/i) && !SANE_PRODUCTION_DOMAINS.include?(d) && ORPHAN_PATTERNS.any? { |p| d.match?(p) }
+      end
+    end
+
+    def find_mounted_dmgs
+      sane_names = %w[SaneBar SaneClip SaneVideo SaneSync SaneHosts SaneScript]
+      sane_names.filter_map do |name|
+        path = "/Volumes/#{name}"
+        path if Dir.exist?(path)
+      end
+    end
+
+    def find_stale_derived_data
+      dd_base = File.expand_path('~/Library/Developer/Xcode/DerivedData')
+      return [] unless Dir.exist?(dd_base)
+
+      Dir.glob("#{dd_base}/Sane*").select do |d|
+        # Stale if not modified in over 7 days
+        File.directory?(d) && (Time.now - File.mtime(d)) > 7 * 86_400
+      end
+    end
   end
 end
 # rubocop:enable Metrics/ModuleLength

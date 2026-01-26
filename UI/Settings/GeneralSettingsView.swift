@@ -200,7 +200,20 @@ struct GeneralSettingsView: View {
 
     // MARK: - Startup Helpers
     
+    /// Whether this build is running from a proper install location (not DerivedData).
+    /// Debug builds from Xcode run from DerivedData and should never register as login items,
+    /// because that pollutes the Background Task Management database with stale paths.
+    private var isProperInstall: Bool {
+        let path = Bundle.main.bundlePath
+        return !path.contains("DerivedData")
+    }
+
     private func setLaunchAtLogin(_ enabled: Bool) {
+        guard isProperInstall else {
+            print("[SaneBar] Skipping login item registration — running from DerivedData")
+            launchAtLogin = false
+            return
+        }
         do {
             if enabled {
                 try SMAppService.mainApp.register()

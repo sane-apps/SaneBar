@@ -49,6 +49,8 @@ The "Require Authentication to Reveal Hidden Icons" feature is designed as a **c
 
 The authentication flag is stored in a plaintext JSON file. An attacker with filesystem access could disable it.
 
+**AppleScript behavior:** When Touch ID protection is enabled, AppleScript commands (`toggle`, `show hidden`, `hide items`) that would reveal hidden icons are **blocked** and return an error. This prevents programmatic bypasses via `osascript`.
+
 **Remediation considered:** Moving the lock state to the System Keychain. Not implemented due to complexity vs. actual threat model for a menu bar organizer.
 
 #### WiFi Network Names
@@ -63,11 +65,12 @@ An independent code review was conducted in January 2026. Key findings:
 
 | Finding | Severity | Status |
 |---------|----------|--------|
+| AppleScript auth bypass | Critical | ✅ Fixed (v1.0.17) |
 | Auth bypass via config file | Medium | Documented (see above) |
 | Plaintext SSID storage | Low | Accepted (local only) |
-| Force casts in AX code | Low | Tracked for fix |
+| Force casts in AX code | Medium | ✅ Fixed (v1.0.17) |
 
-See findings table above for details.
+Full audit report: [outputs/SECURITY_AUDIT_2026-01-25.md](outputs/SECURITY_AUDIT_2026-01-25.md)
 
 ---
 

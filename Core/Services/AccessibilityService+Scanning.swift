@@ -162,9 +162,7 @@ extension AccessibilityService {
                     guard result == .success, let bar = extrasBar else { return [] }
 
                     // Safe type checking using Core Foundation type IDs
-                    guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return [] }
-                    // swiftlint:disable:next force_cast
-                    let barElement = bar as! AXUIElement
+                    guard let barElement = safeAXUIElement(bar) else { return [] }
 
                     var children: CFTypeRef?
                     let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
@@ -209,13 +207,11 @@ extension AccessibilityService {
                         let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
                         var xPos: CGFloat = 0
-                        if posResult == .success, let posValue = positionValue {
-                            if CFGetTypeID(posValue) == AXValueGetTypeID() {
-                                var point = CGPoint.zero
-                                // swiftlint:disable:next force_cast
-                                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
-                                    xPos = point.x
-                                }
+                        if posResult == .success, let posValue = positionValue,
+                           let axPosValue = safeAXValue(posValue) {
+                            var point = CGPoint.zero
+                            if AXValueGetValue(axPosValue, .cgPoint, &point) {
+                                xPos = point.x
                             }
                         }
 
@@ -224,13 +220,11 @@ extension AccessibilityService {
                         let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
 
                         var width: CGFloat = 0
-                        if sizeResult == .success, let sValue = sizeValue {
-                            if CFGetTypeID(sValue) == AXValueGetTypeID() {
-                                var size = CGSize.zero
-                                // swiftlint:disable:next force_cast
-                                if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
-                                    width = size.width
-                                }
+                        if sizeResult == .success, let sValue = sizeValue,
+                           let axSizeValue = safeAXValue(sValue) {
+                            var size = CGSize.zero
+                            if AXValueGetValue(axSizeValue, .cgSize, &size) {
+                                width = size.width
                             }
                         }
 
@@ -401,9 +395,7 @@ extension AccessibilityService {
                     var extrasBar: CFTypeRef?
                     let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
                     guard result == .success, let bar = extrasBar else { return nil }
-                    guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return nil }
-                    // swiftlint:disable:next force_cast
-                    let barElement = bar as! AXUIElement
+                    guard let barElement = safeAXUIElement(bar) else { return nil }
 
                     var children: CFTypeRef?
                     let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
@@ -416,13 +408,11 @@ extension AccessibilityService {
 
                         var xPos: CGFloat = 0
 
-                        if posResult == .success, let posValue = positionValue {
-                            if CFGetTypeID(posValue) == AXValueGetTypeID() {
-                                var point = CGPoint.zero
-                                // swiftlint:disable:next force_cast
-                                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
-                                    xPos = point.x
-                                }
+                        if posResult == .success, let posValue = positionValue,
+                           let axPosValue = safeAXValue(posValue) {
+                            var point = CGPoint.zero
+                            if AXValueGetValue(axPosValue, .cgPoint, &point) {
+                                xPos = point.x
                             }
                         }
 

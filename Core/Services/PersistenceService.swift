@@ -226,7 +226,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? true
-        showOnClick = try container.decodeIfPresent(Bool.self, forKey: .showOnClick) ?? true
+        // showOnClick removed in v1.0.17 — global click monitor interfered with visible items.
+        // Force to false for existing users; decode to discard old value silently.
+        _ = try container.decodeIfPresent(Bool.self, forKey: .showOnClick)
+        showOnClick = false
         gestureToggles = try container.decodeIfPresent(Bool.self, forKey: .gestureToggles) ?? false
         useDirectionalScroll = try container.decodeIfPresent(Bool.self, forKey: .useDirectionalScroll) ?? false
         showOnUserDrag = try container.decodeIfPresent(Bool.self, forKey: .showOnUserDrag) ?? true
