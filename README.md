@@ -6,9 +6,17 @@
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-**The privacy-first menu bar manager for macOS.** Native, lightweight, and scriptable.
+<a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
-Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
+**Your menu bar. Not theirs.**
+
+Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
+
+| | |
+|---|---|
+| ⚡ **Power** | Your device runs it. No cloud required. |
+| ❤️ **Love** | $5 once. No subscriptions. Ever. |
+| 🧠 **Sound Mind** | Open source. See exactly what it does. |
 
 ▶️ **[Watch the demo](https://www.youtube.com/watch?v=I6U3APV-998)** (30 seconds)
 
@@ -26,9 +34,16 @@ Hide clutter. Lock sensitive icons behind Touch ID. Find any app instantly.
 
 ## Download
 
-SaneBar is open source. You are welcome to clone the repo and build it yourself for free. If you'd like to support development and get a ready-to-use, notarized version, you can purchase the DMG for $5 at **[sanebar.com](https://sanebar.com)**.
+**Open source dies without support.** Ice is broken. Hidden Bar is abandoned. Bartender sold out. That's what happens when there's no sustainable model.
 
-**Note:** Homebrew is not supported. All software updates are delivered directly through the app.
+SaneBar is different: **open source AND sustainable.**
+
+- **Build it yourself** — Clone the repo, it's MIT licensed, always will be
+- **Or pay $5** — Get a notarized DMG, support continued development
+
+Your $5 keeps this project alive. No VC funding. No acquisition exit. Just software that works because someone's paid to maintain it.
+
+**[Download — $5](https://sanebar.com)** or [build from source](#for-developers)
 
 **Requirements:** macOS 15 Sequoia or later
 
@@ -48,9 +63,9 @@ Icons to the **right** of the Separator (`|`) = always visible
 
 ## Features
 
-### Privacy First
-- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **system authentication** (password prompt). Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
-- **100% On-Device** — No analytics. No telemetry. No network requests. Everything stays on your Mac.
+### Zero Spying
+- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID or password**. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
+- **100% On-Device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: SaneBar makes zero connections.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
@@ -252,7 +267,7 @@ osascript -e 'tell app "SaneBar" to hide items'
 <details>
 <summary>The story</summary>
 
-Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't phone home, and actually worked on macOS Tahoe with Liquid Glass.
+Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked on macOS Tahoe with Liquid Glass.
 
 </details>
 

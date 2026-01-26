@@ -103,12 +103,8 @@ struct RulesSettingsView: View {
                     CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
                     .help("Scroll on the menu bar to reveal or hide icons")
 
-                    CompactDivider()
-                    CompactToggle(label: "Show when clicking on menu bar", isOn: $menuBarManager.settings.showOnClick)
-                    .help("Click on the menu bar background to reveal icons")
-
-                    // Gesture behavior picker - only show if scroll or click is enabled
-                    if menuBarManager.settings.showOnScroll || menuBarManager.settings.showOnClick {
+                    // Gesture behavior picker - only show if scroll is enabled
+                    if menuBarManager.settings.showOnScroll {
                         CompactDivider()
                         CompactRow("Gesture behavior") {
                             Picker("", selection: $menuBarManager.settings.gestureMode) {

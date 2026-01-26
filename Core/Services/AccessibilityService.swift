@@ -4,6 +4,26 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService")
 
+// MARK: - Safe CF Type Casting
+
+/// Safely cast a CFTypeRef to AXUIElement after verifying the type ID.
+/// Returns nil if the type doesn't match, avoiding force cast crashes.
+@inline(__always)
+func safeAXUIElement(_ ref: CFTypeRef) -> AXUIElement? {
+    guard CFGetTypeID(ref) == AXUIElementGetTypeID() else { return nil }
+    // Safe: type verified above. Using unsafeBitCast is explicit about CF bridging.
+    return unsafeBitCast(ref, to: AXUIElement.self)
+}
+
+/// Safely cast a CFTypeRef to AXValue after verifying the type ID.
+/// Returns nil if the type doesn't match, avoiding force cast crashes.
+@inline(__always)
+func safeAXValue(_ ref: CFTypeRef) -> AXValue? {
+    guard CFGetTypeID(ref) == AXValueGetTypeID() else { return nil }
+    // Safe: type verified above. Using unsafeBitCast is explicit about CF bridging.
+    return unsafeBitCast(ref, to: AXValue.self)
+}
+
 // MARK: - Accessibility Prompt Helper
 
 /// Request accessibility with system prompt

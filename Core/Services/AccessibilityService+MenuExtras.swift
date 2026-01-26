@@ -25,9 +25,7 @@ extension AccessibilityService {
         var extrasBar: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
         guard result == .success, let bar = extrasBar else { return results }
-        guard CFGetTypeID(bar) == AXUIElementGetTypeID() else { return results }
-        // swiftlint:disable:next force_cast
-        let barElement = bar as! AXUIElement
+        guard let barElement = safeAXUIElement(bar) else { return results }
 
         var children: CFTypeRef?
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
@@ -68,10 +66,10 @@ extension AccessibilityService {
             var positionValue: CFTypeRef?
             let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
             var xPos: CGFloat = 0
-            if posResult == .success, let posValue = positionValue, CFGetTypeID(posValue) == AXValueGetTypeID() {
+            if posResult == .success, let posValue = positionValue,
+               let axPosValue = safeAXValue(posValue) {
                 var point = CGPoint.zero
-                // swiftlint:disable:next force_cast
-                if AXValueGetValue(posValue as! AXValue, .cgPoint, &point) {
+                if AXValueGetValue(axPosValue, .cgPoint, &point) {
                     xPos = point.x
                 }
             }
@@ -80,10 +78,10 @@ extension AccessibilityService {
             var sizeValue: CFTypeRef?
             let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
             var width: CGFloat = 0
-            if sizeResult == .success, let sValue = sizeValue, CFGetTypeID(sValue) == AXValueGetTypeID() {
+            if sizeResult == .success, let sValue = sizeValue,
+               let axSizeValue = safeAXValue(sValue) {
                 var size = CGSize.zero
-                // swiftlint:disable:next force_cast
-                if AXValueGetValue(sValue as! AXValue, .cgSize, &size) {
+                if AXValueGetValue(axSizeValue, .cgSize, &size) {
                     width = size.width
                 }
             }

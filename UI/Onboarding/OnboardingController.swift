@@ -14,8 +14,8 @@ final class OnboardingController {
             return
         }
         
-        // Switch to regular policy so the window is visible and focusable
-        NSApp.setActivationPolicy(.regular)
+        // DON'T force .regular here - windows work fine in .accessory mode
+        // The dock icon visibility should only be controlled by the user's showDockIcon setting
         NSApp.activate(ignoringOtherApps: true)
         
         let welcomeView = WelcomeView { [weak self] in

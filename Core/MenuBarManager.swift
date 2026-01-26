@@ -42,6 +42,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Guards against duplicate auth prompts
     private var isAuthenticating: Bool = false
 
+    /// Rate limiting for auth attempts (security hardening)
+    private var failedAuthAttempts: Int = 0
+    private var lastFailedAuthTime: Date?
+    private let maxFailedAttempts: Int = 5
+    private let lockoutDuration: TimeInterval = 30  // seconds
+
     /// Reference to the currently active icon move task to ensure atomicity
     internal var activeMoveTask: Task<Void, Never>?
 
@@ -731,6 +737,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Privacy Auth
 
     func authenticate(reason: String) async -> Bool {
+        // Rate limiting: check if locked out from too many failed attempts
+        if let lastFailed = lastFailedAuthTime,
+           failedAuthAttempts >= maxFailedAttempts {
+            let elapsed = Date().timeIntervalSince(lastFailed)
+            if elapsed < lockoutDuration {
+                logger.warning("Auth rate limited: \(self.failedAuthAttempts) failed attempts, \(Int(self.lockoutDuration - elapsed))s remaining")
+                return false
+            }
+            // Lockout expired, reset counter
+            failedAuthAttempts = 0
+            lastFailedAuthTime = nil
+        }
+
         let context = LAContext()
         context.localizedCancelTitle = "Cancel"
 
@@ -739,11 +758,23 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             ? .deviceOwnerAuthentication
             : .deviceOwnerAuthenticationWithBiometrics
 
-        return await withCheckedContinuation { continuation in
+        let success = await withCheckedContinuation { continuation in
             context.evaluatePolicy(policy, localizedReason: reason) { success, _ in
                 continuation.resume(returning: success)
             }
         }
+
+        // Track failed attempts for rate limiting
+        if success {
+            failedAuthAttempts = 0
+            lastFailedAuthTime = nil
+        } else {
+            failedAuthAttempts += 1
+            lastFailedAuthTime = Date()
+            logger.info("Auth failed, attempt \(self.failedAuthAttempts)/\(self.maxFailedAttempts)")
+        }
+
+        return success
     }
 
     // MARK: - Appearance
