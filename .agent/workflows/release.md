@@ -21,13 +21,10 @@ Wait for "Release build complete!" message. Note the:
 - **DMG path**: `releases/SaneBar-X.Y.Z.dmg`
 - **edSignature**: For Sparkle appcast
 
-### 2. GitHub Release
+### 2. Upload DMG to Cloudflare R2
 ```bash
-gh release create vX.Y.Z releases/SaneBar-X.Y.Z.dmg \
-  --title "vX.Y.Z" \
-  --notes "## Changes
-- Change 1
-- Change 2"
+npx wrangler r2 object put sanebar-downloads/SaneBar-X.Y.Z.dmg \
+  --file=releases/SaneBar-X.Y.Z.dmg --content-type="application/octet-stream" --remote
 ```
 
 ### 3. Update Appcast (docs/appcast.xml)
@@ -44,36 +41,35 @@ git commit -m "Update appcast for vX.Y.Z"
 git push origin main
 ```
 
-### 4. Verify All Endpoints
+### 4. Deploy Website + Appcast to Cloudflare Pages
 ```bash
-# Verify GitHub Release exists
-gh release view vX.Y.Z
+CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa \
+  npx wrangler pages deploy ./docs --project-name=sanebar-site \
+  --commit-dirty=true --commit-message="Release vX.Y.Z"
 
-# Verify appcast updated (may take a few minutes for CDN cache)
-curl -s https://raw.githubusercontent.com/sane-apps/SaneBar/main/docs/appcast.xml | head -10
+# Verify appcast is live
+curl -s https://sanebar.com/appcast.xml | head -10
 ```
 
 ### 5. Respond to Open Issues
 For any issues fixed in this release:
 ```bash
-gh issue comment <issue_number> --body "Fixed in vX.Y.Z. Please download from [GitHub Releases](https://github.com/sane-apps/SaneBar/releases/tag/vX.Y.Z)"
+gh issue comment <issue_number> --body "Fixed in vX.Y.Z. Update via Check for Updates in the app."
 ```
 
 ## Post-Release Checklist
 
-- [ ] GitHub Release published and DMG downloadable
+- [ ] DMG uploaded to Cloudflare R2 (`sanebar-downloads` bucket)
 - [ ] Appcast.xml updated and pushed
-- [ ] Website download link works (points to GitHub Releases)
+- [ ] Website + appcast deployed to Cloudflare Pages
+- [ ] Download verified: `curl -sI https://dist.sanebar.com/updates/SaneBar-X.Y.Z.dmg`
 - [ ] Open issues notified of fix
-- [ ] README version badge shows new version
 
 ## What Gets Updated Each Release
 
 | Item | Location | How |
 |------|----------|-----|
 | Version | `project.yml` | Manual edit |
-| DMG | `releases/` | `release.sh` |
-| GitHub Release | github.com | `gh release create` |
+| DMG | `releases/` → Cloudflare R2 | `release.sh` then `wrangler r2 object put` |
 | Appcast.xml | `docs/appcast.xml` | Manual edit + push |
-| README badge | Auto from GitHub | No action needed |
-| Website | sanebar.com | GitHub Pages (auto from docs/) |
+| Website | sanebar.com | `wrangler pages deploy` (Cloudflare Pages) |

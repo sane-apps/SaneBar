@@ -23,13 +23,13 @@ We have explicitly configured Sparkle to maximize privacy:
 | Setting | Value | Meaning |
 |---------|-------|---------|
 | `SUEnableSystemProfiling` | `NO` | **No** system profile (CPU, RAM, OS version) is sent |
-| `SUFeedURL` | GitHub Pages | Checks a static XML file, not an API |
+| `SUFeedURL` | Cloudflare Pages | Checks a static XML file, not an API |
 
 ### What Happens Technically
 
 When SaneBar checks for updates (either automatically or when you click "Check for Updates"):
 1. It requests a static file: `https://sanebar.com/appcast.xml`
-2. This is a standard HTTP GET request (your IP is visible to GitHub Pages, as with any website)
+2. This is a standard HTTP GET request (your IP is visible to Cloudflare, as with any website)
 3. **No other data is sent.**
 
 ### EdDSA Security
