@@ -43,8 +43,7 @@ git push origin main
 
 ### 4. Deploy Website + Appcast to Cloudflare Pages
 ```bash
-CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa \
-  npx wrangler pages deploy ./docs --project-name=sanebar-site \
+npx wrangler pages deploy ./docs --project-name=sanebar-site \
   --commit-dirty=true --commit-message="Release vX.Y.Z"
 
 # Verify appcast is live

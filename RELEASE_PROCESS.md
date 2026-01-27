@@ -44,8 +44,7 @@ npx wrangler r2 object put sanebar-downloads/SaneBar-X.Y.Z.dmg \
 
 # 4. Deploy website + appcast to Cloudflare Pages
 cp docs/appcast.xml website/appcast.xml 2>/dev/null || cp docs/appcast.xml docs/
-CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa \
-  npx wrangler pages deploy ./docs --project-name=sanebar-site \
+npx wrangler pages deploy ./docs --project-name=sanebar-site \
   --commit-dirty=true --commit-message="Release vX.Y.Z"
 
 # 5. Commit and push
@@ -169,7 +168,7 @@ The EdDSA signature in appcast.xml doesn't match the DMG. Regenerate:
 ### Website not updating
 
 Cloudflare Pages deploys are near-instant. If stale:
-- Redeploy: `CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa npx wrangler pages deploy ./docs --project-name=sanebar-site --commit-dirty=true`
+- Redeploy: `npx wrangler pages deploy ./docs --project-name=sanebar-site --commit-dirty=true`
 - Verify: `curl -s https://sanebar.com/appcast.xml | head -10`
 
 ### Rollback a release

@@ -159,3 +159,9 @@ sparkle_private_key.txt
 MinimalTest/
 *.bak
 project.yml.bak
+CLAUDE.md
+SESSION_HANDOFF.md
+SESSION_LOG.md
+DOCS_AUDIT_FINDINGS.md
+TESTING_RESULTS.md
+.claude/
