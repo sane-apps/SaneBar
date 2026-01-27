@@ -17,6 +17,7 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sanebar.com/">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
@@ -184,10 +185,11 @@
         }
 
         .logo-family {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             font-weight: 400;
             margin-left: 12px;
+            margin-right: auto;
             padding-left: 12px;
             border-left: 1px solid var(--border);
             text-decoration: none;
@@ -1475,12 +1477,94 @@
             opacity: 0.5;
         }
 
-        /* Responsive */
-        @media (max-width: 600px) {
+        /* Hamburger Menu */
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            z-index: 200;
+            color: var(--text-primary);
+        }
 
-            .nav-links {
-                display: none;
-            }
+        .hamburger svg { display: block; }
+
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(8, 8, 12, 0.97);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 150;
+            padding: 80px 32px 40px;
+            overflow-y: auto;
+            flex-direction: column;
+        }
+
+        .mobile-nav.open { display: flex; }
+
+        .mobile-nav a {
+            display: block;
+            padding: 16px 0;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            transition: color 0.2s;
+        }
+
+        .mobile-nav a:active { color: var(--accent); }
+
+        .mobile-nav-section {
+            padding: 20px 0 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+
+        .mobile-nav-section:first-child { padding-top: 0; }
+
+        .mobile-nav .mobile-nav-cta {
+            display: flex;
+            margin-top: 24px;
+            padding: 16px 28px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+            color: #fff !important;
+            font-weight: 600;
+            border-radius: 12px;
+            text-align: center;
+            justify-content: center;
+            border-bottom: none;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .mobile-nav-close {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 1.5rem;
+            line-height: 1;
+            z-index: 200;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hamburger { display: block; }
+            .nav-links { display: none; }
+            .logo-family { display: none; }
 
             .highlight-content {
                 grid-template-columns: 1fr;
@@ -1505,6 +1589,21 @@
                 max-width: 300px;
                 justify-content: center;
             }
+
+            .footer-links {
+                flex-direction: column;
+                gap: 12px;
+                align-items: center;
+            }
+
+            section {
+                padding-top: 48px !important;
+                padding-bottom: 48px !important;
+            }
+
+            .hero {
+                padding-top: 110px !important;
+            }
         }
     </style>
 </head>
@@ -1524,11 +1623,12 @@
                 <img src="images/branding.png" alt="SaneBar">
                 SaneBar
             </a>
-            <!-- <a href="https://saneapps.com" class="logo-family">Part of the SaneApps family</a> -->
+            <a href="https://saneapps.com" class="logo-family">Part of the SaneApps family</a>
             <div class="nav-links">
                 <a href="#demo">Demo</a>
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
+                <a href="guides.html">Guides</a>
                 <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
                 <a href="#support" class="btn btn-primary btn-donate">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ffffff" stroke-width="1.5">
@@ -1537,8 +1637,27 @@
                     Donate
                 </a>
             </div>
+            <button class="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
         </div>
     </nav>
+
+    <div id="mobileNav" class="mobile-nav">
+        <button class="mobile-nav-close" onclick="toggleMobileNav()" aria-label="Close menu">&times;</button>
+        <p class="mobile-nav-section">Navigation</p>
+        <a href="#demo" onclick="toggleMobileNav()">Demo</a>
+        <a href="#features" onclick="toggleMobileNav()">Features</a>
+        <a href="#compare" onclick="toggleMobileNav()">Compare</a>
+        <a href="guides.html" onclick="toggleMobileNav()">Guides</a>
+        <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
+        <a href="#support" onclick="toggleMobileNav()">Donate</a>
+        <p class="mobile-nav-section">More SaneApps</p>
+        <a href="https://saneclip.com">SaneClip &mdash; Clipboard Manager</a>
+        <a href="https://sanehosts.com">SaneHosts &mdash; System-Level Ad Blocker</a>
+        <a href="https://saneapps.com">See all SaneApps &rarr;</a>
+        <a href="https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e" class="mobile-nav-cta">Download SaneBar &mdash; $5</a>
+    </div>
 
     <section class="hero">
         <div class="container">
@@ -2055,10 +2174,9 @@
         </div>
     </section>
 
-    <!--
     <section class="more-apps">
         <div class="container">
-            <h2 class="section-title">More from Sane Apps</h2>
+            <h2 class="section-title">More from SaneApps</h2>
             <p class="more-apps-subtitle">Privacy-first Mac utilities that don't suck</p>
             <div class="more-apps-grid">
                 <a href="https://saneclip.com" class="app-card">
@@ -2066,39 +2184,48 @@
                         <img src="images/saneclip-icon.png" alt="SaneClip" class="app-card-icon">
                         <div class="app-card-name">SaneClip</div>
                     </div>
-                    <p class="app-card-tagline">Clipboard manager that respects your privacy. Unlimited history, quick search, pin favorites.</p>
-                    <span class="app-card-cta">Learn more →</span>
+                    <p class="app-card-tagline">Clipboard history that never leaves your Mac. Touch ID protection, instant search, text transforms.</p>
+                    <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
-                <a href="https://github.com/sane-apps/SaneHosts" class="app-card">
+                <a href="https://sanehosts.com" class="app-card">
                     <div class="app-card-header">
                         <img src="images/sanehosts-icon.png" alt="SaneHosts" class="app-card-icon">
                         <div class="app-card-name">SaneHosts</div>
                     </div>
-                    <p class="app-card-tagline">Manage your /etc/hosts with a beautiful GUI. Block ads and trackers at the system level.</p>
-                    <span class="app-card-cta">Learn more →</span>
+                    <p class="app-card-tagline">Block ads, trackers, and telemetry at the system level. A clean UI for your hosts file.</p>
+                    <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
             </div>
             <div class="more-apps-hub">
-                <a href="https://saneapps.com">See all apps at saneapps.com →</a>
+                <a href="https://saneapps.com">See all apps at saneapps.com &rarr;</a>
             </div>
         </div>
     </section>
-    -->
 
     <footer>
         <div class="container">
+            <p class="footer-quote" style="font-style: italic; font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 20px; opacity: 0.85;">"For God has not given us a spirit of fear, but of power, love, and a sound mind." — 2 Timothy 1:7</p>
             <p class="footer-privacy"><strong>0% Telemetry</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
             <div class="footer-links">
+                <a href="guides.html">Guides</a>
                 <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/PRIVACY.md">Privacy</a>
-                <a href="https://github.com/sane-apps/SaneBar/issues">Support</a>
+                <a href="https://github.com/sane-apps/SaneBar/issues">Help</a>
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/LICENSE">MIT License</a>
             </div>
             <p class="footer-copy">Made with care by Mr. Sane &nbsp;•&nbsp; &copy; 2026 SaneBar</p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px;">"Built for a Sound Mind" &middot; <a href="https://saneapps.com" style="color: var(--text-secondary);">saneapps.com</a></p>
         </div>
     </footer>
 
     <script>
+        // Mobile Nav Toggle
+        function toggleMobileNav() {
+            var nav = document.getElementById('mobileNav');
+            nav.classList.toggle('open');
+            document.body.style.overflow = nav.classList.contains('open') ? 'hidden' : '';
+        }
+
         // Hero Carousel - auto-rotates every 2.5 seconds
         let currentSlide = 0;
         const slides = document.querySelectorAll('.carousel-slide');

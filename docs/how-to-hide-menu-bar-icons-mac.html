@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Hide Menu Bar Icons on Mac (Hard vs Easy Mode) - SaneBar</title>
+    <meta name="description" content="Learn how to hide menu bar icons on macOS. Compare the manual Terminal method vs. using SaneBar for a cleaner, private workspace.">
+    <link rel="icon" type="image/png" href="images/branding.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #08080c;
+            --bg-secondary: #0f0f16;
+            --bg-card: #16161f;
+            --accent: #4f8ffa;
+            --accent-soft: #3b7ce8;
+            --accent-glow: rgba(79, 143, 250, 0.25);
+            --success: #34d399;
+            --text-primary: #f5f5f8;
+            --text-secondary: #c0c0d0;
+            --text-muted: #a0a0b0;
+            --border: #252530;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Reusing Navbar Styles */
+        nav {
+            padding: 20px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        nav .container { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 1.25rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .logo img { width: 32px; height: 32px; border-radius: 8px; }
+
+        .nav-links { display: flex; gap: 32px; align-items: center; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-primary); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+            color: #ffffff !important;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 24px var(--accent-glow);
+        }
+
+        /* Article Styles */
+        article { padding: 160px 0 100px; }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            margin-bottom: 24px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            max-width: 700px;
+        }
+
+        .option-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+
+        .option-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option-card h3 .badge {
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 100px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .winner-card {
+            border-color: var(--accent);
+            background: linear-gradient(145deg, var(--bg-card) 0%, rgba(79, 143, 250, 0.05) 100%);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .winner-card::before {
+            content: "Recommended";
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: var(--accent);
+            color: white;
+            padding: 6px 40px;
+            transform: rotate(45deg);
+            font-size: 0.8rem;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .code-block {
+            background: #000;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: monospace;
+            color: #34d399;
+            margin: 20px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        ul { list-style: none; margin-top: 20px; }
+        
+        li {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .icon-check { color: var(--success); flex-shrink: 0; font-weight: bold; }
+        .icon-cross { color: #ef4444; flex-shrink: 0; font-weight: bold; }
+        .icon-neutral { color: var(--text-muted); flex-shrink: 0; }
+
+        .cta-btn {
+            display: inline-block;
+            margin-top: 24px;
+            background: var(--accent);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .cta-btn:hover { transform: translateY(-2px); }
+
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="container">
+            <a href="index.html" class="logo">
+                <img src="images/branding.png" alt="SaneBar">
+                SaneBar
+            </a>
+            <div class="nav-links">
+                <a href="guides.html">All Guides</a>
+                <a href="https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e" class="btn-primary">Download</a>
+            </div>
+        </div>
+    </nav>
+
+    <article class="container">
+        <h1>How to Hide Menu Bar Icons on Mac (Hard vs Easy Mode)</h1>
+        <p class="subtitle">Your Mac's menu bar is valuable real estate. But between background utilities, status indicators, and helper apps, it quickly becomes a mess. Here are the three ways to clean it up.</p>
+
+        <!-- Option 1: The Hard Way -->
+        <div class="option-card">
+            <h3>Option 1: The Hard Way (Manual) <span class="badge">Free</span></h3>
+            <p>macOS allows you to remove <em>some</em> system icons, but it's tedious and doesn't work for third-party apps.</p>
+            
+            <div class="code-block">
+                # Remove Spotlight icon (Requires Admin)<br>
+                sudo chmod 600 /System/Library/CoreServices/Search.bundle/Contents/MacOS/Search<br>
+                killall SystemUIServer
+            </div>
+
+            <ul>
+                <li><span class="icon-cross">✗</span> <div><strong>Risky:</strong> Requires modifying system files or permissions.</div></li>
+                <li><span class="icon-cross">✗</span> <div><strong>Limited:</strong> Cannot hide third-party apps like Docker, Creative Cloud, or Slack.</div></li>
+                <li><span class="icon-neutral">−</span> <div><strong>Permanent:</strong> To get them back, you have to undo your terminal commands.</div></li>
+            </ul>
+        </div>
+
+        <!-- Option 2: The Subscription Way -->
+        <div class="option-card">
+            <h3>Option 2: The Subscription Way <span class="badge">Expensive</span></h3>
+            <p>Apps like Bartender allow you to hide icons, but often come with subscription models, paid upgrades, or closed-source code that runs with high privileges.</p>
+
+            <ul>
+                <li><span class="icon-check">✓</span> <div><strong>Works:</strong> Hides both system and third-party icons.</div></li>
+                <li><span class="icon-cross">✗</span> <div><strong>Cost:</strong> Often $16+ or recurring fees for upgrades.</div></li>
+                <li><span class="icon-cross">✗</span> <div><strong>Privacy:</strong> Closed source. You can't verify if it's sending analytics about your installed apps.</div></li>
+            </ul>
+        </div>
+
+        <!-- Option 3: The Sane Way -->
+        <div class="option-card winner-card">
+            <h3>Option 3: The Sane Way (SaneBar) <span class="badge" style="background:var(--accent); color:white; border:none;">Winner</span></h3>
+            <p>SaneBar is the privacy-first menu bar manager. It uses a simple separator (<code>|</code>) concept: anything to the left is hidden, anything to the right stays visible.</p>
+
+            <ul>
+                <li><span class="icon-check">✓</span> <div><strong>One Click Hide:</strong> Toggle visibility instantly.</div></li>
+                <li><span class="icon-check">✓</span> <div><strong>Privacy First:</strong> 100% on-device, open source, no analytics.</div></li>
+                <li><span class="icon-check">✓</span> <div><strong>Power Search:</strong> Can't find an icon? Type its name to reveal and click it instantly.</div></li>
+                <li><span class="icon-check">✓</span> <div><strong>Price:</strong> Pay $5 once. Own it forever.</div></li>
+            </ul>
+
+            <a href="https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e" class="cta-btn">Get SaneBar for $5</a>
+        </div>
+
+        <p style="text-align: center; color: var(--text-secondary); margin-top: 60px;">
+            <a href="guides.html" style="color: var(--text-muted); text-decoration: none;">&larr; Back to Guides</a>
+        </p>
+
+    </article>
+
+</body>
+</html>

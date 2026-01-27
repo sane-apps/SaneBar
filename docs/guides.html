@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaneBar Guides - Master Your Mac's Menu Bar</title>
+    <meta name="description" content="Tutorials and guides for managing your Mac's menu bar. How to hide icons, lock them with Touch ID, and organize your workspace.">
+    <link rel="icon" type="image/png" href="images/branding.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #08080c;
+            --bg-secondary: #0f0f16;
+            --bg-card: #16161f;
+            --accent: #4f8ffa;
+            --accent-soft: #3b7ce8;
+            --accent-glow: rgba(79, 143, 250, 0.25);
+            --text-primary: #f5f5f8;
+            --text-secondary: #c0c0d0;
+            --text-muted: #a0a0b0;
+            --border: #252530;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Reusing Navbar Styles */
+        nav {
+            padding: 20px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 1.25rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .logo img { width: 32px; height: 32px; border-radius: 8px; }
+
+        .nav-links { display: flex; gap: 32px; align-items: center; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-primary); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+            color: #ffffff !important;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 24px var(--accent-glow);
+        }
+
+        /* Header */
+        .header {
+            padding: 180px 0 80px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            margin-bottom: 24px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Grid */
+        .guides-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            padding-bottom: 120px;
+        }
+
+        .guide-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .guide-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+
+        .guide-icon {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .guide-card h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .guide-card p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            flex-grow: 1;
+        }
+
+        .read-more {
+            margin-top: 24px;
+            color: var(--accent);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        footer a { color: var(--text-secondary); text-decoration: none; }
+        footer a:hover { color: var(--accent); }
+
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="container">
+            <a href="index.html" class="logo">
+                <img src="images/branding.png" alt="SaneBar">
+                SaneBar
+            </a>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e" class="btn-primary">Download</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="header">
+            <h1>SaneBar Guides</h1>
+            <p>Everything you need to know about managing your menu bar, protecting your privacy, and customizing your Mac.</p>
+        </header>
+
+        <div class="guides-grid">
+            <!-- Guide 1: Hiding Icons -->
+            <a href="how-to-hide-menu-bar-icons-mac.html" class="guide-card">
+                <div class="guide-icon">👀</div>
+                <h2>How to Hide Menu Bar Icons</h2>
+                <p>The menu bar fills up fast. Learn the hard way (Terminal) and the Sane way to hide clutter and keep your workspace clean.</p>
+                <div class="read-more">Read Guide &rarr;</div>
+            </a>
+
+            <!-- Guide 2: Touch ID Lock -->
+            <a href="how-to-lock-menu-bar-icons-touch-id.html" class="guide-card">
+                <div class="guide-icon">🔒</div>
+                <h2>How to Lock Icons with Touch ID</h2>
+                <p>Protect sensitive apps like crypto wallets and VPNs. Secure your hidden menu bar items with biometric authentication.</p>
+                <div class="read-more">Read Guide &rarr;</div>
+            </a>
+
+            <!-- Guide 3: Reordering & Spacing -->
+            <a href="how-to-reorder-menu-bar-icons-mac.html" class="guide-card">
+                <div class="guide-icon">📏</div>
+                <h2>How to Fix Menu Bar Spacing</h2>
+                <p>MacBook Notch hiding your apps? Learn how to reduce icon spacing system-wide to reclaim valuable screen real estate.</p>
+                <div class="read-more">Read Guide &rarr;</div>
+            </a>
+
+            <!-- Guide 4: Automation -->
+            <a href="how-to-automate-menu-bar-icons-applescript.html" class="guide-card">
+                <div class="guide-icon">🤖</div>
+                <h2>How to Automate Menu Bar Icons</h2>
+                <p>For power users: Control SaneBar with AppleScript, Raycast, Alfred, or Shortcuts. Build custom workflows.</p>
+                <div class="read-more">Read Guide &rarr;</div>
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 SaneApps. All rights reserved. <a href="index.html">Home</a></p>
+        </div>
+    </footer>
+
+</body>
+</html>
