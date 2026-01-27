@@ -1,6 +1,6 @@
 # SaneBar Release Process
 
-> **CRITICAL**: Every release requires BOTH a GitHub Release AND an appcast.xml update.
+> **CRITICAL**: Every release requires a DMG upload to Cloudflare R2 AND an appcast.xml update.
 > Users only receive updates through Sparkle, which reads appcast.xml.
 
 ---
@@ -35,15 +35,20 @@ For full control over the release process:
 # 1. Build, sign, notarize, create DMG
 ./scripts/release_fixed.sh
 
-# 2. Upload DMG to GitHub Releases
-gh release create vX.Y.Z releases/SaneBar-X.Y.Z.dmg \
-  --title "SaneBar vX.Y.Z" \
-  --notes "See CHANGELOG.md"
+# 2. Upload DMG to Cloudflare R2
+npx wrangler r2 object put sanebar-downloads/SaneBar-X.Y.Z.dmg \
+  --file=releases/SaneBar-X.Y.Z.dmg --content-type="application/octet-stream" --remote
 
 # 3. Update appcast.xml (CRITICAL - don't skip!)
 ./scripts/post_release.rb
 
-# 4. Commit and push appcast
+# 4. Deploy website + appcast to Cloudflare Pages
+cp docs/appcast.xml website/appcast.xml 2>/dev/null || cp docs/appcast.xml docs/
+CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa \
+  npx wrangler pages deploy ./docs --project-name=sanebar-site \
+  --commit-dirty=true --commit-message="Release vX.Y.Z"
+
+# 5. Commit and push
 git add docs/appcast.xml
 git commit -m "chore: update appcast for vX.Y.Z"
 git push
@@ -117,7 +122,7 @@ Options:
 │  "New version X.Y.Z available!"                              │
 │        │                                                     │
 │        ↓                                                     │
-│  Downloads DMG from GitHub Release                           │
+│  Downloads DMG from dist.sanebar.com (Cloudflare R2)          │
 │        │                                                     │
 │        ↓                                                     │
 │  Verifies EdDSA signature (MUST match!)                      │
@@ -161,11 +166,11 @@ The EdDSA signature in appcast.xml doesn't match the DMG. Regenerate:
 # This will overwrite the existing entry with correct signature
 ```
 
-### GitHub Pages not updating
+### Website not updating
 
-GitHub Pages can take 1-5 minutes to deploy. Check:
-- Raw file: `https://raw.githubusercontent.com/sane-apps/SaneBar/main/docs/appcast.xml`
-- Live site: `https://sanebar.com/appcast.xml`
+Cloudflare Pages deploys are near-instant. If stale:
+- Redeploy: `CLOUDFLARE_ACCOUNT_ID=2c267ab06352ba2522114c3081a8c5fa npx wrangler pages deploy ./docs --project-name=sanebar-site --commit-dirty=true`
+- Verify: `curl -s https://sanebar.com/appcast.xml | head -10`
 
 ### Rollback a release
 
@@ -209,8 +214,9 @@ Until then, **always run `post_release.rb` after CI releases**.
 - [ ] Changes committed and pushed
 
 ### After Release
-- [ ] GitHub Release exists with DMG
+- [ ] DMG uploaded to Cloudflare R2 (`sanebar-downloads` bucket)
 - [ ] `./scripts/post_release.rb` run
 - [ ] appcast.xml committed and pushed
+- [ ] Website + appcast deployed to Cloudflare Pages
 - [ ] Verified at sanebar.com/appcast.xml
 - [ ] Tested "Check for Updates" in app
