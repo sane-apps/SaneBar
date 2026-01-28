@@ -12,11 +12,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     // No @main - using main.swift instead
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Debug: Touch a file to verify delegate is being called
-        FileManager.default.createFile(atPath: "/tmp/sanebar_delegate_called", contents: nil)
-
-        print("[SaneBarAppDelegate] SANEBAR_ENABLE_RECOVERY=\(ProcessInfo.processInfo.environment["SANEBAR_ENABLE_RECOVERY"] ?? "nil")")
-
         appLogger.info("🏁 applicationDidFinishLaunching START")
 
         // CRITICAL: Set activation policy to accessory BEFORE creating status items!
