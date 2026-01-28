@@ -95,6 +95,26 @@ Use these for website, App Store descriptions, and marketing materials.
 
 ---
 
+## Third-Party Security Audit — January 2026
+
+> **Context**: A deep security and privacy audit was requested via [BaseHub Forums](https://forums.basehub.com/sane-apps/SaneBar/1). The audit examined entitlements, data storage, network behavior, update signing, authentication, and diagnostic handling.
+
+**Result: Zero critical or high-severity issues.**
+
+| Quote | Context |
+|-------|---------|
+| "Strong security practices overall with privacy as a foundational principle." | Overall assessment |
+| "Remote attacks blocked entirely." | Threat assessment |
+| "No telemetry, analytics, or user identifiers detected." | Privacy validation |
+| "Zero critical or high-severity issues; appropriately documented design tradeoffs." | Final rating |
+
+**Pull Quote:**
+```
+"Zero critical issues. Privacy as a foundational principle." — Independent Security Audit
+```
+
+---
+
 ## Testimonial Sources
 
 - **r/macapps**: [Reddit thread](https://reddit.com/r/macapps) - Jan 2026 launch post

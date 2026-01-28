@@ -59,7 +59,9 @@ SaneBar stores WiFi network names (SSIDs) in plaintext for the "Show on specific
 
 ---
 
-## Security Audit
+## Security Audits
+
+### Internal Audit — January 2026
 
 An independent code review was conducted in January 2026. Key findings:
 
@@ -71,6 +73,26 @@ An independent code review was conducted in January 2026. Key findings:
 | Force casts in AX code | Medium | ✅ Fixed (v1.0.17) |
 
 Full audit report: [outputs/SECURITY_AUDIT_2026-01-25.md](outputs/SECURITY_AUDIT_2026-01-25.md)
+
+### Third-Party Audit — January 2026
+
+A third-party security and privacy audit was conducted via [BaseHub Forums](https://forums.basehub.com/sane-apps/SaneBar/1). The audit examined SaneBar's entitlements, data storage, network behavior, update system, authentication, and diagnostic data handling.
+
+**Result: Zero critical or high-severity issues.**
+
+Key findings:
+- Single entitlement (AppleScript automation only)
+- All data stored locally with no cloud sync
+- Sparkle updates use EdDSA cryptographic signing with system profiling disabled
+- Diagnostic data sanitization removes paths, emails, and API key patterns
+- Authentication rate limiting (5 attempts, 60-second lockout)
+- No telemetry, analytics, or user identifiers detected
+- Remote attack surface effectively zero
+
+Minor concerns (all documented with mitigations above):
+- Touch ID config stored as plaintext JSON — documented design limitation
+- WiFi SSIDs in unencrypted local storage — local-only mitigation
+- Focus Mode reads undocumented Apple private files — graceful error handling
 
 ---
 
