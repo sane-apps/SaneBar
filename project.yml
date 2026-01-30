@@ -127,7 +127,7 @@ targets:
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-          CODE_SIGN_IDENTITY: "Developer ID Application: Stephan Joseph (M78L6FXD48)"
+          CODE_SIGN_IDENTITY: "Developer ID Application"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
     postCompileScripts:
       - script: |
