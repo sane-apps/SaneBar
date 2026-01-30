@@ -416,13 +416,8 @@ if command -v swift >/dev/null 2>&1; then
     <title>${VERSION}</title>
     <pubDate>${DATE}</pubDate>
     <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-    <enclosure url="https://github.com/sane-apps/${APP_NAME}/releases/download/v${VERSION}/${APP_NAME}-${VERSION}.dmg"
-               sparkle:version="${BUILD_NUMBER}"
-               sparkle:shortVersionString="${VERSION}"
-               length="${FILE_SIZE}"
-               type="application/x-apple-diskimage"
-               sparkle:edSignature="${SIGNATURE}"/>
-</item>
+        <enclosure url="https://dist.sanebar.com/updates/${APP_NAME}-${VERSION}.dmg"
+                   sparkle:version="${CURRENT_PROJECT_VERSION}"</item>
 EOF
         else
             log_warn "Failed to generate Sparkle signature Check Swift Key format"
