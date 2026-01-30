@@ -7,6 +7,24 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [1.0.17] - 2026-01-29
+
+### Security
+- **Third-Party Audit Response**: Addressed findings from Jan 2026 audit
+- **Touch ID Hardening**: AppleScript commands now enforce Touch ID requirements
+- **Auth Rate Limiting**: Added 30s lockout after 5 failed authentication attempts
+
+### Changed
+- **New App Icon**: Polished 3D squircle design for better macOS integration
+- **Cleaned Up**: Removed unused "Click to Show" setting that conflicted with visible items
+- **Website**: Unified messaging and added trust badges linking to audit
+
+### Fixed
+- **Stability**: Replaced force casts in Accessibility code for better crash resilience
+- **Dock Icon**: Respects user preference immediately on first launch
+
+---
+
 ## [1.0.16] - 2026-01-24
 
 ### Added

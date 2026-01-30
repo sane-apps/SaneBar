@@ -13,15 +13,23 @@ class SaneBarScriptCommand: NSScriptCommand {
 
     /// Check if auth is required (main-thread safe without capturing self)
     func checkAuthRequired() -> Bool {
-        DispatchQueue.main.sync {
-            MenuBarManager.shared.settings.requireAuthToShowHiddenIcons
+        if Thread.isMainThread {
+            return MenuBarManager.shared.settings.requireAuthToShowHiddenIcons
+        } else {
+            return DispatchQueue.main.sync {
+                MenuBarManager.shared.settings.requireAuthToShowHiddenIcons
+            }
         }
     }
 
     /// Check if hidden items are currently hidden (main-thread safe)
     func checkIsHidden() -> Bool {
-        DispatchQueue.main.sync {
-            MenuBarManager.shared.hidingService.state == .hidden
+        if Thread.isMainThread {
+            return MenuBarManager.shared.hidingService.state == .hidden
+        } else {
+            return DispatchQueue.main.sync {
+                MenuBarManager.shared.hidingService.state == .hidden
+            }
         }
     }
 }
