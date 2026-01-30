@@ -5,11 +5,8 @@ import AppKit
 struct FeedbackView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var issueTitle = ""
     @State private var issueDescription = ""
     @State private var isCollecting = false
-    @State private var diagnosticReport: DiagnosticReport?
-    @State private var showPreview = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,26 +28,16 @@ struct FeedbackView: View {
 
             Divider()
 
-            // Form
+            // Form - single field
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Title field
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Issue Title")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("Brief description of the problem", text: $issueTitle)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    // Description field
                     VStack(alignment: .leading, spacing: 6) {
                         Text("What happened?")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         TextEditor(text: $issueDescription)
                             .font(.body)
-                            .frame(minHeight: 100)
+                            .frame(minHeight: 120)
                             .padding(4)
                             .background(Color(NSColor.textBackgroundColor))
                             .cornerRadius(6)
@@ -60,9 +47,9 @@ struct FeedbackView: View {
                             )
                     }
 
-                    // What will be included
+                    // What gets attached automatically
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("What's included in the report:")
+                        Text("We'll automatically attach:")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -83,7 +70,7 @@ struct FeedbackView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.shield")
                             .foregroundStyle(.green)
-                        Text("Your report opens in your browser. Nothing is sent without your approval.")
+                        Text("Opens in your browser. Nothing is sent without your approval.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -93,12 +80,10 @@ struct FeedbackView: View {
 
             Divider()
 
-            // Footer buttons
+            // Footer
             HStack {
-                Button("Preview Report") {
-                    collectAndPreview()
-                }
-                .disabled(issueTitle.isEmpty || isCollecting)
+                Link("Email us instead", destination: URL(string: "mailto:hi@saneapps.com")!)
+                    .font(.caption)
 
                 Spacer()
 
@@ -115,39 +100,16 @@ struct FeedbackView: View {
                             .controlSize(.small)
                             .padding(.horizontal, 8)
                     } else {
-                        Text("Open in GitHub")
+                        Text("Report Issue")
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(issueTitle.isEmpty || isCollecting)
+                .disabled(issueDescription.isEmpty || isCollecting)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
         }
-        .frame(width: 480, height: 520)
-        .sheet(isPresented: $showPreview) {
-            if let report = diagnosticReport {
-                FeedbackPreviewView(
-                    report: report,
-                    title: issueTitle,
-                    description: issueDescription,
-                    onSubmit: { openInGitHub(report: report) },
-                    onCancel: { showPreview = false }
-                )
-            }
-        }
-    }
-
-    private func collectAndPreview() {
-        isCollecting = true
-        Task {
-            let report = await DiagnosticsService.shared.collectDiagnostics()
-            await MainActor.run {
-                diagnosticReport = report
-                isCollecting = false
-                showPreview = true
-            }
-        }
+        .frame(width: 480, height: 420)
     }
 
     private func submitReport() {
@@ -155,7 +117,6 @@ struct FeedbackView: View {
         Task {
             let report = await DiagnosticsService.shared.collectDiagnostics()
             await MainActor.run {
-                diagnosticReport = report
                 isCollecting = false
                 openInGitHub(report: report)
             }
@@ -163,7 +124,9 @@ struct FeedbackView: View {
     }
 
     private func openInGitHub(report: DiagnosticReport) {
-        let title = issueTitle.isEmpty ? "Bug Report" : issueTitle
+        // Auto-generate title from first line of description
+        let firstLine = issueDescription.components(separatedBy: .newlines).first ?? ""
+        let title = String(firstLine.prefix(60))
         if let url = report.gitHubIssueURL(title: title, userDescription: issueDescription) {
             NSWorkspace.shared.open(url)
             dismiss()
@@ -171,58 +134,6 @@ struct FeedbackView: View {
     }
 }
 
-/// Preview of what will be submitted
-struct FeedbackPreviewView: View {
-    let report: DiagnosticReport
-    let title: String
-    let description: String
-    let onSubmit: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Preview Report")
-                    .font(.headline)
-                Spacer()
-            }
-            .padding()
-
-            Divider()
-
-            ScrollView {
-                Text(report.toMarkdown(userDescription: description))
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding()
-            }
-            .background(Color(NSColor.textBackgroundColor))
-
-            Divider()
-
-            HStack {
-                Text("This will open in your browser")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Back") {
-                    onCancel()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button("Submit to GitHub") {
-                    onSubmit()
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding()
-        }
-        .frame(width: 600, height: 500)
-    }
-}
 
 #Preview {
     FeedbackView()

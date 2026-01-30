@@ -40,7 +40,7 @@ protocol SearchServiceProtocol: Sendable {
 
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
-    func activate(app: RunningApp) async
+    func activate(app: RunningApp, isRightClick: Bool) async
 }
 
 // MARK: - SearchService
@@ -242,7 +242,7 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    func activate(app: RunningApp) async {
+    func activate(app: RunningApp, isRightClick: Bool = false) async {
         // 1. Show hidden menu bar items first
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
 
@@ -253,7 +253,12 @@ final class SearchService: SearchServiceProtocol {
         }
 
         // 3. Perform Virtual Click on the menu bar item
-        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(bundleID: app.bundleId, menuExtraId: app.menuExtraIdentifier, statusItemIndex: app.statusItemIndex)
+        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(
+            bundleID: app.bundleId,
+            menuExtraId: app.menuExtraIdentifier,
+            statusItemIndex: app.statusItemIndex,
+            isRightClick: isRightClick
+        )
 
         if !clickSuccess {
             // Fallback: Just activate the app normally (user can then click the now-visible icon)

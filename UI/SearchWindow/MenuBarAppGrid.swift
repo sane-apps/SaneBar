@@ -4,7 +4,7 @@ struct MenuBarAppGrid: View {
     let apps: [RunningApp]
     let mode: String
     let selectedGroupId: UUID?
-    let onActivate: (RunningApp) -> Void
+    let onActivate: (RunningApp, Bool) -> Void
     let onSetHotkey: (RunningApp) -> Void
     let onRemoveFromGroup: (String, UUID) -> Void
     let onMoveIcon: (String, String?, Bool) -> Void
@@ -28,7 +28,7 @@ struct MenuBarAppGrid: View {
                             app: app,
                             iconSize: grid.iconSize,
                             tileSize: grid.tileSize,
-                            onActivate: { onActivate(app) },
+                            onActivate: { isRightClick in onActivate(app, isRightClick) },
                             onSetHotkey: { onSetHotkey(app) },
                             onRemoveFromGroup: selectedGroupId.map { groupId in
                                 { onRemoveFromGroup(app.bundleId, groupId) }

@@ -7,7 +7,7 @@ struct MenuBarAppTile: View {
     let app: RunningApp
     let iconSize: CGFloat
     let tileSize: CGFloat
-    let onActivate: () -> Void
+    let onActivate: (Bool) -> Void
     let onSetHotkey: () -> Void
     var onRemoveFromGroup: (() -> Void)?
 
@@ -23,7 +23,7 @@ struct MenuBarAppTile: View {
     var isSelected: Bool = false
 
     var body: some View {
-        Button(action: onActivate) {
+        Button(action: { onActivate(false) }) {
             VStack(spacing: 4) {
                 // Icon container
                 ZStack {
@@ -71,9 +71,13 @@ struct MenuBarAppTile: View {
         .draggable(app.bundleId)  // Enable drag with bundle ID as payload
         .help(app.name)
         .contextMenu {
-            Button("Open") {
-                onActivate()
+            Button("Left-Click (Open)") {
+                onActivate(false)
             }
+            Button("Right-Click") {
+                onActivate(true)
+            }
+            Divider()
             Button("Set Hotkey…") {
                 onSetHotkey()
             }

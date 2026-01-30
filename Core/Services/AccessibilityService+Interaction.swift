@@ -13,11 +13,10 @@ extension AccessibilityService {
     }
 
     /// Perform a "Virtual Click" on a specific menu bar item.
-    /// If `menuExtraId` is provided, this clicks the matching AX child by `AXIdentifier`.
-    func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil) -> Bool {
+    func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, isRightClick: Bool = false) -> Bool {
         let menuExtraIdString = menuExtraId ?? "nil"
         let statusItemIndexString = statusItemIndex.map(String.init) ?? "nil"
-        logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString))")
+        logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString), rightClick: \(isRightClick))")
 
         guard isTrusted else {
             logger.error("Accessibility permission not granted")
@@ -29,10 +28,10 @@ extension AccessibilityService {
             return false
         }
 
-        return clickSystemWideItem(for: app.processIdentifier, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)
+        return clickSystemWideItem(for: app.processIdentifier, bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
     }
 
-    private func clickSystemWideItem(for targetPID: pid_t, menuExtraId: String?, statusItemIndex: Int?) -> Bool {
+    private func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, isRightClick: Bool) -> Bool {
         let appElement = AXUIElementCreateApplication(targetPID)
 
         var extrasBar: CFTypeRef?
@@ -40,7 +39,8 @@ extension AccessibilityService {
 
         guard result == .success, let bar = extrasBar else {
             logger.debug("App \(targetPID) has no AXExtrasMenuBar")
-            return false
+            // Fallback: If AX fails to find the bar, we try to get the frame directly and hardware-click
+            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
         }
 
         guard let barElement = safeAXUIElement(bar) else { return false }
@@ -50,31 +50,75 @@ extension AccessibilityService {
 
         guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
             logger.debug("No items in app's Extras Menu Bar")
-            return false
+            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
         }
 
         logger.info("Found \(items.count) status item(s) for PID \(targetPID)")
 
+        let targetItem: AXUIElement?
         if let extraId = menuExtraId {
+            var match: AXUIElement?
             for item in items {
                 var identifierValue: CFTypeRef?
                 AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
                 if let identifier = identifierValue as? String, identifier == extraId {
-                    return performPress(on: item)
+                    match = item
+                    break
                 }
             }
-            logger.warning("Could not find status item with identifier: \(extraId)")
+            targetItem = match
+        } else if let statusItemIndex, items.indices.contains(statusItemIndex) {
+            targetItem = items[statusItemIndex]
+        } else {
+            targetItem = items[0]
+        }
+
+        guard let item = targetItem else {
+            logger.warning("Could not find target status item for click")
+            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+        }
+
+        // Try AX first
+        if performSmartPress(on: item, isRightClick: isRightClick) {
+            return true
+        }
+
+        // Fallback to hardware event
+        return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+    }
+
+    private func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, isRightClick: Bool) -> Bool {
+        logger.info("Performing hardware click fallback for \(bundleID)")
+        guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+            logger.error("Hardware click failed: could not find icon frame")
             return false
         }
 
-        if let statusItemIndex, items.indices.contains(statusItemIndex) {
-            return performPress(on: items[statusItemIndex])
-        }
-
-        return performPress(on: items[0])
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        return simulateHardwareClick(at: center, isRightClick: isRightClick)
     }
 
     // MARK: - Interaction
+
+    private func performSmartPress(on element: AXUIElement, isRightClick: Bool) -> Bool {
+        // AX doesn't have a native "right-click" action for most items,
+        // so we usually fallback to hardware click for that.
+        if isRightClick { return false }
+
+        // Some apps (Antinote, BetterDisplay) have nested clickable elements.
+        // We look for any child that supports AXPress if the top-level doesn't.
+        if performPress(on: element) { return true }
+
+        var children: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
+           let childItems = children as? [AXUIElement] {
+            for child in childItems {
+                if performPress(on: child) { return true }
+            }
+        }
+
+        return false
+    }
 
     private func performPress(on element: AXUIElement) -> Bool {
         let error = AXUIElementPerformAction(element, kAXPressAction as CFString)
@@ -83,8 +127,6 @@ extension AccessibilityService {
             logger.info("AXPress successful")
             return true
         }
-
-        logger.debug("AXPress failed with error: \(error.rawValue)")
 
         var actionNames: CFArray?
         if AXUIElementCopyActionNames(element, &actionNames) == .success,
@@ -98,6 +140,26 @@ extension AccessibilityService {
         }
 
         return false
+    }
+
+    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        
+        let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
+        let mouseUpType: CGEventType = isRightClick ? .rightMouseUp : .leftMouseUp
+        let mouseButton: CGMouseButton = isRightClick ? .right : .left
+
+        guard let mouseDown = CGEvent(mouseEventSource: source, mouseType: mouseDownType, mouseCursorPosition: point, mouseButton: mouseButton),
+              let mouseUp = CGEvent(mouseEventSource: source, mouseType: mouseUpType, mouseCursorPosition: point, mouseButton: mouseButton) else {
+            return false
+        }
+
+        mouseDown.post(tap: .cghidEventTap)
+        Thread.sleep(forTimeInterval: 0.01)
+        mouseUp.post(tap: .cghidEventTap)
+        
+        logger.info("Simulated hardware click at \(point.x), \(point.y)")
+        return true
     }
 
     // MARK: - Icon Moving (CGEvent-based)

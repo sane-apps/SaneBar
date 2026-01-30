@@ -80,6 +80,12 @@ struct AboutSettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+
+                Link(destination: URL(string: "mailto:hi@saneapps.com")!) {
+                    Label("Email Us", systemImage: "envelope")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
             .padding(.top, 12)
 

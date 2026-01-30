@@ -26,9 +26,9 @@
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.17.dmg"
                        sparkle:version="1017"
                        sparkle:shortVersionString="1.0.17"
-                       length="5047024"
+                       length="5121847"
                        type="application/x-apple-diskimage"
-                       sparkle:edSignature="YowIkUImNzzIRaZ/kVi1sUKUNMiegpZCvvQsA5UmvYvy1L3NFsmVGsD6HcNd//izqYJhBCoRi/DMtrpL+ChaAw=="/>
+                       sparkle:edSignature="wZeNJ3f85HwTQx1vpyGHDprAbY3XvR+8t4yMus7I8Z0OVQj4Fhw6Fixf/pGkxAHf7ksCCyTPPyPlVxEIqHfnCA=="/>
         </item>
         <item>
             <title>1.0.16</title>

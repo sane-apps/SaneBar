@@ -659,7 +659,7 @@ struct MenuBarSearchView: View {
                             app: app,
                             iconSize: grid.iconSize,
                             tileSize: grid.tileSize,
-                            onActivate: { activateApp(app) },
+                            onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
                             onSetHotkey: { hotkeyApp = app },
                             onRemoveFromGroup: selectedGroupId.map { groupId in
                                 { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
@@ -743,9 +743,9 @@ struct MenuBarSearchView: View {
         return best
     }
 
-    private func activateApp(_ app: RunningApp) {
+    private func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
         Task {
-            await service.activate(app: app)
+            await service.activate(app: app, isRightClick: isRightClick)
             onDismiss()
         }
     }

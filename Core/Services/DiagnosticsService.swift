@@ -248,8 +248,7 @@ extension DiagnosticReport {
         var components = URLComponents(string: "https://github.com/sane-apps/SaneBar/issues/new")
         components?.queryItems = [
             URLQueryItem(name: "title", value: title),
-            URLQueryItem(name: "body", value: body),
-            URLQueryItem(name: "labels", value: "bug,user-reported")
+            URLQueryItem(name: "body", value: body)
         ]
 
         return components?.url

@@ -104,19 +104,30 @@ class PostRelease
     # Step 9: Cleanup
     File.delete(dmg_info[:path]) if dmg_info[:path] && File.exist?(dmg_info[:path])
 
-    # Step 10: Summary
+    # Step 10: Verify signature matches R2 file
+    puts "\n🔍 Verifying signature against live R2 file..."
+    verify_ok = verify_r2_signature(dmg_url, signature, dmg_info[:size])
+
+    # Step 11: Summary
     puts "\n#{'=' * 60}"
     puts "RELEASE CHECKLIST"
     puts "#{'=' * 60}"
     puts "✅ GitHub release v#{@version} exists"
     puts "✅ DMG downloaded and verified"
     puts "✅ EdDSA signature generated"
+    puts verify_ok ? "✅ Signature verified against R2" : "❌ SIGNATURE MISMATCH — R2 file differs from signed file!"
     puts @dry_run ? "⏸️  Appcast update skipped (dry run)" : "✅ appcast.xml updated"
     puts ""
+    unless verify_ok
+      puts "⚠️  WARNING: The DMG on R2 does not match what was signed."
+      puts "   This means updates will fail for users!"
+      puts "   Re-upload the exact DMG or re-run this script after upload."
+      puts ""
+    end
     puts "Next steps:"
     puts "  1. git add docs/appcast.xml"
     puts "  2. git commit -m 'chore: update appcast for v#{@version}'"
-    puts "  3. git push"
+    puts "  3. git push && npx wrangler pages deploy ./docs --project-name=sanebar-site"
     puts "  4. Verify at: https://sanebar.com/appcast.xml"
     puts "#{'=' * 60}\n"
 
@@ -267,6 +278,31 @@ class PostRelease
 
     updated = content.insert(insertion_point, new_entry)
     File.write(APPCAST_PATH, updated)
+  end
+
+  def verify_r2_signature(url, expected_signature, expected_size)
+    # Re-download from R2 and verify the signature matches
+    verify_path = "/tmp/#{APP_NAME}-verify.dmg"
+    _, status = Open3.capture2('curl', '-sL', '-o', verify_path, url)
+    return false unless status.success? && File.exist?(verify_path)
+
+    actual_size = File.size(verify_path)
+    unless actual_size == expected_size
+      puts "   Size mismatch: signed=#{expected_size}, R2=#{actual_size}"
+      File.delete(verify_path) if File.exist?(verify_path)
+      return false
+    end
+
+    actual_sig = generate_signature(verify_path)
+    File.delete(verify_path) if File.exist?(verify_path)
+
+    unless actual_sig == expected_signature
+      puts "   Signature mismatch: appcast vs R2 file differ"
+      return false
+    end
+
+    puts "   ✅ R2 file matches: size=#{actual_size}, signature verified"
+    true
   end
 
   def error(msg)

@@ -38,10 +38,10 @@ struct SearchWindowTests {
         let mockService = SearchServiceProtocolMock()
         let app = RunningApp(id: "com.test", name: "Test", icon: nil)
         
-        await mockService.activate(app: app)
+        await mockService.activate(app: app, isRightClick: false)
         
         #expect(mockService.activateCallCount == 1)
-        #expect(mockService.activateArgValues.first?.id == "com.test")
+        #expect(mockService.activateArgValues.first?.0.id == "com.test")
     }
     
     // MARK: - Model Tests

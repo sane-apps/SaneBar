@@ -384,54 +384,78 @@ fi
 log_info "========================================"
 log_info "Release build complete!"
 log_info "========================================"
-log_info "DMG: ${FINAL_DMG}"
+log_info "DMG: ${DMG_PATH}"
 log_info "Version: ${VERSION}"
 
-# Generate Sparkle Signature and Homebrew Hash
+# Generate Sparkle Signature
 if command -v swift >/dev/null 2>&1; then
     log_info ""
-    log_info "--- Generating Release Metadata ---"    
+    log_info "--- Generating Release Metadata ---"
     # Calculate SHA256
-    SHA256=$(shasum -a 256 "${FINAL_DMG}" | awk '{print $1}')
-    
+    SHA256=$(shasum -a 256 "${DMG_PATH}" | awk '{print $1}')
+    FILE_SIZE=$(stat -f%z "${DMG_PATH}")
+
     # Try to fetch Sparkle Private Key
     log_info "Fetching Sparkle Private Key from Keychain..."
     SPARKLE_KEY=$(security find-generic-password -w -s "https://sparkle-project.org" -a "EdDSA Private Key" 2>/dev/null || echo "")
-    
+
     if [ -n "$SPARKLE_KEY" ]; then
         log_info "Sparkle Key found. Generating signature..."
-        
-        SIGNATURE=$(swift "${PROJECT_ROOT}/scripts/sign_update.swift" "${FINAL_DMG}" "$SPARKLE_KEY" 2>/dev/null || echo "")
-        
+
+        SIGNATURE=$(swift "${PROJECT_ROOT}/scripts/sign_update.swift" "${DMG_PATH}" "$SPARKLE_KEY" 2>/dev/null || echo "")
+
         if [ -n "$SIGNATURE" ]; then
-            FILE_SIZE=$(stat -f%z "${FINAL_DMG}")
             DATE=$(date +"%a, %d %b %Y %H:%M:%S %z")
-            
+
             echo -e "${GREEN}Sparkle AppCast Item:${NC}"
             cat <<EOF
-<item>
-    <title>${VERSION}</title>
-    <pubDate>${DATE}</pubDate>
-    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-        <enclosure url="https://dist.sanebar.com/updates/${APP_NAME}-${VERSION}.dmg"
-                   sparkle:version="${CURRENT_PROJECT_VERSION}"</item>
+        <item>
+            <title>${VERSION}</title>
+            <pubDate>${DATE}</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <p>See CHANGELOG.md for details</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/${APP_NAME}-${VERSION}.dmg"
+                       sparkle:version="${BUILD_NUMBER}"
+                       sparkle:shortVersionString="${VERSION}"
+                       length="${FILE_SIZE}"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="${SIGNATURE}"/>
+        </item>
 EOF
         else
-            log_warn "Failed to generate Sparkle signature Check Swift Key format"
+            log_error "Failed to generate Sparkle signature. Check Swift and key format."
         fi
     else
         log_warn "Sparkle Private Key not found in Keychain. Skipping signature generation."
     fi
-    
+
     echo ""
     echo -e "${GREEN}Release Info:${NC}"
-    echo "Version: ${VERSION}"
+    echo "Version: ${VERSION} (Build ${BUILD_NUMBER})"
     echo "SHA256: ${SHA256}"
+    echo "Size: ${FILE_SIZE} bytes"
+
+    # Save metadata alongside DMG for verification after R2 upload
+    cat > "${BUILD_DIR}/${APP_NAME}-${VERSION}.meta" <<METAEOF
+VERSION=${VERSION}
+BUILD=${BUILD_NUMBER}
+SHA256=${SHA256}
+SIZE=${FILE_SIZE}
+SIGNATURE=${SIGNATURE:-UNSIGNED}
+METAEOF
+    log_info "Saved release metadata to ${BUILD_DIR}/${APP_NAME}-${VERSION}.meta"
+    log_info "IMPORTANT: After uploading to R2, run post_release.rb to verify and update appcast"
 fi
 
 log_info ""
-log_info "To test: open \"${FINAL_DMG}\""
-log_info "To upload: Upload to GitHub Releases"
+log_info "To test: open \"${DMG_PATH}\""
+log_info "To upload to R2:"
+log_info "  npx wrangler r2 object put sanebar-downloads/updates/${APP_NAME}-${VERSION}.dmg --file=\"${DMG_PATH}\""
+log_info "Then run: ./scripts/post_release.rb --version ${VERSION}"
 
 # Open the releases folder
 open "${RELEASE_DIR}"
