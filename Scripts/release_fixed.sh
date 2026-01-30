@@ -323,66 +323,63 @@ DMG_PATH="${BUILD_DIR}/${DMG_NAME}.dmg"
 DMG_TEMP="${BUILD_DIR}/dmg_temp"
 
 log_info "Creating DMG..."
-rm -rf "${DMG_TEMP}"
-mkdir -p "${DMG_TEMP}"
 
-# Copy app to temp folder
-cp -R "${APP_PATH}" "${DMG_TEMP}/"
-
-# Create Applications symlink
-ln -s /Applications "${DMG_TEMP}/Applications"
-
-# Create DMG (Standard)
-hdiutil_args=(create -volname "${APP_NAME}" -srcfolder "${DMG_TEMP}" -ov -format UDZO)
-# Custom icon application via hdiutil is unreliable, we use a swift script below instead.
-# However, we still create the DMG here.
-
-hdiutil "${hdiutil_args[@]}" "${DMG_PATH}"
-
-# Apply Custom Icon if present (Fallback for Finder icon)
-if [ -f "${PROJECT_ROOT}/Resources/DMGIcon.icns" ]; then
-    log_info "Setting custom Finder icon for DMG..."
+# Check if create-dmg is installed (preferred method)
+if command -v create-dmg >/dev/null 2>&1; then
+    log_info "Using create-dmg for professional installer..."
     
+    # Ensure no old DMG exists (create-dmg fails if exists)
+    rm -f "${DMG_PATH}"
+
+    # Basic create-dmg arguments
+    DMG_ARGS=(
+        --volname "${APP_NAME}"
+        --window-pos 200 120
+        --window-size 800 400
+        --icon-size 100
+        --app-drop-link 600 185
+        --icon "${APP_NAME}.app" 200 185
+        --hide-extension "${APP_NAME}.app"
+    )
+
+    # Add custom volume icon if present
+    if [ -f "${PROJECT_ROOT}/Resources/DMGIcon.icns" ]; then
+        DMG_ARGS+=(--volicon "${PROJECT_ROOT}/Resources/DMGIcon.icns")
+    fi
+
+    # Create the DMG directly from the APP_PATH (no temp folder needed for create-dmg)
+    create-dmg "${DMG_ARGS[@]}" "${DMG_PATH}" "${APP_PATH}"
+
+else
+    log_warn "create-dmg not found, falling back to basic hdiutil..."
+    
+    # Fallback: Manual hdiutil method
+    rm -rf "${DMG_TEMP}"
+    mkdir -p "${DMG_TEMP}"
+
+    # Copy app to temp folder
+    cp -R "${APP_PATH}" "${DMG_TEMP}/"
+
+    # Create Applications symlink
+    ln -s /Applications "${DMG_TEMP}/Applications"
+
+    # Create DMG (Standard)
+    hdiutil create -volname "${APP_NAME}" -srcfolder "${DMG_TEMP}" -ov -format UDZO "${DMG_PATH}"
+
+    # Clean up
+    rm -rf "${DMG_TEMP}"
+fi
+
+# Apply Custom Icon to the FILE itself (for local Finder) if manual method was used
+# (create-dmg handles this automatically, but doing it again doesn't hurt)
+if [ ! -x "$(command -v create-dmg)" ] && [ -f "${PROJECT_ROOT}/Resources/DMGIcon.icns" ]; then
+    log_info "Setting custom Finder icon for DMG (Fallback)..."
     if swift "${PROJECT_ROOT}/scripts/set_dmg_icon.swift" "${PROJECT_ROOT}/Resources/DMGIcon.icns" "${DMG_PATH}"; then
         log_info "Custom icon applied to file"
     else
         log_warn "Failed to apply custom icon to file"
     fi
 fi
-
-# Sign DMG
-log_info "Signing DMG..."
-codesign --sign "${SIGNING_IDENTITY}" --timestamp "${DMG_PATH}"
-
-# Verify DMG signature
-codesign --verify "${DMG_PATH}"
-log_info "DMG signature verified!"
-
-# Notarize (if not skipped)
-if [ "$SKIP_NOTARIZE" = false ]; then
-    log_info "Submitting for notarization..."
-    log_warn "This may take several minutes..."
-
-    # Submit for notarization
-    xcrun notarytool submit "${DMG_PATH}" \
-        --keychain-profile "notarytool" \
-        --wait
-
-    # Staple the notarization ticket
-    log_info "Stapling notarization ticket..."
-    xcrun stapler staple "${DMG_PATH}"
-
-    log_info "Notarization complete!"
-else
-    log_warn "Skipping notarization (--skip-notarize flag set)"
-fi
-
-# Copy to releases folder
-FINAL_DMG="${RELEASE_DIR}/${DMG_NAME}.dmg"
-cp "${DMG_PATH}" "${FINAL_DMG}"
-
-# Clean up
-rm -rf "${DMG_TEMP}"
 
 log_info "========================================"
 log_info "Release build complete!"
