@@ -16,6 +16,11 @@ file_length:
 opt_in_rules:
   - empty_count
   - empty_string
+  - force_cast
+  - force_try
+
+force_cast: error
+force_try: error
 
 included:
   - Core
