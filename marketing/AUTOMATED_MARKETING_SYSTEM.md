@@ -75,9 +75,10 @@
 ## 💰 Revenue Streams Setup
 
 ### 1. Lemon Squeezy (Already Done ✅)
-- $5 one-time purchase
-- 38 sales, $190 revenue
-- **No action needed**
+- **Status:** Active, Revenue Streaming
+- **Access:** Full API Access (Legacy Key) - Can create products, manage orders, and check sales.
+- **Current Offering:** $5 one-time purchase
+- **Stats:** 115 sales, $575 revenue
 
 ### 2. Crypto Payments (TODO)
 

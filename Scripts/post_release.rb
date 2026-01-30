@@ -48,16 +48,14 @@ class PostRelease
     puts "✅ GitHub release found: v#{@version}"
 
     # Step 3: Download DMG and get info
-    dmg_url = release_info[:dmg_url]
-    unless dmg_url
-      error "No DMG found in release v#{@version}"
-      return false
-    end
+    # We use Cloudflare R2 now, so we construct the URL directly
+    dmg_url = "https://dist.sanebar.com/updates/SaneBar-#{@version}.dmg"
     puts "📥 DMG URL: #{dmg_url}"
 
     dmg_info = download_and_analyze_dmg(dmg_url)
     unless dmg_info
-      error "Failed to download/analyze DMG"
+      error "Failed to download DMG from Cloudflare. Have you uploaded it yet?"
+      puts "   Run: npx wrangler r2 object put sanebar-downloads/SaneBar-#{@version}.dmg --file=releases/SaneBar-#{@version}.dmg"
       return false
     end
     puts "📊 DMG Size: #{dmg_info[:size]} bytes"
