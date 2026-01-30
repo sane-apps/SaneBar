@@ -73,6 +73,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## [1.0.12] - 2026-01-22
 
 ### Fixed
+- **Electron App Compatibility**: Implemented "6-step stealth move" logic that finally fixes the "Sticky Icon" issue for Electron apps (Claude, Slack, VibeProxy, etc.). They now respond perfectly to automated moves in Find Icon.
 - **Update Reliability**: Fixed a critical issue where auto-updates would fail due to signature verification errors. Updates are now reliable again.
 - **Find Icon Performance**: Fixed "beach ball" hanging and 2-second delays when switching tabs in the "Find Icon" window. Thumbnail loading is now lazy and cached.
 - **Sparkle Signatures**: Corrected EdDSA signatures for previous releases (v1.0.8-v1.0.11) in the appcast feed to allow them to update successfully.

@@ -23,7 +23,13 @@
 
 ## ⚠️ WORKING BASELINE - Commit 3cb6e9b (2026-01-13)
 
-**Icon Moving**: Functional for all apps except VibeProxy (BUG-018)
+**Icon Moving**: ✅ RESOLVED v1.0.12 (Stealth Move breakthrough)
+
+### BUG-018: VibeProxy icon cannot be moved via Find Icon
+**Status**: ✅ RESOLVED (v1.0.12)
+**Symptom**: In Find Icon, right-click "Move to Hidden/Visible" failed for VibeProxy/Claude.
+**Resolution**: Implemented 6-step stealth drag with 100ms settle delay. This ensures WindowServer accepts the drop even for apps with non-standard AX response times.
+**Workaround**: None needed.
 **Classification**: Hidden/Visible tabs working correctly
 **Coordinate System**: Direct AX global coords, separatorX ± 50 targeting
 

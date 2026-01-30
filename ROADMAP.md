@@ -54,7 +54,7 @@ SaneBar already supports automatic show/hide based on:
 
 | Document | Purpose |
 |----------|---------|
-| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | Sticky Electron icons and current workarounds |
+| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | Privacy hardening edge cases and current workarounds |
 | [FEATURE_PLAN.md](FEATURE_PLAN.md) | Implementation details, API research, phase planning |
 | [marketing/feature-requests.md](marketing/feature-requests.md) | User requests, priority assessment, testimonials |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
