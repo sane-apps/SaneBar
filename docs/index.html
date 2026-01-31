@@ -6,6 +6,10 @@
     <title>SaneBar - The Privacy-First Menu Bar Manager for macOS</title>
     <meta name="description" content="Hide menu bar clutter, lock sensitive icons behind Touch ID, and find any app instantly. 100% on-device, no analytics.">
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
+    <meta name="author" content="Stephan Joseph">
+    <meta name="robots" content="index, follow">
+    <meta name="apple-mobile-web-app-title" content="SaneBar">
+    <meta name="application-name" content="SaneBar">
     <link rel="icon" type="image/png" href="images/branding.png?v=2">
     <link rel="apple-touch-icon" href="images/branding.png">
     <meta name="theme-color" content="#08080c">
@@ -21,6 +25,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://sanebar.com/">
     <meta property="og:site_name" content="SaneBar">
+    <meta property="og:locale" content="en_US">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
@@ -28,6 +33,7 @@
     <meta name="twitter:description" content="The only menu bar manager that locks your hidden icons behind Touch ID.">
     <meta name="twitter:image" content="https://sanebar.com/images/og-image.png">
     <meta name="twitter:site" content="@saneapps">
+    <meta name="twitter:url" content="https://sanebar.com/">
 
     <!-- Fonts: Elegant typography for luxury feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,7 +55,35 @@
       },
       "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
       "image": "https://sanebar.com/images/branding.png",
-      "downloadUrl": "https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e"
+      "downloadUrl": "https://sanebar.lemonsqueezy.com/checkout/buy/8a6ddf02-574e-4b20-8c94-d3fa15c1cc8e",
+      "author": {
+        "@type": "Person",
+        "name": "Stephan Joseph",
+        "url": "https://github.com/sane-apps"
+      },
+      "softwareVersion": "1.3.0",
+      "featureList": [
+        "Hide Menu Bar Icons",
+        "Touch ID Lock",
+        "Drag-to-Reorder Icons",
+        "Instant Search",
+        "Auto-Hide Rules",
+        "100% On-Device Privacy"
+      ]
+    }
+    </script>
+
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SaneBar",
+      "url": "https://sanebar.com",
+      "logo": "https://sanebar.com/images/branding.png",
+      "sameAs": [
+        "https://github.com/sane-apps/SaneBar"
+      ]
     }
     </script>
 
@@ -1254,9 +1288,9 @@
 
         .more-apps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
         }
 
@@ -1627,6 +1661,10 @@
 
             .hero {
                 padding-top: 110px !important;
+            }
+
+            .more-apps-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -2242,6 +2280,14 @@
                     <p class="app-card-tagline">Block ads, trackers, and telemetry at the system level. A clean UI for your hosts file.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
+                <a href="https://saneclick.com" class="app-card">
+                    <div class="app-card-header">
+                        <img src="images/saneclick-icon.png" alt="SaneClick" class="app-card-icon">
+                        <div class="app-card-name">SaneClick</div>
+                    </div>
+                    <p class="app-card-tagline">Run scripts, convert files, and automate your Mac directly from the right-click menu. 50+ actions, 100% private.</p>
+                    <span class="app-card-cta">Learn more &rarr;</span>
+                </a>
             </div>
             <div class="more-apps-hub">
                 <a href="https://saneapps.com">See all apps at saneapps.com &rarr;</a>
@@ -2276,9 +2322,12 @@
             <div class="footer-links">
                 <a href="guides.html">Guides</a>
                 <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
-                <a href="https://github.com/sane-apps/SaneBar/blob/main/PRIVACY.md">Privacy</a>
+                <a href="privacy.html">Privacy</a>
+                <a href="https://github.com/sane-apps/SaneBar/issues">Help</a>
                 <a href="mailto:hi@saneapps.com">Contact</a>
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/LICENSE">MIT License</a>
+                <a href="https://github.com/sponsors/MrSaneApps"><svg height="12" viewBox="0 0 16 16" width="12" fill="#ea4aaa" style="vertical-align: -1px; margin-right: 3px;"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z"/></svg>Sponsor</a>
+                <a href="https://saneapps.com">SaneApps</a>
             </div>
             <p class="footer-copy">Made with care by Mr. Sane &nbsp;•&nbsp; &copy; 2026 SaneBar</p>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px;">"Built for a Sound Mind" &middot; <a href="https://saneapps.com" style="color: var(--text-secondary);">saneapps.com</a></p>
