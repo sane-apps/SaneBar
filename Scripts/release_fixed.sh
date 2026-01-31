@@ -310,6 +310,21 @@ log_info "Verifying code signature..."
 codesign --verify --deep --strict "${APP_PATH}"
 log_info "Code signature verified!"
 
+# Verify Info.plist has Sparkle keys
+log_info "Verifying Sparkle configuration..."
+PLIST_FEED=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "${APP_PATH}/Contents/Info.plist" 2>/dev/null || echo "")
+PLIST_KEY=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "${APP_PATH}/Contents/Info.plist" 2>/dev/null || echo "")
+if [ -z "$PLIST_FEED" ]; then
+    log_error "SUFeedURL missing from Info.plist!"
+    exit 1
+fi
+if [ -z "$PLIST_KEY" ]; then
+    log_error "SUPublicEDKey missing from Info.plist!"
+    exit 1
+fi
+log_info "SUFeedURL: ${PLIST_FEED}"
+log_info "SUPublicEDKey: ${PLIST_KEY}"
+
 # Get version from app
 if [ -z "$VERSION" ]; then
     VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP_PATH}/Contents/Info.plist" 2>/dev/null || echo "1.0.0")
@@ -381,10 +396,37 @@ if [ ! -x "$(command -v create-dmg)" ] && [ -f "${PROJECT_ROOT}/Resources/DMGIco
     fi
 fi
 
+# Sign DMG
+log_info "Signing DMG..."
+codesign --sign "${SIGNING_IDENTITY}" --timestamp "${DMG_PATH}"
+codesign --verify "${DMG_PATH}"
+log_info "DMG signature verified!"
+
+# Notarize (if not skipped)
+if [ "$SKIP_NOTARIZE" = false ]; then
+    log_info "Submitting for notarization..."
+    log_warn "This may take several minutes..."
+
+    xcrun notarytool submit "${DMG_PATH}" \
+        --keychain-profile "notarytool" \
+        --wait
+
+    log_info "Stapling notarization ticket..."
+    xcrun stapler staple "${DMG_PATH}"
+
+    log_info "Notarization complete!"
+else
+    log_warn "Skipping notarization (--skip-notarize flag set)"
+fi
+
+# Copy to releases folder
+FINAL_DMG="${RELEASE_DIR}/${DMG_NAME}.dmg"
+cp "${DMG_PATH}" "${FINAL_DMG}"
+
 log_info "========================================"
 log_info "Release build complete!"
 log_info "========================================"
-log_info "DMG: ${DMG_PATH}"
+log_info "DMG: ${FINAL_DMG}"
 log_info "Version: ${VERSION}"
 
 # Generate Sparkle Signature
@@ -392,8 +434,8 @@ if command -v swift >/dev/null 2>&1; then
     log_info ""
     log_info "--- Generating Release Metadata ---"
     # Calculate SHA256
-    SHA256=$(shasum -a 256 "${DMG_PATH}" | awk '{print $1}')
-    FILE_SIZE=$(stat -f%z "${DMG_PATH}")
+    SHA256=$(shasum -a 256 "${FINAL_DMG}" | awk '{print $1}')
+    FILE_SIZE=$(stat -f%z "${FINAL_DMG}")
 
     # Try to fetch Sparkle Private Key
     log_info "Fetching Sparkle Private Key from Keychain..."
@@ -402,7 +444,7 @@ if command -v swift >/dev/null 2>&1; then
     if [ -n "$SPARKLE_KEY" ]; then
         log_info "Sparkle Key found. Generating signature..."
 
-        SIGNATURE=$(swift "${PROJECT_ROOT}/scripts/sign_update.swift" "${DMG_PATH}" "$SPARKLE_KEY" 2>/dev/null || echo "")
+        SIGNATURE=$(swift "${PROJECT_ROOT}/scripts/sign_update.swift" "${FINAL_DMG}" "$SPARKLE_KEY" 2>/dev/null || echo "")
 
         if [ -n "$SIGNATURE" ]; then
             DATE=$(date +"%a, %d %b %Y %H:%M:%S %z")
@@ -452,9 +494,9 @@ METAEOF
 fi
 
 log_info ""
-log_info "To test: open \"${DMG_PATH}\""
+log_info "To test: open \"${FINAL_DMG}\""
 log_info "To upload to R2:"
-log_info "  npx wrangler r2 object put sanebar-downloads/updates/${APP_NAME}-${VERSION}.dmg --file=\"${DMG_PATH}\""
+log_info "  npx wrangler r2 object put sanebar-downloads/updates/${APP_NAME}-${VERSION}.dmg --file=\"${FINAL_DMG}\""
 log_info "Then run: ./scripts/post_release.rb --version ${VERSION}"
 
 # Open the releases folder
