@@ -1,6 +1,6 @@
 # SaneBar
 
-[![License: MIT](https://img.shields.io/github/license/sane-apps/SaneBar)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
@@ -38,7 +38,7 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 
 SaneBar is different: **open source AND sustainable.**
 
-- **Build it yourself** — Clone the repo, it's MIT licensed, always will be
+- **Build it yourself** — Clone the repo, it's GPL v3 licensed, always will be
 - **Or pay $5** — Get a notarized DMG, support continued development
 
 Your $5 keeps this project alive. No VC funding. No acquisition exit. Just software that works because someone's paid to maintain it.
@@ -289,4 +289,6 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+GPL v3 — see [LICENSE](LICENSE)
+
+Copyright (c) 2026 Stephan Joseph. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
