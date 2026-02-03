@@ -23,7 +23,7 @@ struct MenuBarAppTile: View {
     var isSelected: Bool = false
 
     var body: some View {
-        Button(action: { onActivate(false) }) {
+        Button(action: { onActivate(false) }, label: {
             VStack(spacing: 4) {
                 // Icon container
                 ZStack {
@@ -66,7 +66,7 @@ struct MenuBarAppTile: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
             )
-        }
+        })
         .buttonStyle(.plain)
         .draggable(app.bundleId)  // Enable drag with bundle ID as payload
         .help(app.name)

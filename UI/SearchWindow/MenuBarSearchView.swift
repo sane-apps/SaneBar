@@ -681,7 +681,7 @@ struct MenuBarSearchView: View {
                                 let statusItemIndex = app.statusItemIndex
                                 let toHidden = (mode == .visible)
 
-                                menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
+                                _ = menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
                             },
                             isSelected: selectedAppIndex == index
                         )

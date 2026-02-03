@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/release.sh

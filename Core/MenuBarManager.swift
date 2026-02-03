@@ -1,4 +1,3 @@
-    // Setup menu and attach to separator
 import AppKit
 import Combine
 import os.log
@@ -49,7 +48,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private let lockoutDuration: TimeInterval = 30  // seconds
 
     /// Reference to the currently active icon move task to ensure atomicity
-    internal var activeMoveTask: Task<Void, Never>?
+    internal var activeMoveTask: Task<Bool, Never>?
 
     // MARK: - Screen Detection
 

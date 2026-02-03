@@ -130,26 +130,38 @@ struct AppearanceSettingsView: View {
                             CompactDivider()
                         }
 
-                        CompactRow("Tint Color") {
-                            ColorPicker("", selection: Binding(
-                                get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
-                                set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
-                            ), supportsOpacity: false)
-                            .labelsHidden()
-                            .help("Color overlay for the menu bar")
+                        CompactRow("Light Tint") {
+                            HStack(spacing: 8) {
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
+                                    set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
+                                ), supportsOpacity: false)
+                                .labelsHidden()
+                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
+                                    .monospacedDigit()
+                                    .frame(width: 35, alignment: .trailing)
+                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05...1.0, step: 0.05)
+                                    .frame(width: 80)
+                            }
+                            .help("Tint color and intensity for light mode")
                         }
 
                         CompactDivider()
 
-                        CompactRow("Opacity") {
-                            HStack {
-                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
+                        CompactRow("Dark Tint") {
+                            HStack(spacing: 8) {
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColorDark) },
+                                    set: { menuBarManager.settings.menuBarAppearance.tintColorDark = $0.toHex() }
+                                ), supportsOpacity: false)
+                                .labelsHidden()
+                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacityDark * 100))%")
                                     .monospacedDigit()
-                                    .frame(width: 40, alignment: .trailing)
-                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05...1.0, step: 0.05)
-                                    .frame(width: 100)
-                                    .help("Intensity of the tint color")
+                                    .frame(width: 35, alignment: .trailing)
+                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacityDark, in: 0.05...1.0, step: 0.05)
+                                    .frame(width: 80)
                             }
+                            .help("Tint color and intensity for dark mode")
                         }
 
                         CompactDivider()

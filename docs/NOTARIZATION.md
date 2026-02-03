@@ -58,7 +58,7 @@ We hardened the release script so the failure can’t slip through silently.
 
 ### Patch: zip-helper preflight
 
-See: [scripts/release.sh](../scripts/release.sh)
+See: `infra/SaneProcess/scripts/release.sh` (invoked via `./scripts/SaneMaster.rb release`)
 
 New behavior before DMG creation:
 
@@ -80,7 +80,7 @@ This specifically targets the recurring rejection pattern: helper apps embedded 
 Recommended checks:
 
 - Run release build locally (without notarizing):
-  - `./scripts/release.sh --skip-notarize --version X.Y.Z`
+  - `./scripts/SaneMaster.rb release --skip-notarize --version X.Y.Z`
 - Verify the exported app:
   - `codesign --verify --deep --strict build/Export/SaneBar.app`
   - `spctl -a -vvv build/Export/SaneBar.app`

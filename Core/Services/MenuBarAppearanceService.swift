@@ -14,11 +14,17 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
     /// Use Liquid Glass effect (macOS 26+ only, falls back to tint on older systems)
     var useLiquidGlass: Bool = true
 
-    /// Tint color (hex string like "#FF0000")
+    /// Tint color for light mode (hex string like "#FF0000")
     var tintColor: String = "#000000"
 
-    /// Tint opacity (0.0 - 1.0)
+    /// Tint opacity for light mode (0.0 - 1.0)
     var tintOpacity: Double = 0.15
+
+    /// Tint color for dark mode (hex string)
+    var tintColorDark: String = "#FFFFFF"
+
+    /// Tint opacity for dark mode (0.0 - 1.0)
+    var tintOpacityDark: Double = 0.15
 
     /// Whether to add a shadow below the menu bar
     var hasShadow: Bool = false
@@ -40,6 +46,86 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
 
     /// Corner radius
     var cornerRadius: Double = 8.0
+
+    private enum CodingKeys: String, CodingKey {
+        case isEnabled
+        case useLiquidGlass
+        case tintColor
+        case tintOpacity
+        case tintColorDark
+        case tintOpacityDark
+        case hasShadow
+        case shadowOpacity
+        case hasBorder
+        case borderColor
+        case borderWidth
+        case hasRoundedCorners
+        case cornerRadius
+    }
+
+    init(
+        isEnabled: Bool = false,
+        useLiquidGlass: Bool = true,
+        tintColor: String = "#000000",
+        tintOpacity: Double = 0.15,
+        tintColorDark: String = "#FFFFFF",
+        tintOpacityDark: Double = 0.15,
+        hasShadow: Bool = false,
+        shadowOpacity: Double = 0.3,
+        hasBorder: Bool = false,
+        borderColor: String = "#808080",
+        borderWidth: Double = 1.0,
+        hasRoundedCorners: Bool = false,
+        cornerRadius: Double = 8.0
+    ) {
+        self.isEnabled = isEnabled
+        self.useLiquidGlass = useLiquidGlass
+        self.tintColor = tintColor
+        self.tintOpacity = tintOpacity
+        self.tintColorDark = tintColorDark
+        self.tintOpacityDark = tintOpacityDark
+        self.hasShadow = hasShadow
+        self.shadowOpacity = shadowOpacity
+        self.hasBorder = hasBorder
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
+        self.hasRoundedCorners = hasRoundedCorners
+        self.cornerRadius = cornerRadius
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        useLiquidGlass = try container.decodeIfPresent(Bool.self, forKey: .useLiquidGlass) ?? true
+        tintColor = try container.decodeIfPresent(String.self, forKey: .tintColor) ?? "#000000"
+        tintOpacity = try container.decodeIfPresent(Double.self, forKey: .tintOpacity) ?? 0.15
+        tintColorDark = try container.decodeIfPresent(String.self, forKey: .tintColorDark) ?? "#FFFFFF"
+        tintOpacityDark = try container.decodeIfPresent(Double.self, forKey: .tintOpacityDark) ?? 0.15
+        hasShadow = try container.decodeIfPresent(Bool.self, forKey: .hasShadow) ?? false
+        shadowOpacity = try container.decodeIfPresent(Double.self, forKey: .shadowOpacity) ?? 0.3
+        hasBorder = try container.decodeIfPresent(Bool.self, forKey: .hasBorder) ?? false
+        borderColor = try container.decodeIfPresent(String.self, forKey: .borderColor) ?? "#808080"
+        borderWidth = try container.decodeIfPresent(Double.self, forKey: .borderWidth) ?? 1.0
+        hasRoundedCorners = try container.decodeIfPresent(Bool.self, forKey: .hasRoundedCorners) ?? false
+        cornerRadius = try container.decodeIfPresent(Double.self, forKey: .cornerRadius) ?? 8.0
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(useLiquidGlass, forKey: .useLiquidGlass)
+        try container.encode(tintColor, forKey: .tintColor)
+        try container.encode(tintOpacity, forKey: .tintOpacity)
+        try container.encode(tintColorDark, forKey: .tintColorDark)
+        try container.encode(tintOpacityDark, forKey: .tintOpacityDark)
+        try container.encode(hasShadow, forKey: .hasShadow)
+        try container.encode(shadowOpacity, forKey: .shadowOpacity)
+        try container.encode(hasBorder, forKey: .hasBorder)
+        try container.encode(borderColor, forKey: .borderColor)
+        try container.encode(borderWidth, forKey: .borderWidth)
+        try container.encode(hasRoundedCorners, forKey: .hasRoundedCorners)
+        try container.encode(cornerRadius, forKey: .cornerRadius)
+    }
 
     /// Check if running on macOS 26+ for Liquid Glass support (and compiled with Swift 6.2+)
     static var supportsLiquidGlass: Bool {
@@ -79,6 +165,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var overlayWindow: NSWindow?
     private var overlayViewModel: MenuBarOverlayViewModel?
     private var screenObserver: Any?
+    private var appearanceObserver: Any?
 
     // MARK: - Initialization
 
@@ -91,6 +178,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         if let observer = screenObserver {
             NotificationCenter.default.removeObserver(observer)
             screenObserver = nil
+        }
+        if let observer = appearanceObserver {
+            NotificationCenter.default.removeObserver(observer)
+            appearanceObserver = nil
         }
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
@@ -109,6 +200,18 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.repositionOverlay()
+            }
+        }
+
+        // Refresh overlay when system appearance changes (light ↔ dark)
+        appearanceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                // Force SwiftUI to re-evaluate colorScheme by toggling window appearance
+                self?.overlayWindow?.appearance = NSApp.effectiveAppearance
             }
         }
     }
@@ -229,6 +332,17 @@ final class MenuBarOverlayViewModel {
 /// SwiftUI view that renders the menu bar overlay with tint, shadow, border effects
 struct MenuBarOverlayView: View {
     var viewModel: MenuBarOverlayViewModel
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Active tint color based on current system appearance
+    private var activeTintColor: String {
+        colorScheme == .dark ? viewModel.settings.tintColorDark : viewModel.settings.tintColor
+    }
+
+    /// Active tint opacity based on current system appearance
+    private var activeTintOpacity: Double {
+        colorScheme == .dark ? viewModel.settings.tintOpacityDark : viewModel.settings.tintOpacity
+    }
 
     var body: some View {
         GeometryReader { _ in
@@ -266,7 +380,7 @@ struct MenuBarOverlayView: View {
         } else {
             // Fallback tint layer for older macOS
             Rectangle()
-                .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+                .fill(Color(hex: activeTintColor).opacity(activeTintOpacity))
         }
     }
 
@@ -280,8 +394,8 @@ struct MenuBarOverlayView: View {
                 // Ensure chosen tint color/strength is always applied.
                 // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
                 .overlay(
-                    Color(hex: viewModel.settings.tintColor)
-                        .opacity(viewModel.settings.tintOpacity)
+                    Color(hex: activeTintColor)
+                        .opacity(activeTintOpacity)
                 )
         } else {
             fallbackTintLayer
@@ -294,7 +408,7 @@ struct MenuBarOverlayView: View {
 
     private var fallbackTintLayer: some View {
         Rectangle()
-            .fill(Color(hex: viewModel.settings.tintColor).opacity(viewModel.settings.tintOpacity))
+            .fill(Color(hex: activeTintColor).opacity(activeTintOpacity))
     }
 
     private var overlayShape: some Shape {

@@ -112,8 +112,8 @@ extension AccessibilityService {
         var children: CFTypeRef?
         if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
            let childItems = children as? [AXUIElement] {
-            for child in childItems {
-                if performPress(on: child) { return true }
+            for child in childItems where performPress(on: child) {
+                return true
             }
         }
 
