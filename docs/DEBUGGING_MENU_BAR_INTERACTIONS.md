@@ -206,7 +206,7 @@ After running these commands, the next app launch should recreate fresh window p
 
 ### Prevention
 
-A Claude Code hook (`/.claude/hooks/block-sanebar-launch.rb`) blocks local app launches to prevent this issue. Only headless operations are allowed:
+A Claude Code hook at `.claude/hooks/block-sanebar-launch.rb` can block local app launches to prevent this issue. If hooks are centralized via SaneProcess, make sure the global hook config still invokes this script. Only headless operations should be allowed when the hook is active:
 
 | Allowed | Blocked |
 |---------|---------|

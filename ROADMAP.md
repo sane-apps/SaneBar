@@ -27,7 +27,7 @@
 | **Hide on App Change** | ✅ Shipped v1.0.15 | Auto-hide when switching apps |
 | **Show When Rearranging** | ✅ Shipped v1.0.15 | Reveal all icons during ⌘+drag |
 | **Ice Migration Tool** | 📋 Planned v1.1.0 | Import from Ice (open source, easy) |
-| **Bartender Migration Tool** | 📋 Planned | Import from Bartender ([help wanted](https://github.com/sane-apps/SaneBar/issues/33)) |
+| **Bartender Migration Tool** | 🚧 In Progress | Import from Bartender ([help wanted](https://github.com/sane-apps/SaneBar/issues/33)) |
 | **Permanently Hidden Zone** | 📋 Planned v1.1.0 | Secondary "Void" spacer for icons that should never show |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
 | **Icon Groups** | 📋 Planned | Categorize icons, filter in Find Icon |
@@ -136,4 +136,3 @@ panel.animationBehavior = .none      // Instant show/hide
 **Decision:** Deferred indefinitely. Find Icon already solves "access hidden icons quickly." A dropdown panel might fragment the UX without clear benefit. Revisit only if users explicitly ask for it.
 
 **Reference:** `jordanbaird/Ice` - `MenuBarSearchPanel.swift`, `IceBarPanel.swift`
-

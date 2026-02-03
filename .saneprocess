@@ -1,0 +1,47 @@
+# SaneProcess compliance manifest
+name: SaneBar
+type: macos_app
+scheme: SaneBar
+project: SaneBar.xcodeproj
+bundle_id: com.sanebar.app
+
+build:
+  xcodegen: true
+
+release:
+  dist_host: dist.sanebar.com
+  site_host: sanebar.com
+  r2_bucket: sanebar-downloads
+  use_sparkle: true
+  min_system_version: "15.0"
+  dmg:
+    volume_icon: Resources/DMGIcon.icns
+    file_icon: Resources/DMGIcon.icns
+    window_size: "800 400"
+    app_icon_pos: "200 185"
+    drop_pos: "600 185"
+
+commands:
+  verify: ./scripts/SaneMaster.rb verify
+  test_mode: ./scripts/SaneMaster.rb tm
+  lint: ./scripts/SaneMaster.rb lint
+  clean: ./scripts/SaneMaster.rb clean
+  launch: ./scripts/SaneMaster.rb launch
+  logs: ./scripts/SaneMaster.rb logs
+
+docs:
+  - CLAUDE.md
+  - README.md
+  - DEVELOPMENT.md
+  - ARCHITECTURE.md
+  - SESSION_HANDOFF.md
+
+mcps:
+  - apple-docs
+  - context7
+  - github
+  - XcodeBuildMCP
+  - macos-automator
+
+website: true
+website_domain: sanebar.com

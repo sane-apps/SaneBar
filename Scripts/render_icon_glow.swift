@@ -1,4 +1,6 @@
 import Cocoa
+import CoreGraphics
+import UniformTypeIdentifiers
 
 // Simple SaneBar icon: dark gradient background + bright teal bars
 // Full-square, no squircle (macOS applies its own mask)
@@ -20,7 +22,7 @@ let bgTop = NSColor(calibratedRed: 0.102, green: 0.153, blue: 0.267, alpha: 1.0)
 let bgBottom = NSColor(calibratedRed: 0.051, green: 0.082, blue: 0.145, alpha: 1.0)  // #0d1525
 
 // Bright teal bars
-let barColor = NSColor(calibratedRed: 0.25, green: 0.80, blue: 0.93, alpha: 1.0)     // #40CCED
+let barColor = NSColor(calibratedRed: 0.36, green: 0.91, blue: 1.0, alpha: 1.0)      // #5CE8FF
 
 // Bars at 512px reference: (x, y from TOP, width, height)
 // Top bar widest, bottom bar narrowest — all centered
@@ -60,9 +62,31 @@ for (filename, px) in sizes {
 
     NSGraphicsContext.restoreGraphicsState()
 
-    if let png = bitmap.representation(using: .png, properties: [:]) {
-        try! png.write(to: URL(fileURLWithPath: "\(iconSetPath)/\(filename)"))
-        print("OK \(filename)")
+    // Flatten onto opaque CGContext (no alpha in final PNG)
+    let cs = CGColorSpaceCreateDeviceRGB()
+    guard let opaqueCtx = CGContext(
+        data: nil, width: px, height: px,
+        bitsPerComponent: 8, bytesPerRow: 0, space: cs,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { print("FAIL: \(filename) opaque context"); continue }
+
+    // Fill with background base color, then composite rendered icon on top
+    opaqueCtx.setFillColor(CGColor(red: 0.051, green: 0.082, blue: 0.145, alpha: 1.0))
+    opaqueCtx.fill(CGRect(x: 0, y: 0, width: px, height: px))
+    if let cgImg = bitmap.cgImage {
+        // NSBitmapImageRep is flipped (y=0 at top), CGContext is not (y=0 at bottom)
+        opaqueCtx.translateBy(x: 0, y: CGFloat(px))
+        opaqueCtx.scaleBy(x: 1, y: -1)
+        opaqueCtx.draw(cgImg, in: CGRect(x: 0, y: 0, width: px, height: px))
     }
+
+    guard let finalImage = opaqueCtx.makeImage() else { print("FAIL: \(filename) makeImage"); continue }
+    let url = URL(fileURLWithPath: "\(iconSetPath)/\(filename)") as CFURL
+    guard let dest = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+        print("FAIL: \(filename) dest"); continue
+    }
+    CGImageDestinationAddImage(dest, finalImage, nil)
+    CGImageDestinationFinalize(dest)
+    print("OK \(filename) [opaque]")
 }
 print("Done.")

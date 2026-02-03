@@ -72,7 +72,7 @@ module SaneMasterModules
         system('rm -rf ~/Library/Developer/Xcode/DerivedData/SaneBar-*')
         system('rm -rf .derivedData')
         # CRITICAL: Clean release build folder (causes duplicate .app copies that break permissions!)
-        # release.sh creates build/Export/, build/dmg_temp/, etc with their own SaneBar.app
+        # SaneMaster release creates build/Export/, build/dmg_temp/, etc with their own SaneBar.app
         # macOS ties Accessibility permissions to FILE PATH, so multiple .app copies = permission chaos
         system('rm -rf ./build')
         # Asset catalog caches (critical for icon changes!)

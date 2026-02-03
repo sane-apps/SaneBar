@@ -94,6 +94,7 @@ class ProjectQA
   def initialize
     @errors = []
     @warnings = []
+    @skip_hooks_checks = false
   end
 
   def run
@@ -144,6 +145,13 @@ class ProjectQA
   def check_hooks_exist
     print "Checking hooks exist... "
 
+    unless Dir.exist?(HOOKS_DIR)
+      @skip_hooks_checks = true
+      @warnings << "Hooks managed by SaneProcess — skipping local hook checks"
+      puts "⚠️  Hooks managed by SaneProcess"
+      return
+    end
+
     missing = ALL_HOOK_FILES.reject do |hook|
       File.exist?(File.join(HOOKS_DIR, hook))
     end
@@ -157,6 +165,8 @@ class ProjectQA
   end
 
   def check_hooks_syntax
+    return if @skip_hooks_checks
+
     print "Checking Ruby syntax... "
 
     invalid = []
@@ -177,6 +187,8 @@ class ProjectQA
   end
 
   def check_hooks_use_stdin
+    return if @skip_hooks_checks
+
     print "Checking hooks use stdin for input... "
 
     uses_env_for_input = []
@@ -204,6 +216,8 @@ class ProjectQA
   end
 
   def check_hooks_registered
+    return if @skip_hooks_checks
+
     print "Checking hooks registered in settings.json... "
 
     unless File.exist?(SETTINGS_JSON)
@@ -258,8 +272,14 @@ class ProjectQA
 
     # Check main CLI
     if File.exist?(SANEMASTER_CLI)
-      result = `ruby -c #{SANEMASTER_CLI} 2>&1`
-      invalid << 'SaneMaster.rb' unless $?.success?
+      first_line = File.open(SANEMASTER_CLI, &:readline).strip rescue ''
+      if first_line.start_with?('#!/bin/bash', '#!/usr/bin/env bash', '#!/bin/sh', '#!/usr/bin/env sh')
+        result = `bash -n #{SANEMASTER_CLI} 2>&1`
+        invalid << 'SaneMaster.rb (bash)' unless $?.success?
+      else
+        result = `ruby -c #{SANEMASTER_CLI} 2>&1`
+        invalid << 'SaneMaster.rb' unless $?.success?
+      end
     else
       @errors << "SaneMaster.rb not found"
       puts "❌ Missing"
@@ -294,6 +314,8 @@ class ProjectQA
   end
 
   def check_init_script
+    return if @skip_hooks_checks
+
     print "Checking init.sh... "
 
     unless File.exist?(INIT_SCRIPT)
@@ -328,6 +350,8 @@ class ProjectQA
   end
 
   def check_readme_hook_count
+    return if @skip_hooks_checks
+
     print "Checking README.md hook count... "
 
     unless File.exist?(README)
@@ -387,6 +411,8 @@ class ProjectQA
   end
 
   def check_hooks_readme
+    return if @skip_hooks_checks
+
     print "Checking hooks/README.md... "
 
     unless File.exist?(HOOKS_README)
@@ -510,6 +536,8 @@ class ProjectQA
   end
 
   def run_hook_tests
+    return if @skip_hooks_checks
+
     print "Running hook tests... "
 
     test_file = File.join(HOOKS_DIR, 'test', 'hook_test.rb')

@@ -34,6 +34,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
+        appLogger.log("🌐 URL open request: \(url.absoluteString, privacy: .public)")
         handleURL(url)
     }
 
@@ -79,6 +80,8 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         let searchQuery = queryItems?.first(where: { $0.name == "q" })?.value
 
+        appLogger.log("🌐 URL command: \(command, privacy: .public) query: \(searchQuery ?? "", privacy: .public)")
+
         Task { @MainActor in
             switch command {
             case "toggle":
@@ -90,13 +93,16 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             case "search":
                 if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
                     let ok = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
-                    guard ok else { return }
+                    guard ok else {
+                        appLogger.log("🌐 URL command blocked by auth: search")
+                        return
+                    }
                 }
                 SearchWindowController.shared.show(prefill: searchQuery)
             case "settings":
                 SettingsOpener.open()
             default:
-                break
+                appLogger.log("🌐 Unknown URL command: \(command, privacy: .public)")
             }
         }
     }

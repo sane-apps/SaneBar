@@ -1,6 +1,6 @@
 # SaneBar Development Guide (SOP)
 
-**Version 1.1** | Last updated: 2026-01-01
+**Version 1.1** | Last updated: 2026-02-02
 
 ---
 
@@ -57,7 +57,7 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 **New to this project? Start here:**
 
 1. **Read Rule #0 first** (Section "The Rules") - It's about HOW to use all other rules
-2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneBar/` unless user explicitly requests it
+2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneApps/apps/SaneBar/` unless user explicitly requests it
 3. **Use SaneMaster.rb for everything** - `./scripts/SaneMaster.rb verify` for build+test, never raw `xcodebuild`
 4. **Self-rate after every task** - Rate yourself 1-10 on SOP adherence (see Self-Rating section)
 
@@ -96,12 +96,12 @@ Bootstrap runs automatically via SessionStart hook. If it fails, run `./scripts/
 
 ### #1: STAY IN YOUR LANE
 
-✅ DO: Save all files inside `/Users/sj/SaneBar/`
+✅ DO: Save all files inside `/Users/sj/SaneApps/apps/SaneBar/`
 ❌ DON'T: Create files outside project without asking
 
 ```
-🟢 RIGHT: /Users/sj/SaneBar/Core/NewService.swift
-🟢 RIGHT: /Users/sj/SaneBar/Tests/NewServiceTests.swift
+🟢 RIGHT: /Users/sj/SaneApps/apps/SaneBar/Core/NewService.swift
+🟢 RIGHT: /Users/sj/SaneApps/apps/SaneBar/Tests/NewServiceTests.swift
 🔴 WRONG: ~/.claude/plans/anything.md
 🔴 WRONG: /tmp/scratch.swift
 ```

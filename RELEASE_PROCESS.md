@@ -1,6 +1,7 @@
 # SaneBar Release Process
 
 > **CRITICAL**: Every release requires a DMG upload to Cloudflare R2 AND an appcast.xml update.
+> **We do NOT host DMGs on GitHub Releases.** GitHub is metadata only; Cloudflare R2 + `dist.sanebar.com` is the actual download.
 > Users only receive updates through Sparkle, which reads appcast.xml.
 
 ---
@@ -19,7 +20,8 @@
 
 | Release Type | Command |
 |--------------|---------|
-| **Manual Release** | `./scripts/release_fixed.sh` then `./scripts/post_release.rb` |
+| **Manual Release** | `./scripts/SaneMaster.rb release` then `./scripts/post_release.rb` |
+| **Full Release (all-in-one)** | `./scripts/SaneMaster.rb release --full --version X.Y.Z --notes "Release notes"` |
 | **CI Release** | Trigger workflow, then `./scripts/post_release.rb` |
 | **Post-Release Only** | `./scripts/post_release.rb --version X.Y.Z` |
 
@@ -33,9 +35,9 @@ For full control over the release process:
 
 ```bash
 # 1. Build, sign, notarize, create DMG
-./scripts/release_fixed.sh
+./scripts/SaneMaster.rb release
 
-# 2. Upload DMG to Cloudflare R2
+# 2. Upload DMG to Cloudflare R2 (this is the only hosted DMG)
 npx wrangler r2 object put sanebar-downloads/SaneBar-X.Y.Z.dmg \
   --file=releases/SaneBar-X.Y.Z.dmg --content-type="application/octet-stream" --remote
 
@@ -77,9 +79,9 @@ git push
 
 ## The Scripts
 
-### `scripts/release_fixed.sh`
+### `SaneMaster release`
 
-Full release build script:
+Unified release command (SaneMaster → SaneProcess `release.sh`) with per-project `.saneprocess` config:
 - Generates Xcode project
 - Archives with Release config
 - Exports with Developer ID signing
@@ -89,9 +91,11 @@ Full release build script:
 - **Prints appcast entry** (but doesn't update file)
 
 Options:
+- `--full` - Version bump, run tests, commit, and create GitHub release
 - `--skip-notarize` - Skip notarization (local testing)
 - `--skip-build` - Use existing archive
 - `--version X.Y.Z` - Override version
+- `--notes "..."` - Release notes (required with `--full`)
 
 ### `scripts/post_release.rb`
 
@@ -191,7 +195,7 @@ gh release delete vX.Y.Z --yes
 The GitHub Actions workflow (`weekly-release.yml`) currently:
 - ✅ Builds the app
 - ✅ Signs and notarizes
-- ✅ Creates GitHub Release with DMG
+- ✅ Creates GitHub Release (metadata only — no DMG asset)
 - ❌ Does NOT update appcast.xml
 - ❌ Does NOT have Sparkle private key
 

@@ -102,8 +102,8 @@ extension MenuBarManager {
 
         // Important: avoid blocking the MainActor while simulating Cmd+drag.
         // Any UI stalls here can make the Find Icon window appear to "collapse".
-        activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
+        activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
+            guard let self else { return false }
             
             defer {
                 // Cleanup task reference if it's still us
@@ -122,7 +122,7 @@ extension MenuBarManager {
                     let revealed = await self.showHiddenItemsNow(trigger: .findIcon)
                     guard revealed else {
                         logger.info("🔧 Auth failed or cancelled - aborting icon move")
-                        return
+                        return false
                     }
                 } else {
                     await self.hidingService.show()
@@ -143,7 +143,7 @@ extension MenuBarManager {
 
             guard let separatorX else {
                 logger.error("🔧 Cannot get separator position - ABORTING")
-                return
+                return false
             }
             logger.info("🔧 Separator for move: X=\(separatorX)")
 
@@ -177,8 +177,22 @@ extension MenuBarManager {
             }
 
             logger.info("🔧 ========== MOVE ICON END ==========")
+            return success
         }
 
         return true
+    }
+
+    @MainActor
+    func moveIconAndWait(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil, toHidden: Bool) async -> Bool {
+        if let task = activeMoveTask {
+            _ = await task.value
+        }
+
+        let started = moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
+
+        guard let task = activeMoveTask else { return false }
+        let success = await task.value
+        return started && success
     }
 }

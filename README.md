@@ -45,7 +45,9 @@ Your $5 keeps this project alive. No VC funding. No acquisition exit. Just softw
 
 **[Download — $5](https://sanebar.com)** or [build from source](#for-developers)
 
-**Requirements:** macOS 15 Sequoia or later
+DMGs are hosted on Cloudflare (not attached to GitHub releases).
+
+**Requirements:** macOS 15 Sequoia or later, Apple Silicon (arm64) only
 
 ---
 
@@ -216,6 +218,7 @@ Free to use! If SaneBar helps you, star this repo.
 
 ### Requirements
 - macOS 15.0+ (Sequoia or later)
+- Apple Silicon (arm64) only
 - Xcode 16+
 - Ruby 3.0+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
@@ -241,7 +244,7 @@ SaneBar/
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
 │   └── SearchWindow/       # Find Hidden Icon UI
-├── Tests/                  # 241 unit tests with mocks
+├── Tests/                  # Swift Testing unit tests
 ├── scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```

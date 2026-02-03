@@ -166,3 +166,8 @@ DOCS_AUDIT_FINDINGS.md
 TESTING_RESULTS.md
 .claude/
 .wrangler/
+node_modules/
+migration-samples/
+outputs/
+*.profraw
+scripts/*.swift
