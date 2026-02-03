@@ -1,6 +1,7 @@
 import SwiftUI
 import ServiceManagement
 import LocalAuthentication
+import AppKit
 
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
@@ -13,6 +14,12 @@ struct GeneralSettingsView: View {
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
     @State private var showingResetAlert = false
+
+    private struct SettingsExport: Codable {
+        let version: Int
+        let exportedAt: Date
+        let settings: SaneBarSettings
+    }
 
     private var showDockIconBinding: Binding<Bool> {
         Binding(
@@ -162,7 +169,24 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 5. Troubleshooting
+                // 5. Data
+                CompactSection("Data") {
+                    CompactRow("Settings") {
+                        Button("Export Settings...") {
+                            exportSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Button("Import Settings...") {
+                            importSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+
+                // 6. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
@@ -288,5 +312,83 @@ struct GeneralSettingsView: View {
         } catch {
             print("[SaneBar] Failed to delete profile: \(error)")
         }
+    }
+
+    // MARK: - Export / Import
+
+    private func exportSettings() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "SaneBar-settings.json"
+        panel.title = "Export Settings"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let export = SettingsExport(version: 1, exportedAt: Date(), settings: menuBarManager.settings)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+
+        do {
+            let data = try encoder.encode(export)
+            try data.write(to: url)
+        } catch {
+            showError(title: "Export Failed", error: error)
+        }
+    }
+
+    private func importSettings() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "Import Settings"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+
+            if let export = try? decoder.decode(SettingsExport.self, from: data) {
+                applyImportedSettings(export.settings)
+            } else {
+                let settings = try decoder.decode(SaneBarSettings.self, from: data)
+                applyImportedSettings(settings)
+            }
+        } catch {
+            showError(title: "Import Failed", error: error)
+        }
+    }
+
+    private func applyImportedSettings(_ settings: SaneBarSettings) {
+        let currentAuthEnabled = menuBarManager.settings.requireAuthToShowHiddenIcons
+        let importedAuthEnabled = settings.requireAuthToShowHiddenIcons
+
+        if currentAuthEnabled && !importedAuthEnabled && !isAuthenticating {
+            isAuthenticating = true
+            Task {
+                let authenticated = await authenticateToDisable()
+                await MainActor.run {
+                    if authenticated {
+                        menuBarManager.settings = settings
+                        menuBarManager.saveSettings()
+                    }
+                    isAuthenticating = false
+                }
+            }
+        } else {
+            menuBarManager.settings = settings
+            menuBarManager.saveSettings()
+        }
+    }
+
+    private func showError(title: String, error: Error) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .warning
+        alert.runModal()
     }
 }

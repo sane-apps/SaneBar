@@ -9,7 +9,6 @@ import SwiftUI
 /// when opening. Re-creating NSWindow + NSHostingView is expensive.
 @MainActor
 final class SearchWindowController: NSObject, NSWindowDelegate {
-
     // MARK: - Singleton
 
     static let shared = SearchWindowController()
@@ -22,7 +21,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// Toggle the search window visibility
     func toggle() {
-        if let window = window, window.isVisible {
+        if let window, window.isVisible {
             close()
         } else {
             // Check auth if required
@@ -37,16 +36,20 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     }
 
     /// Show the search window
-    func show() {
+    func show(prefill searchText: String? = nil) {
         // Create window lazily if needed
         if window == nil {
             createWindow()
         }
 
-        guard let window = window else { return }
+        guard let window else { return }
 
-        // Notify view to reset search text and focus field
-        NotificationCenter.default.post(name: MenuBarSearchView.resetSearchNotification, object: nil)
+        if let searchText, !searchText.isEmpty {
+            NotificationCenter.default.post(name: MenuBarSearchView.setSearchTextNotification, object: searchText)
+        } else {
+            // Notify view to reset search text and focus field
+            NotificationCenter.default.post(name: MenuBarSearchView.resetSearchNotification, object: nil)
+        }
 
         // Suspend hover/click triggers while search is open
         MenuBarManager.shared.hoverService.isSuspended = true
@@ -85,22 +88,16 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
 
         window.contentView = hostingView
         window.title = "Find Icon"
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.level = .floating
-        
-        // Clear background for ultraThinMaterial to show through
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        
+
         // Ensure window stays in memory for reuse but doesn't block termination
         window.isReleasedWhenClosed = false
         window.delegate = self
@@ -113,12 +110,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    func windowDidResignKey(_ notification: Notification) {
+    func windowDidResignKey(_: Notification) {
         // Auto-close when user clicks elsewhere
         close()
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         // If user explicitly closes, we can either keep it or nil it.
         // Keeping it is better for performance.
     }

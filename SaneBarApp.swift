@@ -32,6 +32,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        handleURL(url)
+    }
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
@@ -64,6 +69,36 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     @objc private func quitFromDock(_ sender: Any?) {
         NSApplication.shared.terminate(nil)
+    }
+
+    private func handleURL(_ url: URL) {
+        guard url.scheme?.lowercased() == "sanebar" else { return }
+
+        let rawCommand = (url.host?.isEmpty == false) ? url.host : url.path.split(separator: "/").first.map(String.init)
+        let command = rawCommand?.lowercased() ?? ""
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        let searchQuery = queryItems?.first(where: { $0.name == "q" })?.value
+
+        Task { @MainActor in
+            switch command {
+            case "toggle":
+                MenuBarManager.shared.toggleHiddenItems()
+            case "show":
+                MenuBarManager.shared.showHiddenItems()
+            case "hide":
+                MenuBarManager.shared.hideHiddenItems()
+            case "search":
+                if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
+                    let ok = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                    guard ok else { return }
+                }
+                SearchWindowController.shared.show(prefill: searchQuery)
+            case "settings":
+                SettingsOpener.open()
+            default:
+                break
+            }
+        }
     }
 }
 

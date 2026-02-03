@@ -50,6 +50,7 @@ struct MenuBarSearchView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
+    static let setSearchTextNotification = Notification.Name("MenuBarSearchView.setSearchText")
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
@@ -142,6 +143,14 @@ struct MenuBarSearchView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Self.resetSearchNotification)) { _ in
             searchText = ""
+            isSearchVisible = true
+            isSearchFieldFocused = true
+            refreshApps()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Self.setSearchTextNotification)) { notification in
+            let text = notification.object as? String ?? ""
+            searchText = text
+            searchTextDebounced = text
             isSearchVisible = true
             isSearchFieldFocused = true
             refreshApps()
