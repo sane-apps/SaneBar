@@ -27,10 +27,10 @@
 | **Hide on App Change** | ✅ Shipped v1.0.15 | Auto-hide when switching apps |
 | **Show When Rearranging** | ✅ Shipped v1.0.15 | Reveal all icons during ⌘+drag |
 | **Ice Migration Tool** | 📋 Planned v1.1.0 | Import from Ice (open source, easy) |
-| **Bartender Migration Tool** | 🚧 In Progress | Import from Bartender ([help wanted](https://github.com/sane-apps/SaneBar/issues/33)) |
+| **Bartender Migration Tool** | ✅ Shipped | Import from Bartender (Settings → General → Import Bartender) |
 | **Permanently Hidden Zone** | 📋 Planned v1.1.0 | Secondary "Void" spacer for icons that should never show |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
-| **Icon Groups** | 📋 Planned | Categorize icons, filter in Find Icon |
+| **Icon Groups** | ✅ Shipped | Categorize icons, filter in Find Icon (custom groups + drag-and-drop) |
 | Intel (x86_64) support | ❌ Not Planned | No test hardware, shrinking user base |
 | Second menu bar row | ❌ Impossible | macOS has one menu bar row - we can't add another |
 

@@ -1,7 +1,7 @@
-import SwiftUI
 import AppKit
 import KeyboardShortcuts
 import os.log
+import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSearchView")
 
@@ -46,7 +46,7 @@ struct MenuBarSearchView: View {
     @State private var isCreatingGroup = false
     @State private var newGroupName = ""
     @State private var showMoveInstructions = false
-    @State private var moveInstructionsForHidden = false  // true if moving FROM hidden TO visible
+    @State private var moveInstructionsForHidden = false // true if moving FROM hidden TO visible
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
@@ -73,7 +73,7 @@ struct MenuBarSearchView: View {
 
     /// Categories that have at least one app (for smart group tabs)
     private var availableCategories: [AppCategory] {
-        let categories = Set(menuBarApps.map { $0.category })
+        let categories = Set(menuBarApps.map(\.category))
         // Return in a sensible order, filtering to only those with apps
         return AppCategory.allCases.filter { categories.contains($0) }
     }
@@ -106,8 +106,6 @@ struct MenuBarSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-
             controls
 
             // Group tabs (always visible so users can create groups)
@@ -135,7 +133,7 @@ struct MenuBarSearchView: View {
             loadCachedApps()
             refreshApps()
             startPermissionMonitoring()
-            
+
             // Focus search field on appear for instant searching
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isSearchFieldFocused = true
@@ -193,7 +191,7 @@ struct MenuBarSearchView: View {
             moveInstructionsForHidden ? "Move to Visible" : "Move to Hidden",
             isPresented: $showMoveInstructions
         ) {
-            Button("OK") { } 
+            Button("OK") {}
         } message: {
             if moveInstructionsForHidden {
                 Text("To show this icon:\n\n⌘-drag it to the RIGHT of the / separator in your menu bar.")
@@ -201,13 +199,16 @@ struct MenuBarSearchView: View {
                 Text("To hide this icon:\n\n⌘-drag it to the LEFT of the / separator in your menu bar.")
             }
         }
+        .onExitCommand {
+            onDismiss()
+        }
     }
 
     /// Monitor for permission changes - auto-reload when user grants permission
     private func startPermissionMonitoring() {
         permissionMonitorTask = Task { @MainActor in
             for await granted in AccessibilityService.shared.permissionStream(includeInitial: false) {
-                if granted && !hasAccessibility {
+                if granted, !hasAccessibility {
                     // Permission was just granted - reload the app list
                     hasAccessibility = true
                     loadCachedApps()
@@ -254,14 +255,13 @@ struct MenuBarSearchView: View {
                 }
             }
 
-            let refreshed: [RunningApp]
-            switch mode {
+            let refreshed: [RunningApp] = switch mode {
             case .hidden:
-                refreshed = await service.refreshHiddenMenuBarApps()
+                await service.refreshHiddenMenuBarApps()
             case .visible:
-                refreshed = await service.refreshVisibleMenuBarApps()
+                await service.refreshVisibleMenuBarApps()
             case .all:
-                refreshed = await service.refreshMenuBarApps()
+                await service.refreshMenuBarApps()
             }
 
             guard !Task.isCancelled else { return }
@@ -274,30 +274,10 @@ struct MenuBarSearchView: View {
 
     // MARK: - Subviews
 
-    private var header: some View {
-        HStack {
-            Text("Find Icon")
-                .font(.headline)
-            Spacer()
-            Button {
-                onDismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-                    .font(.title2)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.escape, modifiers: [])
-        }
-        .padding(.horizontal)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-    }
-
     private var controls: some View {
         HStack(spacing: 10) {
             Picker("", selection: modeBinding) {
-                ForEach(Mode.allCases) { mode in 
+                ForEach(Mode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
             }
@@ -325,6 +305,7 @@ struct MenuBarSearchView: View {
             .help("Refresh")
         }
         .padding(.horizontal)
+        .padding(.top, 12)
         .padding(.bottom, isSearchVisible ? 6 : 10)
     }
 
@@ -436,7 +417,7 @@ struct MenuBarSearchView: View {
         .padding(.vertical, 6)
     }
 
-    private let maxGroupCount = 50  // Prevent UI performance issues
+    private let maxGroupCount = 50 // Prevent UI performance issues
 
     private func createGroup(named name: String) {
         // Validate: trim whitespace, check not empty
@@ -444,7 +425,7 @@ struct MenuBarSearchView: View {
         guard !trimmedName.isEmpty else { return }
 
         // Limit total groups to prevent performance issues
-        guard menuBarManager.settings.iconGroups.count < maxGroupCount else { 
+        guard menuBarManager.settings.iconGroups.count < maxGroupCount else {
             // Silently fail - UI should prevent this
             return
         }
@@ -651,7 +632,7 @@ struct MenuBarSearchView: View {
 
     private var appGrid: some View {
         GeometryReader { proxy in
-            let padding: CGFloat = 8  // Reduced from 12 for larger icons
+            let padding: CGFloat = 8 // Reduced from 12 for larger icons
             let availableWidth = max(0, proxy.size.width - (padding * 2))
             let availableHeight = max(0, proxy.size.height - (padding * 2))
             let count = filteredApps.count
@@ -660,7 +641,7 @@ struct MenuBarSearchView: View {
             ScrollView {
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.fixed(grid.tileSize), spacing: grid.spacing), count: grid.columns),
-                    alignment: .leading,  // Align grid content to left
+                    alignment: .leading, // Align grid content to left
                     spacing: grid.spacing
                 ) {
                     ForEach(Array(filteredApps.enumerated()), id: \.element.id) { index, app in
@@ -677,7 +658,7 @@ struct MenuBarSearchView: View {
                             onToggleHidden: mode == .all ? nil : {
                                 // Capture values before async work to avoid race conditions
                                 let bundleID = app.bundleId
-                                let menuExtraId = app.menuExtraIdentifier  // For Control Center items
+                                let menuExtraId = app.menuExtraIdentifier // For Control Center items
                                 let statusItemIndex = app.statusItemIndex
                                 let toHidden = (mode == .visible)
 
@@ -687,7 +668,7 @@ struct MenuBarSearchView: View {
                         )
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)  // Push to top-left
+                .frame(maxWidth: .infinity, alignment: .topLeading) // Push to top-left
                 .padding(padding)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -703,7 +684,7 @@ struct MenuBarSearchView: View {
     }
 
     private func gridSizing(availableWidth: CGFloat, availableHeight: CGFloat, count: Int) -> GridSizing {
-        let spacing: CGFloat = 8  // Reduced from 12 for tighter grid
+        let spacing: CGFloat = 8 // Reduced from 12 for tighter grid
 
         let minTile: CGFloat = 44
         let maxTile: CGFloat = 112
@@ -720,7 +701,7 @@ struct MenuBarSearchView: View {
         var best = GridSizing(columns: 1, tileSize: minTile, iconSize: 26, spacing: spacing)
         var bestScore: CGFloat = -1_000_000
 
-        for columns in 1...maxColumns {
+        for columns in 1 ... maxColumns {
             let rawTile = (availableWidth - (CGFloat(columns - 1) * spacing)) / CGFloat(columns)
             let tileSize = max(minTile, min(maxTile, floor(rawTile)))
 
@@ -728,14 +709,13 @@ struct MenuBarSearchView: View {
             let contentHeight = (CGFloat(rows) * tileSize) + (CGFloat(max(0, rows - 1)) * spacing)
             let overflow = max(0, contentHeight - height)
 
-            let score: CGFloat
-            if overflow <= 0 {
+            let score: CGFloat = if overflow <= 0 {
                 // Fits without scrolling: prefer a more horizontal grid (fewer rows)
                 // while still keeping tiles reasonably large.
-                score = 10_000 + tileSize - (CGFloat(rows) * 4) + (CGFloat(columns) * 0.5)
+                10000 + tileSize - (CGFloat(rows) * 4) + (CGFloat(columns) * 0.5)
             } else {
                 // Prefer less scrolling for very large icon counts.
-                score = tileSize - ((overflow / height) * 24)
+                tileSize - ((overflow / height) * 24)
             }
 
             if score > bestScore {
@@ -743,7 +723,7 @@ struct MenuBarSearchView: View {
                 best = GridSizing(
                     columns: columns,
                     tileSize: tileSize,
-                    iconSize: max(28, min(72, floor(tileSize * 0.72))),  // Larger icons (was 0.62)
+                    iconSize: max(28, min(72, floor(tileSize * 0.72))), // Larger icons (was 0.62)
                     spacing: spacing
                 )
             }
@@ -794,7 +774,7 @@ struct MenuBarSearchView: View {
                 }
                 return .ignored
             default:
-                return .ignored  // Let TextField handle it
+                return .ignored // Let TextField handle it
             }
         }
 
@@ -828,7 +808,7 @@ struct MenuBarSearchView: View {
             if let char = keyPress.characters.first, char.isLetter || char.isNumber {
                 showSearchAndFocus()
                 // The character will be typed into the now-focused search field
-                return .ignored  // Let the character through to TextField
+                return .ignored // Let the character through to TextField
             }
             return .ignored
         }
@@ -849,7 +829,7 @@ struct MenuBarSearchView: View {
 
         if let current = selectedAppIndex {
             let newIndex = current + delta
-            if newIndex >= 0 && newIndex < filteredApps.count {
+            if newIndex >= 0, newIndex < filteredApps.count {
                 selectedAppIndex = newIndex
             }
         } else {
@@ -921,9 +901,8 @@ struct MenuBarSearchView: View {
         .padding(16)
         .frame(width: 360)
     }
-
 }
 
 #Preview {
-    MenuBarSearchView(onDismiss: {}) 
+    MenuBarSearchView(onDismiss: {})
 }

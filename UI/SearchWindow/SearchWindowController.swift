@@ -95,6 +95,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         window.contentView = hostingView
         window.title = "Find Icon"
+        window.titlebarSeparatorStyle = .line
+        window.backgroundColor = .windowBackgroundColor
         window.isMovableByWindowBackground = true
         window.level = .floating
 
