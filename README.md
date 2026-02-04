@@ -1,10 +1,13 @@
 # SaneBar
 
+[![GitHub stars](https://img.shields.io/github/stars/sane-apps/SaneBar?style=flat-square)](https://github.com/sane-apps/SaneBar/stargazers)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
+
+> **⭐ Star this repo if it's useful!** · **[💰 Buy for $5](https://sanebar.com)** · Keeps development alive
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
@@ -199,7 +202,9 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ## Support
 
-Free to use! If SaneBar helps you, star this repo.
+**⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars help others discover quality open source.
+
+**Cloning without starring?** Takes 1 click. Be better.
 
 ### Donations
 
