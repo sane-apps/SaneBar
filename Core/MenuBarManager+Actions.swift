@@ -4,7 +4,6 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.Actions")
 
 extension MenuBarManager {
-    
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -13,9 +12,9 @@ extension MenuBarManager {
         let sepHasMenu = (separatorItem?.menu != nil)
         logger.debug("Menu will open (event=\(String(describing: event?.type.rawValue)) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu))")
         #if DEBUG
-        let eventType = event.map { Int($0.type.rawValue) } ?? -1
-        let buttonNumber = event?.buttonNumber ?? -1
-        print("[MenuBarManager] menuWillOpen eventType=\(eventType) button=\(buttonNumber) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu)")
+            let eventType = event.map { Int($0.type.rawValue) } ?? -1
+            let buttonNumber = event?.buttonNumber ?? -1
+            print("[MenuBarManager] menuWillOpen eventType=\(eventType) button=\(buttonNumber) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu)")
         #endif
 
         let isRightClick: Bool = {
@@ -36,11 +35,11 @@ extension MenuBarManager {
         }
 
         isMenuOpen = true
-        
+
         // Cancel any pending auto-rehide to prevent the menu from being
         // forcefully closed if the bar retracts while the user is navigating.
         hidingService.cancelRehide()
-        
+
         logger.debug("Menu will open - checking targets...")
         for item in menu.items where !item.isSeparatorItem {
             let targetStatus = item.target == nil ? "nil" : "set"
@@ -48,13 +47,13 @@ extension MenuBarManager {
         }
     }
 
-    func menuDidClose(_ menu: NSMenu) {
+    func menuDidClose(_: NSMenu) {
         logger.debug("Menu did close")
         isMenuOpen = false
 
         // If we are expanded and auto-rehide is enabled, restart the timer
         // so the bar doesn't stay stuck open after a menu interaction.
-        if hidingState == .expanded && settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
+        if hidingState == .expanded, settings.autoRehide, !isRevealPinned, !shouldSkipHideForExternalMonitor {
             logger.debug("Restarting auto-rehide timer after menu close")
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
@@ -62,33 +61,33 @@ extension MenuBarManager {
 
     // MARK: - Menu Actions
 
-    @objc func menuToggleHiddenItems(_ sender: Any?) {
+    @objc func menuToggleHiddenItems(_: Any?) {
         logger.info("Menu: Toggle Hidden Items")
         toggleHiddenItems()
     }
 
-    @objc func openSettings(_ sender: Any?) {
+    @objc func openSettings(_: Any?) {
         logger.info("Menu: Opening Settings")
         SettingsOpener.open()
     }
 
-    @objc func openFindIcon(_ sender: Any?) {
+    @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Find Icon")
         SearchWindowController.shared.toggle()
     }
 
-    @objc func quitApp(_ sender: Any?) {
+    @objc func quitApp(_: Any?) {
         logger.info("Menu: Quit")
         NSApplication.shared.terminate(nil)
     }
 
-    @objc func checkForUpdates(_ sender: Any?) {
+    @objc func checkForUpdates(_: Any?) {
         logger.info("Menu: Check for Updates")
         Task { @MainActor in
             userDidClickCheckForUpdates()
         }
     }
-    
+
     @objc func statusItemClicked(_ sender: Any?) {
         // Ensure no status item has an attached menu (left-click must not open menu)
         mainStatusItem?.menu = nil
@@ -97,12 +96,12 @@ extension MenuBarManager {
         separatorItem?.button?.menu = nil
 
         #if DEBUG
-        if let button = sender as? NSStatusBarButton {
-            let id = button.identifier?.rawValue ?? "nil"
-            let hasMenu = (button.menu != nil)
-            logger.debug("statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
-            print("[MenuBarManager] statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
-        }
+            if let button = sender as? NSStatusBarButton {
+                let id = button.identifier?.rawValue ?? "nil"
+                let hasMenu = (button.menu != nil)
+                logger.debug("statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
+                print("[MenuBarManager] statusItemClicked sender=\(id) hasMenu=\(hasMenu)")
+            }
         #endif
 
         // Prevent interaction during animation to avoid race conditions
@@ -114,7 +113,7 @@ extension MenuBarManager {
         guard let event = NSApp.currentEvent else {
             logger.warning("statusItemClicked: No current event available; defaulting to left click")
             #if DEBUG
-            print("[MenuBarManager] statusItemClicked: no event")
+                print("[MenuBarManager] statusItemClicked: no event")
             #endif
             toggleHiddenItems()
             return
@@ -123,7 +122,7 @@ extension MenuBarManager {
         let clickType = StatusBarController.clickType(from: event)
         logger.info("statusItemClicked: event type=\(event.type.rawValue), clickType=\(String(describing: clickType))")
         #if DEBUG
-        print("[MenuBarManager] statusItemClicked eventType=\(event.type.rawValue) button=\(event.buttonNumber) modifiers=\(event.modifierFlags.rawValue) clickType=\(clickType)")
+            print("[MenuBarManager] statusItemClicked eventType=\(event.type.rawValue) button=\(event.buttonNumber) modifiers=\(event.modifierFlags.rawValue) clickType=\(clickType)")
         #endif
 
         switch clickType {
@@ -139,12 +138,14 @@ extension MenuBarManager {
     }
 
     func showStatusMenu() {
-          guard let statusMenu = statusMenu,
+        guard let statusMenu,
               let targetItem = mainStatusItem,
               targetItem.button != nil else { return }
 
-          logger.info("Showing status menu (anchor: main icon)")
+        logger.info("Showing status menu (anchor: main icon)")
         // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
-        targetItem.popUpMenu(statusMenu)
+        targetItem.menu = statusMenu
+        targetItem.button?.performClick(nil)
+        targetItem.menu = nil
     }
 }

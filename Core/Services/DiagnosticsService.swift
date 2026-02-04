@@ -83,7 +83,6 @@ struct DiagnosticReport: Sendable {
 // MARK: - DiagnosticsService
 
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
-
     static let shared = DiagnosticsService()
 
     private let subsystem = "com.sanebar.app"
@@ -92,13 +91,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         async let logs = collectRecentLogs()
         async let settings = collectSettingsSummary()
 
-        return DiagnosticReport(
+        return await DiagnosticReport(
             appVersion: appVersion,
             buildNumber: buildNumber,
             macOSVersion: macOSVersion,
             hardwareModel: hardwareModel,
-            recentLogs: await logs,
-            settingsSummary: await settings,
+            recentLogs: logs,
+            settingsSummary: settings,
             collectedAt: Date()
         )
     }
@@ -125,13 +124,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
-        let modelString = String(cString: model)
+        let modelString = String(bytes: model.prefix(while: { $0 != 0 }).map(UInt8.init), encoding: .utf8) ?? "Unknown"
 
         // Add architecture info
         #if arch(arm64)
-        return "\(modelString) (Apple Silicon)"
+            return "\(modelString) (Apple Silicon)"
         #else
-        return "\(modelString) (Intel)"
+            return "\(modelString) (Intel)"
         #endif
     }
 
@@ -154,14 +153,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             return entries.compactMap { entry -> DiagnosticReport.LogEntry? in
                 guard let logEntry = entry as? OSLogEntryLog else { return nil }
 
-                let level: String
-                switch logEntry.level {
-                case .debug: level = "DEBUG"
-                case .info: level = "INFO"
-                case .notice: level = "NOTICE"
-                case .error: level = "ERROR"
-                case .fault: level = "FAULT"
-                default: level = "LOG"
+                let level = switch logEntry.level {
+                case .debug: "DEBUG"
+                case .info: "INFO"
+                case .notice: "NOTICE"
+                case .error: "ERROR"
+                case .fault: "FAULT"
+                default: "LOG"
                 }
 
                 return DiagnosticReport.LogEntry(

@@ -11,8 +11,8 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "Accessibili
 @inline(__always)
 func safeAXUIElement(_ ref: CFTypeRef) -> AXUIElement? {
     guard CFGetTypeID(ref) == AXUIElementGetTypeID() else { return nil }
-    // Safe: type verified above. Using unsafeBitCast is explicit about CF bridging.
-    return unsafeBitCast(ref, to: AXUIElement.self)
+    // Safe: type verified above. Using unsafeDowncast for CF bridging.
+    return unsafeDowncast(ref as AnyObject, to: AXUIElement.self)
 }
 
 /// Safely cast a CFTypeRef to AXValue after verifying the type ID.
@@ -20,8 +20,8 @@ func safeAXUIElement(_ ref: CFTypeRef) -> AXUIElement? {
 @inline(__always)
 func safeAXValue(_ ref: CFTypeRef) -> AXValue? {
     guard CFGetTypeID(ref) == AXValueGetTypeID() else { return nil }
-    // Safe: type verified above. Using unsafeBitCast is explicit about CF bridging.
-    return unsafeBitCast(ref, to: AXValue.self)
+    // Safe: type verified above. Using unsafeDowncast for CF bridging.
+    return unsafeDowncast(ref as AnyObject, to: AXValue.self)
 }
 
 // MARK: - Accessibility Prompt Helper
@@ -65,7 +65,6 @@ extension Notification.Name {
 /// - UI can react immediately when user grants permission in System Settings
 @MainActor
 final class AccessibilityService: ObservableObject {
-
     // MARK: - Singleton
 
     static let shared = AccessibilityService()
@@ -90,22 +89,22 @@ final class AccessibilityService: ObservableObject {
     }
 
     /// Cache for menu bar item positions to avoid expensive rescans
-    internal var menuBarItemCache: [MenuBarItemPosition] = []
-    internal var menuBarItemCacheTime: Date = .distantPast
-    internal let menuBarItemCacheValiditySeconds: TimeInterval = 5.0  // Refresh every 5 seconds for accurate positions
+    var menuBarItemCache: [MenuBarItemPosition] = []
+    var menuBarItemCacheTime: Date = .distantPast
+    let menuBarItemCacheValiditySeconds: TimeInterval = 5.0 // Refresh every 5 seconds for accurate positions
 
     /// Cache for menu bar item owners (apps only, no positions) - used by Find Icon
-    internal var menuBarOwnersCache: [RunningApp] = []
-    internal var menuBarOwnersCacheTime: Date = .distantPast
-    internal let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0  // Refresh every 10 seconds for responsive UI
+    var menuBarOwnersCache: [RunningApp] = []
+    var menuBarOwnersCacheTime: Date = .distantPast
+    let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0 // Refresh every 10 seconds for responsive UI
 
-    internal var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
-    internal var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
+    var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
+    var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
 
     // MARK: - Initialization
 
     private init() {
-        self.isGranted = AXIsProcessTrusted()
+        isGranted = AXIsProcessTrusted()
         startPermissionMonitoring()
     }
 

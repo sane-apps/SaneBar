@@ -131,6 +131,7 @@ targets:
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
     postCompileScripts:
       - script: |
+          export PATH="/opt/homebrew/bin:$PATH"
           if which swiftlint >/dev/null; then
             swiftlint . || true
           else
