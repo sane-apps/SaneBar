@@ -12,6 +12,7 @@ struct MenuBarSearchView: View {
     private enum Mode: String, CaseIterable, Identifiable {
         case hidden
         case visible
+        case alwaysHidden
         case all
 
         var id: String { rawValue }
@@ -20,6 +21,7 @@ struct MenuBarSearchView: View {
             switch self {
             case .hidden: "Hidden"
             case .visible: "Visible"
+            case .alwaysHidden: "Always Hidden (beta)"
             case .all: "All"
             }
         }
@@ -60,15 +62,30 @@ struct MenuBarSearchView: View {
         self.onDismiss = onDismiss
     }
 
+    private var isAlwaysHiddenEnabled: Bool {
+        menuBarManager.settings.alwaysHiddenSectionEnabled && menuBarManager.alwaysHiddenSeparatorItem != nil
+    }
+
     private var mode: Mode {
-        Mode(rawValue: storedMode) ?? .all
+        let current = Mode(rawValue: storedMode) ?? .all
+        if current == .alwaysHidden && !isAlwaysHiddenEnabled {
+            return .all
+        }
+        return current
     }
 
     private var modeBinding: Binding<Mode> {
         Binding(
-            get: { Mode(rawValue: storedMode) ?? .all },
+            get: { mode },
             set: { storedMode = $0.rawValue }
         )
+    }
+
+    private var availableModes: [Mode] {
+        if isAlwaysHiddenEnabled {
+            return Mode.allCases
+        }
+        return Mode.allCases.filter { $0 != .alwaysHidden }
     }
 
     /// Categories that have at least one app (for smart group tabs)
@@ -231,6 +248,8 @@ struct MenuBarSearchView: View {
             menuBarApps = service.cachedHiddenMenuBarApps()
         case .visible:
             menuBarApps = service.cachedVisibleMenuBarApps()
+        case .alwaysHidden:
+            menuBarApps = service.cachedAlwaysHiddenMenuBarApps()
         case .all:
             menuBarApps = service.cachedMenuBarApps()
         }
@@ -260,6 +279,8 @@ struct MenuBarSearchView: View {
                 await service.refreshHiddenMenuBarApps()
             case .visible:
                 await service.refreshVisibleMenuBarApps()
+            case .alwaysHidden:
+                await service.refreshAlwaysHiddenMenuBarApps()
             case .all:
                 await service.refreshMenuBarApps()
             }
@@ -277,8 +298,9 @@ struct MenuBarSearchView: View {
     private var controls: some View {
         HStack(spacing: 10) {
             Picker("", selection: modeBinding) {
-                ForEach(Mode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+                ForEach(availableModes) { mode in
+                    Text(mode.title)
+                        .tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -531,7 +553,16 @@ struct MenuBarSearchView: View {
                     .controlSize(.small)
             }
 
-            Text("\(filteredApps.count) \(mode == .hidden ? "hidden" : mode == .visible ? "visible" : "icons")")
+            let label: String = {
+                switch mode {
+                case .hidden: "hidden"
+                case .visible: "visible"
+                case .alwaysHidden: "always hidden"
+                case .all: "icons"
+                }
+            }()
+
+            Text("\(filteredApps.count) \(label)")
                 .foregroundStyle(.tertiary)
 
             Spacer()
@@ -601,6 +632,7 @@ struct MenuBarSearchView: View {
         switch mode {
         case .hidden: "No hidden icons"
         case .visible: "No visible icons"
+        case .alwaysHidden: "No always hidden icons"
         case .all: "No menu bar icons"
         }
     }
@@ -611,6 +643,8 @@ struct MenuBarSearchView: View {
             "All your menu bar icons are visible.\nUse ⌘-drag to hide icons left of the separator."
         case .visible:
             "All your menu bar icons are hidden.\nUse ⌘-drag to show icons right of the separator."
+        case .alwaysHidden:
+            "Nothing is in the always-hidden zone.\nUse the context menu to move icons there."
         case .all:
             "Try Refresh, or grant Accessibility permission."
         }
@@ -654,7 +688,7 @@ struct MenuBarSearchView: View {
                             onRemoveFromGroup: selectedGroupId.map { groupId in
                                 { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
                             },
-                            isHidden: mode == .hidden,
+                            isHidden: mode == .hidden || mode == .alwaysHidden,
                             onToggleHidden: mode == .all ? nil : {
                                 // Capture values before async work to avoid race conditions
                                 let bundleID = app.bundleId
@@ -662,8 +696,27 @@ struct MenuBarSearchView: View {
                                 let statusItemIndex = app.statusItemIndex
                                 let toHidden = (mode == .visible)
 
+                                // If the user is moving an item OUT of Always Hidden, unpin it so it doesn't snap back on next launch.
+                                if mode == .alwaysHidden && !toHidden {
+                                    menuBarManager.unpinAlwaysHidden(app: app)
+                                }
+
                                 _ = menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
                             },
+                            onMoveToAlwaysHidden: isAlwaysHiddenEnabled && mode != .alwaysHidden ? {
+                                let bundleID = app.bundleId
+                                let menuExtraId = app.menuExtraIdentifier
+                                let statusItemIndex = app.statusItemIndex
+
+                                // Persist the intent so we can re-apply after reboot/login drift.
+                                menuBarManager.pinAlwaysHidden(app: app)
+
+                                _ = menuBarManager.moveIconToAlwaysHidden(
+                                    bundleID: bundleID,
+                                    menuExtraId: menuExtraId,
+                                    statusItemIndex: statusItemIndex
+                                )
+                            } : nil,
                             isSelected: selectedAppIndex == index
                         )
                     }

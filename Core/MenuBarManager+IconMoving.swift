@@ -20,6 +20,17 @@ extension MenuBarManager {
         return frame.origin.x
     }
 
+    /// Get the always-hidden separator's LEFT edge X position (for classification/moves)
+    /// Returns nil if the separator isn't enabled or can't be determined
+    func getAlwaysHiddenSeparatorOriginX() -> CGFloat? {
+        guard let separatorButton = alwaysHiddenSeparatorItem?.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+        let frame = separatorWindow.frame
+        return frame.origin.x
+    }
+
     /// Get the separator's right edge X position (for moving icons)
     /// NOTE: This value changes based on expanded/collapsed state!
     /// Returns nil if separator position can't be determined
@@ -59,7 +70,13 @@ extension MenuBarManager {
     ///   - menuExtraId: For Control Center items, the specific menu extra identifier
     ///   - toHidden: True to hide, false to show
     /// - Returns: True if successful
-    func moveIcon(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil, toHidden: Bool) -> Bool {
+    func moveIcon(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        toHidden: Bool,
+        separatorOverrideX: CGFloat? = nil
+    ) -> Bool {
         logger.info("🔧 ========== MOVE ICON START ==========")
         logger.info("🔧 moveIcon: bundleID=\(bundleID, privacy: .public), menuExtraId=\(menuExtraId ?? "nil", privacy: .public), toHidden=\(toHidden, privacy: .public)")
         logger.info("🔧 Current hidingState: \(String(describing: self.hidingState))")
@@ -136,6 +153,9 @@ extension MenuBarManager {
             logger.info("🔧 Getting separator position for move...")
             let separatorX: CGFloat? = await MainActor.run {
                 if toHidden {
+                    if let separatorOverrideX {
+                        return separatorOverrideX
+                    }
                     return self.getSeparatorOriginX()
                 }
                 return self.getSeparatorRightEdgeX()
@@ -183,13 +203,45 @@ extension MenuBarManager {
         return true
     }
 
+    /// Move an icon into the always-hidden zone (if enabled).
+    func moveIconToAlwaysHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil
+    ) -> Bool {
+        guard let alwaysHiddenSeparatorX = getAlwaysHiddenSeparatorOriginX() else {
+            logger.error("🔧 Always-hidden separator unavailable - aborting move")
+            return false
+        }
+
+        return moveIcon(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            toHidden: true,
+            separatorOverrideX: alwaysHiddenSeparatorX
+        )
+    }
+
     @MainActor
-    func moveIconAndWait(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil, toHidden: Bool) async -> Bool {
+    func moveIconAndWait(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        toHidden: Bool,
+        separatorOverrideX: CGFloat? = nil
+    ) async -> Bool {
         if let task = activeMoveTask {
             _ = await task.value
         }
 
-        let started = moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
+        let started = moveIcon(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            toHidden: toHidden,
+            separatorOverrideX: separatorOverrideX
+        )
 
         guard let task = activeMoveTask else { return false }
         let success = await task.value

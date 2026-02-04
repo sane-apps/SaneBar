@@ -16,6 +16,9 @@ struct MenuBarAppTile: View {
     /// Callback when user wants to toggle hidden status (shows instructions)
     var onToggleHidden: (() -> Void)?
 
+    /// Callback when user wants to move an icon into the always-hidden zone
+    var onMoveToAlwaysHidden: (() -> Void)? = nil
+
     /// Whether to show app name below icon (for users with many apps)
     var showName: Bool = true
 
@@ -85,6 +88,12 @@ struct MenuBarAppTile: View {
                 Divider()
                 Button(isHidden ? "Move to Visible" : "Move to Hidden") {
                     toggleAction()
+                }
+            }
+            if let moveToAlwaysHidden = onMoveToAlwaysHidden {
+                Divider()
+                Button("Move to Always Hidden (beta)") {
+                    moveToAlwaysHidden()
                 }
             }
             if let removeAction = onRemoveFromGroup {

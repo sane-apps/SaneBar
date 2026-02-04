@@ -141,6 +141,11 @@ Save different menu bar configurations for different contexts (e.g., "Work", "Ga
 - Click **Save as Profile…**
 - Restore any profile with a single click
 
+### 🧪 Always Hidden (beta)
+Create a second "always hidden" zone for icons that should never show automatically.
+- Enable: **Settings → Experimental → Always Hidden section**
+- In **Find Icon…**, right-click an icon → **Pin in Always Hidden (beta)**
+
 ---
 
 ## The Notch & 50+ Apps

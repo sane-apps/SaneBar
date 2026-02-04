@@ -51,10 +51,10 @@ private enum StatusItemLength {
 ///
 /// HOW IT WORKS:
 /// 1. User Cmd+drags their menu bar icons to position them left or right of our delimiter
-/// 2. Icons to the LEFT of delimiter = always visible
-/// 3. Icons to the RIGHT of delimiter = can be hidden
-/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its right off screen
-/// 5. To SHOW: Set delimiter's length back to 22 → reveals the hidden icons
+/// 2. Icons to the RIGHT of delimiter = always visible
+/// 3. Icons to the LEFT of delimiter = can be hidden
+/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its left off screen (x < 0)
+/// 5. To SHOW: Set delimiter's length back to 20 → reveals the hidden icons
 ///
 /// This is how Dozer, Hidden Bar, and similar tools work. No CGEvent needed.
 @MainActor
@@ -70,6 +70,14 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     /// The delimiter status item whose length we toggle
     private weak var delimiterItem: StatusItemProtocol?
+
+    var isConfigured: Bool {
+        delimiterItem != nil
+    }
+
+    var delimiterLength: CGFloat? {
+        delimiterItem?.length
+    }
 
     // MARK: - Initialization
 

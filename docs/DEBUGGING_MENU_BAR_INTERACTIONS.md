@@ -45,9 +45,9 @@ NSStatusItem.length controls visibility:
 | State | Separator Length | Effect |
 |-------|------------------|--------|
 | Expanded | 20px | Normal divider appearance |
-| Collapsed | 10,000px | Pushes hidden items off-screen |
+| Collapsed | 10,000px | Pushes items left of the separator off-screen |
 
-Items aren't removed, just pushed off the right edge of the screen.
+Items aren't removed, just pushed off the left edge of the screen (x < 0).
 
 ---
 

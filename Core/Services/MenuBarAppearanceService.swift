@@ -252,9 +252,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let view = MenuBarOverlayView(viewModel: viewModel)
 
         // Create window
-        let window = NSWindow(
+        let window = NSPanel(
             contentRect: menuBarFrame,
-            styleMask: .borderless,
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -271,9 +271,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
         // Set SwiftUI view as content
         let hostingView = NSHostingView(rootView: view)
-        hostingView.frame = window.contentView?.bounds ?? .zero
+        hostingView.frame = NSRect(origin: .zero, size: menuBarFrame.size)
         hostingView.autoresizingMask = [.width, .height]
-        window.contentView?.addSubview(hostingView)
+        window.contentView = hostingView
 
         overlayWindow = window
 
@@ -287,8 +287,21 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         logger.debug("Repositioned overlay to \(NSStringFromRect(newFrame))")
     }
 
+    private func preferredMenuBarScreen() -> NSScreen? {
+        if let screen = MenuBarManager.shared.mainStatusItem?.button?.window?.screen {
+            return screen
+        }
+        if let screen = MenuBarManager.shared.separatorItem?.button?.window?.screen {
+            return screen
+        }
+        if let screen = overlayWindow?.screen {
+            return screen
+        }
+        return NSScreen.screens.first ?? NSScreen.main
+    }
+
     private func calculateMenuBarFrame() -> NSRect {
-        guard let screen = NSScreen.main else {
+        guard let screen = preferredMenuBarScreen() else {
             return NSRect(x: 0, y: 0, width: 1920, height: 24)
         }
 

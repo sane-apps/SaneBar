@@ -2,14 +2,14 @@
 
 ## Touch ID Configuration Storage
 
-**Status**: Planned Improvement (v1.1)
-**Risk Level**: Low (Edge Case)
+**Status**: ✅ Implemented (2026-02-04)
+**Risk Level**: N/A (Fixed)
 
 ### Description
-The "Require Touch ID to Show Hidden Icons" setting is currently stored in the application's secure sandbox preference file (`settings.json`), rather than the macOS System Keychain.
+The "Require Touch ID to Show Hidden Icons" setting is stored in the **macOS Keychain**, not `settings.json`.
 
 ### Context
-This is an **extreme edge case**. To exploit this, an attacker would need to **already have code execution access** on your specific machine (i.e., they are already running scripts as your user account). If an attacker has this level of access, they typically already control the system. This limitation simply means SaneBar's self-defense against a _local, already-compromised_ user is not yet cryptographic.
+Previously, this boolean lived in `settings.json`, which could theoretically be modified by a local process running as your user. Storing it in Keychain raises the bar for tampering and better matches the "lock behind Touch ID" promise.
 
 ### Roadmap
-We are moving this specific configuration boolean to the **macOS Keychain** in v1.1. This will ensure that even if a local script tries to modify the settings file to "disable" auth, the app will respect the secure value stored in the hardware enclave.
+Existing installs are migrated automatically on launch; the legacy JSON key is stripped from `settings.json`.

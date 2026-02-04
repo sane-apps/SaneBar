@@ -6,7 +6,14 @@ struct FeedbackView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var issueDescription = ""
-    @State private var isCollecting = false
+
+    private enum CollectingAction {
+        case report
+        case copy
+    }
+
+    @State private var collectingAction: CollectingAction?
+    @State private var didCopyDiagnostics = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,6 +65,7 @@ struct FeedbackView: View {
                             Label("Hardware info (Mac model)", systemImage: "desktopcomputer")
                             Label("Recent logs (last 5 minutes)", systemImage: "doc.text")
                             Label("Current settings (no personal data)", systemImage: "gearshape")
+                            Label("Menu bar state snapshot (separator positions & counts)", systemImage: "menubar.rectangle")
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -93,9 +101,23 @@ struct FeedbackView: View {
                 .keyboardShortcut(.cancelAction)
 
                 Button {
+                    copyDiagnostics()
+                } label: {
+                    if collectingAction == .copy {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(.horizontal, 8)
+                    } else {
+                        Text(didCopyDiagnostics ? "Copied" : "Copy Diagnostics")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(collectingAction != nil)
+
+                Button {
                     submitReport()
                 } label: {
-                    if isCollecting {
+                    if collectingAction == .report {
                         ProgressView()
                             .controlSize(.small)
                             .padding(.horizontal, 8)
@@ -104,7 +126,7 @@ struct FeedbackView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(issueDescription.isEmpty || isCollecting)
+                .disabled(issueDescription.isEmpty || collectingAction != nil)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -112,12 +134,33 @@ struct FeedbackView: View {
         .frame(width: 480, height: 420)
     }
 
+    private func copyDiagnostics() {
+        collectingAction = .copy
+        Task {
+            let report = await DiagnosticsService.shared.collectDiagnostics()
+            let description = issueDescription.isEmpty ? "<describe what happened here>" : issueDescription
+            let markdown = report.toMarkdown(userDescription: description)
+
+            await MainActor.run {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(markdown, forType: .string)
+                collectingAction = nil
+                didCopyDiagnostics = true
+            }
+
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                didCopyDiagnostics = false
+            }
+        }
+    }
+
     private func submitReport() {
-        isCollecting = true
+        collectingAction = .report
         Task {
             let report = await DiagnosticsService.shared.collectDiagnostics()
             await MainActor.run {
-                isCollecting = false
+                collectingAction = nil
                 openInGitHub(report: report)
             }
         }

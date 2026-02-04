@@ -46,13 +46,15 @@ struct StatusBarControllerTests {
     func testAutosaveNamesExist() {
         #expect(!StatusBarController.mainAutosaveName.isEmpty)
         #expect(!StatusBarController.separatorAutosaveName.isEmpty)
+        #expect(!StatusBarController.alwaysHiddenSeparatorAutosaveName.isEmpty)
     }
 
     @Test("Autosave names are unique")
     func testAutosaveNamesUnique() {
         let names = [
             StatusBarController.mainAutosaveName,
-            StatusBarController.separatorAutosaveName
+            StatusBarController.separatorAutosaveName,
+            StatusBarController.alwaysHiddenSeparatorAutosaveName
         ]
 
         let uniqueNames = Set(names)
@@ -63,6 +65,7 @@ struct StatusBarControllerTests {
     func testAutosaveNamesHavePrefix() {
         #expect(StatusBarController.mainAutosaveName.hasPrefix("SaneBar_"))
         #expect(StatusBarController.separatorAutosaveName.hasPrefix("SaneBar_"))
+        #expect(StatusBarController.alwaysHiddenSeparatorAutosaveName.hasPrefix("SaneBar_"))
     }
 
     // MARK: - Icon Constants Tests

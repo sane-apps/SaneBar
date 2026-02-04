@@ -9,31 +9,33 @@ struct MenuBarManagerTests {
 
     // MARK: - AutosaveName Tests
 
-    @Test("Autosave names are unique to prevent position conflicts")
-    func testAutosaveNamesAreUnique() {
-        // These are the autosaveName values used in MenuBarManager
-        // They must be unique for macOS to persist positions correctly
-        let autosaveNames = [
-            "SaneBar_main",
-            "SaneBar_separator",
-            "SaneBar_spacer_0",
-            "SaneBar_spacer_1",
-            "SaneBar_spacer_2"
-        ]
+	    @Test("Autosave names are unique to prevent position conflicts")
+	    func testAutosaveNamesAreUnique() {
+	        // These are the autosaveName values used by StatusBarController (and relied on by MenuBarManager).
+	        // They must be unique for macOS to persist positions correctly
+	        var autosaveNames = [
+	            StatusBarController.mainAutosaveName,
+	            StatusBarController.separatorAutosaveName,
+	            StatusBarController.alwaysHiddenSeparatorAutosaveName
+	        ]
+	        for index in 0..<StatusBarController.maxSpacerCount {
+	            autosaveNames.append("SaneBar_spacer_\(index)")
+	        }
 
-        let uniqueNames = Set(autosaveNames)
+	        let uniqueNames = Set(autosaveNames)
 
         #expect(uniqueNames.count == autosaveNames.count,
                 "All autosaveName values must be unique - found duplicates")
     }
 
-    @Test("Autosave names follow naming convention")
-    func testAutosaveNamesFollowConvention() {
-        let autosaveNames = [
-            "SaneBar_main",
-            "SaneBar_separator",
-            "SaneBar_spacer_0"
-        ]
+	    @Test("Autosave names follow naming convention")
+	    func testAutosaveNamesFollowConvention() {
+	        let autosaveNames = [
+	            StatusBarController.mainAutosaveName,
+	            StatusBarController.separatorAutosaveName,
+	            StatusBarController.alwaysHiddenSeparatorAutosaveName,
+	            "SaneBar_spacer_0"
+	        ]
 
         for name in autosaveNames {
             #expect(name.hasPrefix("SaneBar_"),

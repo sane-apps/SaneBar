@@ -54,6 +54,50 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertTrue(settings.iconHotkeys.isEmpty)
     }
 
+    // MARK: - Always Hidden Pins (Experimental)
+
+    func testAlwaysHiddenPinnedItemIdsDefaultsToEmptyArray() {
+        let settings = SaneBarSettings()
+        XCTAssertEqual(settings.alwaysHiddenPinnedItemIds, [])
+    }
+
+    func testAlwaysHiddenPinnedItemIdsEncodesAndDecodes() throws {
+        var settings = SaneBarSettings()
+        settings.alwaysHiddenPinnedItemIds = [
+            "com.apple.menuextra.wifi",
+            "com.dropbox.client",
+            "com.foo.bar::axid:statusItem",
+            "com.foo.bar::statusItem:1"
+        ]
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertEqual(decoded.alwaysHiddenPinnedItemIds, settings.alwaysHiddenPinnedItemIds)
+    }
+
+    func testAlwaysHiddenPinnedItemIdsBackwardsCompatibility() throws {
+        // Given: JSON without alwaysHiddenPinnedItemIds (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "iconHotkeys": {}
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertEqual(settings.alwaysHiddenPinnedItemIds, [])
+    }
+
     // MARK: - Low Battery Trigger
 
     func testShowOnLowBatteryDefaultsToFalse() throws {
@@ -578,5 +622,109 @@ final class PersistenceServiceTests: XCTestCase {
 
         // Then: special characters are preserved
         XCTAssertEqual(decoded.iconGroups.first?.name, "🎨 Creative Apps & Tools (2024)")
+    }
+
+    // MARK: - Keychain-backed Auth Setting
+
+    private final class InMemoryKeychainService: KeychainServiceProtocol, @unchecked Sendable {
+        private var store: [String: Bool] = [:]
+
+        func bool(forKey key: String) throws -> Bool? {
+            store[key]
+        }
+
+        func set(_ value: Bool, forKey key: String) throws {
+            store[key] = value
+        }
+
+        func delete(_ key: String) throws {
+            store.removeValue(forKey: key)
+        }
+    }
+
+    func testRequireAuthToShowHiddenIconsIsStoredInKeychainNotSettingsJSON() throws {
+        let keychain = InMemoryKeychainService()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            keychain: keychain,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        var settings = SaneBarSettings()
+        settings.requireAuthToShowHiddenIcons = true
+        try persistence.saveSettings(settings)
+
+        XCTAssertEqual(try keychain.bool(forKey: "settings.requireAuthToShowHiddenIcons"), true)
+
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        let savedData = try Data(contentsOf: settingsURL)
+        let object = try JSONSerialization.jsonObject(with: savedData, options: [])
+        let dict = try XCTUnwrap(object as? [String: Any])
+        XCTAssertNil(dict["requireAuthToShowHiddenIcons"], "settings.json should not persist requireAuthToShowHiddenIcons")
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertTrue(loaded.requireAuthToShowHiddenIcons)
+    }
+
+    func testRequireAuthToShowHiddenIconsMigratesFromLegacySettingsJSON() throws {
+        let keychain = InMemoryKeychainService()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            keychain: keychain,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        // Legacy file (pre-migration) includes requireAuthToShowHiddenIcons.
+        let legacyJSON = """
+        {
+          "autoRehide": true,
+          "requireAuthToShowHiddenIcons": true
+        }
+        """
+        try legacyJSON.data(using: .utf8)!.write(to: tempDir.appendingPathComponent("settings.json"), options: .atomic)
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertTrue(loaded.requireAuthToShowHiddenIcons)
+        XCTAssertEqual(try keychain.bool(forKey: "settings.requireAuthToShowHiddenIcons"), true)
+
+        let rewrittenData = try Data(contentsOf: tempDir.appendingPathComponent("settings.json"))
+        let rewrittenObject = try JSONSerialization.jsonObject(with: rewrittenData, options: [])
+        let rewrittenDict = try XCTUnwrap(rewrittenObject as? [String: Any])
+        XCTAssertNil(rewrittenDict["requireAuthToShowHiddenIcons"], "Legacy requireAuthToShowHiddenIcons should be stripped from settings.json after load")
+    }
+
+    func testDisablingRequireAuthDeletesKeychainEntry() throws {
+        let keychain = InMemoryKeychainService()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            keychain: keychain,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        var settings = SaneBarSettings()
+        settings.requireAuthToShowHiddenIcons = true
+        try persistence.saveSettings(settings)
+        XCTAssertEqual(try keychain.bool(forKey: "settings.requireAuthToShowHiddenIcons"), true)
+
+        settings.requireAuthToShowHiddenIcons = false
+        try persistence.saveSettings(settings)
+        XCTAssertNil(try keychain.bool(forKey: "settings.requireAuthToShowHiddenIcons"))
+
+        let savedData = try Data(contentsOf: tempDir.appendingPathComponent("settings.json"))
+        let object = try JSONSerialization.jsonObject(with: savedData, options: [])
+        let dict = try XCTUnwrap(object as? [String: Any])
+        XCTAssertNil(dict["requireAuthToShowHiddenIcons"])
     }
 }

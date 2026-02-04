@@ -195,6 +195,15 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Style of the main divider (/, \, |, etc.)
     var dividerStyle: DividerStyle = .slash
 
+    // MARK: - Experimental
+
+    /// Enable a second separator for an always-hidden zone (beta; requires restart).
+    var alwaysHiddenSectionEnabled: Bool = false
+
+    /// Menu bar item IDs that should be kept in the always-hidden section across launches.
+    /// Stored as `RunningApp.uniqueId` values (best-effort).
+    var alwaysHiddenPinnedItemIds: [String] = []
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -241,6 +250,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
         dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
+        alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
+        alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -254,6 +265,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds
     }
 }
 
@@ -276,9 +288,28 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     // MARK: - File Paths
 
-    private let fileManager = FileManager.default
+    private let fileManager: FileManager
+    private let keychain: KeychainServiceProtocol
+    private let appSupportDirectoryOverride: URL?
+
+    init(
+        fileManager: FileManager = FileManager.default,
+        keychain: KeychainServiceProtocol = KeychainService.shared,
+        appSupportDirectoryOverride: URL? = nil
+    ) {
+        self.fileManager = fileManager
+        self.keychain = keychain
+        self.appSupportDirectoryOverride = appSupportDirectoryOverride
+    }
 
     private var appSupportDirectory: URL {
+        if let override = appSupportDirectoryOverride {
+            if !fileManager.fileExists(atPath: override.path) {
+                try? fileManager.createDirectory(at: override, withIntermediateDirectories: true)
+            }
+            return override
+        }
+
         let paths = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         // Be defensive: this should exist on macOS, but avoid crashing if it doesn't.
         let base = paths.first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -308,24 +339,74 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     // MARK: - Settings
 
+    private enum KeychainKeys {
+        static let requireAuthToShowHiddenIcons = "settings.requireAuthToShowHiddenIcons"
+    }
+
     func saveSettings(_ settings: SaneBarSettings) throws {
+        try persistRequireAuthSetting(settings.requireAuthToShowHiddenIcons)
         let data = try encoder.encode(settings)
-        try data.write(to: settingsFileURL, options: .atomic)
+        let sanitized = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: data)
+        try sanitized.write(to: settingsFileURL, options: .atomic)
     }
 
     func loadSettings() throws -> SaneBarSettings {
         guard fileManager.fileExists(atPath: settingsFileURL.path) else {
-            return SaneBarSettings()
+            var settings = SaneBarSettings()
+            settings.requireAuthToShowHiddenIcons = (try? keychain.bool(forKey: KeychainKeys.requireAuthToShowHiddenIcons)) ?? false
+            return settings
         }
 
         let data = try Data(contentsOf: settingsFileURL)
-        return try decoder.decode(SaneBarSettings.self, from: data)
+        let legacy = legacyRequireAuthInfo(from: data)
+        var settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        let keychainValue = try? keychain.bool(forKey: KeychainKeys.requireAuthToShowHiddenIcons)
+        if let keychainValue {
+            settings.requireAuthToShowHiddenIcons = keychainValue
+        } else if legacy.present {
+            try persistRequireAuthSetting(legacy.value)
+            settings.requireAuthToShowHiddenIcons = legacy.value
+        }
+
+        // If the legacy key existed, strip it to avoid drift / confusion.
+        if legacy.present {
+            let rewritten = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: try encoder.encode(settings))
+            try rewritten.write(to: settingsFileURL, options: .atomic)
+        }
+
+        return settings
     }
 
     // MARK: - Clear All
 
     func clearAll() throws {
         try? fileManager.removeItem(at: settingsFileURL)
+        try? keychain.delete(KeychainKeys.requireAuthToShowHiddenIcons)
+    }
+
+    private func persistRequireAuthSetting(_ value: Bool) throws {
+        if value {
+            try keychain.set(true, forKey: KeychainKeys.requireAuthToShowHiddenIcons)
+        } else {
+            try keychain.delete(KeychainKeys.requireAuthToShowHiddenIcons)
+        }
+    }
+
+    private func legacyRequireAuthInfo(from data: Data) -> (present: Bool, value: Bool) {
+        guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let dict = object as? [String: Any],
+              let raw = dict["requireAuthToShowHiddenIcons"] else {
+            return (false, false)
+        }
+        return (true, (raw as? Bool) ?? false)
+    }
+
+    private func stripTopLevelKey(_ key: String, from data: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: data, options: [])
+        guard var dict = object as? [String: Any] else { return data }
+        dict.removeValue(forKey: key)
+        return try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
     }
 
     // MARK: - Profiles
