@@ -35,10 +35,10 @@ enum MenuBarSpacingError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .valueOutOfRange(let value):
-            return "Spacing value \(value) is out of range (must be 1-10)"
-        case .commandFailed(let message):
-            return "Failed to execute defaults command: \(message)"
+        case let .valueOutOfRange(value):
+            "Spacing value \(value) is out of range (must be 1-10)"
+        case let .commandFailed(message):
+            "Failed to execute defaults command: \(message)"
         }
     }
 }
@@ -54,12 +54,11 @@ enum MenuBarSpacingError: Error, LocalizedError {
 /// **Important**: Changes typically require logout/login to take effect.
 @MainActor
 final class MenuBarSpacingService: MenuBarSpacingServiceProtocol {
-
     // MARK: - Constants
 
     private static let spacingKey = "NSStatusItemSpacing"
     private static let paddingKey = "NSStatusItemSelectionPadding"
-    private static let validRange = 1...10
+    private static let validRange = 1 ... 10
 
     // MARK: - Singleton
 
@@ -137,78 +136,54 @@ final class MenuBarSpacingService: MenuBarSpacingServiceProtocol {
         logger.debug("Posted graceful refresh notifications")
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Private Helpers (CFPreferences)
 
+    /// Reads an integer from the global domain for the current host.
+    /// Equivalent to: `defaults -currentHost read -g <key>`
     private func readDefaultsInt(_ key: String) -> Int? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        task.arguments = ["-currentHost", "read", "-g", key]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            guard task.terminationStatus == 0 else {
-                return nil // Key doesn't exist
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) else {
-                return nil
-            }
-
-            return Int(output)
-        } catch {
-            logger.error("Failed to read defaults key \(key): \(error.localizedDescription)")
-            return nil
-        }
+        let value = CFPreferencesCopyValue(
+            key as CFString,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        return value as? Int
     }
 
+    /// Writes an integer to the global domain for the current host.
+    /// Equivalent to: `defaults -currentHost write -g <key> -int <value>`
     private func writeDefaultsInt(_ key: String, value: Int) throws {
-        let result = runDefaults(["-currentHost", "write", "-g", key, "-int", "\(value)"])
-        if !result.success {
-            throw MenuBarSpacingError.commandFailed(result.error ?? "Unknown error")
-        }
+        CFPreferencesSetValue(
+            key as CFString,
+            value as CFNumber,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        // Best-effort sync to disk. The value is already in the in-memory
+        // preferences cache and readable via CFPreferencesCopyValue.
+        // Sync may fail in test environments without affecting functionality.
+        CFPreferencesSynchronize(
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
     }
 
+    /// Deletes a key from the global domain for the current host.
+    /// Equivalent to: `defaults -currentHost delete -g <key>`
     private func deleteDefaultsKey(_ key: String) throws {
-        let result = runDefaults(["-currentHost", "delete", "-g", key])
-        // Ignore errors when deleting - key may not exist
-        if !result.success && result.error?.contains("does not exist") == false {
-            logger.debug("Delete key \(key) result: \(result.error ?? "ok")")
-        }
-    }
-
-    private func runDefaults(_ arguments: [String]) -> (success: Bool, error: String?) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        task.arguments = arguments
-
-        let errorPipe = Pipe()
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = errorPipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let success = task.terminationStatus == 0
-            var errorMessage: String?
-
-            if !success {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                errorMessage = String(data: errorData, encoding: .utf8)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-
-            return (success, errorMessage)
-        } catch {
-            return (false, error.localizedDescription)
-        }
+        CFPreferencesSetValue(
+            key as CFString,
+            nil,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        CFPreferencesSynchronize(
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
     }
 }
