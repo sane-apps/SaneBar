@@ -12,10 +12,10 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 ///
 /// HOW IT WORKS (same technique as Dozer, Hidden Bar, and similar tools):
 /// 1. User Cmd+drags menu bar icons to position them left or right of our delimiter
-/// 2. Icons to the LEFT of delimiter = always visible
-/// 3. Icons to the RIGHT of delimiter = can be hidden
-/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its right off screen
-/// 5. To SHOW: Set delimiter's length back to 22 → reveals the hidden icons
+/// 2. Icons to the RIGHT of delimiter = always visible
+/// 3. Icons to the LEFT of delimiter = can be hidden
+/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its left off screen (x < 0)
+/// 5. To SHOW: Set delimiter's length back to 20 → reveals the hidden icons
 ///
 /// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
@@ -49,6 +49,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Reference to the currently active icon move task to ensure atomicity
     internal var activeMoveTask: Task<Bool, Never>?
+
+    /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
+    private var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
 
     // MARK: - Screen Detection
 
@@ -103,6 +106,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     internal var mainStatusItem: NSStatusItem?
     /// Separator that expands to hide items (the actual delimiter)
     internal var separatorItem: NSStatusItem?
+    /// Optional separator for always-hidden zone (experimental)
+    internal var alwaysHiddenSeparatorItem: NSStatusItem?
     internal var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
     /// Flag to prevent setupStatusItem from overwriting externally-provided items
@@ -288,6 +293,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Store the external items
         self.mainStatusItem = main
         self.separatorItem = separator
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        self.alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Wire up click handler for main item
         if let button = main.button {
@@ -419,6 +426,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Copy references for local use
         mainStatusItem = statusBarController.mainItem
         separatorItem = statusBarController.separatorItem
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Setup menu using controller (shown via right-click on main icon)
         statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
@@ -445,7 +454,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Give UI time to settle, then hide
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self = self else { return }
-            Task {
+            Task { @MainActor in
+                // If the user has pinned items to the always-hidden section, enforce them early
+                // (before initial hide) to reduce startup drift/flicker.
+                await self.enforceAlwaysHiddenPinnedItems(reason: "startup")
+
                 // Skip startup hide if user is on external monitor
                 if self.shouldSkipHideForExternalMonitor {
                     logger.info("Skipping initial hide: user is on external monitor")
@@ -501,13 +514,38 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 }
             }
             .store(in: &cancellables)
+
+        // Always-hidden pin enforcement: if a pinned app launches later, move it into place.
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didLaunchApplicationNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self = self else { return }
+                guard self.settings.alwaysHiddenSectionEnabled, self.alwaysHiddenSeparatorItem != nil else { return }
+                guard !self.settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
+
+                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      let bundleID = app.bundleIdentifier else { return }
+
+                let pinnedBundleIds = self.alwaysHiddenPinnedBundleIds()
+                guard pinnedBundleIds.contains(bundleID) else { return }
+
+                self.scheduleAlwaysHiddenPinEnforcement(
+                    reason: "didLaunch:\(bundleID)",
+                    filterBundleId: bundleID,
+                    delay: .seconds(1)
+                )
+            }
+            .store(in: &cancellables)
     }
 
     func clearStatusItemMenus() {
         mainStatusItem?.menu = nil
         separatorItem?.menu = nil
+        alwaysHiddenSeparatorItem?.menu = nil
         mainStatusItem?.button?.menu = nil
         separatorItem?.button?.menu = nil
+        alwaysHiddenSeparatorItem?.button?.menu = nil
     }
 
     private func updateDividerStyle() {
@@ -626,6 +664,208 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         updateAppearance()
         iconHotkeysService.registerHotkeys(from: settings)
         logger.info("All settings reset to defaults")
+    }
+
+    // MARK: - Always-Hidden Pins (Experimental)
+
+    /// Pin a menu bar item so it stays in the always-hidden section across launches.
+    /// Uses best-effort identity (`RunningApp.uniqueId`).
+    func pinAlwaysHidden(app: RunningApp) {
+        let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return }
+
+        var newIds = Set(settings.alwaysHiddenPinnedItemIds)
+        let inserted = newIds.insert(id).inserted
+        guard inserted else { return }
+
+        settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+    }
+
+    /// Remove a pin so the item no longer gets auto-moved into always-hidden.
+    func unpinAlwaysHidden(app: RunningApp) {
+        let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return }
+
+        let newIds = settings.alwaysHiddenPinnedItemIds.filter { $0 != id }
+        guard newIds.count != settings.alwaysHiddenPinnedItemIds.count else { return }
+        settings.alwaysHiddenPinnedItemIds = newIds
+    }
+
+    private enum AlwaysHiddenPin: Hashable, Sendable {
+        case menuExtra(String)
+        case axId(bundleId: String, axId: String)
+        case statusItem(bundleId: String, index: Int)
+        case bundleId(String)
+
+        var bundleId: String? {
+            switch self {
+            case .menuExtra:
+                return nil
+            case .axId(let bundleId, _):
+                return bundleId
+            case .statusItem(let bundleId, _):
+                return bundleId
+            case .bundleId(let bundleId):
+                return bundleId
+            }
+        }
+    }
+
+    private func parseAlwaysHiddenPin(_ raw: String) -> AlwaysHiddenPin? {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+
+        // Apple menu extras use the identifier alone as a stable unique key.
+        if value.hasPrefix("com.apple.menuextra.") {
+            return .menuExtra(value)
+        }
+
+        if let range = value.range(of: "::axid:") {
+            let bundleId = String(value[..<range.lowerBound])
+            let axId = String(value[range.upperBound...])
+            guard !bundleId.isEmpty, !axId.isEmpty else { return nil }
+            return .axId(bundleId: bundleId, axId: axId)
+        }
+
+        if let range = value.range(of: "::statusItem:") {
+            let bundleId = String(value[..<range.lowerBound])
+            let indexString = String(value[range.upperBound...])
+            guard !bundleId.isEmpty, let index = Int(indexString) else { return nil }
+            return .statusItem(bundleId: bundleId, index: index)
+        }
+
+        return .bundleId(value)
+    }
+
+    private func alwaysHiddenPinnedBundleIds() -> Set<String> {
+        var bundleIds = Set<String>()
+        for raw in settings.alwaysHiddenPinnedItemIds {
+            guard let pin = parseAlwaysHiddenPin(raw), let bundleId = pin.bundleId else { continue }
+            bundleIds.insert(bundleId)
+        }
+        return bundleIds
+    }
+
+    private func scheduleAlwaysHiddenPinEnforcement(reason: String, filterBundleId: String? = nil, delay: Duration) {
+        alwaysHiddenPinEnforcementTask?.cancel()
+        alwaysHiddenPinEnforcementTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: delay)
+            await self.enforceAlwaysHiddenPinnedItems(reason: reason, filterBundleId: filterBundleId)
+        }
+    }
+
+    private func waitForAlwaysHiddenSeparatorX(maxAttempts: Int = 15, delay: Duration = .milliseconds(100)) async -> CGFloat? {
+        for _ in 0..<maxAttempts {
+            if Task.isCancelled { return nil }
+            if let x = getAlwaysHiddenSeparatorOriginX() { return x }
+            try? await Task.sleep(for: delay)
+        }
+        return nil
+    }
+
+    private func isInAlwaysHiddenZone(itemX: CGFloat, itemWidth: CGFloat?, alwaysHiddenSeparatorX: CGFloat) -> Bool {
+        let width = max(1, itemWidth ?? 22)
+        let midX = itemX + (width / 2)
+        let margin: CGFloat = 6
+        return midX < (alwaysHiddenSeparatorX - margin)
+    }
+
+    private func findPinnedItem(
+        pin: AlwaysHiddenPin,
+        itemsByUniqueId: [String: AccessibilityService.MenuBarItemPosition],
+        itemsByBundleId: [String: [AccessibilityService.MenuBarItemPosition]]
+    ) -> AccessibilityService.MenuBarItemPosition? {
+        switch pin {
+        case .menuExtra(let identifier):
+            return itemsByUniqueId[identifier]
+
+        case .axId(let bundleId, let axId):
+            if let exact = itemsByUniqueId["\(bundleId)::axid:\(axId)"] { return exact }
+            if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
+            return nil
+
+        case .statusItem(let bundleId, let index):
+            if let exact = itemsByUniqueId["\(bundleId)::statusItem:\(index)"] { return exact }
+            if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
+            return nil
+
+        case .bundleId(let bundleId):
+            if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
+            return nil
+        }
+    }
+
+    private func enforceAlwaysHiddenPinnedItems(reason: String, filterBundleId: String? = nil) async {
+        guard settings.alwaysHiddenSectionEnabled, alwaysHiddenSeparatorItem != nil else { return }
+        guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
+
+        guard AccessibilityService.shared.isTrusted else {
+            logger.debug("Always-hidden pin enforcement skipped (no Accessibility permission)")
+            return
+        }
+
+        let rawPins = settings.alwaysHiddenPinnedItemIds
+        let pins = rawPins.compactMap(parseAlwaysHiddenPin)
+        guard !pins.isEmpty else { return }
+
+        let filteredPins: [AlwaysHiddenPin] = if let filterBundleId {
+            pins.filter { $0.bundleId == filterBundleId }
+        } else {
+            pins
+        }
+
+        guard !filteredPins.isEmpty else { return }
+
+        guard let alwaysHiddenSeparatorX = await waitForAlwaysHiddenSeparatorX() else {
+            logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): separator position unavailable")
+            return
+        }
+
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        if Task.isCancelled { return }
+
+        var itemsByUniqueId: [String: AccessibilityService.MenuBarItemPosition] = [:]
+        itemsByUniqueId.reserveCapacity(items.count)
+        for item in items {
+            itemsByUniqueId[item.app.uniqueId] = item
+        }
+        let itemsByBundleId = Dictionary(grouping: items, by: { $0.app.bundleId })
+
+        // Resolve pins to concrete current items.
+        var pinnedItems: [AccessibilityService.MenuBarItemPosition] = []
+        pinnedItems.reserveCapacity(filteredPins.count)
+        for pin in filteredPins {
+            if let item = findPinnedItem(pin: pin, itemsByUniqueId: itemsByUniqueId, itemsByBundleId: itemsByBundleId) {
+                pinnedItems.append(item)
+            }
+        }
+
+        guard !pinnedItems.isEmpty else { return }
+
+        var seenUniqueIds = Set<String>()
+        for item in pinnedItems {
+            if Task.isCancelled { return }
+            let uniqueId = item.app.uniqueId
+            guard seenUniqueIds.insert(uniqueId).inserted else { continue }
+
+            let alreadyAlwaysHidden = isInAlwaysHiddenZone(
+                itemX: item.x,
+                itemWidth: item.app.width,
+                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            )
+            guard !alreadyAlwaysHidden else { continue }
+
+            logger.info("Enforcing always-hidden pin (\(reason, privacy: .public)): moving \(uniqueId, privacy: .public)")
+
+            _ = await moveIconAndWait(
+                bundleID: item.app.bundleId,
+                menuExtraId: item.app.menuExtraIdentifier,
+                statusItemIndex: item.app.statusItemIndex,
+                toHidden: true,
+                separatorOverrideX: alwaysHiddenSeparatorX
+            )
+        }
     }
 
     // MARK: - Visibility Control

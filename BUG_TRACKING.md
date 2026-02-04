@@ -60,8 +60,12 @@
 - Ice: AppKit `NSView.draw()` with `NSColor.setFill(); rect.fill()` - direct drawing
 - Ice also uses `.fullSizeContentView, .nonactivatingPanel` styleMask
 
+**Update (Feb 4, 2026)**:
+- Overlay window now uses `NSPanel` with `.fullSizeContentView` + `.nonactivatingPanel`
+- Menu bar screen selection is based on SaneBar’s status item window (not `NSScreen.main`)
+
 **Action Items**:
-- [ ] Test adding `.fullSizeContentView, .nonactivatingPanel` to window styleMask
+- [x] Add `.fullSizeContentView, .nonactivatingPanel` to overlay window styleMask (needs M4 verification)
 - [ ] Consider rewriting `MenuBarOverlayView` as `NSView` subclass if quick fix fails
 
 ---
@@ -95,7 +99,7 @@
 **Root Cause**: Unknown - may be separator position issue or accessibility permission problem.
 
 **Action Items**:
-- [ ] Request more details from user (screenshot of Console logs)
+- [ ] Ask user to use Settings → Report an Issue → Copy Diagnostics and paste into the issue (no Console screenshots)
 - [ ] Check if this relates to BUG-016 (separator misplaced on screen switch)
 
 ---

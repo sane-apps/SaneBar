@@ -87,25 +87,24 @@ struct ExperimentalSettingsView: View {
     // MARK: - Experimental Features
 
     private var hasExperimentalFeatures: Bool {
-        // Will be true once we add the second section feature
-        false
+        true
     }
 
     @ViewBuilder
     private var experimentalFeaturesSection: some View {
         CompactSection("Features") {
-            // Placeholder for second menu bar section
-            // This will be enabled once the feature is implemented
+            CompactToggle(
+                label: "Always-hidden section (beta)",
+                isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
+            )
+            .help("Beta: Best-effort. Uses Accessibility and may not work for all apps. Requires restart.")
 
-            // CompactToggle(
-            //     label: "Second always-visible section",
-            //     isOn: $menuBarManager.settings.experimentalSecondSection
-            // )
-            // .help("Adds a second zone for icons you always want visible")
+            CompactDivider()
 
-            Text("No experimental features available yet.")
+            Text("Requires restart to take effect.")
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 8)
         }
     }

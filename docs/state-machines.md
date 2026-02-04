@@ -19,15 +19,15 @@ stateDiagram-v2
     expanded --> expanded: hide() [isAnimating=true]
     hidden --> hidden: show() [isAnimating=true]
 
-    note right of expanded
-        delimiterItem.length = 20px
-        Icons to RIGHT of separator visible
-    end note
-
-    note right of hidden
-        delimiterItem.length = 10,000px
-        Icons pushed off screen
-    end note
+	    note right of expanded
+	        delimiterItem.length = 20px
+	        All icons visible
+	    end note
+	
+	    note right of hidden
+	        delimiterItem.length = 10,000px
+	        Icons LEFT of delimiter pushed off-screen (x < 0)
+	    end note
 ```
 
 ### State Details
@@ -35,7 +35,7 @@ stateDiagram-v2
 | State | Delimiter Length | Effect |
 |-------|------------------|--------|
 | `expanded` | 20px | All icons visible |
-| `hidden` | 10,000px | Icons RIGHT of delimiter pushed off-screen |
+| `hidden` | 10,000px | Icons LEFT of delimiter pushed off-screen |
 
 ### Transitions
 

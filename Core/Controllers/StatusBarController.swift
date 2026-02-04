@@ -37,12 +37,14 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     private(set) var mainItem: NSStatusItem
     private(set) var separatorItem: NSStatusItem
+    private(set) var alwaysHiddenSeparatorItem: NSStatusItem?
     private var spacerItems: [NSStatusItem] = []
 
     // MARK: - Autosave Names
 
     nonisolated static let mainAutosaveName = "SaneBar_Main"
     nonisolated static let separatorAutosaveName = "SaneBar_Separator"
+    nonisolated static let alwaysHiddenSeparatorAutosaveName = "SaneBar_AlwaysHiddenSeparator"
 
     // MARK: - Icon Names
 
@@ -78,6 +80,25 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("StatusBarController initialized")
     }
 
+    // MARK: - Always-Hidden Separator (Experimental)
+
+    func ensureAlwaysHiddenSeparator(enabled: Bool) {
+        guard enabled else { return }
+        guard alwaysHiddenSeparatorItem == nil else { return }
+
+        Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
+
+        let item = NSStatusBar.system.statusItem(withLength: 8)
+        item.autosaveName = Self.alwaysHiddenSeparatorAutosaveName
+
+        if let button = item.button {
+            configureAlwaysHiddenSeparatorButton(button)
+        }
+
+        alwaysHiddenSeparatorItem = item
+        logger.info("Always-hidden separator created")
+    }
+
     // MARK: - Position Seeding (Ice Pattern)
 
     /// Seed positions in UserDefaults BEFORE creating status items.
@@ -97,6 +118,16 @@ final class StatusBarController: StatusBarControllerProtocol {
         if defaults.object(forKey: sepKey) == nil {
             logger.info("Seeding initial separator position")
             defaults.set(1, forKey: sepKey)
+        }
+    }
+
+    private static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
+        let defaults = UserDefaults.standard
+        let key = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
+
+        if defaults.object(forKey: key) == nil {
+            logger.info("Seeding initial always-hidden separator position")
+            defaults.set(2, forKey: key)
         }
     }
 
@@ -121,6 +152,12 @@ final class StatusBarController: StatusBarControllerProtocol {
     private func configureSeparatorButton(_ button: NSStatusBarButton) {
         button.identifier = NSUserInterfaceItemIdentifier("SaneBar.separator")
         updateSeparatorStyle(.slash)
+    }
+
+    private func configureAlwaysHiddenSeparatorButton(_ button: NSStatusBarButton) {
+        button.identifier = NSUserInterfaceItemIdentifier("SaneBar.alwaysHiddenSeparator")
+        button.image = nil
+        button.title = ""
     }
 
     // MARK: - Appearance

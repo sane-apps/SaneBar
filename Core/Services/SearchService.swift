@@ -17,6 +17,9 @@ protocol SearchServiceProtocol: Sendable {
     /// Fetch ONLY the menu bar apps that are currently HIDDEN by SaneBar
     func getHiddenMenuBarApps() async -> [RunningApp]
 
+    /// Fetch ONLY the menu bar apps that are always hidden (if enabled)
+    func getAlwaysHiddenMenuBarApps() async -> [RunningApp]
+
     /// Cached menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedMenuBarApps() -> [RunningApp]
@@ -24,6 +27,10 @@ protocol SearchServiceProtocol: Sendable {
     /// Cached hidden menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedHiddenMenuBarApps() -> [RunningApp]
+
+    /// Cached always hidden menu bar apps (may be stale). Returns immediately.
+    @MainActor
+    func cachedAlwaysHiddenMenuBarApps() -> [RunningApp]
 
     /// Cached shown (visible) menu bar apps (may be stale). Returns immediately.
     @MainActor
@@ -34,6 +41,9 @@ protocol SearchServiceProtocol: Sendable {
 
     /// Refresh hidden menu bar apps in the background (may take time).
     func refreshHiddenMenuBarApps() async -> [RunningApp]
+
+    /// Refresh always hidden menu bar apps in the background (may take time).
+    func refreshAlwaysHiddenMenuBarApps() async -> [RunningApp]
 
     /// Refresh shown (visible) menu bar apps in the background (may take time).
     func refreshVisibleMenuBarApps() async -> [RunningApp]
@@ -47,6 +57,12 @@ protocol SearchServiceProtocol: Sendable {
 
 final class SearchService: SearchServiceProtocol {
     static let shared = SearchService()
+
+    private enum VisibilityZone {
+        case visible
+        case hidden
+        case alwaysHidden
+    }
 
     @MainActor
     private func menuBarScreenFrame() -> CGRect? {
@@ -62,18 +78,51 @@ final class SearchService: SearchServiceProtocol {
         MenuBarManager.shared.getSeparatorOriginX()
     }
 
+    @MainActor
+    private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
+        guard let separatorX = separatorOriginXForClassification() else { return nil }
+
+        guard MenuBarManager.shared.settings.alwaysHiddenSectionEnabled,
+              MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
+            return (separatorX, nil)
+        }
+
+        let alwaysHiddenSeparatorX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
+        if let alwaysHiddenSeparatorX, alwaysHiddenSeparatorX >= separatorX {
+            logger.warning("Always-hidden separator is not left of main separator; ignoring always-hidden zone")
+            return (separatorX, nil)
+        }
+
+        return (separatorX, alwaysHiddenSeparatorX)
+    }
+
     private func isOffscreen(x: CGFloat, in screenFrame: CGRect) -> Bool {
         // Small margin to avoid flapping due to tiny coordinate jitter.
         let margin: CGFloat = 6
         return x < (screenFrame.minX - margin) || x > (screenFrame.maxX + margin)
     }
 
-    private func isHiddenRelativeToSeparator(itemX: CGFloat, itemWidth: CGFloat?, separatorX: CGFloat) -> Bool {
-        // Use midX to avoid edge jitter when items are near the separator.
+    private func classifyZone(
+        itemX: CGFloat,
+        itemWidth: CGFloat?,
+        separatorX: CGFloat,
+        alwaysHiddenSeparatorX: CGFloat?
+    ) -> VisibilityZone {
         let width = max(1, itemWidth ?? 22)
         let midX = itemX + (width / 2)
         let margin: CGFloat = 6
-        return midX < (separatorX - margin)
+
+        if let alwaysHiddenSeparatorX {
+            if midX < (alwaysHiddenSeparatorX - margin) {
+                return .alwaysHidden
+            }
+            if midX < (separatorX - margin) {
+                return .hidden
+            }
+            return .visible
+        }
+
+        return midX < (separatorX - margin) ? .hidden : .visible
     }
 
     func getRunningApps() async -> [RunningApp] {
@@ -100,6 +149,10 @@ final class SearchService: SearchServiceProtocol {
         await refreshHiddenMenuBarApps()
     }
 
+    func getAlwaysHiddenMenuBarApps() async -> [RunningApp] {
+        await refreshAlwaysHiddenMenuBarApps()
+    }
+
     @MainActor
     func cachedMenuBarApps() -> [RunningApp] {
         // Use position-aware cache for 'All' so we can sort spatially
@@ -112,10 +165,17 @@ final class SearchService: SearchServiceProtocol {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
 
         // Classify by separator position (works even when temporarily expanded for moving)
-        if let separatorX = separatorOriginXForClassification() {
-            logger.debug("cachedHidden: using separatorX=\(separatorX, privacy: .public) for classification")
+        if let positions = separatorOriginsForClassification() {
+            logger.debug("cachedHidden: using separatorX=\(positions.separatorX, privacy: .public) for classification")
             let apps = items
-                .filter { isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .filter {
+                    classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .hidden
+                }
                 .map { $0.app }
             logger.debug("cachedHidden: found \(apps.count, privacy: .public) hidden apps")
             logIdentityHealth(apps: apps, context: "cachedHidden")
@@ -134,14 +194,45 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
+    func cachedAlwaysHiddenMenuBarApps() -> [RunningApp] {
+        guard MenuBarManager.shared.settings.alwaysHiddenSectionEnabled else { return [] }
+        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+
+        if let positions = separatorOriginsForClassification(), positions.alwaysHiddenSeparatorX != nil {
+            let apps = items
+                .filter {
+                    classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .alwaysHidden
+                }
+                .map { $0.app }
+            logger.debug("cachedAlwaysHidden: found \(apps.count, privacy: .public) always hidden apps")
+            logIdentityHealth(apps: apps, context: "cachedAlwaysHidden")
+            return apps
+        }
+
+        return []
+    }
+
+    @MainActor
     func cachedVisibleMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
 
         // Classify by separator position (works even when temporarily expanded for moving)
-        if let separatorX = separatorOriginXForClassification() {
-            logger.debug("cachedVisible: using separatorX=\(separatorX, privacy: .public) for classification")
+        if let positions = separatorOriginsForClassification() {
+            logger.debug("cachedVisible: using separatorX=\(positions.separatorX, privacy: .public) for classification")
             let apps = items
-                .filter { !isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .filter {
+                    classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .visible
+                }
                 .map { $0.app }
             logger.debug("cachedVisible: found \(apps.count, privacy: .public) visible apps")
             logIdentityHealth(apps: apps, context: "cachedVisible")
@@ -161,13 +252,20 @@ final class SearchService: SearchServiceProtocol {
 
     func refreshHiddenMenuBarApps() async -> [RunningApp] {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        let (separatorX, frame) = await MainActor.run {
-            (self.separatorOriginXForClassification(), self.menuBarScreenFrame())
+        let (positions, frame) = await MainActor.run {
+            (self.separatorOriginsForClassification(), self.menuBarScreenFrame())
         }
 
-        if let separatorX {
+        if let positions {
             let apps = items
-                .filter { self.isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .filter {
+                    self.classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .hidden
+                }
                 .map { $0.app }
             await MainActor.run {
                 self.logIdentityHealth(apps: apps, context: "refreshHidden")
@@ -186,16 +284,54 @@ final class SearchService: SearchServiceProtocol {
         return apps
     }
 
+    func refreshAlwaysHiddenMenuBarApps() async -> [RunningApp] {
+        let isEnabled = await MainActor.run {
+            MenuBarManager.shared.settings.alwaysHiddenSectionEnabled &&
+            MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
+        }
+        guard isEnabled else { return [] }
+
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        let positions = await MainActor.run {
+            self.separatorOriginsForClassification()
+        }
+
+        guard let positions, positions.alwaysHiddenSeparatorX != nil else { return [] }
+
+        let apps = items
+            .filter {
+                self.classifyZone(
+                    itemX: $0.x,
+                    itemWidth: $0.app.width,
+                    separatorX: positions.separatorX,
+                    alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                ) == .alwaysHidden
+            }
+            .map { $0.app }
+
+        await MainActor.run {
+            self.logIdentityHealth(apps: apps, context: "refreshAlwaysHidden")
+        }
+        return apps
+    }
+
     func refreshVisibleMenuBarApps() async -> [RunningApp] {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        let (separatorX, frame) = await MainActor.run {
-            (self.separatorOriginXForClassification(), self.menuBarScreenFrame())
+        let (positions, frame) = await MainActor.run {
+            (self.separatorOriginsForClassification(), self.menuBarScreenFrame())
         }
 
         // Classify by separator position (works even when temporarily expanded)
-        if let separatorX {
+        if let positions {
             let apps = items
-                .filter { !self.isHiddenRelativeToSeparator(itemX: $0.x, itemWidth: $0.app.width, separatorX: separatorX) }
+                .filter {
+                    self.classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .visible
+                }
                 .map { $0.app }
             await MainActor.run {
                 self.logIdentityHealth(apps: apps, context: "refreshVisible")
