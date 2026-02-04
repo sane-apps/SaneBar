@@ -204,7 +204,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 **⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars help others discover quality open source.
 
-**Cloning without starring?** Takes 1 click. Be better.
+**Cloning without starring?** For real bro? Gimme that star!
 
 ### Donations
 
