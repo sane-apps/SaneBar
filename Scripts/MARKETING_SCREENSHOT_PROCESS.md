@@ -60,7 +60,7 @@ osascript -e 'tell application "SaneBar" to hide items'
 
 1. **Copy the script:**
    ```bash
-   cp ~/SaneBar/Scripts/marketing_screenshots.rb ~/YourApp/Scripts/
+   cp ~/SaneApps/apps/SaneBar/Scripts/marketing_screenshots.rb ~/YourApp/Scripts/
    ```
 
 2. **Edit the SHOTS hash** to define your app's screenshots:
