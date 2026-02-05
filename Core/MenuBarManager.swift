@@ -1,8 +1,8 @@
 import AppKit
 import Combine
+import LocalAuthentication
 import os.log
 import SwiftUI
-import LocalAuthentication
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
 
@@ -20,7 +20,6 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 /// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
 final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
-
     // MARK: - Singleton
 
     static let shared = MenuBarManager()
@@ -29,7 +28,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Starts expanded - we validate positions first, then hide if safe
     @Published private(set) var hidingState: HidingState = .expanded
-    @Published var settings: SaneBarSettings = SaneBarSettings()
+    @Published var settings: SaneBarSettings = .init()
 
     /// When true, the user explicitly chose to keep icons revealed ("Reveal All")
     /// and we should not auto-hide until they explicitly hide again.
@@ -45,10 +44,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private var failedAuthAttempts: Int = 0
     private var lastFailedAuthTime: Date?
     private let maxFailedAttempts: Int = 5
-    private let lockoutDuration: TimeInterval = 30  // seconds
+    private let lockoutDuration: TimeInterval = 30 // seconds
 
     /// Reference to the currently active icon move task to ensure atomicity
-    internal var activeMoveTask: Task<Bool, Never>?
+    var activeMoveTask: Task<Bool, Never>?
 
     /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
     private var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
@@ -103,12 +102,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Status Items
 
     /// Main SaneBar icon you click (always visible)
-    internal var mainStatusItem: NSStatusItem?
+    var mainStatusItem: NSStatusItem?
     /// Separator that expands to hide items (the actual delimiter)
-    internal var separatorItem: NSStatusItem?
+    var separatorItem: NSStatusItem?
     /// Optional separator for always-hidden zone (experimental)
-    internal var alwaysHiddenSeparatorItem: NSStatusItem?
-    internal var statusMenu: NSMenu?
+    var alwaysHiddenSeparatorItem: NSStatusItem?
+    var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
     /// Flag to prevent setupStatusItem from overwriting externally-provided items
     private var usingExternalItems = false
@@ -166,7 +165,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     private func configureHoverService() {
         hoverService.onTrigger = { [weak self] reason in
-            guard let self = self else { return }
+            guard let self else { return }
             Task { @MainActor in
                 logger.debug("Hover trigger received: \(String(describing: reason))")
 
@@ -175,7 +174,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     // Hover always reveals only (toggling on hover would be annoying)
                     _ = await self.showHiddenItemsNow(trigger: .automation)
 
-                case .scroll(let direction):
+                case let .scroll(direction):
                     if self.settings.useDirectionalScroll {
                         // Ice-style directional: up=show, down=hide (standard behavior)
                         // Takes priority over gestureToggles for scrolling
@@ -219,21 +218,21 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
 
         hoverService.onUserDragEnd = { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             Task { @MainActor in
                 // Un-pin and allow auto-hide to resume
                 self.isRevealPinned = false
-                if self.settings.autoRehide && !self.shouldSkipHideForExternalMonitor {
+                if self.settings.autoRehide, !self.shouldSkipHideForExternalMonitor {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
                 }
             }
         }
 
         hoverService.onLeaveMenuBar = { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             Task { @MainActor in
                 // Only auto-hide if autoRehide is enabled and not on external monitor
-                if self.settings.autoRehide && !self.isRevealPinned && !self.shouldSkipHideForExternalMonitor {
+                if self.settings.autoRehide, !self.isRevealPinned, !self.shouldSkipHideForExternalMonitor {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
                 }
             }
@@ -242,7 +241,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Apply initial settings
         updateHoverService()
     }
-    
+
     /// Detects if running in a headless environment (CI, tests without window server)
     private func isRunningInHeadlessEnvironment() -> Bool {
         // Allow UI tests to force UI loading via environment variable
@@ -255,7 +254,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {
             return true
         }
-        
+
         // Check if running in test bundle by examining bundle identifier
         // Test bundles typically have "Tests" suffix or "xctest" in their identifier
         if let bundleID = Bundle.main.bundleIdentifier {
@@ -263,13 +262,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 return true
             }
         }
-        
+
         // Fallback: Check for XCTest framework presence
         // This catches edge cases where bundle ID doesn't follow conventions
         if NSClassFromString("XCTestCase") != nil {
             return true
         }
-        
+
         return false
     }
 
@@ -282,7 +281,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         logger.info("Using externally-created status items")
 
         // Set flag FIRST to prevent setupStatusItem from overwriting these items
-        self.usingExternalItems = true
+        usingExternalItems = true
 
         // IMPORTANT: Remove the items that StatusBarController created in its init()
         // because we want to use the externally-created ones with correct positioning
@@ -291,10 +290,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         logger.info("Removed StatusBarController's auto-created items")
 
         // Store the external items
-        self.mainStatusItem = main
-        self.separatorItem = separator
+        mainStatusItem = main
+        separatorItem = separator
         statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
-        self.alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
+        alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Wire up click handler for main item
         if let button = main.button {
@@ -321,29 +320,30 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Now do the rest of setup
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
-            self.updateSpacers()
-            self.setupObservers()
-            self.updateAppearance()
+            updateSpacers()
+            setupObservers()
+            updateAppearance()
 
-            self.triggerService.configure(menuBarManager: self)
-            self.iconHotkeysService.configure(with: self)
-            self.networkTriggerService.configure(menuBarManager: self)
-            if self.settings.showOnNetworkChange {
-                self.networkTriggerService.startMonitoring()
+            triggerService.configure(menuBarManager: self)
+            iconHotkeysService.configure(with: self)
+            networkTriggerService.configure(menuBarManager: self)
+            if settings.showOnNetworkChange {
+                networkTriggerService.startMonitoring()
             }
 
-            self.focusModeService.configure(menuBarManager: self)
-            if self.settings.showOnFocusModeChange {
-                self.focusModeService.startMonitoring()
+            focusModeService.configure(menuBarManager: self)
+            if settings.showOnFocusModeChange {
+                focusModeService.startMonitoring()
             }
 
-            self.configureHoverService()
-            self.showOnboardingIfNeeded()
-            self.syncUpdateConfiguration()
-            self.updateMainIconVisibility()
-            self.updateDividerStyle()
+            configureHoverService()
+            showOnboardingIfNeeded()
+            syncUpdateConfiguration()
+            updateMainIconVisibility()
+            updateDividerStyle()
+            updateIconStyle()
 
             logger.info("External items setup complete")
         }
@@ -368,39 +368,39 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             logger.info("Starting deferred UI setup")
 
             // Create status items (with additional retry logic inside)
-            self.setupStatusItem()
+            setupStatusItem()
 
             // These all depend on status items being ready
-            self.updateSpacers()
-            self.setupObservers()
-            self.updateAppearance()
+            updateSpacers()
+            setupObservers()
+            updateAppearance()
 
             // Configure services
-            self.triggerService.configure(menuBarManager: self)
-            self.iconHotkeysService.configure(with: self)
-            self.networkTriggerService.configure(menuBarManager: self)
-            if self.settings.showOnNetworkChange {
-                self.networkTriggerService.startMonitoring()
+            triggerService.configure(menuBarManager: self)
+            iconHotkeysService.configure(with: self)
+            networkTriggerService.configure(menuBarManager: self)
+            if settings.showOnNetworkChange {
+                networkTriggerService.startMonitoring()
             }
 
             // Configure Focus Mode trigger
-            self.focusModeService.configure(menuBarManager: self)
-            if self.settings.showOnFocusModeChange {
-                self.focusModeService.startMonitoring()
+            focusModeService.configure(menuBarManager: self)
+            if settings.showOnFocusModeChange {
+                focusModeService.startMonitoring()
             }
 
             // Configure hover service
-            self.configureHoverService()
+            configureHoverService()
 
             // Show onboarding on first launch
-            self.showOnboardingIfNeeded()
+            showOnboardingIfNeeded()
 
             // Sync update settings to Sparkle
-            self.syncUpdateConfiguration()
+            syncUpdateConfiguration()
 
             // Pre-warm menu bar icon cache (async background task)
             AccessibilityService.shared.prewarmCache()
@@ -449,11 +449,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
         updateDividerStyle()
+        updateIconStyle()
 
         // Hide icons on startup (default behavior)
         // Give UI time to settle, then hide
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             Task { @MainActor in
                 // If the user has pinned items to the always-hidden section, enforce them early
                 // (before initial hide) to reduce startup drift/flicker.
@@ -494,6 +495,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.syncUpdateConfiguration()
                 self?.updateMainIconVisibility()
                 self?.updateDividerStyle()
+                self?.updateIconStyle()
                 self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
@@ -503,14 +505,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .publisher(for: NSWorkspace.didActivateApplicationNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
+                guard let self else { return }
                 // Only trigger if the setting is enabled and icons are currently visible
-                if self.settings.rehideOnAppChange &&
-                   self.hidingState == .expanded &&
-                   !self.isRevealPinned &&
-                   !self.shouldSkipHideForExternalMonitor {
+                if settings.rehideOnAppChange,
+                   hidingState == .expanded,
+                   !isRevealPinned,
+                   !shouldSkipHideForExternalMonitor {
                     logger.debug("App changed - triggering auto-hide")
-                    self.hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
+                    hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
                 }
             }
             .store(in: &cancellables)
@@ -520,17 +522,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .publisher(for: NSWorkspace.didLaunchApplicationNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
-                guard let self = self else { return }
-                guard self.settings.alwaysHiddenSectionEnabled, self.alwaysHiddenSeparatorItem != nil else { return }
-                guard !self.settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
+                guard let self else { return }
+                guard settings.alwaysHiddenSectionEnabled, alwaysHiddenSeparatorItem != nil else { return }
+                guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
 
                 guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                       let bundleID = app.bundleIdentifier else { return }
 
-                let pinnedBundleIds = self.alwaysHiddenPinnedBundleIds()
+                let pinnedBundleIds = alwaysHiddenPinnedBundleIds()
                 guard pinnedBundleIds.contains(bundleID) else { return }
 
-                self.scheduleAlwaysHiddenPinEnforcement(
+                scheduleAlwaysHiddenPinEnforcement(
                     reason: "didLaunch:\(bundleID)",
                     filterBundleId: bundleID,
                     delay: .seconds(1)
@@ -551,6 +553,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private func updateDividerStyle() {
         let isHidden = hidingService.state == .hidden
         statusBarController.updateSeparatorStyle(settings.dividerStyle, isHidden: isHidden)
+    }
+
+    private func updateIconStyle() {
+        let style = settings.menuBarIconStyle
+        if style == .custom {
+            let customIcon = (persistenceService as? PersistenceService)?.loadCustomIcon()
+            statusBarController.updateIconStyle(style, customIcon: customIcon)
+        } else {
+            statusBarController.updateIconStyle(style)
+        }
     }
 
     // MARK: - Main Icon Visibility
@@ -607,10 +619,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.hoverDelay = settings.hoverDelay
 
         let needsMonitoring = settings.showOnHover ||
-                              settings.showOnScroll ||
-                              settings.showOnClick ||
-                              settings.showOnUserDrag ||
-                              settings.autoRehide
+            settings.showOnScroll ||
+            settings.showOnClick ||
+            settings.showOnUserDrag ||
+            settings.autoRehide
 
         if needsMonitoring {
             hoverService.start()
@@ -700,13 +712,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         var bundleId: String? {
             switch self {
             case .menuExtra:
-                return nil
-            case .axId(let bundleId, _):
-                return bundleId
-            case .statusItem(let bundleId, _):
-                return bundleId
-            case .bundleId(let bundleId):
-                return bundleId
+                nil
+            case let .axId(bundleId, _):
+                bundleId
+            case let .statusItem(bundleId, _):
+                bundleId
+            case let .bundleId(bundleId):
+                bundleId
             }
         }
     }
@@ -751,12 +763,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         alwaysHiddenPinEnforcementTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: delay)
-            await self.enforceAlwaysHiddenPinnedItems(reason: reason, filterBundleId: filterBundleId)
+            await enforceAlwaysHiddenPinnedItems(reason: reason, filterBundleId: filterBundleId)
         }
     }
 
     private func waitForAlwaysHiddenSeparatorX(maxAttempts: Int = 15, delay: Duration = .milliseconds(100)) async -> CGFloat? {
-        for _ in 0..<maxAttempts {
+        for _ in 0 ..< maxAttempts {
             if Task.isCancelled { return nil }
             if let x = getAlwaysHiddenSeparatorOriginX() { return x }
             try? await Task.sleep(for: delay)
@@ -777,20 +789,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         itemsByBundleId: [String: [AccessibilityService.MenuBarItemPosition]]
     ) -> AccessibilityService.MenuBarItemPosition? {
         switch pin {
-        case .menuExtra(let identifier):
+        case let .menuExtra(identifier):
             return itemsByUniqueId[identifier]
 
-        case .axId(let bundleId, let axId):
+        case let .axId(bundleId, axId):
             if let exact = itemsByUniqueId["\(bundleId)::axid:\(axId)"] { return exact }
             if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
             return nil
 
-        case .statusItem(let bundleId, let index):
+        case let .statusItem(bundleId, index):
             if let exact = itemsByUniqueId["\(bundleId)::statusItem:\(index)"] { return exact }
             if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
             return nil
 
-        case .bundleId(let bundleId):
+        case let .bundleId(bundleId):
             if let items = itemsByBundleId[bundleId], items.count == 1 { return items[0] }
             return nil
         }
@@ -912,7 +924,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
 
             // Schedule auto-rehide if enabled and we just showed
-            if hidingService.state == .expanded && settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
+            if hidingService.state == .expanded, settings.autoRehide, !isRevealPinned, !shouldSkipHideForExternalMonitor {
                 hidingService.scheduleRehide(after: settings.rehideDelay)
             }
         }
@@ -941,7 +953,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Refresh rehide timer on every trigger (Hover/Scroll/Click) to prevent
         // icons hiding while the user is still actively interacting with them.
-        if settings.autoRehide && !isRevealPinned && !shouldSkipHideForExternalMonitor {
+        if settings.autoRehide, !isRevealPinned, !shouldSkipHideForExternalMonitor {
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
         return didReveal
@@ -949,7 +961,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Schedule a rehide specifically from Find Icon search (always hides, ignores autoRehide setting)
     func scheduleRehideFromSearch(after delay: TimeInterval) {
-        guard !isRevealPinned && !shouldSkipHideForExternalMonitor else { return }
+        guard !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
         hidingService.scheduleRehide(after: delay)
     }
 
@@ -981,7 +993,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
            failedAuthAttempts >= maxFailedAttempts {
             let elapsed = Date().timeIntervalSince(lastFailed)
             if elapsed < lockoutDuration {
-                logger.warning("Auth rate limited: \(self.failedAuthAttempts) failed attempts, \(Int(self.lockoutDuration - elapsed))s remaining")
+                let attempts = failedAuthAttempts
+                let remaining = Int(lockoutDuration - elapsed)
+                logger.warning("Auth rate limited: \(attempts) failed attempts, \(remaining)s remaining")
                 return false
             }
             // Lockout expired, reset counter
@@ -1010,7 +1024,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         } else {
             failedAuthAttempts += 1
             lastFailedAuthTime = Date()
-            logger.info("Auth failed, attempt \(self.failedAuthAttempts)/\(self.maxFailedAttempts)")
+            let attempts = failedAuthAttempts
+            let maxAttempts = maxFailedAttempts
+            logger.info("Auth failed, attempt \(attempts)/\(maxAttempts)")
         }
 
         return success

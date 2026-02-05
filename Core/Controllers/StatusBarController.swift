@@ -32,7 +32,6 @@ protocol StatusBarControllerProtocol {
 /// Uses the Ice pattern: seed ordinal positions before creating items with autosaveNames.
 @MainActor
 final class StatusBarController: StatusBarControllerProtocol {
-
     // MARK: - Status Items
 
     private(set) var mainItem: NSStatusItem
@@ -60,12 +59,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         Self.seedPositionsIfNeeded()
 
         // Create main item (rightmost, near Control Center)
-        self.mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        self.mainItem.autosaveName = Self.mainAutosaveName
+        mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        mainItem.autosaveName = Self.mainAutosaveName
 
         // Create separator item (to the LEFT of main)
-        self.separatorItem = NSStatusBar.system.statusItem(withLength: 20)
-        self.separatorItem.autosaveName = Self.separatorAutosaveName
+        separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        separatorItem.autosaveName = Self.separatorAutosaveName
 
         // Configure buttons
         if let button = separatorItem.button {
@@ -162,28 +161,57 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Appearance
 
-    func iconName(for state: HidingState) -> String {
-        switch state {
-        case .expanded:
-            return Self.iconExpanded
-        case .hidden:
-            return Self.iconHidden
-        }
+    /// Current icon style (updated via updateIconStyle)
+    private(set) var currentIconStyle: SaneBarSettings.MenuBarIconStyle = .filter
+
+    /// Cached custom icon image (loaded from disk)
+    private var customIconImage: NSImage?
+
+    func iconName(for _: HidingState) -> String {
+        currentIconStyle.sfSymbolName ?? "line.3.horizontal.decrease"
     }
 
-    func updateAppearance(for state: HidingState) {
+    func updateAppearance(for _: HidingState) {
         guard let button = mainItem.button else { return }
         button.title = ""
-        button.image = makeMainSymbolImage(name: iconName(for: state))
+        button.image = resolveIcon(for: currentIconStyle)
     }
 
-    private func makeMainSymbolImage(name: String) -> NSImage? {
+    /// Update the menu bar icon to match the selected style
+    func updateIconStyle(_ style: SaneBarSettings.MenuBarIconStyle, customIcon: NSImage? = nil) {
+        currentIconStyle = style
+        if let customIcon {
+            customIconImage = customIcon
+        }
+        guard let button = mainItem.button else { return }
+        button.title = ""
+        button.image = resolveIcon(for: style)
+    }
+
+    /// Resolve the icon image for a given style
+    private func resolveIcon(for style: SaneBarSettings.MenuBarIconStyle) -> NSImage? {
+        if style == .custom, let custom = customIconImage {
+            return custom
+        }
+        guard let symbolName = style.sfSymbolName else {
+            // Fallback to default if custom icon not loaded
+            return Self.makeSymbolImage(name: "line.3.horizontal.decrease")
+        }
+        return Self.makeSymbolImage(name: symbolName)
+    }
+
+    /// Create an SF Symbol image suitable for the menu bar
+    static func makeSymbolImage(name: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: "SaneBar")?.withSymbolConfiguration(config) else {
             return nil
         }
         image.isTemplate = true
         return image
+    }
+
+    private func makeMainSymbolImage(name: String) -> NSImage? {
+        Self.makeSymbolImage(name: name)
     }
 
     // MARK: - Separator Style (Settings Feature)
@@ -262,11 +290,10 @@ final class StatusBarController: StatusBarControllerProtocol {
     func updateSpacers(count: Int, style: SaneBarSettings.SpacerStyle, width: SaneBarSettings.SpacerWidth) {
         let desiredCount = min(max(count, 0), Self.maxSpacerCount)
 
-        let spacerLength: CGFloat
-        switch width {
-        case .compact: spacerLength = 8
-        case .normal: spacerLength = 12
-        case .wide: spacerLength = 20
+        let spacerLength: CGFloat = switch width {
+        case .compact: 8
+        case .normal: 12
+        case .wide: 20
         }
 
         // Remove excess spacers

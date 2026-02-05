@@ -1,10 +1,20 @@
 #!/bin/bash
-# Unified SaneMaster wrapper (single source of truth in infra/SaneProcess)
+# SaneMaster wrapper — delegates to SaneProcess infra if available,
+# otherwise runs standalone for external contributors.
 
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ROOT_DIR="$(cd "${PROJECT_ROOT}/../.." 2>/dev/null && pwd 2>/dev/null || echo "")"
+INFRA="${ROOT_DIR}/infra/SaneProcess/scripts/SaneMaster.rb"
 
 cd "${PROJECT_ROOT}"
-exec "${ROOT_DIR}/infra/SaneProcess/scripts/SaneMaster.rb" "$@"
+
+# If SaneProcess infra exists, delegate to it (internal development)
+if [ -f "${INFRA}" ]; then
+  exec "${INFRA}" "$@"
+fi
+
+# Standalone mode for external contributors
+exec ruby "${SCRIPT_DIR}/SaneMaster_standalone.rb" "$@"

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
-    
+
     // Spacing Bindings (Copied from AdvancedSettingsView)
     private var tighterSpacingEnabled: Binding<Bool> {
         Binding(
@@ -44,10 +44,10 @@ struct AppearanceSettingsView: View {
     private var cornerRadiusLabel: String {
         let value = Int(menuBarManager.settings.menuBarAppearance.cornerRadius)
         switch value {
-        case 4...6: return "Subtle"
-        case 7...10: return "Soft"
-        case 11...14: return "Round"
-        case 15...17: return "Pill"
+        case 4 ... 6: return "Subtle"
+        case 7 ... 10: return "Soft"
+        case 11 ... 14: return "Round"
+        case 15 ... 17: return "Pill"
         default: return "Circle"
         }
     }
@@ -55,9 +55,9 @@ struct AppearanceSettingsView: View {
     private var spacingLabel: String {
         let value = spacingBinding.wrappedValue
         switch value {
-        case 1...3: return "Tight"
-        case 4...6: return "Normal"
-        case 7...8: return "Roomy"
+        case 1 ... 3: return "Tight"
+        case 4 ... 6: return "Normal"
+        case 7 ... 8: return "Roomy"
         default: return "Wide"
         }
     }
@@ -65,9 +65,9 @@ struct AppearanceSettingsView: View {
     private var clickAreaLabel: String {
         let value = paddingBinding.wrappedValue
         switch value {
-        case 1...3: return "Small"
-        case 4...6: return "Normal"
-        case 7...8: return "Large"
+        case 1 ... 3: return "Small"
+        case 4 ... 6: return "Normal"
+        case 7 ... 8: return "Large"
         default: return "Extra"
         }
     }
@@ -75,6 +75,51 @@ struct AppearanceSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // 0. Icon Style
+                CompactSection("Menu Bar Icon") {
+                    CompactRow("Icon") {
+                        Picker("", selection: $menuBarManager.settings.menuBarIconStyle) {
+                            Label("Filter", systemImage: "line.3.horizontal.decrease")
+                                .tag(SaneBarSettings.MenuBarIconStyle.filter)
+                            Label("Dots", systemImage: "ellipsis")
+                                .tag(SaneBarSettings.MenuBarIconStyle.dots)
+                            Label("Lines", systemImage: "line.3.horizontal")
+                                .tag(SaneBarSettings.MenuBarIconStyle.lines)
+                            Label("Chevron", systemImage: "chevron.up.chevron.down")
+                                .tag(SaneBarSettings.MenuBarIconStyle.chevron)
+                            Label("Coin", systemImage: "circle.circle")
+                                .tag(SaneBarSettings.MenuBarIconStyle.coin)
+                            Label("Custom Image...", systemImage: "photo")
+                                .tag(SaneBarSettings.MenuBarIconStyle.custom)
+                        }
+                        .labelsHidden()
+                        .frame(width: 160)
+                        .help("Choose the SaneBar menu bar icon style")
+                        .onChange(of: menuBarManager.settings.menuBarIconStyle) { _, newValue in
+                            if newValue == .custom {
+                                showCustomIconPicker()
+                            }
+                        }
+                    }
+
+                    if menuBarManager.settings.menuBarIconStyle == .custom {
+                        CompactDivider()
+                        CompactRow("Image") {
+                            HStack(spacing: 8) {
+                                if let icon = PersistenceService.shared.loadCustomIcon() {
+                                    Image(nsImage: icon)
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                }
+                                Button("Choose...") {
+                                    showCustomIconPicker()
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+
                 // 1. Divider Style
                 CompactSection("Divider Style") {
                     CompactRow("Style") {
@@ -96,7 +141,7 @@ struct AppearanceSettingsView: View {
                         HStack {
                             Text("\(menuBarManager.settings.spacerCount)")
                                 .monospacedDigit()
-                            Stepper("", value: $menuBarManager.settings.spacerCount, in: 0...12)
+                            Stepper("", value: $menuBarManager.settings.spacerCount, in: 0 ... 12)
                                 .labelsHidden()
                                 .help("Add more visual separators to organize your menu bar")
                         }
@@ -119,14 +164,14 @@ struct AppearanceSettingsView: View {
                 // 2. Menu Bar Visuals
                 CompactSection("Menu Bar Style") {
                     CompactToggle(label: "Custom Appearance", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
-                    .help("Apply custom colors and effects to the menu bar background")
+                        .help("Apply custom colors and effects to the menu bar background")
 
                     if menuBarManager.settings.menuBarAppearance.isEnabled {
                         CompactDivider()
 
                         if MenuBarAppearanceSettings.supportsLiquidGlass {
                             CompactToggle(label: "Translucent Background", isOn: $menuBarManager.settings.menuBarAppearance.useLiquidGlass)
-                            .help("Use macOS translucent glass effect")
+                                .help("Use macOS translucent glass effect")
                             CompactDivider()
                         }
 
@@ -136,11 +181,11 @@ struct AppearanceSettingsView: View {
                                     get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
                                     set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
                                 ), supportsOpacity: false)
-                                .labelsHidden()
+                                    .labelsHidden()
                                 Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
                                     .monospacedDigit()
                                     .frame(width: 35, alignment: .trailing)
-                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05...1.0, step: 0.05)
+                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05 ... 1.0, step: 0.05)
                                     .frame(width: 80)
                             }
                             .help("Tint color and intensity for light mode")
@@ -154,11 +199,11 @@ struct AppearanceSettingsView: View {
                                     get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColorDark) },
                                     set: { menuBarManager.settings.menuBarAppearance.tintColorDark = $0.toHex() }
                                 ), supportsOpacity: false)
-                                .labelsHidden()
+                                    .labelsHidden()
                                 Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacityDark * 100))%")
                                     .monospacedDigit()
                                     .frame(width: 35, alignment: .trailing)
-                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacityDark, in: 0.05...1.0, step: 0.05)
+                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacityDark, in: 0.05 ... 1.0, step: 0.05)
                                     .frame(width: 80)
                             }
                             .help("Tint color and intensity for dark mode")
@@ -166,44 +211,44 @@ struct AppearanceSettingsView: View {
 
                         CompactDivider()
                         CompactToggle(label: "Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
-                        .help("Add subtle shadow below the menu bar")
+                            .help("Add subtle shadow below the menu bar")
                         CompactDivider()
                         CompactToggle(label: "Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
-                        .help("Add a thin border around the menu bar")
+                            .help("Add a thin border around the menu bar")
                         CompactDivider()
                         CompactToggle(label: "Rounded Corners", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
-                        .help("Round the corners of the menu bar background")
+                            .help("Round the corners of the menu bar background")
 
                         if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
-                             CompactDivider()
-                             CompactRow("Corner Radius") {
-                                 HStack {
-                                     Text(cornerRadiusLabel)
-                                         .frame(width: 50, alignment: .trailing)
-                                     Stepper("", value: $menuBarManager.settings.menuBarAppearance.cornerRadius, in: 4...20, step: 2)
-                                         .labelsHidden()
-                                         .help("How rounded the corners are")
-                                 }
-                             }
+                            CompactDivider()
+                            CompactRow("Corner Radius") {
+                                HStack {
+                                    Text(cornerRadiusLabel)
+                                        .frame(width: 50, alignment: .trailing)
+                                    Stepper("", value: $menuBarManager.settings.menuBarAppearance.cornerRadius, in: 4 ... 20, step: 2)
+                                        .labelsHidden()
+                                        .help("How rounded the corners are")
+                                }
+                            }
                         }
                     }
                 }
-                
+
                 // 3. Menu Bar Layout
                 CompactSection("Menu Bar Layout") {
                     CompactToggle(label: "Reduce space between icons", isOn: tighterSpacingEnabled)
-                    .help("Make icons closer together (system-wide change, requires logout)")
+                        .help("Make icons closer together (system-wide change, requires logout)")
 
                     if menuBarManager.settings.menuBarSpacing != nil {
                         CompactDivider()
                         CompactRow("Item Spacing") {
-                            Stepper(spacingLabel, value: spacingBinding, in: 1...10)
-                            .help("Distance between menu bar icons")
+                            Stepper(spacingLabel, value: spacingBinding, in: 1 ... 10)
+                                .help("Distance between menu bar icons")
                         }
                         CompactDivider()
                         CompactRow("Click Area") {
-                            Stepper(clickAreaLabel, value: paddingBinding, in: 1...10)
-                            .help("Size of the clickable area around each icon")
+                            Stepper(clickAreaLabel, value: paddingBinding, in: 1 ... 10)
+                                .help("Size of the clickable area around each icon")
                         }
 
                         CompactDivider()
@@ -223,8 +268,9 @@ struct AppearanceSettingsView: View {
             .padding(20)
         }
     }
-    
+
     // MARK: - Helpers
+
     private func applySpacingToSystem() {
         let service = MenuBarSpacingService.shared
         do {
@@ -245,5 +291,34 @@ struct AppearanceSettingsView: View {
         } catch {
             print("[SaneBar] Failed to reset spacing: \(error)")
         }
+    }
+
+    private func showCustomIconPicker() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a Menu Bar Icon"
+        panel.allowedContentTypes = [.png, .jpeg, .tiff, .heic]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            // User cancelled — revert to filter if no custom icon exists
+            if PersistenceService.shared.loadCustomIcon() == nil {
+                menuBarManager.settings.menuBarIconStyle = .filter
+            }
+            return
+        }
+
+        guard let image = NSImage(contentsOf: url) else { return }
+        image.isTemplate = true
+        image.size = NSSize(width: 18, height: 18)
+
+        do {
+            try PersistenceService.shared.saveCustomIcon(image)
+        } catch {
+            print("[SaneBar] Failed to save custom icon: \(error)")
+        }
+
+        // Trigger icon update by re-setting the style
+        menuBarManager.settings.menuBarIconStyle = .custom
     }
 }

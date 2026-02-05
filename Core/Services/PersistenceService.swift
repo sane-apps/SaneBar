@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 // MARK: - PersistenceServiceProtocol
@@ -13,7 +14,6 @@ protocol PersistenceServiceProtocol: Sendable {
 
 /// Global app settings
 struct SaneBarSettings: Codable, Sendable, Equatable {
-
     enum SpacerStyle: String, Codable, CaseIterable, Sendable {
         case line
         case dot
@@ -26,11 +26,31 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     }
 
     enum DividerStyle: String, Codable, CaseIterable, Sendable {
-        case slash          // / (Default)
-        case backslash      // \
-        case pipe           // |
-        case pipeThin       // ❘
-        case dot            // •
+        case slash // / (Default)
+        case backslash // \
+        case pipe // |
+        case pipeThin // ❘
+        case dot // •
+    }
+
+    enum MenuBarIconStyle: String, Codable, CaseIterable, Sendable {
+        case filter // line.3.horizontal.decrease (Default)
+        case dots // ellipsis
+        case lines // line.3.horizontal
+        case chevron // chevron.up.chevron.down
+        case coin // circle.circle
+        case custom // User-uploaded image
+
+        var sfSymbolName: String? {
+            switch self {
+            case .filter: "line.3.horizontal.decrease"
+            case .dots: "ellipsis"
+            case .lines: "line.3.horizontal"
+            case .chevron: "chevron.up.chevron.down"
+            case .coin: "circle.circle"
+            case .custom: nil
+            }
+        }
     }
 
     /// Simplified gesture behavior mode (replaces gestureToggles + useDirectionalScroll)
@@ -41,7 +61,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     /// User-created icon group for organizing menu bar apps
     struct IconGroup: Codable, Sendable, Equatable, Identifiable {
-        var id: UUID = UUID()
+        var id: UUID = .init()
         var name: String
         var appBundleIds: [String] = []
 
@@ -62,7 +82,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var findIconRehideDelay: TimeInterval = 15.0
 
     /// Number of spacers to show (0-12)
-    var spacerCount: Int = 2  // Default to 2 dividers for immediate value discovery
+    var spacerCount: Int = 2 // Default to 2 dividers for immediate value discovery
 
     /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line
@@ -96,7 +116,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var requireAuthToShowHiddenIcons: Bool = false
 
     /// Menu bar appearance/tint settings
-    var menuBarAppearance: MenuBarAppearanceSettings = MenuBarAppearanceSettings()
+    var menuBarAppearance: MenuBarAppearanceSettings = .init()
 
     /// Show hidden items when connecting to specific WiFi networks
     var showOnNetworkChange: Bool = false
@@ -195,6 +215,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Style of the main divider (/, \, |, etc.)
     var dividerStyle: DividerStyle = .slash
 
+    /// Style of the main SaneBar menu bar icon
+    var menuBarIconStyle: MenuBarIconStyle = .filter
+
     // MARK: - Experimental
 
     /// Enable a second separator for an always-hidden zone (beta; requires restart).
@@ -250,6 +273,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
         dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
+        menuBarIconStyle = try container.decodeIfPresent(MenuBarIconStyle.self, forKey: .menuBarIconStyle) ?? .filter
         alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
         alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
     }
@@ -264,7 +288,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
-        case hideMainIcon, dividerStyle
+        case hideMainIcon, dividerStyle, menuBarIconStyle
         case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds
     }
 }
@@ -281,7 +305,6 @@ struct KeyboardShortcutData: Codable, Sendable, Hashable {
 
 /// Service for persisting SaneBar configuration to disk
 final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable {
-
     // MARK: - Singleton
 
     static let shared = PersistenceService()
@@ -371,7 +394,7 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
         // If the legacy key existed, strip it to avoid drift / confusion.
         if legacy.present {
-            let rewritten = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: try encoder.encode(settings))
+            let rewritten = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: encoder.encode(settings))
             try rewritten.write(to: settingsFileURL, options: .atomic)
         }
 
@@ -396,7 +419,8 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
     private func legacyRequireAuthInfo(from data: Data) -> (present: Bool, value: Bool) {
         guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
               let dict = object as? [String: Any],
-              let raw = dict["requireAuthToShowHiddenIcons"] else {
+              let raw = dict["requireAuthToShowHiddenIcons"]
+        else {
             return (false, false)
         }
         return (true, (raw as? Bool) ?? false)
@@ -407,6 +431,40 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         guard var dict = object as? [String: Any] else { return data }
         dict.removeValue(forKey: key)
         return try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    // MARK: - Custom Icon
+
+    private var customIconURL: URL {
+        appSupportDirectory.appendingPathComponent("custom_icon.png")
+    }
+
+    /// Save a user-provided image as the custom menu bar icon
+    func saveCustomIcon(_ image: NSImage) throws {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:])
+        else {
+            return
+        }
+        try pngData.write(to: customIconURL, options: .atomic)
+    }
+
+    /// Load the custom menu bar icon, if one has been saved
+    func loadCustomIcon() -> NSImage? {
+        guard fileManager.fileExists(atPath: customIconURL.path),
+              let image = NSImage(contentsOf: customIconURL)
+        else {
+            return nil
+        }
+        image.isTemplate = true
+        image.size = NSSize(width: 18, height: 18)
+        return image
+    }
+
+    /// Remove the custom icon file
+    func removeCustomIcon() {
+        try? fileManager.removeItem(at: customIconURL)
     }
 
     // MARK: - Profiles
@@ -481,9 +539,9 @@ enum PersistenceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .profileNotFound:
-            return "Profile not found"
+            "Profile not found"
         case .limitReached:
-            return "Profile limit reached (max 50). Please delete some profiles first."
+            "Profile limit reached (max 50). Please delete some profiles first."
         }
     }
 }

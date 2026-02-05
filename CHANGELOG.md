@@ -7,6 +7,25 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [1.0.18] - 2026-02-02
+
+### Changed
+- **License**: Switched from MIT to GPL v3
+- **App Icon Style**: Updated to 2D cross-app design language
+
+### Added
+- **Import from Ice**: Migrate your settings from Ice menu bar manager (Settings → General → Migration)
+- **Import from Bartender**: Migrate icon layout from Bartender plist (Settings → General → Migration)
+- **Custom Menu Bar Icon**: Upload your own image as the SaneBar menu bar icon (Settings → Appearance)
+- **Standalone Build**: External contributors can now build without internal infrastructure (#39)
+
+### Fixed
+- **About View**: Button layout no longer truncates on smaller windows
+- **Dark Mode Tint**: Dual light/dark tint controls with sensible defaults (#34)
+- **Security Email**: Corrected contact email across all documentation (#37)
+
+---
+
 ## [1.0.17] - 2026-01-29
 
 ### Security

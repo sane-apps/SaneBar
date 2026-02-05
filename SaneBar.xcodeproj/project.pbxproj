@@ -83,6 +83,7 @@
 		F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
 		F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* IceImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* IceImportService.swift */; };
 		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
 		FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */; };
@@ -182,6 +183,7 @@
 		F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsServiceTests.swift; sourceTree = "<group>"; };
 		FC1779B5B710715DD106EE34 /* TriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerService.swift; sourceTree = "<group>"; };
 		FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BartenderImportService.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* IceImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IceImportService.swift; sourceTree = "<group>"; };
 		FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -380,6 +382,7 @@
 				14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */,
 				3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */,
 				FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */,
+				A1B2C3D4E5F60718293A4B5D /* IceImportService.swift */,
 				1467BD772D883402EE5C2E56 /* DiagnosticsService.swift */,
 				D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */,
 				94B8376513461FDCE0D56D48 /* HidingService.swift */,
@@ -566,6 +569,7 @@
 				7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */,
 				BE9903FEBD4138A0207ABD1F /* Backgrounds.swift in Sources */,
 				F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* IceImportService.swift in Sources */,
 				1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */,
 				2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */,
 				F2A45D40AC6364627D6707A5 /* ExperimentalSettingsView.swift in Sources */,

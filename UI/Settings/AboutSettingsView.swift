@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct AboutSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
@@ -44,49 +44,45 @@ struct AboutSettingsView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 4)
 
-            // Links row
-            HStack(spacing: 16) {
-                Link(destination: URL(string: "https://github.com/sane-apps/SaneBar")!) {
-                    Label("GitHub", systemImage: "link")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                
-                Button {
-                    showLicenses = true
-                } label: {
-                    Label("Licenses", systemImage: "doc.text")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                
-                Button {
-                    showSupport = true
-                } label: {
-                    Label {
-                        Text("Support")
-                    } icon: {
-                        Image(systemName: "heart.fill")
-                            .foregroundStyle(.red)
+            // Links
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    Link(destination: URL(string: "https://github.com/sane-apps/SaneBar")!) {
+                        Label("GitHub", systemImage: "link")
+                    }
+
+                    Button {
+                        showLicenses = true
+                    } label: {
+                        Label("Licenses", systemImage: "doc.text")
+                    }
+
+                    Button {
+                        showSupport = true
+                    } label: {
+                        Label {
+                            Text("Support")
+                        } icon: {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
 
-                Button {
-                    showFeedback = true
-                } label: {
-                    Label("Report Issue", systemImage: "ladybug")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                HStack(spacing: 12) {
+                    Button {
+                        showFeedback = true
+                    } label: {
+                        Label("Report Issue", systemImage: "ladybug")
+                    }
 
-                Link(destination: URL(string: "mailto:hi@saneapps.com")!) {
-                    Label("Email Us", systemImage: "envelope")
+                    Link(destination: URL(string: "mailto:hi@saneapps.com")!) {
+                        Label("Email Us", systemImage: "envelope")
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
             .padding(.top, 12)
 
             Spacer()
@@ -159,7 +155,7 @@ struct AboutSettingsView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+
                     GroupBox {
                         VStack(alignment: .leading, spacing: 8) {
                             Link("Sparkle", destination: URL(string: "https://sparkle-project.org")!)

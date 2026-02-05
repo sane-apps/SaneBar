@@ -191,8 +191,13 @@ struct GeneralSettingsView: View {
                     CompactDivider()
 
                     CompactRow("Migration") {
-                        Button("Import Bartender...") {
-                            importBartenderSettings()
+                        HStack(spacing: 8) {
+                            Button("Import Bartender...") {
+                                importBartenderSettings()
+                            }
+                            Button("Import Ice...") {
+                                importIceSettings()
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -434,6 +439,39 @@ struct GeneralSettingsView: View {
             } catch {
                 showError(title: "Bartender Import Failed", error: error)
             }
+        }
+    }
+
+    // MARK: - Ice Import
+
+    private func importIceSettings() {
+        let defaultPath = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/com.jordanbaird.Ice.plist")
+
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.propertyList]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "Import Ice Settings"
+        panel.message = "Choose your Ice .plist file"
+        panel.prompt = "Import"
+        if FileManager.default.fileExists(atPath: defaultPath.path) {
+            panel.directoryURL = defaultPath.deletingLastPathComponent()
+            panel.nameFieldStringValue = defaultPath.lastPathComponent
+        } else if let prefsURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?.appendingPathComponent("Preferences") {
+            panel.directoryURL = prefsURL
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            settingsLogger.log("🧊 Ice import cancelled")
+            return
+        }
+
+        do {
+            let summary = try IceImportService.importSettings(from: url, menuBarManager: menuBarManager)
+            showInfo(title: "Ice Import Complete", message: summary.description)
+        } catch {
+            showError(title: "Ice Import Failed", error: error)
         }
     }
 
