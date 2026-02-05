@@ -13,7 +13,7 @@
 
 **Please do NOT report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to: **security@sanebar.com** (or create a private security advisory on GitHub if available).
+Instead, please report them via email to: **hi@saneapps.com** (or create a private security advisory on GitHub if available).
 
 Include:
 - Description of the vulnerability
