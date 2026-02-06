@@ -2,7 +2,6 @@
 
 All notable changes to SaneBar are documented here.
 
-See [RELEASE_NOTES_1.0.5.md](RELEASE_NOTES_1.0.5.md) for detailed 1.0.5 notes.
 For user-requested features, see [marketing/feature-requests.md](marketing/feature-requests.md).
 
 ---

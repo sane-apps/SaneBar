@@ -56,7 +56,6 @@ SaneBar already supports automatic show/hide based on:
 
 | Document | Purpose |
 |----------|---------|
-| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | Privacy hardening edge cases and current workarounds |
 | [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Implementation details and tracking |
 | [marketing/feature-requests.md](marketing/feature-requests.md) | User requests, priority assessment, testimonials |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |

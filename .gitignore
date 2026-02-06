@@ -1,14 +1,19 @@
-# Build logs
+# SaneApps Canonical .gitignore
+# Source of truth: infra/SaneProcess/templates/gitignore
+# Sync via: ruby scripts/sync_check.rb --fix
+
+# ═══════════════════════════════════════════════════════════════
+# Build artifacts
+# ═══════════════════════════════════════════════════════════════
+
 build_log*.txt
 build_output*.txt
 test_output*.txt
 *.log
 
-# Secrets (Secrets.swift is now committed - uses Keychain/APIKeyManager, no hardcoded secrets)
-# SaneVideo/Core/Utilities/Secrets.swift
-
 # Xcode
 *.xcuserstate
+*.xcuserstatedata
 xcuserdata/
 DerivedData/
 .derivedData/
@@ -20,13 +25,11 @@ Packages/**/.swiftpm/
 *.xcresult/
 *.xccheckout/
 *.xcworkspace/contents.xcworkspacedata
-*.xcuserstate
-*.xcuserstatedata
 
 # macOS
 .DS_Store
 
-# Build artifacts
+# Build
 build/
 .build/
 .build-logs/
@@ -35,12 +38,16 @@ build/
 vendor/
 .bundle/
 
-# Release artifacts (distributed via GitHub Releases, not repo)
+# Release artifacts (distributed via Cloudflare R2, not repo)
 releases/
 *.dmg
 *.xcarchive/
 *.pkg
 *.zip
+
+# ═══════════════════════════════════════════════════════════════
+# Tooling
+# ═══════════════════════════════════════════════════════════════
 
 # Gemini/Agentic
 .gemini/
@@ -55,7 +62,9 @@ releases/
 .claude/phase_state.json
 .claude/failure_state.json
 .claude/audit.jsonl
+.claude/audit_log.jsonl
 .claude/prompt_log.jsonl
+.claude/learnings.jsonl
 .claude/SESSION_HANDOFF_*.md
 .claude/archive/
 .claude/*.log.old
@@ -75,6 +84,8 @@ releases/
 .claude/rule_tracking.jsonl
 .claude/bugs.md
 .claude/hook_*.md
+.claude/SOP*.md
+.claude/PROJECT*.md
 
 # IDE - Keep shared settings, ignore user-specific files
 .cursor/settings.json
@@ -85,16 +96,27 @@ releases/
 !.cursor/
 !.vscode/
 
-# Large media/test artifacts (but NOT app assets)
+# Node/Wrangler
+node_modules/
+.wrangler/
+
+# Serena
+.serena/
+
+# ═══════════════════════════════════════════════════════════════
+# Media (keep app assets, ignore test/marketing/root)
+# ═══════════════════════════════════════════════════════════════
+
+# Large media/test artifacts
 *.mp4
 *.mov
 *.m4v
 *.m4a
-*.xcresult/
+*.profraw
 TranscriptionTest*/
 TestReports/
 
-# Images - ignore in root/tests/marketing, but keep app assets
+# Images - ignore in root/tests, but keep app assets
 /*.png
 /*.jpg
 /*.jpeg
@@ -102,8 +124,6 @@ TestReports/
 /Screenshots/**/*.jpg
 /Tests/**/*.png
 /Tests/**/*.jpg
-/Media/**/*.png
-/Media/**/*.jpg
 marketing/*.png
 marketing/*.jpg
 !marketing/app-icon.png
@@ -111,6 +131,10 @@ marketing/*.jpg
 # Keep all xcassets (app icons, etc)
 !Resources/Assets.xcassets/**/*.png
 !Resources/Assets.xcassets/**/*.jpg
+
+# ═══════════════════════════════════════════════════════════════
+# Release tooling
+# ═══════════════════════════════════════════════════════════════
 
 # Fastlane
 fastlane/coverage/
@@ -125,49 +149,33 @@ fastlane/gym_output/
 TestOutput.xcresult/
 *.o
 
+# Provisioning Profiles (sensitive)
+Provisioning/
+
 # CI artifacts
 project.yml.ci_backup
 
-# Ephemeral reports and analysis (AI-generated, test results, audits)
+# Sparkle (never commit private key)
+sparkle_private_key.txt
+
+# ═══════════════════════════════════════════════════════════════
+# Ephemeral docs (AI-generated, auto-cleaned)
+# ═══════════════════════════════════════════════════════════════
+
 reports/
 *_AUDIT.md
 *_REVIEW.md
 CODE_REVIEW.md
 WEBSITE_AUDIT.md
-
-# Internal planning docs (not for public consumption)
 FEATURE_PLAN.md
 BUG_TRACKING.md
-*Visuals and Marketing.md
-.claude/SOP*.md
-.claude/PROJECT*.md
-.claude/research/
-.claude/bugs.md
-.claude/hook*.md
-.gemini/
 
 # Generated output
 Output/
-.claude/audit_log.jsonl
-.claude/learnings.jsonl
-sparkle_private_key.txt
-
-# Local tools
-.serena/
+outputs/
 
 # Local test artifacts
 MinimalTest/
 *.bak
 project.yml.bak
-CLAUDE.md
-SESSION_HANDOFF.md
-SESSION_LOG.md
-DOCS_AUDIT_FINDINGS.md
-TESTING_RESULTS.md
-.claude/
-.wrangler/
-node_modules/
-migration-samples/
-outputs/
-*.profraw
 scripts/*.swift
