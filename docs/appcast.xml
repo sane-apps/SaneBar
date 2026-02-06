@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.18</title>
+            <pubDate>Thu, 05 Feb 2026 19:32:01 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Import from Bartender and Ice, custom menu bar icon, About view fix, dark mode tint fix, standalone build support</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.18.dmg"
+                       sparkle:version="1018"
+                       sparkle:shortVersionString="1.0.18"
+                       length="5069030"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="DVdhbU8588qV0OvPAjGJjN1nciv3Exqm2tcJFF44P6wkBfqq9M4CRgPK2yKzdrUNpOSZhe3ks7E1xWQiegZmDA=="/>
+        </item>
+        <item>
             <title>1.0.17</title>
             <pubDate>Thu, 29 Jan 2026 19:03:20 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
