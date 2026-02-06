@@ -32,6 +32,7 @@
 | **Reveal All Toggle** | 📋 Planned | Reveal All ↔ Hide All two-way toggle + override auto-hide |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
 | **Icon Groups** | ✅ Shipped | Categorize icons, filter in Find Icon (custom groups + drag-and-drop) |
+| **Reduce Transparency Support** | ✅ Shipped | Tint renders correctly when Reduce Transparency is enabled |
 | Intel (x86_64) support | ❌ Not Planned | No test hardware, shrinking user base |
 | Second menu bar row | ❌ Impossible | macOS has one menu bar row - we can't add another |
 
@@ -56,7 +57,7 @@ SaneBar already supports automatic show/hide based on:
 | Document | Purpose |
 |----------|---------|
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | Privacy hardening edge cases and current workarounds |
-| [FEATURE_PLAN.md](FEATURE_PLAN.md) | Implementation details, API research, phase planning |
+| [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Implementation details and tracking |
 | [marketing/feature-requests.md](marketing/feature-requests.md) | User requests, priority assessment, testimonials |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
@@ -87,7 +88,6 @@ Features are evaluated on:
 | Intel/Hackintosh support | No test hardware, shrinking user base |
 | "Reveal to front" positioning | Edge case for notch overlay apps, high complexity |
 | Icon click-through | High complexity, cursor hijacking risk |
-| Tint + "Reduce Transparency" fix | Requires full AppKit rewrite of overlay system. Watching for simpler community solutions. |
 
 ---
 

@@ -27,12 +27,6 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 
 ![SaneBar Find Hidden Icon](docs/images/find-icon.png)
 
-### Icons Revealed
-![Menu bar with all icons revealed](docs/images/menubar-revealed.png)
-
-### Icons Hidden
-![Clean menu bar with icons hidden](docs/images/menubar-hidden.png)
-
 ---
 
 ## Download

@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import os.log
+import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarAppearance")
 
@@ -130,12 +130,12 @@ struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
     /// Check if running on macOS 26+ for Liquid Glass support (and compiled with Swift 6.2+)
     static var supportsLiquidGlass: Bool {
         #if swift(>=6.2)
-        if #available(macOS 26.0, *) {
-            return true
-        }
-        return false
+            if #available(macOS 26.0, *) {
+                return true
+            }
+            return false
         #else
-        return false
+            return false
         #endif
     }
 }
@@ -159,7 +159,6 @@ protocol MenuBarAppearanceServiceProtocol {
 /// doesn't interfere with normal menu bar interactions.
 @MainActor
 final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceServiceProtocol {
-
     // MARK: - Properties
 
     private var overlayWindow: NSWindow?
@@ -318,9 +317,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let finalHeight = menuBarHeight > 0 ? menuBarHeight : NSStatusBar.system.thickness
 
         logger.debug("""
-            Menu bar frame calculation: screen=\(NSStringFromRect(screenFrame)), \
-            visible=\(NSStringFromRect(visibleFrame)), height=\(finalHeight)
-            """)
+        Menu bar frame calculation: screen=\(NSStringFromRect(screenFrame)), \
+        visible=\(NSStringFromRect(visibleFrame)), height=\(finalHeight)
+        """)
 
         return NSRect(
             x: screenFrame.origin.x,
@@ -346,15 +345,21 @@ final class MenuBarOverlayViewModel {
 struct MenuBarOverlayView: View {
     var viewModel: MenuBarOverlayViewModel
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     /// Active tint color based on current system appearance
     private var activeTintColor: String {
         colorScheme == .dark ? viewModel.settings.tintColorDark : viewModel.settings.tintColor
     }
 
-    /// Active tint opacity based on current system appearance
+    /// Active tint opacity based on current system appearance.
+    /// When Reduce Transparency is enabled, use full opacity so the color is visible
+    /// instead of rendering as solid black.
     private var activeTintOpacity: Double {
-        colorScheme == .dark ? viewModel.settings.tintOpacityDark : viewModel.settings.tintOpacity
+        if reduceTransparency {
+            return 1.0
+        }
+        return colorScheme == .dark ? viewModel.settings.tintOpacityDark : viewModel.settings.tintOpacity
     }
 
     var body: some View {
@@ -388,7 +393,7 @@ struct MenuBarOverlayView: View {
 
     @ViewBuilder
     private var mainAppearanceLayer: some View {
-        if viewModel.settings.useLiquidGlass && MenuBarAppearanceSettings.supportsLiquidGlass {
+        if viewModel.settings.useLiquidGlass, MenuBarAppearanceSettings.supportsLiquidGlass {
             liquidGlassLayer
         } else {
             // Fallback tint layer for older macOS
@@ -400,22 +405,22 @@ struct MenuBarOverlayView: View {
     @ViewBuilder
     private var liquidGlassLayer: some View {
         #if swift(>=6.2)
-        if #available(macOS 26.0, *) {
-            Rectangle()
-                .fill(.clear)
-                .glassEffect(Glass.regular)
-                // Ensure chosen tint color/strength is always applied.
-                // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
-                .overlay(
-                    Color(hex: activeTintColor)
-                        .opacity(activeTintOpacity)
-                )
-        } else {
-            fallbackTintLayer
-        }
+            if #available(macOS 26.0, *) {
+                Rectangle()
+                    .fill(.clear)
+                    .glassEffect(Glass.regular)
+                    // Ensure chosen tint color/strength is always applied.
+                    // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
+                    .overlay(
+                        Color(hex: activeTintColor)
+                            .opacity(activeTintOpacity)
+                    )
+            } else {
+                fallbackTintLayer
+            }
         #else
-        // Glass APIs require Swift 6.2+ SDK (Xcode 26+)
-        fallbackTintLayer
+            // Glass APIs require Swift 6.2+ SDK (Xcode 26+)
+            fallbackTintLayer
         #endif
     }
 
@@ -426,14 +431,14 @@ struct MenuBarOverlayView: View {
 
     private var overlayShape: some Shape {
         if viewModel.settings.hasRoundedCorners {
-            return AnyShape(
+            AnyShape(
                 UnevenRoundedRectangle(
                     bottomLeadingRadius: viewModel.settings.cornerRadius,
                     bottomTrailingRadius: viewModel.settings.cornerRadius
                 )
             )
         } else {
-            return AnyShape(Rectangle())
+            AnyShape(Rectangle())
         }
     }
 }
@@ -444,7 +449,7 @@ struct MenuBarOverlayView: View {
 struct AnyShape: Shape, @unchecked Sendable {
     private let pathBuilder: @Sendable (CGRect) -> Path
 
-    init<S: Shape>(_ shape: S) {
+    init(_ shape: some Shape) {
         // Capture shape value, not reference
         let shapeCopy = shape
         pathBuilder = { rect in

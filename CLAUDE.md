@@ -25,7 +25,7 @@
 | [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 | [ROADMAP.md](ROADMAP.md) | Feature status, what's planned |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Full SOP, 12 rules, compliance |
-| [.claude/rules/](/.claude/rules/README.md) | Code style rules by file type |
+| [.claude/rules/](.claude/rules/README.md) | Code style rules by file type |
 | [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) | Positioning bugs, coordinate system |
 
 ---
