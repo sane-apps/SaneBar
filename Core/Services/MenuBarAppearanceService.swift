@@ -180,7 +180,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             screenObserver = nil
         }
         if let observer = appearanceObserver {
-            NotificationCenter.default.removeObserver(observer)
+            DistributedNotificationCenter.default().removeObserver(observer)
             appearanceObserver = nil
         }
         if let observer = accessibilityObserver {
