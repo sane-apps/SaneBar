@@ -39,6 +39,7 @@ Real failures from past sessions. Don't repeat them.
 | **Trusted codesign verify** | DMG rejected because an executable was inside a `.zip` resource (Apple inspects it; `codesign --deep` doesn’t). | Follow docs/NOTARIZATION.md + preflight zips |
 | **Classified Hidden as "offscreen"** | Find Icon showed **Hidden empty** + **Visible everything** (because SaneBar hides via separator expansion, not by pushing icons off-screen). | Hidden/Visible is **separator-relative**: compare icon X against `separatorItem.window.frame.origin.x` |
 | **Deleted "unused" file** | Periphery said unused, but `ServiceContainer` needed it. Broke build. | Grep before delete |
+| **Modified icon moving logic** | 6-step stealth drag (100ms settle) is battle-tested since v1.0.12. Baseline commit `3cb6e9b`. | **DO NOT MODIFY** icon moving without reading `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md` |
 
 **The #1 differentiator**: Skimming this SOP = 5/10 sessions. Internalizing it = 8+/10.
 
@@ -195,12 +196,12 @@ Or just: `./scripts/SaneMaster.rb test_mode`
 
 ### #8: BUG FOUND? WRITE IT DOWN
 
-✅ DO: Document bugs in TodoWrite immediately, BUG_TRACKING.md after
+✅ DO: Document bugs in TodoWrite immediately, GitHub Issues for tracking
 ❌ DON'T: Try to remember bugs or skip documentation
 
 ```
 🟢 RIGHT: TodoWrite: "BUG: Items not appearing"
-🟢 RIGHT: "Bug fixed → update BUG_TRACKING.md with root cause"
+🟢 RIGHT: "Bug fixed → close GitHub issue with root cause"
 🔴 WRONG: "I'll remember this"
 🔴 WRONG: "Fixed it, no need to document"
 ```
@@ -292,7 +293,7 @@ Approve?
 **Why rejected:**
 - No `[Rule #X]` citations - can't verify SOP compliance
 - No tests specified (violates Rule #7)
-- No BUG_TRACKING.md update (violates Rule #8)
+- No bug documentation (violates Rule #8)
 - Vague "fix" without file:line references
 
 ### ✅ APPROVED PLAN (Same Task, Correct Format)
@@ -315,7 +316,7 @@ Approve?
   - Tests/MenuBarIconTests.swift: `testCustomIconLoads()`
   - Tests/PermissionServiceTests.swift: `testOpenSettingsNotBrowser()`
 
-[Rule #8: DOCUMENT BUGS] - Update BUG_TRACKING.md:
+[Rule #8: DOCUMENT BUGS] - Track in GitHub Issues:
   - BUG-001: Asset cache not cleared by nuclear clean
   - BUG-002: URL scheme opens default browser
 
@@ -333,7 +334,7 @@ Approve?
 **Why approved:**
 - Every step cites its justifying rule
 - Tests specified for each bug fix
-- BUG_TRACKING.md updates included
+- Bug documentation included
 - Specific file:line references
 - Clear verification criteria
 
@@ -534,7 +535,7 @@ SOP Requirements (verify before completing):
 2. killall -9 SaneBar && ./scripts/SaneMaster.rb launch
 3. ./scripts/SaneMaster.rb logs --follow (check for errors)
 4. Regression test added in Tests/
-5. BUG_TRACKING.md updated
+5. GitHub issue updated/closed
 6. Self-rating 1-10 provided
 
 Output <promise>SOP-COMPLETE</promise> ONLY when ALL verified." --completion-promise "SOP-COMPLETE" --max-iterations 10

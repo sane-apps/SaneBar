@@ -1,9 +1,9 @@
 # SaneBar Testimonials
 
 > **Navigation**
-> | Session | Bugs | Features | How to Work | Releases |
-> |---------|------|----------|-------------|----------|
-> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [../BUG_TRACKING.md](../BUG_TRACKING.md) | [feature-requests.md](feature-requests.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) |
+> | Session | Features | How to Work | Releases |
+> |---------|----------|-------------|----------|
+> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [feature-requests.md](feature-requests.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) |
 
 User feedback collected from Reddit, GitHub, and other sources.
 Use these for website, App Store descriptions, and marketing materials.

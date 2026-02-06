@@ -1,9 +1,9 @@
 # SaneBar Feature Requests
 
 > **Navigation**
-> | Session | Bugs | How to Work | Releases | Testimonials |
-> |---------|------|-------------|----------|--------------|
-> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [../BUG_TRACKING.md](../BUG_TRACKING.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) | [testimonials.md](testimonials.md) |
+> | Session | How to Work | Releases | Testimonials |
+> |---------|-------------|----------|--------------|
+> | [../SESSION_HANDOFF.md](../SESSION_HANDOFF.md) | [../DEVELOPMENT.md](../DEVELOPMENT.md) | [../CHANGELOG.md](../CHANGELOG.md) | [testimonials.md](testimonials.md) |
 
 Tracking user-requested features from Reddit, GitHub, and support channels.
 Priority based on: frequency of requests, alignment with vision, implementation effort.
