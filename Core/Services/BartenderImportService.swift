@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import os.log
+import ServiceManagement
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "BartenderImport")
 
@@ -48,19 +49,26 @@ enum BartenderImportService {
         var skippedAmbiguous = 0
         var skippedUnsupported = 0
         var skippedDuplicates = 0
+        var behavioralSettings: [String] = []
 
         var totalMoved: Int { movedHidden + movedVisible }
 
         var description: String {
-            """
-            Hidden: \(movedHidden)
-            Visible: \(movedVisible)
-            Failed moves: \(failedMoves)
-            Skipped (not running): \(skippedNotRunning)
-            Skipped (ambiguous): \(skippedAmbiguous)
-            Skipped (unsupported): \(skippedUnsupported)
-            Skipped (duplicates): \(skippedDuplicates)
-            """
+            var lines = [
+                "Hidden: \(movedHidden)",
+                "Visible: \(movedVisible)",
+                "Failed moves: \(failedMoves)",
+                "Skipped (not running): \(skippedNotRunning)",
+                "Skipped (ambiguous): \(skippedAmbiguous)",
+                "Skipped (unsupported): \(skippedUnsupported)",
+                "Skipped (duplicates): \(skippedDuplicates)"
+            ]
+            if !behavioralSettings.isEmpty {
+                lines.append("")
+                lines.append("Settings imported:")
+                lines.append(contentsOf: behavioralSettings.map { "  \($0)" })
+            }
+            return lines.joined(separator: "\n")
         }
     }
 
@@ -92,16 +100,18 @@ enum BartenderImportService {
         }
 
         let data = try Data(contentsOf: url)
-        let profile = try parseProfile(from: data)
+        let (profile, root) = try parseProfile(from: data)
+
+        // Import behavioral settings before icon layout
+        var summary = ImportSummary()
+        importBehavioralSettings(from: root, to: menuBarManager, summary: &summary)
 
         let hideRaw = profile.hide + profile.alwaysHide
         let showRaw = profile.show
 
-        if hideRaw.isEmpty, showRaw.isEmpty {
+        if hideRaw.isEmpty, showRaw.isEmpty, summary.behavioralSettings.isEmpty {
             throw ImportError.emptyProfile
         }
-
-        var summary = ImportSummary()
         let parsedHide = hideRaw.compactMap(parseItem)
         let parsedShow = showRaw.compactMap(parseItem)
 
@@ -169,7 +179,7 @@ enum BartenderImportService {
 
     // MARK: - Parsing
 
-    private static func parseProfile(from data: Data) throws -> Profile {
+    private static func parseProfile(from data: Data) throws -> (Profile, [String: Any]) {
         var format = PropertyListSerialization.PropertyListFormat.xml
         let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: &format)
         guard let root = plist as? [String: Any] else {
@@ -188,7 +198,49 @@ enum BartenderImportService {
         let hide = activeProfile["Hide"] as? [String] ?? []
         let show = activeProfile["Show"] as? [String] ?? []
         let alwaysHide = activeProfile["AlwaysHide"] as? [String] ?? []
-        return Profile(hide: hide, show: show, alwaysHide: alwaysHide)
+        return (Profile(hide: hide, show: show, alwaysHide: alwaysHide), root)
+    }
+
+    // MARK: - Behavioral Settings
+
+    @MainActor
+    private static func importBehavioralSettings(
+        from root: [String: Any],
+        to menuBarManager: MenuBarManager,
+        summary: inout ImportSummary
+    ) {
+        var settings = menuBarManager.settings
+
+        // MouseExitDelay → hoverDelay (clamp to SaneBar's supported range)
+        if let delay = root["MouseExitDelay"] as? Double, delay >= 0.05, delay <= 1.0 {
+            settings.hoverDelay = delay
+            summary.behavioralSettings.append("Hover delay: \(String(format: "%.1f", delay))s")
+        }
+
+        // ShowAllItemsWhenDragging → showOnUserDrag
+        if let showOnDrag = root["ShowAllItemsWhenDragging"] as? Bool {
+            settings.showOnUserDrag = showOnDrag
+            summary.behavioralSettings.append("Show on drag: \(showOnDrag ? "on" : "off")")
+        }
+
+        // HideItemsWhenShowingOthers → rehideOnAppChange
+        if let hideWhenShowing = root["HideItemsWhenShowingOthers"] as? Bool {
+            settings.rehideOnAppChange = hideWhenShowing
+            summary.behavioralSettings.append("Rehide on app change: \(hideWhenShowing ? "on" : "off")")
+        }
+
+        // launchAtLogin.isEnabled → SMAppService
+        if let launchAtLogin = root["launchAtLogin.isEnabled"] as? Bool, launchAtLogin {
+            do {
+                try SMAppService.mainApp.register()
+                summary.behavioralSettings.append("Launch at login: on")
+            } catch {
+                logger.warning("Failed to set launch at login: \(error.localizedDescription)")
+            }
+        }
+
+        menuBarManager.settings = settings
+        menuBarManager.saveSettings()
     }
 
     private static func parseItem(_ raw: String) -> ParsedItem? {
