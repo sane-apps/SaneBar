@@ -414,12 +414,13 @@ struct MenuBarOverlayView: View {
 
     @ViewBuilder
     private var mainAppearanceLayer: some View {
-        if viewModel.settings.useLiquidGlass, MenuBarAppearanceSettings.supportsLiquidGlass {
+        if viewModel.reduceTransparency {
+            // When Reduce Transparency is on, Glass effects are meaningless — use solid tint
+            fallbackTintLayer
+        } else if viewModel.settings.useLiquidGlass, MenuBarAppearanceSettings.supportsLiquidGlass {
             liquidGlassLayer
         } else {
-            // Fallback tint layer for older macOS
-            Rectangle()
-                .fill(Color(hex: activeTintColor).opacity(activeTintOpacity))
+            fallbackTintLayer
         }
     }
 
