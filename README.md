@@ -80,6 +80,11 @@ Icons to the **right** of the Separator (`|`) = always visible
 - **Virtual Click** — Activate menu bar items without seeing them
 - **Per-Icon Hotkeys** — Global shortcuts for your most-used menu bar apps
 
+### Migration
+- **Import from Bartender** — Automatically import your hidden/visible icon layout from Bartender's plist
+- **Import from Ice** — Automatically import your configuration from Ice's plist
+- **Settings Export/Import** — Back up your entire SaneBar configuration and restore on another Mac
+
 ### Automation Ready
 - **AppleScript Support** — Full scripting integration for Shortcuts and automation workflows
 - **Smart Triggers** — Auto-show on Focus Mode, WiFi network, app launch, or low battery
@@ -146,6 +151,12 @@ Create a second "always hidden" zone for icons that should never show automatica
 - Enable: **Settings → Experimental → Always Hidden section**
 - In **Find Icon…**, right-click an icon → **Pin in Always Hidden (beta)**
 
+### 🩺 Diagnostics
+Built-in diagnostic tools to help troubleshoot menu bar issues.
+- Go to **Settings → Experimental → Run Diagnostics**
+- Shows icon count, positioning data, accessibility status, and system info
+- Generates a shareable report for support requests
+
 ---
 
 ## The Notch & 50+ Apps
@@ -167,7 +178,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (authentication lock), software updates, saved profiles |
+| **General** | Launch at login, show in Dock, security (Touch ID/password lock), software updates, saved profiles, import from Bartender/Ice, settings export/import |
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
 | **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
@@ -238,9 +249,14 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 ```bash
 git clone https://github.com/sane-apps/SaneBar.git
 cd SaneBar
-bundle install
-./scripts/SaneMaster.rb verify
-./scripts/SaneMaster.rb launch
+./scripts/SaneMaster.rb verify    # builds + runs tests
+./scripts/SaneMaster.rb launch    # build and run
+```
+
+**External contributors:** `SaneMaster.rb` works standalone — no monorepo required. If the shared infrastructure isn't found, it falls back to direct `xcodebuild` commands. You can also build manually:
+
+```bash
+xcodebuild -scheme SaneBar -configuration Debug build
 ```
 
 ### Project Structure
