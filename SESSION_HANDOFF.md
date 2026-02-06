@@ -1,99 +1,102 @@
-# Session Handoff - Jan 30, 2026
+# Session Handoff - Feb 6, 2026
 
-## Icon & Website Overhaul (Jan 30, evening)
+## Release v1.0.18 (Production — LIVE)
 
-### Icon Update
-- Changed bar color from `#40CCED` to `#5CE8FF` (brighter teal) across ALL locations
-- SVG source of truth: `/Users/sj/SaneApps/web/saneapps.com/icons/sanebar-icon.svg`
-- Regenerated: all 10 AppIcon.appiconset PNGs, DMGIcon.icns, branding.png, sanebar-icon.png (saneapps.com)
-- Rendering approach: SVG + sips (NOT Swift scripts — sips handles coordinates correctly, Swift NSBitmapImageRep has y=0 at bottom causing inversions)
+**Version:** v1.0.18 (build 1018)
+**Released:** Feb 5, 2026 7:32pm EST
+**Pipeline:** `release.sh --full --deploy` (end-to-end automated)
+**Notarization ID:** dff2edce-f9d8-4c67-b5d8-8648be421296
+**SHA256:** 3809087ffbc2170c24a0b02108443084bfc5a38e86a58079ff339b05a5d14a27
 
-### Website Fixes (ALL 4 SITES DEPLOYED)
+### What shipped
+- **Import from Bartender**: Icon layout (Hide/Show/AlwaysHide) + behavioral settings (hover delay, show on drag, rehide on app change, launch at login)
+- **Import from Ice**: 9 behavioral settings (hover, scroll, rehide, spacing, drag, always-hidden, dividers)
+- **Custom Menu Bar Icon**: Upload your own image (Settings → Appearance)
+- **Standalone Build**: External contributors can build without SaneProcess (#39)
+- **About View Fix**: Button layout no longer truncates
+- **Dark Mode Tint**: Dual light/dark tint controls with sensible defaults (#34)
+- **License**: MIT → GPL v3
+- **App Icon**: Updated to 2D cross-app design language
 
-**Round 1 — SEO/Social audit found 20+ issues, fixed all:**
+### Phantom v1.0.18 cleanup
+The `weekly-release.yml` cron (now deleted) had created a phantom v1.0.18 on Feb 2 that contained the v1.0.17 binary (never version-bumped). This caused a Sparkle infinite update loop. All artifacts were cleaned:
+- Removed phantom appcast entry
+- Deleted phantom DMG from R2 (`sanebar-dist`)
+- Deleted GitHub release + tag
+- Workflow file deleted entirely (release.sh is the real pipeline)
+- Users who got the phantom update are fine — they got v1.0.17 binary, now see real v1.0.18
 
-| Site | Key Fixes |
-|------|-----------|
-| sanebar.com | OG/Twitter tags on all 5 guide pages, apple-touch-icon, theme-color, favicon cache bust |
-| saneapps.com | Accent color `#5CE8FF`, fixed SaneClip/SaneHosts onclick URLs, SaneSync/SaneVideo button text |
-| saneclip.com | Canonical/OG/Twitter on all 9 pages, expanded titles/descriptions, theme-color |
-| saneclick.com | JSON-LD downloadUrl fix, twitter:site, expanded meta descriptions |
-
-**Round 2 — Deep review found more issues, fixed all:**
-
-| Site | Key Fixes |
-|------|-----------|
-| sanebar.com | Removed `border-radius: 8px` from `.logo img` (was creating visible squircle border), added `og:site_name`, fixed JSON-LD downloadUrl (was GitHub releases, now Lemon Squeezy), fixed sanebar-background.html color to `#5CE8FF` |
-| saneapps.com | Fixed 6 hardcoded `rgba(95, 168, 211,...)` → `rgba(92, 232, 255,...)`, SaneSync/SaneVideo Coming Soon links → `#`, removed stray `</span>` |
-| saneclip.com | Fixed broken `screenshot-pinned.png` → `screenshot-snippets.png`, macOS version mismatch (support said 15, now 14), canonical/og:url mismatches, apple-touch-icon on 8 pages |
-| saneclick.com | Fixed JSON-LD downloadUrl to match actual checkout links, shortened how-to title (70→43 chars) |
-
-### Known Remaining Issues (from audits, not fixed)
-
-| Issue | Site | Priority |
-|-------|------|----------|
-| 4 guide pages have no footer | sanebar.com | Low |
-| OG image may have baked squircle | sanebar.com | Medium |
-| No hero app icon in hero section | sanebar.com | Low (design choice) |
-| macOS naming inconsistency (Sequoia vs Tahoe) | sanebar.com | Low (both correct — minimum is Sequoia, optimized for Tahoe) |
-| Social proof links are `href="#"` placeholders | saneapps.com | Low |
-| Checkout URLs use sanebar.lemonsqueezy.com | saneclip.com, saneclick.com | N/A (all products under one Lemon Squeezy store) |
-| Missing robots.txt, sitemap.xml | saneclick.com | Low |
-| Unused screenshot images | saneclip.com | Low |
-
-### Lessons Learned
-- `sips` renders SVG to PNG correctly but ignores SVG filters (feGaussianBlur, etc.)
-- NSBitmapImageRep y=0 is at BOTTOM (opposite of SVG where y=0 is top) — never use Swift scripts for icon rendering
-- Browser favicon caching: use `?v=2` query parameter to bust cache
-- `border-radius` on `.logo img` creates visible squircle — use `border-radius: 0` for full-square icons
-- All SaneApps products are under one Lemon Squeezy store (`sanebar.lemonsqueezy.com`) — don't "fix" checkout URLs to per-app subdomains
+### .saneprocess config fix
+Added `team_id: M78L6FXD48` and `signing_identity` to `.saneprocess` — was missing, blocked release.sh.
 
 ---
 
-## SaneClick FinderSync Extension Debugging (Jan 30, afternoon)
+## GitHub Issues Status
 
-### Critical Finding: macOS 26 Tahoe ARM Bug (FB20947446)
-
-FinderSync extension context menus **do not work on macOS 26 Tahoe + Apple Silicon (M2)**. This is a confirmed Apple bug. The extension loads, init() runs, directoryURLs are set, pluginkit shows `+` (enabled), but **Finder never calls `menu(for:)`**. No context menu items appear at all.
-
-- **Apple Feedback:** FB20947446
-- **Affects:** All Apple Silicon Macs on macOS 26.0-26.2 (confirmed through 26.3 Beta 3)
-- **References:** Apple Developer Forums thread/806607, eclecticlight.co, iboysoft.com
-- **Workaround:** NONE confirmed by Apple. Extension simply doesn't work on ARM + Tahoe.
-
-### Next Steps for SaneClick
-
-1. **File Apple Feedback** referencing FB20947446 with sysdiagnose from M2 Air
-2. **Wait for macOS 26.3+ fix** or consider FileProviderUI as alternative
-3. **Test on Intel Mac** if available to confirm ARM-specific nature
-4. **Ship update anyway** - the code fixes are correct and will work once Apple fixes the OS bug
-5. **Consider Services menu** as workaround (works independently of FinderSync)
+| # | Title | Status | Action Taken |
+|---|-------|--------|-------------|
+| #38 | Customizable icons | **Closed** | Shipped in v1.0.18, commented + closed |
+| #34 | Dark mode tint | Closed | Posted shipped confirmation |
+| #33 | Bartender migration | Closed | Posted shipped confirmation |
+| #17 | Always hidden section | Open | Actively researching, no timeline |
+| #36 | Title bar bug | Closed | Already responded |
+| #35 | Icons not staying visible | Closed | Already responded |
 
 ---
 
-## Cross-Project Release Script Audit (Jan 30)
+## System Cleanup (Feb 5)
 
-### Summary
-Audited ALL release scripts across all SaneApps for Sparkle signing bugs. Fixed critical issues in 5 scripts across 4 projects. All 4 DMGs verified with live EdDSA signing.
-
-### The Rule (NEVER BREAK AGAIN)
-- `sparkle:version` = BUILD_NUMBER (numeric CFBundleVersion, e.g., "1017")
-- `sparkle:shortVersionString` = VERSION (semantic, e.g., "1.0.17")
-- Use heredoc (`cat <<EOF`) not echo for appcast templates
-- URL: `https://dist.{app}.com/updates/{App}-{version}.dmg`
-- Always generate `.meta` file alongside DMG
+- Trashed 9 DerivedData directories, 4 build/ dirs
+- Deleted 7 stale UserDefaults, 5 stale preference plists
+- Killed 3 orphan osascript processes
+- Updated SaneClip v1.3→v1.4, SaneHosts v1.0.7→v1.0.8 from release DMGs
+- Login items may still point to stale paths (DerivedData) — check on next launch
 
 ---
 
-## Release v1.0.17 (Production)
+## Infrastructure Updates (Feb 6)
 
-- **Version:** v1.0.17
-- **Build:** Verified, Signed (EdDSA), Notarized
-- **Distribution:** Hosted on **Cloudflare R2** (`dist.sanebar.com`)
-- **Website:** Live with all SEO/icon fixes deployed
+### Link Monitor Expansion
+Enhanced `/Users/sj/SaneApps/infra/SaneProcess/scripts/link_monitor.rb`:
 
-## Next Actions (v1.1)
+**Added monitoring for:**
+1. **Sparkle appcast feeds** (CRITICAL - no updates if broken):
+   - sanebar.com/appcast.xml
+   - saneclick.com/appcast.xml
+   - saneclip.com/appcast.xml
+   - sanehosts.com/appcast.xml
 
-1. **Keychain Migration:** Move `requireAuthToShowHiddenIcons` from JSON to System Keychain
-2. **Ice Migration Tool:** Import settings from Ice
-3. **Permanently Hidden Zone:** Secondary "Void" spacer
+2. **Distribution workers** (Cloudflare R2 download endpoints):
+   - dist.sanebar.com
+   - dist.saneclick.com
+   - dist.saneclip.com
+   - dist.sanehosts.com
+   - Workers return 404 at root (expected) — verify they respond
+
+3. **Domain expiry checking** (via Cloudflare API + whois fallback):
+   - All 7 SaneApps domains (sanebar.com, saneclip.com, saneclick.com, sanehosts.com, saneapps.com, sanesync.com, sanevideo.com)
+   - Warns if < 60 days to expiry
+   - Alerts if < 30 days to expiry
+
+**Morning report integration** (`morning-report.sh`):
+- Sales Infrastructure section now includes appcast and dist worker checks
+- Separate tables for checkout links, appcast feeds, and distribution workers
+
+**Validation report integration** (`validation_report.rb`):
+- Q7 (Website/Distribution Health) now includes:
+  - Appcast URL availability + XML validation
+  - Distribution worker endpoint checks
+  - Accepts 404/403 for dist workers (they respond to specific file paths, not root)
+
+**Test results:** All 18 checks passing (4 appcast feeds + 4 dist workers + 7 domains + existing 3 critical URLs)
+
+---
+
+## Next Actions
+
+1. **Always-Hidden Section** (#17): Research three-zone architecture (visible / collapsible / always-hidden). Requires second separator + special hide logic. Significant effort.
+2. **Keychain Migration**: Move `requireAuthToShowHiddenIcons` from JSON to System Keychain
+3. **Version bump to v1.0.19**: project.yml still says 1.0.18 — bump when starting next feature cycle
+4. **Login Items cleanup**: Verify /Applications paths are correctly registered after system cleanup
+5. **MenuBarManager.swift**: SwiftLint warning — 1062 lines, should be under 1000. Consider splitting.
+6. **MenuBarAppTile.swift:20**: SwiftLint warning — implicit optional initialization

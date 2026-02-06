@@ -36,16 +36,5 @@
 	<string>https://sanebar.com/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.saneapps.sanebar.url</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>sanebar</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>
