@@ -165,6 +165,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var overlayViewModel: MenuBarOverlayViewModel?
     private var screenObserver: Any?
     private var appearanceObserver: Any?
+    private var accessibilityObserver: Any?
 
     // MARK: - Initialization
 
@@ -181,6 +182,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         if let observer = appearanceObserver {
             NotificationCenter.default.removeObserver(observer)
             appearanceObserver = nil
+        }
+        if let observer = accessibilityObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            accessibilityObserver = nil
         }
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
@@ -211,6 +216,18 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             Task { @MainActor in
                 // Force SwiftUI to re-evaluate colorScheme by toggling window appearance
                 self?.overlayWindow?.appearance = NSApp.effectiveAppearance
+            }
+        }
+
+        // Refresh overlay when accessibility display settings change (Reduce Transparency toggle)
+        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.overlayViewModel?.reduceTransparency =
+                    NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
             }
         }
     }
@@ -337,6 +354,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 @MainActor
 final class MenuBarOverlayViewModel {
     var settings = MenuBarAppearanceSettings()
+    var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
 }
 
 // MARK: - MenuBarOverlayView
@@ -345,7 +363,6 @@ final class MenuBarOverlayViewModel {
 struct MenuBarOverlayView: View {
     var viewModel: MenuBarOverlayViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     /// Active tint color based on current system appearance
     private var activeTintColor: String {
@@ -353,13 +370,17 @@ struct MenuBarOverlayView: View {
     }
 
     /// Active tint opacity based on current system appearance.
-    /// When Reduce Transparency is enabled, use full opacity so the color is visible
-    /// instead of rendering as solid black.
+    /// When Reduce Transparency is enabled, the menu bar background becomes a solid opaque fill
+    /// instead of blur — low-opacity tints are invisible on solid backgrounds. Use at least 50%
+    /// opacity to ensure the tint is perceptible while not completely obscuring icons.
     private var activeTintOpacity: Double {
-        if reduceTransparency {
-            return 1.0
+        let baseOpacity = colorScheme == .dark
+            ? viewModel.settings.tintOpacityDark
+            : viewModel.settings.tintOpacity
+        if viewModel.reduceTransparency {
+            return max(baseOpacity, 0.5)
         }
-        return colorScheme == .dark ? viewModel.settings.tintOpacityDark : viewModel.settings.tintOpacity
+        return baseOpacity
     }
 
     var body: some View {
