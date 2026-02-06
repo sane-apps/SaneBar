@@ -163,7 +163,7 @@ For deep dives, see [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MEN
 | [README.md](README.md) | User-facing overview |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Full development SOP |
 | [ROADMAP.md](ROADMAP.md) | Feature status |
-| [BUG_TRACKING.md](BUG_TRACKING.md) | Bug reports with GitHub links |
+| [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 
 ---
 

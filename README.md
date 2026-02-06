@@ -309,7 +309,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | [SECURITY.md](SECURITY.md) | Security policy and reporting |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [ROADMAP.md](ROADMAP.md) | Feature status overview |
-| [BUG_TRACKING.md](BUG_TRACKING.md) | Bug reports with GitHub links |
+| [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Development rules and SOP |
 
 </details>

@@ -22,7 +22,7 @@
 
 | Document | When to Use |
 |----------|-------------|
-| [BUG_TRACKING.md](BUG_TRACKING.md) | Report bugs, check GitHub issue status |
+| [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 | [ROADMAP.md](ROADMAP.md) | Feature status, what's planned |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Full SOP, 12 rules, compliance |
 | [.claude/rules/](/.claude/rules/README.md) | Code style rules by file type |

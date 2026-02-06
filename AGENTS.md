@@ -5,7 +5,7 @@ Speak in plain English. Keep it short and direct.
 Use these docs first:
 - `DEVELOPMENT.md`
 - `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`
-- `BUG_TRACKING.md` and `ROADMAP.md` as needed
+- `ROADMAP.md` as needed; bugs tracked in GitHub Issues
 
 Core enforcement (SaneProcess):
 - If a hook or prompt fires, read it first and follow it exactly.
