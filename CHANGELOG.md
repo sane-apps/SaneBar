@@ -14,8 +14,8 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 - **App Icon Style**: Updated to 2D cross-app design language
 
 ### Added
-- **Import from Ice**: Migrate your settings from Ice menu bar manager (Settings → General → Migration)
-- **Import from Bartender**: Migrate icon layout from Bartender plist (Settings → General → Migration)
+- **Import from Ice**: Migrate behavioral settings from Ice menu bar manager (Settings → General → Migration)
+- **Import from Bartender**: Migrate icon layout and behavioral settings from Bartender plist (Settings → General → Migration)
 - **Custom Menu Bar Icon**: Upload your own image as the SaneBar menu bar icon (Settings → Appearance)
 - **Standalone Build**: External contributors can now build without internal infrastructure (#39)
 
