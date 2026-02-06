@@ -3,25 +3,6 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
-            <title>1.0.18</title>
-            <pubDate>Mon, 02 Feb 2026 05:00:00 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>Changes</h2>
-                <ul>
-                    <li><strong>License</strong>: Switched from MIT to GPL v3</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.18.dmg"
-                       sparkle:version="1018"
-                       sparkle:shortVersionString="1.0.18"
-                       length="3780004"
-                       type="application/x-apple-diskimage"
-                       sparkle:edSignature="qrrLv/8ZmHlsVJUcK7lc7Px114VtJyQzYdvpZIDAZ36EK2LwYkpEAdvBjbvPHmGPBdnF+dBGkPyqn68Fc60oBw=="/>
-        </item>
-        <item>
             <title>1.0.17</title>
             <pubDate>Thu, 29 Jan 2026 19:03:20 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
