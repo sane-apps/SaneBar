@@ -13,9 +13,9 @@
 
 | GitHub | Title | Status | Internal Ref |
 |--------|-------|--------|--------------|
-| [#21](https://github.com/sane-apps/SaneBar/issues/21) | Icons hidden behind notch | Open | KNOWN LIMITATION (BUG-021) |
-| [#20](https://github.com/sane-apps/SaneBar/issues/20) | M4 tint not working | Open | FIXED - needs M4 verification (BUG-020) |
-| [#18](https://github.com/sane-apps/SaneBar/issues/18) | Hiding icons not working | Open | CLOSED - STALE v1.0.5 report (BUG-022) |
+| [#21](https://github.com/sane-apps/SaneBar/issues/21) | Icons hidden behind notch | Closed | KNOWN LIMITATION (BUG-021) |
+| [#20](https://github.com/sane-apps/SaneBar/issues/20) | M4 tint not working | Closed | FIXED - needs M4 verification (BUG-020) |
+| [#18](https://github.com/sane-apps/SaneBar/issues/18) | Hiding icons not working | Closed | CLOSED - STALE v1.0.5 report (BUG-022) |
 | [#16](https://github.com/sane-apps/SaneBar/issues/16) | Design improvements | Open | UI suggestions, not bugs |
 | [#12](https://github.com/sane-apps/SaneBar/issues/12) | Hide SaneBar icon | Reopened | Feature request |
 
