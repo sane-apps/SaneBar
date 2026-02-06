@@ -46,6 +46,18 @@ releases/
 *.zip
 
 # ═══════════════════════════════════════════════════════════════
+# Claude Code auto-generated context files
+# ═══════════════════════════════════════════════════════════════
+
+# Nested CLAUDE.md files are auto-generated context — only root CLAUDE.md is real
+**/CLAUDE.md
+!/CLAUDE.md
+
+# Agent artifacts
+.agent/
+.claude-mem/
+
+# ═══════════════════════════════════════════════════════════════
 # Tooling
 # ═══════════════════════════════════════════════════════════════
 
