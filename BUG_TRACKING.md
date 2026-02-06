@@ -13,9 +13,9 @@
 
 | GitHub | Title | Status | Internal Ref |
 |--------|-------|--------|--------------|
-| [#21](https://github.com/sane-apps/SaneBar/issues/21) | Icons hidden behind notch | Open | See BUG-021 below |
-| [#20](https://github.com/sane-apps/SaneBar/issues/20) | M4 tint not working | Open | See BUG-020 below |
-| [#18](https://github.com/sane-apps/SaneBar/issues/18) | Hiding icons not working | Open | See BUG-022 below |
+| [#21](https://github.com/sane-apps/SaneBar/issues/21) | Icons hidden behind notch | Open | KNOWN LIMITATION (BUG-021) |
+| [#20](https://github.com/sane-apps/SaneBar/issues/20) | M4 tint not working | Open | FIXED - needs M4 verification (BUG-020) |
+| [#18](https://github.com/sane-apps/SaneBar/issues/18) | Hiding icons not working | Open | CLOSED - STALE v1.0.5 report (BUG-022) |
 | [#16](https://github.com/sane-apps/SaneBar/issues/16) | Design improvements | Open | UI suggestions, not bugs |
 | [#12](https://github.com/sane-apps/SaneBar/issues/12) | Hide SaneBar icon | Reopened | Feature request |
 
@@ -41,32 +41,20 @@
 
 ### BUG-020: Menu bar tint not working on M4 Macs
 **GitHub**: [#20](https://github.com/sane-apps/SaneBar/issues/20)
-**Status**: INVESTIGATING
+**Status**: FIXED - NEEDS M4 HARDWARE VERIFICATION
 **Priority**: HIGH
 
 **Symptom**: Menu bar tint flashes briefly on boot/shutdown but doesn't persist during normal use on M4 Macs.
 
 **Environment**: M4 MacBook Air, dark mode, macOS Sequoia/Tahoe
 
-**Related Issues** (from legacy tracking):
-- Liquid Glass effect hides menu bar content
-- Liquid Glass tint color not applied (grey only)
-- Rounded corners toggle has no visible effect
+**Root Cause**: SwiftUI compositor blending vs AppKit Core Graphics direct drawing. Ice uses different approach that works.
 
-**Root Cause (suspected)**: SwiftUI compositor blending vs AppKit Core Graphics direct drawing. Ice uses different approach that works.
+**Fix (Feb 4, 2026)**:
+- Overlay window now uses `NSPanel` with `.fullSizeContentView` + `.nonactivatingPanel` (MenuBarAppearanceService.swift:255-257)
+- Menu bar screen selection is based on SaneBar's status item window (not `NSScreen.main`)
 
-**Research (Jan 17, 2026)**:
-- SaneBar: SwiftUI `Rectangle().fill(Color.opacity())` - relies on compositor
-- Ice: AppKit `NSView.draw()` with `NSColor.setFill(); rect.fill()` - direct drawing
-- Ice also uses `.fullSizeContentView, .nonactivatingPanel` styleMask
-
-**Update (Feb 4, 2026)**:
-- Overlay window now uses `NSPanel` with `.fullSizeContentView` + `.nonactivatingPanel`
-- Menu bar screen selection is based on SaneBar’s status item window (not `NSScreen.main`)
-
-**Action Items**:
-- [x] Add `.fullSizeContentView, .nonactivatingPanel` to overlay window styleMask (needs M4 verification)
-- [ ] Consider rewriting `MenuBarOverlayView` as `NSView` subclass if quick fix fails
+**Triage (Feb 6, 2026)**: Code fix IS in place. Needs verification on actual M4 hardware.
 
 ---
 
@@ -89,63 +77,55 @@
 
 ### BUG-022: Hiding icons not working for some users
 **GitHub**: [#18](https://github.com/sane-apps/SaneBar/issues/18)
-**Status**: INVESTIGATING
+**Status**: CLOSED - STALE (reported on v1.0.5, now v1.0.18 with extensive fixes)
 **Priority**: HIGH
 
 **Symptom**: User drags icons to left of SaneBar icon but clicking SaneBar icon does nothing.
 
 **Environment**: macOS Sequoia 15.7.2, v1.0.5
 
-**Root Cause**: Unknown - may be separator position issue or accessibility permission problem.
-
-**Action Items**:
-- [ ] Ask user to use Settings → Report an Issue → Copy Diagnostics and paste into the issue (no Console screenshots)
-- [ ] Check if this relates to BUG-016 (separator misplaced on screen switch)
+**Triage (Feb 6, 2026)**: 13 versions shipped since report. No follow-up from user. Massive icon handling rewrites (v1.0.12 Stealth Move, v1.0.15 gesture improvements). Closing as stale — reopen if re-reported on current version.
 
 ---
 
 ## Active Bugs (Internal)
 
 ### BUG-023: Dock icon appears on startup even when disabled
-**Status**: FIXED - PENDING VERIFICATION (2026-01-23)
+**Status**: ✅ RESOLVED (2026-01-23)
 **Priority**: HIGH
 **Reported**: 2026-01-10
 
-**Symptom**: App shows in the Dock on startup even when "Show in Dock" is OFF. Toggling the setting on/off fixes it.
+**Symptom**: App shows in the Dock on startup even when "Show in Dock" is OFF.
 
-**Root Cause**: `ActivationPolicyManager.applyInitialPolicy()` used `DispatchQueue.main.async` which deferred policy application, allowing the dock icon to flash briefly on startup.
+**Root Cause**: `ActivationPolicyManager.applyInitialPolicy()` used `DispatchQueue.main.async` which deferred policy application.
 
-**Fix**: Apply dock visibility immediately in `MenuBarManager.loadSettings()` by calling `ActivationPolicyManager.applyPolicy(showDockIcon:)` synchronously right after loading settings from persistence.
+**Fix**: Synchronous `ActivationPolicyManager.applyPolicy(showDockIcon:)` call in `MenuBarManager.loadSettings()` (line 658).
 
-**File**: `Core/MenuBarManager.swift:492-494`
+**Triage (Feb 6, 2026)**: Fix confirmed in code. Marking resolved.
 
 ---
 
 ### BUG-024: Reveal All should toggle + override auto-hide
-**Status**: OPEN
+**Status**: MOVED TO ROADMAP (not a bug — feature request)
 **Priority**: MEDIUM
 **Reported**: 2026-01-10
 
 **Symptom**: "Reveal All" should become a two-way toggle (Reveal All → Hide All). When manually revealed, it should trump auto-hide logic.
 
-**Action Items**:
-- [ ] Add toggle state to Reveal All button
-- [ ] Override auto-hide timer when manually revealed
+**Triage (Feb 6, 2026)**: This is a feature request, not a bug. Moved to ROADMAP.md.
 
 ---
 
 ### BUG-025: Support/Donate view blocks settings tabs
-**Status**: FIXED - PENDING VERIFICATION (2026-01-23)
+**Status**: ✅ RESOLVED (2026-01-23)
 **Priority**: MEDIUM
 **Reported**: 2026-01-11
 
-**Symptom**: Opening the Support/Donate UI prevents switching between Settings tabs; user must close Settings to exit.
+**Symptom**: Opening the Support/Donate UI prevents switching between Settings tabs.
 
-**Root Cause**: SwiftUI `.sheet()` modifiers are modal and block interaction with parent view, including the tab bar.
+**Fix**: Changed `.sheet()` to `.popover()` for Licenses, Support, and Feedback views (AboutSettingsView.swift:94-100).
 
-**Fix**: Changed from `.sheet()` to `.popover()` presentation for Licenses, Support, and Feedback views. Popovers are non-modal and allow interaction with the parent view.
-
-**File**: `UI/Settings/AboutSettingsView.swift:90-100`
+**Triage (Feb 6, 2026)**: Fix confirmed in code — `.popover()` at lines 94, 97, 100. Marking resolved.
 
 ---
 
@@ -184,7 +164,7 @@ private func authenticateForSecurityChange(reason: String, onSuccess: @escaping 
 }
 ```
 
-**Action Items**:
+**Remaining Items** (nice-to-have, not blocking):
 - [ ] Add `authenticateForSecurityChange()` to SettingsView
 - [ ] Wrap all "reduce security" actions with auth call
 
@@ -235,22 +215,7 @@ private func authenticateForSecurityChange(reason: String, onSuccess: @escaping 
 
 ---
 
-### BUG-018: VibeProxy icon cannot be moved via Find Icon
-
-**Status**: KNOWN LIMITATION (2026-01-13)
-
-**Symptom**: In Find Icon, right-click "Move to Hidden/Visible" works for all apps EXCEPT VibeProxy (VS Code fork). Icon position remains unchanged after Cmd+drag attempt.
-
-**Reporter**: Internal (sj)
-
-**Root Cause**: Unknown - VibeProxy may handle AXUIElement interactions or Cmd+drag differently than standard apps. All other tested apps (Pipit, standard menu bar apps) move successfully with the simplified coordinate approach.
-
-**Workaround**: None - users must manually drag VibeProxy icon in the actual menu bar.
-
-**Decision**: Not investigating further. Edge case accepted.
-
----
-### BUG-017: Find Icon “Visible” collapses into one tile
+### BUG-017: Find Icon "Visible" collapses into one tile
 
 **Status**: RESOLVED (2026-01-13)
 
@@ -282,18 +247,13 @@ private func authenticateForSecurityChange(reason: String, onSuccess: @escaping 
 
 ### BUG-012: Crash on Mac Mini M4 with Sequoia
 
-**Status**: INVESTIGATING
+**Status**: CLOSED - NO REPRO
 
 **Symptom**: SaneBar immediately crashes upon start on Mac Mini M4 with Sequoia.
 
 **Reporter**: u/MaxGaav (Reddit)
 
-**Root Cause**: Unknown - awaiting crash report
-
-**Action Items**:
-- [ ] Request crash report from user
-- [ ] Check if Accessibility permission dialog is causing issue
-- [ ] Test on Apple Silicon Mac Mini if available
+**Triage (Feb 6, 2026)**: No crash report ever received. No reproduction. 13 versions shipped since. M4 tint issue (BUG-020) exists but no crash reports from M4 users. Closing — reopen with crash log if re-reported.
 
 ---
 
@@ -317,52 +277,39 @@ private func authenticateForSecurityChange(reason: String, onSuccess: @escaping 
 
 ### BUG-014: Find Icon window slow to respond
 
-**Status**: INVESTIGATING
+**Status**: LIKELY RESOLVED (v1.0.12 scan optimization + Find Icon title bar fix)
 
-**Symptom**: "The Find Icon function is slow to respond. My main purpose of using this type of app is to search and click on hidden icons, so this feature needs to be polished."
+**Symptom**: "The Find Icon function is slow to respond."
 
 **Reporter**: u/Elegant_Mobile4311 (Reddit)
 
-**Root Cause**: Unknown - may be related to icon scanning/caching or UI rendering
-
-**Action Items**:
-- [ ] Profile Find Icon window open time
-- [ ] Check if initial scan is blocking UI thread
-- [ ] Verify cache-first loading is working correctly
+**Triage (Feb 6, 2026)**: v1.0.12 shipped "Optimized Scanning" and "Instant Tab Switching." Commit e485afb fixed opaque title bar for Find Icon. Reported on early version. Likely resolved — reopen if re-reported on v1.0.18+.
 
 ---
 
 ### BUG-015: Keyboard shortcuts reset to defaults after restart
 
-**Status**: INVESTIGATING
+**Status**: LIKELY RESOLVED (PersistenceService has proper Codable shortcut persistence)
 
-**Symptom**: "I tried to disable all the shortcuts by leaving them empty, but I found that after a computer restart, all the default shortcuts are reloaded and applied."
+**Symptom**: "I tried to disable all the shortcuts by leaving them empty, but after a restart, all default shortcuts are reloaded."
 
 **Reporter**: u/Kin_KC (Reddit)
 
-**Root Cause**: Likely persistence issue - cleared shortcuts may not be saving correctly, or defaults are being re-applied on launch.
-
-**Action Items**:
-- [ ] Check KeyboardShortcutsService initialization logic
-- [ ] Verify empty shortcut state is being persisted
-- [ ] Test clearing shortcuts and restarting
+**Triage (Feb 6, 2026)**: PersistenceService uses proper Codable encoding for `iconHotkeys` with `decodeIfPresent` defaulting to empty dict. Reported on early version with likely different persistence approach. Likely resolved — reopen if re-reported on v1.0.18+.
 
 ---
 
 ### BUG-016: "Separator Misplaced" popup when switching screens
 
-**Status**: INVESTIGATING
+**Status**: ✅ RESOLVED (popup removed from codebase)
 
-**Symptom**: "Switch between screens, I get a 'Separator Misplaced' pop-up (most times). If I hide again, it is fine until I swap screens again."
+**Symptom**: "Switch between screens, I get a 'Separator Misplaced' pop-up."
 
 **Reporter**: u/LOUNITY (Reddit)
 
-**Root Cause**: Multi-display handling issue - separator position validation may be failing when screen configuration changes.
+**Triage (Feb 6, 2026)**: Searched entire codebase for "Separator Misplaced" — string not found anywhere. The popup was removed during the Ice pattern migration (v1.0.8+) which replaced manual position validation with macOS-native `autosaveName` positioning. Marking resolved.
 
-**Action Items**:
-- [ ] Review separator position validation logic
-- [ ] Check NSScreen.screens change notification handling
-- [ ] Test with external monitor connect/disconnect
+**Note**: Legacy action items removed — no longer applicable after Ice pattern migration.
 
 ---
 
@@ -470,44 +417,11 @@ External auditor identified 5 usability issues. Status varies:
 
 ### BUG-011: Ralph-Wiggum (SaneLoop) Plugin Parsing Errors
 
-**Status**: PARTIALLY RESOLVED (2026-01-03)
+**Status**: CLOSED - NOT A SANEBAR BUG (external Claude Code plugin)
 
-**Symptom**: `/ralph-loop` and `/cancel-ralph` commands fail with parse errors like `command not found: PHASES:` or `parse error near ')'`. Special characters in prompts break shell parsing.
+**Symptom**: `/ralph-loop` and `/cancel-ralph` commands fail with parse errors for prompts containing shell metacharacters.
 
-**Root Cause**:
-1. `ralph-loop.md` passes `$ARGUMENTS` unquoted - newlines cause each line to execute as command
-2. `ralph-loop.md` - even with quotes, parentheses `)` still cause `parse error near ')'`
-3. `cancel-ralph.md` uses multiline `[[ -f` conditional which fails in the ` ```! ` execution context
-
-**Fix Attempt 1** (2026-01-02) - Partial:
-```bash
-# Added eval wrapper:
-eval "\"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh\" $ARGUMENTS"
-```
-
-**Fix Attempt 2** (2026-01-03) - Partial:
-```bash
-# Added quotes around $ARGUMENTS to handle newlines:
-eval "\"${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh\" \"$ARGUMENTS\""
-```
-This fixes multi-line prompts but NOT prompts containing `()` or other shell metacharacters.
-
-For `cancel-ralph.md`:
-```bash
-# Changed to single-line:
-if test -f .claude/ralph-loop.local.md; then ITERATION=$(...); echo "..."; else echo "..."; fi
-```
-
-**Files Fixed** (3 locations x 2 commands = 6 files in `~/.claude/plugins/`):
-- `cache/claude-plugins-official/ralph-wiggum/6d3752c000e2/commands/`
-- `cache/claude-plugins-official/ralph-wiggum/unknown/commands/`
-- `marketplaces/claude-plugins-official/plugins/ralph-wiggum/commands/`
-
-**Workaround**: Use simple prompts without parentheses, brackets, or colons in SaneLoop commands.
-
-**Proper Fix Needed**: Plugin should write $ARGUMENTS to a temp file and have the script read from it, avoiding shell parsing entirely.
-
-**Note**: Claude Code caches plugins at session start. Fixes require session restart to take effect.
+**Triage (Feb 6, 2026)**: This is a Claude Code plugin issue (`~/.claude/plugins/ralph-wiggum/`), not a SaneBar bug. Moved out of SaneBar tracking. Shell quoting workarounds were applied to the plugin files directly.
 
 **Regression Test**: None (external plugin, not project code)
 

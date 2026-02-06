@@ -29,6 +29,7 @@
 | **Ice Migration Tool** | 📋 Planned v1.1.0 | Import from Ice (open source, easy) |
 | **Bartender Migration Tool** | ✅ Shipped | Import from Bartender (Settings → General → Import Bartender) |
 | **Permanently Hidden Zone** | 🧪 Beta (Experimental) | Optional always-hidden section (Settings → Experimental) + per-icon pinning in Find Icon |
+| **Reveal All Toggle** | 📋 Planned | Reveal All ↔ Hide All two-way toggle + override auto-hide |
 | **Composite Rules (AND/OR)** | 📋 Planned | Combine triggers with logic |
 | **Icon Groups** | ✅ Shipped | Categorize icons, filter in Find Icon (custom groups + drag-and-drop) |
 | Intel (x86_64) support | ❌ Not Planned | No test hardware, shrinking user base |
