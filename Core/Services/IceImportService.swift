@@ -22,6 +22,8 @@ enum IceImportService {
         var hoverDelay: TimeInterval?
         var menuBarSpacing: Int?
         var showOnUserDrag: Bool?
+        var alwaysHiddenSectionEnabled: Bool?
+        var showSectionDividers: Bool?
     }
 
     struct ImportSummary {
@@ -100,7 +102,9 @@ enum IceImportService {
             rehideDelay: root["RehideInterval"] as? TimeInterval,
             hoverDelay: root["ShowOnHoverDelay"] as? TimeInterval,
             menuBarSpacing: root["ItemSpacingOffset"] as? Int,
-            showOnUserDrag: root["ShowAllSectionsOnUserDrag"] as? Bool
+            showOnUserDrag: root["ShowAllSectionsOnUserDrag"] as? Bool,
+            alwaysHiddenSectionEnabled: root["EnableAlwaysHiddenSection"] as? Bool,
+            showSectionDividers: root["ShowSectionDividers"] as? Bool
         )
     }
 
@@ -150,12 +154,19 @@ enum IceImportService {
             summary.applied.append("Show on drag: \(value ? "on" : "off")")
         }
 
+        if let value = parsed.alwaysHiddenSectionEnabled {
+            settings.alwaysHiddenSectionEnabled = value
+            summary.applied.append("Always-hidden section: \(value ? "on" : "off")")
+        }
+
+        if let value = parsed.showSectionDividers, value {
+            // Ice has dividers enabled — SaneBar always shows dividers, so nothing to change
+            summary.applied.append("Section dividers: on (matches SaneBar default)")
+        }
+
         // Track settings we recognized but can't import
         if iceRoot["HideApplicationMenus"] is Bool {
             summary.skipped.append("Hide application menus")
-        }
-        if iceRoot["EnableAlwaysHiddenSection"] is Bool {
-            summary.skipped.append("Always-hidden section (SaneBar uses 2-section model)")
         }
         if iceRoot["Hotkeys"] != nil {
             summary.skipped.append("Hotkeys (incompatible format)")
