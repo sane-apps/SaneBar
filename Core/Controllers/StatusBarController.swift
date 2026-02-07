@@ -21,6 +21,7 @@ struct MenuConfiguration {
 protocol StatusBarControllerProtocol {
     var mainItem: NSStatusItem { get }
     var separatorItem: NSStatusItem { get }
+    var alwaysHiddenSeparatorItem: NSStatusItem? { get }
 
     func iconName(for state: HidingState) -> String
     func createMenu(configuration: MenuConfiguration) -> NSMenu
@@ -82,7 +83,14 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Always-Hidden Separator (Experimental)
 
     func ensureAlwaysHiddenSeparator(enabled: Bool) {
-        guard enabled else { return }
+        guard enabled else {
+            if let item = alwaysHiddenSeparatorItem {
+                NSStatusBar.system.removeStatusItem(item)
+                alwaysHiddenSeparatorItem = nil
+                logger.info("Always-hidden separator removed (feature disabled)")
+            }
+            return
+        }
         guard alwaysHiddenSeparatorItem == nil else { return }
 
         Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
@@ -158,7 +166,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.image = nil
         button.title = "/"
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        button.alphaValue = 0.4
+        button.alphaValue = 0.8
     }
 
     // MARK: - Appearance

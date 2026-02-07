@@ -246,9 +246,16 @@ final class ShowIconCommand: SaneBarScriptCommand {
 
         let semaphore = DispatchSemaphore(value: 0)
         let box = ScriptResultBox(false)
+        let alwaysHiddenEnabled = ScriptResultBox(false)
 
         Task { @MainActor in
             let manager = MenuBarManager.shared
+            alwaysHiddenEnabled.value = manager.settings.alwaysHiddenSectionEnabled
+
+            guard manager.settings.alwaysHiddenSectionEnabled else {
+                semaphore.signal()
+                return
+            }
 
             // Check if this ID is currently pinned
             let pinnedIds = manager.settings.alwaysHiddenPinnedItemIds
@@ -278,6 +285,12 @@ final class ShowIconCommand: SaneBarScriptCommand {
         }
 
         _ = semaphore.wait(timeout: .now() + 10.0)
+
+        if !alwaysHiddenEnabled.value {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Always-hidden section is not enabled. Turn it on in SaneBar Settings > Advanced first."
+            return false
+        }
 
         if !box.value {
             scriptErrorNumber = errOSAGeneralError
