@@ -88,6 +88,7 @@
 		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
 		FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */; };
+		FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */; };
 		FB7CE69BC52130B02564CF53 /* TriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA96977A73FD49086AE43EC /* TriggerServiceTests.swift */; };
 		FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */; };
 		FE3F2C049E9F50EC341F263D /* IceImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4573AFE97B29AE19A7C1E2C3 /* IceImportService.swift */; };
@@ -159,6 +160,7 @@
 		B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
 		B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingServiceTests.swift; sourceTree = "<group>"; };
+		B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlwaysHiddenTests.swift; sourceTree = "<group>"; };
 		B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+IconMoving.swift"; sourceTree = "<group>"; };
 		B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalSettingsView.swift; sourceTree = "<group>"; };
 		B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchView.swift; sourceTree = "<group>"; };
@@ -263,6 +265,7 @@
 			isa = PBXGroup;
 			children = (
 				41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */,
+				B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */,
 				73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
@@ -537,6 +540,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */,
+				FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */,
 				81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,

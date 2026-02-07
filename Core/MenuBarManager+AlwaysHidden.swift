@@ -8,9 +8,19 @@ extension MenuBarManager {
 
     /// Pin a menu bar item so it stays in the always-hidden section across launches.
     /// Uses best-effort identity (`RunningApp.uniqueId`).
+    /// Validate that a pin identifier contains no control characters and is reasonably formed.
+    private func isValidPinId(_ id: String) -> Bool {
+        guard !id.isEmpty, id.count <= 500 else { return false }
+        // Reject control characters (U+0000–U+001F, U+007F)
+        return id.unicodeScalars.allSatisfy { $0.value > 0x1F && $0.value != 0x7F }
+    }
+
     func pinAlwaysHidden(app: RunningApp) {
         let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !id.isEmpty else { return }
+        guard isValidPinId(id) else {
+            logger.warning("Rejecting invalid pin ID: \(id, privacy: .public)")
+            return
+        }
 
         var newIds = Set(settings.alwaysHiddenPinnedItemIds)
         let inserted = newIds.insert(id).inserted
@@ -149,6 +159,14 @@ extension MenuBarManager {
 
         let rawPins = settings.alwaysHiddenPinnedItemIds
         let pins = rawPins.compactMap(parseAlwaysHiddenPin)
+
+        // Clean up stale/unparseable pin IDs
+        if pins.count < rawPins.count {
+            let validRaws = rawPins.filter { parseAlwaysHiddenPin($0) != nil }
+            logger.info("Removing \(rawPins.count - validRaws.count) unparseable pin IDs")
+            settings.alwaysHiddenPinnedItemIds = validRaws
+        }
+
         guard !pins.isEmpty else { return }
 
         let filteredPins: [AlwaysHiddenPin] = if let filterBundleId {
@@ -161,6 +179,12 @@ extension MenuBarManager {
 
         guard let alwaysHiddenSeparatorX = await waitForAlwaysHiddenSeparatorX() else {
             logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): separator position unavailable")
+            return
+        }
+
+        // Validate separator ordering: always-hidden separator must be LEFT of main separator
+        if let mainSeparatorX = getSeparatorOriginX(), alwaysHiddenSeparatorX >= mainSeparatorX {
+            logger.error("Always-hidden separator (\(alwaysHiddenSeparatorX)) is not left of main separator (\(mainSeparatorX)) — skipping enforcement")
             return
         }
 

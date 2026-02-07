@@ -74,10 +74,24 @@
 
 ---
 
+## Build Strategy (PREFER MAC MINI)
+
+SaneBar has local build issues on the MacBook Air. **Prefer the Mac Mini build server when reachable.**
+
+```bash
+# Check if mini is reachable (home network only — won't work from coffee shops)
+ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI AVAILABLE" || echo "MINI OFFLINE — use local"
+```
+
+- **Mini reachable** → use `mini-build.sh` for builds, `mini-test-install.sh` for DMG verification
+- **Mini offline** → fall back to local `SaneMaster.rb` commands below
+
+---
+
 ## Quick Commands
 
 ```bash
-# Build & Test
+# Build & Test (local fallback)
 ./scripts/SaneMaster.rb verify          # Build + unit tests
 ./scripts/SaneMaster.rb test_mode       # Kill -> Build -> Launch -> Logs
 ./scripts/SaneMaster.rb logs --follow   # Stream live logs
