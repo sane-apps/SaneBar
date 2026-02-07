@@ -52,8 +52,8 @@ final class ScriptTriggerService {
     // MARK: - Script Execution
 
     private func runScript() {
-        guard menuBarManager != nil else { return }
-        let path = menuBarManager!.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let manager = menuBarManager else { return }
+        let path = manager.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !path.isEmpty else { return }
 
         // Verify script exists and is executable
@@ -78,16 +78,23 @@ final class ScriptTriggerService {
         }
     }
 
+    /// Sentinel value: script was killed by timeout (not a real exit code).
+    private nonisolated static let timeoutExitCode: Int32 = -99
+
     /// Execute script synchronously on a background thread. Returns exit code.
     private nonisolated static func executeScript(at path: String) -> Int32 {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", path]
+        // Execute the file directly instead of via /bin/sh -c (avoids shell injection)
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = []
 
         // Timeout: kill if it takes too long
+        let timedOut = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+        timedOut.initialize(to: false)
         let timeoutItem = DispatchWorkItem { [weak process] in
             if let process, process.isRunning {
-                logger.warning("Script trigger: timed out, killing")
+                logger.warning("Script trigger: timed out after 5s, killing")
+                timedOut.pointee = true
                 process.terminate()
             }
         }
@@ -97,9 +104,12 @@ final class ScriptTriggerService {
             try process.run()
             process.waitUntilExit()
             timeoutItem.cancel()
-            return process.terminationStatus
+            let wasTimeout = timedOut.pointee
+            timedOut.deallocate()
+            return wasTimeout ? timeoutExitCode : process.terminationStatus
         } catch {
             timeoutItem.cancel()
+            timedOut.deallocate()
             logger.error("Script trigger: failed to run: \(error.localizedDescription, privacy: .public)")
             return -1
         }
@@ -108,7 +118,19 @@ final class ScriptTriggerService {
     /// Handle script result on the main actor
     private func handleScriptResult(exitCode: Int32) {
         guard let manager = menuBarManager else { return }
+
+        // Timeout — ignore entirely (don't flip state based on a killed script)
+        if exitCode == Self.timeoutExitCode {
+            logger.warning("Script trigger: ignoring result (script was killed by timeout)")
+            return
+        }
+
         if exitCode == 0 {
+            // Respect Touch ID lock — script can't bypass auth
+            if manager.settings.requireAuthToShowHiddenIcons {
+                logger.info("Script trigger: exit 0 but auth required, skipping show")
+                return
+            }
             if manager.hidingService.state == .hidden {
                 logger.info("Script trigger: exit 0, showing hidden items")
                 manager.showHiddenItems()

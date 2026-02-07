@@ -278,7 +278,7 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     // Script Trigger
-                    CompactToggle(label: "Show via shell script", isOn: $menuBarManager.settings.scriptTriggerEnabled)
+                    CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
                         .help("Run a script on a timer — exit 0 shows icons, non-zero hides")
 
                     if menuBarManager.settings.scriptTriggerEnabled {
@@ -295,26 +295,53 @@ struct RulesSettingsView: View {
 
 private struct ScriptTriggerSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @State private var testResult: String?
 
     private var intervalLabel: String {
         let value = Int(menuBarManager.settings.scriptTriggerInterval)
         return "\(value)s"
     }
 
+    private var scriptPathStatus: ScriptPathStatus {
+        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else { return .empty }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: path) else { return .notFound }
+        guard fm.isExecutableFile(atPath: path) else { return .notExecutable }
+        return .ready
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Script path
+            // Script path with status indicator
             HStack {
                 TextField("Script path", text: $menuBarManager.settings.scriptTriggerPath)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
+
+                switch scriptPathStatus {
+                case .empty:
+                    EmptyView()
+                case .ready:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .help("Script found and executable")
+                case .notFound:
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                        .help("File not found")
+                case .notExecutable:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .help("File exists but is not executable (run: chmod +x)")
+                }
 
                 Button("Browse...") {
                     let panel = NSOpenPanel()
                     panel.allowedContentTypes = [.unixExecutable, .shellScript, .script, .plainText]
                     panel.canChooseDirectories = false
                     panel.allowsMultipleSelection = false
-                    panel.message = "Select a shell script (must be executable)"
+                    panel.message = "Select a script (must be executable)"
 
                     if panel.runModal() == .OK, let url = panel.url {
                         menuBarManager.settings.scriptTriggerPath = url.path
@@ -333,6 +360,21 @@ private struct ScriptTriggerSettingsView: View {
                 }
             }
 
+            // Test button
+            HStack {
+                Button("Run Now") {
+                    runTestScript()
+                }
+                .controlSize(.small)
+                .disabled(scriptPathStatus != .ready)
+
+                if let testResult {
+                    Text(testResult)
+                        .font(.caption)
+                        .foregroundStyle(testResult.hasPrefix("Exit 0") ? .green : .orange)
+                }
+            }
+
             Text("Exit code 0 = show hidden icons, non-zero = hide.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -340,4 +382,37 @@ private struct ScriptTriggerSettingsView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 4)
     }
+
+    private func runTestScript() {
+        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else { return }
+        testResult = "Running..."
+
+        Task.detached(priority: .utility) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = []
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+                let code = process.terminationStatus
+                await MainActor.run {
+                    if code == 0 {
+                        testResult = "Exit 0 — would show icons"
+                    } else {
+                        testResult = "Exit \(code) — would hide icons"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    testResult = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+private enum ScriptPathStatus {
+    case empty, notFound, notExecutable, ready
 }

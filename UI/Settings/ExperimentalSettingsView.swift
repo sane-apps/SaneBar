@@ -31,31 +31,15 @@ struct ExperimentalSettingsView: View {
                     .font(.system(size: 24))
                     .foregroundStyle(.orange)
 
-                Text("Hey Sane crew!")
+                Text("Advanced Features")
                     .font(.title3)
                     .fontWeight(.semibold)
 
                 Spacer()
             }
 
-            Text("Thank you for clicking on this tab.")
+            Text("These features are newer and may not work perfectly on every setup. If something doesn't work right, let us know — it helps a lot.")
                 .foregroundStyle(.secondary)
-
-            Text("This exists because you all have many different configurations and setups, and I only have my MacBook Air. I'm going to need your help with experimental features and testing.")
-                .foregroundStyle(.secondary)
-
-            Text("If you find a bug, please report it.")
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 6) {
-                Text("❤️")
-                Text("Mr. Sane")
-                    .fontWeight(.medium)
-            }
-            .padding(.top, 4)
-
-            Divider()
-                .padding(.vertical, 4)
 
             // Buttons inline
             HStack {
@@ -84,7 +68,7 @@ struct ExperimentalSettingsView: View {
         )
     }
 
-    // MARK: - Experimental Features
+    // MARK: - Advanced Features
 
     private var hasExperimentalFeatures: Bool {
         true
@@ -108,7 +92,6 @@ struct ExperimentalSettingsView: View {
                 .padding(.vertical, 8)
         }
     }
-
 }
 
 #Preview {
