@@ -227,6 +227,18 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Stored as `RunningApp.uniqueId` values (best-effort).
     var alwaysHiddenPinnedItemIds: [String] = []
 
+    // MARK: - Script Trigger
+
+    /// Run a user-defined shell script on a timer to control visibility.
+    /// Exit code 0 = show hidden items, non-zero = hide.
+    var scriptTriggerEnabled: Bool = false
+
+    /// Path to the shell script to execute
+    var scriptTriggerPath: String = ""
+
+    /// Interval in seconds between script executions (min: 1)
+    var scriptTriggerInterval: TimeInterval = 10.0
+
     // MARK: - Backwards-compatible decoding
 
     init() {}
@@ -276,6 +288,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         menuBarIconStyle = try container.decodeIfPresent(MenuBarIconStyle.self, forKey: .menuBarIconStyle) ?? .filter
         alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
         alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
+        scriptTriggerEnabled = try container.decodeIfPresent(Bool.self, forKey: .scriptTriggerEnabled) ?? false
+        scriptTriggerPath = try container.decodeIfPresent(String.self, forKey: .scriptTriggerPath) ?? ""
+        scriptTriggerInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .scriptTriggerInterval) ?? 10.0
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -290,6 +305,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
         case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds
+        case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 }
 

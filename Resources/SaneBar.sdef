@@ -18,5 +18,25 @@
             <cocoa class="HideCommand"/>
         </command>
 
+        <!-- List Icons Command -->
+        <command name="list icons" code="SBarlsic" description="List detected menu bar icons with their identifiers">
+            <cocoa class="ListIconsCommand"/>
+            <result type="text" description="Newline-separated list of icon identifiers and names"/>
+        </command>
+
+        <!-- Hide Icon Command -->
+        <command name="hide icon" code="SBarhiic" description="Pin a specific icon to the always-hidden section">
+            <cocoa class="HideIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icons)"/>
+            <result type="boolean" description="True if the icon was found and pinned"/>
+        </command>
+
+        <!-- Show Icon Command -->
+        <command name="show icon" code="SBarshic" description="Unpin a specific icon from the always-hidden section">
+            <cocoa class="ShowIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icons)"/>
+            <result type="boolean" description="True if the icon was found and unpinned"/>
+        </command>
+
     </suite>
 </dictionary>

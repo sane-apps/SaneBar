@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct RulesSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
@@ -9,9 +9,9 @@ struct RulesSettingsView: View {
     private var rehideDelayLabel: String {
         let value = Int(menuBarManager.settings.rehideDelay)
         switch value {
-        case 1...5: return "Quick (\(value)s)"
-        case 6...15: return "Normal (\(value)s)"
-        case 16...30: return "Leisurely (\(value)s)"
+        case 1 ... 5: return "Quick (\(value)s)"
+        case 6 ... 15: return "Normal (\(value)s)"
+        case 16 ... 30: return "Leisurely (\(value)s)"
         default: return "Extended (\(value)s)"
         }
     }
@@ -19,9 +19,9 @@ struct RulesSettingsView: View {
     private var findIconDelayLabel: String {
         let value = Int(menuBarManager.settings.findIconRehideDelay)
         switch value {
-        case 1...5: return "Quick (\(value)s)"
-        case 6...15: return "Normal (\(value)s)"
-        case 16...30: return "Leisurely (\(value)s)"
+        case 1 ... 5: return "Quick (\(value)s)"
+        case 6 ... 15: return "Normal (\(value)s)"
+        case 16 ... 30: return "Leisurely (\(value)s)"
         default: return "Extended (\(value)s)"
         }
     }
@@ -29,9 +29,9 @@ struct RulesSettingsView: View {
     private var hoverDelayLabel: String {
         let ms = Int(menuBarManager.settings.hoverDelay * 1000)
         switch ms {
-        case 0...150: return "Instant"
-        case 151...350: return "Quick"
-        case 351...600: return "Normal"
+        case 0 ... 150: return "Instant"
+        case 151 ... 350: return "Quick"
+        case 351 ... 600: return "Normal"
         default: return "Patient"
         }
     }
@@ -42,7 +42,7 @@ struct RulesSettingsView: View {
                 // 1. Behavior (Hiding)
                 CompactSection("Hiding Behavior") {
                     CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
-                    .help("Automatically hide icons after a delay when revealed")
+                        .help("Automatically hide icons after a delay when revealed")
 
                     if menuBarManager.settings.autoRehide {
                         CompactDivider()
@@ -50,7 +50,7 @@ struct RulesSettingsView: View {
                             HStack {
                                 Text(rehideDelayLabel)
                                     .frame(width: 95, alignment: .trailing)
-                                Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1...60, step: 1)
+                                Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
                                     .labelsHidden()
                                     .help("How long to wait before hiding icons again")
                             }
@@ -60,7 +60,7 @@ struct RulesSettingsView: View {
                             HStack {
                                 Text(findIconDelayLabel)
                                     .frame(width: 95, alignment: .trailing)
-                                Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5...60, step: 5)
+                                Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
                                     .labelsHidden()
                                     .help("Extra time to browse after using Find Icon")
                             }
@@ -84,13 +84,13 @@ struct RulesSettingsView: View {
                 // 2. Gestures (Revealing)
                 CompactSection("Revealing") {
                     CompactToggle(label: "Show when mouse hovers top edge", isOn: $menuBarManager.settings.showOnHover)
-                    .help("Reveal hidden icons when your mouse moves to the top of the screen")
+                        .help("Reveal hidden icons when your mouse moves to the top of the screen")
 
                     if menuBarManager.settings.showOnHover {
                         CompactDivider()
                         CompactRow("Hover Delay") {
                             HStack {
-                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05...1.0, step: 0.05)
+                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 1.0, step: 0.05)
                                     .frame(width: 80)
                                     .help("How long to hover before icons appear")
                                 Text(hoverDelayLabel)
@@ -101,7 +101,7 @@ struct RulesSettingsView: View {
 
                     CompactDivider()
                     CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
-                    .help("Scroll on the menu bar to reveal or hide icons")
+                        .help("Scroll on the menu bar to reveal or hide icons")
 
                     // Gesture behavior picker - only show if scroll is enabled
                     if menuBarManager.settings.showOnScroll {
@@ -139,21 +139,21 @@ struct RulesSettingsView: View {
                 CompactSection("Automatic Triggers") {
                     // Battery
                     CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
-                    .help("Reveal battery and power icons when battery is low")
+                        .help("Reveal battery and power icons when battery is low")
 
                     CompactDivider()
 
                     // App Launch
                     CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
-                    .help("Reveal icons when certain apps are launched")
-                    
+                        .help("Reveal icons when certain apps are launched")
+
                     if menuBarManager.settings.showOnAppLaunch {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("If these apps open:")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(.leading, 4)
-                            
+
                             AppPickerView(
                                 selectedBundleIDs: $menuBarManager.settings.triggerApps,
                                 title: "Select Apps"
@@ -167,7 +167,7 @@ struct RulesSettingsView: View {
 
                     // Network
                     CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
-                    .help("Reveal icons when connecting to specific Wi-Fi networks")
+                        .help("Reveal icons when connecting to specific Wi-Fi networks")
 
                     if menuBarManager.settings.showOnNetworkChange {
                         VStack(alignment: .leading, spacing: 8) {
@@ -211,7 +211,7 @@ struct RulesSettingsView: View {
 
                     // Focus Mode
                     CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
-                    .help("Reveal icons when entering or exiting specific Focus Modes")
+                        .help("Reveal icons when entering or exiting specific Focus Modes")
 
                     if menuBarManager.settings.showOnFocusModeChange {
                         VStack(alignment: .leading, spacing: 8) {
@@ -274,9 +274,70 @@ struct RulesSettingsView: View {
                         .padding(.vertical, 8)
                         .padding(.horizontal, 4)
                     }
+
+                    CompactDivider()
+
+                    // Script Trigger
+                    CompactToggle(label: "Show via shell script", isOn: $menuBarManager.settings.scriptTriggerEnabled)
+                        .help("Run a script on a timer — exit 0 shows icons, non-zero hides")
+
+                    if menuBarManager.settings.scriptTriggerEnabled {
+                        ScriptTriggerSettingsView()
+                    }
                 }
             }
             .padding(20)
         }
+    }
+}
+
+// MARK: - Script Trigger Settings
+
+private struct ScriptTriggerSettingsView: View {
+    @ObservedObject private var menuBarManager = MenuBarManager.shared
+
+    private var intervalLabel: String {
+        let value = Int(menuBarManager.settings.scriptTriggerInterval)
+        return "\(value)s"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Script path
+            HStack {
+                TextField("Script path", text: $menuBarManager.settings.scriptTriggerPath)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+
+                Button("Browse...") {
+                    let panel = NSOpenPanel()
+                    panel.allowedContentTypes = [.unixExecutable, .shellScript, .script, .plainText]
+                    panel.canChooseDirectories = false
+                    panel.allowsMultipleSelection = false
+                    panel.message = "Select a shell script (must be executable)"
+
+                    if panel.runModal() == .OK, let url = panel.url {
+                        menuBarManager.settings.scriptTriggerPath = url.path
+                    }
+                }
+                .controlSize(.small)
+            }
+
+            // Interval stepper
+            CompactRow("Check every") {
+                HStack {
+                    Text(intervalLabel)
+                        .frame(width: 40, alignment: .trailing)
+                    Stepper("", value: $menuBarManager.settings.scriptTriggerInterval, in: 1 ... 60, step: 1)
+                        .labelsHidden()
+                }
+            }
+
+            Text("Exit code 0 = show hidden icons, non-zero = hide.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
     }
 }
