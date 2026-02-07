@@ -96,7 +96,7 @@ module SaneMasterModules
       stuck_pids = `pgrep -f 'xcodebuild|xctest' 2>/dev/null`.strip.split
       stuck_pids.reject do |pid|
         cmd = `ps -p #{pid} -o command= 2>/dev/null`.strip
-        cmd.include?('xcodebuildmcp') || cmd.include?('XcodeBuildMCP')
+        cmd.include?('mcpbridge')
       end
     end
 
@@ -138,7 +138,9 @@ module SaneMasterModules
       puts '📱 Swift Factoring:'
       issues = []
 
-      swift_files = Dir.glob('__PROJECT_NAME__/**/*.swift') + Dir.glob('__PROJECT_NAME__Tests/**/*.swift')
+      app_dir = project_app_dir
+      tests_dir = project_tests_dir
+      swift_files = Dir.glob("#{app_dir}/**/*.swift") + Dir.glob("#{tests_dir}/**/*.swift")
 
       # Exclude generated files
       swift_files.reject! { |f| f.include?('Mocks.swift') || f.include?('.generated.') }
@@ -155,7 +157,9 @@ module SaneMasterModules
           issues << { file: fd[:file], lines: fd[:lines], severity: :hard }
           shown += 1
         elsif fd[:lines] > SWIFT_FILE_SOFT_LIMIT && shown < 5
-          puts "   ⚠️  #{fd[:file].sub('__PROJECT_NAME__/', '')}: #{fd[:lines]} lines"
+          display_path = fd[:file].sub(%r{^#{Regexp.escape(app_dir)}/}, '')
+          display_path = display_path.sub(%r{^#{Regexp.escape(tests_dir)}/}, '')
+          puts "   ⚠️  #{display_path}: #{fd[:lines]} lines"
           issues << { file: fd[:file], lines: fd[:lines], severity: :soft }
           shown += 1
         end
@@ -198,7 +202,7 @@ module SaneMasterModules
       end
 
       # Fallback: count test files
-      test_files = Dir.glob('__PROJECT_NAME__Tests/**/*Tests.swift').count
+      test_files = Dir.glob("#{project_tests_dir}/**/*Tests.swift").count
       puts "   ✅ #{test_files} test files"
       puts ''
       { count: test_files, status: :ok }
@@ -256,12 +260,12 @@ module SaneMasterModules
       ]
 
       issues = { tautologies: [], hardcoded: [] }
-      test_files = Dir.glob('__PROJECT_NAME__Tests/**/*.swift')
+      test_files = Dir.glob("#{project_tests_dir}/**/*.swift")
 
       test_files.each do |file|
         content = File.read(file)
         lines = content.lines
-        relative_path = file.sub('__PROJECT_NAME__Tests/', '')
+        relative_path = file.sub(%r{^#{Regexp.escape(project_tests_dir)}/}, '')
 
         # Check tautology patterns with line numbers
         tautology_patterns.each do |pat|
@@ -350,8 +354,8 @@ module SaneMasterModules
     def check_mock_freshness
       puts '🎭 Mock Freshness:'
 
-      mocks_file = '__PROJECT_NAME__Tests/Mocks/Mocks.swift'
-      protocol_dir = '__PROJECT_NAME__/Core/Protocols'
+      mocks_file = File.join(project_tests_dir, 'Mocks', 'Mocks.swift')
+      protocol_dir = File.join(project_app_dir, 'Core', 'Protocols')
 
       # Check if any protocols exist first
       protocol_files = Dir.glob("#{protocol_dir}/**/*.swift")
@@ -390,7 +394,7 @@ module SaneMasterModules
       puts '💥 Crash Backlog:'
 
       crash_dir = File.expand_path('~/Library/Logs/DiagnosticReports')
-      recent_crashes = Dir.glob("#{crash_dir}/__PROJECT_NAME__*.ips").select do |f|
+      recent_crashes = Dir.glob("#{crash_dir}/#{project_name}*.ips").select do |f|
         File.mtime(f) > (Time.now - (7 * 24 * 60 * 60)) # Last 7 days
       end
 
@@ -555,9 +559,9 @@ module SaneMasterModules
         mcp = JSON.parse(File.read(mcp_file))
         servers = mcp['mcpServers'] || {}
 
-        # NOTE: XcodeBuildMCP is configured globally, not per-project
+        # NOTE: xcode MCP is configured globally (xcrun mcpbridge)
         # NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) instead
-        required = %w[apple-docs github context7]
+        required = %w[apple-docs github context7 xcode]
 
         required.each do |name|
           if servers[name]

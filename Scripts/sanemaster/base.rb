@@ -22,6 +22,85 @@ module SaneMasterModules
     TEMPLATE_DIR = File.expand_path('~/.sanemaster/templates')
     MEMORY_FILE = File.join(Dir.pwd, '.claude', 'memory.json')
 
+    # --- Project Resolution ---
+
+    def project_name
+      @project_name ||= config_value(%w[name], 'SANEMASTER_PROJECT', File.basename(Dir.pwd))
+    end
+
+    def project_scheme
+      @project_scheme ||= config_value(%w[scheme], 'SANEMASTER_SCHEME', project_name)
+    end
+
+    def project_xcodeproj
+      @project_xcodeproj ||= begin
+        from_config = config_value(%w[build xcodeproj], 'SANEMASTER_XCODEPROJ', nil) || saneprocess_value('project')
+        from_config || Dir.glob('*.xcodeproj').first || "#{project_name}.xcodeproj"
+      end
+    end
+
+    def project_workspace
+      @project_workspace ||= config_value(%w[build workspace], 'SANEMASTER_WORKSPACE', nil)
+    end
+
+    def xcodebuild_container_args
+      if project_workspace && !project_workspace.to_s.empty?
+        ['-workspace', project_workspace]
+      elsif project_xcodeproj && !project_xcodeproj.to_s.empty?
+        ['-project', project_xcodeproj]
+      else
+        []
+      end
+    end
+
+    def project_app_dir
+      @project_app_dir ||= config_value(%w[build app_dir], 'SANEMASTER_APP_DIR', project_name)
+    end
+
+    def project_tests_dir
+      @project_tests_dir ||= config_value(%w[tests unit_dir], 'SANEMASTER_TESTS_DIR', "#{project_name}Tests")
+    end
+
+    def project_ui_tests_dir
+      @project_ui_tests_dir ||= config_value(%w[tests ui_dir], 'SANEMASTER_UI_TESTS_DIR', "#{project_name}UITests")
+    end
+
+    def project_test_target
+      @project_test_target ||= config_value(%w[tests unit_target], 'SANEMASTER_TEST_TARGET', project_tests_dir)
+    end
+
+    def project_ui_test_target
+      @project_ui_test_target ||= config_value(%w[tests ui_target], 'SANEMASTER_UI_TEST_TARGET', project_ui_tests_dir)
+    end
+
+    def saneprocess_config
+      return @saneprocess_config if defined?(@saneprocess_config)
+
+      path = File.join(Dir.pwd, '.saneprocess')
+      @saneprocess_config = if File.exist?(path)
+                              YAML.safe_load(File.read(path)) || {}
+                            else
+                              {}
+                            end
+    rescue StandardError
+      @saneprocess_config = {}
+    end
+
+    def saneprocess_value(*keys)
+      keys.reduce(saneprocess_config) do |acc, key|
+        break nil unless acc.is_a?(Hash)
+
+        acc[key] || acc[key.to_s]
+      end
+    end
+
+    def config_value(config_keys, env_key, fallback)
+      return ENV[env_key] if ENV.key?(env_key)
+
+      value = saneprocess_value(*config_keys)
+      value.nil? ? fallback : value
+    end
+
     # --- Tool Versions ---
     TOOL_VERSIONS = {
       'swiftlint' => { cmd: 'swiftlint --version', min: '0.62.0' },

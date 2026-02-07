@@ -35,7 +35,7 @@ module SaneMasterModules
       project_output = File.join(Dir.pwd, 'Output')
       FileUtils.mkdir_p(project_output)
       output_dir = options[:output] || project_output
-      pdf_path = File.join(output_dir, "__PROJECT_NAME___Code_#{timestamp}.pdf")
+      pdf_path = File.join(output_dir, "#{project_name}_Code_#{timestamp}.pdf")
 
       generate_pdf(files, pdf_path, highlight: options[:highlight])
 
@@ -129,7 +129,7 @@ module SaneMasterModules
         pdf.move_down 180
 
         pdf.font('Helvetica', size: 42, style: :bold)
-        pdf.text '__PROJECT_NAME__', align: :center, color: '1a1a1a'
+        pdf.text project_name, align: :center, color: '1a1a1a'
 
         pdf.move_down 8
         pdf.font('Helvetica', size: 14)
