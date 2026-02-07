@@ -1,16 +1,15 @@
-import Testing
 import Foundation
 @testable import SaneBar
+import Testing
 
 // MARK: - AppleScriptCommandsTests
 
 @Suite("AppleScriptCommands Tests")
 struct AppleScriptCommandsTests {
-
     // MARK: - Command Class Existence Tests
 
     @Test("ToggleCommand class exists and inherits directly from NSScriptCommand")
-    func testToggleCommandExists() {
+    func toggleCommandExists() {
         let command = ToggleCommand()
         // Verify the type hierarchy via class name (avoids 'is' tautology warning)
         let superclassName = String(describing: type(of: command).superclass())
@@ -18,14 +17,14 @@ struct AppleScriptCommandsTests {
     }
 
     @Test("ShowCommand class exists and inherits directly from NSScriptCommand")
-    func testShowCommandExists() {
+    func showCommandExists() {
         let command = ShowCommand()
         let superclassName = String(describing: type(of: command).superclass())
         #expect(superclassName.contains("NSScriptCommand") || superclassName.contains("SaneBarScriptCommand"), "ShowCommand should inherit from NSScriptCommand")
     }
 
     @Test("HideCommand class exists and inherits directly from NSScriptCommand")
-    func testHideCommandExists() {
+    func hideCommandExists() {
         let command = HideCommand()
         let superclassName = String(describing: type(of: command).superclass())
         #expect(superclassName.contains("NSScriptCommand") || superclassName.contains("SaneBarScriptCommand"), "HideCommand should inherit from NSScriptCommand")
@@ -34,7 +33,7 @@ struct AppleScriptCommandsTests {
     // MARK: - Command Return Value Tests
 
     @Test("ToggleCommand returns nil from performDefaultImplementation")
-    func testToggleCommandReturnsNil() {
+    func toggleCommandReturnsNil() {
         let command = ToggleCommand()
         let result = command.performDefaultImplementation()
 
@@ -42,25 +41,25 @@ struct AppleScriptCommandsTests {
     }
 
     @Test("ShowCommand returns nil from performDefaultImplementation")
-    func testShowCommandReturnsNil() {
+    func showCommandReturnsNil() {
         let command = ShowCommand()
         let result = command.performDefaultImplementation()
 
         #expect(result == nil, "Show command should return nil")
     }
 
-    @Test("HideCommand returns nil from performDefaultImplementation")
-    func testHideCommandReturnsNil() {
+    @Test("HideCommand returns true from performDefaultImplementation")
+    func hideCommandReturnsTrue() {
         let command = HideCommand()
         let result = command.performDefaultImplementation()
 
-        #expect(result == nil, "Hide command should return nil")
+        #expect(result as? Bool == true, "Hide command should return true")
     }
 
     // MARK: - Objective-C Exposure Tests
 
     @Test("ToggleCommand is exposed to Objective-C with correct name")
-    func testToggleCommandObjCName() {
+    func toggleCommandObjCName() {
         // The @objc(ToggleCommand) attribute exposes it with this name
         let className = NSStringFromClass(ToggleCommand.self)
 
@@ -68,14 +67,14 @@ struct AppleScriptCommandsTests {
     }
 
     @Test("ShowCommand is exposed to Objective-C with correct name")
-    func testShowCommandObjCName() {
+    func showCommandObjCName() {
         let className = NSStringFromClass(ShowCommand.self)
 
         #expect(className.contains("ShowCommand"), "Class should be exposed as ShowCommand")
     }
 
     @Test("HideCommand is exposed to Objective-C with correct name")
-    func testHideCommandObjCName() {
+    func hideCommandObjCName() {
         let className = NSStringFromClass(HideCommand.self)
 
         #expect(className.contains("HideCommand"), "Class should be exposed as HideCommand")
@@ -84,11 +83,11 @@ struct AppleScriptCommandsTests {
     // MARK: - Command Instantiation Tests
 
     @Test("Commands can be instantiated multiple times")
-    func testMultipleInstantiation() {
+    func multipleInstantiation() {
         let toggle1 = ToggleCommand()
         let toggle2 = ToggleCommand()
-        _ = ShowCommand()  // Verify can instantiate
-        _ = HideCommand()  // Verify can instantiate
+        _ = ShowCommand() // Verify can instantiate
+        _ = HideCommand() // Verify can instantiate
 
         #expect(toggle1 !== toggle2, "Each instantiation creates new object")
         #expect(true, "Multiple commands can coexist")
@@ -99,7 +98,7 @@ struct AppleScriptCommandsTests {
     // MARK: - Base Class Tests
 
     @Test("All commands are NSScriptCommand subclasses")
-    func testBaseClass() {
+    func baseClass() {
         // Verify inheritance via superclass check (avoids 'is' tautology warning)
         let toggleSuper = String(describing: ToggleCommand.superclass())
         let showSuper = String(describing: ShowCommand.superclass())
@@ -113,12 +112,12 @@ struct AppleScriptCommandsTests {
     // MARK: - Command Semantics Tests
 
     @Test("Each command type has distinct purpose")
-    func testCommandSemantics() {
+    func commandSemantics() {
         // Document the expected behavior of each command
         let commandPurposes: [String: String] = [
             "ToggleCommand": "Toggles hidden items visibility",
             "ShowCommand": "Shows hidden items",
-            "HideCommand": "Hides items"
+            "HideCommand": "Hides items",
         ]
 
         #expect(commandPurposes.count == 3, "Three distinct commands")
@@ -129,7 +128,7 @@ struct AppleScriptCommandsTests {
     // MARK: - AppleScript Integration Path Tests
 
     @Test("Commands follow NSScriptCommand pattern")
-    func testNSScriptCommandPattern() {
+    func nSScriptCommandPattern() {
         let command = ToggleCommand()
 
         // NSScriptCommand has these key methods
@@ -143,7 +142,7 @@ struct AppleScriptCommandsTests {
     // MARK: - Thread Safety Consideration Tests
 
     @Test("Commands dispatch to MainActor")
-    func testMainActorDispatch() {
+    func mainActorDispatch() {
         // The commands use Task { @MainActor in ... } internally
         // This test documents that expectation
 
@@ -158,12 +157,12 @@ struct AppleScriptCommandsTests {
     // MARK: - SDEF Mapping Tests
 
     @Test("Command class names match expected SDEF mapping")
-    func testSDEFMapping() {
+    func sDEFMapping() {
         // These names must match what's in SaneBar.sdef
         let expectedMappings = [
             "ToggleCommand": "toggle",
             "ShowCommand": "show",
-            "HideCommand": "hide"
+            "HideCommand": "hide",
         ]
 
         // Verify class names exist via NSStringFromClass (avoids metatype-to-nil comparison)

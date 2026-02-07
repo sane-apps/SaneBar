@@ -74,8 +74,9 @@ final class ToggleCommand: SaneBarScriptCommand {
 @objc(ShowCommand)
 final class ShowCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        // Block if auth is required - AppleScript can't prompt Touch ID
-        if checkAuthRequired() {
+        // Only block if auth is required AND icons are currently hidden
+        // (no need to block if they're already visible)
+        if checkAuthRequired(), checkIsHidden() {
             setAuthBlockedError()
             return nil
         }
@@ -95,7 +96,7 @@ final class HideCommand: SaneBarScriptCommand {
         Task { @MainActor in
             MenuBarManager.shared.hideHiddenItems()
         }
-        return nil
+        return true
     }
 }
 
@@ -165,12 +166,14 @@ final class HideIconCommand: SaneBarScriptCommand {
         let semaphore = DispatchSemaphore(value: 0)
         let box = ScriptResultBox(false)
         let alwaysHiddenEnabled = ScriptResultBox(false)
+        let completed = ScriptResultBox(false)
 
         Task { @MainActor in
             let manager = MenuBarManager.shared
             alwaysHiddenEnabled.value = manager.settings.alwaysHiddenSectionEnabled
 
             guard manager.settings.alwaysHiddenSectionEnabled else {
+                completed.value = true
                 semaphore.signal()
                 return
             }
@@ -189,14 +192,21 @@ final class HideIconCommand: SaneBarScriptCommand {
                 box.value = true
             }
 
+            completed.value = true
             semaphore.signal()
         }
 
         _ = semaphore.wait(timeout: .now() + 10.0)
 
+        guard completed.value else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
+            return false
+        }
+
         if !alwaysHiddenEnabled.value {
             scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Always-hidden section is not enabled. Turn it on in SaneBar Settings > Experimental first."
+            scriptErrorString = "Always-hidden section is not enabled. Turn it on in SaneBar Settings > Advanced first."
             return false
         }
 

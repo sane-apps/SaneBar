@@ -9,7 +9,7 @@ struct SettingsView: View {
         case rules = "Rules"
         case appearance = "Appearance"
         case shortcuts = "Shortcuts"
-        case experimental = "Experimental"
+        case experimental = "Advanced"
         case about = "About"
 
         var id: String { rawValue }
@@ -45,7 +45,7 @@ struct SettingsView: View {
                     .navigationTitle("Shortcuts")
             case .experimental:
                 ExperimentalSettingsView()
-                    .navigationTitle("Experimental")
+                    .navigationTitle("Advanced")
             case .about:
                 AboutSettingsView()
                     .navigationTitle("About")
@@ -57,28 +57,28 @@ struct SettingsView: View {
         .frame(minWidth: 700, minHeight: 450)
         .background(SaneGradientBackground())
     }
-    
+
     // MARK: - Icons
-    
+
     private func icon(for tab: SettingsTab) -> String {
         switch tab {
-        case .general: return "gear"
-        case .rules: return "wand.and.stars"
-        case .appearance: return "paintpalette"
-        case .shortcuts: return "keyboard"
-        case .experimental: return "flask"
-        case .about: return "info.circle"
+        case .general: "gear"
+        case .rules: "wand.and.stars"
+        case .appearance: "paintpalette"
+        case .shortcuts: "keyboard"
+        case .experimental: "flask"
+        case .about: "info.circle"
         }
     }
-    
+
     private func iconColor(for tab: SettingsTab) -> Color {
         switch tab {
-        case .general: return .gray
-        case .rules: return .purple
-        case .appearance: return .blue
-        case .shortcuts: return .orange
-        case .experimental: return .orange
-        case .about: return .secondary
+        case .general: .gray
+        case .rules: .purple
+        case .appearance: .blue
+        case .shortcuts: .orange
+        case .experimental: .orange
+        case .about: .secondary
         }
     }
 }
