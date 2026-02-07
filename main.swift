@@ -27,16 +27,21 @@ if args.contains("--unregister") {
 app.setActivationPolicy(.accessory)
 
 // SAFETY: Enforce bundle ID separation between dev and release builds
+// ProdDebug config uses production bundle ID intentionally (for testing with real permissions)
 let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
-let env = ProcessInfo.processInfo.environment
-#if DEBUG
-if bundleId == "com.sanebar.app" && env["SANEBAR_ALLOW_PROD_BUNDLE"] != "1" {
-	fatalError("Debug build is using production bundle ID (com.sanebar.app). Set SANEBAR_ALLOW_PROD_BUNDLE=1 to override.")
-}
+#if PRODDEBUG
+// ProdDebug: production bundle ID is expected — no check needed
+#elseif DEBUG
+    if bundleId == "com.sanebar.app" {
+        let env = ProcessInfo.processInfo.environment
+        if env["SANEBAR_ALLOW_PROD_BUNDLE"] != "1" {
+            fatalError("Debug build is using production bundle ID (com.sanebar.app). Use ProdDebug config or set SANEBAR_ALLOW_PROD_BUNDLE=1.")
+        }
+    }
 #else
-if bundleId != "com.sanebar.app" {
-	fatalError("Release build must use production bundle ID (com.sanebar.app). Found: \(bundleId)")
-}
+    if bundleId != "com.sanebar.app" {
+        fatalError("Release build must use production bundle ID (com.sanebar.app). Found: \(bundleId)")
+    }
 #endif
 
 let delegate = SaneBarAppDelegate()

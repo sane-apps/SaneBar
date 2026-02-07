@@ -87,7 +87,7 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
 
-        let item = NSStatusBar.system.statusItem(withLength: 8)
+        let item = NSStatusBar.system.statusItem(withLength: 14)
         item.autosaveName = Self.alwaysHiddenSeparatorAutosaveName
 
         if let button = item.button {
@@ -156,7 +156,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     private func configureAlwaysHiddenSeparatorButton(_ button: NSStatusBarButton) {
         button.identifier = NSUserInterfaceItemIdentifier("SaneBar.alwaysHiddenSeparator")
         button.image = nil
-        button.title = ""
+        button.title = "/"
+        button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        button.alphaValue = 0.4
     }
 
     // MARK: - Appearance

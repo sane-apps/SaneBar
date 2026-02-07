@@ -129,6 +129,7 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           CODE_SIGN_IDENTITY: "Developer ID Application"

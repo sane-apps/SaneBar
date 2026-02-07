@@ -82,7 +82,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var findIconRehideDelay: TimeInterval = 15.0
 
     /// Number of spacers to show (0-12)
-    var spacerCount: Int = 2 // Default to 2 dividers for immediate value discovery
+    var spacerCount: Int = 0 // Clean by default — users add spacers if they want them
 
     /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line
@@ -248,7 +248,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         autoRehide = try container.decodeIfPresent(Bool.self, forKey: .autoRehide) ?? true
         rehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .rehideDelay) ?? 5.0
         findIconRehideDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .findIconRehideDelay) ?? 15.0
-        spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 2
+        spacerCount = try container.decodeIfPresent(Int.self, forKey: .spacerCount) ?? 0
         spacerStyle = try container.decodeIfPresent(SpacerStyle.self, forKey: .spacerStyle) ?? .line
         spacerWidth = try container.decodeIfPresent(SpacerWidth.self, forKey: .spacerWidth) ?? .normal
         showOnAppLaunch = try container.decodeIfPresent(Bool.self, forKey: .showOnAppLaunch) ?? false
