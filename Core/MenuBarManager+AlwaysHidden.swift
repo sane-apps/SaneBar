@@ -18,7 +18,7 @@ extension MenuBarManager {
     func pinAlwaysHidden(app: RunningApp) {
         let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidPinId(id) else {
-            logger.warning("Rejecting invalid pin ID: \(id, privacy: .public)")
+            logger.warning("Rejecting invalid pin ID: \(id, privacy: .private)")
             return
         }
 
@@ -119,7 +119,8 @@ extension MenuBarManager {
     func isInAlwaysHiddenZone(itemX: CGFloat, itemWidth: CGFloat?, alwaysHiddenSeparatorX: CGFloat) -> Bool {
         let width = max(1, itemWidth ?? 22)
         let midX = itemX + (width / 2)
-        let margin: CGFloat = 6
+        // Scale margin with icon width — small icons get tighter detection
+        let margin = max(4, width * 0.3)
         return midX < (alwaysHiddenSeparatorX - margin)
     }
 
@@ -177,19 +178,33 @@ extension MenuBarManager {
 
         guard !filteredPins.isEmpty else { return }
 
-        guard let alwaysHiddenSeparatorX = await waitForAlwaysHiddenSeparatorX() else {
+        let wasHidden = hidingState == .hidden
+
+        // Reveal ALL items using the shield pattern (safe from any state)
+        await hidingService.showAll()
+        try? await Task.sleep(for: .milliseconds(300))
+
+        guard let alwaysHiddenSeparatorX = getAlwaysHiddenSeparatorOriginX() else {
             logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): separator position unavailable")
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
             return
         }
 
         // Validate separator ordering: always-hidden separator must be LEFT of main separator
         if let mainSeparatorX = getSeparatorOriginX(), alwaysHiddenSeparatorX >= mainSeparatorX {
             logger.error("Always-hidden separator (\(alwaysHiddenSeparatorX)) is not left of main separator (\(mainSeparatorX)) — skipping enforcement")
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
             return
         }
 
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        if Task.isCancelled { return }
+        if Task.isCancelled {
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
+            return
+        }
 
         var itemsByUniqueId: [String: AccessibilityService.MenuBarItemPosition] = [:]
         itemsByUniqueId.reserveCapacity(items.count)
@@ -207,11 +222,15 @@ extension MenuBarManager {
             }
         }
 
-        guard !pinnedItems.isEmpty else { return }
+        guard !pinnedItems.isEmpty else {
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
+            return
+        }
 
         var seenUniqueIds = Set<String>()
         for item in pinnedItems {
-            if Task.isCancelled { return }
+            if Task.isCancelled { break }
             let uniqueId = item.app.uniqueId
             guard seenUniqueIds.insert(uniqueId).inserted else { continue }
 
@@ -222,8 +241,10 @@ extension MenuBarManager {
             )
             guard !alreadyAlwaysHidden else { continue }
 
-            logger.info("Enforcing always-hidden pin (\(reason, privacy: .public)): moving \(uniqueId, privacy: .public)")
+            logger.info("Enforcing always-hidden pin (\(reason, privacy: .public)): moving \(uniqueId, privacy: .private)")
 
+            // All items are on-screen (via showAll), so moveIconAndWait can
+            // find the icon and the target position is accurate.
             _ = await moveIconAndWait(
                 bundleID: item.app.bundleId,
                 menuExtraId: item.app.menuExtraIdentifier,
@@ -231,6 +252,12 @@ extension MenuBarManager {
                 toHidden: true,
                 separatorOverrideX: alwaysHiddenSeparatorX
             )
+        }
+
+        // Restore: re-block always-hidden items (shield pattern)
+        await hidingService.restoreFromShowAll()
+        if wasHidden {
+            await hidingService.hide()
         }
     }
 }

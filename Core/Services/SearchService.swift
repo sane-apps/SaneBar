@@ -83,7 +83,8 @@ final class SearchService: SearchServiceProtocol {
         guard let separatorX = separatorOriginXForClassification() else { return nil }
 
         guard MenuBarManager.shared.settings.alwaysHiddenSectionEnabled,
-              MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
+              MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
+        else {
             return (separatorX, nil)
         }
 
@@ -91,6 +92,15 @@ final class SearchService: SearchServiceProtocol {
         if let alwaysHiddenSeparatorX, alwaysHiddenSeparatorX >= separatorX {
             logger.warning("Always-hidden separator is not left of main separator; ignoring always-hidden zone")
             return (separatorX, nil)
+        }
+
+        // If exact position unavailable (separator is in blocking mode at 10,000),
+        // use the screen left edge as the boundary. During expanded state,
+        // always-hidden items are pushed off-screen (x < 0) by the blocking separator,
+        // so items left of screen edge = always-hidden, on-screen left of separator = hidden.
+        if alwaysHiddenSeparatorX == nil {
+            let screenMinX = menuBarScreenFrame()?.minX ?? 0
+            return (separatorX, screenMinX)
         }
 
         return (separatorX, alwaysHiddenSeparatorX)
@@ -133,7 +143,7 @@ final class SearchService: SearchServiceProtocol {
                 .filter { app in
                     // Include regular apps and background apps that might have status items
                     app.activationPolicy == .regular ||
-                    app.activationPolicy == .accessory
+                        app.activationPolicy == .accessory
                 }
                 .filter { $0.bundleIdentifier != nil }
                 .map { RunningApp(app: $0) }
@@ -157,7 +167,7 @@ final class SearchService: SearchServiceProtocol {
     func cachedMenuBarApps() -> [RunningApp] {
         // Use position-aware cache for 'All' so we can sort spatially
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
-        return items.map { $0.app }
+        return items.map(\.app)
     }
 
     @MainActor
@@ -176,7 +186,7 @@ final class SearchService: SearchServiceProtocol {
                         alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                     ) == .hidden
                 }
-                .map { $0.app }
+                .map(\.app)
             logger.debug("cachedHidden: found \(apps.count, privacy: .public) hidden apps")
             logIdentityHealth(apps: apps, context: "cachedHidden")
             return apps
@@ -184,10 +194,10 @@ final class SearchService: SearchServiceProtocol {
 
         // Fallback: if separator can't be located, approximate by offscreen or negative X.
         guard let frame = menuBarScreenFrame() else {
-            return items.filter { $0.x < 0 }.map { $0.app }
+            return items.filter { $0.x < 0 }.map(\.app)
         }
 
-        let apps = items.filter { isOffscreen(x: $0.x, in: frame) }.map { $0.app }
+        let apps = items.filter { isOffscreen(x: $0.x, in: frame) }.map(\.app)
 
         logIdentityHealth(apps: apps, context: "cachedHidden")
         return apps
@@ -208,7 +218,7 @@ final class SearchService: SearchServiceProtocol {
                         alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                     ) == .alwaysHidden
                 }
-                .map { $0.app }
+                .map(\.app)
             logger.debug("cachedAlwaysHidden: found \(apps.count, privacy: .public) always hidden apps")
             logIdentityHealth(apps: apps, context: "cachedAlwaysHidden")
             return apps
@@ -233,7 +243,7 @@ final class SearchService: SearchServiceProtocol {
                         alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                     ) == .visible
                 }
-                .map { $0.app }
+                .map(\.app)
             logger.debug("cachedVisible: found \(apps.count, privacy: .public) visible apps")
             logIdentityHealth(apps: apps, context: "cachedVisible")
             return apps
@@ -241,13 +251,13 @@ final class SearchService: SearchServiceProtocol {
 
         // Fallback: when separator unavailable, treat all items as visible
         logger.debug("cachedVisible: no separator, returning all \(items.count, privacy: .public) items")
-        return items.map { $0.app }
+        return items.map(\.app)
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
         // Refresh positions to ensure 'All' is sorted spatially
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        return items.map { $0.app }
+        return items.map(\.app)
     }
 
     func refreshHiddenMenuBarApps() async -> [RunningApp] {
@@ -266,7 +276,7 @@ final class SearchService: SearchServiceProtocol {
                         alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                     ) == .hidden
                 }
-                .map { $0.app }
+                .map(\.app)
             await MainActor.run {
                 self.logIdentityHealth(apps: apps, context: "refreshHidden")
             }
@@ -274,10 +284,10 @@ final class SearchService: SearchServiceProtocol {
         }
 
         guard let frame else {
-            return items.filter { $0.x < 0 }.map { $0.app }
+            return items.filter { $0.x < 0 }.map(\.app)
         }
 
-        let apps = items.filter { self.isOffscreen(x: $0.x, in: frame) }.map { $0.app }
+        let apps = items.filter { self.isOffscreen(x: $0.x, in: frame) }.map(\.app)
         await MainActor.run {
             self.logIdentityHealth(apps: apps, context: "refreshHidden")
         }
@@ -287,7 +297,7 @@ final class SearchService: SearchServiceProtocol {
     func refreshAlwaysHiddenMenuBarApps() async -> [RunningApp] {
         let isEnabled = await MainActor.run {
             MenuBarManager.shared.settings.alwaysHiddenSectionEnabled &&
-            MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
+                MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
         }
         guard isEnabled else { return [] }
 
@@ -307,7 +317,7 @@ final class SearchService: SearchServiceProtocol {
                     alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                 ) == .alwaysHidden
             }
-            .map { $0.app }
+            .map(\.app)
 
         await MainActor.run {
             self.logIdentityHealth(apps: apps, context: "refreshAlwaysHidden")
@@ -332,7 +342,7 @@ final class SearchService: SearchServiceProtocol {
                         alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
                     ) == .visible
                 }
-                .map { $0.app }
+                .map(\.app)
             await MainActor.run {
                 self.logIdentityHealth(apps: apps, context: "refreshVisible")
             }
@@ -341,7 +351,7 @@ final class SearchService: SearchServiceProtocol {
 
         // Not hiding: treat everything as visible.
         _ = frame // keep for potential future debug; intentionally unused.
-        let apps = items.map { $0.app }
+        let apps = items.map(\.app)
         await MainActor.run {
             self.logIdentityHealth(apps: apps, context: "refreshVisible")
         }
@@ -368,12 +378,12 @@ final class SearchService: SearchServiceProtocol {
 
         if !duplicateIds.isEmpty {
             let sample = duplicateIds.prefix(10).map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
-            logger.error("Find Icon \(context, privacy: .public): DUPLICATE ids detected: \(sample, privacy: .public)")
+            logger.error("Find Icon \(context, privacy: .public): DUPLICATE ids detected: \(sample, privacy: .private)")
         }
 
         // Helpful sample of what the UI will render.
         for app in apps.prefix(12) {
-            logger.debug("Find Icon sample (\(context, privacy: .public)): id=\(app.id, privacy: .public) bundleId=\(app.bundleId, privacy: .public) menuExtraId=\(app.menuExtraIdentifier ?? "nil", privacy: .public) name=\(app.name, privacy: .public)")
+            logger.debug("Find Icon sample (\(context, privacy: .public)): id=\(app.id, privacy: .private) bundleId=\(app.bundleId, privacy: .private) menuExtraId=\(app.menuExtraIdentifier ?? "nil", privacy: .private) name=\(app.name, privacy: .private)")
         }
     }
 

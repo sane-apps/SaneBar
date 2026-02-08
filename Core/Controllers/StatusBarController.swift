@@ -133,8 +133,13 @@ final class StatusBarController: StatusBarControllerProtocol {
         let key = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
 
         if defaults.object(forKey: key) == nil {
-            logger.info("Seeding initial always-hidden separator position")
-            defaults.set(2, forKey: key)
+            // Position must be to the LEFT of the main separator.
+            // Use the separator's current position + offset, or a large default.
+            let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
+            let sepPos = defaults.double(forKey: sepKey)
+            let position = sepPos > 10 ? sepPos + 30 : 200
+            logger.info("Seeding initial always-hidden separator position: \(position)")
+            defaults.set(position, forKey: key)
         }
     }
 
@@ -164,9 +169,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     private func configureAlwaysHiddenSeparatorButton(_ button: NSStatusBarButton) {
         button.identifier = NSUserInterfaceItemIdentifier("SaneBar.alwaysHiddenSeparator")
         button.image = nil
-        button.title = "/"
-        button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        button.alphaValue = 0.8
+        button.title = "┊"
+        button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .light)
+        button.alphaValue = 0.5
     }
 
     // MARK: - Appearance
