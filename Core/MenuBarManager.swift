@@ -108,6 +108,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var separatorItem: NSStatusItem?
     /// Optional separator for always-hidden zone (experimental)
     var alwaysHiddenSeparatorItem: NSStatusItem?
+    /// Cached position of always-hidden separator when at visual size (not blocking).
+    /// Used for classification when the separator is at 10,000 length (blocking mode).
+    var lastKnownAlwaysHiddenSeparatorX: CGFloat?
     var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
     /// Flag to prevent setupStatusItem from overwriting externally-provided items
@@ -320,6 +323,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Configure hiding service with delimiter
         hidingService.configure(delimiterItem: separator)
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
         // Now do the rest of setup
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
@@ -459,6 +463,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         if let separator = separatorItem {
             hidingService.configure(delimiterItem: separator)
         }
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
@@ -511,6 +516,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateMainIconVisibility()
                 self?.updateDividerStyle()
                 self?.updateIconStyle()
+                self?.updateAlwaysHiddenSeparator()
                 self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
@@ -529,6 +535,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     logger.debug("App changed - triggering auto-hide")
                     hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
                 }
+            }
+            .store(in: &cancellables)
+
+        // Invalidate cached separator position when screen geometry changes
+        // (monitor plugged/unplugged, resolution change, etc.)
+        NotificationCenter.default
+            .publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.lastKnownAlwaysHiddenSeparatorX = nil
+                logger.debug("Screen parameters changed — invalidated cached separator position")
             }
             .store(in: &cancellables)
 
@@ -578,6 +595,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         } else {
             statusBarController.updateIconStyle(style)
         }
+    }
+
+    private func updateAlwaysHiddenSeparator() {
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
     }
 
     // MARK: - Main Icon Visibility

@@ -5,7 +5,6 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Interaction")
 
 extension AccessibilityService {
-    
     // MARK: - Actions
 
     func clickMenuBarItem(for bundleID: String) -> Bool {
@@ -144,20 +143,21 @@ extension AccessibilityService {
 
     private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
         let source = CGEventSource(stateID: .combinedSessionState)
-        
+
         let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
         let mouseUpType: CGEventType = isRightClick ? .rightMouseUp : .leftMouseUp
         let mouseButton: CGMouseButton = isRightClick ? .right : .left
 
         guard let mouseDown = CGEvent(mouseEventSource: source, mouseType: mouseDownType, mouseCursorPosition: point, mouseButton: mouseButton),
-              let mouseUp = CGEvent(mouseEventSource: source, mouseType: mouseUpType, mouseCursorPosition: point, mouseButton: mouseButton) else {
+              let mouseUp = CGEvent(mouseEventSource: source, mouseType: mouseUpType, mouseCursorPosition: point, mouseButton: mouseButton)
+        else {
             return false
         }
 
         mouseDown.post(tap: .cghidEventTap)
         Thread.sleep(forTimeInterval: 0.01)
         mouseUp.post(tap: .cghidEventTap)
-        
+
         logger.info("Simulated hardware click at \(point.x), \(point.y)")
         return true
     }
@@ -166,15 +166,18 @@ extension AccessibilityService {
 
     /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag.
     /// Returns `true` only if post-move verification indicates the icon crossed the separator.
+    /// - Parameter visibleBoundaryX: The left edge of SaneBar's main icon. When moving to visible,
+    ///   the target is clamped to stay LEFT of this position so icons don't overshoot past our icon.
     nonisolated func moveMenuBarIcon(
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
         toHidden: Bool,
         separatorX: CGFloat,
+        visibleBoundaryX: CGFloat? = nil,
         originalMouseLocation: CGPoint
     ) -> Bool {
-        logger.error("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .public), menuExtraId=\(menuExtraId ?? "nil", privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public)")
+        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public)")
 
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -182,27 +185,38 @@ extension AccessibilityService {
         }
 
         guard let iconFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
-            logger.error("🔧 Could not find icon frame for \(bundleID, privacy: .public) (menuExtraId: \(menuExtraId ?? "nil", privacy: .public))")
+            logger.error("🔧 Could not find icon frame for \(bundleID, privacy: .private) (menuExtraId: \(menuExtraId ?? "nil", privacy: .private))")
             return false
         }
 
-        logger.error("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
+        logger.info("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
 
-        // Calculate target position - keep it simple, just get on the correct SIDE of separator
+        // Calculate target position
         // Hidden: LEFT of separator (into hidden zone)
-        // Visible: Further RIGHT of separator (+100 to ensure reliability)
-        let targetX: CGFloat = toHidden ? (separatorX - 50) : (separatorX + 100)
-        
-        logger.error("🔧 Target X: \(targetX, privacy: .public)")
+        // Visible: Just RIGHT of separator, but clamped to stay LEFT of SaneBar's main icon
+        // Use icon width to compute offset — avoids overshooting on small icons
+        // and undershooting on wide ones. Minimum 30px to clear the separator reliably.
+        let moveOffset = max(30, iconFrame.size.width + 20)
+        let targetX: CGFloat = if toHidden {
+            separatorX - moveOffset
+        } else if let boundaryX = visibleBoundaryX {
+            // Place just right of separator, but never past SaneBar's main icon
+            min(separatorX + moveOffset, boundaryX - 20)
+        } else {
+            separatorX + moveOffset
+        }
+
+        logger.info("🔧 Target X: \(targetX, privacy: .public)")
 
         // Apple docs: kAXPositionAttribute returns GLOBAL screen coordinates.
         // CGEvent also uses global screen coordinates.
-        // X coordinate is IDENTICAL in both systems (no conversion needed).
-        // Menu bar is at top of screen; Y≈12 is middle of standard menu bar.
-        let fromPoint = CGPoint(x: iconFrame.midX, y: 12)
-        let toPoint = CGPoint(x: targetX, y: 12)
+        // Use the icon's actual AX Y position instead of hardcoding Y=12,
+        // which breaks with accessibility zoom, enlarged text, or non-standard menu bar heights.
+        let menuBarY = iconFrame.midY
+        let fromPoint = CGPoint(x: iconFrame.midX, y: menuBarY)
+        let toPoint = CGPoint(x: targetX, y: menuBarY)
 
-        logger.error("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
+        logger.info("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
 
         let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
         guard didPostEvents else {
@@ -210,22 +224,37 @@ extension AccessibilityService {
             return false
         }
 
-        // Wait longer for macOS to update the icon's AX position (0.25s)
-        Thread.sleep(forTimeInterval: 0.25)
+        // Poll for AX position stability instead of fixed wait.
+        // On slow Macs, 250ms isn't enough; on fast Macs, we finish sooner.
+        var afterFrame: CGRect?
+        var previousFrame: CGRect?
+        let maxAttempts = 20 // 20 × 50ms = 1s max
+        for attempt in 1 ... maxAttempts {
+            Thread.sleep(forTimeInterval: 0.05)
+            let currentFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)
+            if let current = currentFrame, let previous = previousFrame, current.origin.x == previous.origin.x {
+                afterFrame = current
+                logger.info("🔧 AX position stabilized after \(attempt * 50)ms")
+                break
+            }
+            previousFrame = currentFrame
+            afterFrame = currentFrame
+        }
 
-        guard let afterFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+        guard let afterFrame else {
             logger.error("🔧 Icon position AFTER: unable to re-locate icon")
             return false
         }
 
-        logger.error("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
+        logger.info("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
-        let margin: CGFloat = 8
-        let movedToExpectedSide: Bool
-        if toHidden {
-            movedToExpectedSide = afterFrame.origin.x < (separatorX - margin)
+        // Scale verification margin with icon width — small icons (16px) get ~5px margin,
+        // standard icons (22px) get ~7px, wide icons (44px) get ~14px.
+        let margin = max(4, afterFrame.size.width * 0.3)
+        let movedToExpectedSide: Bool = if toHidden {
+            afterFrame.origin.x < (separatorX - margin)
         } else {
-            movedToExpectedSide = afterFrame.origin.x > (separatorX + margin)
+            afterFrame.origin.x > (separatorX + margin)
         }
 
         if !movedToExpectedSide {
@@ -235,9 +264,9 @@ extension AccessibilityService {
         return movedToExpectedSide
     }
 
-    nonisolated private func getMenuBarIconFrame(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGRect? {
+    private nonisolated func getMenuBarIconFrame(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGRect? {
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
-            logger.error("🔧 getMenuBarIconFrame: App not found for bundleID: \(bundleID, privacy: .public)")
+            logger.error("🔧 getMenuBarIconFrame: App not found for bundleID: \(bundleID, privacy: .private)")
             return nil
         }
 
@@ -246,7 +275,7 @@ extension AccessibilityService {
         var extrasBar: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
         guard result == .success, let bar = extrasBar else {
-            logger.error("🔧 getMenuBarIconFrame: App \(bundleID, privacy: .public) has no AXExtrasMenuBar (Error: \(result.rawValue))")
+            logger.error("🔧 getMenuBarIconFrame: App \(bundleID, privacy: .private) has no AXExtrasMenuBar (Error: \(result.rawValue))")
             return nil
         }
         guard let barElement = safeAXUIElement(bar) else { return nil }
@@ -254,7 +283,7 @@ extension AccessibilityService {
         var children: CFTypeRef?
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
         guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
-            logger.error("🔧 getMenuBarIconFrame: No items found in AXExtrasMenuBar for \(bundleID, privacy: .public)")
+            logger.error("🔧 getMenuBarIconFrame: No items found in AXExtrasMenuBar for \(bundleID, privacy: .private)")
             return nil
         }
 
@@ -271,12 +300,15 @@ extension AccessibilityService {
             }
             targetItem = match
             if targetItem == nil {
-                logger.error("🔧 Could not find status item with identifier: \(extraId, privacy: .public)")
+                logger.error("🔧 Could not find status item with identifier: \(extraId, privacy: .private)")
                 return nil
             }
         } else if let statusItemIndex, items.indices.contains(statusItemIndex) {
             targetItem = items[statusItemIndex]
         } else {
+            if items.count > 1 {
+                logger.warning("🔧 getMenuBarIconFrame: App has \(items.count) status items but no menuExtraId/statusItemIndex — using first item (may be wrong)")
+            }
             targetItem = items[0]
         }
 
@@ -297,7 +329,8 @@ extension AccessibilityService {
         if sizeResult == .success, let sizeVal = sizeValue, let axSizeVal = safeAXValue(sizeVal) {
             var s = CGSize.zero
             if AXValueGetValue(axSizeVal, .cgSize, &s) {
-                size = s
+                // Clamp to prevent 0-width (AX can return 0 for some Control Center items)
+                size = CGSize(width: max(1, s.width), height: max(1, s.height))
             }
         }
 
@@ -310,11 +343,20 @@ extension AccessibilityService {
     }
 
     /// Perform a Cmd+drag operation using CGEvent (runs on background thread)
-    nonisolated private func performCmdDrag(from: CGPoint, to: CGPoint, restoreTo originalCGPoint: CGPoint) -> Bool {
+    private nonisolated func performCmdDrag(from: CGPoint, to: CGPoint, restoreTo originalCGPoint: CGPoint) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let result = ResultBox()
 
         DispatchQueue.global(qos: .userInitiated).async {
+            // Verify target point is on a valid screen (guard against monitor hot-plug mid-drag)
+            let screens = NSScreen.screens
+            let targetOnScreen = screens.contains { $0.frame.contains(to) }
+            if !targetOnScreen, !screens.isEmpty {
+                logger.warning("🔧 performCmdDrag: target point (\(to.x), \(to.y)) is off-screen — aborting")
+                semaphore.signal()
+                return
+            }
+
             guard let mouseDown = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .leftMouseDown,
@@ -345,7 +387,7 @@ extension AccessibilityService {
 
             // Multi-step drag (6 steps for better reliability with macOS WindowServer)
             let steps = 6
-            for i in 1...steps {
+            for i in 1 ... steps {
                 let t = CGFloat(i) / CGFloat(steps)
                 let x = from.x + (to.x - from.x) * t
                 let y = from.y + (to.y - from.y) * t
@@ -386,8 +428,19 @@ extension AccessibilityService {
             semaphore.signal()
         }
 
-        _ = semaphore.wait(timeout: .now() + 1.0)
+        let waitResult = semaphore.wait(timeout: .now() + 2.0)
+        if waitResult == .timedOut {
+            logger.error("🔧 performCmdDrag: semaphore timed out — forcing mouseUp to prevent stuck cursor")
+            // Force-release mouse button to prevent cursor being stuck in drag state
+            if let forceUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: to, mouseButton: .left) {
+                forceUp.post(tap: .cghidEventTap)
+            }
+            // Restore cursor position even on timeout
+            if let restore = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: originalCGPoint, mouseButton: .left) {
+                restore.post(tap: .cghidEventTap)
+            }
+            return false
+        }
         return result.value
     }
-
 }

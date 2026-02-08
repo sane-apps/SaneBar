@@ -47,8 +47,7 @@ struct MenuBarSearchView: View {
     @State private var selectedSmartCategory: AppCategory?
     @State private var isCreatingGroup = false
     @State private var newGroupName = ""
-    @State private var showMoveInstructions = false
-    @State private var moveInstructionsForHidden = false // true if moving FROM hidden TO visible
+    @State private var movingAppId: String?
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
@@ -68,7 +67,7 @@ struct MenuBarSearchView: View {
 
     private var mode: Mode {
         let current = Mode(rawValue: storedMode) ?? .all
-        if current == .alwaysHidden && !isAlwaysHiddenEnabled {
+        if current == .alwaysHidden, !isAlwaysHiddenEnabled {
             return .all
         }
         return current
@@ -171,7 +170,8 @@ struct MenuBarSearchView: View {
             refreshApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .menuBarIconsDidChange)) { _ in
-            // Icons were moved - refresh the list
+            // Icons were moved - refresh the list and clear loading state
+            movingAppId = nil
             loadCachedApps()
             refreshApps(force: true)
         }
@@ -204,16 +204,14 @@ struct MenuBarSearchView: View {
                 }
             }
         }
-        .alert(
-            moveInstructionsForHidden ? "Move to Visible" : "Move to Hidden",
-            isPresented: $showMoveInstructions
-        ) {
-            Button("OK") {}
-        } message: {
-            if moveInstructionsForHidden {
-                Text("To show this icon:\n\n⌘-drag it to the RIGHT of the / separator in your menu bar.")
-            } else {
-                Text("To hide this icon:\n\n⌘-drag it to the LEFT of the / separator in your menu bar.")
+        .onChange(of: movingAppId) { _, newValue in
+            // Auto-clear spinner after 5s in case the notification never fires
+            guard newValue != nil else { return }
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                if movingAppId == newValue {
+                    movingAppId = nil
+                }
             }
         }
         .onExitCommand {
@@ -553,14 +551,12 @@ struct MenuBarSearchView: View {
                     .controlSize(.small)
             }
 
-            let label: String = {
-                switch mode {
-                case .hidden: "hidden"
-                case .visible: "visible"
-                case .alwaysHidden: "always hidden"
-                case .all: "icons"
-                }
-            }()
+            let label = switch mode {
+            case .hidden: "hidden"
+            case .visible: "visible"
+            case .alwaysHidden: "always hidden"
+            case .all: "icons"
+            }
 
             Text("\(filteredApps.count) \(label)")
                 .foregroundStyle(.tertiary)
@@ -696,17 +692,27 @@ struct MenuBarSearchView: View {
                                 let statusItemIndex = app.statusItemIndex
                                 let toHidden = (mode == .visible)
 
-                                // If the user is moving an item OUT of Always Hidden, unpin it so it doesn't snap back on next launch.
-                                if mode == .alwaysHidden && !toHidden {
-                                    menuBarManager.unpinAlwaysHidden(app: app)
-                                }
+                                movingAppId = app.uniqueId
 
-                                _ = menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
+                                // Moving OUT of always-hidden requires temporarily contracting
+                                // the always-hidden separator so the icon is on-screen.
+                                if mode == .alwaysHidden {
+                                    menuBarManager.unpinAlwaysHidden(app: app)
+                                    _ = menuBarManager.moveIconFromAlwaysHidden(
+                                        bundleID: bundleID,
+                                        menuExtraId: menuExtraId,
+                                        statusItemIndex: statusItemIndex
+                                    )
+                                } else {
+                                    _ = menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
+                                }
                             },
                             onMoveToAlwaysHidden: isAlwaysHiddenEnabled && mode != .alwaysHidden ? {
                                 let bundleID = app.bundleId
                                 let menuExtraId = app.menuExtraIdentifier
                                 let statusItemIndex = app.statusItemIndex
+
+                                movingAppId = app.uniqueId
 
                                 // Persist the intent so we can re-apply after reboot/login drift.
                                 menuBarManager.pinAlwaysHidden(app: app)
@@ -717,6 +723,7 @@ struct MenuBarSearchView: View {
                                     statusItemIndex: statusItemIndex
                                 )
                             } : nil,
+                            isMoving: movingAppId == app.uniqueId,
                             isSelected: selectedAppIndex == index
                         )
                     }

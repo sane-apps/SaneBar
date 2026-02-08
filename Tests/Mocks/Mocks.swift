@@ -558,6 +558,7 @@ final class HidingServiceProtocolMock: HidingServiceProtocol {
     }
 
     var isAnimating: Bool = false
+    var isTransitioning: Bool = false
 
     private(set) var configureCallCount = 0
     var configureArgValues = [StatusItemProtocol]()
@@ -594,6 +595,31 @@ final class HidingServiceProtocolMock: HidingServiceProtocol {
         hideCallCount += 1
         if let hideHandler {
             await hideHandler()
+        }
+    }
+
+    private(set) var configureAlwaysHiddenDelimiterCallCount = 0
+    var configureAlwaysHiddenDelimiterArgValues = [StatusItemProtocol?]()
+    func configureAlwaysHiddenDelimiter(_ item: StatusItemProtocol?) {
+        configureAlwaysHiddenDelimiterCallCount += 1
+        configureAlwaysHiddenDelimiterArgValues.append(item)
+    }
+
+    private(set) var showAllCallCount = 0
+    var showAllHandler: (() async -> Void)?
+    func showAll() async {
+        showAllCallCount += 1
+        if let showAllHandler {
+            await showAllHandler()
+        }
+    }
+
+    private(set) var restoreFromShowAllCallCount = 0
+    var restoreFromShowAllHandler: (() async -> Void)?
+    func restoreFromShowAll() async {
+        restoreFromShowAllCallCount += 1
+        if let restoreFromShowAllHandler {
+            await restoreFromShowAllHandler()
         }
     }
 }

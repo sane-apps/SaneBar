@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - Tile
 
@@ -17,10 +17,13 @@ struct MenuBarAppTile: View {
     var onToggleHidden: (() -> Void)?
 
     /// Callback when user wants to move an icon into the always-hidden zone
-    var onMoveToAlwaysHidden: (() -> Void)? = nil
+    var onMoveToAlwaysHidden: (() -> Void)?
 
     /// Whether to show app name below icon (for users with many apps)
     var showName: Bool = true
+
+    /// Whether a move operation is in progress for this tile
+    var isMoving: Bool = false
 
     /// Whether this tile is selected via keyboard navigation
     var isSelected: Bool = false
@@ -47,6 +50,12 @@ struct MenuBarAppTile: View {
                     }
                     .aspectRatio(contentMode: .fit)
                     .frame(width: iconSize * 0.7, height: iconSize * 0.7)
+                    .opacity(isMoving ? 0.4 : 1.0)
+
+                    if isMoving {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
                 }
                 .frame(width: iconSize, height: iconSize)
 
@@ -71,7 +80,7 @@ struct MenuBarAppTile: View {
             )
         })
         .buttonStyle(.plain)
-        .draggable(app.bundleId)  // Enable drag with bundle ID as payload
+        .draggable(app.bundleId) // Enable drag with bundle ID as payload
         .help(app.name)
         .contextMenu {
             Button("Left-Click (Open)") {
