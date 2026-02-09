@@ -740,6 +740,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     func toggleHiddenItems() {
+        // Dropdown panel mode: toggle the panel instead of expanding/collapsing the delimiter
+        if settings.useDropdownPanel {
+            SearchWindowController.shared.toggle()
+            return
+        }
+
         Task {
             let currentState = hidingService.state
             let authRequired = settings.requireAuthToShowHiddenIcons
@@ -783,6 +789,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Search and hotkeys should await this before attempting virtual clicks.
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
+        // Dropdown panel mode: show the panel instead
+        if settings.useDropdownPanel {
+            SearchWindowController.shared.show()
+            return true
+        }
+
         if settings.requireAuthToShowHiddenIcons {
             guard !isAuthenticating else { return false }
             isAuthenticating = true
@@ -821,6 +833,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     func hideHiddenItems() {
+        // Dropdown panel mode: close the panel instead
+        if settings.useDropdownPanel {
+            SearchWindowController.shared.close()
+            return
+        }
+
         Task {
             // Skip hiding if user is on external monitor and setting is enabled
             if shouldSkipHideForExternalMonitor {

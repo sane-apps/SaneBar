@@ -57,8 +57,14 @@ struct MenuBarSearchView: View {
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
+    let isDropdownPanel: Bool
 
-    init(service: SearchServiceProtocol = SearchService.shared, onDismiss: @escaping () -> Void) {
+    init(
+        isDropdownPanel: Bool = false,
+        service: SearchServiceProtocol = SearchService.shared,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.isDropdownPanel = isDropdownPanel
         self.service = service
         self.onDismiss = onDismiss
     }
@@ -123,38 +129,23 @@ struct MenuBarSearchView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            controls
-
-            // Group tabs (always visible so users can create groups)
-            groupTabs
-
-            if isSearchVisible {
-                searchField
+        Group {
+            if isDropdownPanel {
+                dropdownPanelBody
+            } else {
+                findIconBody
             }
-
-            Divider()
-
-            content
-
-            footer
-        }
-        .frame(width: 420, height: 520)
-        .background {
-            // NSVisualEffectView with popover material for solid frosted appearance
-            VisualEffectBackground(
-                material: .popover,
-                blendingMode: .behindWindow
-            )
         }
         .onAppear {
             loadCachedApps()
             refreshApps()
             startPermissionMonitoring()
 
-            // Focus search field on appear for instant searching
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isSearchFieldFocused = true
+            // Focus search field on appear for instant searching (Find Icon only)
+            if !isDropdownPanel {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isSearchFieldFocused = true
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Self.resetSearchNotification)) { _ in
@@ -229,6 +220,69 @@ struct MenuBarSearchView: View {
         }
     }
 
+    // MARK: - Find Icon Body (original layout)
+
+    private var findIconBody: some View {
+        VStack(spacing: 0) {
+            controls
+
+            groupTabs
+
+            if isSearchVisible {
+                searchField
+            }
+
+            Divider()
+
+            content
+
+            footer
+        }
+        .frame(width: 420, height: 520)
+        .background {
+            VisualEffectBackground(
+                material: .popover,
+                blendingMode: .behindWindow
+            )
+        }
+    }
+
+    // MARK: - Dropdown Panel Body
+
+    private var dropdownPanelBody: some View {
+        Group {
+            if !hasAccessibility {
+                Label("Accessibility permission needed", systemImage: "hand.raised.circle")
+                    .font(.callout).foregroundStyle(.secondary).padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if filteredApps.isEmpty {
+                Group {
+                    if isRefreshing {
+                        HStack { ProgressView().controlSize(.small); Text("Scanning…").foregroundStyle(.secondary) }
+                    } else {
+                        Text("No hidden icons").foregroundStyle(.secondary)
+                    }
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(filteredApps) { app in
+                            MenuBarAppTile(
+                                app: app, iconSize: 36, tileSize: 56,
+                                onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
+                                onSetHotkey: { hotkeyApp = app },
+                                showName: true, isMoving: movingAppId == app.uniqueId, isSelected: false
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { VisualEffectBackground(material: .popover, blendingMode: .behindWindow) }
+    }
+
     /// Monitor for permission changes - auto-reload when user grants permission
     private func startPermissionMonitoring() {
         permissionMonitorTask = Task { @MainActor in
@@ -243,6 +297,11 @@ struct MenuBarSearchView: View {
         }
     }
 
+    /// The effective mode for data loading — panel mode always shows hidden icons
+    private var effectiveMode: Mode {
+        isDropdownPanel ? .hidden : mode
+    }
+
     private func loadCachedApps() {
         hasAccessibility = AccessibilityService.shared.isGranted
 
@@ -251,7 +310,7 @@ struct MenuBarSearchView: View {
             return
         }
 
-        switch mode {
+        switch effectiveMode {
         case .hidden:
             menuBarApps = service.cachedHiddenMenuBarApps()
         case .visible:
@@ -282,7 +341,7 @@ struct MenuBarSearchView: View {
                 }
             }
 
-            let refreshed: [RunningApp] = switch mode {
+            let refreshed: [RunningApp] = switch effectiveMode {
             case .hidden:
                 await service.refreshHiddenMenuBarApps()
             case .visible:
