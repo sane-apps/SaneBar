@@ -182,140 +182,134 @@ private struct WelcomeActionPage: View {
 
 private struct ArrangeIconsPage: View {
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 16) {
             Text("How It Works")
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 26, weight: .bold))
 
-            // The three elements explained
-            VStack(alignment: .leading, spacing: 24) {
-                // Element 1: The Separator
-                HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
                     Text("/")
-                        .font(.system(size: 28, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 36, height: 36)
                         .background(Color.primary.opacity(0.1))
-                        .cornerRadius(10)
+                        .cornerRadius(8)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("The Separator")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                         Text("Everything to the LEFT of this hides when you click.")
-                            .font(.system(size: 15))
+                            .font(.system(size: 13))
                             .foregroundStyle(.primary)
                     }
                 }
 
-                // Element 2: The SaneBar Icon
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 36, height: 36)
                         .background(Color.accentColor)
-                        .cornerRadius(10)
+                        .cornerRadius(8)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("The SaneBar Icon")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Click this to hide/reveal. Everything to the RIGHT stays visible.")
-                            .font(.system(size: 15))
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Click to hide/reveal. Everything to the RIGHT stays visible.")
+                            .font(.system(size: 13))
                             .foregroundStyle(.primary)
                     }
                 }
 
-                // Element 3: Always-Hidden
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Image(systemName: "eye.slash")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 36, height: 36)
                         .background(Color.purple.opacity(0.6))
-                        .cornerRadius(10)
+                        .cornerRadius(8)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Always-Hidden Section")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Add a second separator for icons that stay hidden even when you reveal the rest.")
-                            .font(.system(size: 15))
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("A second separator for icons that stay hidden even when you reveal the rest.")
+                            .font(.system(size: 13))
                             .foregroundStyle(.primary)
                     }
                 }
 
-                // Element 4: Rearranging
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Image(systemName: "command")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 36, height: 36)
                         .background(Color.orange.opacity(0.6))
-                        .cornerRadius(10)
+                        .cornerRadius(8)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Rearrange Anytime")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                         Text("Hold ⌘ and drag any icon to move it between zones.")
-                            .font(.system(size: 15))
+                            .font(.system(size: 13))
                             .foregroundStyle(.primary)
                     }
                 }
             }
             .padding(.horizontal, 40)
 
-            // Simple visual summary
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text("In your menu bar:")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
 
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Text("Always hidden")
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
                         .background(Color.red.opacity(0.2))
-                        .cornerRadius(6)
+                        .cornerRadius(5)
 
                     Text("/")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
 
                     Text("Hidden")
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
                         .background(Color.orange.opacity(0.3))
-                        .cornerRadius(6)
+                        .cornerRadius(5)
 
                     Text("/")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
 
                     Text("Visible")
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
                         .background(Color.green.opacity(0.3))
-                        .cornerRadius(6)
+                        .cornerRadius(5)
 
                     Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.white)
-                        .padding(5)
+                        .padding(4)
                         .background(Color.accentColor)
                         .cornerRadius(4)
 
                     Text("Visible")
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
                         .background(Color.green.opacity(0.3))
-                        .cornerRadius(6)
+                        .cornerRadius(5)
                 }
             }
-            .padding(.top, 4)
         }
-        .padding(32)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 20)
     }
 }
 
@@ -404,7 +398,7 @@ private struct FeatureCard: View {
 
 private struct PermissionsPage: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
-    @State private var permissionGranted = AccessibilityService.shared.isGranted
+    @ObservedObject private var accessibilityService = AccessibilityService.shared
 
     var body: some View {
         VStack(spacing: 24) {
@@ -444,17 +438,13 @@ private struct PermissionsPage: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 500)
 
-                if permissionGranted {
+                if accessibilityService.isGranted {
                     Label("Permission Granted", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.system(size: 14, weight: .medium))
                 } else {
                     Button("Enable Accessibility Access") {
-                        AccessibilityService.shared.requestAccessibility()
-                        // Check again after a short delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            permissionGranted = AccessibilityService.shared.isGranted
-                        }
+                        accessibilityService.requestAccessibility()
                     }
                     .buttonStyle(.borderedProminent)
                 }
