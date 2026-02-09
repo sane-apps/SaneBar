@@ -7,7 +7,7 @@
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-> **⭐ Star this repo if it's useful!** · **[💰 Buy for $5](https://sanebar.com)** · Keeps development alive
+> **⭐ Star this repo if it's useful!** · **[💰 Buy for $6.99](https://sanebar.com)** · Keeps development alive
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
@@ -18,7 +18,7 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 | | |
 |---|---|
 | ⚡ **Power** | Your device runs it. No cloud required. |
-| ❤️ **Love** | $5 once. No subscriptions. Ever. |
+| ❤️ **Love** | $6.99 once. No subscriptions. Ever. |
 | 🧠 **Sound Mind** | Open source. See exactly what it does. |
 
 ▶️ **[Watch the demo](https://www.youtube.com/watch?v=I6U3APV-998)** (30 seconds)
@@ -36,11 +36,13 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 SaneBar is different: **open source AND sustainable.**
 
 - **Build it yourself** — Clone the repo, it's GPL v3 licensed, always will be
-- **Or pay $5** — Get a notarized DMG, support continued development
+- **Or pay $6.99** — Get a notarized DMG, support continued development
 
-Your $5 keeps this project alive. No VC funding. No acquisition exit. Just software that works because someone's paid to maintain it.
+> *I wanted to make it $5, but processing fees and taxes were... insane. — Mr. Sane*
 
-**[Download — $5](https://sanebar.com)** or [build from source](#for-developers)
+Your $6.99 keeps this project alive. No VC funding. No acquisition exit. Just software that works because someone's paid to maintain it.
+
+**[Download — $6.99](https://sanebar.com)** or [build from source](#for-developers)
 
 DMGs are hosted on Cloudflare (not attached to GitHub releases).
 
@@ -96,12 +98,10 @@ A floating bar below the menu bar showing your hidden and always-hidden icons at
 - Enable: **Settings → General → Hiding → Show hidden icons in second menu bar**
 
 ### Onboarding Wizard
-A 5-page first-run flow to get you set up in under 30 seconds:
+A first-run flow to get you set up in under 30 seconds:
 1. **Welcome** — What SaneBar does, competitor import detection (Bartender/Ice)
-2. **How It Works** — Interactive demo of hiding and revealing icons
-3. **Your Style** — Choose a preset: **Minimal** (manual only), **Smart** (auto-hide + hover), or **Presenter** (Touch ID lock + always-hidden)
-4. **Permissions** — Grant Accessibility access
-5. **Sane Promise** — Privacy, sustainability, and the values behind SaneBar
+2. **Your Style** — Choose a preset: **Minimal** (manual only), **Smart** (auto-hide + hover), or **Presenter** (Touch ID lock + always-hidden). Pick your menu bar icon style.
+3. **Permissions** — Grant Accessibility access
 
 ### Core
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
@@ -112,12 +112,15 @@ A 5-page first-run flow to get you set up in under 30 seconds:
 - **Hover to reveal** — Move your cursor to the top of the screen to show hidden icons
 - **Scroll to reveal** — Two-finger scroll in the menu bar area
 - **Directional scroll** — Scroll up to show, scroll down to hide (optional)
-- **Click to toggle** — Left-click in menu bar toggles visibility (optional)
 - **⌘+drag reveal** — All icons appear while rearranging so you can organize freely
 
 ### Customization
-- **Liquid Glass** — Beautiful translucent styling on macOS 26 Tahoe
+- **Liquid Glass** — Translucent styling (ready for macOS 26 Tahoe when available)
 - **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
+- **Custom Menu Bar Icon** — Upload your own icon image or choose from 6 built-in styles (filter, dots, lines, chevron, coin, plus)
+- **Light/Dark Mode Tinting** — Separate tint color and opacity for light and dark mode
+- **Extra Dividers** — Add 0–12 additional visual dividers (line or dot style)
+- **Hide Main Icon** — Show only the divider, hiding the SaneBar icon itself
 
 ![Appearance Settings](docs/images/settings-appearance.png)
 
@@ -163,11 +166,17 @@ A dedicated zone for icons you rarely need. Icons pinned here never show automat
 - Pinned icons stay hidden even when you reveal your menu bar
 - Unpin anytime from the same right-click menu
 
-### 🩺 Diagnostics
-Built-in diagnostic tools to help troubleshoot menu bar issues.
-- Go to **Settings → Experimental → Run Diagnostics**
-- Shows icon count, positioning data, accessibility status, and system info
-- Generates a shareable report for support requests
+### 🩺 Space Analyzer
+Built-in menu bar health tool to help understand your icon layout.
+- Go to **Settings → Appearance**
+- Shows visible vs hidden icon distribution
+- Helps diagnose spacing issues and optimize menu bar usage
+
+### 📁 Icon Groups & Smart Categories
+Organize your menu bar apps in the Find Icon window.
+- **Icon Groups** — Create custom groups to organize apps (e.g., "Work", "Media")
+- **Smart Categories** — Automatic categorization by app type
+- Group and filter icons for quick access
 
 ---
 
@@ -190,11 +199,10 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (second menu bar), software updates, saved profiles, import from Bartender/Ice, settings export/import |
-| **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
-| **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
+| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (second menu bar), software updates, saved profiles, import from Bartender/Ice, settings export/import, reset to defaults |
+| **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi, app change, external monitor) |
+| **Appearance** | Custom menu bar icon, divider style, extra dividers, menu bar styling (tint, opacity per light/dark mode, shadow, border, corners), space analyzer, icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
-| **Experimental** | Diagnostics, bug reporting |
 | **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Revealing Gestures (Settings → Rules)
@@ -206,6 +214,8 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 - **App Launch** — Show when specific apps start
 - **Wi-Fi Change** — Show on specific networks (click "Add current network")
 - **Focus Mode** — Show when macOS Focus Mode changes (Work, Personal, etc.)
+- **App Change** — Auto-hide when you switch to a different application
+- **External Monitor** — Always show icons on external monitors (plenty of space)
 
 ### Icon Spacing (Settings → Appearance)
 
@@ -282,7 +292,7 @@ SaneBar/
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
 │   ├── SearchWindow/       # Find Icon, Second Menu Bar
-│   └── Onboarding/         # 5-page welcome wizard
+│   └── Onboarding/         # Welcome wizard
 ├── Tests/                  # Swift Testing unit tests
 ├── scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
@@ -318,7 +328,7 @@ osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 <details>
 <summary>The story</summary>
 
-Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked on macOS Tahoe with Liquid Glass.
+Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked.
 
 </details>
 
@@ -344,12 +354,12 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 |---------|---------|-----------|-----|------------|
 | **Touch ID / Password Lock** | Yes | No | No | No |
 | **Always-Hidden Zone** | Yes | No | No | No |
-| **Second Menu Bar** | Yes | No | No | No |
+| **Second Menu Bar** | Yes | Yes | Yes | No |
 | **Find Icon Search** | Yes | Partial | No | No |
 | **Open Source** | GPL v3 | No | Yes | No |
-| **No Subscriptions** | $5 once | $16 + annual | Free | Free |
+| **No Subscriptions** | $6.99 once | $16 + annual | Free | Free |
 | **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
-| **macOS Tahoe + Liquid Glass** | Yes | Unknown | Partial | No |
+| **Liquid Glass Ready** | Yes | Unknown | Partial | No |
 | **Onboarding + Presets** | Yes | No | No | No |
 | **Active Development** | Yes | Sold (acquired) | Sporadic | Abandoned |
 
