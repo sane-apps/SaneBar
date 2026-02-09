@@ -252,9 +252,18 @@ struct MenuBarSearchView: View {
     private var dropdownPanelBody: some View {
         Group {
             if !hasAccessibility {
-                Label("Accessibility permission needed", systemImage: "hand.raised.circle")
-                    .font(.callout).foregroundStyle(.secondary).padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 10) {
+                    Label("Accessibility permission needed", systemImage: "hand.raised.circle")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Open System Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }.controlSize(.small)
+                    Button("Retry") { loadCachedApps(); refreshApps(force: true) }
+                        .controlSize(.small).buttonStyle(.borderedProminent)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
             } else if filteredApps.isEmpty {
                 Group {
                     if isRefreshing {
