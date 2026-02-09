@@ -108,6 +108,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var separatorItem: NSStatusItem?
     /// Optional separator for always-hidden zone (experimental)
     var alwaysHiddenSeparatorItem: NSStatusItem?
+    /// Cached position of main separator when at visual size (not blocking).
+    /// Used when separator is in blocking mode (length > 1000) and live position is off-screen.
+    var lastKnownSeparatorX: CGFloat?
     /// Cached position of always-hidden separator when at visual size (not blocking).
     /// Used for classification when the separator is at 10,000 length (blocking mode).
     var lastKnownAlwaysHiddenSeparatorX: CGFloat?
@@ -544,8 +547,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                self?.lastKnownSeparatorX = nil
                 self?.lastKnownAlwaysHiddenSeparatorX = nil
-                logger.debug("Screen parameters changed — invalidated cached separator position")
+                logger.debug("Screen parameters changed — invalidated cached separator positions")
             }
             .store(in: &cancellables)
 

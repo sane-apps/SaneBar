@@ -184,26 +184,51 @@ extension AccessibilityService {
             return false
         }
 
-        guard let iconFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
-            logger.error("🔧 Could not find icon frame for \(bundleID, privacy: .private) (menuExtraId: \(menuExtraId ?? "nil", privacy: .private))")
+        // Poll until icon is on-screen. After show()/showAll(), macOS WindowServer
+        // re-layouts menu bar items asynchronously. Icons may still be at off-screen
+        // positions (e.g. x=-3455) when the caller's sleep completes. We must wait
+        // for the icon to reach a valid on-screen position before attempting the drag.
+        var iconFrame: CGRect?
+        for attempt in 1 ... 30 { // 30 × 100ms = 3s max
+            guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+                break // icon not found at all
+            }
+            if frame.origin.x >= 0 {
+                iconFrame = frame
+                if attempt > 1 {
+                    logger.info("🔧 Icon moved on-screen after \(attempt * 100)ms polling (x=\(frame.origin.x, privacy: .public))")
+                }
+                break
+            }
+            logger.debug("🔧 Icon still off-screen (x=\(frame.origin.x, privacy: .public)), polling attempt \(attempt)...")
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+
+        guard let iconFrame else {
+            logger.error("🔧 Could not find on-screen icon frame for \(bundleID, privacy: .private) (menuExtraId: \(menuExtraId ?? "nil", privacy: .private))")
             return false
         }
 
         logger.info("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
 
         // Calculate target position
-        // Hidden: LEFT of separator (into hidden zone)
-        // Visible: Just RIGHT of separator, but clamped to stay LEFT of SaneBar's main icon
-        // Use icon width to compute offset — avoids overshooting on small icons
-        // and undershooting on wide ones. Minimum 30px to clear the separator reliably.
+        // Hidden: LEFT of separator (into hidden zone) — need enough offset to clearly cross.
+        // Visible: just LEFT of the SaneBar icon — macOS auto-inserts the icon there.
+        //          Never overshoot past SaneBar or the icon lands in the system area.
         let moveOffset = max(30, iconFrame.size.width + 20)
-        let targetX: CGFloat = if toHidden {
+        let targetX: CGFloat = if toHidden, let ahBoundary = visibleBoundaryX {
+            // Clamp: stay right of AH separator so we land in hidden zone, not AH zone
+            max(separatorX - moveOffset, ahBoundary + 2)
+        } else if toHidden {
             separatorX - moveOffset
-        } else if let boundaryX = visibleBoundaryX {
-            // Place just right of separator, but never past SaneBar's main icon
-            min(separatorX + moveOffset, boundaryX - 20)
+        } else if let boundary = visibleBoundaryX {
+            // Target just left of SaneBar icon, but always right of separator.
+            // When they're flush (both 1696), this gives separatorX + 1 — right of separator,
+            // at the SaneBar icon boundary. macOS auto-inserts and pushes SaneBar right.
+            max(separatorX + 1, boundary - 2)
         } else {
-            separatorX + moveOffset
+            // Fallback if no boundary — just past separator
+            separatorX + 1
         }
 
         logger.info("🔧 Target X: \(targetX, privacy: .public)")
@@ -248,8 +273,11 @@ extension AccessibilityService {
 
         logger.info("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
-        // Scale verification margin with icon width — small icons (16px) get ~5px margin,
-        // standard icons (22px) get ~7px, wide icons (44px) get ~14px.
+        // Verify icon landed on the expected side of the separator.
+        // For hidden: icon's left edge must be clearly LEFT of separatorX.
+        // For visible: icon's left edge must be clearly RIGHT of separatorX.
+        // Both sides use a margin to avoid boundary ambiguity where hide() might
+        // reclassify the icon differently than our verification.
         let margin = max(4, afterFrame.size.width * 0.3)
         let movedToExpectedSide: Bool = if toHidden {
             afterFrame.origin.x < (separatorX - margin)
@@ -342,21 +370,51 @@ extension AccessibilityService {
         var value: Bool = false
     }
 
-    /// Perform a Cmd+drag operation using CGEvent (runs on background thread)
+    /// Perform a Cmd+drag operation using CGEvent (runs on background thread).
+    /// Uses human-like timing (Ice-style): pre-position cursor, hide cursor,
+    /// slow multi-step drag, dual event tap posting for reliability.
     private nonisolated func performCmdDrag(from: CGPoint, to: CGPoint, restoreTo originalCGPoint: CGPoint) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let result = ResultBox()
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // Verify target point is on a valid screen (guard against monitor hot-plug mid-drag)
+            // Verify both from and to are on valid screens
             let screens = NSScreen.screens
+            guard !screens.isEmpty else {
+                logger.warning("🔧 performCmdDrag: no screens available — aborting")
+                semaphore.signal()
+                return
+            }
+            let fromOnScreen = screens.contains { $0.frame.contains(from) }
             let targetOnScreen = screens.contains { $0.frame.contains(to) }
-            if !targetOnScreen, !screens.isEmpty {
+            if !fromOnScreen {
+                logger.warning("🔧 performCmdDrag: from point (\(from.x), \(from.y)) is off-screen — aborting")
+                semaphore.signal()
+                return
+            }
+            if !targetOnScreen {
                 logger.warning("🔧 performCmdDrag: target point (\(to.x), \(to.y)) is off-screen — aborting")
                 semaphore.signal()
                 return
             }
 
+            // 1. Pre-position cursor at the icon (like a human would)
+            if let moveToStart = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .mouseMoved,
+                mouseCursorPosition: from,
+                mouseButton: .left
+            ) {
+                moveToStart.post(tap: .cghidEventTap)
+                Thread.sleep(forTimeInterval: 0.05) // Let cursor settle
+            }
+
+            // 2. Hide cursor during drag (Ice-style: prevents visual glitches
+            //    and may improve drag recognition by WindowServer)
+            CGDisplayHideCursor(CGMainDisplayID())
+            defer { CGDisplayShowCursor(CGMainDisplayID()) }
+
+            // 3. Cmd+mouseDown at icon position
             guard let mouseDown = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .leftMouseDown,
@@ -368,25 +426,12 @@ extension AccessibilityService {
                 return
             }
             mouseDown.flags = .maskCommand
-
-            guard let mouseUp = CGEvent(
-                mouseEventSource: nil,
-                mouseType: .leftMouseUp,
-                mouseCursorPosition: to,
-                mouseButton: .left
-            ) else {
-                logger.error("Failed to create mouse up event")
-                semaphore.signal()
-                return
-            }
-            mouseUp.flags = .maskCommand
-
-            // Start drag
             mouseDown.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.01)
+            Thread.sleep(forTimeInterval: 0.05) // Hold before dragging (human-like)
 
-            // Multi-step drag (6 steps for better reliability with macOS WindowServer)
-            let steps = 6
+            // 4. Multi-step drag with human-like timing
+            //    16 steps × 15ms = ~240ms total drag (vs old: 6 × 5ms = 30ms)
+            let steps = 16
             for i in 1 ... steps {
                 let t = CGFloat(i) / CGFloat(steps)
                 let x = from.x + (to.x - from.x) * t
@@ -401,15 +446,26 @@ extension AccessibilityService {
                 ) {
                     drag.flags = .maskCommand
                     drag.post(tap: .cghidEventTap)
-                    Thread.sleep(forTimeInterval: 0.005)
+                    Thread.sleep(forTimeInterval: 0.015)
                 }
             }
 
-            // Finish drag
+            // 5. Cmd+mouseUp at destination
+            guard let mouseUp = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseUp,
+                mouseCursorPosition: to,
+                mouseButton: .left
+            ) else {
+                logger.error("Failed to create mouse up event")
+                semaphore.signal()
+                return
+            }
+            mouseUp.flags = .maskCommand
             mouseUp.post(tap: .cghidEventTap)
-            Thread.sleep(forTimeInterval: 0.1) // Let the 'drop' settle before restoring cursor
+            Thread.sleep(forTimeInterval: 0.15) // Let the 'drop' settle
 
-            // Restore original cursor position immediately
+            // 6. Restore cursor position
             if let restoreEvent = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .mouseMoved,
