@@ -105,7 +105,30 @@ struct GeneralSettingsView: View {
                         .help("Require Touch ID or password to reveal hidden menu bar icons")
                 }
 
-                // 3. Updates
+                // 3. Hiding
+                CompactSection("Hiding") {
+                    CompactToggle(
+                        label: "Always-hidden section",
+                        isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
+                    )
+                    .help("Adds a second separator — icons between the two separators stay hidden even when you reveal the rest.")
+
+                    CompactDivider()
+
+                    CompactToggle(
+                        label: "Show hidden icons in dropdown panel",
+                        isOn: Binding(
+                            get: { menuBarManager.settings.useDropdownPanel },
+                            set: { newValue in
+                                menuBarManager.settings.useDropdownPanel = newValue
+                                SearchWindowController.shared.resetWindow()
+                            }
+                        )
+                    )
+                    .help("Shows hidden icons in a panel below the menu bar instead of expanding the separator")
+                }
+
+                // 4. Updates
                 CompactSection("Software Updates") {
                     CompactToggle(label: "Check for updates automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
                         .help("Periodically check for new versions of SaneBar")
@@ -127,7 +150,7 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 4. Profiles
+                // 5. Profiles
                 CompactSection("Saved Profiles") {
                     if savedProfiles.isEmpty {
                         CompactRow("Saved") {
@@ -172,7 +195,7 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 5. Data
+                // 6. Data
                 CompactSection("Data") {
                     CompactRow("Settings") {
                         Button("Export Settings...") {
@@ -204,7 +227,7 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 6. Troubleshooting
+                // 7. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {

@@ -11,7 +11,7 @@ struct ExperimentalSettingsView: View {
 
             // Experimental features (when available)
             if hasExperimentalFeatures {
-                experimentalFeaturesSection
+                EmptyView()
             }
 
             Spacer()
@@ -71,33 +71,7 @@ struct ExperimentalSettingsView: View {
     // MARK: - Advanced Features
 
     private var hasExperimentalFeatures: Bool {
-        true
-    }
-
-    @ViewBuilder
-    private var experimentalFeaturesSection: some View {
-        CompactSection("Features") {
-            CompactToggle(
-                label: "Always-hidden section",
-                isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
-            )
-            .help("Adds a second separator — icons between the two separators stay hidden even when you reveal the rest.")
-
-            CompactDivider()
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Adds a second separator to your menu bar. Icons placed between the two separators stay permanently hidden — they won't appear even when you click to reveal.")
-                    .font(.caption)
-                    .foregroundStyle(.primary.opacity(0.7))
-
-                Text("Uses Accessibility to enforce hiding. Requires a restart to take effect.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-        }
+        false
     }
 }
 

@@ -218,10 +218,13 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Style of the main SaneBar menu bar icon
     var menuBarIconStyle: MenuBarIconStyle = .filter
 
-    // MARK: - Experimental
+    // MARK: - Hiding
 
-    /// Enable a second separator for an always-hidden zone (beta; requires restart).
+    /// Enable a second separator for an always-hidden zone.
     var alwaysHiddenSectionEnabled: Bool = false
+
+    /// Show hidden icons in a dropdown panel below the menu bar instead of expanding the separator.
+    var useDropdownPanel: Bool = false
 
     /// Menu bar item IDs that should be kept in the always-hidden section across launches.
     /// Stored as `RunningApp.uniqueId` values (best-effort).
@@ -291,6 +294,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         scriptTriggerEnabled = try container.decodeIfPresent(Bool.self, forKey: .scriptTriggerEnabled) ?? false
         scriptTriggerPath = try container.decodeIfPresent(String.self, forKey: .scriptTriggerPath) ?? ""
         scriptTriggerInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .scriptTriggerInterval) ?? 10.0
+        useDropdownPanel = try container.decodeIfPresent(Bool.self, forKey: .useDropdownPanel) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -304,7 +308,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
-        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useDropdownPanel
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 }
