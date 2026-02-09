@@ -2,10 +2,10 @@ import AppKit
 import SwiftUI
 
 /// Welcome onboarding view shown on first launch
-/// Structure: Welcome → How It Works → Power Features → Permissions → Sane Promise
-/// Reference: SaneApps-Brand-Guidelines.md
+/// Structure: Welcome → How It Works → Your Style → Permissions → Sane Promise
 public struct WelcomeView: View {
     @State private var currentPage = 0
+    @State private var navigateForward = true
     let onComplete: () -> Void
     private let totalPages = 5
 
@@ -15,53 +15,59 @@ public struct WelcomeView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Page content
-            Group {
-                switch currentPage {
-                case 0:
-                    WelcomeActionPage()
-                case 1:
-                    ArrangeIconsPage()
-                case 2:
-                    PowerFeaturesPage()
-                case 3:
-                    PermissionsPage()
-                case 4:
-                    SanePromisePage()
-                default:
-                    WelcomeActionPage()
+            // Animated page content
+            ZStack {
+                Group {
+                    switch currentPage {
+                    case 0: WelcomeActionPage()
+                    case 1: ArrangeIconsPage()
+                    case 2: SetupStylePage()
+                    case 3: PermissionsPage()
+                    case 4: SanePromisePage()
+                    default: WelcomeActionPage()
+                    }
                 }
+                .id(currentPage)
+                .transition(.asymmetric(
+                    insertion: .move(edge: navigateForward ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: navigateForward ? .leading : .trailing).combined(with: .opacity)
+                ))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
 
-            // Page indicators
-            HStack(spacing: 8) {
+            // Progress bar
+            HStack(spacing: 4) {
                 ForEach(0 ..< totalPages, id: \.self) { index in
-                    Circle()
-                        .fill(currentPage == index ? Color.accentColor : Color.primary.opacity(0.3))
-                        .frame(width: 8, height: 8)
+                    Capsule()
+                        .fill(index <= currentPage ? Color.accentColor : Color.primary.opacity(0.12))
+                        .frame(height: 4)
+                        .animation(.easeInOut(duration: 0.3), value: currentPage)
                 }
             }
-            .padding(.bottom, 20)
+            .padding(.horizontal, 60)
+            .padding(.bottom, 16)
 
             // Bottom Controls
             HStack {
                 if currentPage > 0 {
                     Button("Back") {
-                        withAnimation {
+                        navigateForward = false
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             currentPage -= 1
                         }
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.primary)
-                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 14))
                 }
 
                 Spacer()
 
                 if currentPage < totalPages - 1 {
                     Button("Next") {
-                        withAnimation {
+                        navigateForward = true
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             currentPage += 1
                         }
                     }
@@ -102,17 +108,19 @@ private struct OnboardingBackground: View {
     }
 }
 
-// MARK: - Page 1: Welcome + The Action
+// MARK: - Page 1: Welcome + Import Detection
 
 private struct WelcomeActionPage: View {
     @State private var isHidden = false
+    @State private var detectedCompetitor: String?
+    @State private var importResult: String?
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 28) {
             if let appIcon = NSApp.applicationIconImage {
                 Image(nsImage: appIcon)
                     .resizable()
-                    .frame(width: 100, height: 100)
+                    .frame(width: 90, height: 90)
                     .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
             }
 
@@ -120,32 +128,31 @@ private struct WelcomeActionPage: View {
                 .font(.system(size: 32, weight: .bold))
 
             Text("One click to hide. One click to reveal.")
-                .font(.system(size: 20))
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
 
             // Menu bar simulation
-            VStack(spacing: 12) {
-                HStack(spacing: 16) {
-                    // Hidden icons (fade out together)
-                    HStack(spacing: 12) {
+            VStack(spacing: 10) {
+                HStack(spacing: 14) {
+                    HStack(spacing: 10) {
                         Text("🔐  💬  🎵  ☁️")
-                            .font(.system(size: 20))
+                            .font(.system(size: 18))
 
                         Text("/")
-                            .font(.system(size: 22, weight: .medium))
+                            .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(.white.opacity(0.5))
                     }
                     .opacity(isHidden ? 0 : 1)
                     .animation(.easeInOut(duration: 0.25), value: isHidden)
 
-                    // SaneBar button - HIGHLIGHTED so it's obvious
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) { isHidden.toggle() }
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 5) {
                             Image(systemName: "line.3.horizontal.decrease")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("👈 tap")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("try it")
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
@@ -155,26 +162,98 @@ private struct WelcomeActionPage: View {
                     }
                     .buttonStyle(.plain)
 
-                    // ONE icon to the right (Control Center style)
                     Text("⏱")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18))
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.black.opacity(0.9))
                 )
 
-                // Status below
-                Text(isHidden ? "✅ Hidden! Tap again to reveal." : "")
-                    .font(.system(size: 15, weight: .medium))
+                Text(isHidden ? "Hidden! Tap again to reveal." : " ")
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.green)
-                    .frame(height: 20)
+                    .frame(height: 18)
             }
-            .padding(.top, 8)
+
+            // Import detection banner
+            if let competitor = detectedCompetitor {
+                importBanner(competitor)
+            }
         }
-        .padding(40)
+        .padding(36)
+        .onAppear { detectCompetitor() }
+    }
+
+    private func importBanner(_ competitor: String) -> some View {
+        Group {
+            if let result = importResult {
+                Label(result, systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.green)
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.right.arrow.left.circle.fill")
+                        .foregroundStyle(.accentColor)
+                    Text("Switching from \(competitor)?")
+                        .font(.system(size: 13))
+                    Button("Import Settings") {
+                        performImport(competitor)
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity)
+                .background(Color.accentColor.opacity(0.08))
+                .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private func detectCompetitor() {
+        let fm = FileManager.default
+        let prefs = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences")
+        let bartenderPlists = [
+            "com.surteesstudios.Bartender-setapp.plist",
+            "com.surteesstudios.Bartender-4.plist",
+            "com.surteesstudios.Bartender.plist"
+        ]
+        for plist in bartenderPlists {
+            if fm.fileExists(atPath: prefs.appendingPathComponent(plist).path) {
+                detectedCompetitor = "Bartender"
+                return
+            }
+        }
+        if fm.fileExists(atPath: prefs.appendingPathComponent("com.jordanbaird.Ice.plist").path) {
+            detectedCompetitor = "Ice"
+        }
+    }
+
+    private func performImport(_ competitor: String) {
+        let prefs = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences")
+        let manager = MenuBarManager.shared
+
+        if competitor == "Ice" {
+            let url = prefs.appendingPathComponent("com.jordanbaird.Ice.plist")
+            do {
+                let summary = try IceImportService.importSettings(from: url, menuBarManager: manager)
+                importResult = "Imported \(summary.applied.count) settings from Ice"
+            } catch {
+                importResult = "Import available in Settings → General → Data"
+            }
+        } else {
+            // Bartender import is async — just point to settings
+            importResult = "Import available in Settings → General → Data"
+        }
     }
 }
 
@@ -187,210 +266,66 @@ private struct ArrangeIconsPage: View {
                 .font(.system(size: 26, weight: .bold))
 
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    Text("/")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.primary.opacity(0.1))
-                        .cornerRadius(8)
+                iconRow("/", bg: Color.primary.opacity(0.1), title: "The Separator",
+                        desc: "Everything to the LEFT of this hides when you click.")
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("The Separator")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Everything to the LEFT of this hides when you click.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
-                    }
-                }
+                iconRow("line.3.horizontal.decrease", bg: Color.accentColor, title: "The SaneBar Icon",
+                        desc: "Click to hide/reveal. Everything to the RIGHT stays visible.", isSF: true)
 
-                HStack(spacing: 12) {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.accentColor)
-                        .cornerRadius(8)
+                iconRow("eye.slash", bg: Color.purple.opacity(0.6), title: "Always-Hidden Section",
+                        desc: "A second separator for icons that stay hidden even when you reveal the rest.", isSF: true)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("The SaneBar Icon")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Click to hide/reveal. Everything to the RIGHT stays visible.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    Image(systemName: "eye.slash")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.purple.opacity(0.6))
-                        .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Always-Hidden Section")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("A second separator for icons that stay hidden even when you reveal the rest.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    Image(systemName: "command")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Color.orange.opacity(0.6))
-                        .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Rearrange Anytime")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Hold ⌘ and drag any icon to move it between zones.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
-                    }
-                }
+                iconRow("command", bg: Color.orange.opacity(0.6), title: "Rearrange Anytime",
+                        desc: "Hold ⌘ and drag any icon to move it between zones.", isSF: true)
             }
             .padding(.horizontal, 40)
 
-            VStack(spacing: 6) {
-                Text("In your menu bar:")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 4) {
-                    Text("Always hidden")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color.red.opacity(0.2))
-                        .cornerRadius(5)
-
-                    Text("/")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    Text("Hidden")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color.orange.opacity(0.3))
-                        .cornerRadius(5)
-
-                    Text("/")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    Text("Visible")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.3))
-                        .cornerRadius(5)
-
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(Color.accentColor)
-                        .cornerRadius(4)
-
-                    Text("Visible")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.3))
-                        .cornerRadius(5)
-                }
+            // Zone diagram
+            HStack(spacing: 4) {
+                zonePill("Always hidden", Color.red.opacity(0.2))
+                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+                zonePill("Hidden", Color.orange.opacity(0.3))
+                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+                zonePill("Visible", Color.green.opacity(0.3))
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white).padding(4)
+                    .background(Color.accentColor).cornerRadius(4)
+                zonePill("Visible", Color.green.opacity(0.3))
             }
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 20)
     }
-}
 
-// MARK: - Page 3: Power Features
-
-private struct PowerFeaturesPage: View {
-    var body: some View {
-        VStack(spacing: 28) {
-            Image(systemName: "bolt.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(.yellow)
-
-            Text("Power Features")
-                .font(.system(size: 28, weight: .bold))
-
-            VStack(spacing: 20) {
-                FeatureCard(
-                    icon: "magnifyingglass",
-                    color: .blue,
-                    title: "⌘+Shift+Space",
-                    subtitle: "Power Search",
-                    description: "Find any icon instantly — even ones hidden behind the notch"
-                )
-
-                FeatureCard(
-                    icon: "touchid",
-                    color: .pink,
-                    title: "Touch ID Lock",
-                    subtitle: "Biometric Security",
-                    description: "Lock your hidden icons behind Touch ID for presentations"
-                )
-
-                FeatureCard(
-                    icon: "cursorarrow.click.2",
-                    color: .purple,
-                    title: "Right-Click Menu",
-                    subtitle: "Quick Actions",
-                    description: "Right-click any icon to move it between zones instantly"
-                )
+    private func iconRow(_ symbol: String, bg: Color, title: String, desc: String, isSF: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Group {
+                if isSF {
+                    Image(systemName: symbol)
+                        .font(.system(size: 18, weight: .semibold))
+                } else {
+                    Text(symbol)
+                        .font(.system(size: 22, weight: .semibold))
+                }
             }
-        }
-        .padding(32)
-    }
-}
-
-private struct FeatureCard: View {
-    let icon: String
-    let color: Color
-    let title: String
-    let subtitle: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .background(color.opacity(0.15))
-                .cornerRadius(10)
+            .foregroundStyle(.white)
+            .frame(width: 36, height: 36)
+            .background(bg)
+            .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 15, weight: .semibold))
-                    Text(subtitle)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.primary)
-                }
-                Text(description)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary)
+                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(desc).font(.system(size: 13)).foregroundStyle(.primary)
             }
-
-            Spacer()
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.05))
-        )
+    }
+
+    private func zonePill(_ label: String, _ bg: Color) -> some View {
+        Text(label)
+            .font(.system(size: 11, weight: .medium))
+            .padding(.horizontal, 6).padding(.vertical, 4)
+            .background(bg).cornerRadius(5)
     }
 }
 
@@ -416,15 +351,12 @@ private struct PermissionsPage: View {
 
             VStack(spacing: 14) {
                 GestureToggleRow(
-                    icon: "scroll",
-                    title: "Scroll to Show",
+                    icon: "scroll", title: "Scroll to Show",
                     description: "Scroll up on the menu bar to reveal icons.",
                     isOn: $menuBarManager.settings.showOnScroll
                 )
-
                 GestureToggleRow(
-                    icon: "hand.point.up.left",
-                    title: "Hover to Show",
+                    icon: "hand.point.up.left", title: "Hover to Show",
                     description: "Hover over the menu bar to reveal icons.",
                     isOn: $menuBarManager.settings.showOnHover
                 )
@@ -432,7 +364,7 @@ private struct PermissionsPage: View {
             .padding(.horizontal, 40)
 
             VStack(spacing: 10) {
-                Text("These gestures and the Find Icon feature need Accessibility permission.")
+                Text("These gestures and Find Icon need Accessibility permission.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -442,6 +374,7 @@ private struct PermissionsPage: View {
                     Label("Permission Granted", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.system(size: 14, weight: .medium))
+                        .transition(.scale.combined(with: .opacity))
                 } else {
                     Button("Enable Accessibility Access") {
                         accessibilityService.requestAccessibility()
@@ -470,11 +403,8 @@ private struct GestureToggleRow: View {
                 .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                Text(description)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                Text(title).font(.system(size: 16, weight: .medium))
+                Text(description).font(.system(size: 13)).foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -489,7 +419,7 @@ private struct GestureToggleRow: View {
     }
 }
 
-// MARK: - Page 5: Our Sane Promise
+// MARK: - Page 5: Sane Promise
 
 private struct SanePromisePage: View {
     var body: some View {
@@ -499,11 +429,9 @@ private struct SanePromisePage: View {
 
             VStack(spacing: 8) {
                 Text("\"For God has not given us a spirit of fear,")
-                    .font(.system(size: 17))
-                    .italic()
+                    .font(.system(size: 17)).italic()
                 Text("but of power and of love and of a sound mind.\"")
-                    .font(.system(size: 17))
-                    .italic()
+                    .font(.system(size: 17)).italic()
                 Text("— 2 Timothy 1:7")
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.primary)
@@ -511,50 +439,17 @@ private struct SanePromisePage: View {
             }
 
             HStack(spacing: 20) {
-                PillarCard(
-                    icon: "bolt.fill",
-                    color: .yellow,
-                    title: "Power",
-                    description: "Your data stays on your device. No cloud, no tracking."
-                )
-
-                PillarCard(
-                    icon: "heart.fill",
-                    color: .pink,
-                    title: "Love",
-                    description: "Built to serve you. No dark patterns or manipulation."
-                )
-
-                PillarCard(
-                    icon: "brain.head.profile",
-                    color: .purple,
-                    title: "Sound Mind",
-                    description: "Calm, focused design. No clutter or anxiety."
-                )
+                PillarCard(icon: "bolt.fill", color: .yellow, title: "Power",
+                           description: "Your data stays on your device. No cloud, no tracking.")
+                PillarCard(icon: "heart.fill", color: .pink, title: "Love",
+                           description: "Built to serve you. No dark patterns or manipulation.")
+                PillarCard(icon: "brain.head.profile", color: .purple, title: "Sound Mind",
+                           description: "Calm, focused design. No clutter or anxiety.")
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
         }
         .padding(32)
-    }
-}
-
-// MARK: - Helper Views
-
-private struct TipRow: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 24)
-
-            Text(LocalizedStringKey(text))
-                .font(.system(size: 15))
-        }
     }
 }
 
@@ -569,10 +464,8 @@ private struct PillarCard: View {
             Image(systemName: icon)
                 .font(.system(size: 32))
                 .foregroundStyle(color)
-
             Text(title)
                 .font(.system(size: 18, weight: .semibold))
-
             Text(description)
                 .font(.system(size: 14))
                 .foregroundStyle(.primary)
