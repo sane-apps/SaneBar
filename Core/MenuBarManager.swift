@@ -423,11 +423,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Sync update settings to Sparkle
             syncUpdateConfiguration()
 
-            // Request accessibility on first launch (shows system dialog if needed)
-            if !AccessibilityService.shared.isGranted {
-                AccessibilityService.shared.requestAccessibility()
-            }
-
             // Pre-warm menu bar icon cache (async background task)
             AccessibilityService.shared.prewarmCache()
 
