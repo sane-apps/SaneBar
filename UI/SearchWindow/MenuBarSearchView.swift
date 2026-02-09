@@ -21,7 +21,7 @@ struct MenuBarSearchView: View {
             switch self {
             case .hidden: "Hidden"
             case .visible: "Visible"
-            case .alwaysHidden: "Always Hidden (beta)"
+            case .alwaysHidden: "Always Hidden"
             case .all: "All"
             }
         }
@@ -194,7 +194,7 @@ struct MenuBarSearchView: View {
             refreshTask?.cancel()
         }
         .sheet(item: $hotkeyApp) { app in
-            hotkeySheet(for: app)
+            HotkeyAssignmentSheet(app: app, onDone: { hotkeyApp = nil })
         }
         .onKeyPress { keyPress in
             handleKeyPress(keyPress)
@@ -676,7 +676,7 @@ struct MenuBarSearchView: View {
             let availableWidth = max(0, proxy.size.width - (padding * 2))
             let availableHeight = max(0, proxy.size.height - (padding * 2))
             let count = filteredApps.count
-            let grid = gridSizing(availableWidth: availableWidth, availableHeight: availableHeight, count: count)
+            let grid = SearchGridSizing.compute(availableWidth: availableWidth, availableHeight: availableHeight, count: count)
 
             ScrollView {
                 LazyVGrid(
@@ -701,7 +701,7 @@ struct MenuBarSearchView: View {
     /// Extracted to a helper to keep the type checker happy — the tile has many
     /// optional closures and inline ternaries that blow up `appGrid` otherwise.
     @ViewBuilder
-    private func makeTile(app: RunningApp, index: Int, grid: GridSizing) -> some View {
+    private func makeTile(app: RunningApp, index: Int, grid: SearchGridSizing) -> some View {
         MenuBarAppTile(
             app: app,
             iconSize: grid.iconSize,
@@ -822,62 +822,6 @@ struct MenuBarSearchView: View {
         }
     }
 
-    private struct GridSizing {
-        let columns: Int
-        let tileSize: CGFloat
-        let iconSize: CGFloat
-        let spacing: CGFloat
-    }
-
-    private func gridSizing(availableWidth: CGFloat, availableHeight: CGFloat, count: Int) -> GridSizing {
-        let spacing: CGFloat = 8 // Reduced from 12 for tighter grid
-
-        let minTile: CGFloat = 44
-        let maxTile: CGFloat = 112
-
-        guard count > 0 else {
-            return GridSizing(columns: 1, tileSize: 84, iconSize: 52, spacing: spacing)
-        }
-
-        let maxColumnsByWidth = max(1, Int((availableWidth + spacing) / (minTile + spacing)))
-        let maxColumns = min(maxColumnsByWidth, count)
-
-        let height = max(1, availableHeight)
-
-        var best = GridSizing(columns: 1, tileSize: minTile, iconSize: 26, spacing: spacing)
-        var bestScore: CGFloat = -1_000_000
-
-        for columns in 1 ... maxColumns {
-            let rawTile = (availableWidth - (CGFloat(columns - 1) * spacing)) / CGFloat(columns)
-            let tileSize = max(minTile, min(maxTile, floor(rawTile)))
-
-            let rows = Int(ceil(Double(count) / Double(columns)))
-            let contentHeight = (CGFloat(rows) * tileSize) + (CGFloat(max(0, rows - 1)) * spacing)
-            let overflow = max(0, contentHeight - height)
-
-            let score: CGFloat = if overflow <= 0 {
-                // Fits without scrolling: prefer a more horizontal grid (fewer rows)
-                // while still keeping tiles reasonably large.
-                10000 + tileSize - (CGFloat(rows) * 4) + (CGFloat(columns) * 0.5)
-            } else {
-                // Prefer less scrolling for very large icon counts.
-                tileSize - ((overflow / height) * 24)
-            }
-
-            if score > bestScore {
-                bestScore = score
-                best = GridSizing(
-                    columns: columns,
-                    tileSize: tileSize,
-                    iconSize: max(28, min(72, floor(tileSize * 0.72))), // Larger icons (was 0.62)
-                    spacing: spacing
-                )
-            }
-        }
-
-        return best
-    }
-
     private func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
         Task {
             await service.activate(app: app, isRightClick: isRightClick)
@@ -988,64 +932,6 @@ struct MenuBarSearchView: View {
         // For now, treat left/right same as up/down (linear navigation)
         // Could be enhanced later with grid-aware navigation using column count
         moveSelection(by: delta)
-    }
-
-    private func hotkeySheet(for app: RunningApp) -> some View {
-        VStack(spacing: 14) {
-            HStack {
-                Text("Set hotkey")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    hotkeyApp = nil
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-
-            HStack(spacing: 10) {
-                if let icon = app.icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .renderingMode(icon.isTemplate ? .template : .original)
-                        .foregroundStyle(icon.isTemplate ? .secondary : .primary)
-                        .frame(width: 28, height: 28)
-                } else {
-                    Image(systemName: "app.fill")
-                        .frame(width: 28, height: 28)
-                        .foregroundStyle(.secondary)
-                }
-
-                Text(app.name)
-                    .font(.body)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-
-            HStack(spacing: 8) {
-                Text("Hotkey:")
-                    .foregroundStyle(.secondary)
-
-                KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: app.bundleId))
-                    .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: app.bundleId))) { _, newShortcut in
-                        if let shortcut = newShortcut {
-                            menuBarManager.settings.iconHotkeys[app.bundleId] = KeyboardShortcutData(
-                                keyCode: UInt16(shortcut.key?.rawValue ?? 0),
-                                modifiers: shortcut.modifiers.rawValue
-                            )
-                        } else {
-                            menuBarManager.settings.iconHotkeys.removeValue(forKey: app.bundleId)
-                        }
-
-                        menuBarManager.saveSettings()
-                        IconHotkeysService.shared.registerHotkeys(from: menuBarManager.settings)
-                    }
-
-                Spacer()
-            }
-        }
-        .padding(16)
-        .frame(width: 360)
     }
 }
 
