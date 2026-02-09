@@ -55,8 +55,10 @@ DMGs are hosted on Cloudflare (not attached to GitHub releases).
 3. **Option-click** the SaneBar icon to open Power Search
 4. That's it!
 
-Icons to the **left** of the Separator (`|`) = can be hidden  
-Icons to the **right** of the Separator (`|`) = always visible
+SaneBar organizes your menu bar into three zones:
+- **Always-Hidden** (far left) — Icons only accessible via Find Icon or Dropdown Panel
+- **Hidden** (middle) — Icons that show/hide when you click
+- **Visible** (right of separator) — Always shown
 
 ---
 
@@ -85,6 +87,21 @@ Icons to the **right** of the Separator (`|`) = always visible
 - **Profiles** — Save different setups for work, home, or presentations
 
 ![Rules and Automation](docs/images/settings-rules.png)
+
+### Dropdown Panel
+A floating panel below the menu bar showing your hidden and always-hidden icons at a glance.
+- **Click** the SaneBar icon to show hidden icons in a styled panel instead of expanding the separator
+- **Right-click** any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones
+- SaneUI styling with vibrancy, hover effects, and ESC to dismiss
+- Enable: **Settings → General → Hiding → Show hidden icons in dropdown panel**
+
+### Onboarding Wizard
+A 5-page first-run flow to get you set up in under 30 seconds:
+1. **Welcome** — What SaneBar does, competitor import detection (Bartender/Ice)
+2. **How It Works** — Interactive demo of hiding and revealing icons
+3. **Your Style** — Choose a preset: **Minimal** (manual only), **Smart** (auto-hide + hover), or **Presenter** (Touch ID lock + always-hidden)
+4. **Permissions** — Grant Accessibility access
+5. **Sane Promise** — Privacy, sustainability, and the values behind SaneBar
 
 ### Core
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
@@ -140,10 +157,11 @@ Save different menu bar configurations for different contexts (e.g., "Work", "Ga
 - Click **Save as Profile…**
 - Restore any profile with a single click
 
-### 🧪 Always Hidden (beta)
-Create a second "always hidden" zone for icons that should never show automatically.
-- Enable: **Settings → Experimental → Always Hidden section**
-- In **Find Icon…**, right-click an icon → **Pin in Always Hidden (beta)**
+### 🔒 Always-Hidden Zone
+A dedicated zone for icons you rarely need. Icons pinned here never show automatically — they're only accessible via **Find Icon** or the **Dropdown Panel**.
+- Right-click any icon in **Find Icon** or the **Dropdown Panel** → **Pin in Always Hidden**
+- Pinned icons stay hidden even when you reveal your menu bar
+- Unpin anytime from the same right-click menu
 
 ### 🩺 Diagnostics
 Built-in diagnostic tools to help troubleshoot menu bar issues.
@@ -172,11 +190,11 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (Touch ID/password lock), software updates, saved profiles, import from Bartender/Ice, settings export/import |
+| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (dropdown panel), software updates, saved profiles, import from Bartender/Ice, settings export/import |
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
 | **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
-| **Experimental** | Beta features being tested, easy bug reporting |
+| **Experimental** | Diagnostics, bug reporting |
 | **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Revealing Gestures (Settings → Rules)
@@ -263,7 +281,8 @@ SaneBar/
 │   └── Models/             # Data models
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
-│   └── SearchWindow/       # Find Hidden Icon UI
+│   ├── SearchWindow/       # Find Icon, Dropdown Panel
+│   └── Onboarding/         # 5-page welcome wizard
 ├── Tests/                  # Swift Testing unit tests
 ├── scripts/                # Build automation (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
@@ -283,6 +302,15 @@ osascript -e 'tell app "SaneBar" to show hidden'
 
 # Hide items
 osascript -e 'tell app "SaneBar" to hide items'
+
+# List all menu bar icons
+osascript -e 'tell app "SaneBar" to list icons'
+
+# Pin an icon to always-hidden zone
+osascript -e 'tell app "SaneBar" to hide icon "com.example.app"'
+
+# Unpin from always-hidden zone
+osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 ```
 
 </details>
@@ -309,6 +337,21 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 </details>
 
 ---
+
+## Why SaneBar?
+
+| Feature | SaneBar | Bartender | Ice | Hidden Bar |
+|---------|---------|-----------|-----|------------|
+| **Touch ID / Password Lock** | Yes | No | No | No |
+| **Always-Hidden Zone** | Yes | No | No | No |
+| **Dropdown Panel** | Yes | No | No | No |
+| **Find Icon Search** | Yes | Partial | No | No |
+| **Open Source** | GPL v3 | No | Yes | No |
+| **No Subscriptions** | $5 once | $16 + annual | Free | Free |
+| **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
+| **macOS Tahoe + Liquid Glass** | Yes | Unknown | Partial | No |
+| **Onboarding + Presets** | Yes | No | No | No |
+| **Active Development** | Yes | Sold (acquired) | Sporadic | Abandoned |
 
 ## License
 
