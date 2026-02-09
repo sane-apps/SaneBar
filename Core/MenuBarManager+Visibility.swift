@@ -15,19 +15,8 @@ extension MenuBarManager {
     }
 
     func toggleHiddenItems() {
-        // Second menu bar mode: toggle the panel AND expand/collapse the real menu bar
-        if settings.useSecondMenuBar {
-            SearchWindowController.shared.toggle()
-            // Also toggle the real delimiter so icons are accessible in the menu bar
-            Task {
-                if hidingService.state == .hidden {
-                    await hidingService.show()
-                } else {
-                    await hidingService.hide()
-                }
-            }
-            return
-        }
+        // Second menu bar mode: left-click still toggles the real delimiter
+        // (the panel is shown via right-click only)
 
         Task {
             let currentState = hidingService.state
@@ -72,12 +61,6 @@ extension MenuBarManager {
     /// Search and hotkeys should await this before attempting virtual clicks.
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
-        // Second menu bar mode: show the panel alongside the real expand
-        if settings.useSecondMenuBar {
-            SearchWindowController.shared.show()
-            // Don't return — fall through to also expand the real delimiter
-        }
-
         if settings.requireAuthToShowHiddenIcons {
             guard !isAuthenticating else { return false }
             isAuthenticating = true
@@ -116,12 +99,6 @@ extension MenuBarManager {
     }
 
     func hideHiddenItems() {
-        // Second menu bar mode: close the panel alongside the real hide
-        if settings.useSecondMenuBar {
-            SearchWindowController.shared.close()
-            // Don't return — fall through to also hide the real delimiter
-        }
-
         Task {
             // Skip hiding if user is on external monitor and setting is enabled
             if shouldSkipHideForExternalMonitor {

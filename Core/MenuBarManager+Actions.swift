@@ -133,7 +133,12 @@ extension MenuBarManager {
             logger.info("Left-click: calling toggleHiddenItems()")
             toggleHiddenItems()
         case .rightClick:
-            showStatusMenu()
+            if settings.useSecondMenuBar {
+                logger.info("Right-click: toggling second menu bar panel")
+                SearchWindowController.shared.toggle()
+            } else {
+                showStatusMenu()
+            }
         }
     }
 

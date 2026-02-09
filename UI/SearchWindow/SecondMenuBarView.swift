@@ -97,6 +97,17 @@ struct SecondMenuBarView: View {
 
             Spacer()
 
+            Button {
+                SettingsOpener.open()
+                onDismiss()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("Settings")
+
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 14))
@@ -300,7 +311,7 @@ private struct PanelIconTile: View {
                     .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.8))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .frame(width: 58)
+                    .frame(minWidth: 44, maxWidth: 80)
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 2)
