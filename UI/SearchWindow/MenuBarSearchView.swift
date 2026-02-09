@@ -58,14 +58,14 @@ struct MenuBarSearchView: View {
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
-    let isDropdownPanel: Bool
+    let isSecondMenuBar: Bool
 
     init(
-        isDropdownPanel: Bool = false,
+        isSecondMenuBar: Bool = false,
         service: SearchServiceProtocol = SearchService.shared,
         onDismiss: @escaping () -> Void
     ) {
-        self.isDropdownPanel = isDropdownPanel
+        self.isSecondMenuBar = isSecondMenuBar
         self.service = service
         self.onDismiss = onDismiss
     }
@@ -131,8 +131,8 @@ struct MenuBarSearchView: View {
 
     var body: some View {
         Group {
-            if isDropdownPanel {
-                dropdownPanelBody
+            if isSecondMenuBar {
+                secondMenuBarBody
             } else {
                 findIconBody
             }
@@ -143,7 +143,7 @@ struct MenuBarSearchView: View {
             startPermissionMonitoring()
 
             // Focus search field on appear for instant searching (Find Icon only)
-            if !isDropdownPanel {
+            if !isSecondMenuBar {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isSearchFieldFocused = true
                 }
@@ -248,10 +248,10 @@ struct MenuBarSearchView: View {
         }
     }
 
-    // MARK: - Dropdown Panel Body
+    // MARK: - Second Menu Bar Body
 
-    private var dropdownPanelBody: some View {
-        DropdownPanelView(
+    private var secondMenuBarBody: some View {
+        SecondMenuBarView(
             apps: filteredApps,
             alwaysHiddenApps: alwaysHiddenApps,
             hasAccessibility: hasAccessibility,
@@ -278,7 +278,7 @@ struct MenuBarSearchView: View {
 
     /// The effective mode for data loading — panel mode always shows hidden icons
     private var effectiveMode: Mode {
-        isDropdownPanel ? .hidden : mode
+        isSecondMenuBar ? .hidden : mode
     }
 
     private func loadCachedApps() {
@@ -301,8 +301,8 @@ struct MenuBarSearchView: View {
             menuBarApps = service.cachedMenuBarApps()
         }
 
-        // Also load always-hidden apps for the dropdown panel's second section
-        if isDropdownPanel {
+        // Also load always-hidden apps for the second menu bar's second section
+        if isSecondMenuBar {
             alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
         }
     }
@@ -337,9 +337,9 @@ struct MenuBarSearchView: View {
                 await service.refreshMenuBarApps()
             }
 
-            // Also refresh always-hidden for dropdown panel
+            // Also refresh always-hidden for second menu bar
             var refreshedAlwaysHidden: [RunningApp] = []
-            if isDropdownPanel {
+            if isSecondMenuBar {
                 refreshedAlwaysHidden = await service.refreshAlwaysHiddenMenuBarApps()
             }
 
@@ -454,7 +454,7 @@ struct MenuBarSearchView: View {
                 } label: {
                     Label("Custom", systemImage: "plus")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.7))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(
@@ -559,7 +559,7 @@ struct MenuBarSearchView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.6))
             TextField("Filter by name…", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.body)
@@ -570,7 +570,7 @@ struct MenuBarSearchView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.6))
                 }
                 .buttonStyle(.plain)
             }
@@ -591,7 +591,7 @@ struct MenuBarSearchView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                         Text("Scanning menu bar icons…")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary.opacity(0.7))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -620,11 +620,11 @@ struct MenuBarSearchView: View {
             }
 
             Text("\(filteredApps.count) \(label)")
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.primary.opacity(0.5))
 
             Spacer()
             Text("Right-click an icon for hotkeys")
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.primary.opacity(0.5))
         }
         .font(.system(size: 13))
         .padding(.horizontal, 12)
@@ -643,7 +643,7 @@ struct MenuBarSearchView: View {
 
             Text("SaneBar needs Accessibility access to see menu bar icons.\n\nA system dialog should have appeared. Enable SaneBar in System Settings, then try again.")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
@@ -674,11 +674,11 @@ struct MenuBarSearchView: View {
 
             Text(emptyStateTitle)
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
 
             Text(emptyStateSubtitle)
                 .font(.callout)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.primary.opacity(0.5))
                 .multilineTextAlignment(.center)
         }
         .padding()
@@ -711,11 +711,11 @@ struct MenuBarSearchView: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.4))
 
             Text("No matches for \(searchText)")
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -1,14 +1,14 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct SpaceAnalyzerView: View {
     @State private var menuBarItems: [AccessibilityService.MenuBarItemPosition] = []
     @State private var totalWidth: CGFloat = 0
     @State private var usedWidth: CGFloat = 0
     @State private var isLoading = true
-    
+
     private let accessibilityService = AccessibilityService.shared
-    
+
     var body: some View {
         VStack(spacing: 20) {
             // Header
@@ -23,7 +23,7 @@ struct SpaceAnalyzerView: View {
                 .disabled(isLoading)
             }
             .padding(.horizontal)
-            
+
             if isLoading {
                 ProgressView("Analyzing Menu Bar...")
                     .frame(height: 200)
@@ -31,46 +31,46 @@ struct SpaceAnalyzerView: View {
                 // Visualization
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Storage Visualization")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary.opacity(0.7))
+
                     // The Bar
                     GeometryReader { geo in
                         HStack(spacing: 0) {
                             // Visible (Left of delimiter, effectively)
-                            // But actually, we just sum up widths. 
+                            // But actually, we just sum up widths.
                             // In SaneBar, hidden items are physically there but off-screen or zero-width?
                             // No, SaneBar pushes them off-screen.
                             // So "Visible" means x > 0.
-                            
+
                             let visibleItems = menuBarItems.filter { $0.x >= 0 }
                             let hiddenItems = menuBarItems.filter { $0.x < 0 }
-                            
+
                             let visibleWidth = visibleItems.reduce(0) { $0 + $1.width }
                             let hiddenWidth = hiddenItems.reduce(0) { $0 + $1.width }
-                            
+
                             // Color Key:
                             // Blue: Visible Apps
                             // Orange: Hidden Apps
                             // Gray: System/Control Center (approx)
-                            
+
                             Rectangle()
                                 .fill(Color.blue)
                                 .frame(width: (visibleWidth / totalWidth) * geo.size.width)
-                                .overlay(Text("Visible").font(.caption2).foregroundStyle(.white).lineLimit(1), alignment: .center)
-                            
+                                .overlay(Text("Visible").font(.system(size: 13)).foregroundStyle(.white).lineLimit(1), alignment: .center)
+
                             Rectangle()
                                 .fill(Color.orange)
                                 .frame(width: (hiddenWidth / totalWidth) * geo.size.width)
-                                .overlay(Text("Hidden").font(.caption2).foregroundStyle(.white).lineLimit(1), alignment: .center)
-                            
+                                .overlay(Text("Hidden").font(.system(size: 13)).foregroundStyle(.white).lineLimit(1), alignment: .center)
+
                             Rectangle()
                                 .fill(Color.gray.opacity(0.3)) // Free Space
                         }
                         .cornerRadius(6)
                     }
                     .frame(height: 30)
-                    
+
                     HStack {
                         Label("Visible: \(Int(menuBarItems.filter { $0.x >= 0 }.reduce(0) { $0 + $1.width }))px", systemImage: "circle.fill")
                             .foregroundStyle(.blue)
@@ -79,21 +79,21 @@ struct SpaceAnalyzerView: View {
                             .foregroundStyle(.orange)
                         Spacer()
                         Label("Free: \(Int(totalWidth - usedWidth))px", systemImage: "circle")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary.opacity(0.6))
                     }
-                    .font(.caption)
+                    .font(.system(size: 13))
                 }
                 .padding()
                 .background(Color(nsColor: .controlBackgroundColor))
                 .cornerRadius(12)
                 .padding(.horizontal)
-                
+
                 // Top Consumers List
                 VStack(alignment: .leading) {
                     Text("Top Space Consumers")
                         .font(.headline)
                         .padding(.horizontal)
-                    
+
                     List {
                         ForEach(menuBarItems.sorted(by: { $0.width > $1.width }).prefix(10), id: \.app.uniqueId) { item in
                             HStack {
@@ -107,7 +107,7 @@ struct SpaceAnalyzerView: View {
                                 Text(item.app.name)
                                 Spacer()
                                 Text("\(Int(item.width))px")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.primary.opacity(0.7))
                                     .font(.monospacedDigit(.body)())
                             }
                         }
@@ -119,7 +119,7 @@ struct SpaceAnalyzerView: View {
         }
         .onAppear(perform: refreshData)
     }
-    
+
     private func refreshData() {
         isLoading = true
         Task {
@@ -129,12 +129,12 @@ struct SpaceAnalyzerView: View {
             } else {
                 totalWidth = 1920 // Fallback
             }
-            
+
             // Scan items
             let items = await accessibilityService.listMenuBarItemsWithPositions()
-            self.menuBarItems = items
-            self.usedWidth = items.reduce(0) { $0 + $1.width }
-            self.isLoading = false
+            menuBarItems = items
+            usedWidth = items.reduce(0) { $0 + $1.width }
+            isLoading = false
         }
     }
 }

@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// A picker that shows running apps instead of requiring bundle IDs
 struct AppPickerView: View {
@@ -20,7 +20,7 @@ struct AppPickerView: View {
         VStack(alignment: .leading, spacing: 8) {
             if selectedBundleIDs.isEmpty {
                 Text("None selected")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
             } else {
                 ForEach(selectedBundleIDs, id: \.self) { bundleID in
                     HStack(spacing: 6) {
@@ -30,7 +30,7 @@ struct AppPickerView: View {
                             selectedBundleIDs.removeAll { $0 == bundleID }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.6))
                         }
                         .buttonStyle(.plain)
                     }

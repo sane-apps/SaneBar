@@ -58,7 +58,7 @@ public struct WelcomeView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
                     .font(.system(size: 14))
                 }
 
@@ -129,7 +129,7 @@ private struct WelcomeActionPage: View {
 
             Text("One click to hide. One click to reveal.")
                 .font(.system(size: 18))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
 
             // Menu bar simulation
             VStack(spacing: 10) {
@@ -152,7 +152,7 @@ private struct WelcomeActionPage: View {
                             Image(systemName: "line.3.horizontal.decrease")
                                 .font(.system(size: 15, weight: .semibold))
                             Text("try it")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 13, weight: .medium))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
@@ -287,12 +287,12 @@ private struct ArrangeIconsPage: View {
             // Zone diagram
             HStack(spacing: 4) {
                 zonePill("Always hidden", Color.red.opacity(0.2))
-                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.primary.opacity(0.7))
                 zonePill("Hidden", Color.orange.opacity(0.3))
-                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+                Text("/").font(.system(size: 14, weight: .medium)).foregroundStyle(.primary.opacity(0.7))
                 zonePill("Visible", Color.green.opacity(0.3))
                 Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white).padding(4)
                     .background(Color.accentColor).cornerRadius(4)
                 zonePill("Visible", Color.green.opacity(0.3))
@@ -327,7 +327,7 @@ private struct ArrangeIconsPage: View {
 
     private func zonePill(_ label: String, _ bg: Color) -> some View {
         Text(label)
-            .font(.system(size: 11, weight: .medium))
+            .font(.system(size: 13, weight: .medium))
             .padding(.horizontal, 6).padding(.vertical, 4)
             .background(bg).cornerRadius(5)
     }
@@ -350,7 +350,7 @@ private struct PermissionsPage: View {
                     .font(.system(size: 28, weight: .bold))
                 Text("Optional ways to reveal your icons.")
                     .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
             }
 
             VStack(spacing: 14) {
@@ -370,7 +370,7 @@ private struct PermissionsPage: View {
             VStack(spacing: 10) {
                 Text("These gestures and Find Icon need Accessibility permission.")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 500)
 
@@ -408,7 +408,7 @@ private struct GestureToggleRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 16, weight: .medium))
-                Text(description).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(description).font(.system(size: 13)).foregroundStyle(.primary.opacity(0.7))
             }
 
             Spacer()

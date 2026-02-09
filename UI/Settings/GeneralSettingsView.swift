@@ -108,16 +108,16 @@ struct GeneralSettingsView: View {
                 // 3. Hiding
                 CompactSection("Hiding") {
                     CompactToggle(
-                        label: "Show hidden icons in dropdown panel (Beta)",
+                        label: "Show hidden icons in second menu bar",
                         isOn: Binding(
-                            get: { menuBarManager.settings.useDropdownPanel },
+                            get: { menuBarManager.settings.useSecondMenuBar },
                             set: { newValue in
-                                menuBarManager.settings.useDropdownPanel = newValue
+                                menuBarManager.settings.useSecondMenuBar = newValue
                                 SearchWindowController.shared.resetWindow()
                             }
                         )
                     )
-                    .help("Shows hidden icons in a panel below the menu bar instead of expanding the separator. This feature is new — please report any issues.")
+                    .help("Shows hidden icons in a second menu bar below the main one. You can still interact with icons in the real menu bar.")
                 }
 
                 // 4. Updates
@@ -147,15 +147,15 @@ struct GeneralSettingsView: View {
                     if savedProfiles.isEmpty {
                         CompactRow("Saved") {
                             Text("No saved profiles")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.7))
                         }
                     } else {
                         ForEach(savedProfiles) { profile in
                             CompactRow(profile.name) {
                                 HStack {
                                     Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.primary.opacity(0.7))
 
                                     Button("Load") { loadProfile(profile) }
                                         .buttonStyle(.bordered)
@@ -165,7 +165,7 @@ struct GeneralSettingsView: View {
                                         deleteProfile(profile)
                                     } label: {
                                         Image(systemName: "trash")
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(.primary.opacity(0.6))
                                     }
                                     .buttonStyle(.plain)
                                 }

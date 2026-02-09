@@ -53,7 +53,7 @@ struct SetupStylePage: View {
 
             Text("Pick a starting point — customize everything later in Settings.")
                 .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
 
             // Preset cards
             HStack(spacing: 12) {
@@ -70,7 +70,7 @@ struct SetupStylePage: View {
             VStack(spacing: 10) {
                 Text("Menu Bar Icon")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
 
                 HStack(spacing: 14) {
                     ForEach(iconStyles, id: \.self) { style in
@@ -126,8 +126,8 @@ struct SetupStylePage: View {
 
                 if preset.recommended {
                     Text("Recommended")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(isActive ? .white.opacity(0.8) : .secondary)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(isActive ? .white.opacity(0.8) : .primary.opacity(0.7))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
@@ -136,8 +136,8 @@ struct SetupStylePage: View {
                 }
 
                 Text(preset.description)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isActive ? .white.opacity(0.9) : .secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(isActive ? .white.opacity(0.9) : .primary.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)

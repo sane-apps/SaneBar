@@ -15,7 +15,7 @@ struct MenuBarSearchAccessibilityPrompt: View {
 
             Text("SaneBar needs Accessibility access to see menu bar icons.\n\nA system dialog should have appeared. Enable SaneBar in System Settings, then try again.")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
@@ -40,7 +40,7 @@ struct MenuBarSearchAccessibilityPrompt: View {
 
 struct MenuBarSearchEmptyState: View {
     let mode: String
-    
+
     private var title: String {
         switch mode {
         case "hidden": "No hidden icons"
@@ -68,11 +68,11 @@ struct MenuBarSearchEmptyState: View {
 
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
 
             Text(subtitle)
                 .font(.callout)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.primary.opacity(0.5))
                 .multilineTextAlignment(.center)
         }
         .padding()
@@ -87,11 +87,11 @@ struct MenuBarSearchNoMatchState: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.4))
 
             Text("No matches for \"\(searchText)\"")
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

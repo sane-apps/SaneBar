@@ -26,8 +26,8 @@ Always-hidden promoted from experimental to permanent first-class feature:
 
 ### Documentation Updates (Feb 9, committed + pushed)
 
-- **README.md**: Graduated always-hidden, added Dropdown Panel + Onboarding Wizard + Always-Hidden Zone sections, updated How It Works (three-zone architecture), updated comparison table, updated AppleScript docs, updated project structure
-- **docs/index.html (website)**: Added 3 rows to comparison table (Always-Hidden Zone, Dropdown Panel, Onboarding Wizard), added 2 feature cards (non-clickable `<div>` pending screenshots)
+- **README.md**: Graduated always-hidden, added Second Menu Bar + Onboarding Wizard + Always-Hidden Zone sections, updated How It Works (three-zone architecture), updated comparison table, updated AppleScript docs, updated project structure
+- **docs/index.html (website)**: Added 3 rows to comparison table (Always-Hidden Zone, Second Menu Bar, Onboarding Wizard), added 2 feature cards (non-clickable `<div>` pending screenshots)
 - **DOCS_AUDIT_FINDINGS.md**: Full 14-perspective audit results
 
 ### Icon Moving — Current State (Feb 9, committed `8d12b46`)
@@ -48,7 +48,7 @@ Always-hidden promoted from experimental to permanent first-class feature:
 
 ## Documentation State
 
-- **README.md** — Updated Feb 9: Graduated always-hidden, documented dropdown panel, onboarding, zone management, comparison table
+- **README.md** — Updated Feb 9: Graduated always-hidden, documented second menu bar, onboarding, zone management, comparison table
 - **docs/index.html** — Updated Feb 9: Comparison table + feature cards (screenshots needed)
 - **ARCHITECTURE.md** — Updated Feb 9: "Icon Moving Pipeline" section
 - **DOCS_AUDIT_FINDINGS.md** — Created Feb 9: Full 14-perspective audit (7.7/10 overall)
@@ -59,7 +59,7 @@ Always-hidden promoted from experimental to permanent first-class feature:
 ## FOLLOW-UPS
 
 ### Screenshots Needed (User will do later)
-- **Dropdown Panel** — New feature card on website needs screenshot for lightbox
+- **Second Menu Bar** — New feature card on website needs screenshot for lightbox
 - **Always-Hidden Zone** — New feature card on website needs screenshot for lightbox
 - **Onboarding Wizard** — Consider adding feature card + screenshot
 - Feature cards are currently `<div>` (non-clickable). Convert to `<a>` with lightbox once screenshots exist.
@@ -100,7 +100,7 @@ Always-hidden promoted from experimental to permanent first-class feature:
 
 ## NEXT SESSION — Priorities
 
-1. **Screenshots** — Take screenshots for Dropdown Panel and Always-Hidden Zone feature cards, convert `<div>` to `<a>` with lightbox
+1. **Screenshots** — Take screenshots for Second Menu Bar and Always-Hidden Zone feature cards, convert `<div>` to `<a>` with lightbox
 2. **Fix AH-to-Hidden verification** — false negative when separators are flush
 3. **Speed optimization** — explore shorter delays, parallel operations
 4. **MenuBarSearchView.swift extraction** — 1046 lines, over lint limit

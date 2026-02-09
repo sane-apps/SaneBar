@@ -256,8 +256,8 @@ struct AppearanceSettingsView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
                             Text("Log out to verify changes.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.primary.opacity(0.7))
                             Spacer()
                         }
                         .padding(.vertical, 4)
