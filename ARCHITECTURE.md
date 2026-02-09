@@ -1,20 +1,20 @@
 # SaneBar Architecture
 
-Last updated: 2026-02-02
+Last updated: 2026-02-09
 
 This document explains how SaneBar is structured, how it moves menu bar icons, and how the major services interact. It is written to be useful to any developer (Swift, macOS, or otherwise).
 
 ## Goals and Non-Goals
 
 Goals
-- Provide reliable hide/show of menu bar icons without private APIs or mouse simulation.
+- Provide reliable hide/show of menu bar icons.
+- Programmatically move icons between zones (visible/hidden/always-hidden) via CGEvent Cmd+drag.
 - Keep all data on-device; avoid telemetry and external dependencies for core behavior.
 - Make behavior predictable (clear triggers, clear state).
 - Keep the app safe to run at login and in headless/test contexts.
 
 Non-goals
 - No cloud services for core features.
-- No CGEvent-based cursor hijacking.
 - No direct manipulation of other app windows.
 
 ## System Context
@@ -253,9 +253,95 @@ See `PRIVACY.md` for details and rationale.
 - Primary entry point for verification: `./scripts/SaneMaster.rb verify`.
 - Search/trigger flows are largely integration-tested via MenuBarManager + services.
 
+## Icon Moving Pipeline
+
+### Why CGEvent Cmd+Drag (There Is No Alternative)
+
+There is **no Apple API** for programmatic menu bar icon positioning. This was verified exhaustively:
+
+| Approach | Result |
+|----------|--------|
+| `kAXPositionAttribute` (AX) | Read-only for menu bar items |
+| `NSStatusItem.preferredPosition` | Does not exist |
+| UserDefaults `NSStatusItem Preferred Position` | macOS ignores manual writes |
+| `AXUIElementSetAttributeValue` | Returns error for status items |
+| WWDC sessions | Zero results on this topic |
+
+**Every app that moves icons uses the same hack:** simulate Cmd+drag via CGEvent.
+- **Ice** (25.8k stars): CGEvent + dual event taps ("scrombleEvent") + 5 retries
+- **Bartender**: Private APIs (broke on macOS Tahoe, had to rewrite)
+- **Dozer**: Gave up — doesn't move icons at all
+
+Sources: [Ice source (MenuBarItemManager.swift)](https://github.com/jordanbaird/Ice/blob/main/Ice/MenuBar/MenuBarItems/MenuBarItemManager.swift), [NSStatusItem docs](https://developer.apple.com/documentation/appkit/nsstatusitem)
+
+### Three-Zone Architecture
+
+Icons live in three zones separated by two NSStatusItem delimiters:
+
+```
+[Always-Hidden zone] [AH separator] [Hidden zone] [Main separator] [Visible zone] [System items]
+     ← leftmost                                                              rightmost →
+```
+
+- **Visible:** Right of main separator. Always shown.
+- **Hidden:** Between separators. Shown on click/hover, auto-rehidden.
+- **Always-Hidden:** Left of AH separator. Only shown via Find Icon window.
+
+NSStatusItems grow **leftward** — right edge stays fixed, left edge extends. When hidden (length=10000), items are pushed far off-screen left (~x=-3349).
+
+### How Icon Moving Works
+
+**Orchestrator:** `MenuBarManager+IconMoving.swift`
+**Drag engine:** `AccessibilityService+Interaction.swift` (`performCmdDrag`)
+
+#### Move sequence:
+1. **Expand** — `showAll()` shield pattern toggles both separators to visual size. Required because the 10000px separator physically blocks Cmd+drag in both directions.
+2. **Wait** — 300ms for macOS relayout (500ms hits auto-rehide).
+3. **Find icon** — AX scan for icon frame by bundle ID.
+4. **Calculate target** — Direction-dependent:
+   - **To visible:** `max(separatorRightEdge + 1, mainIconLeftEdge - 2)` — just left of SaneBar icon
+   - **To hidden:** `max(separatorOrigin - offset, ahSeparatorRightEdge + 2)` — right of AH separator
+   - **AH-to-hidden:** Right of AH separator (uses `moveIconFromAlwaysHiddenToHidden`)
+5. **Cmd+drag** — 16-step CGEvent drag over ~240ms with cursor hidden, grab at icon center (`midX`).
+6. **Verify** — Re-read AX frame, check icon landed on expected side of separator.
+7. **Retry** — If verification fails, one retry with updated grab point.
+8. **Restore** — `restoreFromShowAll()` + `hide()` to collapse separators back.
+
+#### Key files:
+
+| File | Role |
+|------|------|
+| `Core/MenuBarManager+IconMoving.swift` | Orchestration, separator reading, zone routing |
+| `Core/Services/AccessibilityService+Interaction.swift` | `moveMenuBarIcon()`, `performCmdDrag()`, verification |
+| `Core/MenuBarManager.swift` | `lastKnownSeparatorX` cache, `isMoveInProgress` flag |
+| `UI/SearchWindow/MenuBarSearchView.swift` | Zone-aware context menus, `appZone()` classifier |
+| `UI/SearchWindow/SearchWindowController.swift` | `isMoveInProgress` guards on window close |
+| `Tests/IconMovingTests.swift` | 56 regression tests |
+
+### Known Fragilities
+
+1. **First drag sometimes fails** — timing between `showAll()` completing and icons becoming draggable.
+2. **Wide icons (>100px)** may need special grab points.
+3. **AH-to-Hidden verification is too strict** when separators are flush (both at same X). Move works visually but verification reports failure.
+4. **Separator reads -3349** during blocking mode — mitigated by `lastKnownSeparatorX` cache.
+5. **Re-hiding after move** can undo the move if macOS hasn't reclassified the icon yet.
+6. **This will always be fragile.** Ice has the same open bugs (#684). Accept it and add retries.
+
+### What We Tried That Didn't Work
+
+| Attempt | Why It Failed |
+|---------|---------------|
+| `show()` instead of `showAll()` | Doesn't trigger proper relayout, icons stay off-screen |
+| Target = `separatorX + offset` (fixed overshoot) | Overshoots past SaneBar icon into system area |
+| Only expanding for move-to-visible | Move-to-hidden also blocked by 10000px separator |
+| No AH boundary clamping | Move-to-hidden overshoots past AH separator |
+| 30ms drag timing (6 steps × 5ms) | macOS ignores — too fast for CGEvent to register |
+| Implementing "fixes" from audit without verifying bugs exist | Regressed working code (Feb 8 incident) |
+
 ## Risks and Tradeoffs
 
 - The hide/show technique relies on NSStatusItem length behavior; macOS changes could affect it.
+- Icon moving uses CGEvent Cmd+drag simulation — inherently fragile, may break on macOS updates. No alternative exists.
 - Menu bar spacing uses private defaults keys (system-wide effect, logout usually required).
-- Accessibility permission is mandatory for most features.
+- Accessibility permission is mandatory for most features (including icon moving).
 - Focus Mode detection depends on local system files that may change across macOS versions.

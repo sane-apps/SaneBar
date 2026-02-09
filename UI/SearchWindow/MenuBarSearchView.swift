@@ -48,6 +48,8 @@ struct MenuBarSearchView: View {
     @State private var isCreatingGroup = false
     @State private var newGroupName = ""
     @State private var movingAppId: String?
+    /// Set after a move completes so the next tab switch does a fresh scan
+    @State private var needsPostMoveRefresh = false
     @ObservedObject private var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
@@ -175,11 +177,17 @@ struct MenuBarSearchView: View {
             // so reading it would return stale/empty data. Go straight to
             // a fresh AX scan which will populate the list correctly.
             movingAppId = nil
+            needsPostMoveRefresh = true
             refreshApps(force: true)
         }
         .onChange(of: storedMode) { _, _ in
-            // Use cached data for instant tab switching - no need to refresh
-            loadCachedApps()
+            if needsPostMoveRefresh {
+                // After a move, tabs must do a fresh scan — cache has stale zone data
+                needsPostMoveRefresh = false
+                refreshApps(force: true)
+            } else {
+                loadCachedApps()
+            }
         }
         .onDisappear {
             permissionMonitorTask?.cancel()
