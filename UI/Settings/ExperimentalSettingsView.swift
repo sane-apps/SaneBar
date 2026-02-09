@@ -9,11 +9,6 @@ struct ExperimentalSettingsView: View {
             // Welcome message with buttons
             honestExplanationSection
 
-            // Experimental features (when available)
-            if hasExperimentalFeatures {
-                EmptyView()
-            }
-
             Spacer()
         }
         .padding(20)
@@ -66,12 +61,6 @@ struct ExperimentalSettingsView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.orange.opacity(0.3), lineWidth: 1)
         )
-    }
-
-    // MARK: - Advanced Features
-
-    private var hasExperimentalFeatures: Bool {
-        false
     }
 }
 
