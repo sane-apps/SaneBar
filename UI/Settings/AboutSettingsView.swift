@@ -2,8 +2,6 @@ import AppKit
 import SwiftUI
 
 struct AboutSettingsView: View {
-    @ObservedObject private var menuBarManager = MenuBarManager.shared
-    @State private var showResetConfirmation = false
     @State private var showLicenses = false
     @State private var showSupport = false
     @State private var showFeedback = false
