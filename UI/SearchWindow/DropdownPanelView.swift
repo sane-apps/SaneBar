@@ -3,10 +3,10 @@ import SwiftUI
 
 // MARK: - Dropdown Panel View
 
-/// A polished floating panel showing hidden menu bar icons.
+/// Floating panel showing hidden menu bar icons below the menu bar.
 ///
-/// Designed to feel native — like macOS Control Center meets the menu bar.
-/// Features: vibrancy background, hover effects, ESC dismissal, auto-sizing.
+/// Uses SaneApps brand styling (hudWindow + teal gradient), white icons for
+/// contrast, and context menus for moving icons between zones.
 struct DropdownPanelView: View {
     let apps: [RunningApp]
     let alwaysHiddenApps: [RunningApp]
@@ -17,15 +17,12 @@ struct DropdownPanelView: View {
     let onRetry: () -> Void
 
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             panelHeader
-
-            Divider().opacity(0.2)
-
-            // Content
+            panelDivider
             if !hasAccessibility {
                 accessibilityPrompt
             } else if apps.isEmpty, alwaysHiddenApps.isEmpty {
@@ -34,16 +31,46 @@ struct DropdownPanelView: View {
                 iconContent
             }
         }
-        .frame(minWidth: 200)
-        .background {
-            VisualEffectBackground(material: .menu, blendingMode: .behindWindow)
-        }
+        .frame(minWidth: 220)
+        .background { panelBackground }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                .stroke(
+                    colorScheme == .dark ? Color.white.opacity(0.12) : Color.teal.opacity(0.15),
+                    lineWidth: 1
+                )
         )
         .onExitCommand { onDismiss() }
+    }
+
+    // MARK: - Background (SaneUI brand)
+
+    private var panelBackground: some View {
+        ZStack {
+            if colorScheme == .dark {
+                VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow)
+                LinearGradient(
+                    colors: [
+                        Color.teal.opacity(0.08),
+                        Color.blue.opacity(0.05),
+                        Color.teal.opacity(0.03)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.95, green: 0.98, blue: 0.99),
+                        Color(red: 0.92, green: 0.96, blue: 0.98),
+                        Color(red: 0.94, green: 0.97, blue: 0.99)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
     }
 
     // MARK: - Header
@@ -52,20 +79,20 @@ struct DropdownPanelView: View {
         HStack(spacing: 8) {
             Image(systemName: "eye.slash")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.primary.opacity(0.5))
 
             Text("Hidden Icons")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
 
             let total = apps.count + alwaysHiddenApps.count
             if total > 0 {
                 Text("\(total)")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.5)))
             }
 
             Spacer()
@@ -73,39 +100,49 @@ struct DropdownPanelView: View {
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 14))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.primary.opacity(0.4))
             }
             .buttonStyle(.plain)
             .help("Close (Esc)")
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.vertical, 9)
+    }
+
+    private var panelDivider: some View {
+        Rectangle()
+            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.teal.opacity(0.12))
+            .frame(height: 1)
     }
 
     // MARK: - Icon Content
 
     private var iconContent: some View {
         VStack(spacing: 0) {
-            // Hidden icons section
             if !apps.isEmpty {
-                iconRow(apps: apps)
+                iconRow(apps: apps, zone: .hidden)
             }
 
-            // Always-hidden section (if enabled and has items)
             if menuBarManager.settings.alwaysHiddenSectionEnabled, !alwaysHiddenApps.isEmpty {
                 sectionDivider(label: "Always Hidden")
-                iconRow(apps: alwaysHiddenApps)
+                iconRow(apps: alwaysHiddenApps, zone: .alwaysHidden)
             }
         }
     }
 
-    private func iconRow(apps: [RunningApp]) -> some View {
+    private func iconRow(apps: [RunningApp], zone: IconZone) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
                 ForEach(apps) { app in
                     PanelIconTile(
                         app: app,
-                        onActivate: { isRightClick in onActivate(app, isRightClick) }
+                        zone: zone,
+                        colorScheme: colorScheme,
+                        onActivate: { isRightClick in onActivate(app, isRightClick) },
+                        onMoveToVisible: { moveIcon(app, toZone: .visible) },
+                        onMoveToHidden: zone == .alwaysHidden ? { moveIcon(app, toZone: .hidden) } : nil,
+                        onMoveToAlwaysHidden: zone == .hidden && menuBarManager.settings.alwaysHiddenSectionEnabled
+                            ? { moveIcon(app, toZone: .alwaysHidden) } : nil
                     )
                 }
             }
@@ -115,21 +152,54 @@ struct DropdownPanelView: View {
     }
 
     private func sectionDivider(label: String) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Rectangle()
-                .fill(Color.primary.opacity(0.06))
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.1))
                 .frame(height: 1)
 
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.tertiary)
-                .fixedSize()
+            HStack(spacing: 4) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 8))
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(.primary.opacity(0.4))
+            .fixedSize()
 
             Rectangle()
-                .fill(Color.primary.opacity(0.06))
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.1))
                 .frame(height: 1)
         }
         .padding(.horizontal, 14)
+    }
+
+    // MARK: - Icon Movement
+
+    private func moveIcon(_ app: RunningApp, toZone: IconZone) {
+        let bundleID = app.bundleId
+        let menuExtraId = app.menuExtraIdentifier
+        let statusItemIndex = app.statusItemIndex
+
+        switch toZone {
+        case .visible:
+            _ = menuBarManager.moveIcon(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex, toHidden: false
+            )
+        case .hidden:
+            // From always-hidden → regular hidden zone
+            menuBarManager.unpinAlwaysHidden(app: app)
+            _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        case .alwaysHidden:
+            menuBarManager.pinAlwaysHidden(app: app)
+            _ = menuBarManager.moveIconToAlwaysHidden(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
     }
 
     // MARK: - Empty State
@@ -141,17 +211,17 @@ struct DropdownPanelView: View {
                     .controlSize(.small)
                 Text("Scanning menu bar...")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.6))
             } else {
                 Image(systemName: "menubar.rectangle")
                     .font(.system(size: 24))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.primary.opacity(0.3))
                 Text("No hidden icons")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("Drag icons past the separator to hide them")
+                    .foregroundStyle(.primary.opacity(0.7))
+                Text("Hold \u{2318} and drag icons past the separator")
                     .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.primary.opacity(0.4))
             }
         }
         .frame(maxWidth: .infinity)
@@ -172,7 +242,7 @@ struct DropdownPanelView: View {
                     .font(.system(size: 13, weight: .medium))
                 Text("Required to detect menu bar icons")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.6))
             }
 
             Spacer()
@@ -194,31 +264,41 @@ struct DropdownPanelView: View {
     }
 }
 
+// MARK: - Icon Zone
+
+enum IconZone {
+    case visible, hidden, alwaysHidden
+}
+
 // MARK: - Panel Icon Tile
 
-/// Individual icon tile for the dropdown panel with hover effects.
+/// Individual icon tile with hover effects, white icons, and zone management.
 private struct PanelIconTile: View {
     let app: RunningApp
+    let zone: IconZone
+    let colorScheme: ColorScheme
     let onActivate: (Bool) -> Void
+    var onMoveToVisible: (() -> Void)?
+    var onMoveToHidden: (() -> Void)?
+    var onMoveToAlwaysHidden: (() -> Void)?
     @State private var isHovering = false
 
     var body: some View {
         Button { onActivate(false) } label: {
             VStack(spacing: 4) {
-                // Icon
                 ZStack {
+                    // Card background — SaneUI glass style
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(isHovering ? Color.accentColor.opacity(0.12) : Color.clear)
+                        .fill(tileBackground)
 
                     iconImage
-                        .frame(width: 26, height: 26)
+                        .frame(width: 24, height: 24)
                 }
-                .frame(width: 42, height: 42)
+                .frame(width: 44, height: 44)
 
-                // Name
                 Text(app.name)
                     .font(.system(size: 10))
-                    .foregroundStyle(isHovering ? .primary : .secondary)
+                    .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.7))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(width: 58)
@@ -229,11 +309,19 @@ private struct PanelIconTile: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .help(app.name)
-        .contextMenu {
-            Button("Left-Click (Open)") { onActivate(false) }
-            Button("Right-Click") { onActivate(true) }
-        }
+        .contextMenu { contextMenuItems }
         .accessibilityLabel(Text(app.name))
+    }
+
+    private var tileBackground: some ShapeStyle {
+        if isHovering {
+            return AnyShapeStyle(Color.teal.opacity(0.18))
+        }
+        return AnyShapeStyle(
+            colorScheme == .dark
+                ? Color.white.opacity(0.08)
+                : Color.white.opacity(0.8)
+        )
     }
 
     @ViewBuilder
@@ -242,13 +330,63 @@ private struct PanelIconTile: View {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)
-                .foregroundStyle(icon.isTemplate ? .secondary : .primary)
+                // White icons in dark mode, full color in light — clear contrast
+                .foregroundStyle(.primary)
                 .aspectRatio(contentMode: .fit)
         } else {
             Image(systemName: "app.fill")
                 .resizable()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.6))
                 .aspectRatio(contentMode: .fit)
+        }
+    }
+
+    // MARK: - Context Menu (Zone Management)
+
+    @ViewBuilder
+    private var contextMenuItems: some View {
+        Button("Left-Click (Open)") { onActivate(false) }
+        Button("Right-Click") { onActivate(true) }
+
+        Divider()
+
+        // Zone labels
+        switch zone {
+        case .hidden:
+            SwiftUI.Label("Currently: Hidden", systemImage: "eye.slash")
+                .disabled(true)
+        case .alwaysHidden:
+            SwiftUI.Label("Currently: Always Hidden", systemImage: "lock")
+                .disabled(true)
+        case .visible:
+            SwiftUI.Label("Currently: Visible", systemImage: "eye")
+                .disabled(true)
+        }
+
+        Divider()
+
+        if let moveToVisible = onMoveToVisible {
+            Button {
+                moveToVisible()
+            } label: {
+                SwiftUI.Label("Move to Visible", systemImage: "eye")
+            }
+        }
+
+        if let moveToHidden = onMoveToHidden {
+            Button {
+                moveToHidden()
+            } label: {
+                SwiftUI.Label("Move to Hidden", systemImage: "eye.slash")
+            }
+        }
+
+        if let moveToAH = onMoveToAlwaysHidden {
+            Button {
+                moveToAH()
+            } label: {
+                SwiftUI.Label("Move to Always Hidden", systemImage: "lock")
+            }
         }
     }
 }
