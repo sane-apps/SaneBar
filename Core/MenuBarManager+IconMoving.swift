@@ -253,16 +253,9 @@ extension MenuBarManager {
                 logger.info("🔧 Retry returned: \(success, privacy: .public)")
             }
 
-            // Allow Cmd+drag to complete before refreshing.
-            try? await Task.sleep(for: .milliseconds(250))
-
-            await MainActor.run {
-                logger.info("🔧 Triggering post-move refresh...")
-                AccessibilityService.shared.invalidateMenuBarItemCache()
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
-
             // Restore shield pattern and re-hide if we expanded.
+            // This MUST complete before refreshing — otherwise the AX scan
+            // sees items mid-transition and returns stale positions.
             let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
             if wasHidden {
                 logger.info("🔧 Restoring from showAll shield pattern...")
@@ -271,6 +264,15 @@ extension MenuBarManager {
                     logger.info("🔧 Move complete - re-hiding items...")
                     await hidingService.hide()
                 }
+            }
+
+            // Allow positions to settle after re-hide, then refresh.
+            try? await Task.sleep(for: .milliseconds(300))
+
+            await MainActor.run {
+                logger.info("🔧 Triggering post-move refresh...")
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
             logger.info("🔧 ========== MOVE ICON END ==========")
@@ -385,19 +387,19 @@ extension MenuBarManager {
             }
 
             // 5. Restore: re-block always-hidden items (shield pattern)
-            try? await Task.sleep(for: .milliseconds(250))
             await hidingService.restoreFromShowAll()
 
-            // 6. Refresh
-            await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache()
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
-
-            // 7. Re-hide if needed
+            // 6. Re-hide if needed (BEFORE refresh so AX sees final positions)
             let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
             if wasHidden, !shouldSkipHide {
                 await hidingService.hide()
+            }
+
+            // 7. Refresh after positions settle
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
             return success
@@ -525,18 +527,19 @@ extension MenuBarManager {
                 )
             }
 
-            // 4. Restore shield, refresh, re-hide
-            try? await Task.sleep(for: .milliseconds(250))
+            // 4. Restore shield and re-hide (BEFORE refresh)
             await hidingService.restoreFromShowAll()
-
-            await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache()
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
 
             let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
             if wasHidden, !shouldSkipHide {
                 await hidingService.hide()
+            }
+
+            // 5. Refresh after positions settle
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
             return success
