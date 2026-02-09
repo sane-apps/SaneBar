@@ -1,13 +1,13 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// Welcome onboarding view shown on first launch
-/// Structure: Tutorial (how to use) → Trust (why we're different) → Promise (our values)
+/// Structure: Welcome → How It Works → Power Features → Permissions → Sane Promise
 /// Reference: SaneApps-Brand-Guidelines.md
 public struct WelcomeView: View {
     @State private var currentPage = 0
     let onComplete: () -> Void
-    private let totalPages = 6
+    private let totalPages = 5
 
     public init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -27,8 +27,6 @@ public struct WelcomeView: View {
                 case 3:
                     PermissionsPage()
                 case 4:
-                    WhyDifferentPage()
-                case 5:
                     SanePromisePage()
                 default:
                     WelcomeActionPage()
@@ -38,7 +36,7 @@ public struct WelcomeView: View {
 
             // Page indicators
             HStack(spacing: 8) {
-                ForEach(0..<totalPages, id: \.self) { index in
+                ForEach(0 ..< totalPages, id: \.self) { index in
                     Circle()
                         .fill(currentPage == index ? Color.accentColor : Color.primary.opacity(0.3))
                         .frame(width: 8, height: 8)
@@ -226,13 +224,31 @@ private struct ArrangeIconsPage: View {
                     }
                 }
 
-                // Element 3: Rearranging
+                // Element 3: Always-Hidden
+                HStack(spacing: 16) {
+                    Image(systemName: "eye.slash")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 50, height: 50)
+                        .background(Color.purple.opacity(0.6))
+                        .cornerRadius(10)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Always-Hidden Section")
+                            .font(.system(size: 17, weight: .semibold))
+                        Text("Add a second separator for icons that stay hidden even when you reveal the rest.")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.primary)
+                    }
+                }
+
+                // Element 4: Rearranging
                 HStack(spacing: 16) {
                     Image(systemName: "command")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 50, height: 50)
-                        .background(Color.purple.opacity(0.6))
+                        .background(Color.orange.opacity(0.6))
                         .cornerRadius(10)
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -252,41 +268,52 @@ private struct ArrangeIconsPage: View {
                     .font(.system(size: 14))
                     .foregroundStyle(.primary)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
+                    Text("Always hidden")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.red.opacity(0.2))
+                        .cornerRadius(6)
+
+                    Text("/")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+
                     Text("Hidden")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(Color.orange.opacity(0.3))
                         .cornerRadius(6)
 
                     Text("/")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(.primary)
 
-                    Text("Always visible")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                    Text("Visible")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(Color.green.opacity(0.3))
                         .cornerRadius(6)
 
                     Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
-                        .padding(6)
+                        .padding(5)
                         .background(Color.accentColor)
                         .cornerRadius(4)
 
-                    Text("Always visible")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                    Text("Visible")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(Color.green.opacity(0.3))
                         .cornerRadius(6)
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 4)
         }
         .padding(32)
     }
@@ -377,11 +404,12 @@ private struct FeatureCard: View {
 
 private struct PermissionsPage: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @State private var permissionGranted = AccessibilityService.shared.isGranted
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 24) {
             Image(systemName: "hand.tap.fill")
-                .font(.system(size: 56))
+                .font(.system(size: 48))
                 .foregroundStyle(.blue)
 
             VStack(spacing: 8) {
@@ -392,7 +420,7 @@ private struct PermissionsPage: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 GestureToggleRow(
                     icon: "scroll",
                     title: "Scroll to Show",
@@ -409,21 +437,30 @@ private struct PermissionsPage: View {
             }
             .padding(.horizontal, 40)
 
-            VStack(spacing: 12) {
-                Text("⚠️ These features require **Accessibility** and **Input Monitoring** permissions to work while you are using other apps.")
+            VStack(spacing: 10) {
+                Text("These gestures and the Find Icon feature need Accessibility permission.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 500)
 
-                Button("Open System Settings") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                if permissionGranted {
+                    Label("Permission Granted", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.system(size: 14, weight: .medium))
+                } else {
+                    Button("Enable Accessibility Access") {
+                        AccessibilityService.shared.requestAccessibility()
+                        // Check again after a short delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                            permissionGranted = AccessibilityService.shared.isGranted
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.bordered)
             }
-            .padding(.top, 8)
         }
-        .padding(32)
+        .padding(24)
     }
 }
 
@@ -459,73 +496,6 @@ private struct GestureToggleRow: View {
         .padding(12)
         .background(Color.primary.opacity(0.05))
         .cornerRadius(10)
-    }
-}
-
-// MARK: - Page 5: Why We're Different
-
-private struct WhyDifferentPage: View {
-    var body: some View {
-        VStack(spacing: 28) {
-            Image(systemName: "shield.checkered")
-                .font(.system(size: 56))
-                .foregroundStyle(.green)
-
-            Text("Why SaneBar?")
-                .font(.system(size: 28, weight: .bold))
-
-            Text("Other menu bar apps spy on you, charge subscriptions, or break on every macOS update. We're different.")
-                .font(.system(size: 16))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 480)
-
-            // The three badges - same as website
-            HStack(spacing: 24) {
-                TrustBadge(emoji: "🔒", title: "No Spying", description: "Zero network calls.\nYour data stays local.")
-                TrustBadge(emoji: "💵", title: "No Subscription", description: "Pay once, own forever.\nNo recurring fees.")
-                TrustBadge(emoji: "🛠️", title: "Maintained", description: "Works on Tahoe.\nActively developed.")
-            }
-            .padding(.top, 8)
-
-            // Comparison callout
-            Text("Bartender was acquired and now spies on you.\nIce breaks on Tahoe. Dozer is abandoned.\nSaneBar just works.")
-                .font(.system(size: 13))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 500)
-                .padding(.top, 8)
-        }
-        .padding(32)
-    }
-}
-
-private struct TrustBadge: View {
-    let emoji: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Text(emoji)
-                .font(.system(size: 36))
-
-            Text(title)
-                .font(.system(size: 15, weight: .semibold))
-
-            Text(description)
-                .font(.system(size: 12))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(width: 140)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(0.05))
-        )
     }
 }
 
