@@ -15,9 +15,17 @@ extension MenuBarManager {
     }
 
     func toggleHiddenItems() {
-        // Dropdown panel mode: toggle the panel instead of expanding/collapsing the delimiter
-        if settings.useDropdownPanel {
+        // Second menu bar mode: toggle the panel AND expand/collapse the real menu bar
+        if settings.useSecondMenuBar {
             SearchWindowController.shared.toggle()
+            // Also toggle the real delimiter so icons are accessible in the menu bar
+            Task {
+                if hidingService.state == .hidden {
+                    await hidingService.show()
+                } else {
+                    await hidingService.hide()
+                }
+            }
             return
         }
 
@@ -64,10 +72,10 @@ extension MenuBarManager {
     /// Search and hotkeys should await this before attempting virtual clicks.
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
-        // Dropdown panel mode: show the panel instead
-        if settings.useDropdownPanel {
+        // Second menu bar mode: show the panel alongside the real expand
+        if settings.useSecondMenuBar {
             SearchWindowController.shared.show()
-            return true
+            // Don't return — fall through to also expand the real delimiter
         }
 
         if settings.requireAuthToShowHiddenIcons {
@@ -108,10 +116,10 @@ extension MenuBarManager {
     }
 
     func hideHiddenItems() {
-        // Dropdown panel mode: close the panel instead
-        if settings.useDropdownPanel {
+        // Second menu bar mode: close the panel alongside the real hide
+        if settings.useSecondMenuBar {
             SearchWindowController.shared.close()
-            return
+            // Don't return — fall through to also hide the real delimiter
         }
 
         Task {

@@ -56,7 +56,7 @@ DMGs are hosted on Cloudflare (not attached to GitHub releases).
 4. That's it!
 
 SaneBar organizes your menu bar into three zones:
-- **Always-Hidden** (far left) — Icons only accessible via Find Icon or Dropdown Panel
+- **Always-Hidden** (far left) — Icons only accessible via Find Icon or Second Menu Bar
 - **Hidden** (middle) — Icons that show/hide when you click
 - **Visible** (right of separator) — Always shown
 
@@ -88,12 +88,12 @@ SaneBar organizes your menu bar into three zones:
 
 ![Rules and Automation](docs/images/settings-rules.png)
 
-### Dropdown Panel
-A floating panel below the menu bar showing your hidden and always-hidden icons at a glance.
-- **Click** the SaneBar icon to show hidden icons in a styled panel instead of expanding the separator
+### Second Menu Bar
+A floating bar below the menu bar showing your hidden and always-hidden icons at a glance.
+- **Click** the SaneBar icon to show hidden icons in a second menu bar instead of expanding the separator
 - **Right-click** any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones
 - SaneUI styling with vibrancy, hover effects, and ESC to dismiss
-- Enable: **Settings → General → Hiding → Show hidden icons in dropdown panel**
+- Enable: **Settings → General → Hiding → Show hidden icons in second menu bar**
 
 ### Onboarding Wizard
 A 5-page first-run flow to get you set up in under 30 seconds:
@@ -158,8 +158,8 @@ Save different menu bar configurations for different contexts (e.g., "Work", "Ga
 - Restore any profile with a single click
 
 ### 🔒 Always-Hidden Zone
-A dedicated zone for icons you rarely need. Icons pinned here never show automatically — they're only accessible via **Find Icon** or the **Dropdown Panel**.
-- Right-click any icon in **Find Icon** or the **Dropdown Panel** → **Pin in Always Hidden**
+A dedicated zone for icons you rarely need. Icons pinned here never show automatically — they're only accessible via **Find Icon** or the **Second Menu Bar**.
+- Right-click any icon in **Find Icon** or the **Second Menu Bar** → **Pin in Always Hidden**
 - Pinned icons stay hidden even when you reveal your menu bar
 - Unpin anytime from the same right-click menu
 
@@ -190,7 +190,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (dropdown panel), software updates, saved profiles, import from Bartender/Ice, settings export/import |
+| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (second menu bar), software updates, saved profiles, import from Bartender/Ice, settings export/import |
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi) |
 | **Appearance** | Divider style, menu bar styling (tint, opacity, shadow, border, corners), icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
@@ -281,7 +281,7 @@ SaneBar/
 │   └── Models/             # Data models
 ├── UI/                     # SwiftUI views
 │   ├── Settings/           # Modular settings tabs
-│   ├── SearchWindow/       # Find Icon, Dropdown Panel
+│   ├── SearchWindow/       # Find Icon, Second Menu Bar
 │   └── Onboarding/         # 5-page welcome wizard
 ├── Tests/                  # Swift Testing unit tests
 ├── scripts/                # Build automation (SaneMaster.rb)
@@ -344,7 +344,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 |---------|---------|-----------|-----|------------|
 | **Touch ID / Password Lock** | Yes | No | No | No |
 | **Always-Hidden Zone** | Yes | No | No | No |
-| **Dropdown Panel** | Yes | No | No | No |
+| **Second Menu Bar** | Yes | No | No | No |
 | **Find Icon Search** | Yes | Partial | No | No |
 | **Open Source** | GPL v3 | No | Yes | No |
 | **No Subscriptions** | $5 once | $16 + annual | Free | Free |

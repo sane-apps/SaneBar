@@ -223,8 +223,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Enable a second separator for an always-hidden zone.
     var alwaysHiddenSectionEnabled: Bool = true
 
-    /// Show hidden icons in a dropdown panel below the menu bar instead of expanding the separator.
-    var useDropdownPanel: Bool = false
+    /// Show hidden icons in a second menu bar below the main one instead of expanding the separator.
+    var useSecondMenuBar: Bool = false
 
     /// Menu bar item IDs that should be kept in the always-hidden section across launches.
     /// Stored as `RunningApp.uniqueId` values (best-effort).
@@ -294,7 +294,11 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         scriptTriggerEnabled = try container.decodeIfPresent(Bool.self, forKey: .scriptTriggerEnabled) ?? false
         scriptTriggerPath = try container.decodeIfPresent(String.self, forKey: .scriptTriggerPath) ?? ""
         scriptTriggerInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .scriptTriggerInterval) ?? 10.0
-        useDropdownPanel = try container.decodeIfPresent(Bool.self, forKey: .useDropdownPanel) ?? false
+        let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
+        let legacyDropdownPanel = try legacyContainer.decodeIfPresent(Bool.self, forKey: .useDropdownPanel)
+        useSecondMenuBar = try container.decodeIfPresent(Bool.self, forKey: .useSecondMenuBar)
+            ?? legacyDropdownPanel
+            ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -308,8 +312,13 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
-        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useDropdownPanel
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
+    }
+
+    /// Legacy keys for backward-compatible decoding of renamed settings.
+    private enum LegacyCodingKeys: String, CodingKey {
+        case useDropdownPanel
     }
 }
 

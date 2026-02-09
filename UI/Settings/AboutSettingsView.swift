@@ -25,7 +25,7 @@ struct AboutSettingsView: View {
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                     Text("Version \(version)")
                         .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.7))
                 }
             }
 
@@ -39,7 +39,7 @@ struct AboutSettingsView: View {
                 Text("No Analytics")
             }
             .font(.callout)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.primary.opacity(0.7))
             .padding(.top, 4)
 
             // Links
@@ -147,8 +147,8 @@ struct AboutSettingsView: View {
                             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE \ 
                             SOFTWARE.
                             """)
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.7))
                             .textSelection(.enabled)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,8 +186,8 @@ struct AboutSettingsView: View {
                             IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
                             CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                             """)
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.7))
                             .textSelection(.enabled)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -224,14 +224,14 @@ struct AboutSettingsView: View {
                             .font(.system(size: 14, weight: .medium, design: .serif))
                             .italic()
                         Text("— 1 Timothy 5:18")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.primary.opacity(0.7))
                     }
                     .padding(.top, 8)
 
                     // Personal message
                     Text("I need your help to keep SaneBar alive. Your support — whether one-time or monthly — makes this possible. Thank you.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
@@ -260,8 +260,8 @@ struct AboutSettingsView: View {
                     // Crypto addresses
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Or send crypto:")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary.opacity(0.5))
                         CryptoAddressRow(label: "BTC", address: "3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke")
                         CryptoAddressRow(label: "SOL", address: "FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ")
                         CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
@@ -293,7 +293,7 @@ private struct CryptoAddressRow: View {
 
             Text(address)
                 .font(.system(size: 13, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.7))
                 .lineLimit(1)
                 .truncationMode(.middle)
 
@@ -311,7 +311,7 @@ private struct CryptoAddressRow: View {
                     .font(.system(size: 13))
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(copied ? .green : .secondary)
+            .foregroundStyle(copied ? .green : .primary.opacity(0.6))
         }
     }
 }

@@ -44,11 +44,11 @@ struct MenuBarAppTile: View {
                             Image(nsImage: icon)
                                 .resizable()
                                 .renderingMode(icon.isTemplate ? .template : .original)
-                                .foregroundStyle(icon.isTemplate ? .secondary : .primary)
+                                .foregroundStyle(.primary.opacity(icon.isTemplate ? 0.6 : 1.0))
                         } else {
                             Image(systemName: "app.fill")
                                 .resizable()
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.6))
                         }
                     }
                     .aspectRatio(contentMode: .fit)

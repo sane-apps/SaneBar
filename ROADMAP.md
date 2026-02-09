@@ -90,49 +90,14 @@ Features are evaluated on:
 
 ---
 
-## Deferred: Secondary Panel / Dropdown Bar
+## Completed: Second Menu Bar
 
-**Status:** Researched, deferred to v1.1+ (maybe)
+**Status:** Shipped in v1.0.19 (Feb 2026)
 
-**What users want:** A dropdown panel below the menu bar showing hidden icons (like Bartender/Ice).
+**What users wanted:** A second bar below the menu bar showing hidden icons (like Ice's "Ice Bar").
 
-**Technical Findings (Jan 2026):**
+**Implementation:** Reused `SearchWindowController` with a mode switch. `NSPanel` with `.nonactivatingPanel` + `.statusBar` level, positioned flush below menu bar. Right-click context menus for zone management.
 
-It's simpler than expected. Ice uses a basic `NSPanel`:
-
-```swift
-// Core panel setup - NOT complex
-let panel = NSPanel(
-    contentRect: .zero,
-    styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel, .hudWindow],
-    backing: .buffered,
-    defer: false
-)
-panel.level = .floating              // Floats above normal windows
-panel.backgroundColor = .clear
-panel.isFloatingPanel = true
-panel.collectionBehavior = [
-    .ignoresCycle,                   // Not in Cmd-Tab
-    .moveToActiveSpace,
-    .fullScreenAuxiliary
-]
-panel.animationBehavior = .none      // Instant show/hide
-```
-
-**What's involved:**
-1. Create `HiddenIconsPanel.swift` (~150 lines)
-2. Populate with cached icon grid from AccessibilityService
-3. Position below menu bar on show
-4. Handle click-to-activate icons
-5. Auto-dismiss on click outside or Escape
-
-**Concerns:**
-- Adds another UI surface to maintain
-- Need to handle multi-monitor positioning
-- Click handling complexity (simulating menu bar clicks)
-- Edge cases: fullscreen apps, notch positioning, spaces
-- **UX overlap with Find Icon (⌘⇧Space)**: We already have a searchable icon grid — would a dropdown panel be redundant or confusing?
-
-**Decision:** Deferred indefinitely. Find Icon already solves "access hidden icons quickly." A dropdown panel might fragment the UX without clear benefit. Revisit only if users explicitly ask for it.
-
-**Reference:** `jordanbaird/Ice` - `MenuBarSearchPanel.swift`, `IceBarPanel.swift`
+- **Enable:** Settings → General → Hiding → "Show hidden icons in second menu bar"
+- **Behavior:** When enabled, clicking the SaneBar icon shows the second menu bar AND expands the real delimiter (so Cmd+drag still works)
+- **File:** `UI/SearchWindow/SecondMenuBarView.swift`, `SearchWindowController.swift` (mode-aware)

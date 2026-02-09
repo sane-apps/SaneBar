@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - OnboardingTipView
 
@@ -16,9 +16,9 @@ struct OnboardingTipView: View {
         VStack(spacing: 0) {
             // Step indicator
             HStack(spacing: 6) {
-                ForEach(0..<2) { step in
+                ForEach(0 ..< 2) { step in
                     Circle()
-                        .fill(step == currentStep ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(step == currentStep ? Color.accentColor : Color.primary.opacity(0.3))
                         .frame(width: 8, height: 8)
                 }
             }
@@ -107,11 +107,11 @@ struct OnboardingTipView: View {
             if permissionRequested || hasAccessibility {
                 Text("SaneBar is ready to use! If the \"Find Icon\" search doesn't work, check that SaneBar is enabled in **System Settings → Privacy → Accessibility**.")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
             } else {
                 Text("For the **Find Icon** feature to work, SaneBar needs Accessibility permission.")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
@@ -127,14 +127,14 @@ struct OnboardingTipView: View {
                 .buttonStyle(.bordered)
 
                 Text("Toggle **SaneBar** ON in the list, then come back here.")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.5))
             }
 
             Divider()
 
             HStack {
-                if !permissionRequested && !hasAccessibility {
+                if !permissionRequested, !hasAccessibility {
                     Button("Back") {
                         withAnimation {
                             currentStep = 0
@@ -160,7 +160,7 @@ struct OnboardingTipView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
                 .frame(width: 20)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.6))
             Text(LocalizedStringKey(text))
         }
     }

@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// In-app issue reporting view with diagnostic log collection
 struct FeedbackView: View {
@@ -26,7 +26,7 @@ struct FeedbackView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.6))
                         .font(.title2)
                 }
                 .buttonStyle(.plain)
@@ -41,7 +41,7 @@ struct FeedbackView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("What happened?")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary.opacity(0.7))
                         TextEditor(text: $issueDescription)
                             .font(.body)
                             .frame(minHeight: 120)
@@ -50,7 +50,7 @@ struct FeedbackView: View {
                             .cornerRadius(6)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
                             )
                     }
 
@@ -58,7 +58,7 @@ struct FeedbackView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("We'll automatically attach:")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary.opacity(0.7))
 
                         VStack(alignment: .leading, spacing: 4) {
                             Label("App version & macOS version", systemImage: "info.circle")
@@ -67,11 +67,11 @@ struct FeedbackView: View {
                             Label("Current settings (no personal data)", systemImage: "gearshape")
                             Label("Menu bar state snapshot (separator positions & counts)", systemImage: "menubar.rectangle")
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary.opacity(0.7))
                     }
                     .padding()
-                    .background(Color.secondary.opacity(0.1))
+                    .background(Color.primary.opacity(0.1))
                     .cornerRadius(8)
 
                     // Privacy note
@@ -79,8 +79,8 @@ struct FeedbackView: View {
                         Image(systemName: "lock.shield")
                             .foregroundStyle(.green)
                         Text("Opens in your browser. Nothing is sent without your approval.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.primary.opacity(0.7))
                     }
                 }
                 .padding()
@@ -91,7 +91,7 @@ struct FeedbackView: View {
             // Footer
             HStack {
                 Link("Email us instead", destination: URL(string: "mailto:hi@saneapps.com")!)
-                    .font(.caption)
+                    .font(.system(size: 13))
 
                 Spacer()
 

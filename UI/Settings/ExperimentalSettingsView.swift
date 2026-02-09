@@ -47,7 +47,7 @@ struct ExperimentalSettingsView: View {
                 .tint(.orange)
 
                 Text("·")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.7))
 
                 Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
                     Label("View Issues", systemImage: "arrow.up.right.square")

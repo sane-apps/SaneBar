@@ -119,8 +119,8 @@ struct RulesSettingsView: View {
                         Text(menuBarManager.settings.gestureMode == .showOnly
                             ? "Gestures reveal hidden icons"
                             : "Click toggles, scroll up shows, scroll down hides")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.primary.opacity(0.7))
                             .padding(.horizontal, 16)
                             .padding(.bottom, 4)
                     }
@@ -150,8 +150,8 @@ struct RulesSettingsView: View {
                     if menuBarManager.settings.showOnAppLaunch {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("If these apps open:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.primary.opacity(0.7))
                                 .padding(.leading, 4)
 
                             AppPickerView(
@@ -194,12 +194,12 @@ struct RulesSettingsView: View {
                                         menuBarManager.settings.triggerNetworks.removeAll { $0 == network }
                                     } label: {
                                         Image(systemName: "xmark")
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(.primary.opacity(0.6))
                                     }
                                     .buttonStyle(.plain)
                                 }
                                 .padding(8)
-                                .background(Color.secondary.opacity(0.1))
+                                .background(Color.primary.opacity(0.1))
                                 .cornerRadius(6)
                             }
                         }
@@ -249,26 +249,26 @@ struct RulesSettingsView: View {
                             ForEach(menuBarManager.settings.triggerFocusModes, id: \.self) { mode in
                                 HStack {
                                     Image(systemName: mode == "(Focus Off)" ? "moon" : "moon.fill")
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.primary.opacity(0.6))
                                     Text(mode)
                                     Spacer()
                                     Button {
                                         menuBarManager.settings.triggerFocusModes.removeAll { $0 == mode }
                                     } label: {
                                         Image(systemName: "xmark")
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(.primary.opacity(0.6))
                                     }
                                     .buttonStyle(.plain)
                                 }
                                 .padding(8)
-                                .background(Color.secondary.opacity(0.1))
+                                .background(Color.primary.opacity(0.1))
                                 .cornerRadius(6)
                             }
 
                             if menuBarManager.settings.triggerFocusModes.isEmpty {
                                 Text("No Focus Modes configured. Enable a Focus Mode in System Settings to add it here.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary.opacity(0.7))
                             }
                         }
                         .padding(.vertical, 8)
@@ -370,14 +370,14 @@ private struct ScriptTriggerSettingsView: View {
 
                 if let testResult {
                     Text(testResult)
-                        .font(.caption)
+                        .font(.system(size: 13))
                         .foregroundStyle(testResult.hasPrefix("Exit 0") ? .green : .orange)
                 }
             }
 
             Text("Exit code 0 = show hidden icons, non-zero = hide.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(.primary.opacity(0.7))
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 4)

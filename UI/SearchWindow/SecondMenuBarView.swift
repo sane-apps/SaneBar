@@ -1,13 +1,13 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Dropdown Panel View
+// MARK: - Second Menu Bar View
 
 /// Floating panel showing hidden menu bar icons below the menu bar.
 ///
 /// Uses SaneApps brand styling (hudWindow + teal gradient), white icons for
 /// contrast, and context menus for moving icons between zones.
-struct DropdownPanelView: View {
+struct SecondMenuBarView: View {
     let apps: [RunningApp]
     let alwaysHiddenApps: [RunningApp]
     let hasAccessibility: Bool
@@ -78,17 +78,17 @@ struct DropdownPanelView: View {
     private var panelHeader: some View {
         HStack(spacing: 8) {
             Image(systemName: "eye.slash")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.primary.opacity(0.5))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.primary.opacity(0.7))
 
             Text("Hidden Icons")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.primary.opacity(0.7))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.primary.opacity(0.85))
 
             let total = apps.count + alwaysHiddenApps.count
             if total > 0 {
                 Text("\(total)")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -100,7 +100,7 @@ struct DropdownPanelView: View {
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 14))
-                    .foregroundStyle(.primary.opacity(0.4))
+                    .foregroundStyle(.primary.opacity(0.6))
             }
             .buttonStyle(.plain)
             .help("Close (Esc)")
@@ -158,11 +158,11 @@ struct DropdownPanelView: View {
 
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: 13))
                 Text(label)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
             }
-            .foregroundStyle(.primary.opacity(0.4))
+            .foregroundStyle(.primary.opacity(0.6))
             .fixedSize()
 
             Rectangle()
@@ -209,8 +209,8 @@ struct DropdownPanelView: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Scanning menu bar...")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.7))
             } else {
                 Image(systemName: "menubar.rectangle")
                     .font(.system(size: 24))
@@ -219,8 +219,8 @@ struct DropdownPanelView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary.opacity(0.7))
                 Text("Hold \u{2318} and drag icons past the separator")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(0.4))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.7))
             }
         }
         .frame(maxWidth: .infinity)
@@ -240,8 +240,8 @@ struct DropdownPanelView: View {
                 Text("Accessibility Needed")
                     .font(.system(size: 13, weight: .medium))
                 Text("Required to detect menu bar icons")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.8))
             }
 
             Spacer()
@@ -296,8 +296,8 @@ private struct PanelIconTile: View {
                 .frame(width: 44, height: 44)
 
                 Text(app.name)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.7))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.8))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(width: 58)

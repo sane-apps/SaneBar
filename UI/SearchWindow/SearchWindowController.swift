@@ -6,8 +6,8 @@ import SwiftUI
 enum SearchWindowMode {
     /// Standard Find Icon window (titled, closable, resizable, centered)
     case findIcon
-    /// Dropdown panel showing hidden icons below the menu bar
-    case dropdownPanel
+    /// Second menu bar panel showing hidden icons below the menu bar
+    case secondMenuBar
 }
 
 // MARK: - SearchWindowController
@@ -34,7 +34,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
-        MenuBarManager.shared.settings.useDropdownPanel ? .dropdownPanel : .findIcon
+        MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
     }
 
     // MARK: - Toggle
@@ -82,7 +82,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Suspend hover/click triggers while search is open
         MenuBarManager.shared.hoverService.isSuspended = true
 
-        if desiredMode == .dropdownPanel {
+        if desiredMode == .secondMenuBar {
             // Cancel rehide — panel mode replaces the expand/collapse paradigm
             MenuBarManager.shared.hidingService.cancelRehide()
         }
@@ -128,7 +128,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             let yPos = screenFrame.maxY - windowSize.height - 20
             window.setFrameOrigin(NSPoint(x: xPos, y: yPos))
 
-        case .dropdownPanel:
+        case .secondMenuBar:
             // Position below menu bar, right-aligned to the SaneBar status item
             let screenFrame = screen.frame
             let visibleFrame = screen.visibleFrame
@@ -165,8 +165,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         switch mode {
         case .findIcon:
             createFindIconWindow()
-        case .dropdownPanel:
-            createDropdownPanelWindow()
+        case .secondMenuBar:
+            createSecondMenuBarWindow()
         }
     }
 
@@ -197,9 +197,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         self.window = window
     }
 
-    private func createDropdownPanelWindow() {
+    private func createSecondMenuBarWindow() {
         let contentView = MenuBarSearchView(
-            isDropdownPanel: true,
+            isSecondMenuBar: true,
             onDismiss: { [weak self] in
                 self?.close()
             }
