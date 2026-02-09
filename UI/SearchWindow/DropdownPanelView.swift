@@ -123,7 +123,7 @@ struct DropdownPanelView: View {
                 iconRow(apps: apps, zone: .hidden)
             }
 
-            if menuBarManager.settings.alwaysHiddenSectionEnabled, !alwaysHiddenApps.isEmpty {
+            if !alwaysHiddenApps.isEmpty {
                 sectionDivider(label: "Always Hidden")
                 iconRow(apps: alwaysHiddenApps, zone: .alwaysHidden)
             }
@@ -193,11 +193,6 @@ struct DropdownPanelView: View {
                 statusItemIndex: statusItemIndex
             )
         case .alwaysHidden:
-            // Auto-enable always-hidden section if not already on
-            if !menuBarManager.settings.alwaysHiddenSectionEnabled {
-                menuBarManager.settings.alwaysHiddenSectionEnabled = true
-                menuBarManager.saveSettings()
-            }
             menuBarManager.pinAlwaysHidden(app: app)
             _ = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,

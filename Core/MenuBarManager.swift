@@ -301,7 +301,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Store the external items
         mainStatusItem = main
         separatorItem = separator
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Wire up click handler for main item
@@ -447,7 +447,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Copy references for local use
         mainStatusItem = statusBarController.mainItem
         separatorItem = statusBarController.separatorItem
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Setup menu using controller (shown via right-click on main icon)
@@ -559,7 +559,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let self else { return }
-                guard settings.alwaysHiddenSectionEnabled, alwaysHiddenSeparatorItem != nil else { return }
+                guard alwaysHiddenSeparatorItem != nil else { return }
                 guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
 
                 guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
@@ -602,7 +602,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func updateAlwaysHiddenSeparator() {
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
     }

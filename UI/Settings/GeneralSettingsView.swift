@@ -108,14 +108,6 @@ struct GeneralSettingsView: View {
                 // 3. Hiding
                 CompactSection("Hiding") {
                     CompactToggle(
-                        label: "Always-hidden section",
-                        isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
-                    )
-                    .help("Adds a second separator — icons between the two separators stay hidden even when you reveal the rest.")
-
-                    CompactDivider()
-
-                    CompactToggle(
                         label: "Show hidden icons in dropdown panel (Beta)",
                         isOn: Binding(
                             get: { menuBarManager.settings.useDropdownPanel },

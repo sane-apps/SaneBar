@@ -82,9 +82,7 @@ final class SearchService: SearchServiceProtocol {
     private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
         guard let separatorX = separatorOriginXForClassification() else { return nil }
 
-        guard MenuBarManager.shared.settings.alwaysHiddenSectionEnabled,
-              MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
-        else {
+        guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
             return (separatorX, nil)
         }
 
@@ -205,7 +203,7 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func cachedAlwaysHiddenMenuBarApps() -> [RunningApp] {
-        guard MenuBarManager.shared.settings.alwaysHiddenSectionEnabled else { return [] }
+        guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else { return [] }
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
 
         if let positions = separatorOriginsForClassification(), positions.alwaysHiddenSeparatorX != nil {
@@ -296,8 +294,7 @@ final class SearchService: SearchServiceProtocol {
 
     func refreshAlwaysHiddenMenuBarApps() async -> [RunningApp] {
         let isEnabled = await MainActor.run {
-            MenuBarManager.shared.settings.alwaysHiddenSectionEnabled &&
-                MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
+            MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
         }
         guard isEnabled else { return [] }
 

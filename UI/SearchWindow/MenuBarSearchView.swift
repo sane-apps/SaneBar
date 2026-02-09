@@ -71,7 +71,7 @@ struct MenuBarSearchView: View {
     }
 
     private var isAlwaysHiddenEnabled: Bool {
-        menuBarManager.settings.alwaysHiddenSectionEnabled && menuBarManager.alwaysHiddenSeparatorItem != nil
+        menuBarManager.alwaysHiddenSeparatorItem != nil
     }
 
     private var mode: Mode {
@@ -302,7 +302,7 @@ struct MenuBarSearchView: View {
         }
 
         // Also load always-hidden apps for the dropdown panel's second section
-        if isDropdownPanel, menuBarManager.settings.alwaysHiddenSectionEnabled {
+        if isDropdownPanel {
             alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
         }
     }
@@ -339,7 +339,7 @@ struct MenuBarSearchView: View {
 
             // Also refresh always-hidden for dropdown panel
             var refreshedAlwaysHidden: [RunningApp] = []
-            if isDropdownPanel, menuBarManager.settings.alwaysHiddenSectionEnabled {
+            if isDropdownPanel {
                 refreshedAlwaysHidden = await service.refreshAlwaysHiddenMenuBarApps()
             }
 

@@ -150,7 +150,7 @@ extension MenuBarManager {
     }
 
     func enforceAlwaysHiddenPinnedItems(reason: String, filterBundleId: String? = nil) async {
-        guard settings.alwaysHiddenSectionEnabled, alwaysHiddenSeparatorItem != nil else { return }
+        guard alwaysHiddenSeparatorItem != nil else { return }
         guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
 
         guard AccessibilityService.shared.isTrusted else {

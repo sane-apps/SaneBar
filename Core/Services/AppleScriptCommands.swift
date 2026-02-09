@@ -165,18 +165,10 @@ final class HideIconCommand: SaneBarScriptCommand {
 
         let semaphore = DispatchSemaphore(value: 0)
         let box = ScriptResultBox(false)
-        let alwaysHiddenEnabled = ScriptResultBox(false)
         let completed = ScriptResultBox(false)
 
         Task { @MainActor in
             let manager = MenuBarManager.shared
-            alwaysHiddenEnabled.value = manager.settings.alwaysHiddenSectionEnabled
-
-            guard manager.settings.alwaysHiddenSectionEnabled else {
-                completed.value = true
-                semaphore.signal()
-                return
-            }
 
             // Find the icon in current menu bar items
             let items = await AccessibilityService.shared.listMenuBarItemsWithPositions()
@@ -201,12 +193,6 @@ final class HideIconCommand: SaneBarScriptCommand {
         guard completed.value else {
             scriptErrorNumber = errOSAGeneralError
             scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
-            return false
-        }
-
-        if !alwaysHiddenEnabled.value {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Always-hidden section is not enabled. Turn it on in SaneBar Settings > Advanced first."
             return false
         }
 
@@ -246,16 +232,9 @@ final class ShowIconCommand: SaneBarScriptCommand {
 
         let semaphore = DispatchSemaphore(value: 0)
         let box = ScriptResultBox(false)
-        let alwaysHiddenEnabled = ScriptResultBox(false)
 
         Task { @MainActor in
             let manager = MenuBarManager.shared
-            alwaysHiddenEnabled.value = manager.settings.alwaysHiddenSectionEnabled
-
-            guard manager.settings.alwaysHiddenSectionEnabled else {
-                semaphore.signal()
-                return
-            }
 
             // Check if this ID is currently pinned
             let pinnedIds = manager.settings.alwaysHiddenPinnedItemIds
@@ -285,12 +264,6 @@ final class ShowIconCommand: SaneBarScriptCommand {
         }
 
         _ = semaphore.wait(timeout: .now() + 10.0)
-
-        if !alwaysHiddenEnabled.value {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Always-hidden section is not enabled. Turn it on in SaneBar Settings > Advanced first."
-            return false
-        }
 
         if !box.value {
             scriptErrorNumber = errOSAGeneralError

@@ -174,7 +174,6 @@ struct SetupStylePage: View {
             menuBarManager.settings.showOnHover = false
             menuBarManager.settings.showOnScroll = false
             menuBarManager.settings.showOnClick = false
-            menuBarManager.settings.alwaysHiddenSectionEnabled = false
         case .smart:
             menuBarManager.settings.autoRehide = true
             menuBarManager.settings.rehideDelay = 5.0
@@ -183,7 +182,6 @@ struct SetupStylePage: View {
         case .presenter:
             menuBarManager.settings.autoRehide = true
             menuBarManager.settings.requireAuthToShowHiddenIcons = true
-            menuBarManager.settings.alwaysHiddenSectionEnabled = true
         }
         menuBarManager.saveSettings()
     }
