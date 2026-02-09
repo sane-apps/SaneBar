@@ -46,6 +46,7 @@
 		7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7964193D5AD4625CACDE8EEA /* FeedbackView.swift */; };
 		7FE0E1A0A93B6BBFC56B1326 /* AccessibilityService+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */; };
 		7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */; };
+		8133BB652D1B093A78F43A49 /* DropdownPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0328EB0A94AA90EFDDA0C1 /* DropdownPanelView.swift */; };
 		81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */; };
 		85B23B36890D6B156C4DC865 /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */; };
 		8744768503F12066A091A477 /* MenuBarAppGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */; };
@@ -150,6 +151,7 @@
 		7964193D5AD4625CACDE8EEA /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTipView.swift; sourceTree = "<group>"; };
 		86E43D8C4F0157E62129DA8C /* AccessibilityService+MenuExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+MenuExtras.swift"; sourceTree = "<group>"; };
+		8D0328EB0A94AA90EFDDA0C1 /* DropdownPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropdownPanelView.swift; sourceTree = "<group>"; };
 		942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppGrid.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 		069C3A0FC8F35C1CEEE6717E /* SearchWindow */ = {
 			isa = PBXGroup;
 			children = (
+				8D0328EB0A94AA90EFDDA0C1 /* DropdownPanelView.swift */,
 				942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */,
 				6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */,
 				173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */,
@@ -591,6 +594,7 @@
 				F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */,
 				1C41326D35D798D23B195A8F /* CompactSettingsComponents.swift in Sources */,
 				2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */,
+				8133BB652D1B093A78F43A49 /* DropdownPanelView.swift in Sources */,
 				F2A45D40AC6364627D6707A5 /* ExperimentalSettingsView.swift in Sources */,
 				7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */,
 				A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */,

@@ -129,14 +129,29 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             window.setFrameOrigin(NSPoint(x: xPos, y: yPos))
 
         case .dropdownPanel:
-            // Flush below menu bar, full width of visible frame
+            // Position below menu bar, right-aligned to the SaneBar status item
             let screenFrame = screen.frame
             let visibleFrame = screen.visibleFrame
             let menuBarHeight = screenFrame.height - visibleFrame.height - visibleFrame.origin.y
-            let panelHeight: CGFloat = 180
-            let yPos = screenFrame.maxY - menuBarHeight - panelHeight
+
+            // Intrinsic content size — let SwiftUI determine width from icon count
+            window.contentView?.layoutSubtreeIfNeeded()
+            let fittingSize = window.contentView?.fittingSize ?? NSSize(width: 400, height: 140)
+            let panelWidth = min(max(fittingSize.width, 200), visibleFrame.width - 20)
+            let panelHeight = min(max(fittingSize.height, 80), 300)
+
+            // Right-align to SaneBar's main status item (or fall back to right edge)
+            let rightEdge: CGFloat = if let button = MenuBarManager.shared.mainStatusItem?.button,
+                                        let buttonWindow = button.window {
+                buttonWindow.frame.maxX
+            } else {
+                visibleFrame.maxX - 10
+            }
+            let xPos = max(visibleFrame.origin.x + 10, rightEdge - panelWidth)
+            let yPos = screenFrame.maxY - menuBarHeight - panelHeight - 4 // 4pt gap below menu bar
+
             window.setFrame(
-                NSRect(x: visibleFrame.origin.x, y: yPos, width: visibleFrame.width, height: panelHeight),
+                NSRect(x: xPos, y: yPos, width: panelWidth, height: panelHeight),
                 display: true
             )
         }
@@ -191,9 +206,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
 
         let hostingView = NSHostingView(rootView: contentView)
+        // Let SwiftUI drive the intrinsic size
+        hostingView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        hostingView.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 180),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 140),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -203,11 +221,21 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         panel.hasShadow = true
         panel.isMovable = false
+        panel.animationBehavior = .utilityWindow
+
+        // Shadow for depth
+        if let contentView = panel.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.3).cgColor
+            contentView.layer?.shadowOpacity = 1
+            contentView.layer?.shadowRadius = 12
+            contentView.layer?.shadowOffset = CGSize(width: 0, height: -4)
+        }
 
         window = panel
     }

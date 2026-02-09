@@ -36,6 +36,7 @@ struct MenuBarSearchView: View {
     @State private var selectedAppIndex: Int?
 
     @State private var menuBarApps: [RunningApp] = []
+    @State private var alwaysHiddenApps: [RunningApp] = []
     @State private var isRefreshing = false
     @State private var hasAccessibility = false
     @State private var permissionMonitorTask: Task<Void, Never>?
@@ -250,46 +251,15 @@ struct MenuBarSearchView: View {
     // MARK: - Dropdown Panel Body
 
     private var dropdownPanelBody: some View {
-        Group {
-            if !hasAccessibility {
-                HStack(spacing: 10) {
-                    Label("Accessibility permission needed", systemImage: "hand.raised.circle")
-                        .font(.callout).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Open System Settings") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }.controlSize(.small)
-                    Button("Retry") { loadCachedApps(); refreshApps(force: true) }
-                        .controlSize(.small).buttonStyle(.borderedProminent)
-                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            } else if filteredApps.isEmpty {
-                Group {
-                    if isRefreshing {
-                        HStack { ProgressView().controlSize(.small); Text("Scanning…").foregroundStyle(.secondary) }
-                    } else {
-                        Text("No hidden icons").foregroundStyle(.secondary)
-                    }
-                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(filteredApps) { app in
-                            MenuBarAppTile(
-                                app: app, iconSize: 36, tileSize: 56,
-                                onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
-                                onSetHotkey: { hotkeyApp = app },
-                                showName: true, isMoving: movingAppId == app.uniqueId, isSelected: false
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { VisualEffectBackground(material: .popover, blendingMode: .behindWindow) }
+        DropdownPanelView(
+            apps: filteredApps,
+            alwaysHiddenApps: alwaysHiddenApps,
+            hasAccessibility: hasAccessibility,
+            isRefreshing: isRefreshing,
+            onDismiss: onDismiss,
+            onActivate: { app, isRightClick in activateApp(app, isRightClick: isRightClick) },
+            onRetry: { loadCachedApps(); refreshApps(force: true) }
+        )
     }
 
     /// Monitor for permission changes - auto-reload when user grants permission
@@ -316,6 +286,7 @@ struct MenuBarSearchView: View {
 
         guard hasAccessibility else {
             menuBarApps = []
+            alwaysHiddenApps = []
             return
         }
 
@@ -328,6 +299,11 @@ struct MenuBarSearchView: View {
             menuBarApps = service.cachedAlwaysHiddenMenuBarApps()
         case .all:
             menuBarApps = service.cachedMenuBarApps()
+        }
+
+        // Also load always-hidden apps for the dropdown panel's second section
+        if isDropdownPanel, menuBarManager.settings.alwaysHiddenSectionEnabled {
+            alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
         }
     }
 
@@ -361,9 +337,16 @@ struct MenuBarSearchView: View {
                 await service.refreshMenuBarApps()
             }
 
+            // Also refresh always-hidden for dropdown panel
+            var refreshedAlwaysHidden: [RunningApp] = []
+            if isDropdownPanel, menuBarManager.settings.alwaysHiddenSectionEnabled {
+                refreshedAlwaysHidden = await service.refreshAlwaysHiddenMenuBarApps()
+            }
+
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 menuBarApps = refreshed
+                alwaysHiddenApps = refreshedAlwaysHidden
                 isRefreshing = false
             }
         }
