@@ -110,7 +110,7 @@ struct MenuBarAppTile: View {
             }
             if let moveToAlwaysHidden = onMoveToAlwaysHidden {
                 Divider()
-                Button("Move to Always Hidden (beta)") {
+                Button("Move to Always Hidden") {
                     moveToAlwaysHidden()
                 }
             }

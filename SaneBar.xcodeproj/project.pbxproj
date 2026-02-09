@@ -54,6 +54,7 @@
 		9428EB7B846206973BA5FF5E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 32CC34138D2C1CE77F8B2AE8 /* Sparkle */; };
 		959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */; };
 		989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */; };
+		98A1C2D4F7B3E8901A2D4F6C /* MenuBarSearchView+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5E9F1B8C2471D0E6F3A8B /* MenuBarSearchView+Actions.swift */; };
 		990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */; };
 		996C746D150C4ADE190C86DB /* RulesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */; };
 		9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */; };
@@ -164,6 +165,7 @@
 		B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlwaysHiddenTests.swift; sourceTree = "<group>"; };
 		B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+IconMoving.swift"; sourceTree = "<group>"; };
 		B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalSettingsView.swift; sourceTree = "<group>"; };
+		A3D5E9F1B8C2471D0E6F3A8B /* MenuBarSearchView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarSearchView+Actions.swift"; sourceTree = "<group>"; };
 		B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchView.swift; sourceTree = "<group>"; };
 		B73E7B6958BA479EF75F75D0 /* NetworkTriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkTriggerService.swift; sourceTree = "<group>"; };
 		B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */,
 				173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */,
 				1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */,
+				A3D5E9F1B8C2471D0E6F3A8B /* MenuBarSearchView+Actions.swift */,
 				B5C66F68876450A14661CBF6 /* MenuBarSearchView.swift */,
 				9911A7251AE151FCA164258D /* SearchWindowController.swift */,
 			);
@@ -606,6 +609,7 @@
 				C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */,
 				5E91FF531D873FAB0E322841 /* MenuBarSearchStatusViews.swift in Sources */,
 				934FDF51421C0B4CE930737B /* MenuBarSearchTabs.swift in Sources */,
+				98A1C2D4F7B3E8901A2D4F6C /* MenuBarSearchView+Actions.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
 				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
