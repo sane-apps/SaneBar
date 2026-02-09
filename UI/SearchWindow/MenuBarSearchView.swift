@@ -9,7 +9,7 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSear
 
 /// SwiftUI view for finding (and clicking) menu bar icons.
 struct MenuBarSearchView: View {
-    private enum Mode: String, CaseIterable, Identifiable {
+    enum Mode: String, CaseIterable, Identifiable {
         case hidden
         case visible
         case alwaysHidden
@@ -31,9 +31,9 @@ struct MenuBarSearchView: View {
 
     @State private var searchText = ""
     @State private var searchTextDebounced = ""
-    @State private var isSearchVisible = true
-    @FocusState private var isSearchFieldFocused: Bool
-    @State private var selectedAppIndex: Int?
+    @State var isSearchVisible = true
+    @FocusState var isSearchFieldFocused: Bool
+    @State var selectedAppIndex: Int?
 
     @State private var menuBarApps: [RunningApp] = []
     @State private var alwaysHiddenApps: [RunningApp] = []
@@ -42,16 +42,16 @@ struct MenuBarSearchView: View {
     @State private var permissionMonitorTask: Task<Void, Never>?
     @State private var refreshTask: Task<Void, Never>?
 
-    @State private var hotkeyApp: RunningApp?
+    @State var hotkeyApp: RunningApp?
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
-    @State private var isCreatingGroup = false
+    @State var isCreatingGroup = false
     @State private var newGroupName = ""
-    @State private var movingAppId: String?
+    @State var movingAppId: String?
     /// Set after a move completes so the next tab switch does a fresh scan
     @State private var needsPostMoveRefresh = false
-    @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @ObservedObject var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
     static let setSearchTextNotification = Notification.Name("MenuBarSearchView.setSearchText")
@@ -70,11 +70,11 @@ struct MenuBarSearchView: View {
         self.onDismiss = onDismiss
     }
 
-    private var isAlwaysHiddenEnabled: Bool {
+    var isAlwaysHiddenEnabled: Bool {
         menuBarManager.alwaysHiddenSeparatorItem != nil
     }
 
-    private var mode: Mode {
+    var mode: Mode {
         let current = Mode(rawValue: storedMode) ?? .all
         if current == .alwaysHidden, !isAlwaysHiddenEnabled {
             return .all
@@ -103,7 +103,7 @@ struct MenuBarSearchView: View {
         return AppCategory.allCases.filter { categories.contains($0) }
     }
 
-    private var filteredApps: [RunningApp] {
+    var filteredApps: [RunningApp] {
         var apps = menuBarApps
 
         // Filter by custom group (takes precedence)
@@ -769,220 +769,6 @@ struct MenuBarSearchView: View {
             isMoving: movingAppId == app.uniqueId,
             isSelected: selectedAppIndex == index
         )
-    }
-
-    // MARK: - Zone Classification (for All tab context menus)
-
-    /// Classify an app's current zone based on its X position vs separator positions.
-    private func appZone(for app: RunningApp) -> AppZone {
-        guard let xPos = app.xPosition else { return .visible }
-        let midX = xPos + ((app.width ?? 22) / 2)
-        let margin: CGFloat = 6
-
-        if let ahX = menuBarManager.getAlwaysHiddenSeparatorOriginX(),
-           midX < (ahX - margin) {
-            return .alwaysHidden
-        }
-        if let sepX = menuBarManager.getSeparatorOriginX(),
-           midX < (sepX - margin) {
-            return .hidden
-        }
-        return .visible
-    }
-
-    private enum AppZone { case visible, hidden, alwaysHidden }
-
-    private func makeToggleHiddenAction(for app: RunningApp) -> (() -> Void)? {
-        // Determine direction based on tab (or actual zone for All tab)
-        let toHidden: Bool
-        let isAH: Bool
-        switch mode {
-        case .visible: toHidden = true; isAH = false
-        case .hidden: toHidden = false; isAH = false
-        case .alwaysHidden: toHidden = false; isAH = true
-        case .all:
-            let zone = appZone(for: app)
-            switch zone {
-            case .visible: toHidden = true; isAH = false
-            case .hidden: toHidden = false; isAH = false
-            case .alwaysHidden: toHidden = false; isAH = true
-            }
-        }
-
-        return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
-
-            movingAppId = app.uniqueId
-
-            if isAH {
-                menuBarManager.unpinAlwaysHidden(app: app)
-                _ = menuBarManager.moveIconFromAlwaysHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex
-                )
-            } else {
-                _ = menuBarManager.moveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    toHidden: toHidden
-                )
-            }
-        }
-    }
-
-    private func makeMoveToHiddenAction(for app: RunningApp) -> (() -> Void)? {
-        // Show "Move to Hidden" for AH tab, or for AH apps in All tab
-        let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
-        guard isAH else { return nil }
-        return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
-
-            movingAppId = app.uniqueId
-            menuBarManager.unpinAlwaysHidden(app: app)
-            _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
-            )
-        }
-    }
-
-    private func makeMoveToAlwaysHiddenAction(for app: RunningApp) -> (() -> Void)? {
-        guard isAlwaysHiddenEnabled else { return nil }
-        // Don't show for AH tab, or for AH apps in All tab
-        let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
-        guard !isAH else { return nil }
-        return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
-
-            movingAppId = app.uniqueId
-            menuBarManager.pinAlwaysHidden(app: app)
-            _ = menuBarManager.moveIconToAlwaysHidden(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
-            )
-        }
-    }
-
-    private func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
-        Task {
-            await service.activate(app: app, isRightClick: isRightClick)
-            onDismiss()
-        }
-    }
-
-    // MARK: - Keyboard Navigation
-
-    /// Whether keyboard navigation should be active (not when modals are open)
-    private var isKeyboardNavigationActive: Bool {
-        !isCreatingGroup && hotkeyApp == nil
-    }
-
-    private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
-        // Don't capture keys when modals/popovers are open
-        // Let them handle their own keyboard events
-        guard isKeyboardNavigationActive else {
-            return .ignored
-        }
-
-        // If search field is focused, let it handle most keys
-        if isSearchFieldFocused {
-            switch keyPress.key {
-            case .downArrow:
-                // Exit search field and select first app
-                isSearchFieldFocused = false
-                selectedAppIndex = filteredApps.isEmpty ? nil : 0
-                return .handled
-            case .upArrow:
-                // Exit search field and select last app
-                isSearchFieldFocused = false
-                selectedAppIndex = filteredApps.isEmpty ? nil : filteredApps.count - 1
-                return .handled
-            case .return:
-                // Activate first match while typing
-                if let first = filteredApps.first {
-                    activateApp(first)
-                    return .handled
-                }
-                return .ignored
-            default:
-                return .ignored // Let TextField handle it
-            }
-        }
-
-        // Grid navigation mode
-        switch keyPress.key {
-        case .downArrow:
-            moveSelection(by: 1)
-            return .handled
-        case .upArrow:
-            moveSelection(by: -1)
-            return .handled
-        case .leftArrow:
-            moveSelectionHorizontal(by: -1)
-            return .handled
-        case .rightArrow:
-            moveSelectionHorizontal(by: 1)
-            return .handled
-        case .return:
-            // Activate selected app
-            if let index = selectedAppIndex, index < filteredApps.count {
-                activateApp(filteredApps[index])
-                return .handled
-            } else if let first = filteredApps.first {
-                // No selection - activate first app
-                activateApp(first)
-                return .handled
-            }
-            return .ignored
-        default:
-            // Letter keys auto-show search and start typing
-            if let char = keyPress.characters.first, char.isLetter || char.isNumber {
-                showSearchAndFocus()
-                // The character will be typed into the now-focused search field
-                return .ignored // Let the character through to TextField
-            }
-            return .ignored
-        }
-    }
-
-    private func showSearchAndFocus() {
-        withAnimation(.easeInOut(duration: 0.12)) {
-            isSearchVisible = true
-        }
-        // Delay focus slightly to ensure field is visible
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            isSearchFieldFocused = true
-        }
-    }
-
-    private func moveSelection(by delta: Int) {
-        guard !filteredApps.isEmpty else { return }
-
-        if let current = selectedAppIndex {
-            let newIndex = current + delta
-            if newIndex >= 0, newIndex < filteredApps.count {
-                selectedAppIndex = newIndex
-            }
-        } else {
-            // No selection - start from first or last
-            selectedAppIndex = delta > 0 ? 0 : filteredApps.count - 1
-        }
-    }
-
-    private func moveSelectionHorizontal(by delta: Int) {
-        // For now, treat left/right same as up/down (linear navigation)
-        // Could be enhanced later with grid-aware navigation using column count
-        moveSelection(by: delta)
     }
 }
 
