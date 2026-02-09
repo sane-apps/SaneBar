@@ -98,20 +98,81 @@ Always-hidden promoted from experimental to permanent first-class feature:
 
 ---
 
+### GitHub Issue #44 — External Contributors Signing Fix (Feb 9, committed + pushed)
+
+Christopher Bradshaw reported inability to build from source due to code signing requirements.
+- **Root cause:** `DEVELOPMENT_TEAM` in base settings forced all configs (including Debug) to require the team's cert
+- **Fix applied to ALL 5 public repos:** SaneBar, SaneClip, SaneSync, SaneClick, SaneVideo
+- Moved `DEVELOPMENT_TEAM` to Release/Release-AppStore configs only
+- Changed Debug `CODE_SIGN_IDENTITY` to `"-"` (ad-hoc signing)
+- Created `SaneMaster_standalone.rb` for each app (no monorepo dependency)
+- **Commits:** SaneBar `bae71a5`, SaneClip `253d7db`, SaneSync `f708394`, SaneClick `e3c5d16`, SaneVideo `b02abd8`
+- **GitHub reply posted** as Mr. Sane with build instructions
+
+### README Audit (Feb 9, in progress)
+
+Ran 4-agent audit comparing README claims against actual code for SaneBar, SaneClip, SaneClick, and all websites.
+
+**SaneBar README updated** with:
+- Removed stale "click-to-toggle" gesture (removed in v1.0.17)
+- Fixed onboarding from "5-page" to 3-page
+- Replaced "Diagnostics" section with Space Analyzer + Icon Groups/Smart Categories
+- Added: Custom Menu Bar Icon (6 styles), Light/Dark tinting, Extra Dividers (0-12), Hide Main Icon
+- Added: App Change trigger, External Monitor auto-show
+- Updated Configuration table (removed Experimental tab, added new features)
+- Fixed Liquid Glass claim (now "ready for" not "works on")
+
+**SaneClick README updated** with:
+- Added 5 new features to table: Selection Count Filtering, Extension Match Modes, Menu Bar Quick Access, Extension Status Monitor, App Visibility
+- Added First Launch (onboarding) section
+- Added Troubleshooting section (extension status colors)
+- Expanded Import/Export (conflict resolution modes)
+- Updated Usage section with icon picker, notifications
+
+**SaneClip README** — User is working on this themselves, skipped
+
+**Websites** — All 3 active sites current: sanebar.com, saneclip.com, saneclick.com. Pricing correct ($6.99). sanevideo.com still placeholder (expected).
+
+---
+
 ## NEXT SESSION — Priorities
 
-1. **Screenshots** — Take screenshots for Second Menu Bar and Always-Hidden Zone feature cards, convert `<div>` to `<a>` with lightbox
-2. **Fix AH-to-Hidden verification** — false negative when separators are flush
-3. **Speed optimization** — explore shorter delays, parallel operations
-4. **MenuBarSearchView.swift extraction** — 1046 lines, over lint limit
-5. **Security hardening** — AppleScript sanitization, auth for HideCommand
-6. **CoinTick (wide icon) testing** — re-test on Mac Mini
+1. **Screenshots needed** (see list below)
+2. **Commit README changes** for SaneBar and SaneClick (updated this session but not yet committed)
+3. **Fix AH-to-Hidden verification** — false negative when separators are flush
+4. **Speed optimization** — explore shorter delays, parallel operations
+5. **MenuBarSearchView.swift extraction** — 1046 lines, over lint limit
+6. **Security hardening** — AppleScript sanitization, auth for HideCommand
+7. **CoinTick (wide icon) testing** — re-test on Mac Mini
+
+### Screenshots Needed
+
+**SaneBar** (screenshots from Jan 12-25 predate features added in v1.0.17-1.0.18):
+- Custom Menu Bar Icon picker (6 styles + custom upload)
+- Space Analyzer view
+- Icon Groups / Smart Categories in Find Icon
+- Extra Dividers configuration
+- Light/Dark mode separate tinting
+- Second Menu Bar (feature card on website needs screenshot)
+- Always-Hidden Zone (feature card on website needs screenshot)
+- Onboarding wizard (3-page flow)
+- Updated Appearance settings tab (many new options)
+
+**SaneClick:**
+- Script testing with file picker and output preview
+- Extension status monitoring (green/orange/red)
+- Welcome/onboarding flow with starter packs
+- App visibility controls
+
+**SaneClip** — User managing
 
 ---
 
 ## Ongoing Items
 
-1. **SaneBar v1.0.19**: Always-hidden graduated, icon moving working, docs updated
+1. **SaneBar v1.0.19**: Always-hidden graduated, icon moving working, docs updated, README refreshed
 2. **Secondary Panel**: Plan complete in research.md, no code yet, user demand growing (#41, #42)
 3. **GitHub Issue #42**: Script triggers request — needs acknowledgment (SHOW DRAFT FIRST)
-4. **HealsCodes video**: `~/Desktop/Screenshots/HealsCodes-always-hidden-move-bug.mp4` — unreviewed
+4. **GitHub Issue #44**: RESOLVED — signing fix committed and pushed, reply posted
+5. **HealsCodes video**: `~/Desktop/Screenshots/HealsCodes-always-hidden-move-bug.mp4` — unreviewed
+6. **Cross-app signing fix**: All 5 repos fixed and pushed (SaneBar, SaneClip, SaneSync, SaneClick, SaneVideo)
