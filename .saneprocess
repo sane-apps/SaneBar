@@ -10,7 +10,7 @@ build:
 
 release:
   team_id: M78L6FXD48
-  signing_identity: "Developer ID Application: Stephan Joseph (M78L6FXD48)"
+  signing_identity: "Developer ID Application"
   dist_host: dist.sanebar.com
   site_host: sanebar.com
   r2_bucket: sanebar-downloads
