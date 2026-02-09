@@ -113,10 +113,9 @@ A first-run flow to get you set up in under 30 seconds:
 ### Customization
 - **Liquid Glass** — Translucent styling (ready for macOS 26 Tahoe when available)
 - **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
-- **Custom Menu Bar Icon** — Upload your own icon image or choose from 6 built-in styles (filter, dots, lines, chevron, coin, plus)
+- **Custom Menu Bar Icon** — Upload your own icon image or choose from 5 built-in styles (filter, dots, lines, chevron, coin)
 - **Light/Dark Mode Tinting** — Separate tint color and opacity for light and dark mode
 - **Extra Dividers** — Add 0–12 additional visual dividers (line or dot style)
-- **Hide Main Icon** — Show only the divider, hiding the SaneBar icon itself
 
 ![Appearance Settings](docs/images/settings-appearance.png)
 
@@ -212,6 +211,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 - **Focus Mode** — Show when macOS Focus Mode changes (Work, Personal, etc.)
 - **App Change** — Auto-hide when you switch to a different application
 - **External Monitor** — Always show icons on external monitors (plenty of space)
+- **Script Trigger** — Run a custom script on a timer; exit 0 shows icons, non-zero hides
 
 ### Icon Spacing (Settings → Appearance)
 
@@ -363,4 +363,4 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 GPL v3 — see [LICENSE](LICENSE)
 
-Copyright (c) 2026 Stephan Joseph. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
+Copyright (c) 2026 SaneApps. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
