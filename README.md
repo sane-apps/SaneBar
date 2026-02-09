@@ -17,9 +17,9 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 
 | | |
 |---|---|
-| ⚡ **Power** | Your device runs it. No cloud required. |
-| ❤️ **Love** | $6.99 once. No subscriptions. Ever. |
-| 🧠 **Sound Mind** | Open source. See exactly what it does. |
+| ⚡ **Power** | Your data stays on your device. No cloud, no tracking. |
+| ❤️ **Love** | Built to serve you. No dark patterns or manipulation. |
+| 🧠 **Sound Mind** | Calm, focused design. No clutter or anxiety. |
 
 ▶️ **[Watch the demo](https://www.youtube.com/watch?v=I6U3APV-998)** (30 seconds)
 
@@ -36,15 +36,11 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 SaneBar is different: **open source AND sustainable.**
 
 - **Build it yourself** — Clone the repo, it's GPL v3 licensed, always will be
-- **Or pay $6.99** — Get a notarized DMG, support continued development
+- **Or buy the DMG** — Signed, notarized, ready to use. Supports continued development.
 
 > *I wanted to make it $5, but processing fees and taxes were... insane. — Mr. Sane*
 
-Your $6.99 keeps this project alive. No VC funding. No acquisition exit. Just software that works because someone's paid to maintain it.
-
-**[Download — $6.99](https://sanebar.com)** or [build from source](#for-developers)
-
-DMGs are hosted on Cloudflare (not attached to GitHub releases).
+**[Download](https://sanebar.com)** or [build from source](#for-developers)
 
 **Requirements:** macOS 15 Sequoia or later, Apple Silicon (arm64) only
 
@@ -91,7 +87,7 @@ SaneBar organizes your menu bar into three zones:
 ![Rules and Automation](docs/images/settings-rules.png)
 
 ### Second Menu Bar
-A floating bar below the menu bar showing your hidden and always-hidden icons at a glance.
+An alternative to Find Icon — instead of searching by name, see all your hidden and always-hidden icons in a floating bar below the menu bar.
 - **Click** the SaneBar icon to show hidden icons in a second menu bar instead of expanding the separator
 - **Right-click** any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones
 - SaneUI styling with vibrancy, hover effects, and ESC to dismiss
@@ -131,7 +127,7 @@ Works perfectly on Macs with Notch. **100% private** — no network requests, no
 ## Power User Features
 
 ### 🔍 Find Hidden Icon
-Quickly find and activate any menu bar app without lifting your hands from the keyboard.
+Search for any menu bar app by name and activate it — even if it's behind the Notch. This is SaneBar's original access method. Prefer a visual overview instead? Use the [Second Menu Bar](#second-menu-bar).
 1. **Option-click** the SaneBar icon, or use the menu **Find Icon…** (default hotkey: ⌘⇧Space)
 2. Type an app name and press **Return**
 3. SaneBar will reveal hidden icons and **virtually click** the app's menu bar item
