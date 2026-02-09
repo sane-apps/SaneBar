@@ -187,36 +187,40 @@ private struct WelcomeActionPage: View {
         .onAppear { detectCompetitor() }
     }
 
+    @ViewBuilder
     private func importBanner(_ competitor: String) -> some View {
-        Group {
-            if let result = importResult {
-                Label(result, systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 13, weight: .medium))
+        if let result = importResult {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.right.arrow.left.circle.fill")
-                        .foregroundStyle(.accentColor)
-                    Text("Switching from \(competitor)?")
-                        .font(.system(size: 13))
-                    Button("Import Settings") {
-                        performImport(competitor)
-                    }
-                    .font(.system(size: 13, weight: .semibold))
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity)
-                .background(Color.accentColor.opacity(0.08))
-                .cornerRadius(8)
+                Text(result)
             }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.green)
+            .padding(10)
+            .frame(maxWidth: .infinity)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(8)
+            .padding(.horizontal, 20)
+        } else {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.right.arrow.left.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text("Switching from \(competitor)?")
+                    .font(.system(size: 13))
+                Button("Import Settings") {
+                    performImport(competitor)
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity)
+            .background(Color.accentColor.opacity(0.08))
+            .cornerRadius(8)
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
     }
 
     private func detectCompetitor() {
