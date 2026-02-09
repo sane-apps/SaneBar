@@ -141,8 +141,7 @@ struct DropdownPanelView: View {
                         onActivate: { isRightClick in onActivate(app, isRightClick) },
                         onMoveToVisible: { moveIcon(app, toZone: .visible) },
                         onMoveToHidden: zone == .alwaysHidden ? { moveIcon(app, toZone: .hidden) } : nil,
-                        onMoveToAlwaysHidden: zone == .hidden && menuBarManager.settings.alwaysHiddenSectionEnabled
-                            ? { moveIcon(app, toZone: .alwaysHidden) } : nil
+                        onMoveToAlwaysHidden: zone == .hidden ? { moveIcon(app, toZone: .alwaysHidden) } : nil
                     )
                 }
             }
@@ -194,6 +193,11 @@ struct DropdownPanelView: View {
                 statusItemIndex: statusItemIndex
             )
         case .alwaysHidden:
+            // Auto-enable always-hidden section if not already on
+            if !menuBarManager.settings.alwaysHiddenSectionEnabled {
+                menuBarManager.settings.alwaysHiddenSectionEnabled = true
+                menuBarManager.saveSettings()
+            }
             menuBarManager.pinAlwaysHidden(app: app)
             _ = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
