@@ -11,13 +11,26 @@ extension MenuBarManager {
     /// Icons to the RIGHT of this position (higher X) are VISIBLE
     /// Returns nil if separator position can't be determined
     func getSeparatorOriginX() -> CGFloat? {
-        guard let separatorButton = separatorItem?.button,
+        guard let separatorItem else { return lastKnownSeparatorX }
+
+        // If in blocking mode (length > 1000), live position is off-screen — use cache
+        if separatorItem.length > 1000 {
+            let cachedX = lastKnownSeparatorX ?? -1
+            logger.debug("🔧 getSeparatorOriginX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
+            return lastKnownSeparatorX
+        }
+
+        guard let separatorButton = separatorItem.button,
               let separatorWindow = separatorButton.window
         else {
-            return nil
+            return lastKnownSeparatorX
         }
-        let frame = separatorWindow.frame
-        return frame.origin.x
+        let x = separatorWindow.frame.origin.x
+        // Cache valid on-screen positions for use during blocking mode
+        if x > 0 {
+            lastKnownSeparatorX = x
+        }
+        return x > 0 ? x : lastKnownSeparatorX
     }
 
     /// Get the always-hidden separator's LEFT edge X position (for classification/moves).
@@ -59,6 +72,12 @@ extension MenuBarManager {
         guard frame.width > 0 else {
             logger.error("🔧 getSeparatorRightEdgeX: frame.width is 0")
             return nil
+        }
+        // Also cache the origin for classification during blocking mode.
+        // This is the key moment when the separator is at visual size (20px),
+        // so we can record a valid origin for later use by getSeparatorOriginX().
+        if frame.origin.x > 0, frame.width < 1000 {
+            lastKnownSeparatorX = frame.origin.x
         }
         let rightEdge = frame.origin.x + frame.width
         logger.info("🔧 getSeparatorRightEdgeX: returning \(rightEdge)")
@@ -148,25 +167,30 @@ extension MenuBarManager {
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
 
+            // Prevent Find Icon window from auto-closing during CGEvent simulation
+            await MainActor.run { SearchWindowController.shared.setMoveInProgress(true) }
             defer {
                 Task { @MainActor [weak self] in
+                    SearchWindowController.shared.setMoveInProgress(false)
                     self?.activeMoveTask = nil
                 }
             }
 
-            // If moving FROM hidden TO visible, expand first so icon is draggable.
-            if !toHidden, wasHidden {
-                logger.info("🔧 Expanding hidden icons first...")
-                // SECURITY: Use auth-guarded path instead of direct hidingService.show()
+            // When the bar is hidden, the separator is 10000px wide. It physically
+            // blocks icon movement in BOTH directions. We must expand to visual size
+            // (showAll) before any Cmd+drag, whether moving to hidden or to visible.
+            if wasHidden {
+                logger.info("🔧 Expanding ALL icons via shield pattern for move...")
+                // SECURITY: Auth check if moving from hidden to visible with auth enabled
                 if needsAuthCheck {
                     let revealed = await showHiddenItemsNow(trigger: .findIcon)
                     guard revealed else {
                         logger.info("🔧 Auth failed or cancelled - aborting icon move")
                         return false
                     }
-                } else {
-                    await hidingService.show()
+                    await MainActor.run { hidingService.cancelRehide() }
                 }
+                await hidingService.showAll()
                 try? await Task.sleep(for: .milliseconds(300))
             } else {
                 // Tiny settle delay so status item window frames are stable.
@@ -177,7 +201,16 @@ extension MenuBarManager {
             let (separatorX, visibleBoundaryX): (CGFloat?, CGFloat?) = await MainActor.run {
                 if toHidden {
                     let sep = separatorOverrideX ?? self.getSeparatorOriginX()
-                    return (sep, nil)
+                    // AH separator right edge = inner boundary (don't overshoot into AH zone)
+                    var ahRight: CGFloat?
+                    if let ahItem = self.alwaysHiddenSeparatorItem,
+                       let ahButton = ahItem.button,
+                       let ahWindow = ahButton.window,
+                       ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {
+                        ahRight = ahWindow.frame.origin.x + ahWindow.frame.width
+                        logger.info("🔧 AH separator right edge: \(ahRight!)")
+                    }
+                    return (sep, ahRight)
                 }
                 let sep = self.getSeparatorRightEdgeX()
                 let mainLeft = self.getMainStatusItemLeftEdgeX()
@@ -229,12 +262,15 @@ extension MenuBarManager {
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
-            // If we auto-expanded to facilitate a move, re-hide now.
-            // Check external monitor setting on MainActor
+            // Restore shield pattern and re-hide if we expanded.
             let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
-            if !toHidden, wasHidden, !shouldSkipHide {
-                logger.info("🔧 Move complete - re-hiding items...")
-                await hidingService.hide()
+            if wasHidden {
+                logger.info("🔧 Restoring from showAll shield pattern...")
+                await hidingService.restoreFromShowAll()
+                if !shouldSkipHide {
+                    logger.info("🔧 Move complete - re-hiding items...")
+                    await hidingService.hide()
+                }
             }
 
             logger.info("🔧 ========== MOVE ICON END ==========")
@@ -283,8 +319,10 @@ extension MenuBarManager {
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
 
+            await MainActor.run { SearchWindowController.shared.setMoveInProgress(true) }
             defer {
                 Task { @MainActor [weak self] in
+                    SearchWindowController.shared.setMoveInProgress(false)
                     self?.activeMoveTask = nil
                 }
             }
@@ -394,6 +432,117 @@ extension MenuBarManager {
             statusItemIndex: statusItemIndex,
             toAlwaysHidden: false
         )
+    }
+
+    /// Move an icon from the always-hidden zone to the regular hidden zone.
+    /// Uses the AH separator as the reference (move right of it) and the main
+    /// separator's left edge as the boundary (stay left of it).
+    func moveIconFromAlwaysHiddenToHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil
+    ) -> Bool {
+        guard !hidingService.isAnimating, !hidingService.isTransitioning else {
+            logger.warning("🔧 moveIconFromAlwaysHiddenToHidden skipped — hiding service busy")
+            return false
+        }
+        guard alwaysHiddenSeparatorItem != nil else {
+            logger.error("🔧 Always-hidden separator unavailable")
+            return false
+        }
+
+        let wasHidden = hidingState == .hidden
+        let originalLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        guard !NSScreen.screens.isEmpty else { return false }
+
+        if let existing = activeMoveTask, !existing.isCancelled {
+            logger.warning("⚠️ AH-to-Hidden move rejected: another move is in progress")
+            return false
+        }
+
+        activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
+            guard let self else { return false }
+
+            await MainActor.run { SearchWindowController.shared.setMoveInProgress(true) }
+            defer {
+                Task { @MainActor [weak self] in
+                    SearchWindowController.shared.setMoveInProgress(false)
+                    self?.activeMoveTask = nil
+                }
+            }
+
+            // 1. Reveal ALL items (both separators at visual size)
+            await hidingService.showAll()
+            try? await Task.sleep(for: .milliseconds(300))
+
+            // 2. Get AH separator right edge (move right of it) and
+            //    main separator left edge (don't overshoot into visible zone)
+            let (ahSepRightEdge, mainSepOriginX): (CGFloat?, CGFloat?) = await MainActor.run {
+                guard let ahItem = self.alwaysHiddenSeparatorItem,
+                      let ahButton = ahItem.button,
+                      let ahWindow = ahButton.window
+                else { return (nil, nil) }
+                let ahFrame = ahWindow.frame
+                guard ahFrame.width > 0 else { return (nil, nil) }
+                let ahRight = ahFrame.origin.x + ahFrame.width
+                let mainLeft = self.getSeparatorOriginX()
+                return (ahRight, mainLeft)
+            }
+
+            guard let ahSepRightEdge else {
+                logger.error("🔧 Cannot resolve AH separator position for AH-to-Hidden move")
+                await hidingService.restoreFromShowAll()
+                let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+                if wasHidden, !shouldSkipHide { await hidingService.hide() }
+                return false
+            }
+
+            // 3. Cmd+drag: move RIGHT of AH separator, clamped LEFT of main separator
+            let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            var success = accessibilityService.moveMenuBarIcon(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                toHidden: false, // Move RIGHT of the AH separator (into hidden zone)
+                separatorX: ahSepRightEdge,
+                visibleBoundaryX: mainSepOriginX, // Clamp: stay LEFT of main separator
+                originalMouseLocation: originalCGPoint
+            )
+
+            if !success {
+                logger.info("🔧 AH-to-Hidden move retry...")
+                try? await Task.sleep(for: .milliseconds(200))
+                success = accessibilityService.moveMenuBarIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    toHidden: false,
+                    separatorX: ahSepRightEdge,
+                    visibleBoundaryX: mainSepOriginX,
+                    originalMouseLocation: originalCGPoint
+                )
+            }
+
+            // 4. Restore shield, refresh, re-hide
+            try? await Task.sleep(for: .milliseconds(250))
+            await hidingService.restoreFromShowAll()
+
+            await MainActor.run {
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
+            }
+
+            let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+            if wasHidden, !shouldSkipHide {
+                await hidingService.hide()
+            }
+
+            return success
+        }
+
+        return true
     }
 
     @MainActor

@@ -170,9 +170,11 @@ struct MenuBarSearchView: View {
             refreshApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .menuBarIconsDidChange)) { _ in
-            // Icons were moved - refresh the list and clear loading state
+            // Icons were moved — clear loading state and refresh.
+            // Skip loadCachedApps() here: the cache was just invalidated,
+            // so reading it would return stale/empty data. Go straight to
+            // a fresh AX scan which will populate the list correctly.
             movingAppId = nil
-            loadCachedApps()
             refreshApps(force: true)
         }
         .onChange(of: storedMode) { _, _ in
@@ -675,57 +677,7 @@ struct MenuBarSearchView: View {
                     spacing: grid.spacing
                 ) {
                     ForEach(Array(filteredApps.enumerated()), id: \.element.id) { index, app in
-                        MenuBarAppTile(
-                            app: app,
-                            iconSize: grid.iconSize,
-                            tileSize: grid.tileSize,
-                            onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
-                            onSetHotkey: { hotkeyApp = app },
-                            onRemoveFromGroup: selectedGroupId.map { groupId in
-                                { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
-                            },
-                            isHidden: mode == .hidden || mode == .alwaysHidden,
-                            onToggleHidden: mode == .all ? nil : {
-                                // Capture values before async work to avoid race conditions
-                                let bundleID = app.bundleId
-                                let menuExtraId = app.menuExtraIdentifier // For Control Center items
-                                let statusItemIndex = app.statusItemIndex
-                                let toHidden = (mode == .visible)
-
-                                movingAppId = app.uniqueId
-
-                                // Moving OUT of always-hidden requires temporarily contracting
-                                // the always-hidden separator so the icon is on-screen.
-                                if mode == .alwaysHidden {
-                                    menuBarManager.unpinAlwaysHidden(app: app)
-                                    _ = menuBarManager.moveIconFromAlwaysHidden(
-                                        bundleID: bundleID,
-                                        menuExtraId: menuExtraId,
-                                        statusItemIndex: statusItemIndex
-                                    )
-                                } else {
-                                    _ = menuBarManager.moveIcon(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, toHidden: toHidden)
-                                }
-                            },
-                            onMoveToAlwaysHidden: isAlwaysHiddenEnabled && mode != .alwaysHidden ? {
-                                let bundleID = app.bundleId
-                                let menuExtraId = app.menuExtraIdentifier
-                                let statusItemIndex = app.statusItemIndex
-
-                                movingAppId = app.uniqueId
-
-                                // Persist the intent so we can re-apply after reboot/login drift.
-                                menuBarManager.pinAlwaysHidden(app: app)
-
-                                _ = menuBarManager.moveIconToAlwaysHidden(
-                                    bundleID: bundleID,
-                                    menuExtraId: menuExtraId,
-                                    statusItemIndex: statusItemIndex
-                                )
-                            } : nil,
-                            isMoving: movingAppId == app.uniqueId,
-                            isSelected: selectedAppIndex == index
-                        )
+                        makeTile(app: app, index: index, grid: grid)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading) // Push to top-left
@@ -734,6 +686,132 @@ struct MenuBarSearchView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Tile Factory
+
+    /// Extracted to a helper to keep the type checker happy — the tile has many
+    /// optional closures and inline ternaries that blow up `appGrid` otherwise.
+    @ViewBuilder
+    private func makeTile(app: RunningApp, index: Int, grid: GridSizing) -> some View {
+        MenuBarAppTile(
+            app: app,
+            iconSize: grid.iconSize,
+            tileSize: grid.tileSize,
+            onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
+            onSetHotkey: { hotkeyApp = app },
+            onRemoveFromGroup: selectedGroupId.map { groupId in
+                { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
+            },
+            isHidden: mode == .hidden || mode == .alwaysHidden || (mode == .all && appZone(for: app) != .visible),
+            onToggleHidden: makeToggleHiddenAction(for: app),
+            onMoveToAlwaysHidden: makeMoveToAlwaysHiddenAction(for: app),
+            onMoveToHidden: makeMoveToHiddenAction(for: app),
+            isMoving: movingAppId == app.uniqueId,
+            isSelected: selectedAppIndex == index
+        )
+    }
+
+    // MARK: - Zone Classification (for All tab context menus)
+
+    /// Classify an app's current zone based on its X position vs separator positions.
+    private func appZone(for app: RunningApp) -> AppZone {
+        guard let xPos = app.xPosition else { return .visible }
+        let midX = xPos + ((app.width ?? 22) / 2)
+        let margin: CGFloat = 6
+
+        if let ahX = menuBarManager.getAlwaysHiddenSeparatorOriginX(),
+           midX < (ahX - margin) {
+            return .alwaysHidden
+        }
+        if let sepX = menuBarManager.getSeparatorOriginX(),
+           midX < (sepX - margin) {
+            return .hidden
+        }
+        return .visible
+    }
+
+    private enum AppZone { case visible, hidden, alwaysHidden }
+
+    private func makeToggleHiddenAction(for app: RunningApp) -> (() -> Void)? {
+        // Determine direction based on tab (or actual zone for All tab)
+        let toHidden: Bool
+        let isAH: Bool
+        switch mode {
+        case .visible: toHidden = true; isAH = false
+        case .hidden: toHidden = false; isAH = false
+        case .alwaysHidden: toHidden = false; isAH = true
+        case .all:
+            let zone = appZone(for: app)
+            switch zone {
+            case .visible: toHidden = true; isAH = false
+            case .hidden: toHidden = false; isAH = false
+            case .alwaysHidden: toHidden = false; isAH = true
+            }
+        }
+
+        return {
+            let bundleID = app.bundleId
+            let menuExtraId = app.menuExtraIdentifier
+            let statusItemIndex = app.statusItemIndex
+
+            movingAppId = app.uniqueId
+
+            if isAH {
+                menuBarManager.unpinAlwaysHidden(app: app)
+                _ = menuBarManager.moveIconFromAlwaysHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex
+                )
+            } else {
+                _ = menuBarManager.moveIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    toHidden: toHidden
+                )
+            }
+        }
+    }
+
+    private func makeMoveToHiddenAction(for app: RunningApp) -> (() -> Void)? {
+        // Show "Move to Hidden" for AH tab, or for AH apps in All tab
+        let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
+        guard isAH else { return nil }
+        return {
+            let bundleID = app.bundleId
+            let menuExtraId = app.menuExtraIdentifier
+            let statusItemIndex = app.statusItemIndex
+
+            movingAppId = app.uniqueId
+            menuBarManager.unpinAlwaysHidden(app: app)
+            _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
+    }
+
+    private func makeMoveToAlwaysHiddenAction(for app: RunningApp) -> (() -> Void)? {
+        guard isAlwaysHiddenEnabled else { return nil }
+        // Don't show for AH tab, or for AH apps in All tab
+        let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
+        guard !isAH else { return nil }
+        return {
+            let bundleID = app.bundleId
+            let menuExtraId = app.menuExtraIdentifier
+            let statusItemIndex = app.statusItemIndex
+
+            movingAppId = app.uniqueId
+            menuBarManager.pinAlwaysHidden(app: app)
+            _ = menuBarManager.moveIconToAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
     }
 
     private struct GridSizing {

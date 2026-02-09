@@ -62,6 +62,7 @@
 		A31A1121AA09ACA4DB5061D0 /* SearchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9911A7251AE151FCA164258D /* SearchWindowController.swift */; };
 		A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */; };
 		A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1779B5B710715DD106EE34 /* TriggerService.swift */; };
+		AA113AF7B7D2944334AA41F0 /* IconMovingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D77834D54799A501DFEAA7D8 /* IconMovingTests.swift */; };
 		AACD9A6170B39E6B630846A0 /* SaneBar.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */; };
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
@@ -179,6 +180,7 @@
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSettingsComponents.swift; sourceTree = "<group>"; };
 		D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
+		D77834D54799A501DFEAA7D8 /* IconMovingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconMovingTests.swift; sourceTree = "<group>"; };
 		DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsControllerTests.swift; sourceTree = "<group>"; };
 		E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManagerTests.swift; sourceTree = "<group>"; };
 		E2110BC48727749AB5BC8606 /* SaneBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SaneBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -270,6 +272,7 @@
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
 				F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */,
+				D77834D54799A501DFEAA7D8 /* IconMovingTests.swift */,
 				F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */,
 				70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */,
 				3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */,
@@ -545,6 +548,7 @@
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
 				B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */,
+				AA113AF7B7D2944334AA41F0 /* IconMovingTests.swift in Sources */,
 				8E33C3A54BBCC58D221E0B84 /* KeyboardShortcutsServiceTests.swift in Sources */,
 				41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */,
 				4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */,

@@ -17,6 +17,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
 
+    /// Prevents auto-close during icon moves (CGEvent causes resignKey)
+    private(set) var isMoveInProgress = false
+
     // MARK: - Toggle
 
     /// Toggle the search window visibility
@@ -69,8 +72,16 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    /// Set move-in-progress flag to prevent auto-close during CGEvent Cmd+drag
+    func setMoveInProgress(_ inProgress: Bool) {
+        isMoveInProgress = inProgress
+    }
+
     /// Close the search window
     func close() {
+        // Don't close while a move is in progress — CGEvent mouse
+        // simulation causes resignKey which would break the move.
+        guard !isMoveInProgress else { return }
         window?.orderOut(nil)
         // Resume hover/click triggers
         MenuBarManager.shared.hoverService.isSuspended = false
@@ -113,7 +124,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResignKey(_: Notification) {
-        // Auto-close when user clicks elsewhere
+        // Skip auto-close during moves — CGEvent Cmd+drag steals key status
+        guard !isMoveInProgress else { return }
         close()
     }
 
