@@ -116,7 +116,7 @@ struct GeneralSettingsView: View {
                     CompactDivider()
 
                     CompactToggle(
-                        label: "Show hidden icons in dropdown panel",
+                        label: "Show hidden icons in dropdown panel (Beta)",
                         isOn: Binding(
                             get: { menuBarManager.settings.useDropdownPanel },
                             set: { newValue in
@@ -125,7 +125,7 @@ struct GeneralSettingsView: View {
                             }
                         )
                     )
-                    .help("Shows hidden icons in a panel below the menu bar instead of expanding the separator")
+                    .help("Shows hidden icons in a panel below the menu bar instead of expanding the separator. This feature is new — please report any issues.")
                 }
 
                 // 4. Updates
