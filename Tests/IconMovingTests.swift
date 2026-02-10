@@ -754,7 +754,7 @@ struct MoveToVisibleRegressionTests {
             (1500, 1700, 16, "Gap"),
             (1200, 1800, 16, "Wide gap"),
             (1695, 1696, 16, "1px gap"),
-            (1690, 1700, 16, "10px gap")
+            (1690, 1700, 16, "10px gap"),
         ]
 
         for scenario in scenarios {
@@ -766,7 +766,13 @@ struct MoveToVisibleRegressionTests {
             // NEW: max(separatorX + 1, boundaryX - 2)
             let newTarget = max(scenario.sep + 1, scenario.boundary - 2)
 
-            #expect(newTarget <= scenario.boundary, "New formula never overshoots boundary (\(scenario.name))")
+            // When flush (sep == boundary), formula intentionally targets sep+1;
+            // macOS auto-adjusts by pushing items apart
+            if scenario.sep == scenario.boundary {
+                #expect(newTarget == scenario.boundary + 1, "Flush: targets 1px past boundary for macOS auto-adjust (\(scenario.name))")
+            } else {
+                #expect(newTarget <= scenario.boundary, "New formula never overshoots boundary (\(scenario.name))")
+            }
             #expect(newTarget > scenario.sep, "New formula always right of separator (\(scenario.name))")
         }
     }

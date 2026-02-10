@@ -3,6 +3,47 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.21</title>
+            <pubDate>Mon, 10 Feb 2026 10:41:00 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Hotfix</h2>
+                <ul>
+                    <li><strong>Fix</strong>: Hidden icons no longer disappear after updating from earlier versions</li>
+                    <li><strong>Fix</strong>: Always-Hidden section now respects your saved preference instead of enabling itself automatically</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.21.dmg"
+                       sparkle:version="1021"
+                       sparkle:shortVersionString="1.0.21"
+                       length="5623144"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="lyGASVXUB2Aajpjk61yvBmWCPHOFs21RhdYKKWT1WYROW15RW/ulEYb4RiYNNEFOD6Edbg1wSk+XtfXIF5cQAA=="/>
+        </item>
+        <item>
+            <title>1.0.20</title>
+            <pubDate>Mon, 09 Feb 2026 14:06:00 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <ul>
+                    <li><strong>Always Hidden</strong>: New option to permanently hide specific menu bar icons</li>
+                    <li><strong>Second Menu Bar</strong>: Optional second menu bar panel for overflow icons</li>
+                    <li><strong>Fix</strong>: Right-click on SaneBar icon now always shows settings menu correctly</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.20.dmg"
+                       sparkle:version="1020"
+                       sparkle:shortVersionString="1.0.20"
+                       length="5622170"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="fk/tuH4566NpFg0oMFSYnN8RlpLjk+T7sa2DqAn0YvOwTaqz8MC0QM64iKyKiD+OKB12NFE8hOQrxzZRrQxkCA=="/>
+        </item>
+        <item>
             <title>1.0.18</title>
             <pubDate>Thu, 05 Feb 2026 19:32:01 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
