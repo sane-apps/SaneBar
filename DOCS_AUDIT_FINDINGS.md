@@ -158,7 +158,7 @@
 - Strong value proposition and emotional journey
 - Website underpromises (missing 3 key features)
 - Feature naming is clear but "Always Hidden" could be less scary
-- Conversion funnel is solid (free tier + $5 one-time)
+- Conversion funnel is solid (free tier + $6.99 one-time)
 
 ### 4. User Advocate (6.5/10)
 - Lowest score — new features are undiscoverable

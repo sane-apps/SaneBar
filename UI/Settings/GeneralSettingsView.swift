@@ -108,7 +108,7 @@ struct GeneralSettingsView: View {
                 // 3. Hiding
                 CompactSection("Hiding") {
                     CompactToggle(
-                        label: "Show hidden icons in second menu bar",
+                        label: "Use floating panel instead of Find Icon",
                         isOn: Binding(
                             get: { menuBarManager.settings.useSecondMenuBar },
                             set: { newValue in
@@ -117,7 +117,7 @@ struct GeneralSettingsView: View {
                             }
                         )
                     )
-                    .help("Shows hidden icons in a second menu bar below the main one. You can still interact with icons in the real menu bar.")
+                    .help("Off: Click SaneBar icon to open Find Icon (search, hotkeys, icon management). On: Click to show a floating panel below the menu bar with your hidden icons.")
                 }
 
                 // 4. Updates

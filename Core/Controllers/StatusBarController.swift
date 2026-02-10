@@ -140,8 +140,10 @@ final class StatusBarController: StatusBarControllerProtocol {
         let idealPosition: Double = 10000
 
         let currentPos = defaults.object(forKey: key) as? Double
-        if currentPos == nil || currentPos == 200 {
-            // Seed (nil) or migrate from broken default (200)
+        if currentPos == nil || currentPos! < 1000 {
+            // Seed (nil) or migrate from any broken low value.
+            // AH must be far-left (10000). Values like 2 or 200 place it
+            // among real menu bar items, causing icons to vanish.
             logger.info("Setting AH separator position: \(idealPosition) (was \(currentPos ?? 0))")
             defaults.set(idealPosition, forKey: key)
         }

@@ -336,10 +336,29 @@ struct AlwaysHiddenRegressionTests {
         defaults.removeObject(forKey: key)
     }
 
-    @Test("AH position preserves valid custom positions")
+    @Test("AH position migrates from broken low value (e.g. 2) to 10000")
+    @MainActor
+    func ahPositionMigratesFromLowValue() {
+        // Regression: #52 reported position 2 — any value < 1000 is broken
+        let defaults = UserDefaults.standard
+        let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
+
+        defaults.set(2.0, forKey: key)
+
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+
+        let position = defaults.double(forKey: key)
+        #expect(position == 10000,
+                "Must migrate from broken position 2 to 10000")
+
+        // Cleanup
+        defaults.removeObject(forKey: key)
+    }
+
+    @Test("AH position preserves valid custom positions (>= 1000)")
     @MainActor
     func ahPositionPreservesCustom() {
-        // If user has manually positioned AH elsewhere (not 200), don't override
+        // Positions >= 1000 are plausible — don't override
         let defaults = UserDefaults.standard
         let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
 
@@ -349,7 +368,7 @@ struct AlwaysHiddenRegressionTests {
 
         let position = defaults.double(forKey: key)
         #expect(position == 5000,
-                "Should not override user's custom position")
+                "Should not override valid position >= 1000")
 
         // Cleanup
         defaults.removeObject(forKey: key)

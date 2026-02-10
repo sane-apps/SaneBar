@@ -67,6 +67,7 @@ def usage
       test        Run unit tests
       verify      Build + test
       test_mode   Build, kill existing, launch app
+      launch      Alias for test_mode
       help        Show this message
   HELP
 end
@@ -75,7 +76,7 @@ case ARGV[0]
 when "build"      then build
 when "test"       then test
 when "verify"     then verify
-when "test_mode"  then test_mode
+when "test_mode", "launch", "tm"  then test_mode
 when "help", nil  then usage
 else
   warn "Unknown command: #{ARGV[0]}"
