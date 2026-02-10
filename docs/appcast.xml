@@ -4,23 +4,26 @@
         <title>SaneBar Changelog</title>
         <item>
             <title>1.0.21</title>
-            <pubDate>Mon, 10 Feb 2026 10:41:00 -0500</pubDate>
+            <pubDate>Tue, 10 Feb 2026 18:25:03 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Hotfix</h2>
+                <h2>Fixes</h2>
                 <ul>
+                    <li><strong>Fix</strong>: Always-Hidden separator position now migrates from any broken value (fixes icons disappearing on hover)</li>
+                    <li><strong>Fix</strong>: Settings toggle renamed to "Use floating panel instead of Find Icon" for clarity</li>
+                    <li><strong>Fix</strong>: Onboarding now explains both viewing modes (Find Icon and floating panel)</li>
                     <li><strong>Fix</strong>: Hidden icons no longer disappear after updating from earlier versions</li>
-                    <li><strong>Fix</strong>: Always-Hidden section now respects your saved preference instead of enabling itself automatically</li>
+                    <li><strong>Fix</strong>: Always-Hidden section now respects your saved preference</li>
                 </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.21.dmg"
                        sparkle:version="1021"
                        sparkle:shortVersionString="1.0.21"
-                       length="5623144"
+                       length="5625929"
                        type="application/x-apple-diskimage"
-                       sparkle:edSignature="lyGASVXUB2Aajpjk61yvBmWCPHOFs21RhdYKKWT1WYROW15RW/ulEYb4RiYNNEFOD6Edbg1wSk+XtfXIF5cQAA=="/>
+                       sparkle:edSignature="beek/gSjz1P5s2dGXRpS3yQZGlnPTpsTUVjLgbOVDrMXfh8aKo/wYKp2kdXw186D12XObeiIWAfgFuy5E5L3CQ=="/>
         </item>
         <item>
             <title>1.0.20</title>
