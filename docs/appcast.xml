@@ -3,6 +3,27 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.22</title>
+            <pubDate>Tue, 10 Feb 2026 18:29:42 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Fixes</h2>
+                <ul>
+                    <li><strong>Fix</strong>: Always-Hidden separator position now migrates from any broken value (fixes icons disappearing on hover)</li>
+                    <li><strong>Fix</strong>: Settings toggle renamed to "Use floating panel instead of Find Icon" for clarity</li>
+                    <li><strong>Fix</strong>: Onboarding now explains both viewing modes (Find Icon and floating panel)</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.22.dmg"
+                       sparkle:version="1022"
+                       sparkle:shortVersionString="1.0.22"
+                       length="5625919"
+                       type="application/x-apple-diskimage"
+                       sparkle:edSignature="Zoc/hDRzJxJaKcM4Hnassb/ArPpUp1/QR79yRYsysT0z/uqXJhtxqzji2uBj2whEyL2P8+9q9fDEI4SlT3A6Cw=="/>
+        </item>
+        <item>
             <title>1.0.21</title>
             <pubDate>Tue, 10 Feb 2026 18:25:03 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
