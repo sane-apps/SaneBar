@@ -111,7 +111,6 @@ extension MenuBarSearchView {
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
         Task {
             await service.activate(app: app, isRightClick: isRightClick)
-            onDismiss()
         }
     }
 
@@ -169,12 +168,13 @@ extension MenuBarSearchView {
             moveSelectionHorizontal(by: 1)
             return .handled
         case .return:
-            // Activate selected app
+            // Activate selected app, then clear selection so repeat Enter
+            // doesn't re-trigger the same icon (window now persists after activation)
             if let index = selectedAppIndex, index < filteredApps.count {
                 activateApp(filteredApps[index])
+                selectedAppIndex = nil
                 return .handled
             } else if let first = filteredApps.first {
-                // No selection - activate first app
                 activateApp(first)
                 return .handled
             }
