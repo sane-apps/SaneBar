@@ -73,7 +73,7 @@ extension MenuBarManager {
 
     @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Find Icon")
-        SearchWindowController.shared.toggle()
+        SearchWindowController.shared.toggle(mode: .findIcon)
     }
 
     @objc func quitApp(_: Any?) {
@@ -128,7 +128,7 @@ extension MenuBarManager {
         switch clickType {
         case .optionClick:
             logger.info("Option-click: opening Power Search")
-            SearchWindowController.shared.toggle()
+            SearchWindowController.shared.toggle(mode: .findIcon)
         case .leftClick:
             logger.info("Left-click: calling toggleHiddenItems()")
             toggleHiddenItems()

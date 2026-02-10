@@ -1,17 +1,18 @@
-import SwiftUI
 import AppKit
 import KeyboardShortcuts
 import os.log
+import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
 
 // MARK: - AppDelegate
+
 // CLEAN: Single initialization path - only MenuBarManager creates status items
 
 class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     // No @main - using main.swift instead
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         appLogger.info("🏁 applicationDidFinishLaunching START")
 
         // CRITICAL: Set activation policy to accessory BEFORE creating status items!
@@ -32,13 +33,13 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
 
-    func application(_ application: NSApplication, open urls: [URL]) {
+    func application(_: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
         appLogger.log("🌐 URL open request: \(url.absoluteString, privacy: .public)")
         handleURL(url)
     }
 
-    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+    func applicationDockMenu(_: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
         let settingsItem = NSMenuItem(
@@ -63,12 +64,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor
-    @objc private func openSettingsFromDock(_ sender: Any?) {
+    @objc private func openSettingsFromDock(_: Any?) {
         SettingsOpener.open()
     }
 
     @MainActor
-    @objc private func quitFromDock(_ sender: Any?) {
+    @objc private func quitFromDock(_: Any?) {
         NSApplication.shared.terminate(nil)
     }
 
@@ -98,7 +99,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                         return
                     }
                 }
-                SearchWindowController.shared.show(prefill: searchQuery)
+                SearchWindowController.shared.show(mode: .findIcon, prefill: searchQuery)
             case "settings":
                 SettingsOpener.open()
             default:
@@ -150,7 +151,7 @@ enum SettingsOpener {
 
 /// Handles settings window lifecycle events
 private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         ActivationPolicyManager.restorePolicy()
     }
 }
@@ -159,7 +160,6 @@ private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
 
 /// Manages the app's activation policy based on user settings
 enum ActivationPolicyManager {
-
     private static let logger = Logger(subsystem: "com.sanebar.app", category: "ActivationPolicyManager")
 
     @MainActor

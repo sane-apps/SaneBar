@@ -10,6 +10,15 @@ enum SearchWindowMode {
     case secondMenuBar
 }
 
+// MARK: - KeyablePanel
+
+/// Panel subclass that accepts key status for borderless panels.
+/// Required so `windowDidResignKey` fires when clicking outside,
+/// enabling auto-close behavior for the second menu bar.
+private class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 // MARK: - SearchWindowController
 
 /// Controller for the floating menu bar search window.
@@ -39,9 +48,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Toggle
 
-    /// Toggle the search window visibility
-    func toggle() {
-        if let window, window.isVisible {
+    /// Toggle the search window visibility.
+    /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
+    func toggle(mode: SearchWindowMode? = nil) {
+        if let window, window.isVisible, currentMode == (mode ?? activeMode) {
             close()
         } else {
             // Check auth if required
@@ -50,14 +60,15 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                     let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
                     guard authorized else { return }
                 }
-                show()
+                show(mode: mode)
             }
         }
     }
 
-    /// Show the search window
-    func show(prefill searchText: String? = nil) {
-        let desiredMode = activeMode
+    /// Show the search window.
+    /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
+    func show(mode: SearchWindowMode? = nil, prefill searchText: String? = nil) {
+        let desiredMode = mode ?? activeMode
 
         // If mode changed, recreate the window
         if currentMode != nil, currentMode != desiredMode {
@@ -210,9 +221,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         hostingView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         hostingView.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 140),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
