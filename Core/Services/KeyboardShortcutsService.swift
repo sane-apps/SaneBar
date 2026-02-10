@@ -35,7 +35,6 @@ protocol KeyboardShortcutsServiceProtocol {
 /// Uses sindresorhus/KeyboardShortcuts library
 @MainActor
 final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
-
     // MARK: - Singleton
 
     static let shared = KeyboardShortcutsService()
@@ -54,7 +53,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
     /// Connect to MenuBarManager for handling shortcuts
     func configure(with manager: MenuBarManager) {
-        self.menuBarManager = manager
+        menuBarManager = manager
         registerAllHandlers()
     }
 
@@ -109,8 +108,13 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
     // MARK: - Default Shortcuts
 
-    /// Set default shortcuts if none configured
+    private static let defaultsInitializedKey = "KeyboardShortcutsDefaultsInitialized"
+
+    /// Set default shortcuts on first launch only.
+    /// After first run, user changes (including clearing shortcuts) are preserved.
     func setDefaultsIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: Self.defaultsInitializedKey) else { return }
+
         // Toggle: Cmd+\ (primary action)
         if KeyboardShortcuts.getShortcut(for: .toggleHiddenItems) == nil {
             KeyboardShortcuts.setShortcut(.init(.backslash, modifiers: .command), for: .toggleHiddenItems)
@@ -134,5 +138,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         // Note: No default for openSettings - ⌘, is a standard macOS convention
         // for app-specific Settings. A global hotkey would override ALL apps.
         // Users can manually set this in Settings → Shortcuts if desired.
+
+        UserDefaults.standard.set(true, forKey: Self.defaultsInitializedKey)
     }
 }
