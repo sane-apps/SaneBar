@@ -242,10 +242,28 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
+    private var resignCloseTask: Task<Void, Never>?
+
     func windowDidResignKey(_: Notification) {
         // Skip auto-close during moves — CGEvent Cmd+drag steals key status
         guard !isMoveInProgress else { return }
-        close()
+
+        // Brief delay — clicking a menu bar icon opens its dropdown which
+        // steals key status momentarily. If the window regains key within
+        // the grace period (user clicked inside Find Icon again), skip close.
+        resignCloseTask?.cancel()
+        resignCloseTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            guard !(window?.isKeyWindow ?? false) else { return }
+            close()
+        }
+    }
+
+    func windowDidBecomeKey(_: Notification) {
+        // Window regained focus — cancel any pending resign-close
+        resignCloseTask?.cancel()
+        resignCloseTask = nil
     }
 
     func windowWillClose(_: Notification) {
