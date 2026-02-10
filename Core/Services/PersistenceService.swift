@@ -221,7 +221,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     // MARK: - Hiding
 
     /// Enable a second separator for an always-hidden zone.
-    var alwaysHiddenSectionEnabled: Bool = true
+    var alwaysHiddenSectionEnabled: Bool = false
 
     /// Show hidden icons in a second menu bar below the main one instead of expanding the separator.
     var useSecondMenuBar: Bool = false
@@ -289,7 +289,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
         dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
         menuBarIconStyle = try container.decodeIfPresent(MenuBarIconStyle.self, forKey: .menuBarIconStyle) ?? .filter
-        alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? true
+        alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
         alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
         scriptTriggerEnabled = try container.decodeIfPresent(Bool.self, forKey: .scriptTriggerEnabled) ?? false
         scriptTriggerPath = try container.decodeIfPresent(String.self, forKey: .scriptTriggerPath) ?? ""

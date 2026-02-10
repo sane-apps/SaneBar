@@ -300,7 +300,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Store the external items
         mainStatusItem = main
         separatorItem = separator
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Wire up click handler for main item
@@ -446,7 +446,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Copy references for local use
         mainStatusItem = statusBarController.mainItem
         separatorItem = statusBarController.separatorItem
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Setup menu using controller (shown via right-click on main icon)
@@ -601,7 +601,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func updateAlwaysHiddenSeparator() {
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
     }
