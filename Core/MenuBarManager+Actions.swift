@@ -73,7 +73,7 @@ extension MenuBarManager {
 
     @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Find Icon")
-        SearchWindowController.shared.toggle(mode: .findIcon)
+        SearchWindowController.shared.toggle()
     }
 
     @objc func quitApp(_: Any?) {

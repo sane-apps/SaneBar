@@ -128,18 +128,22 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
     }
 
-    private static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
+    static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
         let defaults = UserDefaults.standard
         let key = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
 
-        if defaults.object(forKey: key) == nil {
-            // Position must be to the LEFT of the main separator.
-            // Use the separator's current position + offset, or a large default.
-            let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
-            let sepPos = defaults.double(forKey: sepKey)
-            let position = sepPos > 10 ? sepPos + 30 : 200
-            logger.info("Seeding initial always-hidden separator position: \(position)")
-            defaults.set(position, forKey: key)
+        // AH separator must be the LEFTMOST status item (higher position = further left).
+        // macOS stores positions as pixel offsets from the right edge of the screen.
+        // System items like WiFi(299), Bluetooth(405), Siri(437) live at 200-800+.
+        // Using 10000 ensures AH is always further left than any real item,
+        // so nothing accidentally falls into the always-hidden zone.
+        let idealPosition: Double = 10000
+
+        let currentPos = defaults.object(forKey: key) as? Double
+        if currentPos == nil || currentPos == 200 {
+            // Seed (nil) or migrate from broken default (200)
+            logger.info("Setting AH separator position: \(idealPosition) (was \(currentPos ?? 0))")
+            defaults.set(idealPosition, forKey: key)
         }
     }
 

@@ -104,6 +104,19 @@ final class SearchService: SearchServiceProtocol {
         return (separatorX, alwaysHiddenSeparatorX)
     }
 
+    /// Match apps against persisted always-hidden pinned IDs.
+    /// Used as fallback when position-based classification is unavailable (items off-screen).
+    @MainActor
+    private func appsMatchingPinnedIds(from apps: [RunningApp]) -> [RunningApp] {
+        let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+        guard !pinnedIds.isEmpty else { return [] }
+        let matched = apps.filter { app in
+            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+        }
+        logger.debug("alwaysHidden fallback: matched \(matched.count, privacy: .public) apps from \(pinnedIds.count, privacy: .public) pinned IDs")
+        return matched
+    }
+
     private func isOffscreen(x: CGFloat, in screenFrame: CGRect) -> Bool {
         // Small margin to avoid flapping due to tiny coordinate jitter.
         let margin: CGFloat = 6
@@ -222,7 +235,9 @@ final class SearchService: SearchServiceProtocol {
             return apps
         }
 
-        return []
+        // Fallback: when positions are unavailable (items off-screen at startup),
+        // match against persisted pinned IDs to identify always-hidden apps.
+        return appsMatchingPinnedIds(from: items.map(\.app))
     }
 
     @MainActor
@@ -303,23 +318,30 @@ final class SearchService: SearchServiceProtocol {
             self.separatorOriginsForClassification()
         }
 
-        guard let positions, positions.alwaysHiddenSeparatorX != nil else { return [] }
+        if let positions, positions.alwaysHiddenSeparatorX != nil {
+            let apps = items
+                .filter {
+                    self.classifyZone(
+                        itemX: $0.x,
+                        itemWidth: $0.app.width,
+                        separatorX: positions.separatorX,
+                        alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    ) == .alwaysHidden
+                }
+                .map(\.app)
 
-        let apps = items
-            .filter {
-                self.classifyZone(
-                    itemX: $0.x,
-                    itemWidth: $0.app.width,
-                    separatorX: positions.separatorX,
-                    alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
-                ) == .alwaysHidden
+            await MainActor.run {
+                self.logIdentityHealth(apps: apps, context: "refreshAlwaysHidden")
             }
-            .map(\.app)
-
-        await MainActor.run {
-            self.logIdentityHealth(apps: apps, context: "refreshAlwaysHidden")
+            return apps
         }
-        return apps
+
+        // Fallback: when positions are unavailable (items off-screen at startup),
+        // match against persisted pinned IDs to identify always-hidden apps.
+        let allApps = items.map(\.app)
+        return await MainActor.run {
+            self.appsMatchingPinnedIds(from: allApps)
+        }
     }
 
     func refreshVisibleMenuBarApps() async -> [RunningApp] {

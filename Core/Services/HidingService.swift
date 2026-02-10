@@ -123,17 +123,8 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             return
         }
 
-        // If currently expanded, the always-hidden delimiter should be blocking
-        if state == .expanded {
-            item.length = StatusItemLength.collapsed
-            if let nsItem = item as? NSStatusItem, let button = nsItem.button {
-                button.image = nil
-                button.title = ""
-                button.cell?.isEnabled = false
-            }
-        } else {
-            item.length = Self.alwaysHiddenVisualLength
-        }
+        // Always start at visual length. show() will set the blocking length.
+        item.length = Self.alwaysHiddenVisualLength
     }
 
     // MARK: - Show/Hide Operations
@@ -168,10 +159,12 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         isAnimating = true
         defer { isAnimating = false }
 
-        // Expand always-hidden FIRST (while main is still blocking everything)
-        // so it's already at 10,000 before main reveals items
+        // With AH seeded at position 10000 (far left of all items), the blocking
+        // approach is simple: set AH to StatusItemLength.collapsed (10000) FIRST
+        // while main still shields everything, then contract main to reveal.
+        // Items to AH's right (hidden + visible) appear. Items to AH's left
+        // (pinned always-hidden) stay off-screen because AH is 10000px wide.
         if let ahItem = alwaysHiddenDelimiterItem {
-            // Match Ice pattern: clear button content when at 10,000
             if let nsItem = ahItem as? NSStatusItem, let button = nsItem.button {
                 button.image = nil
                 button.title = ""

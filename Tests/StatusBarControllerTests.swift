@@ -1,6 +1,6 @@
-import Testing
 import AppKit
 @testable import SaneBar
+import Testing
 
 // MARK: - Menu Item Lookup Helper
 
@@ -15,12 +15,11 @@ extension NSMenu {
 
 @Suite("StatusBarController Tests")
 struct StatusBarControllerTests {
-
     // MARK: - Icon Name Tests
 
     @Test("iconName returns correct icon for expanded state")
     @MainActor
-    func testIconNameExpanded() {
+    func iconNameExpanded() {
         let controller = StatusBarController()
 
         let iconName = controller.iconName(for: .expanded)
@@ -31,7 +30,7 @@ struct StatusBarControllerTests {
 
     @Test("iconName returns correct icon for hidden state")
     @MainActor
-    func testIconNameHidden() {
+    func iconNameHidden() {
         let controller = StatusBarController()
 
         let iconName = controller.iconName(for: .hidden)
@@ -43,18 +42,18 @@ struct StatusBarControllerTests {
     // MARK: - Static Constants Tests
 
     @Test("Autosave names are defined")
-    func testAutosaveNamesExist() {
+    func autosaveNamesExist() {
         #expect(!StatusBarController.mainAutosaveName.isEmpty)
         #expect(!StatusBarController.separatorAutosaveName.isEmpty)
         #expect(!StatusBarController.alwaysHiddenSeparatorAutosaveName.isEmpty)
     }
 
     @Test("Autosave names are unique")
-    func testAutosaveNamesUnique() {
+    func autosaveNamesUnique() {
         let names = [
             StatusBarController.mainAutosaveName,
             StatusBarController.separatorAutosaveName,
-            StatusBarController.alwaysHiddenSeparatorAutosaveName
+            StatusBarController.alwaysHiddenSeparatorAutosaveName,
         ]
 
         let uniqueNames = Set(names)
@@ -62,7 +61,7 @@ struct StatusBarControllerTests {
     }
 
     @Test("Autosave names have SaneBar prefix")
-    func testAutosaveNamesHavePrefix() {
+    func autosaveNamesHavePrefix() {
         #expect(StatusBarController.mainAutosaveName.hasPrefix("SaneBar_"))
         #expect(StatusBarController.separatorAutosaveName.hasPrefix("SaneBar_"))
         #expect(StatusBarController.alwaysHiddenSeparatorAutosaveName.hasPrefix("SaneBar_"))
@@ -71,7 +70,7 @@ struct StatusBarControllerTests {
     // MARK: - Icon Constants Tests
 
     @Test("Icon names are valid SF Symbol names")
-    func testIconNamesAreValid() {
+    func iconNamesAreValid() {
         // These should all be valid SF Symbol names
         #expect(!StatusBarController.iconExpanded.isEmpty)
         #expect(!StatusBarController.iconHidden.isEmpty)
@@ -81,7 +80,7 @@ struct StatusBarControllerTests {
 
     @Test("createMenu returns menu with expected items")
     @MainActor
-    func testCreateMenuHasExpectedItems() {
+    func createMenuHasExpectedItems() {
         let controller = StatusBarController()
 
         // Create a dummy target
@@ -126,7 +125,7 @@ struct StatusBarControllerTests {
 
     @Test("createMenu sets correct target on all items")
     @MainActor
-    func testCreateMenuSetsTarget() {
+    func createMenuSetsTarget() {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
@@ -157,7 +156,7 @@ struct StatusBarControllerTests {
 
     @Test("Menu items have correct actions set")
     @MainActor
-    func testMenuItemsHaveActions() {
+    func menuItemsHaveActions() {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
@@ -198,7 +197,7 @@ struct StatusBarControllerTests {
 
     @Test("Settings menu item is invokable")
     @MainActor
-    func testSettingsMenuItemInvokable() {
+    func settingsMenuItemInvokable() {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
@@ -240,7 +239,7 @@ struct StatusBarControllerTests {
     // MARK: - Click Type Tests
 
     @Test("clickType correctly identifies left click")
-    func testClickTypeLeftClick() {
+    func clickTypeLeftClick() {
         // We can't easily create NSEvents in tests, but we can test the enum
         let leftClick = StatusBarController.ClickType.leftClick
         let rightClick = StatusBarController.ClickType.rightClick
@@ -255,7 +254,7 @@ struct StatusBarControllerTests {
 
     @Test("StatusBarController conforms to StatusBarControllerProtocol")
     @MainActor
-    func testProtocolConformance() {
+    func protocolConformance() {
         let controller: StatusBarControllerProtocol = StatusBarController()
 
         // Protocol requires these
@@ -270,7 +269,7 @@ struct StatusBarControllerTests {
 
     @Test("StatusBarController creates status items during initialization")
     @MainActor
-    func testInitializationCreatesItems() {
+    func initializationCreatesItems() {
         let controller = StatusBarController()
 
         // Items are created as property initializers (like Hidden Bar/Dozer pattern)

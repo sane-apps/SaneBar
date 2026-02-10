@@ -15,12 +15,6 @@ extension MenuBarManager {
     }
 
     func toggleHiddenItems() {
-        // Second menu bar mode: toggle the floating panel instead of expanding in-place
-        if settings.useSecondMenuBar {
-            SearchWindowController.shared.toggle()
-            return
-        }
-
         Task {
             let currentState = hidingService.state
             let authSetting = settings.requireAuthToShowHiddenIcons
@@ -64,31 +58,6 @@ extension MenuBarManager {
     /// Search and hotkeys should await this before attempting virtual clicks.
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
-        // Second menu bar mode
-        if settings.useSecondMenuBar {
-            if settings.requireAuthToShowHiddenIcons {
-                guard !isAuthenticating else { return false }
-                isAuthenticating = true
-                let ok = await authenticate(reason: "Show hidden menu bar icons")
-                isAuthenticating = false
-                guard ok else { return false }
-            }
-
-            switch trigger {
-            case .search, .findIcon:
-                // These triggers need to click real menu bar items via Accessibility.
-                // Temporarily expand the delimiter so items are physically reachable,
-                // then let scheduleRehide collapse it after the interaction.
-                let didReveal = hidingService.state == .hidden
-                await hidingService.show()
-                return didReveal
-            default:
-                // Display-only triggers: show the panel without expanding the real menu bar
-                SearchWindowController.shared.show()
-                return true
-            }
-        }
-
         if settings.requireAuthToShowHiddenIcons {
             guard !isAuthenticating else { return false }
             isAuthenticating = true
@@ -127,12 +96,6 @@ extension MenuBarManager {
     }
 
     func hideHiddenItems() {
-        // Second menu bar mode: close the panel
-        if settings.useSecondMenuBar {
-            SearchWindowController.shared.close()
-            return
-        }
-
         Task {
             // Skip hiding if user is on external monitor and setting is enabled
             if shouldSkipHideForExternalMonitor {
