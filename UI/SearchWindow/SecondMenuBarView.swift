@@ -99,7 +99,6 @@ struct SecondMenuBarView: View {
 
             Button {
                 SettingsOpener.open()
-                onDismiss()
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))

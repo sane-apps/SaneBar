@@ -259,6 +259,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Skip auto-close during moves — CGEvent Cmd+drag steals key status
         guard !isMoveInProgress else { return }
 
+        // Second menu bar panel: never auto-close on resignKey.
+        // Users expect the panel to stay open while they interact with
+        // opened menus/dropdowns. They close it explicitly (X / Esc / click outside).
+        if currentMode == .secondMenuBar { return }
+
         // Brief delay — clicking a menu bar icon opens its dropdown which
         // steals key status momentarily. If the window regains key within
         // the grace period (user clicked inside Find Icon again), skip close.
