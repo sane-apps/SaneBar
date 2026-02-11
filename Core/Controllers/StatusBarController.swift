@@ -1,4 +1,5 @@
 import AppKit
+import KeyboardShortcuts
 import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarController")
@@ -282,9 +283,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     func createMenu(configuration: MenuConfiguration) -> NSMenu {
         let menu = NSMenu()
 
-        let findItem = NSMenuItem(title: "Find Icon...", action: configuration.findIconAction, keyEquivalent: " ")
+        let findItem = NSMenuItem(title: "Find Icon...", action: configuration.findIconAction, keyEquivalent: "")
         findItem.target = configuration.target
-        findItem.keyEquivalentModifierMask = [.command, .shift]
+        findItem.setShortcut(for: .searchMenuBar)
         menu.addItem(findItem)
 
         menu.addItem(NSMenuItem.separator())

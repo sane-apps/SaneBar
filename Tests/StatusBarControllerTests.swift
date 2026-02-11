@@ -108,7 +108,8 @@ struct StatusBarControllerTests {
         // Use named lookups (resilient to menu reordering)
         let findIconItem = menu.item(titled: "Find Icon...")
         #expect(findIconItem != nil, "Menu should have Find Icon item")
-        #expect(findIconItem?.keyEquivalent == " ")
+        // keyEquivalent is set dynamically via KeyboardShortcuts.setShortcut(for:)
+        // so we don't assert on a hardcoded value here
 
         let settingsItem = menu.item(titled: "Settings...")
         #expect(settingsItem != nil, "Menu should have Settings item")

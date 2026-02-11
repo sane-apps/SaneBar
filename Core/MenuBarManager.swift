@@ -110,6 +110,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Cached position of main separator when at visual size (not blocking).
     /// Used when separator is in blocking mode (length > 1000) and live position is off-screen.
     var lastKnownSeparatorX: CGFloat?
+    /// Cached right edge of main separator when at visual size (not blocking).
+    /// Used by getSeparatorRightEdgeX() when separator is in blocking mode.
+    var lastKnownSeparatorRightEdgeX: CGFloat?
     /// Cached position of always-hidden separator when at visual size (not blocking).
     /// Used for classification when the separator is at 10,000 length (blocking mode).
     var lastKnownAlwaysHiddenSeparatorX: CGFloat?
@@ -547,6 +550,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.lastKnownSeparatorX = nil
+                self?.lastKnownSeparatorRightEdgeX = nil
                 self?.lastKnownAlwaysHiddenSeparatorX = nil
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
             }

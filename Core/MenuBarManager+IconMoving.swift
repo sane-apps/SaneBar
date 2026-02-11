@@ -61,24 +61,46 @@ extension MenuBarManager {
     /// NOTE: This value changes based on expanded/collapsed state!
     /// Returns nil if separator position can't be determined
     func getSeparatorRightEdgeX() -> CGFloat? {
-        guard let separatorButton = separatorItem?.button,
+        guard let separatorItem else {
+            logger.error("🔧 getSeparatorRightEdgeX: separatorItem is nil")
+            return lastKnownSeparatorRightEdgeX
+        }
+
+        // If in blocking mode (length > 1000), live position is off-screen — use cache.
+        // This mirrors getSeparatorOriginX() which already has this check.
+        if separatorItem.length > 1000 {
+            let cachedX = lastKnownSeparatorRightEdgeX ?? -1
+            logger.debug("🔧 getSeparatorRightEdgeX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
+            return lastKnownSeparatorRightEdgeX
+        }
+
+        guard let separatorButton = separatorItem.button,
               let separatorWindow = separatorButton.window
         else {
-            logger.error("🔧 getSeparatorRightEdgeX: separatorItem or window is nil")
-            return nil
+            logger.error("🔧 getSeparatorRightEdgeX: button or window is nil")
+            return lastKnownSeparatorRightEdgeX
         }
         let frame = separatorWindow.frame
         logger.info("🔧 getSeparatorRightEdgeX: window.frame = \(String(describing: frame))")
         guard frame.width > 0 else {
             logger.error("🔧 getSeparatorRightEdgeX: frame.width is 0")
-            return nil
+            return lastKnownSeparatorRightEdgeX
         }
-        // Also cache the origin for classification during blocking mode.
-        // This is the key moment when the separator is at visual size (20px),
-        // so we can record a valid origin for later use by getSeparatorOriginX().
-        if frame.origin.x > 0, frame.width < 1000 {
-            lastKnownSeparatorX = frame.origin.x
+
+        // If window frame looks stale (width > 1000 or origin off-screen),
+        // WindowServer hasn't finished relayout after showAll() — use cache.
+        // showAll() sets length=20 immediately but the window frame lags behind.
+        if frame.width > 1000 || frame.origin.x < 0 {
+            let cachedX = lastKnownSeparatorRightEdgeX ?? -1
+            logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+            return lastKnownSeparatorRightEdgeX
         }
+
+        // Cache both origin and right edge when separator is at visual size.
+        // These caches are used during blocking mode or stale frame fallback.
+        lastKnownSeparatorX = frame.origin.x
+        lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
+
         let rightEdge = frame.origin.x + frame.width
         logger.info("🔧 getSeparatorRightEdgeX: returning \(rightEdge)")
         return rightEdge
