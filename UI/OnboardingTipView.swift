@@ -105,11 +105,11 @@ struct OnboardingTipView: View {
             }
 
             if permissionRequested || hasAccessibility {
-                Text("SaneBar is ready to use! If the \"Find Icon\" search doesn't work, check that SaneBar is enabled in **System Settings → Privacy → Accessibility**.")
+                Text("SaneBar is ready to use! If \"Browse Icons\" doesn't work, check that SaneBar is enabled in **System Settings → Privacy → Accessibility**.")
                     .font(.callout)
                     .foregroundStyle(.primary.opacity(0.7))
             } else {
-                Text("For the **Find Icon** feature to work, SaneBar needs Accessibility permission.")
+                Text("For **Browse Icons** to work, SaneBar needs Accessibility permission.")
                     .font(.callout)
                     .foregroundStyle(.primary.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)

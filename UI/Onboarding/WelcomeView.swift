@@ -274,7 +274,7 @@ private struct ArrangeIconsPage: View {
                         desc: "Everything to the LEFT of this hides when you click.")
 
                 iconRow("line.3.horizontal.decrease", bg: Color.accentColor, title: "The SaneBar Icon",
-                        desc: "Click to hide/reveal. Opens Find Icon — search, hotkeys, and icon management.", isSF: true)
+                        desc: "Click to hide/reveal. Use the shortcut to Browse Icons — search, hotkeys, and icon management.", isSF: true)
 
                 iconRow("rectangle.bottomhalf.inset.filled", bg: Color.teal.opacity(0.7), title: "Second Menu Bar",
                         desc: "Prefer a bar of hidden icons below the menu bar? Switch to it in Settings.", isSF: true)
@@ -371,7 +371,7 @@ private struct PermissionsPage: View {
             .padding(.horizontal, 40)
 
             VStack(spacing: 10) {
-                Text("These gestures and Find Icon need Accessibility permission.")
+                Text("These gestures and Browse Icons need Accessibility permission.")
                     .font(.system(size: 13))
                     .foregroundStyle(.primary.opacity(0.7))
                     .multilineTextAlignment(.center)

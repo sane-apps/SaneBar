@@ -3,11 +3,12 @@ import SwiftUI
 
 // MARK: - Second Menu Bar View
 
-/// Floating panel showing hidden menu bar icons below the menu bar.
+/// Horizontal strip showing all menu bar icons organized by zone.
 ///
-/// Uses SaneApps brand styling (hudWindow + teal gradient), white icons for
-/// contrast, and context menus for moving icons between zones.
+/// Visible → Hidden → Always Hidden, separated by thin vertical dividers.
+/// Right-click any icon to move it between zones.
 struct SecondMenuBarView: View {
+    let visibleApps: [RunningApp]
     let apps: [RunningApp]
     let alwaysHiddenApps: [RunningApp]
     let hasAccessibility: Bool
@@ -15,9 +16,15 @@ struct SecondMenuBarView: View {
     let onDismiss: () -> Void
     let onActivate: (RunningApp, Bool) -> Void
     let onRetry: () -> Void
+    var onIconMoved: (() -> Void)?
 
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @Environment(\.colorScheme) private var colorScheme
+
+    // Filter out system items that can't be moved (Clock, Control Center)
+    private var movableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
+    private var movableHidden: [RunningApp] { apps.filter { !$0.isUnmovableSystemItem } }
+    private var movableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,10 +32,10 @@ struct SecondMenuBarView: View {
             panelDivider
             if !hasAccessibility {
                 accessibilityPrompt
-            } else if apps.isEmpty, alwaysHiddenApps.isEmpty {
+            } else if movableVisible.isEmpty, movableHidden.isEmpty, movableAlwaysHidden.isEmpty {
                 emptyState
             } else {
-                iconContent
+                iconStrip
             }
         }
         .frame(minWidth: 220)
@@ -44,51 +51,28 @@ struct SecondMenuBarView: View {
         .onExitCommand { onDismiss() }
     }
 
-    // MARK: - Background (SaneUI brand)
+    // MARK: - Background
 
     private var panelBackground: some View {
-        ZStack {
-            if colorScheme == .dark {
-                VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow)
-                LinearGradient(
-                    colors: [
-                        Color.teal.opacity(0.08),
-                        Color.blue.opacity(0.05),
-                        Color.teal.opacity(0.03)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            } else {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.95, green: 0.98, blue: 0.99),
-                        Color(red: 0.92, green: 0.96, blue: 0.98),
-                        Color(red: 0.94, green: 0.97, blue: 0.99)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
+        SaneGradientBackground()
     }
 
     // MARK: - Header
 
     private var panelHeader: some View {
         HStack(spacing: 8) {
-            Image(systemName: "eye.slash")
+            Image(systemName: "menubar.rectangle")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.7))
 
-            Text("Hidden Icons")
+            Text("Second Menu Bar")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.primary.opacity(0.85))
 
-            let total = apps.count + alwaysHiddenApps.count
+            let total = movableVisible.count + movableHidden.count + movableAlwaysHidden.count
             if total > 0 {
                 Text("\(total)")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -125,89 +109,123 @@ struct SecondMenuBarView: View {
             .frame(height: 1)
     }
 
-    // MARK: - Icon Content
+    // MARK: - Horizontal Icon Strip
 
-    private var iconContent: some View {
-        VStack(spacing: 0) {
-            if !apps.isEmpty {
-                iconRow(apps: apps, zone: .hidden)
+    private var iconStrip: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if !movableVisible.isEmpty {
+                zoneRow(label: "Visible", icon: "eye", apps: movableVisible, zone: .visible)
             }
 
-            if !alwaysHiddenApps.isEmpty {
-                sectionDivider(label: "Always Hidden")
-                iconRow(apps: alwaysHiddenApps, zone: .alwaysHidden)
+            if !movableVisible.isEmpty, !movableHidden.isEmpty || !movableAlwaysHidden.isEmpty {
+                zoneDivider
+            }
+
+            if !movableHidden.isEmpty {
+                zoneRow(label: "Hidden", icon: "eye.slash", apps: movableHidden, zone: .hidden)
+            }
+
+            if !movableHidden.isEmpty, !movableAlwaysHidden.isEmpty {
+                zoneDivider
+            }
+
+            if !movableAlwaysHidden.isEmpty {
+                zoneRow(label: "Always Hidden", icon: "lock", apps: movableAlwaysHidden, zone: .alwaysHidden)
             }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
-    private func iconRow(apps: [RunningApp], zone: IconZone) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) {
-                ForEach(apps) { app in
-                    PanelIconTile(
-                        app: app,
-                        zone: zone,
-                        colorScheme: colorScheme,
-                        onActivate: { isRightClick in onActivate(app, isRightClick) },
-                        onMoveToVisible: { moveIcon(app, toZone: .visible) },
-                        onMoveToHidden: zone == .alwaysHidden ? { moveIcon(app, toZone: .hidden) } : nil,
-                        onMoveToAlwaysHidden: zone == .hidden ? { moveIcon(app, toZone: .alwaysHidden) } : nil
-                    )
+    private func zoneRow(label: String, icon: String, apps: [RunningApp], zone: IconZone) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+                Text("\(apps.count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.primary.opacity(0.5))
+            }
+            .foregroundStyle(.primary.opacity(0.85))
+            .padding(.leading, 4)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(apps) { app in
+                        makeTile(for: app, zone: zone)
+                    }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
         }
+        .padding(.vertical, 4)
     }
 
-    private func sectionDivider(label: String) -> some View {
-        HStack(spacing: 8) {
-            Rectangle()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.1))
-                .frame(height: 1)
+    private var zoneDivider: some View {
+        Rectangle()
+            .fill(colorScheme == .dark ? Color.white.opacity(0.10) : Color.teal.opacity(0.12))
+            .frame(height: 1)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+    }
 
-            HStack(spacing: 4) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 13))
-                Text(label)
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .foregroundStyle(.primary.opacity(0.6))
-            .fixedSize()
+    // MARK: - Tile Factory
 
-            Rectangle()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.1))
-                .frame(height: 1)
-        }
-        .padding(.horizontal, 14)
+    private func makeTile(for app: RunningApp, zone: IconZone) -> PanelIconTile {
+        PanelIconTile(
+            app: app,
+            zone: zone,
+            colorScheme: colorScheme,
+            onActivate: { isRightClick in onActivate(app, isRightClick) },
+            onMoveToVisible: zone != .visible ? { moveIcon(app, from: zone, to: .visible) } : nil,
+            onMoveToHidden: zone != .hidden ? { moveIcon(app, from: zone, to: .hidden) } : nil,
+            onMoveToAlwaysHidden: zone != .alwaysHidden ? { moveIcon(app, from: zone, to: .alwaysHidden) } : nil
+        )
     }
 
     // MARK: - Icon Movement
 
-    private func moveIcon(_ app: RunningApp, toZone: IconZone) {
+    private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) {
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
 
-        switch toZone {
-        case .visible:
+        switch (source, target) {
+        case (_, .visible):
+            if source == .alwaysHidden { menuBarManager.unpinAlwaysHidden(app: app) }
             _ = menuBarManager.moveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex, toHidden: false
             )
-        case .hidden:
-            // From always-hidden → regular hidden zone
+
+        case (.visible, .hidden):
+            _ = menuBarManager.moveIcon(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex, toHidden: true
+            )
+
+        case (.alwaysHidden, .hidden):
             menuBarManager.unpinAlwaysHidden(app: app)
             _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex
             )
-        case .alwaysHidden:
+
+        case (_, .alwaysHidden):
             menuBarManager.pinAlwaysHidden(app: app)
             _ = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex
             )
+
+        default:
+            break
+        }
+
+        // Refresh the panel data after the move takes effect
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onIconMoved?()
         }
     }
 
@@ -225,7 +243,7 @@ struct SecondMenuBarView: View {
                 Image(systemName: "menubar.rectangle")
                     .font(.system(size: 24))
                     .foregroundStyle(.primary.opacity(0.3))
-                Text("No hidden icons")
+                Text("No menu bar icons found")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary.opacity(0.7))
                 Text("Hold \u{2318} and drag icons past the separator")
@@ -306,11 +324,11 @@ private struct PanelIconTile: View {
                 .frame(width: 44, height: 44)
 
                 Text(app.name)
-                    .font(.system(size: 13))
+                    .font(.system(size: 11))
                     .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.8))
                     .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(minWidth: 44, maxWidth: 80)
+                    .truncationMode(.tail)
+                    .frame(minWidth: 48, maxWidth: 120)
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 2)

@@ -1,5 +1,5 @@
-import Testing
 import Foundation
+import Testing
 
 // MARK: - MenuBarUITests
 
@@ -7,7 +7,6 @@ import Foundation
 /// These tests verify actual user interaction with the menu bar.
 @Suite("MenuBar UI Tests")
 struct MenuBarUITests {
-
     // MARK: - Helper
 
     /// Runs an AppleScript and returns the result
@@ -45,7 +44,7 @@ struct MenuBarUITests {
     // MARK: - Tests
 
     @Test("Right-click on status bar item shows menu", .disabled("Requires running app"))
-    func testRightClickShowsMenu() throws {
+    func rightClickShowsMenu() throws {
         let script = """
         tell application "System Events"
             tell process "SaneBar"
@@ -66,7 +65,7 @@ struct MenuBarUITests {
     }
 
     @Test("Settings menu item opens settings window", .disabled("Requires running app"))
-    func testSettingsMenuOpensWindow() throws {
+    func settingsMenuOpensWindow() throws {
         let script = """
         tell application "System Events"
             tell process "SaneBar"
@@ -89,7 +88,7 @@ struct MenuBarUITests {
     }
 
     @Test("Find Icon search shows correct drag instructions", .disabled("Requires running app"))
-    func testDocumentationTextIsCorrect() throws {
+    func documentationTextIsCorrect() throws {
         // NOTE: This text appears in the Find Icon search window (MenuBarSearchView),
         // not in Settings. The test name was updated to reflect actual behavior.
         // The text explains how to show/hide icons using Cmd+drag.
@@ -110,8 +109,8 @@ struct MenuBarUITests {
                 "Find Icon should explain separator drag behavior")
     }
 
-    @Test("Menu has expected items: Find Icon, Settings, Updates, Quit", .disabled("Requires running app"))
-    func testMenuHasExpectedItems() throws {
+    @Test("Menu has expected items: Browse Icons, Settings, Updates, Quit", .disabled("Requires running app"))
+    func menuHasExpectedItems() throws {
         let script = """
         tell application "System Events"
             tell process "SaneBar"
@@ -125,14 +124,14 @@ struct MenuBarUITests {
         """
 
         let result = try runAppleScript(script)
-        #expect(result.contains("Find Icon..."), "Menu should have Find Icon...")
+        #expect(result.contains("Browse Icons..."), "Menu should have Browse Icons...")
         #expect(result.contains("Settings"), "Menu should have Settings")
         #expect(result.contains("Check for Updates..."), "Menu should have Check for Updates...")
         #expect(result.contains("Quit SaneBar"), "Menu should have Quit SaneBar")
     }
 
     @Test("Quit menu item terminates app", .disabled("Requires running app - destructive"))
-    func testQuitMenuTerminatesApp() throws {
+    func quitMenuTerminatesApp() throws {
         // This test is disabled by default as it would quit the app
         // Can be run manually for verification
         let script = """

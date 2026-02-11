@@ -149,7 +149,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             window.contentView?.layoutSubtreeIfNeeded()
             let fittingSize = window.contentView?.fittingSize ?? NSSize(width: 400, height: 140)
             let panelWidth = min(max(fittingSize.width, 200), visibleFrame.width - 20)
-            let panelHeight = min(max(fittingSize.height, 80), 300)
+            let panelHeight = min(max(fittingSize.height, 80), 500)
 
             // Right-align to SaneBar's main status item (or fall back to right edge)
             let rightEdge: CGFloat = if let button = MenuBarManager.shared.mainStatusItem?.button,
@@ -196,7 +196,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
 
         window.contentView = hostingView
-        window.title = "Find Icon"
+        window.title = "Icon Panel"
         window.titlebarSeparatorStyle = .line
         window.backgroundColor = .windowBackgroundColor
         window.isMovableByWindowBackground = true

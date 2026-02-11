@@ -102,12 +102,12 @@ struct StatusBarControllerTests {
             target: target
         ))
 
-        // Should have: Find Icon, separator, Settings, Check for Updates, separator, Quit
+        // Should have: Browse Icons, separator, Settings, Check for Updates, separator, Quit
         #expect(menu.items.count == 6, "Menu should have 6 items (4 commands + 2 separators)")
 
         // Use named lookups (resilient to menu reordering)
-        let findIconItem = menu.item(titled: "Find Icon...")
-        #expect(findIconItem != nil, "Menu should have Find Icon item")
+        let findIconItem = menu.item(titled: "Browse Icons...")
+        #expect(findIconItem != nil, "Menu should have Browse Icons item")
         // keyEquivalent is set dynamically via KeyboardShortcuts.setShortcut(for:)
         // so we don't assert on a hardcoded value here
 
@@ -185,12 +185,12 @@ struct StatusBarControllerTests {
         ))
 
         // Verify each menu item has an action (using named lookups)
-        let findIconItem = menu.item(titled: "Find Icon...")
+        let findIconItem = menu.item(titled: "Browse Icons...")
         let settingsItem = menu.item(titled: "Settings...")
         let checkForUpdatesItem = menu.item(titled: "Check for Updates...")
         let quitItem = menu.item(titled: "Quit SaneBar")
 
-        #expect(findIconItem?.action == #selector(DummyTarget.findIcon), "Find Icon item should have findIcon action")
+        #expect(findIconItem?.action == #selector(DummyTarget.findIcon), "Browse Icons item should have findIcon action")
         #expect(settingsItem?.action == #selector(DummyTarget.settings), "Settings item should have settings action")
         #expect(checkForUpdatesItem?.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
         #expect(quitItem?.action == #selector(DummyTarget.quit), "Quit item should have quit action")

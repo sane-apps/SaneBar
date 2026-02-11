@@ -36,6 +36,7 @@ struct MenuBarSearchView: View {
     @State var selectedAppIndex: Int?
 
     @State private var menuBarApps: [RunningApp] = []
+    @State private var visibleApps: [RunningApp] = []
     @State private var alwaysHiddenApps: [RunningApp] = []
     @State private var isRefreshing = false
     @State private var hasAccessibility = false
@@ -105,6 +106,7 @@ struct MenuBarSearchView: View {
 
     var filteredApps: [RunningApp] {
         var apps = menuBarApps
+            .filter { !$0.isUnmovableSystemItem }
 
         // Filter by custom group (takes precedence)
         if let groupId = selectedGroupId,
@@ -240,25 +242,22 @@ struct MenuBarSearchView: View {
             footer
         }
         .frame(width: 420, height: 520)
-        .background {
-            VisualEffectBackground(
-                material: .popover,
-                blendingMode: .behindWindow
-            )
-        }
+        .background { SaneGradientBackground() }
     }
 
     // MARK: - Second Menu Bar Body
 
     private var secondMenuBarBody: some View {
         SecondMenuBarView(
+            visibleApps: visibleApps,
             apps: filteredApps,
             alwaysHiddenApps: alwaysHiddenApps,
             hasAccessibility: hasAccessibility,
             isRefreshing: isRefreshing,
             onDismiss: onDismiss,
             onActivate: { app, isRightClick in activateApp(app, isRightClick: isRightClick) },
-            onRetry: { loadCachedApps(); refreshApps(force: true) }
+            onRetry: { loadCachedApps(); refreshApps(force: true) },
+            onIconMoved: { loadCachedApps(); refreshApps(force: true) }
         )
     }
 
@@ -286,6 +285,7 @@ struct MenuBarSearchView: View {
 
         guard hasAccessibility else {
             menuBarApps = []
+            visibleApps = []
             alwaysHiddenApps = []
             return
         }
@@ -301,8 +301,9 @@ struct MenuBarSearchView: View {
             menuBarApps = service.cachedMenuBarApps()
         }
 
-        // Also load always-hidden apps for the second menu bar's second section
+        // Load all zones for the second menu bar
         if isSecondMenuBar {
+            visibleApps = service.cachedVisibleMenuBarApps()
             alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
         }
     }
@@ -337,15 +338,18 @@ struct MenuBarSearchView: View {
                 await service.refreshMenuBarApps()
             }
 
-            // Also refresh always-hidden for second menu bar
+            // Also refresh all zones for second menu bar
+            var refreshedVisible: [RunningApp] = []
             var refreshedAlwaysHidden: [RunningApp] = []
             if isSecondMenuBar {
+                refreshedVisible = await service.refreshVisibleMenuBarApps()
                 refreshedAlwaysHidden = await service.refreshAlwaysHiddenMenuBarApps()
             }
 
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 menuBarApps = refreshed
+                visibleApps = refreshedVisible
                 alwaysHiddenApps = refreshedAlwaysHidden
                 isRefreshing = false
             }

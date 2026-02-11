@@ -283,7 +283,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     func createMenu(configuration: MenuConfiguration) -> NSMenu {
         let menu = NSMenu()
 
-        let findItem = NSMenuItem(title: "Find Icon...", action: configuration.findIconAction, keyEquivalent: "")
+        let findItem = NSMenuItem(title: "Browse Icons...", action: configuration.findIconAction, keyEquivalent: "")
         findItem.target = configuration.target
         findItem.setShortcut(for: .searchMenuBar)
         menu.addItem(findItem)

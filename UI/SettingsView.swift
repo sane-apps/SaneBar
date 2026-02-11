@@ -30,27 +30,31 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200)
         } detail: {
-            switch selectedTab {
-            case .general:
-                GeneralSettingsView()
-                    .navigationTitle("General")
-            case .rules:
-                RulesSettingsView()
-                    .navigationTitle("Rules")
-            case .appearance:
-                AppearanceSettingsView()
-                    .navigationTitle("Appearance")
-            case .shortcuts:
-                ShortcutsSettingsView()
-                    .navigationTitle("Shortcuts")
-            case .experimental:
-                ExperimentalSettingsView()
-                    .navigationTitle("Advanced")
-            case .about:
-                AboutSettingsView()
-                    .navigationTitle("About")
-            case .none:
-                GeneralSettingsView()
+            ZStack {
+                SaneGradientBackground()
+
+                switch selectedTab {
+                case .general:
+                    GeneralSettingsView()
+                        .navigationTitle("General")
+                case .rules:
+                    RulesSettingsView()
+                        .navigationTitle("Rules")
+                case .appearance:
+                    AppearanceSettingsView()
+                        .navigationTitle("Appearance")
+                case .shortcuts:
+                    ShortcutsSettingsView()
+                        .navigationTitle("Shortcuts")
+                case .experimental:
+                    ExperimentalSettingsView()
+                        .navigationTitle("Advanced")
+                case .about:
+                    AboutSettingsView()
+                        .navigationTitle("About")
+                case .none:
+                    GeneralSettingsView()
+                }
             }
         }
         .groupBoxStyle(GlassGroupBoxStyle())
@@ -77,7 +81,7 @@ struct SettingsView: View {
         case .rules: .purple
         case .appearance: .blue
         case .shortcuts: .orange
-        case .experimental: .orange
+        case .experimental: .teal
         case .about: .secondary
         }
     }

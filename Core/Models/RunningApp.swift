@@ -31,10 +31,10 @@ enum AppCategory: String, CaseIterable, Sendable {
         if type.contains("social") { return .social }
         if type.contains("utilities") { return .utilities }
         if type.contains("graphics") || type.contains("design") || type.contains("photo") ||
-           type.contains("video") || type.contains("music") { return .creativity }
+            type.contains("video") || type.contains("music") { return .creativity }
         if type.contains("entertainment") || type.contains("lifestyle") { return .entertainment }
         if type.contains("news") || type.contains("reference") || type.contains("education") ||
-           type.contains("weather") || type.contains("book") { return .infoAndReading }
+            type.contains("weather") || type.contains("book") { return .infoAndReading }
         if type.contains("finance") { return .finance }
         if type.contains("shopping") { return .shopping }
         if type.contains("health") || type.contains("fitness") { return .healthAndFitness }
@@ -49,21 +49,21 @@ enum AppCategory: String, CaseIterable, Sendable {
     /// Icon for the category (SF Symbol)
     var iconName: String {
         switch self {
-        case .productivity: return "checkmark.circle"
-        case .social: return "bubble.left.and.bubble.right"
-        case .utilities: return "wrench.and.screwdriver"
-        case .creativity: return "paintbrush"
-        case .entertainment: return "tv"
-        case .infoAndReading: return "book"
-        case .finance: return "dollarsign.circle"
-        case .shopping: return "cart"
-        case .healthAndFitness: return "heart"
-        case .travel: return "airplane"
-        case .games: return "gamecontroller"
-        case .foodAndDrinks: return "fork.knife"
-        case .developerTools: return "hammer"
-        case .system: return "gearshape"
-        case .other: return "square.grid.2x2"
+        case .productivity: "checkmark.circle"
+        case .social: "bubble.left.and.bubble.right"
+        case .utilities: "wrench.and.screwdriver"
+        case .creativity: "paintbrush"
+        case .entertainment: "tv"
+        case .infoAndReading: "book"
+        case .finance: "dollarsign.circle"
+        case .shopping: "cart"
+        case .healthAndFitness: "heart"
+        case .travel: "airplane"
+        case .games: "gamecontroller"
+        case .foodAndDrinks: "fork.knife"
+        case .developerTools: "hammer"
+        case .system: "gearshape"
+        case .other: "square.grid.2x2"
         }
     }
 }
@@ -107,6 +107,28 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         (bundleId == "com.apple.controlcenter" || bundleId == "com.apple.systemuiserver") && (menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") ?? false)
     }
 
+    /// System items that cannot be moved or hidden (Clock, Control Center toggle).
+    /// These should be excluded from the Second Menu Bar panel and Icon Panel.
+    private static let unmovableMenuExtraIds: Set<String> = [
+        "com.apple.menuextra.clock",
+        "com.apple.menuextra.controlcenter"
+    ]
+
+    private static let unmovableNames: Set<String> = [
+        "Clock", "Control Center"
+    ]
+
+    var isUnmovableSystemItem: Bool {
+        if let id = menuExtraIdentifier, Self.unmovableMenuExtraIds.contains(id) {
+            return true
+        }
+        // Fallback: match by name for Control Center items where identifier may not propagate
+        if bundleId == "com.apple.controlcenter", Self.unmovableNames.contains(name) {
+            return true
+        }
+        return false
+    }
+
     /// Unique identifier for deduplication/UI identity - uses menuExtraIdentifier if present
     var uniqueId: String {
         if let menuExtraIdentifier {
@@ -130,13 +152,13 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     /// A resized thumbnail of the app icon for efficient grid rendering.
     /// This is generated on-demand and should ideally be cached.
     func thumbnail(size: CGFloat) -> NSImage? {
-        guard let icon = icon else { return nil }
-        
+        guard let icon else { return nil }
+
         // If the icon is already a template (SFSymbol), just return it
         if icon.isTemplate { return icon }
 
         let targetSize = NSSize(width: size, height: size)
-        
+
         // Check if we already have a representation of this size
         if icon.size == targetSize { return icon }
 
@@ -146,13 +168,13 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         icon.draw(in: NSRect(origin: .zero, size: targetSize), from: .zero, operation: .copy, fraction: 1.0)
         thumbnail.unlockFocus()
         thumbnail.isTemplate = icon.isTemplate
-        
+
         return thumbnail
     }
 
     /// Return a copy of this app with a pre-calculated thumbnail
     func withThumbnail(size: CGFloat) -> RunningApp {
-        if let thumbnail = self.thumbnail(size: size) {
+        if let thumbnail = thumbnail(size: size) {
             // Since RunningApp is a struct, we need to use a private init or make it a var.
             // But let's just use a specialized init for this.
             return RunningApp(
@@ -172,7 +194,7 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     }
 
     private init(id: String, name: String, icon: NSImage?, iconThumbnail: NSImage?, policy: Policy, category: AppCategory, menuExtraIdentifier: String?, statusItemIndex: Int?, xPosition: CGFloat?, width: CGFloat?) {
-        self.bundleId = id
+        bundleId = id
         self.name = name
         self.icon = icon
         self.iconThumbnail = iconThumbnail
@@ -185,10 +207,10 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     }
 
     init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, statusItemIndex: Int? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
-        self.bundleId = id
+        bundleId = id
         self.name = name
         self.icon = icon
-        self.iconThumbnail = nil // Will be set by specialized inits if needed
+        iconThumbnail = nil // Will be set by specialized inits if needed
         self.policy = policy
         self.category = category
         self.menuExtraIdentifier = menuExtraIdentifier
@@ -233,18 +255,18 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
 
     private static func displayNameForMenuExtra(_ identifier: String) -> String? {
         switch identifier {
-        case "com.apple.menuextra.battery": return "Battery"
-        case "com.apple.menuextra.wifi": return "Wi-Fi"
-        case "com.apple.menuextra.bluetooth": return "Bluetooth"
-        case "com.apple.menuextra.clock": return "Clock"
-        case "com.apple.menuextra.airdrop": return "AirDrop"
-        case "com.apple.menuextra.focusmode": return "Focus"
-        case "com.apple.menuextra.controlcenter": return "Control Center"
-        case "com.apple.menuextra.display": return "Display"
-        case "com.apple.menuextra.sound": return "Sound"
-        case "com.apple.menuextra.airplay": return "AirPlay"
+        case "com.apple.menuextra.battery": "Battery"
+        case "com.apple.menuextra.wifi": "Wi-Fi"
+        case "com.apple.menuextra.bluetooth": "Bluetooth"
+        case "com.apple.menuextra.clock": "Clock"
+        case "com.apple.menuextra.airdrop": "AirDrop"
+        case "com.apple.menuextra.focusmode": "Focus"
+        case "com.apple.menuextra.controlcenter": "Control Center"
+        case "com.apple.menuextra.display": "Display"
+        case "com.apple.menuextra.sound": "Sound"
+        case "com.apple.menuextra.airplay": "AirPlay"
         default:
-            return nil
+            nil
         }
     }
 
@@ -263,8 +285,8 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             // - Plane 15:     U+F0000 ... U+FFFFD
             // - Plane 16:     U+100000 ... U+10FFFD
             (value >= 0xE000 && value <= 0xF8FF) ||
-            (value >= 0xF0000 && value <= 0xFFFFD) ||
-            (value >= 0x100000 && value <= 0x10FFFD)
+                (value >= 0xF0000 && value <= 0xFFFFD) ||
+                (value >= 0x100000 && value <= 0x10FFFD)
         }
 
         var scalars: [UnicodeScalar] = []
@@ -283,41 +305,41 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     /// Map menu extra identifiers to SF Symbols
     private static func iconForMenuExtra(_ identifier: String) -> String {
         switch identifier {
-        case "com.apple.menuextra.battery": return "battery.100"
-        case "com.apple.menuextra.wifi": return "wifi"
-        case "com.apple.menuextra.bluetooth": return "bluetooth"
-        case "com.apple.menuextra.clock": return "clock"
-        case "com.apple.menuextra.airdrop": return "airdrop"
-        case "com.apple.menuextra.focusmode": return "moon.fill"
-        case "com.apple.menuextra.controlcenter": return "switch.2"
-        case "com.apple.menuextra.display": return "display"
-        case "com.apple.menuextra.sound": return "speaker.wave.2"
-        case "com.apple.menuextra.airplay": return "airplayvideo"
-        default: return "circle.grid.2x2"
+        case "com.apple.menuextra.battery": "battery.100"
+        case "com.apple.menuextra.wifi": "wifi"
+        case "com.apple.menuextra.bluetooth": "bluetooth"
+        case "com.apple.menuextra.clock": "clock"
+        case "com.apple.menuextra.airdrop": "airdrop"
+        case "com.apple.menuextra.focusmode": "moon.fill"
+        case "com.apple.menuextra.controlcenter": "switch.2"
+        case "com.apple.menuextra.display": "display"
+        case "com.apple.menuextra.sound": "speaker.wave.2"
+        case "com.apple.menuextra.airplay": "airplayvideo"
+        default: "circle.grid.2x2"
         }
     }
 
     init(app: NSRunningApplication, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
-        self.bundleId = app.bundleIdentifier ?? UUID().uuidString
-        self.name = app.localizedName ?? "Unknown"
-        self.icon = app.icon
-        self.iconThumbnail = nil
+        bundleId = app.bundleIdentifier ?? UUID().uuidString
+        name = app.localizedName ?? "Unknown"
+        icon = app.icon
+        iconThumbnail = nil
         self.xPosition = xPosition
         self.width = width
 
         switch app.activationPolicy {
         case .regular:
-            self.policy = .regular
+            policy = .regular
         case .accessory:
-            self.policy = .accessory
+            policy = .accessory
         case .prohibited:
-            self.policy = .prohibited
+            policy = .prohibited
         @unknown default:
-            self.policy = .unknown
+            policy = .unknown
         }
 
         // Detect category from app bundle
-        self.category = Self.detectCategory(for: app)
+        category = Self.detectCategory(for: app)
 
         // Regular apps may still provide a stable AX identifier per status item.
         self.menuExtraIdentifier = menuExtraIdentifier
@@ -330,25 +352,26 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         let appName = app.localizedName?.lowercased() ?? ""
 
         // MARK: - Apple System Apps
+
         if bundleId.hasPrefix("com.apple.") {
             // System utilities (Control Center, Finder, etc.)
             if bundleId.contains("controlcenter") || bundleId.contains("SystemPreferences") ||
-               bundleId.contains("Finder") || bundleId.contains("systempreferences") ||
-               bundleId.contains("Spotlight") || bundleId.contains("SystemUIServer") ||
-               bundleId.contains("dock") || bundleId.contains("loginwindow") {
+                bundleId.contains("Finder") || bundleId.contains("systempreferences") ||
+                bundleId.contains("Spotlight") || bundleId.contains("SystemUIServer") ||
+                bundleId.contains("dock") || bundleId.contains("loginwindow") {
                 return .system
             }
             // Creativity (Music, Photos, GarageBand, etc.)
             if bundleId.contains("Music") || bundleId.contains("iTunes") ||
-               bundleId.contains("Photos") || bundleId.contains("GarageBand") ||
-               bundleId.contains("iMovie") || bundleId.contains("FinalCut") {
+                bundleId.contains("Photos") || bundleId.contains("GarageBand") ||
+                bundleId.contains("iMovie") || bundleId.contains("FinalCut") {
                 return .creativity
             }
             // Productivity
             if bundleId.contains("Safari") || bundleId.contains("Mail") ||
-               bundleId.contains("Calendar") || bundleId.contains("Notes") ||
-               bundleId.contains("Reminders") || bundleId.contains("Pages") ||
-               bundleId.contains("Numbers") || bundleId.contains("Keynote") {
+                bundleId.contains("Calendar") || bundleId.contains("Notes") ||
+                bundleId.contains("Reminders") || bundleId.contains("Pages") ||
+                bundleId.contains("Numbers") || bundleId.contains("Keynote") {
                 return .productivity
             }
             // Social
@@ -357,12 +380,12 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             }
             // Information & Reading
             if bundleId.contains("News") || bundleId.contains("Weather") ||
-               bundleId.contains("Books") || bundleId.contains("Stocks") {
+                bundleId.contains("Books") || bundleId.contains("Stocks") {
                 return .infoAndReading
             }
             // Developer Tools
             if bundleId.contains("Xcode") || bundleId.contains("Terminal") ||
-               bundleId.contains("Instruments") || bundleId.contains("FileMerge") {
+                bundleId.contains("Instruments") || bundleId.contains("FileMerge") {
                 return .developerTools
             }
             // Default Apple apps to System
@@ -373,68 +396,68 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
 
         // Developer Tools
         if bundleId.contains("github") || bundleId.contains("gitlab") ||
-           bundleId.contains("docker") || bundleId.contains("iterm") ||
-           bundleId.contains("vscode") || bundleId.contains("jetbrains") ||
-           bundleId.contains("sublime") || bundleId.contains("tower") ||
-           bundleId.contains("cursor") || bundleId.contains("fig") ||
-           appName.contains("xcode") || appName.contains("terminal") {
+            bundleId.contains("docker") || bundleId.contains("iterm") ||
+            bundleId.contains("vscode") || bundleId.contains("jetbrains") ||
+            bundleId.contains("sublime") || bundleId.contains("tower") ||
+            bundleId.contains("cursor") || bundleId.contains("fig") ||
+            appName.contains("xcode") || appName.contains("terminal") {
             return .developerTools
         }
 
         // Utilities (launchers, clipboard managers, window managers, etc.)
         if bundleId.contains("1password") || bundleId.contains("bitwarden") ||
-           bundleId.contains("lastpass") || bundleId.contains("dashlane") ||
-           bundleId.contains("dropbox") || bundleId.contains("google.drive") ||
-           bundleId.contains("onedrive") || bundleId.contains("icloud") ||
-           bundleId.contains("alfred") || bundleId.contains("raycast") ||
-           bundleId.contains("bartender") || bundleId.contains("cleanmymac") ||
-           bundleId.contains("amphetamine") || bundleId.contains("caffeine") ||
-           bundleId.contains("rectangle") || bundleId.contains("magnet") ||
-           bundleId.contains("clipboard") || bundleId.contains("paste") ||
-           bundleId.contains("vpn") || bundleId.contains("nordvpn") ||
-           bundleId.contains("expressvpn") || bundleId.contains("mullvad") ||
-           bundleId.contains("wireguard") || bundleId.contains("tunnelblick") ||
-           bundleId.contains("littlesnitch") || appName.contains("vpn") {
+            bundleId.contains("lastpass") || bundleId.contains("dashlane") ||
+            bundleId.contains("dropbox") || bundleId.contains("google.drive") ||
+            bundleId.contains("onedrive") || bundleId.contains("icloud") ||
+            bundleId.contains("alfred") || bundleId.contains("raycast") ||
+            bundleId.contains("bartender") || bundleId.contains("cleanmymac") ||
+            bundleId.contains("amphetamine") || bundleId.contains("caffeine") ||
+            bundleId.contains("rectangle") || bundleId.contains("magnet") ||
+            bundleId.contains("clipboard") || bundleId.contains("paste") ||
+            bundleId.contains("vpn") || bundleId.contains("nordvpn") ||
+            bundleId.contains("expressvpn") || bundleId.contains("mullvad") ||
+            bundleId.contains("wireguard") || bundleId.contains("tunnelblick") ||
+            bundleId.contains("littlesnitch") || appName.contains("vpn") {
             return .utilities
         }
 
         // Productivity (note-taking, task management, office apps)
         if bundleId.contains("notion") || bundleId.contains("obsidian") ||
-           bundleId.contains("todoist") || bundleId.contains("things") ||
-           bundleId.contains("omnifocus") || bundleId.contains("fantastical") ||
-           bundleId.contains("spark") || bundleId.contains("airmail") {
+            bundleId.contains("todoist") || bundleId.contains("things") ||
+            bundleId.contains("omnifocus") || bundleId.contains("fantastical") ||
+            bundleId.contains("spark") || bundleId.contains("airmail") {
             return .productivity
         }
 
         // Social / Communication
         if bundleId.contains("slack") || bundleId.contains("discord") ||
-           bundleId.contains("zoom") || bundleId.contains("teams") ||
-           bundleId.contains("skype") || bundleId.contains("telegram") ||
-           bundleId.contains("whatsapp") || bundleId.contains("signal") ||
-           bundleId.contains("messenger") || appName.contains("chat") {
+            bundleId.contains("zoom") || bundleId.contains("teams") ||
+            bundleId.contains("skype") || bundleId.contains("telegram") ||
+            bundleId.contains("whatsapp") || bundleId.contains("signal") ||
+            bundleId.contains("messenger") || appName.contains("chat") {
             return .social
         }
 
         // Creativity (music, video, design)
         if bundleId.contains("spotify") || bundleId.contains("soundcloud") ||
-           bundleId.contains("audiohijack") || bundleId.contains("airfoil") ||
-           bundleId.contains("adobe") || bundleId.contains("sketch") ||
-           bundleId.contains("figma") || bundleId.contains("affinity") ||
-           appName.contains("music") || appName.contains("audio") {
+            bundleId.contains("audiohijack") || bundleId.contains("airfoil") ||
+            bundleId.contains("adobe") || bundleId.contains("sketch") ||
+            bundleId.contains("figma") || bundleId.contains("affinity") ||
+            appName.contains("music") || appName.contains("audio") {
             return .creativity
         }
 
         // Finance
         if bundleId.contains("coinbase") || bundleId.contains("exodus") ||
-           bundleId.contains("ledger") || bundleId.contains("crypto") ||
-           appName.contains("wallet") || appName.contains("bitcoin") ||
-           appName.contains("trading") || appName.contains("stock") {
+            bundleId.contains("ledger") || bundleId.contains("crypto") ||
+            appName.contains("wallet") || appName.contains("bitcoin") ||
+            appName.contains("trading") || appName.contains("stock") {
             return .finance
         }
 
         // Health & Fitness
         if bundleId.contains("strava") || bundleId.contains("fitness") ||
-           bundleId.contains("workout") || appName.contains("health") {
+            bundleId.contains("workout") || appName.contains("health") {
             return .healthAndFitness
         }
 

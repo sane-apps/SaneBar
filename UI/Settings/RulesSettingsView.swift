@@ -56,13 +56,13 @@ struct RulesSettingsView: View {
                             }
                         }
                         CompactDivider()
-                        CompactRow("Wait after Find Icon") {
+                        CompactRow("Wait after Browse Icons") {
                             HStack {
                                 Text(findIconDelayLabel)
                                     .frame(width: 95, alignment: .trailing)
                                 Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
                                     .labelsHidden()
-                                    .help("Extra time to browse after using Find Icon")
+                                    .help("Extra time to browse after using Browse Icons")
                             }
                         }
                         CompactDivider()

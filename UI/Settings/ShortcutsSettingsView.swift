@@ -9,10 +9,10 @@ struct ShortcutsSettingsView: View {
                 CompactSection("Global Hotkeys") {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Find any icon")
+                            Text("Browse Icons")
                             Spacer()
                             KeyboardShortcuts.Recorder(for: .searchMenuBar)
-                                .help("Search for any menu bar icon by name")
+                                .help("Open the icon panel or second menu bar")
                         }
                         CompactDivider()
                         HStack {

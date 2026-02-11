@@ -1,4 +1,5 @@
 import AppKit
+import KeyboardShortcuts
 import LocalAuthentication
 import os.log
 import ServiceManagement
@@ -105,9 +106,9 @@ struct GeneralSettingsView: View {
                         .help("Require Touch ID or password to reveal hidden menu bar icons")
                 }
 
-                // 3. Search Mode
-                CompactSection("Search Mode") {
-                    CompactRow("Option-click or shortcut opens") {
+                // 3. Browse Icons
+                CompactSection("Browse Icons") {
+                    CompactRow("Opens as") {
                         Picker("", selection: Binding(
                             get: { menuBarManager.settings.useSecondMenuBar },
                             set: { newValue in
@@ -115,13 +116,18 @@ struct GeneralSettingsView: View {
                                 SearchWindowController.shared.resetWindow()
                             }
                         )) {
-                            Text("Find Icon").tag(false)
+                            Text("Icon Panel").tag(false)
                             Text("Second Menu Bar").tag(true)
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 240)
                     }
-                    .help("Find Icon: Search, hotkeys, and icon management. Second Menu Bar: A bar below the menu bar showing your hidden icons.")
+                    .help("Icon Panel: Search, hotkeys, and icon management. Second Menu Bar: A bar below the menu bar showing your hidden icons.")
+                    CompactDivider()
+                    CompactRow("Shortcut") {
+                        KeyboardShortcuts.Recorder(for: .searchMenuBar)
+                    }
+                    .help("Customizable keyboard shortcut to open Browse Icons")
                 }
 
                 // 4. Updates
