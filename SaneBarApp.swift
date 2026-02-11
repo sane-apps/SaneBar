@@ -15,6 +15,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         appLogger.info("🏁 applicationDidFinishLaunching START")
 
+        // Move to /Applications if running from Downloads or other location (Release only)
+        #if !DEBUG
+            if moveToApplicationsFolderIfNeeded() { return }
+        #endif
+
         // CRITICAL: Set activation policy to accessory BEFORE creating status items!
         // This ensures NSStatusItem windows are created at the correct window layer (25).
         NSApp.setActivationPolicy(.accessory)
@@ -71,6 +76,62 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     @objc private func quitFromDock(_: Any?) {
         NSApplication.shared.terminate(nil)
+    }
+
+    /// Returns true if the app is being moved (caller should return early).
+    private func moveToApplicationsFolderIfNeeded() -> Bool {
+        let appPath = Bundle.main.bundlePath
+        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "SaneBar"
+
+        // Already in /Applications — nothing to do
+        if appPath.hasPrefix("/Applications") { return false }
+
+        // Activate so the alert is visible (app starts as .accessory)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = "Move to Applications?"
+        alert.informativeText = "\(appName) works best from your Applications folder. Move it there now?"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Move to Applications")
+        alert.addButton(withTitle: "Not Now")
+
+        let response = alert.runModal()
+
+        // Restore accessory policy if user declines
+        guard response == .alertFirstButtonReturn else {
+            NSApp.setActivationPolicy(.accessory)
+            return false
+        }
+
+        let destPath = "/Applications/\(appName).app"
+        let fm = FileManager.default
+
+        do {
+            if fm.fileExists(atPath: destPath) {
+                try fm.removeItem(atPath: destPath)
+            }
+            try fm.moveItem(atPath: appPath, toPath: destPath)
+
+            // Relaunch from /Applications
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = [destPath]
+            try task.run()
+
+            NSApp.terminate(nil)
+            return true
+        } catch {
+            appLogger.error("Failed to move to Applications: \(error.localizedDescription)")
+            let errorAlert = NSAlert()
+            errorAlert.messageText = "Couldn't Move \(appName)"
+            errorAlert.informativeText = "Please drag \(appName) to your Applications folder manually.\n\nError: \(error.localizedDescription)"
+            errorAlert.alertStyle = .warning
+            errorAlert.runModal()
+            NSApp.setActivationPolicy(.accessory)
+            return false
+        }
     }
 
     private func handleURL(_ url: URL) {
