@@ -436,7 +436,7 @@ struct GeneralSettingsView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.title = "Import Bartender Settings"
-        panel.message = "Choose your Bartender .plist file"
+        panel.message = "Select your Bartender plist (usually com.surteesstudios.Bartender.plist in ~/Library/Preferences)"
         panel.prompt = "Import"
         if let prefsURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?.appendingPathComponent("Preferences") {
             panel.directoryURL = prefsURL
@@ -468,7 +468,7 @@ struct GeneralSettingsView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.title = "Import Ice Settings"
-        panel.message = "Choose your Ice .plist file"
+        panel.message = "Select your Ice plist (usually com.jordanbaird.Ice.plist in ~/Library/Preferences)"
         panel.prompt = "Import"
         if FileManager.default.fileExists(atPath: defaultPath.path) {
             panel.directoryURL = defaultPath.deletingLastPathComponent()
