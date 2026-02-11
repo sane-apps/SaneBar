@@ -105,19 +105,23 @@ struct GeneralSettingsView: View {
                         .help("Require Touch ID or password to reveal hidden menu bar icons")
                 }
 
-                // 3. Hiding
-                CompactSection("Hiding") {
-                    CompactToggle(
-                        label: "Use floating panel instead of Find Icon",
-                        isOn: Binding(
+                // 3. Search Mode
+                CompactSection("Search Mode") {
+                    CompactRow("Option-click or shortcut opens") {
+                        Picker("", selection: Binding(
                             get: { menuBarManager.settings.useSecondMenuBar },
                             set: { newValue in
                                 menuBarManager.settings.useSecondMenuBar = newValue
                                 SearchWindowController.shared.resetWindow()
                             }
-                        )
-                    )
-                    .help("Off: Click SaneBar icon to open Find Icon (search, hotkeys, icon management). On: Click to show a floating panel below the menu bar with your hidden icons.")
+                        )) {
+                            Text("Find Icon").tag(false)
+                            Text("Second Menu Bar").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 240)
+                    }
+                    .help("Find Icon: Search, hotkeys, and icon management. Second Menu Bar: A bar below the menu bar showing your hidden icons.")
                 }
 
                 // 4. Updates

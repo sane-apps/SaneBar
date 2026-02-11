@@ -276,8 +276,8 @@ private struct ArrangeIconsPage: View {
                 iconRow("line.3.horizontal.decrease", bg: Color.accentColor, title: "The SaneBar Icon",
                         desc: "Click to hide/reveal. Opens Find Icon — search, hotkeys, and icon management.", isSF: true)
 
-                iconRow("rectangle.bottomhalf.inset.filled", bg: Color.teal.opacity(0.7), title: "Floating Panel Mode",
-                        desc: "Prefer a second menu bar? Enable it in Settings for quick access to hidden icons.", isSF: true)
+                iconRow("rectangle.bottomhalf.inset.filled", bg: Color.teal.opacity(0.7), title: "Second Menu Bar",
+                        desc: "Prefer a bar of hidden icons below the menu bar? Switch to it in Settings.", isSF: true)
 
                 iconRow("eye.slash", bg: Color.purple.opacity(0.6), title: "Always-Hidden Section",
                         desc: "A second separator for icons that stay hidden even when you reveal the rest.", isSF: true)
