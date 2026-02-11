@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.0.23</title>
+            <pubDate>Wed, 11 Feb 2026 18:21:53 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Second Menu Bar 3-row layout (Visible/Hidden/Always Hidden), frosted glass settings with animated gradient background, Clock and Control Center filtering, Browse Icons rename</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.0.23.zip"
+                       sparkle:version="1023"
+                       sparkle:shortVersionString="1.0.23"
+                       length="3875892"
+                       type="application/octet-stream"
+                       sparkle:edSignature="U9eUOSpdZCzHaSN+fQwkjeLS0SZyc1WfU33vKD5ZJ9d8KOJLEyCHMRU/blpfm605V01kheLmdkTyQ1OEemwTDw=="/>
+        </item>
+        <item>
             <title>1.0.22</title>
             <pubDate>Tue, 10 Feb 2026 18:29:42 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
