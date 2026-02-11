@@ -6,7 +6,7 @@ labels: bug
 ---
 
 **SaneBar Version:**
-<!-- e.g. 1.0.17 — check About screen -->
+<!-- e.g. 1.0.17 (check About screen) -->
 
 **macOS Version:**
 <!-- e.g. Sequoia 15.2 / Tahoe 26.1 -->

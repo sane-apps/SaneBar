@@ -6,7 +6,7 @@ labels: bug, crash
 ---
 
 **SaneBar Version:**
-<!-- e.g. 1.0.17 — check About screen or DMG filename -->
+<!-- e.g. 1.0.17 (check About screen or DMG filename) -->
 
 **macOS Version:**
 <!-- e.g. Sequoia 15.2 / Tahoe 26.1 -->
