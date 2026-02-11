@@ -87,6 +87,7 @@ targets:
       - path: UI
         excludes:
           - "**/CLAUDE.md"
+      - path: ../../infra/SaneProcess/shared/MoveToApplications.swift
       - Resources
     dependencies:
       - package: KeyboardShortcuts

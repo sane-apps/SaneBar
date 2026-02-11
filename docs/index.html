@@ -737,13 +737,19 @@
         }
 
         .feature-card {
-            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
-            border: 1px solid var(--border-subtle);
+            background:
+                radial-gradient(ellipse at 90% 50%, rgba(79, 143, 250, 0.18) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 30%, rgba(79, 143, 250, 0.1) 0%, transparent 40%),
+                linear-gradient(135deg, #0a1628 0%, #0d1f3c 50%, #081020 100%);
+            border: 1px solid rgba(79, 143, 250, 0.25);
             border-radius: 20px;
             padding: 36px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            box-shadow:
+                0 0 30px rgba(79, 143, 250, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
         .feature-card::before {
@@ -759,38 +765,17 @@
         }
 
         .feature-card:hover {
-            border-color: var(--accent);
+            border-color: rgba(79, 143, 250, 0.45);
             transform: translateY(-6px);
             box-shadow:
-                0 20px 40px rgba(0, 0, 0, 0.3),
-                0 0 0 1px var(--accent-subtle);
+                0 0 50px rgba(79, 143, 250, 0.12),
+                0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
         .feature-card:hover::before {
             opacity: 1;
         }
 
-        /* Special highlight for Touch ID card - the flagship feature */
-        .feature-card.featured {
-            background:
-                radial-gradient(ellipse at 90% 50%, rgba(79, 143, 250, 0.25) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 30%, rgba(79, 143, 250, 0.15) 0%, transparent 40%),
-                radial-gradient(ellipse at 95% 70%, rgba(59, 130, 246, 0.2) 0%, transparent 45%),
-                linear-gradient(135deg, #0a1628 0%, #0d1f3c 50%, #081020 100%);
-            border-color: rgba(79, 143, 250, 0.3);
-            box-shadow:
-                0 0 40px rgba(79, 143, 250, 0.15),
-                0 8px 32px rgba(0, 0, 0, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        }
-
-        .feature-card.featured:hover {
-            border-color: rgba(79, 143, 250, 0.5);
-            box-shadow:
-                0 0 60px rgba(79, 143, 250, 0.25),
-                0 20px 40px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
 
         .feature-icon {
             margin-bottom: 20px;
@@ -1399,17 +1384,26 @@
         }
 
         .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background:
+                radial-gradient(ellipse at 90% 50%, rgba(79, 143, 250, 0.18) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 30%, rgba(79, 143, 250, 0.1) 0%, transparent 40%),
+                linear-gradient(135deg, #0a1628 0%, #0d1f3c 50%, #081020 100%);
+            border: 1px solid rgba(79, 143, 250, 0.25);
             border-radius: 20px;
             padding: 32px;
             text-align: left;
             transition: transform 0.3s ease;
+            box-shadow:
+                0 0 30px rgba(79, 143, 250, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
         .feature-card:hover {
             transform: translateY(-5px);
-            border-color: var(--accent);
+            border-color: rgba(79, 143, 250, 0.45);
+            box-shadow:
+                0 0 50px rgba(79, 143, 250, 0.12),
+                0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
         .feature-card img {
@@ -2357,7 +2351,7 @@
                         <img src="images/sanehosts-icon.png" alt="SaneHosts" class="app-card-icon">
                         <div class="app-card-name">SaneHosts</div>
                     </div>
-                    <p class="app-card-tagline">Block ads, trackers, and telemetry at the system level. A clean UI for your hosts file.</p>
+                    <p class="app-card-tagline">Block ads, trackers, and data collection at the system level. A clean UI for your hosts file.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
                 <a href="https://saneclick.com" class="app-card">
@@ -2392,7 +2386,7 @@
                     <div class="sustainability-options">
                         <a href="https://github.com/sane-apps/SaneBar" class="sustainability-option">
                             <h4>Build It Yourself</h4>
-                            <p>Clone the repo. GPL v3 Licensed. Build from source for free.</p>
+                            <p>Download the code. Open source. Build from source for free.</p>
                         </a>
                         <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="sustainability-option featured">
                             <h4>Buy the DMG — $6.99</h4>
@@ -2406,7 +2400,7 @@
     <footer>
         <div class="container">
             <p class="footer-quote" style="font-style: italic; font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 20px; opacity: 0.85;">"For God has not given us a spirit of fear, but of power, love, and a sound mind." — 2 Timothy 1:7</p>
-            <p class="footer-privacy"><strong>0% Telemetry</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
+            <p class="footer-privacy"><strong>0% Tracking</strong>. <strong>0% Spying</strong>. <strong>100% On-Device</strong>.</p>
             <div class="footer-links">
                 <a href="guides.html">Guides</a>
                 <a href="https://github.com/sane-apps/SaneBar">GitHub</a>

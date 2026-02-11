@@ -28,6 +28,7 @@
 		2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8376513461FDCE0D56D48 /* HidingService.swift */; };
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
+		3CAF73DEDFE311DF58CD0AF8 /* MoveToApplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
 		44E37A74C3AE370683F08F7C /* SaneUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9146DE18EA818507DD9C5AE1 /* SaneUI */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
@@ -133,6 +134,7 @@
 		3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassGroupBoxStyle.swift; sourceTree = "<group>"; };
 		3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconTests.swift; sourceTree = "<group>"; };
 		3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommands.swift; sourceTree = "<group>"; };
+		3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveToApplications.swift; sourceTree = "<group>"; };
 		3E1E3BD7521144D9223F6345 /* SetupStylePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupStylePage.swift; sourceTree = "<group>"; };
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityServiceTests.swift; sourceTree = "<group>"; };
@@ -221,6 +223,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		014DFF03BDFAC92F20A5641F /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */,
+			);
+			name = shared;
+			path = ../../infra/SaneProcess/shared;
+			sourceTree = "<group>";
+		};
 		069C3A0FC8F35C1CEEE6717E /* SearchWindow */ = {
 			isa = PBXGroup;
 			children = (
@@ -315,6 +326,7 @@
 				1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */,
 				90F8FA130E087A281C816B2A /* Core */,
 				409A8D62B36CC252BED0A4E4 /* Resources */,
+				014DFF03BDFAC92F20A5641F /* shared */,
 				5FE61272586955420BA4EDE2 /* Tests */,
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
 				D14A5D400198233C0D7C948F /* Products */,
@@ -628,6 +640,7 @@
 				980CD5A9F2BC2D549B507EF1 /* MenuBarSearchView+Navigation.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
 				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
+				3CAF73DEDFE311DF58CD0AF8 /* MoveToApplications.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
 				08DAB706A1865F8E3B520362 /* OnboardingController.swift in Sources */,
 				FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */,
