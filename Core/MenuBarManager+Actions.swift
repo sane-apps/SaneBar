@@ -127,8 +127,8 @@ extension MenuBarManager {
 
         switch clickType {
         case .optionClick:
-            logger.info("Option-click: opening Power Search")
-            SearchWindowController.shared.toggle(mode: .findIcon)
+            logger.info("Option-click: opening Browse Icons")
+            SearchWindowController.shared.toggle()
         case .leftClick:
             logger.info("Left-click: calling toggleHiddenItems()")
             toggleHiddenItems()

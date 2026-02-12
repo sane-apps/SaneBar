@@ -228,6 +228,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             Task { @MainActor in
                 self?.overlayViewModel?.reduceTransparency =
                     NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+                self?.updateWindowLevel()
             }
         }
     }
@@ -238,6 +239,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         if settings.isEnabled {
             ensureOverlayExists()
             overlayViewModel?.settings = settings
+            updateWindowLevel()
             show()
         } else {
             hide()
@@ -250,6 +252,31 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
     func hide() {
         overlayWindow?.orderOut(nil)
+    }
+
+    // MARK: - Window Level
+
+    /// Adjust the overlay window level based on the active appearance mode.
+    ///
+    /// Liquid Glass composites naturally with layers underneath, so the overlay
+    /// sits *below* status items (`.statusBar - 1`) to avoid obscuring icons.
+    ///
+    /// A plain tint rectangle, on the other hand, is hidden behind the opaque
+    /// menu bar background at that level — only a 1px sliver shows at the bottom.
+    /// Raising the overlay to `.statusBar` puts the tint *above* the background
+    /// so icons show through the semi-transparent colour.
+    private func updateWindowLevel() {
+        guard let window = overlayWindow, let vm = overlayViewModel else { return }
+
+        let useGlass = vm.settings.useLiquidGlass
+            && MenuBarAppearanceSettings.supportsLiquidGlass
+            && !vm.reduceTransparency
+
+        let newLevel: NSWindow.Level = useGlass ? .statusBar - 1 : .statusBar
+        if window.level != newLevel {
+            window.level = newLevel
+            logger.debug("Overlay window level → \(newLevel.rawValue) (glass=\(useGlass))")
+        }
     }
 
     // MARK: - Overlay Management

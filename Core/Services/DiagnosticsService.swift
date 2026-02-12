@@ -170,11 +170,18 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 )
             }
         } catch {
-            return [DiagnosticReport.LogEntry(
-                timestamp: Date(),
-                level: "ERROR",
-                message: "Failed to collect logs: \(error.localizedDescription)"
-            )]
+            return [
+                DiagnosticReport.LogEntry(
+                    timestamp: Date(),
+                    level: "ERROR",
+                    message: "Failed to collect logs: \(error.localizedDescription)"
+                ),
+                DiagnosticReport.LogEntry(
+                    timestamp: Date(),
+                    level: "INFO",
+                    message: "Tip: paste logs manually by running in Terminal: log show --predicate 'subsystem == \"com.sanebar.app\"' --last 5m --style compact"
+                )
+            ]
         }
     }
 

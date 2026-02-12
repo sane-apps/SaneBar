@@ -92,7 +92,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         // Menu bar search
         KeyboardShortcuts.onKeyUp(for: .searchMenuBar) {
             Task { @MainActor in
-                SearchWindowController.shared.toggle(mode: .findIcon)
+                SearchWindowController.shared.toggle()
             }
         }
     }
