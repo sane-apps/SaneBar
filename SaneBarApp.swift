@@ -30,6 +30,9 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // Initialize MenuBarManager (creates status items) - MUST be after activation policy is set
         _ = MenuBarManager.shared
 
+        // Check cached Pro license (Keychain)
+        LicenseService.shared.checkCachedLicense()
+
         // Configure keyboard shortcuts
         let shortcutsService = KeyboardShortcutsService.shared
         shortcutsService.configure(with: MenuBarManager.shared)

@@ -31,6 +31,9 @@ struct MenuBarAppTile: View {
     /// Whether this tile is selected via keyboard navigation
     var isSelected: Bool = false
 
+    /// Whether the user has Pro license (affects action gating and badges)
+    var isPro: Bool = true
+
     var body: some View {
         Button(action: { onActivate(false) }, label: {
             VStack(spacing: 4) {
@@ -70,8 +73,18 @@ struct MenuBarAppTile: View {
             )
         })
         .buttonStyle(.plain)
+        .overlay(alignment: .bottomTrailing) {
+            if !isPro {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.teal)
+                    .padding(3)
+                    .background(Circle().fill(.ultraThinMaterial))
+                    .offset(x: 3, y: 3)
+            }
+        }
         .draggable(app.bundleId) // Enable drag with bundle ID as payload
-        .help(app.name)
+        .help(isPro ? app.name : "\(app.name) — Pro required to activate")
         .contextMenu {
             Button("Left-Click (Open)") {
                 onActivate(false)

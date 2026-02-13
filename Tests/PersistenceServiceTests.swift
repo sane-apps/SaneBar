@@ -1,8 +1,7 @@
-import XCTest
 @testable import SaneBar
+import XCTest
 
 final class PersistenceServiceTests: XCTestCase {
-
     // MARK: - Icon Hotkeys
 
     func testIconHotkeysDefaultsToEmptyDictionary() throws {
@@ -17,8 +16,8 @@ final class PersistenceServiceTests: XCTestCase {
         // Given: settings with icon hotkeys
         var settings = SaneBarSettings()
         settings.iconHotkeys = [
-            "com.1password.1password": KeyboardShortcutData(keyCode: 18, modifiers: 1572864),
-            "com.dropbox.client": KeyboardShortcutData(keyCode: 2, modifiers: 1572864)
+            "com.1password.1password": KeyboardShortcutData(keyCode: 18, modifiers: 1_572_864),
+            "com.dropbox.client": KeyboardShortcutData(keyCode: 2, modifiers: 1_572_864),
         ]
 
         // When: encode and decode
@@ -67,7 +66,7 @@ final class PersistenceServiceTests: XCTestCase {
             "com.apple.menuextra.wifi",
             "com.dropbox.client",
             "com.foo.bar::axid:statusItem",
-            "com.foo.bar::statusItem:1"
+            "com.foo.bar::statusItem:1",
         ]
 
         let encoder = JSONEncoder()
@@ -585,7 +584,7 @@ final class PersistenceServiceTests: XCTestCase {
     func testIconGroupsHandleManyGroups() throws {
         // Given: settings with many groups
         var settings = SaneBarSettings()
-        for i in 1...20 {
+        for i in 1 ... 20 {
             let group = SaneBarSettings.IconGroup(
                 name: "Group \(i)",
                 appBundleIds: ["com.app\(i).test"]
@@ -627,18 +626,28 @@ final class PersistenceServiceTests: XCTestCase {
     // MARK: - Keychain-backed Auth Setting
 
     private final class InMemoryKeychainService: KeychainServiceProtocol, @unchecked Sendable {
-        private var store: [String: Bool] = [:]
+        private var boolStore: [String: Bool] = [:]
+        private var stringStore: [String: String] = [:]
 
         func bool(forKey key: String) throws -> Bool? {
-            store[key]
+            boolStore[key]
         }
 
         func set(_ value: Bool, forKey key: String) throws {
-            store[key] = value
+            boolStore[key] = value
+        }
+
+        func string(forKey key: String) throws -> String? {
+            stringStore[key]
+        }
+
+        func set(_ value: String, forKey key: String) throws {
+            stringStore[key] = value
         }
 
         func delete(_ key: String) throws {
-            store.removeValue(forKey: key)
+            boolStore.removeValue(forKey: key)
+            stringStore.removeValue(forKey: key)
         }
     }
 
