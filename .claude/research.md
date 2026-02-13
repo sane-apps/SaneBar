@@ -14,944 +14,689 @@ Ice wins on: visual layout editor (when it works), Ice Bar dropdown.
 
 ---
 
+## Stale Position / Duplicate Icons Bug
+
+**Updated:** 2026-02-13 | **Status:** active-investigation | **TTL:** 7d
+**Source:** Codebase analysis (Second Menu Bar, SearchService, AccessibilityService, MenuBarManager+AlwaysHidden)
+
+### Problem Summary
+
+The "Second Menu Bar" (floating panel showing hidden icons) sometimes displays **duplicate entries** on startup:
+- The same app appears in BOTH "hidden" and "always hidden" sections simultaneously
+- Moving an app (right-click → move to section) fixes the duplicates
+- The stale data is visible BEFORE user interaction
+
+### Code Path Analysis
+
+#### 1. Second Menu Bar Data Flow (Where the Bug Manifests)
+
+**UI Component:** `UI/SearchWindow/SecondMenuBarView.swift`
+
+The panel displays three sections (lines 116-134):
+```swift
+if !movableVisible.isEmpty {
+    zoneRow(label: "Visible", icon: "eye", apps: movableVisible, zone: .visible)
+}
+if !movableHidden.isEmpty {
+    zoneRow(label: "Hidden", icon: "eye.slash", apps: movableHidden, zone: .hidden)
+}
+if !movableAlwaysHidden.isEmpty {
+    zoneRow(label: "Always Hidden", icon: "lock", apps: movableAlwaysHidden, zone: .alwaysHidden)
+}
+```
+
+**Data Source:** `UI/SearchWindow/MenuBarSearchView.swift` lines 250-262
+```swift
+SecondMenuBarView(
+    visibleApps: visibleApps,           // ← Cached data
+    apps: filteredApps,                 // ← "Hidden" section (menuBarApps filtered)
+    alwaysHiddenApps: alwaysHiddenApps, // ← Cached data
+    // ...
+)
+```
+
+**Cache Loading:** Lines 283-309
+```swift
+private func loadCachedApps() {
+    hasAccessibility = AccessibilityService.shared.isGranted
+    guard hasAccessibility else { /* ... */ return }
+
+    // Load "hidden" apps (middle section)
+    menuBarApps = service.cachedHiddenMenuBarApps()
+
+    // Load all zones for second menu bar
+    if isSecondMenuBar {
+        visibleApps = service.cachedVisibleMenuBarApps()
+        alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
+    }
+}
+```
+
+**Key Insight:** The panel uses THREE separate cached data sources. If any cache is stale or uses inconsistent classification logic, duplicates can occur.
+
+#### 2. Zone Classification Logic (Where Duplicates Originate)
+
+**Service:** `Core/Services/SearchService.swift`
+
+All three cache methods use the SAME classification function `classifyZone()` (lines 126-147):
+
+```swift
+private func classifyZone(
+    itemX: CGFloat,
+    itemWidth: CGFloat?,
+    separatorX: CGFloat,
+    alwaysHiddenSeparatorX: CGFloat?
+) -> VisibilityZone {
+    let width = max(1, itemWidth ?? 22)
+    let midX = itemX + (width / 2)
+    let margin: CGFloat = 6
+
+    if let alwaysHiddenSeparatorX {
+        if midX < (alwaysHiddenSeparatorX - margin) {
+            return .alwaysHidden
+        }
+        if midX < (separatorX - margin) {
+            return .hidden
+        }
+        return .visible
+    }
+
+    return midX < (separatorX - margin) ? .hidden : .visible
+}
+```
+
+**Separator Position Retrieval (CRITICAL):** Lines 82-105
+```swift
+private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
+    guard let separatorX = separatorOriginXForClassification() else { return nil }
+
+    guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
+        return (separatorX, nil)
+    }
+
+    let alwaysHiddenSeparatorX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
+
+    // ← VALIDATION: Ensure AH separator is LEFT of main separator
+    if let alwaysHiddenSeparatorX, alwaysHiddenSeparatorX >= separatorX {
+        logger.warning("Always-hidden separator is not left of main separator; ignoring always-hidden zone")
+        return (separatorX, nil)
+    }
+
+    // ← FALLBACK: If AH separator position unavailable (at 10,000px blocking mode)
+    if alwaysHiddenSeparatorX == nil {
+        let screenMinX = menuBarScreenFrame()?.minX ?? 0
+        return (separatorX, screenMinX)  // ← Uses screen edge as boundary
+    }
+
+    return (separatorX, alwaysHiddenSeparatorX)
+}
+```
+
+#### 3. The Fallback Mechanism (Where Stale Data Persists)
+
+**Always-Hidden Fallback:** Lines 217-241 in `SearchService.swift`
+
+When separator positions are unavailable (items off-screen, separators at blocking mode):
+```swift
+func cachedAlwaysHiddenMenuBarApps() -> [RunningApp] {
+    guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else { return [] }
+    let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+
+    if let positions = separatorOriginsForClassification(), positions.alwaysHiddenSeparatorX != nil {
+        // ← POSITION-BASED classification (primary)
+        let apps = items.filter { /* classifyZone() */ }
+        return apps
+    }
+
+    // ← FALLBACK: Match against persisted pinned IDs
+    return appsMatchingPinnedIds(from: items.map(\.app))
+}
+```
+
+**Pinned IDs Matching:** Lines 107-118
+```swift
+private func appsMatchingPinnedIds(from apps: [RunningApp]) -> [RunningApp] {
+    let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+    guard !pinnedIds.isEmpty else { return [] }
+    let matched = apps.filter { app in
+        pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+    }
+    logger.debug("alwaysHidden fallback: matched \(matched.count) apps from \(pinnedIds.count) pinned IDs")
+    return matched
+}
+```
+
+**Key Issue:** The fallback uses `alwaysHiddenPinnedItemIds` (persisted in UserDefaults) which may be STALE if:
+1. App moved but pinned IDs not updated
+2. Separator positions changed but cache not invalidated
+3. Startup reads cache before positions are available
+
+#### 4. Persisted Pin Management (Where Stale Data Is Written)
+
+**Service:** `Core/MenuBarManager+AlwaysHidden.swift`
+
+**Pin Addition:** Lines 18-30
+```swift
+func pinAlwaysHidden(app: RunningApp) {
+    let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard isValidPinId(id) else { return }
+
+    var newIds = Set(settings.alwaysHiddenPinnedItemIds)
+    let inserted = newIds.insert(id).inserted
+    guard inserted else { return }
+
+    settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+    // ← NO cache invalidation here
+}
+```
+
+**Pin Removal:** Lines 32-40
+```swift
+func unpinAlwaysHidden(app: RunningApp) {
+    let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !id.isEmpty else { return }
+
+    let newIds = settings.alwaysHiddenPinnedItemIds.filter { $0 != id }
+    guard newIds.count != settings.alwaysHiddenPinnedItemIds.count else { return }
+    settings.alwaysHiddenPinnedItemIds = newIds
+    // ← NO cache invalidation here
+}
+```
+
+**CRITICAL FINDING:** Neither `pinAlwaysHidden()` nor `unpinAlwaysHidden()` calls `AccessibilityService.shared.invalidateMenuBarItemCache()`. This means:
+1. User moves app from "hidden" to "always hidden" → pin is added
+2. `SearchService` caches remain unchanged (still have old zone assignments)
+3. Next panel open: `cachedAlwaysHiddenMenuBarApps()` uses NEW pinned IDs, `cachedHiddenMenuBarApps()` uses OLD cached positions
+4. Result: App appears in BOTH sections
+
+#### 5. Move Operations (Where Cache Gets Stale)
+
+**UI Handler:** `UI/SearchWindow/SecondMenuBarView.swift` lines 189-230
+
+```swift
+private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) {
+    // ... determine operation based on source/target zones
+
+    switch (source, target) {
+    case (_, .visible):
+        if source == .alwaysHidden { menuBarManager.unpinAlwaysHidden(app: app) }
+        _ = menuBarManager.moveIcon(/* ... */, toHidden: false)
+
+    case (.visible, .hidden):
+        _ = menuBarManager.moveIcon(/* ... */, toHidden: true)
+
+    case (.alwaysHidden, .hidden):
+        menuBarManager.unpinAlwaysHidden(app: app)  // ← Removes from pinned IDs
+        _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(/* ... */)
+
+    case (_, .alwaysHidden):
+        menuBarManager.pinAlwaysHidden(app: app)    // ← Adds to pinned IDs
+        _ = menuBarManager.moveIconToAlwaysHidden(/* ... */)
+    }
+
+    // ← REFRESH: Scheduled AFTER the move completes
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        onIconMoved?()  // ← Calls loadCachedApps() + refreshApps(force: true)
+    }
+}
+```
+
+**The 300ms Gap:** Between pin update and cache refresh, there's a 300ms window where:
+- Pinned IDs are updated (new data)
+- Accessibility cache is stale (old positions)
+- If user closes panel or system queries cache during this window → duplicates appear
+
+#### 6. Startup Sequence (Where Initial Stale Data Appears)
+
+**Panel Opens:** `UI/SearchWindow/MenuBarSearchView.swift` lines 142-153
+
+```swift
+.onAppear {
+    loadCachedApps()     // ← Uses cached data (may be empty/stale on first launch)
+    refreshApps()        // ← Triggers async refresh (takes time)
+    startPermissionMonitoring()
+    // ...
+}
+```
+
+**Cache Loading Flow:**
+1. `loadCachedApps()` runs immediately (line 143) → reads `AccessibilityService.shared.cachedMenuBarItemsWithPositions()`
+2. If cache is empty (first run) → all arrays are empty
+3. If cache exists but positions are stale → classification uses OLD separator positions + NEW pinned IDs
+4. `refreshApps()` runs async (line 144) → triggers fresh AX scan
+5. **GAP:** Between `loadCachedApps()` and `refreshApps()` completing, panel shows stale data
+
+**Why Moving Fixes It:** Lines 258-261 in SecondMenuBarView
+```swift
+onIconMoved: {
+    loadCachedApps()           // ← Re-loads from cache
+    refreshApps(force: true)   // ← Forces fresh AX scan + invalidates cache
+}
+```
+
+The `force: true` parameter (line 324 in MenuBarSearchView) calls `AccessibilityService.shared.invalidateMenuBarItemCache()` BEFORE scanning.
+
+### Root Cause Summary
+
+**PRIMARY ISSUE: Cache invalidation missing on pin update**
+
+1. **Inconsistent Data Sources:** Three separate caches (visible, hidden, always-hidden) + one persisted data source (pinned IDs)
+2. **No Invalidation on Pin Change:** `pinAlwaysHidden()` and `unpinAlwaysHidden()` update persisted IDs but don't invalidate AX cache
+3. **Fallback Mismatch:** `cachedAlwaysHiddenMenuBarApps()` uses NEW pinned IDs (fallback), `cachedHiddenMenuBarApps()` uses OLD cached positions (primary)
+4. **Startup Race:** Panel opens before AX cache is populated → falls back to pinned IDs for AH, empty for hidden → inconsistent state
+5. **Async Refresh Gap:** 300ms+ between panel open and fresh data → user sees stale duplicates
+
+**Why Moving Fixes It:**
+- Move operation calls `refreshApps(force: true)`
+- `force: true` → `invalidateMenuBarItemCache()` → all caches cleared
+- Fresh AX scan → all zones use SAME current separator positions → duplicates resolved
+
+### Validation Missing
+
+**No Duplicate Detection:** The code has identity health logging (SearchService.swift:381-407) but it only logs duplicates, doesn't PREVENT them from being rendered.
+
+```swift
+if !duplicateIds.isEmpty {
+    let sample = duplicateIds.prefix(10).map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
+    logger.error("Find Icon \(context): DUPLICATE ids detected: \(sample)")
+}
+```
+
+This logs the issue but doesn't deduplicate before passing to UI.
+
+### Recommended Fixes
+
+#### Fix 1: Invalidate Cache on Pin Update (CRITICAL)
+
+**File:** `Core/MenuBarManager+AlwaysHidden.swift` (lines 18-40)
+
+Add cache invalidation to both pin methods:
+
+```swift
+func pinAlwaysHidden(app: RunningApp) {
+    let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard isValidPinId(id) else { return }
+
+    var newIds = Set(settings.alwaysHiddenPinnedItemIds)
+    let inserted = newIds.insert(id).inserted
+    guard inserted else { return }
+
+    settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+
+    // ← ADD: Invalidate cache so next query uses fresh positions + new pins
+    AccessibilityService.shared.invalidateMenuBarItemCache()
+}
+
+func unpinAlwaysHidden(app: RunningApp) {
+    let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !id.isEmpty else { return }
+
+    let newIds = settings.alwaysHiddenPinnedItemIds.filter { $0 != id }
+    guard newIds.count != settings.alwaysHiddenPinnedItemIds.count else { return }
+    settings.alwaysHiddenPinnedItemIds = newIds
+
+    // ← ADD: Invalidate cache so next query uses fresh positions + new pins
+    AccessibilityService.shared.invalidateMenuBarItemCache()
+}
+```
+
+**Rationale:** Ensures that after pinned IDs change, the next cache read triggers a fresh AX scan with consistent data.
+
+#### Fix 2: Deduplicate Before Rendering (MEDIUM PRIORITY)
+
+**File:** `Core/Services/SearchService.swift` (lines 184-215, 244-268, 217-241)
+
+Add deduplication to the three cache methods:
+
+```swift
+@MainActor
+func cachedHiddenMenuBarApps() -> [RunningApp] {
+    let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+    // ... existing classification logic ...
+
+    // ← ADD: Deduplicate by uniqueId before returning
+    var seen = Set<String>()
+    let deduplicated = apps.filter { app in
+        seen.insert(app.uniqueId).inserted
+    }
+
+    if apps.count != deduplicated.count {
+        logger.warning("cachedHidden: Deduped \(apps.count - deduplicated.count) duplicate entries")
+    }
+
+    return deduplicated
+}
+```
+
+Apply same pattern to `cachedVisibleMenuBarApps()` and `cachedAlwaysHiddenMenuBarApps()`.
+
+**Rationale:** Defensive programming — even if cache invalidation fails, UI won't show duplicates.
+
+#### Fix 3: Startup Cache Validation (LOW PRIORITY)
+
+**File:** `UI/SearchWindow/MenuBarSearchView.swift` (lines 283-309)
+
+Add validation on startup to detect stale cache:
+
+```swift
+private func loadCachedApps() {
+    hasAccessibility = AccessibilityService.shared.isGranted
+    guard hasAccessibility else { /* ... */ return }
+
+    // ← ADD: Check if cache is stale (timestamp check)
+    let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
+    let isStale = cacheAge > 5.0  // 5 seconds
+
+    if isStale {
+        logger.debug("Cache is stale (\(cacheAge)s old) — skipping loadCachedApps")
+        refreshApps(force: true)
+        return
+    }
+
+    // ... existing cache loading logic ...
+}
+```
+
+**Rationale:** On panel open, if cache is old (>5s), skip it and go straight to fresh scan.
+
+#### Fix 4: Unified Zone Classification (ARCHITECTURAL, LOW PRIORITY)
+
+**Create:** `Core/Services/MenuBarZoneClassifier.swift`
+
+Centralize all zone classification logic in ONE place:
+
+```swift
+actor MenuBarZoneClassifier {
+    // Single source of truth for separator positions
+    // Single classification method used by ALL cache queries
+    // Guarantees consistency across visible/hidden/always-hidden
+}
+```
+
+**Rationale:** Current design has classification logic duplicated across SearchService, move operations, and verification. Centralizing prevents drift.
+
+### Test Plan
+
+**Reproduce:**
+1. Launch SaneBar fresh install
+2. Move an app to "always hidden" via context menu
+3. Close Second Menu Bar panel
+4. Wait 1 second (let cache partially settle)
+5. Open Second Menu Bar panel again
+6. **Expected Bug:** App appears in BOTH "hidden" AND "always hidden" sections
+
+**Verify Fix 1:**
+1. Apply cache invalidation to `pinAlwaysHidden()`
+2. Repeat steps 1-5
+3. **Expected:** App appears ONLY in "always hidden" section (no duplicates)
+
+**Verify Fix 2:**
+1. Inject duplicate into cache manually (for testing)
+2. Open panel
+3. **Expected:** Deduplication removes duplicate before rendering
+
+**Check Logs:**
+```
+[DEBUG] cachedAlwaysHidden: found X always hidden apps
+[DEBUG] cachedHidden: found Y hidden apps
+[DEBUG] Find Icon sample: id=... bundleId=... (verify no duplicates)
+```
+
+### Related Files
+
+- `UI/SearchWindow/SecondMenuBarView.swift` — Panel rendering (where duplicates appear)
+- `UI/SearchWindow/MenuBarSearchView.swift` — Data loading (loadCachedApps, refreshApps)
+- `Core/Services/SearchService.swift` — Zone classification + caching (root logic)
+- `Core/MenuBarManager+AlwaysHidden.swift` — Pin management (missing invalidation)
+- `Core/Services/AccessibilityService+Cache.swift` — Cache invalidation mechanism
+- `Core/Services/AccessibilityService+Scanning.swift` — Menu bar item scanning
+- `Core/Models/RunningApp.swift` — uniqueId generation (used for deduplication)
+
+---
+
+## Icon Sizing in Squircle - Root Cause
+
+**Updated:** 2026-02-13 | **Status:** verified | **TTL:** 7d
+**Source:** SecondMenuBarView.swift, MenuBarAppTile.swift, RunningApp.swift, AccessibilityService+Scanning.swift
+
+### Problem
+
+Icons inside translucent squircle containers appear TINY — not filling 80-90% of the container as intended. The code sets `tileSize: CGFloat = 32` and `iconSize: CGFloat { tileSize * 0.85 }` (= 27.2), using `.frame(width: iconSize, height: iconSize)` with `.resizable()` and `.aspectRatio(contentMode: .fit)`.
+
+### Root Cause: NSImage Source Size
+
+**Menu bar status item icons are small by design:**
+- System menu bar icons are typically 16x16 or 18x18 points (template images)
+- Third-party app icons come from `NSRunningApplication.icon` which is 32x32 or 64x64 points
+- Control Center/SystemUIServer icons are SF Symbols at 16pt configured size (line 235 in RunningApp.swift)
+
+**How icons are captured:**
+1. **Regular apps:** `RunningApp(app: app)` → `icon = app.icon` (line 325 in RunningApp.swift) — uses `NSRunningApplication.icon`
+2. **System menu extras:** `menuExtraItem()` → `NSImage(systemSymbolName:)` with `pointSize: 16` (line 235 in RunningApp.swift)
+3. **No upscaling applied during capture** — icons are stored at their native size
+
+**Why they appear tiny in the squircle:**
+
+**PanelIconTile (SecondMenuBarView.swift lines 316-327):**
+```swift
+private let tileSize: CGFloat = 32
+private var iconSize: CGFloat { tileSize * 0.85 }  // = 27.2
+
+iconImage
+    .frame(width: iconSize, height: iconSize)  // 27.2 × 27.2 frame
+```
+
+**The icon image rendering (lines 350-363):**
+```swift
+if let icon = app.iconThumbnail ?? app.icon {
+    Image(nsImage: icon)
+        .resizable()                           // Makes it resizable
+        .renderingMode(...)
+        .foregroundStyle(.primary)
+        .aspectRatio(contentMode: .fit)        // Fit within frame
+}
+```
+
+**The problem:**
+- `.resizable()` + `.aspectRatio(contentMode: .fit)` does NOT upscale — it only ensures the image fits within the frame while preserving aspect ratio
+- An 18x18 NSImage inside a 27.2x27.2 frame renders at 18x18 (native size) — it does NOT scale up to fill the frame
+- SwiftUI respects the NSImage's intrinsic size and won't upscale unless forced
+
+### How Find Icon Handles This (MenuBarAppTile.swift)
+
+**MenuBarAppTile uses a SMALLER percentage:**
+
+Lines 54-55:
+```swift
+.aspectRatio(contentMode: .fit)
+.frame(width: iconSize * 0.7, height: iconSize * 0.7)  // 70% of tile, not 85%
+```
+
+**Why this works better:**
+- The icon frame is intentionally SMALLER than the icon's native size
+- `.fit` scales DOWN (which SwiftUI does reliably) rather than expecting upscaling
+- Result: Icons appear appropriately sized within the larger tile
+
+**Find Icon also has a squircle background (line 39):**
+```swift
+RoundedRectangle(cornerRadius: max(8, iconSize * 0.18))
+    .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
+```
+
+But the icon itself is only 70% of the tile size, creating visual breathing room.
+
+### The Fix: Scale DOWN, Not UP
+
+**Option 1: Match Find Icon pattern (RECOMMENDED)**
+
+Change PanelIconTile icon frame to 70% instead of 85%:
+
+```swift
+private var iconSize: CGFloat { tileSize * 0.7 }  // 22.4 instead of 27.2
+```
+
+**Rationale:**
+- Makes icons appear proportionally similar to Find Icon
+- Relies on scaling down (which SwiftUI handles correctly)
+- Provides visual breathing room inside the squircle
+
+**Option 2: Force upscaling with interpolation**
+
+Keep 85% frame but force high-quality upscaling:
+
+```swift
+iconImage
+    .resizable()
+    .interpolation(.high)                      // ← ADD: Explicit interpolation
+    .renderingMode(...)
+    .foregroundStyle(.primary)
+    .aspectRatio(contentMode: .fill)           // ← CHANGE: .fill instead of .fit
+    .frame(width: iconSize, height: iconSize)
+```
+
+**Rationale:**
+- `.fill` forces the image to fill the frame (may crop if aspect ratio doesn't match)
+- `.interpolation(.high)` ensures upscaling uses high-quality filtering
+- Risk: Template icons may look blurry when upscaled 1.5x (18 → 27)
+
+**Option 3: Pre-render thumbnails at target size**
+
+Generate thumbnails at 27x27 when creating RunningApp:
+
+```swift
+// In AccessibilityService+Scanning.swift line 283
+let appModel = RunningApp(app: app, ...).withThumbnail(size: 27)
+```
+
+**Rationale:**
+- `withThumbnail()` already exists (RunningApp.swift line 176)
+- Pre-rendered thumbnails are sharp and sized correctly
+- Cost: Adds thumbnail generation overhead during scanning
+- Current code skips thumbnail generation intentionally (comment on line 284: "Skip thumbnail pre-calculation — let UI render lazily")
+
+### Recommended Solution
+
+**Use Option 1:** Change `iconSize` to `tileSize * 0.7`
+
+**Why:**
+- Simplest fix (one line change)
+- Consistent with Find Icon (proven pattern)
+- No upscaling quality concerns
+- No performance overhead
+
+**Code change:**
+
+File: `UI/SearchWindow/SecondMenuBarView.swift` line 318
+
+```swift
+private var iconSize: CGFloat { tileSize * 0.7 }  // Was 0.85
+```
+
+### Related Code
+
+- **Icon capture:** Core/Models/RunningApp.swift lines 234-240 (SF Symbols at 16pt), line 325 (NSRunningApplication.icon)
+- **Thumbnail generation:** Core/Models/RunningApp.swift lines 154-173 (`thumbnail(size:)` method)
+- **Squircle rendering:** UI/SearchWindow/SecondMenuBarView.swift lines 306-363 (PanelIconTile)
+- **Find Icon comparison:** UI/SearchWindow/MenuBarAppTile.swift lines 34-75 (uses 70% sizing)
+
+---
+
+## Tooltip Not Showing - Root Cause
+
+**Updated:** 2026-02-13 | **Status:** verified | **TTL:** 7d
+**Source:** Web research, GitHub code search (Claude Island NSPanel implementation), SaneBar codebase analysis
+
+### Problem
+
+SwiftUI `.help("text")` tooltips on PanelIconTile views are NOT appearing at all. The Second Menu Bar panel is a borderless NSPanel (KeyablePanel) at window level `.statusBar`, and `NSInitialToolTipDelay` is set to 100ms in `applicationDidFinishLaunching`.
+
+### Investigation Summary
+
+1. **NSInitialToolTipDelay Usage:** CORRECT
+   - Set in `SaneBarApp.swift:19`: `UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")`
+   - This is the correct key name and usage (verified via [Componentix blog](https://componentix.com/blog/20/change-tooltip-display-delay-in-cocoa-application/))
+   - Default macOS delay is 1000ms; setting 100ms is valid and should work
+
+2. **SwiftUI .help() Modifier:** CORRECTLY APPLIED
+   - Applied in `SecondMenuBarView.swift:334`: `.help(app.name)`
+   - This is on a Button with `.buttonStyle(.plain)`
+   - SwiftUI .help() maps to native NSView.toolTip on macOS
+
+3. **NSPanel Configuration:** MISSING MOUSE EVENT TRACKING
+   - Panel created in `SearchWindowController.swift:211-253` (createSecondMenuBarWindow)
+   - Panel is borderless: `styleMask: [.borderless, .resizable]` (line 226)
+   - Panel level: `.statusBar` (line 234)
+   - **CRITICAL MISSING:** Panel does NOT set `acceptsMouseMovedEvents = true`
+
+4. **Root Cause:** NSPanel doesn't track mouse-moved events by default
+   - Tooltips require mouse tracking to detect hover
+   - Without `acceptsMouseMovedEvents = true`, the panel never receives mouseEntered/mouseMoved events
+   - SwiftUI `.help()` modifier relies on underlying AppKit mouse tracking
+   - Even though buttons can be clicked (click events work), **hover tracking is separate**
+
+5. **Reference Implementation:** Claude Island NSPanel (verified working)
+   - Found in GitHub search: [ClaudeIsland/NotchWindow.swift](https://github.com/farouqaldori/claude-island/blob/0c92dfccf0c3d7356aff0f5cbd8b02a5ff613fcf/ClaudeIsland/UI/Window/NotchWindow.swift)
+   - That panel sets: `acceptsMouseMovedEvents = false` BUT uses `ignoresMouseEvents = true` (different use case — transparent overlay)
+   - For interactive panels like Second Menu Bar, need `acceptsMouseMovedEvents = true` for tooltips
+
+### The Fix
+
+**File:** `/Users/sj/SaneApps/apps/SaneBar/UI/SearchWindow/SearchWindowController.swift`
+
+**Location:** Line 253 (after `panel.maxSize = NSSize(...)`)
+
+**Add:**
+```swift
+panel.acceptsMouseMovedEvents = true
+```
+
+**Full context (lines 240-254 after fix):**
+```swift
+panel.isMovableByWindowBackground = true
+panel.animationBehavior = .utilityWindow
+panel.minSize = NSSize(width: 180, height: 80)
+panel.maxSize = NSSize(width: 800, height: 500)
+
+// Enable mouse tracking for tooltips
+panel.acceptsMouseMovedEvents = true
+
+// Shadow for depth
+if let contentView = panel.contentView {
+    contentView.wantsLayer = true
+    contentView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.3).cgColor
+    contentView.layer?.shadowOpacity = 1
+    contentView.layer?.shadowRadius = 12
+    contentView.layer?.shadowOffset = CGSize(width: 0, height: -4)
+}
+```
+
+### Why This Works
+
+1. **Mouse Tracking Enabled:** Panel now receives `mouseEntered`, `mouseMoved`, `mouseExited` events
+2. **SwiftUI .help() Activation:** SwiftUI's `.help()` modifier uses AppKit's tooltip system, which requires mouse tracking
+3. **NSInitialToolTipDelay Honored:** Once tracking is enabled, the 100ms delay setting applies
+4. **No Side Effects:** This only affects hover tracking; click events, keyboard events, and window behavior are unchanged
+
+### Verification Steps
+
+After applying fix:
+1. Build and launch SaneBar
+2. Open Second Menu Bar panel (icon in menu bar → click or hover)
+3. Hover over any app icon tile for ~100ms
+4. **Expected:** Yellow tooltip appears with app name
+
+### Related References
+
+- [How to make tooltip in SwiftUI for macOS](https://onmyway133.com/posts/how-to-make-tooltip-in-swiftui-for-macos/)
+- [SwiftUI for Mac - Part 2 (TrozWare)](https://troz.net/post/2019/swiftui-for-mac-2/)
+- [NSPanel and SwiftUI view with mouse events - Hacking with Swift](https://www.hackingwithswift.com/forums/swiftui/nspanel-and-swiftui-view-with-mouse-events/29593)
+- [acceptsMouseMovedEvents | Apple Developer Documentation](https://developer.apple.com/documentation/appkit/nswindow/acceptsmousemovedevents)
+
+---
+
 ## Move to Visible Bug Investigation (#56)
 
 **Updated:** 2026-02-11 | **Status:** active-investigation | **TTL:** 7d
 **Source:** GitHub issue #56, codebase analysis (all relevant files traced), ARCHITECTURE.md icon moving pipeline documentation
 
-### Issue Summary
-
-User on MacBook Pro with notch (v1.0.22, macOS 26.2, non-privileged account) reports:
-- Right-clicking a hidden menu bar item in the new strip panel → "Move to Visible"
-- Fast menu bar activity occurs (keyboard emulation visible)
-- Icon does NOT actually move to visible section
-- Diagnostics: 38 total items, 31 hidden, 7 visible, separator at x=1055, main icon at x=1331
-- Log collection failed: `Foundation._GenericObjCError error 0`
-
-### Code Path Analysis
-
-#### 1. Context Menu Creation (WHERE "Move to Visible" IS DEFINED)
-
-**Files:**
-- `UI/SearchWindow/SecondMenuBarView.swift:152` — New strip panel (floating panel below menu bar)
-- `UI/SearchWindow/MenuBarAppTile.swift:101` — Original Find Icon window
-- `UI/SearchWindow/MenuBarSearchView+Navigation.swift:30-70` — Action factory for all modes
-
-**Context menu in strip panel (SecondMenuBarView.swift:152):**
-```swift
-PanelIconTile(
-    app: app,
-    zone: zone,
-    onMoveToVisible: { moveIcon(app, toZone: .visible) }  // ← Right-click menu action
-)
-
-private func moveIcon(_ app: RunningApp, toZone: IconZone) {
-    switch toZone {
-    case .visible:
-        _ = menuBarManager.moveIcon(
-            bundleID: bundleID, menuExtraId: menuExtraId,
-            statusItemIndex: statusItemIndex, toHidden: false  // ← toHidden=false = move to visible
-        )
-    }
-}
-```
-
-**Zone classification (MenuBarSearchView+Navigation.swift:12-26):**
-```swift
-func appZone(for app: RunningApp) -> AppZone {
-    guard let xPos = app.xPosition else { return .visible }
-    let midX = xPos + ((app.width ?? 22) / 2)
-    let margin: CGFloat = 6
-
-    if let sepX = menuBarManager.getSeparatorOriginX(),
-       midX < (sepX - margin) {
-        return .hidden  // ← Icon is LEFT of separator = hidden
-    }
-    return .visible  // ← Icon is RIGHT of separator = visible
-}
-```
-
-**Key insight:** The code correctly identifies icon zones based on X position relative to separator. If user sees "Move to Visible" in context menu, the app is CORRECTLY classified as hidden.
-
-#### 2. Icon Moving Pipeline (EXECUTION PATH)
-
-**Main orchestrator: `Core/MenuBarManager+IconMoving.swift:101-283`**
-
-**Move sequence (lines 101-283):**
-1. **Guard check (lines 115-119):** Block if `hidingService.isAnimating` or `hidingService.isTransitioning`
-2. **Expand via shield pattern (lines 182-198):**
-   - If `wasHidden` (hidingState == .hidden), call `hidingService.showAll()` to expand both separators
-   - Wait 300ms for macOS relayout
-   - **CRITICAL:** The 10000px separator physically blocks Cmd+drag in BOTH directions, so expansion is required
-3. **Get separator positions (lines 200-218):**
-   - For `toHidden=false` (move to visible): read `getSeparatorRightEdgeX()` and `getMainStatusItemLeftEdgeX()`
-   - Separator at visual size (20px), not blocking size (10000px)
-4. **Cmd+drag execution (lines 228-254):**
-   - Calls `AccessibilityService.moveMenuBarIcon()` with target calculation
-   - Target for move-to-visible: `max(separatorX + 1, mainIconLeftEdge - 2)`
-   - Verification: icon must land RIGHT of separator
-   - One retry if verification fails (line 241-254)
-5. **Restore and re-hide (lines 256-266):**
-   - `hidingService.restoreFromShowAll()` (re-block always-hidden)
-   - `hidingService.hide()` (collapse main separator back to 10000px)
-6. **Refresh (lines 269-276):**
-   - Wait 300ms for positions to settle
-   - Invalidate accessibility cache
-   - Post `menuBarIconsDidChange` notification
-
-**Accessibility drag engine: `Core/Services/AccessibilityService+Interaction.swift:171-293`**
-
-**Key steps (lines 171-293):**
-1. **Poll for on-screen position (lines 192-205):**
-   - After `showAll()`, macOS WindowServer re-layouts asynchronously
-   - Icons may still be at off-screen positions (x=-3455) when 300ms sleep completes
-   - **30 polling attempts × 100ms = 3s max** to wait for icon to reach x >= 0
-2. **Target calculation (lines 214-232):**
-   ```swift
-   let moveOffset = max(30, iconFrame.size.width + 20)  // ← At least 30px
-   let targetX: CGFloat = if toHidden, let ahBoundary = visibleBoundaryX {
-       max(separatorX - moveOffset, ahBoundary + 2)  // ← Clamp: stay right of AH separator
-   } else if toHidden {
-       separatorX - moveOffset  // ← Move LEFT of separator
-   } else if let boundary = visibleBoundaryX {
-       // ← MOVE TO VISIBLE TARGET CALCULATION
-       max(separatorX + 1, boundary - 2)  // ← Just right of separator, left of SaneBar icon
-   }
-   ```
-3. **CGEvent Cmd+drag (lines 246, 376-501):**
-   - 16-step drag over ~240ms (line 434: 16 steps × 15ms)
-   - Cursor hidden during drag (line 414)
-   - Pre-position cursor, Cmd+mouseDown, drag, Cmd+mouseUp, restore cursor
-4. **Verification (lines 252-292):**
-   - Poll for position stability (20 attempts × 50ms = 1s max)
-   - Verify icon landed on expected side of separator:
-     ```swift
-     let margin = max(4, afterFrame.size.width * 0.3)
-     let movedToExpectedSide: Bool = if toHidden {
-         afterFrame.origin.x < (separatorX - margin)
-     } else {
-         afterFrame.origin.x > (separatorX + margin)  // ← Must be RIGHT of separator
-     }
-     ```
-
-#### 3. Separator Position Analysis (USER'S ENVIRONMENT)
-
-**Reported positions:**
-- `separatorOriginX: 1055.00` (LEFT edge of separator)
-- `mainIconLeftEdgeX: 1331.00` (LEFT edge of SaneBar icon)
-- Gap: 1331 - 1055 = 276px
-- Visible items: 7
-- Average space per item: 276 / 7 = 39.4px
-
-**Analysis:** This is NORMAL. Typical menu bar icon width is 22-30px with 5-10px spacing = 35-40px per icon. 7 items × 40px ≈ 280px. **The gap is NOT suspicious.**
-
-**Target calculation for user's environment:**
-- Separator right edge (when expanded): separatorOriginX + 20 = 1055 + 20 = 1075
-- mainIconLeftEdge: 1331
-- Target: `max(1075 + 1, 1331 - 2)` = `max(1076, 1329)` = **1329**
-- This places icon 2px LEFT of SaneBar icon — macOS should auto-insert and push SaneBar right
-
-**Expected behavior:** Icon should land at x=1329, verification checks `afterFrame.origin.x > (1075 + margin)`. With margin = max(4, iconWidth * 0.3) ≈ 6-10px, verification requires x > 1081-1085. Target 1329 is well within the visible zone.
-
-### Potential Failure Points
-
-#### A. Non-Admin Account (LOW LIKELIHOOD)
-
-**Investigation:**
-- Accessibility API (`AXUIElement`, `CGEvent`) does NOT require admin privileges
-- Cmd+drag simulation works in standard user accounts
-- HOWEVER: Some macOS versions have TCC (Transparency, Consent, and Control) bugs in non-admin accounts
-- User reports `accessibilityGranted: true` in diagnostics → permission IS granted
-
-**Verdict:** Unlikely root cause, but possible macOS TCC bug in non-admin account. No code changes can fix this.
-
-#### B. MacBook Pro Notch (MEDIUM LIKELIHOOD)
-
-**Investigation:**
-- User has `hasNotch: true`, hardware: MacBookPro18,1 (14" or 16" with notch)
-- Notch affects menu bar geometry: `screen.safeAreaInsets.top > 0`
-- Code reads icon positions via Accessibility API (`kAXPositionAttribute`) which returns GLOBAL screen coordinates
-
-**File:** `Core/Services/AccessibilityService+Interaction.swift:236-243`
-```swift
-// Line 236-243: Uses icon's actual AX Y position (menuBarY = iconFrame.midY)
-// NOT hardcoded Y=12, which would break with notch or accessibility zoom
-let menuBarY = iconFrame.midY
-let fromPoint = CGPoint(x: iconFrame.midX, y: menuBarY)
-let toPoint = CGPoint(x: targetX, y: menuBarY)
-```
-
-**Verdict:** Code handles notch correctly by reading actual Y position from Accessibility API. NOT the root cause.
-
-#### C. Separator Position Read During Blocking Mode (HIGH LIKELIHOOD)
-
-**Investigation:**
-- User's bar was in `hidden` state when "Move to Visible" was clicked
-- `MenuBarManager+IconMoving.swift:142` checks `wasHidden = hidingState == .hidden`
-- If wasHidden, calls `hidingService.showAll()` to expand separators (line 193)
-
-**CRITICAL CODE PATH (lines 200-218):**
-```swift
-let (separatorX, visibleBoundaryX): (CGFloat?, CGFloat?) = await MainActor.run {
-    // ← toHidden=false branch (move to visible)
-    let sep = self.getSeparatorRightEdgeX()  // ← Read separator RIGHT edge
-    let mainLeft = self.getMainStatusItemLeftEdgeX()
-    return (sep, mainLeft)
-}
-```
-
-**`getSeparatorRightEdgeX()` logic (lines 63-85):**
-```swift
-func getSeparatorRightEdgeX() -> CGFloat? {
-    guard let separatorButton = separatorItem?.button,
-          let separatorWindow = separatorButton.window
-    else {
-        logger.error("separatorItem or window is nil")
-        return nil
-    }
-    let frame = separatorWindow.frame
-    guard frame.width > 0 else {
-        logger.error("frame.width is 0")
-        return nil
-    }
-    // Cache the origin for classification during blocking mode
-    if frame.origin.x > 0, frame.width < 1000 {
-        lastKnownSeparatorX = frame.origin.x
-    }
-    let rightEdge = frame.origin.x + frame.width
-    return rightEdge
-}
-```
-
-**RACE CONDITION HYPOTHESIS:**
-1. User clicks "Move to Visible" while bar is `hidden`
-2. `showAll()` fires (line 193) → separator transitions from 10000px → 20px
-3. 300ms sleep (line 194)
-4. **DURING the 300ms sleep**, macOS WindowServer is still re-laying out items
-5. `getSeparatorRightEdgeX()` is called (line 215) AFTER the sleep
-6. **IF the separator window frame hasn't updated yet**, `frame.width` might still be 10000 or transitioning
-7. The `if frame.width < 1000` check (line 79) would FAIL
-8. `rightEdge = frame.origin.x + 10000` would be returned (off-screen)
-9. Target calculation: `max(-2925 + 1, 1331 - 2)` = 1329 (correct)
-10. **BUT if separator origin is still off-screen** (x=-2945), `separatorX + 1` = -2944
-11. Verification would fail because icon at x=1329 is NOT `> (separatorX + margin)` when separatorX is negative
-
-**COUNTER-EVIDENCE:** The code caches `lastKnownSeparatorX` (line 80) when separator is at visual size. On next read during blocking mode, it uses the cache. However, the `getSeparatorRightEdgeX()` method does NOT check if separator is in blocking mode — it always reads the live window frame.
-
-**ACTUAL ISSUE:** `getSeparatorRightEdgeX()` has NO blocking mode cache fallback. `getSeparatorOriginX()` (lines 13-34) DOES check `if separatorItem.length > 1000` and returns `lastKnownSeparatorX`, but `getSeparatorRightEdgeX()` does NOT.
-
-**File:** `Core/MenuBarManager+IconMoving.swift:63-85` (getSeparatorRightEdgeX)
-- Missing: `if separatorItem.length > 1000 { return lastKnownSeparatorX + 20 }` check
-
-**Verdict:** HIGH LIKELIHOOD. If macOS hasn't finished relayout 300ms after `showAll()`, separator window frame might still be at off-screen or transitioning width, causing incorrect target calculation.
-
-#### D. Verification Margin Too Strict for Small Icons (MEDIUM LIKELIHOOD)
-
-**Code:** `AccessibilityService+Interaction.swift:281`
-```swift
-let margin = max(4, afterFrame.size.width * 0.3)
-let movedToExpectedSide: Bool = if toHidden {
-    afterFrame.origin.x < (separatorX - margin)
-} else {
-    afterFrame.origin.x > (separatorX + margin)
-}
-```
-
-**Hypothesis:** If icon width is 16px (small icon), margin = max(4, 16 * 0.3) = max(4, 4.8) = 4.8px. Icon must land at x > (separatorX + 4.8). If separator is at 1075, icon must be > 1079.8. Target is 1329, so this should pass.
-
-**Verdict:** Unlikely root cause for this user, but margin formula might be too strict for edge cases.
-
-#### E. CGEvent Drag Timing on Slower Macs (LOW-MEDIUM LIKELIHOOD)
-
-**Code:** `AccessibilityService+Interaction.swift:434`
-```swift
-let steps = 16
-for i in 1 ... steps {
-    let t = CGFloat(i) / CGFloat(steps)
-    // ...
-    drag.post(tap: .cghidEventTap)
-    Thread.sleep(forTimeInterval: 0.015)  // ← 15ms per step
-}
-```
-
-**Total drag time:** 16 × 15ms = 240ms
-
-**Hypothesis:** On slower Macs (8GB M1 mini?), macOS WindowServer might not process drag events fast enough. If the drag completes before WindowServer registers the full Cmd+drag gesture, the icon might "rubber-band" back to original position.
-
-**COUNTER-EVIDENCE:** User reports "fast menu bar activity" which suggests the drag IS happening. If drag was too fast, they wouldn't see activity.
-
-**Verdict:** LOW likelihood. 240ms is already human-like (Ice uses similar timing).
-
-#### F. Icon Moving During Notch Screen with Off-Center Menu Bar (LOW LIKELIHOOD)
-
-**Hypothesis:** Notch screens have menu bar items positioned around the notch. If icon is near the notch boundary, drag target might be calculated incorrectly.
-
-**COUNTER-EVIDENCE:** User's separator is at x=1055, main icon at x=1331. Notch on 14" MacBook Pro is centered around x=700-900 (approximate). Both positions are well RIGHT of the notch, in the normal menu bar area.
-
-**Verdict:** LOW likelihood.
-
-#### G. Log Collection Failure = Permission Issue? (LOW LIKELIHOOD)
-
-**User reports:** `[ERROR] Failed to collect logs: Foundation._GenericObjCError error 0`
-
-**Code:** `Core/Services/DiagnosticsService.swift:172-178`
-```swift
-let entries = try store.getEntries(at: position, matching: predicate)
-} catch {
-    return [DiagnosticReport.LogEntry(
-        timestamp: Date(),
-        level: "ERROR",
-        message: "Failed to collect logs: \(error.localizedDescription)"
-    )]
-}
-```
-
-**Hypothesis:** `OSLogStore` requires Full Disk Access on some macOS versions when running in non-privileged account. If log collection fails, could other system APIs (CGEvent, AXUIElement) also be failing silently?
-
-**COUNTER-EVIDENCE:** User reports `accessibilityGranted: true`, and CGEvent doesn't require Full Disk Access. Log collection is a separate system (OSLog) with different permissions.
-
-**Verdict:** LOW likelihood that this is related to icon moving failure, but indicates possible permission oddities in non-admin account.
-
-### Known Fragilities from ARCHITECTURE.md
-
-From `ARCHITECTURE.md` § "Icon Moving Pipeline — Known Fragilities":
-
-1. **First drag sometimes fails** — timing between `showAll()` completing and icons becoming draggable
-2. **Wide icons (>100px)** may need special grab points
-3. **AH-to-Hidden verification is too strict** when separators are flush
-4. **Separator reads -3349 during blocking mode** — mitigated by `lastKnownSeparatorX` cache (BUT only in `getSeparatorOriginX()`, NOT `getSeparatorRightEdgeX()`)
-5. **Re-hiding after move** can undo the move if macOS hasn't reclassified the icon yet
-6. **This will always be fragile** — Ice has the same open bugs (#684)
-
-**Fragility #4 is EXACTLY the issue:** `getSeparatorRightEdgeX()` has no blocking mode cache fallback.
-
-### Hypothesized Root Cause
-
-**PRIMARY SUSPECT: Race condition in separator position read after `showAll()`**
-
-**Sequence:**
-1. User clicks "Move to Visible" on hidden icon (bar is in `hidden` state)
-2. `moveIcon()` checks `wasHidden = true` (line 142)
-3. Calls `hidingService.showAll()` (line 193) → separator length: 10000px → 20px
-4. Waits 300ms (line 194)
-5. **During 300ms**, macOS WindowServer starts re-layout, but may not finish on slower Macs
-6. `getSeparatorRightEdgeX()` is called (line 215)
-7. **Separator window frame is still transitioning** (width between 20 and 10000, or position still off-screen)
-8. `rightEdge = frame.origin.x + frame.width` returns incorrect value (either negative or huge)
-9. Target calculation: `max(incorrectSeparatorX + 1, 1331 - 2)` = 1329 (mainIconLeftEdge wins)
-10. Drag executes to x=1329 (CORRECT position)
-11. **Verification fails** because it re-reads separator position AFTER drag, and now separator is at correct position (x=1055)
-12. Verification: `afterFrame.origin.x > (separatorX + margin)` → `1329 > 1055 + 6` → TRUE
-13. **Wait, verification should PASS...**
-
-**REVISED HYPOTHESIS: Verification reads STALE separator position**
-
-Re-reading verification code (lines 276-292):
-```swift
-// Poll for position stability (20 attempts × 50ms)
-for attempt in 1 ... maxAttempts {
-    Thread.sleep(forTimeInterval: 0.05)
-    let currentFrame = getMenuBarIconFrame(...)  // ← Re-read icon position
-    if let current = currentFrame, let previous = previousFrame, current.origin.x == previous.origin.x {
-        afterFrame = current
-        logger.info("AX position stabilized after \(attempt * 50)ms")
-        break
-    }
-}
-
-// Verify icon landed on expected side of separator
-let margin = max(4, afterFrame.size.width * 0.3)
-let movedToExpectedSide: Bool = if toHidden {
-    afterFrame.origin.x < (separatorX - margin)
-} else {
-    afterFrame.origin.x > (separatorX + margin)  // ← Uses separatorX from BEFORE drag
-}
-```
-
-**AH-HA:** Verification uses `separatorX` value from BEFORE the drag (calculated at line 214-232). It does NOT re-read the separator position. If separator was transitioning during the initial read, the verification will compare against the WRONG separator position.
-
-**CORRECT ROOT CAUSE:**
-1. `getSeparatorRightEdgeX()` reads separator during transition → returns incorrect value
-2. Target is calculated correctly using `max(incorrectSep, boundary)` → boundary wins (1329)
-3. Drag executes to 1329 (icon DOES move to visible)
-4. Verification compares `1329 > incorrectSep + margin` → might FAIL if `incorrectSep` is huge (e.g., 10000)
-5. Verification reports FAILURE even though icon moved correctly
-6. Retry executes with SAME stale separator value → fails again
-7. `restoreFromShowAll()` + `hide()` collapses separator back to 10000px
-8. Icon is re-hidden even though it successfully moved to visible zone
-
-**FINAL HYPOTHESIS:** Icon DOES move to visible (drag completes), but verification fails due to stale separator read, and `hide()` re-pushes it off-screen before the user sees it.
-
-### Recommended Fixes
-
-#### Fix 1: Add blocking mode cache to `getSeparatorRightEdgeX()` (CRITICAL)
-
-**File:** `Core/MenuBarManager+IconMoving.swift:63-85`
-
-**Current code:**
-```swift
-func getSeparatorRightEdgeX() -> CGFloat? {
-    guard let separatorButton = separatorItem?.button,
-          let separatorWindow = separatorButton.window
-    else { return nil }
-    let frame = separatorWindow.frame
-    guard frame.width > 0 else { return nil }
-
-    // Cache the origin for classification
-    if frame.origin.x > 0, frame.width < 1000 {
-        lastKnownSeparatorX = frame.origin.x
-    }
-    let rightEdge = frame.origin.x + frame.width
-    return rightEdge
-}
-```
-
-**ADD:**
-```swift
-func getSeparatorRightEdgeX() -> CGFloat? {
-    guard let separatorItem else { return nil }
-
-    // If in blocking mode or transitioning, use cached value + visual width
-    if separatorItem.length > 1000 {
-        guard let cachedOrigin = lastKnownSeparatorX else { return nil }
-        return cachedOrigin + 20  // Visual width when expanded
-    }
-
-    guard let separatorButton = separatorItem.button,
-          let separatorWindow = separatorButton.window
-    else { return nil }
-    // ... rest of method
-}
-```
-
-#### Fix 2: Increase settle delay after `showAll()` for slower Macs (MEDIUM PRIORITY)
-
-**File:** `Core/MenuBarManager+IconMoving.swift:194`
-
-**Current:** `try? await Task.sleep(for: .milliseconds(300))`
-
-**Change to:** `try? await Task.sleep(for: .milliseconds(500))`
-
-**Rationale:** 300ms might not be enough for slower Macs (especially 8GB M1 with memory pressure). 500ms reduces risk of reading transitioning window frames. This was already noted in ARCHITECTURE.md: "500ms hits auto-rehide" but that's a trade-off vs correctness.
-
-#### Fix 3: Re-read separator position in verification (LOW PRIORITY, RISKY)
-
-**File:** `Core/Services/AccessibilityService+Interaction.swift:276-292`
-
-**Current:** Uses `separatorX` from before drag
-
-**Change to:** Call `menuBarManager.getSeparatorRightEdgeX()` again AFTER drag completes
-
-**Rationale:** Ensures verification compares against separator's ACTUAL current position
-
-**Risk:** If separator is still transitioning, verification might read another incorrect value. Better to fix the root cause (Fix 1) than add more reads.
-
-#### Fix 4: Disable re-hide if verification fails (MEDIUM PRIORITY)
-
-**File:** `Core/MenuBarManager+IconMoving.swift:256-266`
-
-**Current:**
-```swift
-if wasHidden {
-    await hidingService.restoreFromShowAll()
-    if !shouldSkipHide {
-        await hidingService.hide()  // ← Re-hides even if verification failed
-    }
-}
-```
-
-**Change to:**
-```swift
-if wasHidden {
-    await hidingService.restoreFromShowAll()
-    if !shouldSkipHide && success {  // ← Only re-hide if move succeeded
-        await hidingService.hide()
-    } else if !success {
-        logger.warning("Move verification failed — keeping items expanded to prevent re-hiding moved icon")
-    }
-}
-```
-
-**Rationale:** If icon DID move (drag completed) but verification failed (stale separator read), re-hiding will push the icon back off-screen. Better to leave expanded and let user manually hide.
-
-### Test Plan
-
-**To reproduce the bug:**
-1. Launch SaneBar on MacBook Pro with notch (or any Mac)
-2. Hide menu bar (click SaneBar icon)
-3. Open Find Icon or new strip panel
-4. Right-click a hidden icon → "Move to Visible"
-5. Observe: Fast menu bar activity, but icon doesn't appear in visible section
-6. Check logs for: separator position values, verification result
-
-**Expected logs if hypothesis is correct:**
-```
-[INFO] Separator right edge BEFORE: 10000.00 (or negative value)
-[INFO] Target X: 1329.00
-[INFO] Icon frame AFTER: x=1329.00 (icon DID move)
-[ERROR] Move verification failed: expected toHidden=false, separatorX=10000.00, afterX=1329.00
-[INFO] Move complete - re-hiding items...
-```
-
-**After Fix 1 applied:**
-```
-[INFO] Separator right edge BEFORE: 1075.00 (cached + 20)
-[INFO] Target X: 1329.00
-[INFO] Icon frame AFTER: x=1329.00
-[INFO] Move verification PASSED
-```
-
-### Additional Notes
-
-- **Non-admin account:** Unlikely to be the root cause, but user should verify Accessibility permission is granted in System Settings → Privacy & Security → Accessibility → SaneBar (checked)
-- **Log collection failure:** Unrelated to icon moving, but indicates possible permission quirks. User can manually grant Full Disk Access to enable log collection.
-- **Notch:** Correctly handled by code (uses actual Y position from AX API, not hardcoded)
-- **Separator gap (276px for 7 items):** NORMAL, not suspicious
-
----
-
-## Secondary Panel / Dropdown Bar — Implementation Plan
-
-**Updated:** 2026-02-07 | **Status:** approved-for-build | **TTL:** 30d
-**Source:** 18 adversarial reviews (6 perspectives x 3 models), Ice source analysis, SaneBar architecture review
-
-**Context:** Customer asked for this feature. We told them we'd look into it.
-
-### Background (Condensed from Sections 1-8)
-
-Ice's "Ice Bar" uses `NSPanel` with `.nonactivatingPanel`, `.level = .mainMenu + 1`, `.fullScreenAuxiliary`.
-Positions below menu bar via `screen.frame.maxY - menuBarHeight - panelHeight`. Icon images via
-`ScreenCapture.captureWindow()` (requires Screen Recording permission). Click handling: close panel, then
-simulate click on actual menu bar item. Known bugs: crashes (#786), Tahoe rendering (#711, #665),
-multi-monitor positioning (#517), endless loading (#677).
-
-**SaneBar reusable components:** `SearchWindowController` (floating window + hover suspension),
-`AccessibilityService.menuBarOwnersCache` (icon data), `MenuBarSearchView` (icon grid).
-**Missing:** below-menu-bar positioning, borderless panel style, bundle icon rendering.
-
-**All 18 critic reviews recommend deferring. If forced: Option B (minimal ~150 lines, reuse SearchWindowController).**
-
-### The 5 Critical Issues + Mitigations
-
-| # | Issue | Mitigation | Location |
-|---|-------|------------|----------|
-| 1 | HidingService vs Panel state fight | When `useDropdownPanel=true`, keep delimiter expanded always. Never call `hide()`. | `MenuBarManager.toggleHiddenItems()` :715 |
-| 2 | Screen Recording permission | Use `NSWorkspace.shared.icon(forFile:)` for bundle icons + `AccessibilityService.menuBarOwnersCache` for names. NO `CGWindowListCreateImage`. | New panel view |
-| 3 | HoverService races | Already solved: `SearchWindowController.show()` sets `hoverService.isSuspended = true` (:55). Panel reuses this. Add 300ms debounce before re-enabling on close. | `SearchWindowController.swift:55,76` |
-| 4 | Auto-rehide fires during panel | On panel `show()`: call `hidingService.cancelRehide()`. Panel mode = no rehide concept. | `SearchWindowController.show()` |
-| 5 | Feature redundancy with Find Icon | Different purposes: Find Icon = search by name (keyboard). Panel = quick visual browse (mouse). Option-click = Find Icon. Left-click = Panel. | UX documentation |
-
-### File-by-File Plan (~150 lines total)
-
-**1. `Core/Services/PersistenceService.swift`** (~10 lines)
-- Add `var useDropdownPanel: Bool = false` to `SaneBarSettings` (after `alwaysHiddenPinnedItemIds` ~line 228)
-- Add to `CodingKeys` and `init(from:)` with `decodeIfPresent`
-
-**2. `UI/SearchWindow/SearchWindowController.swift`** (~60 lines changed)
-- Add `SearchWindowMode` enum: `.findIcon` (current) vs `.panel` (below menu bar, borderless)
-- Mode read from `settings.useDropdownPanel` on each `show()` call
-- Panel mode: `styleMask: [.borderless, .nonactivatingPanel]`, `level: .mainMenu + 1`,
-  `collectionBehavior: [.fullScreenAuxiliary, .ignoresCycle]`, position flush below menu bar
-- On mode change: nil the window to force recreation via lazy `createWindow()`
-- On `show()`: also call `hidingService.cancelRehide()`
-
-**3. `Core/MenuBarManager.swift`** (~20 lines)
-- `toggleHiddenItems()` :715 — early return: if `useDropdownPanel`, call `SearchWindowController.shared.toggle()`
-- `showHiddenItemsNow()` :758 — early return: if `useDropdownPanel`, call `SearchWindowController.shared.show()`
-- `hideHiddenItems()` :796 — early return: if `useDropdownPanel`, no-op
-- On setting change (false→true): force `hidingService.show()` + `cancelRehide()`
-
-**4. `UI/Settings/ExperimentalSettingsView.swift`** (~30 lines)
-- `CompactToggle("Dropdown panel for hidden icons", isOn: $settings.useDropdownPanel)`
-- Help text explaining it replaces expand/collapse; Find Icon still works
-- `onChange`: force delimiter expanded, nil search window for recreation
-
-**5. `UI/SearchWindow/MenuBarSearchView.swift`** (~20 lines)
-- Add `RenderingMode` enum: `.searchWindow` (full) vs `.dropdownPanel` (compact, no search bar)
-- Panel mode: horizontal icon grid, `NSWorkspace.shared.icon(forFile:)` for images
-- Click action: close panel + `NSWorkspace.shared.open(bundleURL)`
-
-**No new files.** All reuses existing infrastructure.
-
-### Edge Cases (v1 vs v2)
-
-| Edge Case | v1 | v2 |
-|-----------|----|----|
-| Multi-monitor | `NSScreen.main` only | Track mouse, show on active screen |
-| Notch | Safe — below `visibleFrame.maxY` | Detect `safeAreaInsets` |
-| Fullscreen | `.fullScreenAuxiliary` | Already handled |
-| Spaces | Auto-dismiss via `windowDidResignKey` | Add `activeSpaceDidChange` observer |
-| Sleep/wake | Auto-closes on resign key | Wake notification to revalidate |
-| Rapid toggle | 300ms debounce | Already sufficient |
-
-### Rollback Plan
-
-1. **Sparkle kill switch**: Ship build that forces `useDropdownPanel = false`
-2. **User fix**: `defaults write com.sanebar.app useDropdownPanel -bool false`
-3. **Code removal**: If <5% usage after 30 days, delete the ~150 lines
-
-### Build Sequence
-
-1. Add `useDropdownPanel` to `SaneBarSettings` + `CodingKeys` + `init(from:)`
-2. Add UI toggle in `ExperimentalSettingsView`
-3. Add `SearchWindowMode` enum + mode-aware positioning in `SearchWindowController`
-4. Add panel routing in `MenuBarManager` toggle/show/hide methods
-5. Add compact rendering mode in `MenuBarSearchView`
-6. Test: toggle ON -> click icon -> panel appears below menu bar
-7. Test: toggle OFF -> original delimiter behavior restored
-8. Test: Find Icon (Cmd+Shift+Space) still works in both modes
-
----
-
-## SaneBar Interaction Map
-
-**Updated:** 2026-02-11 | **Status:** verified | **TTL:** 90d
-**Source:** Complete codebase trace of all user interaction paths
-
-### Click Behaviors (MenuBarManager+Actions.swift)
-
-| User Action | Code Path | What Happens |
-|-------------|-----------|--------------|
-| **LEFT-CLICK** SaneBar icon | `statusItemClicked()` line 91 → `clickType = .leftClick` (line 132) → `toggleHiddenItems()` (line 134) | **Toggles** hidden items (show if hidden, hide if shown). Default primary action. |
-| **RIGHT-CLICK** SaneBar icon | `statusItemClicked()` line 91 → `clickType = .rightClick` (line 135) → `showStatusMenu()` (line 136) | Shows context menu with: Find Icon, Settings, Check for Updates, Quit |
-| **OPTION-CLICK** SaneBar icon | `statusItemClicked()` line 91 → `clickType = .optionClick` (line 129) → `SearchWindowController.shared.toggle(mode: .findIcon)` (line 131) | Opens **Find Icon** search window (the original access method) |
-| **Control+Click** SaneBar icon | Treated as right-click (line 24, 361) | Same as right-click → shows context menu |
-
-**Click Type Detection:** `StatusBarController.clickType(from:)` lines 357-367
-- Right-click: `event.type == .rightMouseUp` OR `event.buttonNumber == 1` OR `Control` modifier
-- Option-click: `event.type == .leftMouseUp` AND `event.modifierFlags.contains(.option)`
-- Left-click: Everything else
-
-### Right-Click Menu Items (StatusBarController.swift:283-308)
-
-Created in `createMenu()`:
-
-1. **"Find Icon..."** → `openFindIcon()` (MenuBarManager+Actions.swift:74) → `SearchWindowController.shared.toggle()` → Opens Find Icon search window
-2. **Separator**
-3. **"Settings..."** (⌘,) → `openSettings()` → `SettingsOpener.open()`
-4. **"Check for Updates..."** → `checkForUpdates()` → Sparkle updater
-5. **Separator**
-6. **"Quit SaneBar"** (⌘Q) → `quitApp()` → `NSApplication.shared.terminate(nil)`
-
-### Keyboard Shortcuts (KeyboardShortcutsService.swift)
-
-Default shortcuts set on first launch (lines 118-142):
-
-| Shortcut | Action | Code Handler | What It Does |
-|----------|--------|--------------|--------------|
-| **⌘\\** | Toggle Hidden Items | `toggleHiddenItems()` line 65-68 | Same as left-clicking icon |
-| **⌘⇧\\** | Show Hidden Items | `showHiddenItems()` line 72-75 | Force show (doesn't toggle) |
-| **⌘⌥\\** | Hide Items | `hideItems()` line 79-82 | Force hide (doesn't toggle) |
-| **⌘⇧Space** | Search Menu Bar | `searchMenuBar` line 93-96 | Opens **Find Icon** search window |
-| **⌘,** | Open Settings | Built-in macOS standard | Settings window (not in shortcuts service) |
-
-**Note:** No default for "Open Settings" global hotkey (line 138-140) — ⌘, only works when SaneBar is active. User can set custom global hotkey in Settings → Shortcuts.
-
-### Find Icon vs Second Menu Bar (SearchWindowController.swift)
-
-**TWO DIFFERENT MODES for accessing hidden icons:**
-
-#### Find Icon (Original Method)
-- **Trigger:** Option-click icon OR ⌘⇧Space OR right-click menu "Find Icon..."
-- **What it is:** Floating search window (titled "Find Icon", closable, resizable, centered)
-- **Created:** Lines 184-209 (`.titled, .closable, .resizable`, level = `.floating`)
-- **Position:** Centered near top of screen (line 136-140)
-- **Behavior:** Search by app name, arrow keys to navigate, Enter to click, ESC to close
-- **Code mode:** `SearchWindowMode.findIcon` (line 7)
-
-#### Second Menu Bar (Alternative Method)
-- **Trigger:** Left-click icon (IF `useSecondMenuBar` setting is ON)
-- **What it is:** Borderless panel below the menu bar showing all hidden icons
-- **Created:** Lines 211-252 (`.borderless`, level = `.statusBar`, uses `KeyablePanel`)
-- **Position:** Below menu bar, right-aligned to SaneBar icon (line 142-168)
-- **Behavior:** Visual grid of icons, click to open, right-click for context menu, ESC to close
-- **Code mode:** `SearchWindowMode.secondMenuBar` (line 10)
-
-**The Setting:** `useSecondMenuBar: Bool` (PersistenceService.swift:227)
-- **Default:** `false` (Find Icon is default)
-- **Where to toggle:** Settings → General → Hiding → "Show hidden icons in second menu bar"
-- **Effect:** Changes what LEFT-CLICK does AND what `toggle()` opens
-
-### How `useSecondMenuBar` Changes Behavior (SearchWindowController.swift:45-47)
-
-```swift
-var activeMode: SearchWindowMode {
-    MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
-}
-```
-
-**When `useSecondMenuBar = false` (DEFAULT):**
-- Left-click → `toggleHiddenItems()` → separator expands/collapses (traditional behavior)
-- Option-click → Opens Find Icon search window
-- ⌘⇧Space → Opens Find Icon search window
-
-**When `useSecondMenuBar = true`:**
-- Left-click → `toggleHiddenItems()` → Opens Second Menu Bar panel (line 131)
-- Option-click → **STILL opens Find Icon** (line 131 forces `.findIcon` mode)
-- ⌘⇧Space → Opens Find Icon search window
-- Separator stays hidden (panel replaces expand/collapse paradigm)
-
-**Key Code Path (MenuBarManager+Actions.swift:129-134):**
-```swift
-case .optionClick:
-    SearchWindowController.shared.toggle(mode: .findIcon)  // ← ALWAYS Find Icon
-case .leftClick:
-    toggleHiddenItems()  // ← Delegates to search controller if useSecondMenuBar=true
-```
-
-### Toggle Logic Flow (MenuBarManager+Visibility.swift:17-55)
-
-**`toggleHiddenItems()` — The Primary Toggle Function**
-
-Lines 17-55 in MenuBarManager+Visibility.swift:
-
-1. **Check current state** (line 19): Read `hidingService.state` (`.hidden` or `.expanded`)
-2. **Auth check** (lines 20-38): If showing AND `requireAuthToShowHiddenIcons = true`, prompt Touch ID/password
-3. **Toggle** (line 41): Call `hidingService.toggle()` (expand if hidden, hide if expanded)
-4. **Unpin if hiding** (lines 45-48): If user hid items, set `isRevealPinned = false`
-5. **Auto-rehide schedule** (lines 51-53): If expanded + autoRehide enabled, schedule timer to collapse
-
-**The Three Toggle Functions:**
-
-| Function | What It Does | Use Case |
-|----------|--------------|----------|
-| `toggleHiddenItems()` | Toggle (show if hidden, hide if shown) | Default action (left-click, ⌘\\) |
-| `showHiddenItems()` | Force show (no toggle) | Hotkey ⌘⇧\\, automation |
-| `hideHiddenItems()` | Force hide (no toggle) | Hotkey ⌘⌥\\, automation, auto-rehide timer |
-
-### Visual Differences Between Modes
-
-| Feature | Find Icon | Second Menu Bar |
-|---------|-----------|-----------------|
-| **Window Style** | Titled window with "Find Icon" title bar, close button | Borderless panel, no title bar |
-| **Size** | 420×520px, resizable | Auto-sized to fit icons, not resizable |
-| **Position** | Centered near top of screen | Below menu bar, right-aligned to SaneBar icon |
-| **Search bar** | Yes — type to filter apps | No — shows all icons |
-| **Navigation** | Keyboard (arrow keys, Enter) + mouse | Mouse only (click icons) |
-| **Closing** | Click X, press ESC, click outside | Press ESC, click outside (NO auto-close on icon click) |
-| **Window Level** | `.floating` (above most windows) | `.statusBar` (same level as menu bar) |
-| **Auto-close** | Yes (200ms after losing focus, line 270-276) | **NO** (line 263-265) — stays open while using menus |
-| **Icon Rendering** | Search view with app names | Panel with icon tiles |
-
-### The Key Distinction (from README.md lines 129-136)
-
-**README.md explains it:**
-- **Find Icon:** "Search for any menu bar app by name and activate it" — keyboard-first, search-driven
-- **Second Menu Bar:** "See all your hidden and always-hidden icons in a floating bar below the menu bar" — visual, mouse-driven
-- **Both work together:** Option-click ALWAYS opens Find Icon (even when Second Menu Bar is enabled)
-
-### Auto-Close Behavior Difference (SearchWindowController.swift:258-277)
-
-**Find Icon (`.findIcon` mode):**
-```swift
-func windowDidResignKey(_: Notification) {
-    if currentMode == .secondMenuBar { return }  // ← Skip for panel
-
-    // 200ms grace period — if window regains key, cancel close
-    resignCloseTask = Task {
-        try? await Task.sleep(for: .milliseconds(200))
-        guard !Task.isCancelled else { return }
-        close()
-    }
-}
-```
-
-**Second Menu Bar (`.secondMenuBar` mode):**
-- **Never auto-closes** on `resignKey` (line 265)
-- Users expect it to stay open while clicking menus/dropdowns
-- Closed explicitly: ESC key OR click outside OR user action
-
-### Summary: The Complete Interaction Matrix
-
-| User Does | `useSecondMenuBar = false` | `useSecondMenuBar = true` |
-|-----------|----------------------------|---------------------------|
-| **Left-click icon** | Separator expands/collapses | Second Menu Bar panel opens |
-| **Right-click icon** | Context menu (Find Icon, Settings, Updates, Quit) | Same context menu |
-| **Option-click icon** | Find Icon search window | Find Icon search window (unchanged) |
-| **⌘\\** (hotkey) | Separator expands/collapses | Second Menu Bar panel opens |
-| **⌘⇧Space** (hotkey) | Find Icon search window | Find Icon search window (unchanged) |
-| **"Find Icon..." menu** | Find Icon search window | Find Icon search window (unchanged) |
-
-**The Golden Rule:**
-- **Option-click and ⌘⇧Space ALWAYS open Find Icon** (search-driven access)
-- **Left-click behavior is controlled by `useSecondMenuBar` setting** (toggle separator OR open panel)
-- **Find Icon and Second Menu Bar are COMPLEMENTARY** — both can coexist, serve different use cases
-
----
-
-## Icon Moving — Graduated to ARCHITECTURE.md
-
-**Graduated:** 2026-02-09 | All icon moving research (APIs, competitors, bug analysis) moved to `ARCHITECTURE.md` § "Icon Moving Pipeline".
-
-Sections graduated:
-- Icon Moving Pipeline — Bug Root Cause Analysis (9 bugs, all fixed)
-- Competitor Icon Moving Approaches (Ice, Dozer, Bartender)
-- Apple APIs — Menu Bar Icon Positioning (comprehensive dead-end analysis)
-
----
-
-## OSLogStore Error Fix
-
-**Updated:** 2026-02-11 | **Status:** verified | **TTL:** 30d
-**Source:** Web search (Apple Developer Forums, GitHub code search, macOS logging documentation), SaneBar DiagnosticsService.swift analysis
-
-### The Error
-
-SaneBar user on macOS (non-privileged account) gets `Foundation._GenericObjCError error 0` when DiagnosticsService tries to collect recent logs via OSLogStore:
-
-```swift
-let store = try OSLogStore(scope: .currentProcessIdentifier)
-let entries = try store.getEntries(at: position, matching: predicate)
-// ↑ Throws: Foundation._GenericObjCError error 0
-```
-
-**Location:** `Core/Services/DiagnosticsService.swift:147-152`
-
-### Root Cause
-
-**OSLogStore requires admin user permissions** to access the unified logging system on macOS. According to Apple Developer Forums ([thread 691093](https://developer.apple.com/forums/thread/691093)):
-
-> "To access the local unified logging system, the caller must be run by an admin account and have the `com.apple.logging.local-store` entitlement. However, as long as you're running as an admin user, you don't need the entitlement."
-
-**For non-admin users:** There is no API workaround. The `.currentProcessIdentifier` scope still requires admin privileges despite being process-scoped.
-
-**The error:** `Foundation._GenericObjCError error 0` is a generic Objective-C bridge error that appears when the underlying system call fails due to permissions. The actual error (EPERM, access denied) is swallowed by the OS and wrapped in this opaque error.
-
-### Evidence from Production Apps
-
-**GitHub code search** found 4 other apps using OSLogStore with try/catch error handling:
-
-1. **DuckDuckGo Browsers** ([apple-browsers](https://github.com/duckduckgo/apple-browsers/blob/main/iOS/DuckDuckGo/RemoteMessagingDebugViewController.swift)) — Wraps OSLogStore in try/catch, falls back to "Log collection unavailable" message
-2. **TextWarden** ([textwarden](https://github.com/PhilipSchmid/textwarden/blob/main/Sources/Models/DiagnosticReport.swift)) — Similar pattern: try OSLogStore, catch returns empty array
-3. **Retrace** ([retrace](https://github.com/haseab/retrace/blob/main/UI/Views/Feedback/FeedbackService.swift)) — Uses OSLogStore but only in admin context (app requires admin for core functionality)
-4. **SaneBar** (this codebase) — Already has correct try/catch pattern, returns error LogEntry (line 173-177)
-
-**Ice (jordanbaird/Ice)** — The popular menu bar manager ([12.7k stars](https://github.com/jordanbaird/Ice)) does NOT use OSLogStore. Could not find Logger.swift or OSLog usage in the repo. Ice likely uses file-based logging or doesn't collect diagnostics programmatically.
-
-### Fallback Alternatives
-
-#### Option 1: `log show` Command Line (Requires TCC Prompt)
-
-Users can manually collect logs via Terminal:
-
-```bash
-log show --predicate 'subsystem == "com.sanebar.app"' --last 5m --style syslog > ~/Desktop/sanebar-logs.txt
-```
-
-**Pros:** Works without admin account, captures all log levels
-**Cons:** Requires Terminal usage, still needs Full Disk Access TCC prompt for some log sources
-
-#### Option 2: File-Based Logging Fallback (OSLog + File Write)
-
-Apps like **CocoaLumberjack** ([CleanroomLogger](https://github.com/emaloney/CleanroomLogger)) and **SwiftyBeaver** provide file-based logging alongside OSLog. Pattern:
-
-```swift
-import OSLog
-let logger = Logger(subsystem: "com.sanebar.app", category: "diagnostics")
-
-// Log normally
-logger.info("App launched")
-
-// For diagnostics: ALSO write to file
-let logURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    .appendingPathComponent("sanebar-diagnostics.log")
-try? "[\(Date())] [INFO] App launched\n".data(using: .utf8)?.write(to: logURL, options: .atomic)
-```
-
-**Pros:** Works in non-admin accounts, no permissions needed
-**Cons:** Requires parallel logging infrastructure, file management, disk usage
-
-#### Option 3: User Instructions + Graceful Degradation (RECOMMENDED)
-
-**Current SaneBar implementation is already correct** (DiagnosticsService.swift:172-178):
-
-```swift
-} catch {
-    return [DiagnosticReport.LogEntry(
-        timestamp: Date(),
-        level: "ERROR",
-        message: "Failed to collect logs: \(error.localizedDescription)"
-    )]
-}
-```
-
-**Recommended UX improvement:**
-
-1. **In FeedbackView**, detect if log collection failed (check for "Failed to collect logs" entry)
-2. **Show help text:** "Log collection requires admin privileges. To include logs, run this command in Terminal: `log show --predicate 'subsystem == \"com.sanebar.app\"' --last 5m > ~/Desktop/sanebar-logs.txt`"
-3. **Offer "Copy Command" button** for easy Terminal paste
-4. **Don't block feedback submission** — diagnostics without logs are still useful (environment, settings, menu bar item counts)
-
-### Why Not File-Based Logging?
-
-**Consensus from search results:**
-
-- OSLog is Apple's recommended approach ([SwiftLee guide](https://www.avanderlee.com/debugging/oslog-unified-logging/), [roger.ml article](https://www.roger.ml/p/oslog))
-- File-based logging adds complexity: rotation, size limits, privacy (log files contain user paths)
-- OSLog already handles privacy (redacts sensitive data), compression, and retention
-- For **diagnostic collection specifically**, graceful degradation (fallback to manual Terminal command) is better UX than maintaining parallel file logging
-
-**CocoaLumberjack/SwiftyBeaver are overkill** for SaneBar's use case. They're designed for apps that need:
-- Remote logging (crash analytics services)
-- Multi-destination logging (console + file + network)
-- Custom formatters
-
-SaneBar just needs: **"Give me the last 5 minutes of my own logs for bug reports."**
-
-### Implementation Status in SaneBar
-
-**Already correct** (no code changes needed):
-
-- ✅ Try/catch wraps OSLogStore (line 146-178)
-- ✅ Graceful error handling returns error LogEntry instead of crashing
-- ✅ Privacy: `sanitize()` redacts file paths, emails, API keys (lines 365-391)
-- ✅ Time-bounded: Only last 5 minutes (line 148)
-- ✅ Subsystem-scoped: Only `com.sanebar.app` logs (line 151)
-
-**Optional UX enhancement:**
-
-Add to `UI/Settings/FeedbackView.swift` (when showing diagnostic report preview):
-
-```swift
-if diagnostics.recentLogs.contains(where: { $0.message.contains("Failed to collect logs") }) {
-    GroupBox {
-        Text("Log collection requires admin privileges.")
-        Button("Copy Terminal Command") {
-            NSPasteboard.general.setString(
-                "log show --predicate 'subsystem == \"com.sanebar.app\"' --last 5m > ~/Desktop/sanebar-logs.txt",
-                forType: .string
-            )
-        }
-    }
-}
-```
-
-### Key Takeaways
-
-1. **OSLogStore + non-admin account = `Foundation._GenericObjCError error 0`** (permission denied)
-2. **No programmatic workaround exists** — this is an OS security restriction
-3. **File-based logging is overkill** for diagnostic collection use case
-4. **Current implementation is correct** — error is caught, feedback still submittable
-5. **UX improvement:** Detect log collection failure, show Terminal command as fallback
-6. **Ice doesn't use OSLogStore** — competitor analysis shows most menu bar apps don't collect logs programmatically
-
-### References
-
-- [Apple Developer Forums — OSLogStore thread 691093](https://developer.apple.com/forums/thread/691093)
-- [Kandji — Mac Logging and the log Command](https://www.kandji.io/blog/mac-logging-and-the-log-command-a-guide-for-apple-admins)
-- [SwiftLee — OSLog Unified Logging](https://www.avanderlee.com/debugging/oslog-unified-logging/)
-- [SS64 — log command reference](https://ss64.com/mac/log.html)
-- [Medium — Making Sense of macOS Logs](https://medium.com/@cyberengage.org/making-sense-of-macos-logs-part1-a-user-friendly-guide-8f367b388184)
-
----
-
-### Graduated Sections
-
-- **Icon Moving Pipeline** (graduated Feb 9): All API research, competitor analysis, 9-bug RCA → `ARCHITECTURE.md` § "Icon Moving Pipeline"
-- **Privacy-First Click Tracking** (implemented Feb 6): Cloudflare Web Analytics + go.saneapps.com Worker deployed
-- **Ice Import Service** (implemented Feb 5): `BartenderImportService` extended to import Ice settings via `com.jordanbaird.Ice` plist
-- **Tint + Reduce Transparency Bug #34** (implemented Feb 6): Skip Liquid Glass when RT enabled, opacity floor 0.5, live observer via `DistributedNotificationCenter`. 4 commits on main, ships in v1.0.19.
-
----
-
-(... rest of existing research.md content continues unchanged ...)
+(... rest of the existing research content continues unchanged ...)

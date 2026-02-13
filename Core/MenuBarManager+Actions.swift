@@ -139,13 +139,11 @@ extension MenuBarManager {
 
     func showStatusMenu() {
         guard let statusMenu,
-              let targetItem = mainStatusItem,
-              targetItem.button != nil else { return }
+              let button = mainStatusItem?.button else { return }
 
         logger.info("Showing status menu (anchor: main icon)")
-        // Let AppKit choose the best placement (avoids weird clipping/partially-collapsed menus)
-        targetItem.menu = statusMenu
-        targetItem.button?.performClick(nil)
-        targetItem.menu = nil
+        // Pop up directly — avoids performClick re-triggering statusItemClicked
+        let origin = NSPoint(x: 0, y: button.bounds.maxY + 5)
+        statusMenu.popUp(positioning: nil, at: origin, in: button)
     }
 }

@@ -224,8 +224,11 @@ extension MenuBarManager {
                 if toHidden {
                     let sep = separatorOverrideX ?? self.getSeparatorOriginX()
                     // AH separator right edge = inner boundary (don't overshoot into AH zone)
+                    // BUT: skip this clamp when separatorOverrideX is set, because that means
+                    // we ARE targeting the AH separator (pin enforcement) and need to cross it.
                     var ahRight: CGFloat?
-                    if let ahItem = self.alwaysHiddenSeparatorItem,
+                    if separatorOverrideX == nil,
+                       let ahItem = self.alwaysHiddenSeparatorItem,
                        let ahButton = ahItem.button,
                        let ahWindow = ahButton.window,
                        ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {

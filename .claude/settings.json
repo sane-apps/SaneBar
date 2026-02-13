@@ -37,28 +37,6 @@
     "swift-lsp@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "ralph-wiggum@claude-plugins-official": true,
-    "claude-mem@thedotmack": true
-  },
-  "mcpServers": {
-    "memory": {
-      "command": "node",
-      "args": [
-        "/Users/sj/.claude/plugins/cache/thedotmack/claude-mem/9.0.6/scripts/mcp-server.cjs"
-      ]
-    },
-    "apple-docs": {
-      "command": "node",
-      "args": [
-        "/Users/sj/Dev/apple-docs-mcp-local/dist/index.js"
-      ]
-    },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ]
-    }
+    "ralph-wiggum@claude-plugins-official": true
   }
 }

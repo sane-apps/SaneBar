@@ -226,6 +226,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons in a second menu bar below the main one instead of expanding the separator.
     var useSecondMenuBar: Bool = false
 
+    /// Include visible (non-hidden) icons in the Second Menu Bar panel.
+    /// Off by default — users can already see visible icons in the menu bar.
+    var secondMenuBarShowVisible: Bool = false
+
     /// Menu bar item IDs that should be kept in the always-hidden section across launches.
     /// Stored as `RunningApp.uniqueId` values (best-effort).
     var alwaysHiddenPinnedItemIds: [String] = []
@@ -299,6 +303,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         useSecondMenuBar = try container.decodeIfPresent(Bool.self, forKey: .useSecondMenuBar)
             ?? legacyDropdownPanel
             ?? false
+        secondMenuBarShowVisible = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowVisible) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -312,7 +317,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
-        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 

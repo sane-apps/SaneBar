@@ -107,6 +107,15 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         (bundleId == "com.apple.controlcenter" || bundleId == "com.apple.systemuiserver") && (menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") ?? false)
     }
 
+    /// SF Symbol name for known system menu extras (Bluetooth, Wi-Fi, Battery, etc.).
+    /// Used as a view-layer fallback when `icon` is a generic gear from the owning process.
+    var preferredSFSymbol: String? {
+        guard let id = menuExtraIdentifier else { return nil }
+        let symbol = Self.iconForMenuExtra(id)
+        // "circle.grid.2x2" is the default/unknown — don't use it as a preferred override
+        return symbol == "circle.grid.2x2" ? nil : symbol
+    }
+
     /// System items that cannot be moved or hidden (Clock, Control Center toggle).
     /// These should be excluded from the Second Menu Bar panel and Icon Panel.
     private static let unmovableMenuExtraIds: Set<String> = [
@@ -322,8 +331,8 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     init(app: NSRunningApplication, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = app.bundleIdentifier ?? UUID().uuidString
         name = app.localizedName ?? "Unknown"
-        icon = app.icon
         iconThumbnail = nil
+        icon = app.icon
         self.xPosition = xPosition
         self.width = width
 

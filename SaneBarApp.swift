@@ -15,6 +15,9 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         appLogger.info("🏁 applicationDidFinishLaunching START")
 
+        // Near-instant tooltips (default is ~1000ms)
+        UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
+
         // Move to /Applications if running from Downloads or other location (Release only)
         #if !DEBUG
             if SaneAppMover.moveToApplicationsFolderIfNeeded() { return }

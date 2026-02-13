@@ -68,6 +68,7 @@
 		A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */; };
 		A31A1121AA09ACA4DB5061D0 /* SearchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9911A7251AE151FCA164258D /* SearchWindowController.swift */; };
 		A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */; };
+		A5C6AEDCAC6B07C8C9B7D474 /* SecondMenuBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */; };
 		A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1779B5B710715DD106EE34 /* TriggerService.swift */; };
 		AA113AF7B7D2944334AA41F0 /* IconMovingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D77834D54799A501DFEAA7D8 /* IconMovingTests.swift */; };
 		AACD9A6170B39E6B630846A0 /* SaneBar.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */; };
@@ -122,6 +123,7 @@
 		14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Scanning.swift"; sourceTree = "<group>"; };
 		173B1E0F366D5E04309BF460 /* MenuBarSearchStatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchStatusViews.swift; sourceTree = "<group>"; };
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
+		1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondMenuBarTests.swift; sourceTree = "<group>"; };
 		1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchTabs.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
@@ -310,6 +312,7 @@
 				53C1903EBAF08F08138D9F79 /* ReleaseRegressionTests.swift */,
 				AC8DFCDA1C4025F24D61245B /* SaneBarTests.swift */,
 				26C33525F13C653C654FBABD /* SearchWindowTests.swift */,
+				1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */,
 				DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */,
 				D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */,
 				CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */,
@@ -500,6 +503,7 @@
 						ProvisioningStyle = Manual;
 					};
 					1951DC8E5DD83CFDC1E5875B = {
+						DevelopmentTeam = M78L6FXD48;
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -589,6 +593,7 @@
 				A118FE7C958BA179F03268E3 /* ReleaseRegressionTests.swift in Sources */,
 				9BC52E05D50B842C329F419F /* SaneBarTests.swift in Sources */,
 				13AC7B8301F35EC509B22F16 /* SearchWindowTests.swift in Sources */,
+				A5C6AEDCAC6B07C8C9B7D474 /* SecondMenuBarTests.swift in Sources */,
 				F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */,
 				4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */,
 				C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */,
@@ -895,11 +900,12 @@
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1023;
+				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -951,9 +957,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = M78L6FXD48;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
