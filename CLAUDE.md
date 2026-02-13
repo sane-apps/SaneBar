@@ -205,13 +205,13 @@ SaneBar has automated SOP enforcement via hooks:
 
 ## MCP Tool Optimization (TOKEN SAVERS)
 
-### claude-mem 3-Layer Workflow (10x Token Savings)
+### Serena Memories
+Use Serena for project-specific knowledge:
 ```
-1. search(query, project: "SaneBar") → Get index with IDs (~50-100 tokens/result)
-2. timeline(anchor=ID)              → Get context around results
-3. get_observations([IDs])          → Fetch ONLY filtered IDs
+read_memory  # Check past learnings
+write_memory # Save important findings
 ```
-**Always add `project: "SaneBar"` to searches for isolation.**
+For cross-project knowledge graph, use official Memory MCP tools.
 
 ### apple-docs Optimization
 - `compact: true` works on `list_technologies`, `get_sample_code`, `wwdc` (NOT on `search_apple_docs`)
