@@ -48,6 +48,14 @@ protocol SearchServiceProtocol: Sendable {
     /// Refresh shown (visible) menu bar apps in the background (may take time).
     func refreshVisibleMenuBarApps() async -> [RunningApp]
 
+    /// Classify all cached menu bar items into zones in a single pass.
+    /// Guarantees each item appears in exactly one zone.
+    @MainActor
+    func cachedClassifiedApps() -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+
+    /// Refresh and classify all menu bar items into zones in a single pass.
+    func refreshClassifiedApps() async -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
     func activate(app: RunningApp, isRightClick: Bool) async
@@ -58,7 +66,7 @@ protocol SearchServiceProtocol: Sendable {
 final class SearchService: SearchServiceProtocol {
     static let shared = SearchService()
 
-    private enum VisibilityZone {
+    enum VisibilityZone: Equatable, Hashable {
         case visible
         case hidden
         case alwaysHidden
@@ -92,15 +100,8 @@ final class SearchService: SearchServiceProtocol {
             return (separatorX, nil)
         }
 
-        // If exact position unavailable (separator is in blocking mode at 10,000),
-        // use the screen left edge as the boundary. During expanded state,
-        // always-hidden items are pushed off-screen (x < 0) by the blocking separator,
-        // so items left of screen edge = always-hidden, on-screen left of separator = hidden.
-        if alwaysHiddenSeparatorX == nil {
-            let screenMinX = menuBarScreenFrame()?.minX ?? 0
-            return (separatorX, screenMinX)
-        }
-
+        // If AH position is unavailable (blocking mode, never cached), return nil for AH.
+        // classifyItems will use pinned IDs as a post-pass instead of a fake boundary.
         return (separatorX, alwaysHiddenSeparatorX)
     }
 
@@ -123,7 +124,9 @@ final class SearchService: SearchServiceProtocol {
         return x < (screenFrame.minX - margin) || x > (screenFrame.maxX + margin)
     }
 
-    private func classifyZone(
+    /// Classify an item's zone based on its position relative to separators.
+    /// Internal for testability — the core zone classification logic.
+    func classifyZone(
         itemX: CGFloat,
         itemWidth: CGFloat?,
         separatorX: CGFloat,
@@ -262,9 +265,10 @@ final class SearchService: SearchServiceProtocol {
             return apps
         }
 
-        // Fallback: when separator unavailable, treat all items as visible
-        logger.debug("cachedVisible: no separator, returning all \(items.count, privacy: .public) items")
-        return items.map(\.app)
+        // Fallback: separator unavailable — can't classify zones, return empty.
+        // The async refresh will populate correctly once positions are available.
+        logger.debug("cachedVisible: no separator, returning empty (will refresh async)")
+        return []
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
@@ -404,6 +408,100 @@ final class SearchService: SearchServiceProtocol {
         for app in apps.prefix(12) {
             logger.debug("Find Icon sample (\(context, privacy: .public)): id=\(app.id, privacy: .private) bundleId=\(app.bundleId, privacy: .private) menuExtraId=\(app.menuExtraIdentifier ?? "nil", privacy: .private) name=\(app.name, privacy: .private)")
         }
+    }
+
+    // MARK: - Single-Pass Zone Classification
+
+    @MainActor
+    func cachedClassifiedApps() -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp]) {
+        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
+        return classifyItems(items)
+    }
+
+    func refreshClassifiedApps() async -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp]) {
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        return await MainActor.run {
+            self.classifyItems(items)
+        }
+    }
+
+    /// Single-pass classification for all items.
+    ///
+    /// Strategy:
+    /// 1. If main separator position is known → use it for visible/hidden split
+    /// 2. If AH separator position is also known → use it for hidden/always-hidden split
+    /// 3. If AH position is unknown but AH separator exists → use pinned IDs for always-hidden
+    /// 4. If main separator is unknown → use screen-based offscreen detection
+    @MainActor
+    private func classifyItems(_ items: [AccessibilityService.MenuBarItemPosition]) -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp]) {
+        let positions = separatorOriginsForClassification()
+
+        // --- Main separator available: position-based classification ---
+        if let positions {
+            var visible: [RunningApp] = []
+            var hidden: [RunningApp] = []
+            var alwaysHidden: [RunningApp] = []
+
+            for item in items {
+                let zone = classifyZone(
+                    itemX: item.x,
+                    itemWidth: item.app.width,
+                    separatorX: positions.separatorX,
+                    alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                )
+                switch zone {
+                case .visible: visible.append(item.app)
+                case .hidden: hidden.append(item.app)
+                case .alwaysHidden: alwaysHidden.append(item.app)
+                }
+            }
+
+            // Post-pass: if AH separator exists but its position was unavailable,
+            // classifyZone used two-zone split (no AH zone). Use pinned IDs to
+            // pull always-hidden items out of the hidden bucket.
+            if positions.alwaysHiddenSeparatorX == nil,
+               MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
+                let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+                if !pinnedIds.isEmpty {
+                    let isPinned: (RunningApp) -> Bool = { app in
+                        pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+                    }
+                    alwaysHidden = hidden.filter(isPinned)
+                    hidden = hidden.filter { !isPinned($0) }
+                    logger.debug("classifyItems: post-pass moved \(alwaysHidden.count, privacy: .public) pinned apps to alwaysHidden")
+                }
+            }
+
+            logger.debug("classifyItems: visible=\(visible.count, privacy: .public) hidden=\(hidden.count, privacy: .public) alwaysHidden=\(alwaysHidden.count, privacy: .public)")
+            return (visible, hidden, alwaysHidden)
+        }
+
+        // --- No main separator: screen-based fallback ---
+        logger.debug("classifyItems: no separator, using screen-based fallback for \(items.count, privacy: .public) items")
+        let allApps = items.map(\.app)
+
+        // Always-hidden: match against persisted pinned IDs
+        let alwaysHidden = appsMatchingPinnedIds(from: allApps)
+        let alwaysHiddenIds = Set(alwaysHidden.map(\.id))
+
+        // Hidden: items off-screen (excluding always-hidden)
+        let frame = menuBarScreenFrame()
+        let hidden: [RunningApp] = if let frame {
+            items
+                .filter { isOffscreen(x: $0.x, in: frame) && !alwaysHiddenIds.contains($0.app.id) }
+                .map(\.app)
+        } else {
+            items
+                .filter { $0.x < 0 && !alwaysHiddenIds.contains($0.app.id) }
+                .map(\.app)
+        }
+
+        // Visible: everything else
+        let hiddenIds = Set(hidden.map(\.id))
+        let visible = allApps.filter { !alwaysHiddenIds.contains($0.id) && !hiddenIds.contains($0.id) }
+
+        logger.debug("classifyItems(fallback): visible=\(visible.count, privacy: .public) hidden=\(hidden.count, privacy: .public) alwaysHidden=\(alwaysHidden.count, privacy: .public)")
+        return (visible, hidden, alwaysHidden)
     }
 
     @MainActor

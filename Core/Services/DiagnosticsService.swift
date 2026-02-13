@@ -277,6 +277,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
               menuBarSpacing: \(settings.menuBarSpacing.map { String($0) } ?? "default")
               iconGroups: \(settings.iconGroups.count)
               iconHotkeys: \(settings.iconHotkeys.count)
+              disableOnExternalMonitor: \(settings.disableOnExternalMonitor)
+              useSecondMenuBar: \(settings.useSecondMenuBar)
               alwaysHiddenSectionEnabled: \(settings.alwaysHiddenSectionEnabled)
               alwaysHiddenPinnedItemCount: \(settings.alwaysHiddenPinnedItemIds.count)
             """

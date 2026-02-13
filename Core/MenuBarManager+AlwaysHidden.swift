@@ -27,6 +27,7 @@ extension MenuBarManager {
         guard inserted else { return }
 
         settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+        AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
     /// Remove a pin so the item no longer gets auto-moved into always-hidden.
@@ -37,6 +38,7 @@ extension MenuBarManager {
         let newIds = settings.alwaysHiddenPinnedItemIds.filter { $0 != id }
         guard newIds.count != settings.alwaysHiddenPinnedItemIds.count else { return }
         settings.alwaysHiddenPinnedItemIds = newIds
+        AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
     // MARK: - Pin Parsing
@@ -234,10 +236,14 @@ extension MenuBarManager {
             let uniqueId = item.app.uniqueId
             guard seenUniqueIds.insert(uniqueId).inserted else { continue }
 
+            // Re-read separator position before each move — moving the previous
+            // icon causes macOS to relayout the menu bar and shift positions.
+            let currentAHSepX = getAlwaysHiddenSeparatorOriginX() ?? alwaysHiddenSeparatorX
+
             let alreadyAlwaysHidden = isInAlwaysHiddenZone(
                 itemX: item.x,
                 itemWidth: item.app.width,
-                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+                alwaysHiddenSeparatorX: currentAHSepX
             )
             guard !alreadyAlwaysHidden else { continue }
 
@@ -250,8 +256,11 @@ extension MenuBarManager {
                 menuExtraId: item.app.menuExtraIdentifier,
                 statusItemIndex: item.app.statusItemIndex,
                 toHidden: true,
-                separatorOverrideX: alwaysHiddenSeparatorX
+                separatorOverrideX: currentAHSepX
             )
+
+            // Brief settle after each move to let macOS finish relayout
+            try? await Task.sleep(for: .milliseconds(200))
         }
 
         // Restore: re-block always-hidden items (shield pattern)

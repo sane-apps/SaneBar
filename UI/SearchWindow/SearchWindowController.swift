@@ -31,6 +31,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     static let shared = SearchWindowController()
 
+    /// Posted when the search window is shown (so the SwiftUI view can reload on re-show)
+    static let windowDidShowNotification = Notification.Name("SearchWindowController.windowDidShow")
+
     // MARK: - Window
 
     private var window: NSWindow?
@@ -53,15 +56,16 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func toggle(mode: SearchWindowMode? = nil) {
         if let window, window.isVisible, currentMode == (mode ?? activeMode) {
             close()
-        } else {
-            // Check auth if required
+        } else if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
+            // Auth required — must be async
             Task {
-                if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
-                    let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
-                    guard authorized else { return }
-                }
+                let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                guard authorized else { return }
                 show(mode: mode)
             }
+        } else {
+            // No auth — show immediately (no async delay)
+            show(mode: mode)
         }
     }
 
@@ -101,6 +105,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         positionWindow(window, mode: desiredMode)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Notify the SwiftUI view to reload (window is reused, onAppear won't fire again)
+        NotificationCenter.default.post(name: Self.windowDidShowNotification, object: nil)
     }
 
     /// Set move-in-progress flag to prevent auto-close during CGEvent Cmd+drag
@@ -223,7 +230,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 140),
-            styleMask: [.borderless],
+            styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -231,13 +238,18 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.contentView = hostingView
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.level = .statusBar
+        panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         panel.hasShadow = true
-        panel.isMovable = false
+        panel.isMovableByWindowBackground = true
         panel.animationBehavior = .utilityWindow
+        panel.minSize = NSSize(width: 180, height: 80)
+        panel.maxSize = NSSize(width: 800, height: 500)
+
+        // Enable mouse tracking so SwiftUI .help() tooltips work on borderless panel
+        panel.acceptsMouseMovedEvents = true
 
         // Shadow for depth
         if let contentView = panel.contentView {

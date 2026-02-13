@@ -77,6 +77,7 @@ final class AccessibilityService: ObservableObject {
     // MARK: - Permission Monitoring
 
     private var permissionMonitorTask: Task<Void, Never>?
+    private var permissionPollingTask: Task<Void, Never>?
     private var streamContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
 
     // MARK: - Menu Bar Item Cache
@@ -106,10 +107,12 @@ final class AccessibilityService: ObservableObject {
     private init() {
         isGranted = AXIsProcessTrusted()
         startPermissionMonitoring()
+        startPermissionPolling()
     }
 
     deinit {
         permissionMonitorTask?.cancel()
+        permissionPollingTask?.cancel()
         for continuation in streamContinuations.values {
             continuation.finish()
         }
@@ -148,6 +151,45 @@ final class AccessibilityService: ObservableObject {
 
                 await MainActor.run {
                     self?.checkAndUpdatePermissionStatus()
+                }
+            }
+        }
+    }
+
+    /// Polling fallback: DistributedNotificationCenter is unreliable for TCC changes.
+    /// Poll AXIsProcessTrusted() at startup until granted, then stop.
+    /// Fast at first (0.5s), slows down after 10s (2s intervals), stops once granted.
+    private func startPermissionPolling() {
+        guard !isGranted else { return } // Already granted, no need to poll
+
+        permissionPollingTask = Task { [weak self] in
+            var elapsed: TimeInterval = 0
+            while !Task.isCancelled {
+                let interval: TimeInterval = elapsed < 10 ? 0.5 : 2.0
+                try? await Task.sleep(for: .seconds(interval))
+                elapsed += interval
+
+                guard let self, !Task.isCancelled else { break }
+
+                let newStatus = AXIsProcessTrusted()
+                if newStatus != isGranted {
+                    isGranted = newStatus
+                    logger.info("Accessibility permission detected via polling: \(newStatus ? "GRANTED" : "REVOKED")")
+                    for continuation in streamContinuations.values {
+                        continuation.yield(newStatus)
+                    }
+                }
+
+                // Once granted, stop polling — revocation is rare and the notification handles it
+                if newStatus {
+                    logger.debug("Accessibility granted — stopping permission poll")
+                    break
+                }
+
+                // Give up after 5 minutes — if not granted by then, user isn't actively granting
+                if elapsed > 300 {
+                    logger.debug("Permission poll timed out after 5 minutes")
+                    break
                 }
             }
         }

@@ -560,7 +560,7 @@ module SaneMasterModules
         servers = mcp['mcpServers'] || {}
 
         # NOTE: xcode MCP is configured globally (xcrun mcpbridge)
-        # NOTE: Memory MCP removed Jan 2026 - using Sane-Mem (localhost:37777) instead
+        # NOTE: Memory MCP removed Jan 2026 - using @modelcontextprotocol/server-memory instead
         required = %w[apple-docs github context7 xcode]
 
         required.each do |name|

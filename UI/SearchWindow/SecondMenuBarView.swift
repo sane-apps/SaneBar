@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Second Menu Bar View
 
-/// Horizontal strip showing all menu bar icons organized by zone.
+/// Compact horizontal strip showing all menu bar icons organized by zone.
 ///
 /// Visible → Hidden → Always Hidden, separated by thin vertical dividers.
 /// Right-click any icon to move it between zones.
@@ -17,19 +17,24 @@ struct SecondMenuBarView: View {
     let onActivate: (RunningApp, Bool) -> Void
     let onRetry: () -> Void
     var onIconMoved: (() -> Void)?
+    @Binding var searchText: String
 
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var isSearchFocused: Bool
 
     // Filter out system items that can't be moved (Clock, Control Center)
-    private var movableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
+    private var movableVisible: [RunningApp] {
+        guard menuBarManager.settings.secondMenuBarShowVisible else { return [] }
+        return visibleApps.filter { !$0.isUnmovableSystemItem }
+    }
+
     private var movableHidden: [RunningApp] { apps.filter { !$0.isUnmovableSystemItem } }
     private var movableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
 
     var body: some View {
         VStack(spacing: 0) {
-            panelHeader
-            panelDivider
+            toolbarRow
             if !hasAccessibility {
                 accessibilityPrompt
             } else if movableVisible.isEmpty, movableHidden.isEmpty, movableAlwaysHidden.isEmpty {
@@ -38,7 +43,7 @@ struct SecondMenuBarView: View {
                 iconStrip
             }
         }
-        .frame(minWidth: 220)
+        .frame(minWidth: 180)
         .background { panelBackground }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
@@ -57,56 +62,57 @@ struct SecondMenuBarView: View {
         SaneGradientBackground()
     }
 
-    // MARK: - Header
+    // MARK: - Compact Toolbar
 
-    private var panelHeader: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "menubar.rectangle")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary.opacity(0.7))
-
-            Text("Second Menu Bar")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary.opacity(0.85))
-
-            let total = movableVisible.count + movableHidden.count + movableAlwaysHidden.count
-            if total > 0 {
-                Text("\(total)")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.5)))
+    private var toolbarRow: some View {
+        HStack(spacing: 6) {
+            // Inline search field
+            HStack(spacing: 4) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.primary.opacity(0.4))
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11))
+                    .focused($isSearchFocused)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.primary.opacity(0.4))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-
-            Spacer()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+            )
 
             Button {
                 SettingsOpener.open()
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary.opacity(0.5))
             }
             .buttonStyle(.plain)
             .help("Settings")
 
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary.opacity(0.5))
             }
             .buttonStyle(.plain)
             .help("Close (Esc)")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-    }
-
-    private var panelDivider: some View {
-        Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.teal.opacity(0.12))
-            .frame(height: 1)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
     }
 
     // MARK: - Horizontal Icon Strip
@@ -133,41 +139,41 @@ struct SecondMenuBarView: View {
                 zoneRow(label: "Always Hidden", icon: "lock", apps: movableAlwaysHidden, zone: .alwaysHidden)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
     }
 
     private func zoneRow(label: String, icon: String, apps: [RunningApp], zone: IconZone) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 3) {
                 Image(systemName: icon)
-                    .font(.system(size: 10))
+                    .font(.system(size: 9))
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                 Text("\(apps.count)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.primary.opacity(0.4))
             }
-            .foregroundStyle(.primary.opacity(0.85))
-            .padding(.leading, 4)
+            .foregroundStyle(.primary.opacity(0.7))
+            .padding(.leading, 2)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
+                HStack(spacing: 1) {
                     ForEach(apps) { app in
                         makeTile(for: app, zone: zone)
                     }
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private var zoneDivider: some View {
         Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.10) : Color.teal.opacity(0.12))
+            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.10))
             .frame(height: 1)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 2)
+            .padding(.vertical, 2)
     }
 
     // MARK: - Tile Factory
@@ -232,49 +238,46 @@ struct SecondMenuBarView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             if isRefreshing {
                 ProgressView()
                     .controlSize(.small)
-                Text("Scanning menu bar...")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.7))
+                Text("Scanning...")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary.opacity(0.6))
             } else {
                 Image(systemName: "menubar.rectangle")
-                    .font(.system(size: 24))
+                    .font(.system(size: 18))
                     .foregroundStyle(.primary.opacity(0.3))
-                Text("No menu bar icons found")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.7))
-                Text("Hold \u{2318} and drag icons past the separator")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.7))
+                Text("No icons found")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.primary.opacity(0.6))
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 10)
     }
 
     // MARK: - Accessibility Prompt
 
     private var accessibilityPrompt: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: "hand.raised.circle.fill")
-                .font(.system(size: 20))
+                .font(.system(size: 16))
                 .foregroundStyle(.orange)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("Accessibility Needed")
-                    .font(.system(size: 13, weight: .medium))
-                Text("Required to detect menu bar icons")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.8))
+                    .font(.system(size: 11, weight: .medium))
+                Text("Required to detect icons")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary.opacity(0.7))
             }
 
             Spacer()
 
-            Button("Grant Access") {
+            Button("Grant") {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                     NSWorkspace.shared.open(url)
                 }
@@ -287,7 +290,7 @@ struct SecondMenuBarView: View {
             }
             .controlSize(.small)
         }
-        .padding(14)
+        .padding(10)
     }
 }
 
@@ -299,7 +302,7 @@ enum IconZone {
 
 // MARK: - Panel Icon Tile
 
-/// Individual icon tile with hover effects, white icons, and zone management.
+/// Compact icon tile — icon only, tooltip on hover, context menu for zone moves.
 private struct PanelIconTile: View {
     let app: RunningApp
     let zone: IconZone
@@ -310,30 +313,33 @@ private struct PanelIconTile: View {
     var onMoveToAlwaysHidden: (() -> Void)?
     @State private var isHovering = false
 
+    /// Squircle container size.
+    /// Icon frame is intentionally oversized to compensate for the transparent
+    /// padding baked into menu-bar NSImages (~28 % border).  The squircle
+    /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
+    /// while `.fit` preserves aspect ratio (no deformation).
+    private let tileSize: CGFloat = 32
+    private var iconSize: CGFloat {
+        let icon = app.iconThumbnail ?? app.icon
+        // System template icons are non-square and deform when overscaled.
+        // Regular app icons have padding that needs overscaling to fill the tile.
+        return icon?.isTemplate == true ? tileSize * 0.65 : tileSize * 1.15
+    }
+
     var body: some View {
         Button { onActivate(false) } label: {
-            VStack(spacing: 4) {
-                ZStack {
-                    // Card background — SaneUI glass style
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(tileBackground)
+            ZStack {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(tileBackground)
 
-                    iconImage
-                        .frame(width: 24, height: 24)
-                }
-                .frame(width: 44, height: 44)
-
-                Text(app.name)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(isHovering ? 1.0 : 0.8))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(minWidth: 48, maxWidth: 120)
+                iconImage
+                    .frame(width: iconSize, height: iconSize)
             }
-            .padding(.vertical, 4)
-            .padding(.horizontal, 2)
+            .frame(width: tileSize, height: tileSize)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .buttonStyle(.plain)
+        .padding(1)
         .onHover { isHovering = $0 }
         .help(app.name)
         .contextMenu { contextMenuItems }
@@ -357,7 +363,6 @@ private struct PanelIconTile: View {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)
-                // White icons in dark mode, full color in light — clear contrast
                 .foregroundStyle(.primary)
                 .aspectRatio(contentMode: .fit)
         } else {

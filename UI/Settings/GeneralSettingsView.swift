@@ -123,6 +123,14 @@ struct GeneralSettingsView: View {
                         .frame(width: 240)
                     }
                     .help("Icon Panel: Search, hotkeys, and icon management. Second Menu Bar: A bar below the menu bar showing your hidden icons.")
+                    if menuBarManager.settings.useSecondMenuBar {
+                        CompactDivider()
+                        CompactToggle(
+                            label: "Include visible icons",
+                            isOn: $menuBarManager.settings.secondMenuBarShowVisible
+                        )
+                        .help("Show visible (non-hidden) icons in the Second Menu Bar for organizing. Off by default since visible icons are already in the menu bar.")
+                    }
                     CompactDivider()
                     CompactRow("Shortcut") {
                         KeyboardShortcuts.Recorder(for: .searchMenuBar)

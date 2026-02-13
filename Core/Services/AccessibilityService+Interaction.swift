@@ -220,7 +220,9 @@ extension AccessibilityService {
             // Clamp: stay right of AH separator so we land in hidden zone, not AH zone
             max(separatorX - moveOffset, ahBoundary + 2)
         } else if toHidden {
-            separatorX - moveOffset
+            // No clamp = enforcement or direct AH targeting. Drag farther left
+            // to decisively cross the separator (macOS has snap-back resistance).
+            separatorX - max(80, iconFrame.size.width + 60)
         } else if let boundary = visibleBoundaryX {
             // Target just left of SaneBar icon, but always right of separator.
             // When they're flush (both 1696), this gives separatorX + 1 — right of separator,
@@ -274,15 +276,16 @@ extension AccessibilityService {
         logger.info("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
         // Verify icon landed on the expected side of the separator.
-        // For hidden: icon's left edge must be clearly LEFT of separatorX.
+        // For hidden: icon's left edge must be LEFT of separatorX.
         // For visible: icon's left edge must be clearly RIGHT of separatorX.
-        // Both sides use a margin to avoid boundary ambiguity where hide() might
-        // reclassify the icon differently than our verification.
-        let margin = max(4, afterFrame.size.width * 0.3)
+        // "Visible" uses a margin to avoid boundary ambiguity; "hidden" uses a
+        // tight check because the separator will physically block icons in place
+        // once it re-expands (even icons just 1px across the line are trapped).
+        let visibleMargin = max(4, afterFrame.size.width * 0.3)
         let movedToExpectedSide: Bool = if toHidden {
-            afterFrame.origin.x < (separatorX - margin)
+            afterFrame.origin.x < separatorX
         } else {
-            afterFrame.origin.x > (separatorX + margin)
+            afterFrame.origin.x > (separatorX + visibleMargin)
         }
 
         if !movedToExpectedSide {

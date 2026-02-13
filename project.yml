@@ -123,7 +123,8 @@ targets:
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.dev
-          CODE_SIGN_IDENTITY: "-"
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
         ProdDebug:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
@@ -165,7 +166,8 @@ targets:
         CODE_SIGN_STYLE: Manual
       configs:
         Debug:
-          CODE_SIGN_IDENTITY: "-"
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Apple Development"
         Release:
           DEVELOPMENT_TEAM: M78L6FXD48
           CODE_SIGN_IDENTITY: "Apple Development"

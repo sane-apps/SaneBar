@@ -183,6 +183,11 @@ struct MenuBarSearchView: View {
                 loadCachedApps()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: SearchWindowController.windowDidShowNotification)) { _ in
+            // Window reused (not destroyed on close) — reload when re-shown
+            loadCachedApps()
+            refreshApps()
+        }
         .onDisappear {
             permissionMonitorTask?.cancel()
             refreshTask?.cancel()
@@ -249,16 +254,34 @@ struct MenuBarSearchView: View {
 
     private var secondMenuBarBody: some View {
         SecondMenuBarView(
-            visibleApps: visibleApps,
-            apps: filteredApps,
-            alwaysHiddenApps: alwaysHiddenApps,
+            visibleApps: filteredVisible,
+            apps: filteredHidden,
+            alwaysHiddenApps: filteredAlwaysHidden,
             hasAccessibility: hasAccessibility,
             isRefreshing: isRefreshing,
             onDismiss: onDismiss,
             onActivate: { app, isRightClick in activateApp(app, isRightClick: isRightClick) },
             onRetry: { loadCachedApps(); refreshApps(force: true) },
-            onIconMoved: { loadCachedApps(); refreshApps(force: true) }
+            onIconMoved: { loadCachedApps(); refreshApps(force: true) },
+            searchText: $searchText
         )
+    }
+
+    /// Visible apps filtered by search text (for second menu bar inline search)
+    private var filteredVisible: [RunningApp] {
+        guard !searchTextDebounced.isEmpty else { return visibleApps }
+        return visibleApps.filter { $0.name.localizedCaseInsensitiveContains(searchTextDebounced) }
+    }
+
+    /// Always-hidden apps filtered by search text
+    private var filteredAlwaysHidden: [RunningApp] {
+        guard !searchTextDebounced.isEmpty else { return alwaysHiddenApps }
+        return alwaysHiddenApps.filter { $0.name.localizedCaseInsensitiveContains(searchTextDebounced) }
+    }
+
+    /// Hidden apps filtered by search text (uses existing filteredApps which already filters menuBarApps)
+    private var filteredHidden: [RunningApp] {
+        filteredApps
     }
 
     /// Monitor for permission changes - auto-reload when user grants permission
@@ -281,7 +304,14 @@ struct MenuBarSearchView: View {
     }
 
     private func loadCachedApps() {
-        hasAccessibility = AccessibilityService.shared.isGranted
+        // Live check — the cached isGranted can be stale if the DistributedNotification didn't fire
+        let liveStatus = AccessibilityService.shared.isTrusted
+        hasAccessibility = liveStatus
+
+        // Sync the service's published state if it was stale
+        if liveStatus, !AccessibilityService.shared.isGranted {
+            AccessibilityService.shared.requestAccessibility()
+        }
 
         guard hasAccessibility else {
             menuBarApps = []
@@ -290,21 +320,24 @@ struct MenuBarSearchView: View {
             return
         }
 
-        switch effectiveMode {
-        case .hidden:
-            menuBarApps = service.cachedHiddenMenuBarApps()
-        case .visible:
-            menuBarApps = service.cachedVisibleMenuBarApps()
-        case .alwaysHidden:
-            menuBarApps = service.cachedAlwaysHiddenMenuBarApps()
-        case .all:
-            menuBarApps = service.cachedMenuBarApps()
-        }
+        // Single-pass classification for all modes — one backend, consistent results.
+        let classified = service.cachedClassifiedApps()
 
-        // Load all zones for the second menu bar
         if isSecondMenuBar {
-            visibleApps = service.cachedVisibleMenuBarApps()
-            alwaysHiddenApps = service.cachedAlwaysHiddenMenuBarApps()
+            visibleApps = classified.visible
+            menuBarApps = classified.hidden
+            alwaysHiddenApps = classified.alwaysHidden
+        } else {
+            switch effectiveMode {
+            case .hidden:
+                menuBarApps = classified.hidden
+            case .visible:
+                menuBarApps = classified.visible
+            case .alwaysHidden:
+                menuBarApps = classified.alwaysHidden
+            case .all:
+                menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
+            }
         }
     }
 
@@ -327,30 +360,27 @@ struct MenuBarSearchView: View {
                 }
             }
 
-            let refreshed: [RunningApp] = switch effectiveMode {
-            case .hidden:
-                await service.refreshHiddenMenuBarApps()
-            case .visible:
-                await service.refreshVisibleMenuBarApps()
-            case .alwaysHidden:
-                await service.refreshAlwaysHiddenMenuBarApps()
-            case .all:
-                await service.refreshMenuBarApps()
-            }
-
-            // Also refresh all zones for second menu bar
-            var refreshedVisible: [RunningApp] = []
-            var refreshedAlwaysHidden: [RunningApp] = []
-            if isSecondMenuBar {
-                refreshedVisible = await service.refreshVisibleMenuBarApps()
-                refreshedAlwaysHidden = await service.refreshAlwaysHiddenMenuBarApps()
-            }
-
+            // Single-pass refresh for all modes — same backend, consistent results.
+            let classified = await service.refreshClassifiedApps()
             guard !Task.isCancelled else { return }
+
             await MainActor.run {
-                menuBarApps = refreshed
-                visibleApps = refreshedVisible
-                alwaysHiddenApps = refreshedAlwaysHidden
+                if isSecondMenuBar {
+                    visibleApps = classified.visible
+                    menuBarApps = classified.hidden
+                    alwaysHiddenApps = classified.alwaysHidden
+                } else {
+                    switch effectiveMode {
+                    case .hidden:
+                        menuBarApps = classified.hidden
+                    case .visible:
+                        menuBarApps = classified.visible
+                    case .alwaysHidden:
+                        menuBarApps = classified.alwaysHidden
+                    case .all:
+                        menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
+                    }
+                }
                 isRefreshing = false
             }
         }

@@ -489,6 +489,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     logger.info("Skipping initial hide: user is on external monitor")
                     return
                 }
+                // Also skip if setting is enabled and any external monitor is connected
+                // (mouse may be on built-in now but user wants icons visible on external)
+                if self.settings.disableOnExternalMonitor,
+                   NSScreen.screens.contains(where: { screen in
+                       guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
+                       return CGDisplayIsBuiltin(displayID) == 0
+                   }) {
+                    logger.info("Skipping initial hide: external monitor connected with always-show enabled")
+                    return
+                }
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }

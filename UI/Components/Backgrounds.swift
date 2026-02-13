@@ -33,6 +33,8 @@ private enum SanePalette {
 struct SaneGradientBackground: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isWindowVisible = true
 
     var body: some View {
         ZStack {
@@ -40,19 +42,21 @@ struct SaneGradientBackground: View {
                 VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow)
             }
 
-            if reduceMotion {
+            if reduceMotion || !isWindowVisible {
                 staticMesh.opacity(0.7)
             } else {
                 livingMesh.opacity(0.7)
             }
         }
         .ignoresSafeArea()
+        .onAppear { isWindowVisible = true }
+        .onDisappear { isWindowVisible = false }
     }
 
     // MARK: - Living Mesh (Animated)
 
     private var livingMesh: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: false)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: !isWindowVisible)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
 
             // Multiple independent drift cycles (different speeds = organic)

@@ -342,6 +342,26 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return [RunningApp]()
     }
 
+    typealias ClassifiedResult = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+
+    var cachedClassifiedAppsHandler: (@Sendable () -> ClassifiedResult)?
+
+    func cachedClassifiedApps() -> ClassifiedResult {
+        if let cachedClassifiedAppsHandler {
+            return cachedClassifiedAppsHandler()
+        }
+        return ([], [], [])
+    }
+
+    var refreshClassifiedAppsHandler: (@Sendable () async -> ClassifiedResult)?
+
+    func refreshClassifiedApps() async -> ClassifiedResult {
+        if let refreshClassifiedAppsHandler {
+            return await refreshClassifiedAppsHandler()
+        }
+        return ([], [], [])
+    }
+
     private let activateState = MockoloMutex(MockoloHandlerState<(RunningApp, Bool), @Sendable (RunningApp, Bool) async -> Void>())
     var activateCallCount: Int {
         activateState.withLock(\.callCount)

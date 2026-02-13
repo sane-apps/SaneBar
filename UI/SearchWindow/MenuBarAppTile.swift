@@ -39,21 +39,8 @@ struct MenuBarAppTile: View {
                     RoundedRectangle(cornerRadius: max(8, iconSize * 0.18))
                         .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
 
-                    Group {
-                        if let icon = app.iconThumbnail ?? app.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .renderingMode(icon.isTemplate ? .template : .original)
-                                .foregroundStyle(.primary.opacity(icon.isTemplate ? 0.6 : 1.0))
-                        } else {
-                            Image(systemName: "app.fill")
-                                .resizable()
-                                .foregroundStyle(.primary.opacity(0.6))
-                        }
-                    }
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: iconSize * 0.7, height: iconSize * 0.7)
-                    .opacity(isMoving ? 0.4 : 1.0)
+                    tileIcon
+                        .opacity(isMoving ? 0.4 : 1.0)
 
                     if isMoving {
                         ProgressView()
@@ -122,5 +109,23 @@ struct MenuBarAppTile: View {
             }
         }
         .accessibilityLabel(Text(app.name))
+    }
+
+    @ViewBuilder
+    private var tileIcon: some View {
+        if let icon = app.iconThumbnail ?? app.icon {
+            Image(nsImage: icon)
+                .resizable()
+                .renderingMode(icon.isTemplate ? .template : .original)
+                .foregroundStyle(.primary.opacity(icon.isTemplate ? 0.6 : 1.0))
+                .aspectRatio(contentMode: .fit)
+                .frame(width: iconSize * 0.7, height: iconSize * 0.7)
+        } else {
+            Image(systemName: "app.fill")
+                .resizable()
+                .foregroundStyle(.primary.opacity(0.6))
+                .aspectRatio(contentMode: .fit)
+                .frame(width: iconSize * 0.7, height: iconSize * 0.7)
+        }
     }
 }
