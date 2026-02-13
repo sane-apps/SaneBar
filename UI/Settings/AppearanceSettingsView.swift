@@ -2,6 +2,8 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @ObservedObject private var licenseService = LicenseService.shared
+    @State private var proUpsellFeature: ProFeature?
 
     // Spacing Bindings (Copied from AdvancedSettingsView)
     private var tighterSpacingEnabled: Binding<Bool> {
@@ -97,7 +99,12 @@ struct AppearanceSettingsView: View {
                         .help("Choose the SaneBar menu bar icon style")
                         .onChange(of: menuBarManager.settings.menuBarIconStyle) { _, newValue in
                             if newValue == .custom {
-                                showCustomIconPicker()
+                                if licenseService.isPro {
+                                    showCustomIconPicker()
+                                } else {
+                                    menuBarManager.settings.menuBarIconStyle = .filter
+                                    proUpsellFeature = .customIcon
+                                }
                             }
                         }
                     }
@@ -137,135 +144,172 @@ struct AppearanceSettingsView: View {
 
                     CompactDivider()
 
-                    CompactRow("Extra Dividers") {
-                        HStack {
-                            Text("\(menuBarManager.settings.spacerCount)")
-                                .monospacedDigit()
-                            Stepper("", value: $menuBarManager.settings.spacerCount, in: 0 ... 12)
-                                .labelsHidden()
-                                .help("Add more visual separators to organize your menu bar")
-                        }
-                    }
-
-                    if menuBarManager.settings.spacerCount > 0 {
-                        CompactDivider()
-                        CompactRow("Extra Style") {
-                            Picker("", selection: $menuBarManager.settings.spacerStyle) {
-                                Text("Line").tag(SaneBarSettings.SpacerStyle.line)
-                                Text("Dot").tag(SaneBarSettings.SpacerStyle.dot)
+                    if licenseService.isPro {
+                        CompactRow("Extra Dividers") {
+                            HStack {
+                                Text("\(menuBarManager.settings.spacerCount)")
+                                    .monospacedDigit()
+                                Stepper("", value: $menuBarManager.settings.spacerCount, in: 0 ... 12)
+                                    .labelsHidden()
+                                    .help("Add more visual separators to organize your menu bar")
                             }
-                            .pickerStyle(.segmented)
-                            .frame(width: 120)
-                            .help("Appearance of extra dividers")
                         }
+
+                        if menuBarManager.settings.spacerCount > 0 {
+                            CompactDivider()
+                            CompactRow("Extra Style") {
+                                Picker("", selection: $menuBarManager.settings.spacerStyle) {
+                                    Text("Line").tag(SaneBarSettings.SpacerStyle.line)
+                                    Text("Dot").tag(SaneBarSettings.SpacerStyle.dot)
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(width: 120)
+                                .help("Appearance of extra dividers")
+                            }
+                        }
+                    } else {
+                        proGatedRow(feature: .spacersConfig, label: "Extra Dividers")
                     }
                 }
 
-                // 2. Menu Bar Visuals
+                // 2. Menu Bar Visuals — Pro
                 CompactSection("Menu Bar Style") {
-                    CompactToggle(label: "Custom Appearance", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
-                        .help("Apply custom colors and effects to the menu bar background")
+                    if !licenseService.isPro {
+                        proGatedRow(feature: .menuBarAppearance, label: "Custom tint, glass, borders, and shadows")
+                    } else {
+                        CompactToggle(label: "Custom Appearance", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
+                            .help("Apply custom colors and effects to the menu bar background")
 
-                    if menuBarManager.settings.menuBarAppearance.isEnabled {
-                        CompactDivider()
-
-                        if MenuBarAppearanceSettings.supportsLiquidGlass {
-                            CompactToggle(label: "Translucent Background", isOn: $menuBarManager.settings.menuBarAppearance.useLiquidGlass)
-                                .help("Use macOS translucent glass effect")
+                        if menuBarManager.settings.menuBarAppearance.isEnabled {
                             CompactDivider()
-                        }
 
-                        CompactRow("Light Tint") {
-                            HStack(spacing: 8) {
-                                ColorPicker("", selection: Binding(
-                                    get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
-                                    set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
-                                ), supportsOpacity: false)
-                                    .labelsHidden()
-                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
-                                    .monospacedDigit()
-                                    .frame(width: 35, alignment: .trailing)
-                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05 ... 1.0, step: 0.05)
-                                    .frame(width: 80)
+                            if MenuBarAppearanceSettings.supportsLiquidGlass {
+                                CompactToggle(label: "Translucent Background", isOn: $menuBarManager.settings.menuBarAppearance.useLiquidGlass)
+                                    .help("Use macOS translucent glass effect")
+                                CompactDivider()
                             }
-                            .help("Tint color and intensity for light mode")
-                        }
 
-                        CompactDivider()
-
-                        CompactRow("Dark Tint") {
-                            HStack(spacing: 8) {
-                                ColorPicker("", selection: Binding(
-                                    get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColorDark) },
-                                    set: { menuBarManager.settings.menuBarAppearance.tintColorDark = $0.toHex() }
-                                ), supportsOpacity: false)
-                                    .labelsHidden()
-                                Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacityDark * 100))%")
-                                    .monospacedDigit()
-                                    .frame(width: 35, alignment: .trailing)
-                                Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacityDark, in: 0.05 ... 1.0, step: 0.05)
-                                    .frame(width: 80)
-                            }
-                            .help("Tint color and intensity for dark mode")
-                        }
-
-                        CompactDivider()
-                        CompactToggle(label: "Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
-                            .help("Add subtle shadow below the menu bar")
-                        CompactDivider()
-                        CompactToggle(label: "Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
-                            .help("Add a thin border around the menu bar")
-                        CompactDivider()
-                        CompactToggle(label: "Rounded Corners", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
-                            .help("Round the corners of the menu bar background")
-
-                        if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
-                            CompactDivider()
-                            CompactRow("Corner Radius") {
-                                HStack {
-                                    Text(cornerRadiusLabel)
-                                        .frame(width: 50, alignment: .trailing)
-                                    Stepper("", value: $menuBarManager.settings.menuBarAppearance.cornerRadius, in: 4 ... 20, step: 2)
+                            CompactRow("Light Tint") {
+                                HStack(spacing: 8) {
+                                    ColorPicker("", selection: Binding(
+                                        get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColor) },
+                                        set: { menuBarManager.settings.menuBarAppearance.tintColor = $0.toHex() }
+                                    ), supportsOpacity: false)
                                         .labelsHidden()
-                                        .help("How rounded the corners are")
+                                    Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacity * 100))%")
+                                        .monospacedDigit()
+                                        .frame(width: 35, alignment: .trailing)
+                                    Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacity, in: 0.05 ... 1.0, step: 0.05)
+                                        .frame(width: 80)
+                                }
+                                .help("Tint color and intensity for light mode")
+                            }
+
+                            CompactDivider()
+
+                            CompactRow("Dark Tint") {
+                                HStack(spacing: 8) {
+                                    ColorPicker("", selection: Binding(
+                                        get: { Color(hex: menuBarManager.settings.menuBarAppearance.tintColorDark) },
+                                        set: { menuBarManager.settings.menuBarAppearance.tintColorDark = $0.toHex() }
+                                    ), supportsOpacity: false)
+                                        .labelsHidden()
+                                    Text("\(Int(menuBarManager.settings.menuBarAppearance.tintOpacityDark * 100))%")
+                                        .monospacedDigit()
+                                        .frame(width: 35, alignment: .trailing)
+                                    Slider(value: $menuBarManager.settings.menuBarAppearance.tintOpacityDark, in: 0.05 ... 1.0, step: 0.05)
+                                        .frame(width: 80)
+                                }
+                                .help("Tint color and intensity for dark mode")
+                            }
+
+                            CompactDivider()
+                            CompactToggle(label: "Shadow", isOn: $menuBarManager.settings.menuBarAppearance.hasShadow)
+                                .help("Add subtle shadow below the menu bar")
+                            CompactDivider()
+                            CompactToggle(label: "Border", isOn: $menuBarManager.settings.menuBarAppearance.hasBorder)
+                                .help("Add a thin border around the menu bar")
+                            CompactDivider()
+                            CompactToggle(label: "Rounded Corners", isOn: $menuBarManager.settings.menuBarAppearance.hasRoundedCorners)
+                                .help("Round the corners of the menu bar background")
+
+                            if menuBarManager.settings.menuBarAppearance.hasRoundedCorners {
+                                CompactDivider()
+                                CompactRow("Corner Radius") {
+                                    HStack {
+                                        Text(cornerRadiusLabel)
+                                            .frame(width: 50, alignment: .trailing)
+                                        Stepper("", value: $menuBarManager.settings.menuBarAppearance.cornerRadius, in: 4 ... 20, step: 2)
+                                            .labelsHidden()
+                                            .help("How rounded the corners are")
+                                    }
                                 }
                             }
                         }
-                    }
+                    } // end isPro else
                 }
 
-                // 3. Menu Bar Layout
+                // 3. Menu Bar Layout — Pro
                 CompactSection("Menu Bar Layout") {
-                    CompactToggle(label: "Reduce space between icons", isOn: tighterSpacingEnabled)
-                        .help("Make icons closer together (system-wide change, requires logout)")
+                    if licenseService.isPro {
+                        CompactToggle(label: "Reduce space between icons", isOn: tighterSpacingEnabled)
+                            .help("Make icons closer together (system-wide change, requires logout)")
 
-                    if menuBarManager.settings.menuBarSpacing != nil {
-                        CompactDivider()
-                        CompactRow("Item Spacing") {
-                            Stepper(spacingLabel, value: spacingBinding, in: 1 ... 10)
-                                .help("Distance between menu bar icons")
-                        }
-                        CompactDivider()
-                        CompactRow("Click Area") {
-                            Stepper(clickAreaLabel, value: paddingBinding, in: 1 ... 10)
-                                .help("Size of the clickable area around each icon")
-                        }
+                        if menuBarManager.settings.menuBarSpacing != nil {
+                            CompactDivider()
+                            CompactRow("Item Spacing") {
+                                Stepper(spacingLabel, value: spacingBinding, in: 1 ... 10)
+                                    .help("Distance between menu bar icons")
+                            }
+                            CompactDivider()
+                            CompactRow("Click Area") {
+                                Stepper(clickAreaLabel, value: paddingBinding, in: 1 ... 10)
+                                    .help("Size of the clickable area around each icon")
+                            }
 
-                        CompactDivider()
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text("Log out to verify changes.")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.primary.opacity(0.7))
-                            Spacer()
+                            CompactDivider()
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("Log out to verify changes.")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary.opacity(0.7))
+                                Spacer()
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 4)
                         }
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 4)
+                    } else {
+                        proGatedRow(feature: .iconSpacing, label: "Reduce space between icons")
                     }
                 }
             }
             .padding(20)
+        }
+        .sheet(item: $proUpsellFeature) { feature in
+            ProUpsellView(feature: feature)
+        }
+    }
+
+    // MARK: - Pro Gating Helper
+
+    private func proGatedRow(feature: ProFeature, label: String) -> some View {
+        CompactRow(label) {
+            Button {
+                proUpsellFeature = feature
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                    Text("Pro")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.teal)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(.teal.opacity(0.12)))
+            }
+            .buttonStyle(.plain)
         }
     }
 

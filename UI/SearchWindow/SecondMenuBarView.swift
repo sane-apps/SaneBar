@@ -20,8 +20,10 @@ struct SecondMenuBarView: View {
     @Binding var searchText: String
 
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @ObservedObject private var licenseService = LicenseService.shared
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isSearchFocused: Bool
+    @State private var proUpsellFeature: ProFeature?
 
     // Filter out system items that can't be moved (Clock, Control Center)
     private var movableVisible: [RunningApp] {
@@ -54,6 +56,12 @@ struct SecondMenuBarView: View {
                 )
         )
         .onExitCommand { onDismiss() }
+        .onChange(of: proUpsellFeature) { (_: ProFeature?, feature: ProFeature?) in
+            if let feature {
+                ProUpsellWindow.show(feature: feature)
+                proUpsellFeature = nil
+            }
+        }
     }
 
     // MARK: - Background
@@ -183,10 +191,35 @@ struct SecondMenuBarView: View {
             app: app,
             zone: zone,
             colorScheme: colorScheme,
-            onActivate: { isRightClick in onActivate(app, isRightClick) },
-            onMoveToVisible: zone != .visible ? { moveIcon(app, from: zone, to: .visible) } : nil,
-            onMoveToHidden: zone != .hidden ? { moveIcon(app, from: zone, to: .hidden) } : nil,
-            onMoveToAlwaysHidden: zone != .alwaysHidden ? { moveIcon(app, from: zone, to: .alwaysHidden) } : nil
+            isPro: licenseService.isPro,
+            onActivate: { isRightClick in
+                if licenseService.isPro {
+                    onActivate(app, isRightClick)
+                } else {
+                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                }
+            },
+            onMoveToVisible: zone != .visible ? {
+                if licenseService.isPro {
+                    moveIcon(app, from: zone, to: .visible)
+                } else {
+                    proUpsellFeature = .zoneMoves
+                }
+            } : nil,
+            onMoveToHidden: zone != .hidden ? {
+                if licenseService.isPro {
+                    moveIcon(app, from: zone, to: .hidden)
+                } else {
+                    proUpsellFeature = .zoneMoves
+                }
+            } : nil,
+            onMoveToAlwaysHidden: zone != .alwaysHidden ? {
+                if licenseService.isPro {
+                    moveIcon(app, from: zone, to: .alwaysHidden)
+                } else {
+                    proUpsellFeature = .zoneMoves
+                }
+            } : nil
         )
     }
 
@@ -307,6 +340,7 @@ private struct PanelIconTile: View {
     let app: RunningApp
     let zone: IconZone
     let colorScheme: ColorScheme
+    var isPro: Bool = true
     let onActivate: (Bool) -> Void
     var onMoveToVisible: (() -> Void)?
     var onMoveToHidden: (() -> Void)?
@@ -340,8 +374,18 @@ private struct PanelIconTile: View {
         }
         .buttonStyle(.plain)
         .padding(1)
+        .overlay(alignment: .bottomTrailing) {
+            if !isPro {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 7))
+                    .foregroundStyle(.teal)
+                    .padding(2)
+                    .background(Circle().fill(.ultraThinMaterial))
+                    .offset(x: 2, y: 2)
+            }
+        }
         .onHover { isHovering = $0 }
-        .help(app.name)
+        .help(isPro ? app.name : "\(app.name) — Pro required to activate")
         .contextMenu { contextMenuItems }
         .accessibilityLabel(Text(app.name))
     }

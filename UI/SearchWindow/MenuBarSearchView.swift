@@ -44,6 +44,7 @@ struct MenuBarSearchView: View {
     @State private var refreshTask: Task<Void, Never>?
 
     @State var hotkeyApp: RunningApp?
+    @State private var proUpsellFeature: ProFeature?
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
@@ -195,6 +196,9 @@ struct MenuBarSearchView: View {
         .sheet(item: $hotkeyApp) { app in
             HotkeyAssignmentSheet(app: app, onDone: { hotkeyApp = nil })
         }
+        .sheet(item: $proUpsellFeature) { feature in
+            ProUpsellView(feature: feature)
+        }
         .onKeyPress { keyPress in
             handleKeyPress(keyPress)
         }
@@ -260,7 +264,13 @@ struct MenuBarSearchView: View {
             hasAccessibility: hasAccessibility,
             isRefreshing: isRefreshing,
             onDismiss: onDismiss,
-            onActivate: { app, isRightClick in activateApp(app, isRightClick: isRightClick) },
+            onActivate: { app, isRightClick in
+                if LicenseService.shared.isPro {
+                    activateApp(app, isRightClick: isRightClick)
+                } else {
+                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                }
+            },
             onRetry: { loadCachedApps(); refreshApps(force: true) },
             onIconMoved: { loadCachedApps(); refreshApps(force: true) },
             searchText: $searchText
@@ -484,7 +494,11 @@ struct MenuBarSearchView: View {
 
                 // Add custom group button
                 Button {
-                    isCreatingGroup = true
+                    if LicenseService.shared.isPro {
+                        isCreatingGroup = true
+                    } else {
+                        proUpsellFeature = .iconGroups
+                    }
                 } label: {
                     Label("Custom", systemImage: "plus")
                         .font(.system(size: 13))
@@ -787,21 +801,35 @@ struct MenuBarSearchView: View {
     /// optional closures and inline ternaries that blow up `appGrid` otherwise.
     @ViewBuilder
     private func makeTile(app: RunningApp, index: Int, grid: SearchGridSizing) -> some View {
+        let isPro = LicenseService.shared.isPro
         MenuBarAppTile(
             app: app,
             iconSize: grid.iconSize,
             tileSize: grid.tileSize,
-            onActivate: { isRightClick in activateApp(app, isRightClick: isRightClick) },
-            onSetHotkey: { hotkeyApp = app },
+            onActivate: { isRightClick in
+                if isPro {
+                    activateApp(app, isRightClick: isRightClick)
+                } else {
+                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                }
+            },
+            onSetHotkey: {
+                if isPro {
+                    hotkeyApp = app
+                } else {
+                    proUpsellFeature = .perIconHotkeys
+                }
+            },
             onRemoveFromGroup: selectedGroupId.map { groupId in
                 { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
             },
             isHidden: mode == .hidden || mode == .alwaysHidden || (mode == .all && appZone(for: app) != .visible),
-            onToggleHidden: makeToggleHiddenAction(for: app),
-            onMoveToAlwaysHidden: makeMoveToAlwaysHiddenAction(for: app),
-            onMoveToHidden: makeMoveToHiddenAction(for: app),
+            onToggleHidden: isPro ? makeToggleHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
+            onMoveToAlwaysHidden: isPro ? makeMoveToAlwaysHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
+            onMoveToHidden: isPro ? makeMoveToHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
             isMoving: movingAppId == app.uniqueId,
-            isSelected: selectedAppIndex == index
+            isSelected: selectedAppIndex == index,
+            isPro: isPro
         )
     }
 }

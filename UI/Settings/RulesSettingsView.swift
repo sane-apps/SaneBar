@@ -3,6 +3,8 @@ import SwiftUI
 
 struct RulesSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @ObservedObject private var licenseService = LicenseService.shared
+    @State private var proUpsellFeature: ProFeature?
 
     // MARK: - User-Friendly Labels (instead of "s" and "ms" jargon)
 
@@ -45,40 +47,49 @@ struct RulesSettingsView: View {
                         .help("Automatically hide icons after a delay when revealed")
 
                     if menuBarManager.settings.autoRehide {
-                        CompactDivider()
-                        CompactRow("Wait before hiding") {
-                            HStack {
-                                Text(rehideDelayLabel)
-                                    .frame(width: 95, alignment: .trailing)
-                                Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
-                                    .labelsHidden()
-                                    .help("How long to wait before hiding icons again")
+                        if licenseService.isPro {
+                            CompactDivider()
+                            CompactRow("Wait before hiding") {
+                                HStack {
+                                    Text(rehideDelayLabel)
+                                        .frame(width: 95, alignment: .trailing)
+                                    Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
+                                        .labelsHidden()
+                                        .help("How long to wait before hiding icons again")
+                                }
                             }
-                        }
-                        CompactDivider()
-                        CompactRow("Wait after Browse Icons") {
-                            HStack {
-                                Text(findIconDelayLabel)
-                                    .frame(width: 95, alignment: .trailing)
-                                Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
-                                    .labelsHidden()
-                                    .help("Extra time to browse after using Browse Icons")
+                            CompactDivider()
+                            CompactRow("Wait after Browse Icons") {
+                                HStack {
+                                    Text(findIconDelayLabel)
+                                        .frame(width: 95, alignment: .trailing)
+                                    Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
+                                        .labelsHidden()
+                                        .help("Extra time to browse after using Browse Icons")
+                                }
                             }
+                            CompactDivider()
+                            CompactToggle(
+                                label: "Hide when app changes",
+                                isOn: $menuBarManager.settings.rehideOnAppChange
+                            )
+                            .help("Auto-hide when you switch to a different app")
+                        } else {
+                            CompactDivider()
+                            proGatedRow(feature: .autoRehideCustomization, label: "Customize auto-hide timing")
                         }
-                        CompactDivider()
-                        CompactToggle(
-                            label: "Hide when app changes",
-                            isOn: $menuBarManager.settings.rehideOnAppChange
-                        )
-                        .help("Auto-hide when you switch to a different app")
                     }
 
                     CompactDivider()
-                    CompactToggle(
-                        label: "Always show on external monitors",
-                        isOn: $menuBarManager.settings.disableOnExternalMonitor
-                    )
-                    .help("External monitors have plenty of space—keep icons visible")
+                    if licenseService.isPro {
+                        CompactToggle(
+                            label: "Always show on external monitors",
+                            isOn: $menuBarManager.settings.disableOnExternalMonitor
+                        )
+                        .help("External monitors have plenty of space—keep icons visible")
+                    } else {
+                        proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
+                    }
                 }
 
                 // 2. Gestures (Revealing)
@@ -106,23 +117,27 @@ struct RulesSettingsView: View {
                     // Gesture behavior picker - only show if scroll is enabled
                     if menuBarManager.settings.showOnScroll {
                         CompactDivider()
-                        CompactRow("Gesture behavior") {
-                            Picker("", selection: $menuBarManager.settings.gestureMode) {
-                                ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
-                                    Text(mode.rawValue).tag(mode)
+                        if licenseService.isPro {
+                            CompactRow("Gesture behavior") {
+                                Picker("", selection: $menuBarManager.settings.gestureMode) {
+                                    ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
                                 }
+                                .pickerStyle(.segmented)
+                                .frame(width: 180)
+                                .help("Show only: gestures only reveal. Show and hide: gestures toggle visibility")
                             }
-                            .pickerStyle(.segmented)
-                            .frame(width: 180)
-                            .help("Show only: gestures only reveal. Show and hide: gestures toggle visibility")
+                            Text(menuBarManager.settings.gestureMode == .showOnly
+                                ? "Gestures reveal hidden icons"
+                                : "Click toggles, scroll up shows, scroll down hides")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.primary.opacity(0.7))
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 4)
+                        } else {
+                            proGatedRow(feature: .gestureCustomization, label: "Customize gesture behavior")
                         }
-                        Text(menuBarManager.settings.gestureMode == .showOnly
-                            ? "Gestures reveal hidden icons"
-                            : "Click toggles, scroll up shows, scroll down hides")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary.opacity(0.7))
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 4)
                     }
 
                     CompactDivider()
@@ -135,158 +150,184 @@ struct RulesSettingsView: View {
                     .help("Reveal all icons while ⌘+dragging to rearrange")
                 }
 
-                // 3. Triggers (Automation)
+                // 3. Triggers (Automation) — Pro
                 CompactSection("Automatic Triggers") {
-                    // Battery
-                    CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
-                        .help("Reveal battery and power icons when battery is low")
+                    if licenseService.isPro {
+                        // Battery
+                        CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
+                            .help("Reveal battery and power icons when battery is low")
 
-                    CompactDivider()
+                        CompactDivider()
 
-                    // App Launch
-                    CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
-                        .help("Reveal icons when certain apps are launched")
+                        // App Launch
+                        CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
+                            .help("Reveal icons when certain apps are launched")
 
-                    if menuBarManager.settings.showOnAppLaunch {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("If these apps open:")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.primary.opacity(0.7))
-                                .padding(.leading, 4)
-
-                            AppPickerView(
-                                selectedBundleIDs: $menuBarManager.settings.triggerApps,
-                                title: "Select Apps"
-                            )
-                            .padding(.horizontal, 4)
-                        }
-                        .padding(.vertical, 8)
-                    }
-
-                    CompactDivider()
-
-                    // Network
-                    CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
-                        .help("Reveal icons when connecting to specific Wi-Fi networks")
-
-                    if menuBarManager.settings.showOnNetworkChange {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let ssid = menuBarManager.networkTriggerService.currentSSID {
-                                Button {
-                                    if !menuBarManager.settings.triggerNetworks.contains(ssid) {
-                                        menuBarManager.settings.triggerNetworks.append(ssid)
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "wifi")
-                                        Text("Add current: \(ssid)")
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-
-                            ForEach(menuBarManager.settings.triggerNetworks, id: \.self) { network in
-                                HStack {
-                                    Text(network)
-                                    Spacer()
-                                    Button {
-                                        menuBarManager.settings.triggerNetworks.removeAll { $0 == network }
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .foregroundStyle(.primary.opacity(0.6))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(8)
-                                .background(Color.primary.opacity(0.1))
-                                .cornerRadius(6)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 4)
-                    }
-
-                    CompactDivider()
-
-                    // Focus Mode
-                    CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
-                        .help("Reveal icons when entering or exiting specific Focus Modes")
-
-                    if menuBarManager.settings.showOnFocusModeChange {
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Add current Focus Mode button
-                            if let currentMode = menuBarManager.focusModeService.currentFocusMode {
-                                Button {
-                                    if !menuBarManager.settings.triggerFocusModes.contains(currentMode) {
-                                        menuBarManager.settings.triggerFocusModes.append(currentMode)
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "moon.fill")
-                                        Text("Add current: \(currentMode)")
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-
-                            // Add "(Focus Off)" option
-                            if !menuBarManager.settings.triggerFocusModes.contains("(Focus Off)") {
-                                Button {
-                                    menuBarManager.settings.triggerFocusModes.append("(Focus Off)")
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "moon")
-                                        Text("Add: (Focus Off)")
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-
-                            // List of configured trigger modes
-                            ForEach(menuBarManager.settings.triggerFocusModes, id: \.self) { mode in
-                                HStack {
-                                    Image(systemName: mode == "(Focus Off)" ? "moon" : "moon.fill")
-                                        .foregroundStyle(.primary.opacity(0.6))
-                                    Text(mode)
-                                    Spacer()
-                                    Button {
-                                        menuBarManager.settings.triggerFocusModes.removeAll { $0 == mode }
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .foregroundStyle(.primary.opacity(0.6))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(8)
-                                .background(Color.primary.opacity(0.1))
-                                .cornerRadius(6)
-                            }
-
-                            if menuBarManager.settings.triggerFocusModes.isEmpty {
-                                Text("No Focus Modes configured. Enable a Focus Mode in System Settings to add it here.")
+                        if menuBarManager.settings.showOnAppLaunch {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("If these apps open:")
                                     .font(.system(size: 13))
                                     .foregroundStyle(.primary.opacity(0.7))
+                                    .padding(.leading, 4)
+
+                                AppPickerView(
+                                    selectedBundleIDs: $menuBarManager.settings.triggerApps,
+                                    title: "Select Apps"
+                                )
+                                .padding(.horizontal, 4)
                             }
+                            .padding(.vertical, 8)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 4)
-                    }
 
-                    CompactDivider()
+                        CompactDivider()
 
-                    // Script Trigger
-                    CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
-                        .help("Run a script on a timer — exit 0 shows icons, non-zero hides")
+                        // Network
+                        CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
+                            .help("Reveal icons when connecting to specific Wi-Fi networks")
 
-                    if menuBarManager.settings.scriptTriggerEnabled {
-                        ScriptTriggerSettingsView()
+                        if menuBarManager.settings.showOnNetworkChange {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let ssid = menuBarManager.networkTriggerService.currentSSID {
+                                    Button {
+                                        if !menuBarManager.settings.triggerNetworks.contains(ssid) {
+                                            menuBarManager.settings.triggerNetworks.append(ssid)
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "wifi")
+                                            Text("Add current: \(ssid)")
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+
+                                ForEach(menuBarManager.settings.triggerNetworks, id: \.self) { network in
+                                    HStack {
+                                        Text(network)
+                                        Spacer()
+                                        Button {
+                                            menuBarManager.settings.triggerNetworks.removeAll { $0 == network }
+                                        } label: {
+                                            Image(systemName: "xmark")
+                                                .foregroundStyle(.primary.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(8)
+                                    .background(Color.primary.opacity(0.1))
+                                    .cornerRadius(6)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 4)
+                        }
+
+                        CompactDivider()
+
+                        // Focus Mode
+                        CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
+                            .help("Reveal icons when entering or exiting specific Focus Modes")
+
+                        if menuBarManager.settings.showOnFocusModeChange {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let currentMode = menuBarManager.focusModeService.currentFocusMode {
+                                    Button {
+                                        if !menuBarManager.settings.triggerFocusModes.contains(currentMode) {
+                                            menuBarManager.settings.triggerFocusModes.append(currentMode)
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "moon.fill")
+                                            Text("Add current: \(currentMode)")
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+
+                                if !menuBarManager.settings.triggerFocusModes.contains("(Focus Off)") {
+                                    Button {
+                                        menuBarManager.settings.triggerFocusModes.append("(Focus Off)")
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "moon")
+                                            Text("Add: (Focus Off)")
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+
+                                ForEach(menuBarManager.settings.triggerFocusModes, id: \.self) { mode in
+                                    HStack {
+                                        Image(systemName: mode == "(Focus Off)" ? "moon" : "moon.fill")
+                                            .foregroundStyle(.primary.opacity(0.6))
+                                        Text(mode)
+                                        Spacer()
+                                        Button {
+                                            menuBarManager.settings.triggerFocusModes.removeAll { $0 == mode }
+                                        } label: {
+                                            Image(systemName: "xmark")
+                                                .foregroundStyle(.primary.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(8)
+                                    .background(Color.primary.opacity(0.1))
+                                    .cornerRadius(6)
+                                }
+
+                                if menuBarManager.settings.triggerFocusModes.isEmpty {
+                                    Text("No Focus Modes configured. Enable a Focus Mode in System Settings to add it here.")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(.primary.opacity(0.7))
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 4)
+                        }
+
+                        CompactDivider()
+
+                        // Script Trigger
+                        CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
+                            .help("Run a script on a timer — exit 0 shows icons, non-zero hides")
+
+                        if menuBarManager.settings.scriptTriggerEnabled {
+                            ScriptTriggerSettingsView()
+                        }
+                    } else {
+                        proGatedRow(feature: .advancedTriggers, label: "Battery, Wi-Fi, Focus, app, and script triggers")
                     }
                 }
             }
             .padding(20)
+        }
+        .sheet(item: $proUpsellFeature) { feature in
+            ProUpsellView(feature: feature)
+        }
+    }
+
+    // MARK: - Pro Gating Helper
+
+    private func proGatedRow(feature: ProFeature, label: String) -> some View {
+        CompactRow(label) {
+            Button {
+                proUpsellFeature = feature
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                    Text("Pro")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.teal)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(.teal.opacity(0.12)))
+            }
+            .buttonStyle(.plain)
         }
     }
 }

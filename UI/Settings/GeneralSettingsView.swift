@@ -9,15 +9,18 @@ private let settingsLogger = Logger(subsystem: "com.sanebar.app", category: "Set
 
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @ObservedObject private var licenseService = LicenseService.shared
     @State private var launchAtLogin = false
     @State private var isAuthenticating = false // Prevent duplicate auth prompts
     @State private var isCheckingForUpdates = false // Debounce update checks
+    @State private var proUpsellFeature: ProFeature?
 
     // Profiles Logic
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
     @State private var showingResetAlert = false
+    @State private var showingLicenseEntry = false
 
     private struct SettingsExport: Codable {
         let version: Int
@@ -100,10 +103,70 @@ struct GeneralSettingsView: View {
                         .help("Show SaneBar icon in the Dock (menu bar icon always visible)")
                 }
 
-                // 2. Privacy (Auth)
+                // 2. Pro License
+                CompactSection("Pro License") {
+                    if licenseService.isPro {
+                        CompactRow("Status") {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.green)
+                                Text("Pro")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        if let email = licenseService.licenseEmail {
+                            CompactDivider()
+                            CompactRow("Licensed to") {
+                                Text(email)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary.opacity(0.7))
+                            }
+                        }
+                        CompactDivider()
+                        CompactRow("Actions") {
+                            Button("Deactivate License") {
+                                licenseService.deactivate()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } else {
+                        CompactRow("Status") {
+                            HStack(spacing: 6) {
+                                Text("Free")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary.opacity(0.7))
+                            }
+                        }
+                        CompactDivider()
+                        CompactRow("Upgrade") {
+                            HStack(spacing: 8) {
+                                Button("Unlock Pro — $6.99") {
+                                    NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.teal)
+                                .controlSize(.small)
+
+                                Button("Enter Key") {
+                                    showingLicenseEntry = true
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+
+                // 3. Privacy (Auth) — Pro
                 CompactSection("Security") {
-                    CompactToggle(label: "Require password to show icons", isOn: requireAuthBinding)
-                        .help("Require Touch ID or password to reveal hidden menu bar icons")
+                    if licenseService.isPro {
+                        CompactToggle(label: "Require password to show icons", isOn: requireAuthBinding)
+                            .help("Require Touch ID or password to reveal hidden menu bar icons")
+                    } else {
+                        proGatedRow(feature: .touchIDProtection, label: "Require password to show icons")
+                    }
                 }
 
                 // 3. Browse Icons
@@ -160,80 +223,88 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 5. Profiles
+                // 5. Profiles — Pro
                 CompactSection("Saved Profiles") {
-                    if savedProfiles.isEmpty {
-                        CompactRow("Saved") {
-                            Text("No saved profiles")
-                                .foregroundStyle(.primary.opacity(0.7))
+                    if licenseService.isPro {
+                        if savedProfiles.isEmpty {
+                            CompactRow("Saved") {
+                                Text("No saved profiles")
+                                    .foregroundStyle(.primary.opacity(0.7))
+                            }
+                        } else {
+                            ForEach(savedProfiles) { profile in
+                                CompactRow(profile.name) {
+                                    HStack {
+                                        Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.primary.opacity(0.7))
+
+                                        Button("Load") { loadProfile(profile) }
+                                            .buttonStyle(.bordered)
+                                            .controlSize(.small)
+
+                                        Button {
+                                            deleteProfile(profile)
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .foregroundStyle(.primary.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                CompactDivider()
+                            }
+                        }
+
+                        CompactDivider()
+
+                        CompactRow("Current Settings") {
+                            Button("Save as Profile…") {
+                                newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
+                                showingSaveProfileAlert = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .help("Save all current settings as a named profile")
                         }
                     } else {
-                        ForEach(savedProfiles) { profile in
-                            CompactRow(profile.name) {
-                                HStack {
-                                    Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(.primary.opacity(0.7))
-
-                                    Button("Load") { loadProfile(profile) }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
-
-                                    Button {
-                                        deleteProfile(profile)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .foregroundStyle(.primary.opacity(0.6))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            CompactDivider()
-                        }
-                    }
-
-                    CompactDivider()
-
-                    CompactRow("Current Settings") {
-                        Button("Save as Profile…") {
-                            newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
-                            showingSaveProfileAlert = true
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .help("Save all current settings as a named profile")
+                        proGatedRow(feature: .settingsProfiles, label: "Save and load configurations")
                     }
                 }
 
-                // 6. Data
+                // 6. Data — Pro
                 CompactSection("Data") {
-                    CompactRow("Settings") {
-                        Button("Export Settings...") {
-                            exportSettings()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-
-                        Button("Import Settings...") {
-                            importSettings()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-
-                    CompactDivider()
-
-                    CompactRow("Migration") {
-                        HStack(spacing: 8) {
-                            Button("Import Bartender...") {
-                                importBartenderSettings()
+                    if licenseService.isPro {
+                        CompactRow("Settings") {
+                            Button("Export Settings...") {
+                                exportSettings()
                             }
-                            Button("Import Ice...") {
-                                importIceSettings()
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+
+                            Button("Import Settings...") {
+                                importSettings()
                             }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+
+                        CompactDivider()
+
+                        CompactRow("Migration") {
+                            HStack(spacing: 8) {
+                                Button("Import Bartender...") {
+                                    importBartenderSettings()
+                                }
+                                Button("Import Ice...") {
+                                    importIceSettings()
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } else {
+                        proGatedRow(feature: .exportImport, label: "Export, import, and migrate settings")
                     }
                 }
 
@@ -270,6 +341,34 @@ struct GeneralSettingsView: View {
             }
         } message: {
             Text("This will reset all settings to their defaults. This cannot be undone.")
+        }
+        .sheet(item: $proUpsellFeature) { feature in
+            ProUpsellView(feature: feature)
+        }
+        .sheet(isPresented: $showingLicenseEntry) {
+            LicenseEntryView()
+        }
+    }
+
+    // MARK: - Pro Gating Helper
+
+    private func proGatedRow(feature: ProFeature, label: String) -> some View {
+        CompactRow(label) {
+            Button {
+                proUpsellFeature = feature
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                    Text("Pro")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.teal)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(.teal.opacity(0.12)))
+            }
+            .buttonStyle(.plain)
         }
     }
 

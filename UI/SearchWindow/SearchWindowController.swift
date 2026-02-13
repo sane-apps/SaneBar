@@ -276,6 +276,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // opened menus/dropdowns. They close it explicitly (X / Esc / click outside).
         if currentMode == .secondMenuBar { return }
 
+        // Skip auto-close when a sheet (e.g. Pro upsell) is attached — the sheet
+        // steals key status but the user expects the parent window to stay open.
+        if window?.attachedSheet != nil { return }
+
         // Brief delay — clicking a menu bar icon opens its dropdown which
         // steals key status momentarily. If the window regains key within
         // the grace period (user clicked inside Find Icon again), skip close.
@@ -284,6 +288,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled else { return }
             guard !(window?.isKeyWindow ?? false) else { return }
+            // Re-check for sheets after the delay (sheet may have appeared during sleep)
+            guard window?.attachedSheet == nil else { return }
             close()
         }
     }
