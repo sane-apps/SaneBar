@@ -253,7 +253,7 @@ module SaneMasterModules
       system("pkill -f 'grant_permissions.applescript' 2>/dev/null")
       system("pkill -f 'xcodebuild test' 2>/dev/null")
       system("pkill -f 'SaneBar.*test' 2>/dev/null")
-      # Use -x for exact match to avoid killing xcodebuildmcp MCP server
+      # Use -x for exact match to avoid killing the xcode MCP server
       system('pkill -9 -x xcodebuild 2>/dev/null')
       sleep(0.5)
       system('killall -9 xcodebuild 2>/dev/null')
@@ -365,7 +365,7 @@ module SaneMasterModules
       puts '🔪 Force killing all test processes...'
 
       3.times do |attempt|
-        # Use -x for exact match to avoid killing xcodebuildmcp MCP server
+        # Use -x for exact match to avoid killing the xcode MCP server
         system("pkill -9 -f 'xcodebuild test' 2>/dev/null")
         system('pkill -9 -x xcodebuild 2>/dev/null')
         system('killall -9 xcodebuild 2>/dev/null')
@@ -467,10 +467,10 @@ module SaneMasterModules
       stuck_pids = stuck.split.reject do |pid|
         # Get full command to check what this process actually is
         cmd = `ps -p #{pid} -o command= 2>/dev/null`.strip
-        # Exclude: system processes, MCP servers, and npm processes
+        # Exclude: system processes, MCP servers (xcode MCP via xcrun mcpbridge), and npm processes
         cmd.include?('testmanagerd') ||
           cmd.include?('/usr/libexec/') ||
-          cmd.include?('xcodebuildmcp') ||
+          cmd.include?('mcpbridge') ||
           cmd.include?('mcp') ||
           cmd.include?('npm exec')
       end

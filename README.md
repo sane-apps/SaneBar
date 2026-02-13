@@ -336,7 +336,6 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | Security policy and reporting |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
-| [ROADMAP.md](ROADMAP.md) | Feature status overview |
 | [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Development rules and SOP |
 
