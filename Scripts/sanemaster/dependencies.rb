@@ -136,7 +136,6 @@ module SaneMasterModules
         'apple-docs' => { package: '@mweinbach/apple-docs-mcp@latest', required: true },
         'github' => { package: '@modelcontextprotocol/server-github', required: true },
         'context7' => { package: '@upstash/context7-mcp@latest', required: true },
-        'XcodeBuildMCP' => { package: 'xcodebuildmcp@latest', required: true },
         'macos-automator' => { package: '@steipete/macos-automator-mcp', required: true }
       }
 

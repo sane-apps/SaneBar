@@ -118,6 +118,22 @@ All SaneBar issues are closed. No open issues.
 
 ---
 
+## Recent Changes — XcodeBuildMCP Migration (Feb 13, 2026)
+
+**XcodeBuildMCP → Apple xcode MCP migration COMPLETE for SaneBar.**
+
+Community XcodeBuildMCP replaced with Apple's official xcode MCP (via `xcrun mcpbridge`). Global config already updated in `~/.claude/settings.json`.
+
+**Files Updated:**
+- `CLAUDE.md` — Removed "XcodeBuildMCP Session Setup" section (lines 209-217)
+- `.claude/settings.json` — Removed `mcp__XcodeBuildMCP__*` from allow list and server config
+- `scripts/sanemaster/dependencies.rb` — Removed XcodeBuildMCP from MCP verification list
+- `scripts/sanemaster/verify.rb` — Updated comments to reference "xcode MCP server" instead of "xcodebuildmcp"
+
+**Status:** Migration complete. No action needed. Global xcode MCP is already configured and working.
+
+---
+
 ## Ongoing Items
 
 1. **SaneBar v1.0.22**: Live, DMG format. Next release will be .zip format.

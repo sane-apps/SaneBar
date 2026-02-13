@@ -23,7 +23,6 @@
 | Document | When to Use |
 |----------|-------------|
 | [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
-| [ROADMAP.md](ROADMAP.md) | Feature status, what's planned |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Full SOP, 12 rules, compliance |
 | [.claude/rules/](.claude/rules/README.md) | Code style rules by file type |
 | [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) | Positioning bugs, coordinate system |
@@ -205,16 +204,6 @@ SaneBar has automated SOP enforcement via hooks:
 ---
 
 ## MCP Tool Optimization (TOKEN SAVERS)
-
-### XcodeBuildMCP Session Setup
-At session start, set defaults ONCE to avoid repeating on every build:
-```
-mcp__XcodeBuildMCP__session-set-defaults:
-  projectPath: /Users/sj/SaneApps/apps/SaneBar/SaneBar.xcodeproj
-  scheme: SaneBar
-  arch: arm64
-```
-Note: SaneBar is a **macOS app** - no simulator needed. Use `build_macos`, `test_macos`, `build_run_macos`.
 
 ### claude-mem 3-Layer Workflow (10x Token Savings)
 ```

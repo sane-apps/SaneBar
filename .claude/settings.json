@@ -30,7 +30,6 @@
       "mcp__apple-docs__*",
       "mcp__context7__*",
       "mcp__github__*",
-      "mcp__XcodeBuildMCP__*",
       "mcp__macos-automator__*"
     ]
   },
@@ -59,12 +58,6 @@
       "args": [
         "-y",
         "@upstash/context7-mcp@latest"
-      ]
-    },
-    "XcodeBuildMCP": {
-      "command": "node",
-      "args": [
-        "/Users/sj/Dev/xcodebuild-mcp-local/build/index.js"
       ]
     }
   }
