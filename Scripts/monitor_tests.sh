@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/monitor_tests.sh

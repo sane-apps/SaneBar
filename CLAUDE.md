@@ -96,6 +96,17 @@ ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI AVAILABLE" || e
 ./scripts/SaneMaster.rb logs --follow   # Stream live logs
 ./scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
 
+# Release & App Store
+./scripts/SaneMaster.rb release_preflight   # 9 pre-release safety checks
+./scripts/SaneMaster.rb appstore_preflight  # App Store submission compliance
+
+# CI/CD Helpers
+./scripts/SaneMaster.rb enable_ci_tests   # Enable test targets for CI
+./scripts/SaneMaster.rb restore_ci_tests  # Restore project.yml from CI backup
+./scripts/SaneMaster.rb fix_mocks         # Add @testable import to mocks
+./scripts/SaneMaster.rb monitor_tests     # Run tests with timeout + progress
+./scripts/SaneMaster.rb image_info <path> # Extract image info and base64
+
 # Memory Health (MCP Knowledge Graph)
 ./scripts/SaneMaster.rb mh              # Check entity/token counts
 ./scripts/SaneMaster.rb mcompact        # Compact verbose entities

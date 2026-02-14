@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/post_mock_generation.sh
