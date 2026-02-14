@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/extract_image_info.rb

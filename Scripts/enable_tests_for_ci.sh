@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/enable_tests_for_ci.sh

@@ -9,19 +9,42 @@
 ./scripts/SaneMaster.rb clean_system    # Remove dev artifacts
 ```
 
+## CI/CD Helpers (via SaneMaster)
+
+These were previously standalone bash scripts. Now unified in SaneMaster — single source of truth for all projects.
+
+```bash
+./scripts/SaneMaster.rb enable_ci_tests   # Enable test targets in project.yml for CI
+./scripts/SaneMaster.rb restore_ci_tests  # Restore project.yml from CI backup
+./scripts/SaneMaster.rb fix_mocks         # Add @testable import to generated mocks
+./scripts/SaneMaster.rb monitor_tests     # Run tests with timeout + progress
+./scripts/SaneMaster.rb image_info <path> # Extract image info and base64
+```
+
+## Release Commands (via SaneMaster)
+
+```bash
+./scripts/SaneMaster.rb release_preflight   # 9 safety checks (direct download)
+./scripts/SaneMaster.rb appstore_preflight  # App Store submission compliance
+```
+
+## Sales & Revenue (via SaneMaster)
+
+```bash
+./scripts/SaneMaster.rb sales              # Today/yesterday/week/all-time (default)
+./scripts/SaneMaster.rb sales --products   # Revenue by product
+./scripts/SaneMaster.rb sales --month      # Monthly breakdown
+./scripts/SaneMaster.rb sales --fees       # Fee analysis
+```
+
 ## Shared Scripts (Symlinks to SaneProcess)
 
 These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/`. Do not edit locally — changes go upstream.
 
 | Script | Purpose |
 |--------|---------|
-| `enable_tests_for_ci.sh` | Enable test targets for CI builds |
-| `extract_image_info.rb` | Extract metadata from images |
 | `grant_permissions.applescript` | Auto-click permission dialogs in test environments |
-| `monitor_tests.sh` | Test execution monitor with timeout detection |
-| `post_mock_generation.sh` | Post-process generated mocks |
 | `publish_website.sh` | Deploy docs/ to Cloudflare Pages |
-| `restore_tests_after_ci.sh` | Restore project.yml after CI modifications |
 | `sanemaster_completions.zsh` | Zsh tab completions for SaneMaster |
 | `set_dmg_icon.swift` | Set custom icon on .dmg files |
 | `sign_update.swift` | Sparkle EdDSA signing utility |

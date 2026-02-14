@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/restore_tests_after_ci.sh
