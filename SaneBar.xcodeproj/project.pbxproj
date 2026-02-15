@@ -28,7 +28,6 @@
 		2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8376513461FDCE0D56D48 /* HidingService.swift */; };
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
-		3CAF73DEDFE311DF58CD0AF8 /* MoveToApplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
 		44E37A74C3AE370683F08F7C /* SaneUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9146DE18EA818507DD9C5AE1 /* SaneUI */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
@@ -75,6 +74,7 @@
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
 		B207D8C90670B575527260F2 /* KeyboardShortcutsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */; };
+		B30C54ADC77F31606492836B /* MoveToApplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */; };
 		B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */; };
 		B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */; };
 		B9F295619796D283AF4FAA20 /* ProUpsellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3D9175D5601B48A3DF3792 /* ProUpsellView.swift */; };
@@ -128,6 +128,7 @@
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondMenuBarTests.swift; sourceTree = "<group>"; };
 		1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchTabs.swift; sourceTree = "<group>"; };
+		1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveToApplications.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
 		26C33525F13C653C654FBABD /* SearchWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowTests.swift; sourceTree = "<group>"; };
@@ -140,7 +141,6 @@
 		3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassGroupBoxStyle.swift; sourceTree = "<group>"; };
 		3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconTests.swift; sourceTree = "<group>"; };
 		3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommands.swift; sourceTree = "<group>"; };
-		3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveToApplications.swift; sourceTree = "<group>"; };
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityServiceTests.swift; sourceTree = "<group>"; };
 		4573AFE97B29AE19A7C1E2C3 /* IceImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IceImportService.swift; sourceTree = "<group>"; };
@@ -231,15 +231,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		014DFF03BDFAC92F20A5641F /* shared */ = {
-			isa = PBXGroup;
-			children = (
-				3DA9EC164ADD525F3D3CE0F1 /* MoveToApplications.swift */,
-			);
-			name = shared;
-			path = ../../infra/SaneProcess/shared;
-			sourceTree = "<group>";
-		};
 		069C3A0FC8F35C1CEEE6717E /* SearchWindow */ = {
 			isa = PBXGroup;
 			children = (
@@ -337,7 +328,6 @@
 				1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */,
 				90F8FA130E087A281C816B2A /* Core */,
 				409A8D62B36CC252BED0A4E4 /* Resources */,
-				014DFF03BDFAC92F20A5641F /* shared */,
 				5FE61272586955420BA4EDE2 /* Tests */,
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
 				D14A5D400198233C0D7C948F /* Products */,
@@ -369,6 +359,7 @@
 				B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */,
 				612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */,
 				7DB8FB11A62C776997531541 /* MenuBarManager+Visibility.swift */,
+				1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */,
 				13A5496922BE222586C82A3D /* Controllers */,
 				9B59B9EFDE3FBE4F62C13BDD /* Models */,
 				F4D16756A6A53AD0A4F56F30 /* Services */,
@@ -520,7 +511,6 @@
 						ProvisioningStyle = Manual;
 					};
 					1951DC8E5DD83CFDC1E5875B = {
-						DevelopmentTeam = M78L6FXD48;
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -664,7 +654,7 @@
 				980CD5A9F2BC2D549B507EF1 /* MenuBarSearchView+Navigation.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
 				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
-				3CAF73DEDFE311DF58CD0AF8 /* MoveToApplications.swift in Sources */,
+				B30C54ADC77F31606492836B /* MoveToApplications.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
 				08DAB706A1865F8E3B520362 /* OnboardingController.swift in Sources */,
 				FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */,
@@ -919,13 +909,13 @@
 			buildSettings = {
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 150;
-				DEVELOPMENT_TEAM = M78L6FXD48;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
 				INFOPLIST_FILE = SaneBar/Info.plist;
@@ -977,10 +967,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = M78L6FXD48;
+				DEVELOPMENT_TEAM = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

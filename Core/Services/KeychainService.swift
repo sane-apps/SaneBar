@@ -22,11 +22,17 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     private let service: String
 
+    /// True when running as a test host — skip real Keychain calls to avoid password prompts.
+    private let isTestEnvironment: Bool
+
     init(service: String = Bundle.main.bundleIdentifier ?? "com.sanebar.app") {
         self.service = service
+        isTestEnvironment = NSClassFromString("XCTestCase") != nil
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     func bool(forKey key: String) throws -> Bool? {
+        guard !isTestEnvironment else { return nil }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -44,6 +50,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func set(_ value: Bool, forKey key: String) throws {
+        guard !isTestEnvironment else { return }
         let data = Data([value ? 1 : 0])
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -70,6 +77,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func string(forKey key: String) throws -> String? {
+        guard !isTestEnvironment else { return nil }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -87,6 +95,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func set(_ value: String, forKey key: String) throws {
+        guard !isTestEnvironment else { return }
         guard let data = value.data(using: .utf8) else { return }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -113,6 +122,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func delete(_ key: String) throws {
+        guard !isTestEnvironment else { return }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
