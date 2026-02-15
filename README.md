@@ -7,13 +7,13 @@
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-> **⭐ Star this repo if it's useful!** · **[💰 Buy for $6.99](https://sanebar.com)** · Keeps development alive
+> **⭐ Star this repo if it's useful!** · **[Free Download](https://sanebar.com)** · **[Upgrade to Pro — $6.99](https://sanebar.com)** · Keeps development alive
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
 **Your menu bar. Not theirs.**
 
-Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
+Hide icons. Show them when you need them. That's it. Basic is free, with optional Pro features for power users.
 
 | | |
 |---|---|
@@ -31,147 +31,130 @@ Hide clutter. Lock sensitive icons with Touch ID. Zero spying.
 
 ## Download
 
-**Open source dies without support.** Ice is broken. Hidden Bar is abandoned. Bartender sold out. That's what happens when there's no sustainable model.
+**SaneBar Basic is free.** Hide and show icons, browse your menu bar, search for any icon — all included.
 
-SaneBar is different: **open source AND sustainable.**
+Want more? **[Upgrade to Pro ($6.99 once)](https://sanebar.com)** for Touch ID lock, smart triggers, profiles, custom styling, and more. One-time purchase, no subscriptions.
 
-- **Build it yourself** — Clone the repo, it's GPL v3 licensed, always will be
-- **Or buy the DMG** — Signed, notarized, ready to use. Supports continued development.
+### Install
 
-> *I wanted to make it $5, but processing fees and taxes were... insane. — Mr. Sane*
+```bash
+# Homebrew (recommended)
+brew install --cask sane-apps/tap/sanebar
 
-**[Download](https://sanebar.com)** or [build from source](#for-developers)
+# Already have SaneBar installed? Let Homebrew manage it:
+brew install --cask --adopt sane-apps/tap/sanebar
+```
+
+Or **[download directly](https://sanebar.com)** · or [build from source](#for-developers)
 
 **Requirements:** macOS 15 Sequoia or later, Apple Silicon (arm64) only
+
+SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if you prefer.
 
 ---
 
 ## How It Works
 
-1. **Click** the SaneBar icon to show/hide your menu bar icons
+1. **Click** the SaneBar icon to show/hide your hidden menu bar icons
 2. **⌘+drag** icons to choose which ones hide
-3. **Option-click** the SaneBar icon to open Power Search
-4. That's it!
+3. That's it. Most people stop here.
 
-SaneBar organizes your menu bar into three zones:
-- **Always-Hidden** (far left) — Icons only accessible via Find Icon or Second Menu Bar
-- **Hidden** (middle) — Icons that show/hide when you click
-- **Visible** (right of separator) — Always shown
+### Two Ways to View Hidden Icons
+
+Choose the style that suits you — set it during onboarding or change anytime in Settings:
+
+- **Icon Panel** — A floating panel appears below the menu bar showing your hidden icons. Clean, compact, click to dismiss.
+- **Second Menu Bar** — A full secondary bar stretches across the screen below your menu bar, showing all hidden icons in their natural order.
+
+Both modes let you right-click any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones.
 
 ---
 
 ## Features
 
-### Zero Spying
-- **🔒 Secure Reveal** — The *only* menu bar manager that locks hidden icons behind **Touch ID or password**. Protect sensitive apps like crypto wallets, messaging tools, and VPNs.
-- **100% On-Device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: SaneBar makes zero connections.
+### Basic — Free, Everything You Need
+
+- **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
+- **⌘+drag to organize** — Choose which icons hide and which stay visible
+- **Icon Panel or Second Menu Bar** — Two ways to view hidden icons (see above)
+- **Find Icon search** — Search any menu bar app by name, even behind the Notch (activating icons is Pro)
+- **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
+- **Auto-rehide** — Hidden icons automatically hide again after a delay
+- **100% on-device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: zero connections.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
-### Power Search
-- **Find Hidden Icon** — Search and click any menu bar app, even if hidden behind the Notch
-- **Keyboard Navigation** — Arrow keys to navigate, Enter to select, Escape to close
-- **Virtual Click** — Activate menu bar items without seeing them
-- **Per-Icon Hotkeys** — Global shortcuts for your most-used menu bar apps
+### Pro — Power User Features ($6.99 once)
 
-### Migration
-- **Import from Bartender** — Automatically import your hidden/visible icon layout from Bartender's plist
-- **Import from Ice** — Automatically import your configuration from Ice's plist
-- **Settings Export/Import** — Back up your entire SaneBar configuration and restore on another Mac
+Everything free, plus:
 
-### Automation Ready
-- **AppleScript Support** — Full scripting integration for Shortcuts and automation workflows
-- **Smart Triggers** — Auto-show on Focus Mode, WiFi network, app launch, or low battery
+- **Touch ID / Password Lock** — The *only* menu bar manager that locks hidden icons behind biometrics. Protect crypto wallets, messaging tools, VPNs.
+- **Always-Hidden Zone** — A dedicated zone for icons you rarely need, only accessible via Find Icon or Second Menu Bar
+- **Icon Activation & Zone Moves** — Click icons from panels to open their menus, move icons between Visible, Hidden, and Always-Hidden zones
+- **Smart Triggers** — Auto-show on Focus Mode, Wi-Fi network, app launch, low battery, external monitor, or custom scripts
 - **Profiles** — Save different setups for work, home, or presentations
+- **Per-Icon Hotkeys** — Assign global shortcuts to instantly open any menu bar app's menu
+- **Icon Groups** — Organize icons into custom named groups
+- **Auto-hide Customization** — Custom timing, hide-on-app-change, external monitor rules
+- **Gestures** — Hover to reveal, scroll to reveal, directional scroll
+- **Custom Styling** — Tint, shadow, borders, rounded corners, custom menu bar icon (5 built-in styles or upload your own), light/dark mode tinting, extra dividers
+- **Icon Spacing** — Reduce system-wide menu bar spacing to fit more icons before the Notch hides them
+- **Liquid Glass** — Translucent styling ready for macOS 26 Tahoe
+- **Import from Bartender or Ice** — Migrate your existing layout automatically
+- **Settings export/import** — Back up your config and restore on another Mac
+- **AppleScript automation** — Full scripting integration for Shortcuts and workflows
 
 ![Rules and Automation](docs/images/settings-rules.png)
-
-### Second Menu Bar
-An alternative to Find Icon — instead of searching by name, see all your hidden and always-hidden icons in a floating bar below the menu bar.
-- **Click** the SaneBar icon to show hidden icons in a second menu bar instead of expanding the separator
-- **Right-click** any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones
-- SaneUI styling with vibrancy, hover effects, and ESC to dismiss
-- Enable: **Settings → General → Hiding → Show hidden icons in second menu bar**
-
-### Onboarding Wizard
-A first-run flow to get you set up in under 30 seconds:
-1. **Welcome** — What SaneBar does, competitor import detection (Bartender/Ice)
-2. **Your Style** — Choose a preset: **Minimal** (manual only), **Smart** (auto-hide + hover), or **Presenter** (Touch ID lock + always-hidden). Pick your menu bar icon style.
-3. **Permissions** — Grant Accessibility access
-
-### Core
-- **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
-- **⌘+drag to organize** — Choose which icons hide and which stay visible
-- **Auto-hide** — Icons disappear after a configurable delay
-
-### Gestures
-- **Hover to reveal** — Move your cursor to the top of the screen to show hidden icons
-- **Scroll to reveal** — Two-finger scroll in the menu bar area
-- **Directional scroll** — Scroll up to show, scroll down to hide (optional)
-- **⌘+drag reveal** — All icons appear while rearranging so you can organize freely
-
-### Customization
-- **Liquid Glass** — Translucent styling (ready for macOS 26 Tahoe when available)
-- **Bar Styling** — Tint, shadow, borders, and rounded corners (all macOS versions)
-- **Custom Menu Bar Icon** — Upload your own icon image or choose from 5 built-in styles (filter, dots, lines, chevron, coin)
-- **Light/Dark Mode Tinting** — Separate tint color and opacity for light and dark mode
-- **Extra Dividers** — Add 0–12 additional visual dividers (line or dot style)
-
 ![Appearance Settings](docs/images/settings-appearance.png)
+
+**Existing users before v1.5** automatically get lifetime Pro as early adopters. No action needed.
+
+### Guided Onboarding
+
+A first-run walkthrough gets you set up in under a minute:
+1. **Welcome** — What SaneBar does, automatic import if Bartender or Ice is detected
+2. **Try it** — Hide and show icons right away to see how it works
+3. **Browse your icons** — See all your menu bar apps at a glance
+4. **Choose your view** — Pick Icon Panel or Second Menu Bar
+5. **Permissions** — Grant Accessibility access (required for menu bar management)
+6. **Free vs Pro** — See what's included and what Pro unlocks
 
 Works perfectly on Macs with Notch. **100% private** — no network requests, no analytics, no account.
 
 ---
 
-## Power User Features
+## Feature Details
 
-### 🔍 Find Hidden Icon
-Search for any menu bar app by name and activate it — even if it's behind the Notch. This is SaneBar's original access method. Prefer a visual overview instead? Use the [Second Menu Bar](#second-menu-bar).
-1. **Option-click** the SaneBar icon, or use the menu **Find Icon…** (default hotkey: ⌘⇧Space)
+### Find Icon Search
+Search for any menu bar app by name and activate it — even if it's behind the Notch.
+1. **Option-click** the SaneBar icon, or use **Find Icon…** (default hotkey: ⌘⇧Space)
 2. Type an app name and press **Return**
-3. SaneBar will reveal hidden icons and **virtually click** the app's menu bar item
-4. After a configurable delay (default 15 seconds), icons automatically hide again
+3. SaneBar will **virtually click** the app's menu bar item
+4. Works even if the icon is physically hidden behind the Notch or off-screen
 
-This works even if the icon is physically hidden behind the Notch or off-screen!
+### Per-Icon Hotkeys *(Pro)*
+Assign a global hotkey to any menu bar app — press it and SaneBar instantly opens that app's menu.
+1. Open **Find Icon…** → select an app → click **Record Shortcut** → press your key combo
 
-### ⌨️ Per-Icon Hotkeys
-Assign a specific global hotkey to any menu bar app.
-1. Open **Find Icon…** window
-2. Select an app from the list
-3. Click the **Record Shortcut** box in the footer
-4. Press your desired key combination
-5. Now, pressing that hotkey will instantly show hidden items and open that app's menu
+### Always-Hidden Zone *(Pro)*
+Icons pinned here never show automatically — only accessible via Find Icon or Second Menu Bar.
+- Right-click any icon → **Pin in Always Hidden**
+- Unpin anytime from the same menu
 
-### 🎨 Bar Styling
-Customize the look of your menu bar panel.
-- Go to **Settings → Appearance**
-- Enable "Custom Appearance"
-- On macOS 26 Tahoe: Enable **Translucent Background** for the native Liquid Glass look
-- On older macOS: Adjust **Tint Color**, **Opacity**, **Shadow**, **Border**, and **Rounded Corners**
+### Smart Triggers *(Pro)*
+Auto-show or auto-hide based on context:
+- **Low Battery** — Show when battery drops below threshold
+- **App Launch** — Show when specific apps start
+- **Wi-Fi Change** — Show on specific networks
+- **Focus Mode** — Show when macOS Focus changes
+- **App Change** — Auto-hide when you switch apps
+- **External Monitor** — Always show on external displays
+- **Script Trigger** — Run a custom script on a timer
 
-### 💾 Profiles
-Save different menu bar configurations for different contexts (e.g., "Work", "Gaming", "Presentation").
-- Go to **Settings → General → Saved Profiles**
-- Click **Save as Profile…**
-- Restore any profile with a single click
-
-### 🔒 Always-Hidden Zone
-A dedicated zone for icons you rarely need. Icons pinned here never show automatically — they're only accessible via **Find Icon** or the **Second Menu Bar**.
-- Right-click any icon in **Find Icon** or the **Second Menu Bar** → **Pin in Always Hidden**
-- Pinned icons stay hidden even when you reveal your menu bar
-- Unpin anytime from the same right-click menu
-
-### 🩺 Space Analyzer
-Built-in menu bar health tool to help understand your icon layout.
-- Go to **Settings → Appearance**
-- Shows visible vs hidden icon distribution
-- Helps diagnose spacing issues and optimize menu bar usage
-
-### 📁 Icon Groups & Smart Categories
+### Icon Groups & Smart Categories
 Organize your menu bar apps in the Find Icon window.
-- **Icon Groups** — Create custom groups to organize apps (e.g., "Work", "Media")
+- **Icon Groups** — Create custom groups (e.g., "Work", "Media")
 - **Smart Categories** — Automatic categorization by app type
-- Group and filter icons for quick access
 
 ---
 
@@ -199,19 +182,6 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 | **Appearance** | Custom menu bar icon, divider style, extra dividers, menu bar styling (tint, opacity per light/dark mode, shadow, border, corners), space analyzer, icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
 | **About** | Version info, privacy badge, licenses, support, report issue |
-
-### Revealing Gestures (Settings → Rules)
-- **Hover near top** — Show hidden icons when you move cursor to the top of the screen
-- **Scroll up** — Two-finger scroll up in the menu bar reveals hidden icons
-
-### Automatic Triggers (Settings → Rules)
-- **Low Battery** — Auto-show when battery drops below threshold
-- **App Launch** — Show when specific apps start
-- **Wi-Fi Change** — Show on specific networks (click "Add current network")
-- **Focus Mode** — Show when macOS Focus Mode changes (Work, Personal, etc.)
-- **App Change** — Auto-hide when you switch to a different application
-- **External Monitor** — Always show icons on external monitors (plenty of space)
-- **Script Trigger** — Run a custom script on a timer; exit 0 shows icons, non-zero hides
 
 ### Icon Spacing (Settings → Appearance)
 
@@ -324,7 +294,7 @@ osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 <details>
 <summary>The story</summary>
 
-Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked.
+Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked. Now it's free for everyone.
 
 </details>
 
@@ -348,15 +318,18 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | Feature | SaneBar | Bartender | Ice | Hidden Bar |
 |---------|---------|-----------|-----|------------|
 | **Touch ID / Password Lock** | Yes | No | No | No |
-| **Always-Hidden Zone** | Yes | No | No | No |
+| **Smart Triggers** | Yes | No | No | No |
+| **Guided Onboarding** | Yes | No | No | No |
+| **Import from Bartender/Ice** | Yes | No | No | No |
+| **Always-Hidden Zone** | Yes | No | Yes | No |
+| **Gesture Controls** | Yes | Yes | Yes | No |
 | **Second Menu Bar** | Yes | Yes | Yes | No |
-| **Find Icon Search** | Yes | Partial | No | No |
-| **Open Source** | GPL v3 | No | Yes | No |
-| **No Subscriptions** | $6.99 once | $16 + annual | Free | Free |
+| **Find Icon Search** | Yes | Yes | Yes | No |
+| **AppleScript** | Yes | Yes | No | No |
+| **Open Source** | GPL v3 | No | Yes | Yes |
 | **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
-| **Liquid Glass Ready** | Yes | Unknown | Partial | No |
-| **Onboarding + Presets** | Yes | No | No | No |
-| **Active Development** | Yes | Sold (acquired) | Sporadic | Abandoned |
+| **Pricing** | Basic (free) / Pro $6.99 | $16 | Free | Free |
+| **Active Development** | Yes | Yes | Yes | Abandoned |
 
 ## License
 
