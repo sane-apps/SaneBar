@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>1.5.0</title>
+            <pubDate>Sun, 15 Feb 2026 13:04:18 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Freemium model: browse and search free, Pro features unlocked with one-time purchase. New guided onboarding. Existing users automatically get lifetime Pro as early adopters.</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-1.5.0.zip"
+                       sparkle:version="150"
+                       sparkle:shortVersionString="1.5.0"
+                       length="4388199"
+                       type="application/octet-stream"
+                       sparkle:edSignature="iATflEca0tVy4EydCrcOQNAP5Ug13Zng/Y2OLGseajF8zjhq3aIylY45xZxaSCmfhMFNPcMeeUS0gW1OJIhjCQ=="/>
+        </item>
+        <item>
             <title>1.0.23</title>
             <pubDate>Wed, 11 Feb 2026 18:21:53 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
