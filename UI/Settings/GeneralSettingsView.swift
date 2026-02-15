@@ -162,10 +162,10 @@ struct GeneralSettingsView: View {
                 // 3. Privacy (Auth) — Pro
                 CompactSection("Security") {
                     if licenseService.isPro {
-                        CompactToggle(label: "Require password to show icons", isOn: requireAuthBinding)
-                            .help("Require Touch ID or password to reveal hidden menu bar icons")
+                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
+                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
                     } else {
-                        proGatedRow(feature: .touchIDProtection, label: "Require password to show icons")
+                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
                     }
                 }
 
@@ -193,6 +193,16 @@ struct GeneralSettingsView: View {
                             isOn: $menuBarManager.settings.secondMenuBarShowVisible
                         )
                         .help("Show visible (non-hidden) icons in the Second Menu Bar for organizing. Off by default since visible icons are already in the menu bar.")
+                    }
+                    CompactDivider()
+                    if licenseService.isPro {
+                        CompactToggle(
+                            label: "Always-hidden section",
+                            isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
+                        )
+                        .help("Adds a second separator — icons between the two separators stay hidden even when you reveal the rest.")
+                    } else {
+                        proGatedRow(feature: .alwaysHidden, label: "Always-hidden section")
                     }
                     CompactDivider()
                     CompactRow("Shortcut") {
