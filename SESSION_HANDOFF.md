@@ -1,85 +1,94 @@
-# Session Handoff - Feb 13, 2026
+# Session Handoff - Feb 14, 2026 (Evening)
 
 ## What Was Done This Session
 
-### Bug Fixes — Second Menu Bar & Find Icon (v1.0.23+)
+### Freemium Flow Audit & Security Hardening
+- **Full audit** of all 10 permission/licensing flows (new user, early adopter, paid pro, settings reset, profile load, X-button close, mid-onboarding activation, etc.)
+- **Bug fix: resetToDefaults()** — wasn't preserving `hasSeenFreemiumIntro`. Free user resets settings → detected as early adopter → free Pro. Fixed in `SettingsController.swift`.
+- **Bug fix: OnboardingController X-button** — Closing onboarding via X didn't call `dismiss()`, leaving `hasCompletedOnboarding=false` → onboarding re-triggers every launch. Fixed by adding `NSWindowDelegate` with `windowWillClose`. Class now inherits from `NSObject`.
+- **Full /critic review** — 21 NVIDIA model reviews (7 perspectives × 3 models: mistral, deepseek, qwq). All returned successfully. Consensus findings documented below.
 
-**1. Zone Classification — Unified Backend**
-- Replaced 6 separate methods (`cachedHiddenMenuBarApps`, `cachedVisibleMenuBarApps`, `cachedAlwaysHiddenMenuBarApps` + refresh variants) with single-pass `cachedClassifiedApps()`/`refreshClassifiedApps()`
-- Both Find Icon AND Second Menu Bar now use the same backend — no more inconsistent fallbacks
-- Fixed: fake `screenMinX = 0` AH boundary that misclassified items when AH separator position unavailable
-- Added pinned-ID post-pass: when AH separator exists but position unknown, uses `alwaysHiddenPinnedItemIds` instead of faking a boundary
-- Merged `classifyItems()` and `classifyItemsWithoutSeparator()` into one unified method
+### Critic Findings (Accepted Risks)
+These were identified but intentionally NOT fixed:
+- **Settings JSON tampering** → free Pro (requires Terminal knowledge, $10 app)
+- **"early-adopter" keychain string forgeable** (requires Terminal, macOS keychain protection)
+- **Offline attack** (30-day grace is reasonable for indie app)
+- **Old profile load vulnerability** (can't fix without breaking legitimate early adopter detection)
+- **Race condition mid-onboarding** (theoretical — `@ObservedObject` handles reactively)
 
-**2. Tooltip Hover Delay — Fixed**
-- Root cause: `panel.level = .statusBar` is ABOVE macOS tooltip window level
-- Fix: Changed to `panel.level = .floating` + `panel.acceptsMouseMovedEvents = true`
-
-**3. Icon Sizing in Squircle Tiles — Fixed**
-- Menu bar NSImages have ~28% transparent padding; `.fit` made icons tiny
-- Fix: Overscale `iconSize = tileSize * 1.15` + `.clipShape(RoundedRectangle)` clips overflow
-- System template icons (WiFi, Bluetooth) use smaller `tileSize * 0.65` to avoid deformation
-
-**4. Test Quality — Rewrote & Enhanced Detection**
-- Rewrote `Tests/SecondMenuBarTests.swift`: 10 real `classifyZone()` tests + 3 pin identity tests
-- Made `classifyZone()` and `VisibilityZone` internal for testability
-- Enhanced `sanetrack.rb` RULE #7: now detects mock-passthrough tests (handler setup + mock-only assertions)
-- Self-tests: 25/25 pass
+### GitHub Issue Triage
+- **Closed:** #59, #60, #61 (all responded to, resolved)
+- **Open:** #62 (Second Menu Bar always shows as panel — existing bug), #63 (can't build from source — project.yml issues)
 
 ### Files Modified
-- `Core/Services/SearchService.swift` — Unified classification engine, pinned-ID post-pass
-- `UI/SearchWindow/MenuBarSearchView.swift` — Both frontends use single-pass classification
-- `UI/SearchWindow/SearchWindowController.swift` — Panel level `.floating`, `acceptsMouseMovedEvents`
-- `UI/SearchWindow/SecondMenuBarView.swift` — Icon overscale + clip, template icon conditional sizing
-- `Tests/SecondMenuBarTests.swift` — Complete rewrite with real behavior tests
-- `~/SaneApps/infra/SaneProcess/scripts/hooks/sanetrack.rb` — Mock-passthrough detection
-- `~/SaneApps/infra/SaneProcess/scripts/hooks/sanetrack_test.rb` — 2 new self-tests
-
-### Dead Code to Clean Up
-Old individual methods in SearchService.swift are no longer called from UI:
-- `cachedHiddenMenuBarApps()`, `cachedVisibleMenuBarApps()`, `cachedAlwaysHiddenMenuBarApps()`
-- Their `refresh*` counterparts
-- Corresponding protocol declarations and mock implementations
+- `Core/Controllers/SettingsController.swift` — Preserve `hasSeenFreemiumIntro` in resetToDefaults()
+- `UI/Onboarding/OnboardingController.swift` — NSWindowDelegate, windowWillClose, NSObject inheritance
 
 ---
 
-## Serena Memories Saved
-- `zone-classification-architecture` — Unified backend design, fallback logic, post-pass pattern
-- `second-menu-bar-rendering` — Icon sizing, panel level, template icon handling
-- `test-quality-rules` — Mock-passthrough trap, what good tests look like, sanetrack enhancement
+## What Was Done Earlier Today (Feb 14 Afternoon)
+
+### CX Parity Fixes — SaneClip (triggered by Glenn's email)
+- Glenn reported SaneClip paste not working → root cause: missing Accessibility permission, silently failed
+- **Fixed SaneClip** with: runtime permission detection (NSAlert), DiagnosticsService, FeedbackView, onboarding enforcement
+- **Updated docs-audit skill** — added 15th perspective: `cx-parity` (Glenn Test)
+- **Freemium plan written** — see `.claude/plans/woolly-shimmying-torvalds.md` (not yet implemented)
+- **Replied to Glenn's email** with fix instructions + committed to Monday update
 
 ---
 
 ## Open GitHub Issues
 
-| # | Title | Opened |
-|---|-------|--------|
-| 62 | Second menu bar for showing hidden icons does not work | Feb 13 |
-| 61 | Open hidden icons in a second menu bar does not work | Feb 13 |
-| 60 | Always Show on External Monitor Does Not work | Feb 12 |
-| 59 | The issue is far from closed ! | Feb 12 |
-
-Issues #61 and #62 may be addressed by this session's classification fixes. Need user to verify and respond.
+| # | Title | Status | Action Needed |
+|---|-------|--------|---------------|
+| 63 | Can't build from source | `edsai` gave detailed report: project.yml hardcodes DEVELOPMENT_TEAM and references monorepo-only file | Fix project.yml for external contributors |
+| 62 | Second Menu Bar always shows as panel | `dpmadsen` says setting doesn't work | Investigate — may be Browse Icons mode bug |
 
 ---
 
-## Release Pipeline — ZIP Format
+## Open Emails
 
-- **v1.0.23**: Current production (DMG format, live)
-- **Next release**: Will be .zip format (pipeline tested with `--skip-notarize`, full notarized run pending)
-- Appcast, R2, website all ready for .zip transition
+| # | From | Subject | Action |
+|---|------|---------|--------|
+| 44 | You (morning report) | LemonSqueezy sales fetch broken | Fix morning report script |
+| 43 | Glenn Crawford | SaneClip paste still broken after Accessibility toggle | Needs follow-up — his version predates diagnostics feature. May need remote debug or new build. |
+
+---
+
+## Sales Snapshot (Feb 14)
+
+| Period | Orders | Revenue | Net |
+|--------|--------|---------|-----|
+| Today | 1 | $6.99 | $6.14 |
+| This Week | 31 | $190.82 | $165.78 |
+| All Time | 198 | $1,025.82 | $875.53 |
+
+---
+
+## Serena Memories Saved
+- `onboarding-freemium-flow-audit` — Bug fixes, critic findings, architecture notes
+- `zone-classification-architecture` — Unified backend design (prev session)
+- `second-menu-bar-rendering` — Icon sizing, panel level (prev session)
+- `test-quality-rules` — Mock-passthrough trap (prev session)
+
+---
+
+## Onboarding Simplification Plan
+Plan exists at `.claude/plans/woolly-shimmying-torvalds.md`. NOT YET IMPLEMENTED.
+Simplifies 7-page onboarding to teach one concept per screen. Removes "Choose Your Style" preset picker. Applies Smart defaults automatically.
 
 ---
 
 ## NEXT SESSION — Priorities
 
-1. **Respond to GitHub issues #61/#62** — Classification fixes may resolve these; test and reply
-2. **Issue #60** — External monitor "always show" not working; needs investigation
-3. **Issue #59** — Follow-up from earlier issue; review customer complaint
-4. **URGENT: Website update** — Show both viewing modes on sanebar.com (carryover)
-5. **Dead code cleanup** — Remove old individual classification methods from SearchService
-6. **Full notarized release run** — Verify ZIP pipeline end-to-end
-7. **MenuBarSearchView.swift extraction** — 1046 lines, over lint limit
+1. **Reply to Glenn** (SaneClip) — paste still broken after Accessibility toggle. His version doesn't have diagnostics. May need to send him a new build or remote debug.
+2. **Issue #63** — Fix project.yml for external contributors (remove hardcoded DEVELOPMENT_TEAM, conditional MoveToApplications.swift)
+3. **Issue #62** — Investigate Second Menu Bar setting not applying
+4. **Fix morning report script** — LemonSqueezy sales fetch broken
+5. **CX Parity Phase 2** — Shared SaneUI infrastructure
+6. **Onboarding simplification** — Implement plan from `.claude/plans/woolly-shimmying-torvalds.md`
+7. **Website update** — Show both viewing modes on sanebar.com (carryover)
+8. **Full notarized release** — Include today's bug fixes
 
 ---
 
@@ -93,8 +102,8 @@ Issues #61 and #62 may be addressed by this session's classification fixes. Need
 6. **NEVER manual R2 upload** — use `release.sh --deploy`. Hook enforces this.
 7. **One unified backend** — Never create separate data paths for different frontends.
 8. **Don't fake separator positions** — Use pinned IDs when real position unavailable.
-9. **Tests must call real code** — Mock-passthrough tests are useless. sanetrack.rb now enforces this.
-10. **NSPanel level `.floating`** — `.statusBar` blocks tooltips. Always use `.floating` for panels.
+9. **Tests must call real code** — Mock-passthrough tests are useless.
+10. **NSPanel level `.floating`** — `.statusBar` blocks tooltips.
 
 ---
 

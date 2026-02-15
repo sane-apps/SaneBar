@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Manages the onboarding window lifecycle
 @MainActor
-final class OnboardingController {
+final class OnboardingController: NSObject, NSWindowDelegate {
     static let shared = OnboardingController()
 
     private var window: NSWindow?
@@ -37,6 +37,7 @@ final class OnboardingController {
         window.contentViewController = hostingController
         window.center()
         window.isReleasedWhenClosed = false
+        window.delegate = self
 
         // Standard window behaviors
         window.isMovable = true
@@ -47,9 +48,16 @@ final class OnboardingController {
 
     func dismiss() {
         window?.close()
+        // windowWillClose handles state cleanup
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowWillClose(_: Notification) {
+        guard window != nil else { return }
         window = nil
 
-        // Mark as complete
+        // Mark as complete regardless of how the window was closed (X button or Get Started)
         MenuBarManager.shared.settings.hasCompletedOnboarding = true
         MenuBarManager.shared.saveSettings()
 

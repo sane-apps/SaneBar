@@ -14,6 +14,7 @@ final class LicenseService: ObservableObject {
     // MARK: - Published State
 
     @Published private(set) var isPro: Bool = false
+    @Published private(set) var isEarlyAdopter: Bool = false
     @Published private(set) var licenseEmail: String?
     @Published private(set) var isValidating: Bool = false
     @Published var validationError: String?
@@ -43,8 +44,18 @@ final class LicenseService: ObservableObject {
               !storedKey.isEmpty
         else {
             isPro = false
+            isEarlyAdopter = false
             licenseEmail = nil
             licenseLogger.info("No cached license key — free mode")
+            return
+        }
+
+        // Early adopters get permanent Pro — no revalidation needed
+        if storedKey == "early-adopter" {
+            isPro = true
+            isEarlyAdopter = true
+            licenseEmail = nil
+            licenseLogger.info("Early adopter — lifetime Pro access")
             return
         }
 
@@ -66,6 +77,16 @@ final class LicenseService: ObservableObject {
         Task {
             await revalidate(key: storedKey)
         }
+    }
+
+    /// Grant Pro to early adopters who used SaneBar before the freemium model.
+    func grantEarlyAdopterPro() {
+        try? keychain.set("early-adopter", forKey: Keys.licenseKey)
+        try? keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
+        isPro = true
+        isEarlyAdopter = true
+        licenseEmail = nil
+        licenseLogger.info("Early adopter Pro granted — lifetime access")
     }
 
     // MARK: - Activation
@@ -111,6 +132,7 @@ final class LicenseService: ObservableObject {
         try? keychain.delete(Keys.licenseEmail)
         try? keychain.delete(Keys.lastValidation)
         isPro = false
+        isEarlyAdopter = false
         licenseEmail = nil
         validationError = nil
         licenseLogger.info("License deactivated")
@@ -175,6 +197,6 @@ final class LicenseService: ObservableObject {
         }
     }
 
-    /// LemonSqueezy checkout URL for new purchases.
-    static let checkoutURL = URL(string: "https://saneapps.lemonsqueezy.com/buy/e1fe8e5d-a592-441f-90e6-26b36ded38de")!
+    /// LemonSqueezy checkout URL for new purchases (via go.saneapps.com redirect).
+    static let checkoutURL = URL(string: "https://go.saneapps.com/buy/sanebar")!
 }

@@ -25,10 +25,9 @@ protocol SettingsControllerProtocol: ObservableObject {
 /// 3. Cleaner dependency graph
 @MainActor
 final class SettingsController: ObservableObject, SettingsControllerProtocol {
-
     // MARK: - Published State
 
-    @Published var settings: SaneBarSettings = SaneBarSettings()
+    @Published var settings: SaneBarSettings = .init()
 
     /// Publisher for observing settings changes
     var settingsPublisher: AnyPublisher<SaneBarSettings, Never> {
@@ -89,8 +88,10 @@ final class SettingsController: ObservableObject, SettingsControllerProtocol {
     /// Reset all settings to defaults (preserving onboarding status)
     func resetToDefaults() {
         let preserveOnboarding = settings.hasCompletedOnboarding
+        let preserveFreemiumIntro = settings.hasSeenFreemiumIntro
         settings = SaneBarSettings()
         settings.hasCompletedOnboarding = preserveOnboarding
+        settings.hasSeenFreemiumIntro = preserveFreemiumIntro
         saveQuietly()
         logger.info("Settings reset to defaults")
     }
