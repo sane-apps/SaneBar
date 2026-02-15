@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import os.log
+import ServiceManagement
 import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
@@ -762,11 +763,33 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Onboarding
 
     private func showOnboardingIfNeeded() {
-        guard !settings.hasCompletedOnboarding else { return }
+        if !settings.hasCompletedOnboarding {
+            // New user — apply Smart defaults and show full onboarding
+            settings.autoRehide = true
+            settings.rehideDelay = 5.0
+            settings.showOnHover = true
+            settings.showOnScroll = true
+            settings.showOnUserDrag = true
+            settings.hasSeenFreemiumIntro = true
+            saveSettings()
 
-        // Delay slightly to ensure menu bar is fully set up
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            OnboardingController.shared.show()
+            // Enable launch at login by default
+            try? SMAppService.mainApp.register()
+            logger.info("Applied Smart defaults for first-launch onboarding (incl. launch at login)")
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                OnboardingController.shared.show()
+            }
+        } else if !settings.hasSeenFreemiumIntro {
+            // Existing user upgrading — grant early adopter Pro and re-show onboarding
+            settings.hasSeenFreemiumIntro = true
+            saveSettings()
+            LicenseService.shared.grantEarlyAdopterPro()
+            logger.info("Early adopter detected — granted Pro, re-showing onboarding")
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                OnboardingController.shared.show()
+            }
         }
     }
 }

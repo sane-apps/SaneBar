@@ -109,6 +109,11 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Whether the user has completed first-launch onboarding
     var hasCompletedOnboarding: Bool = false
 
+    /// Whether the user has seen the freemium intro (Pro vs Free page).
+    /// Existing users who upgrade (hasCompletedOnboarding=true, hasSeenFreemiumIntro=false)
+    /// are detected as early adopters and granted lifetime Pro.
+    var hasSeenFreemiumIntro: Bool = false
+
     // MARK: - Privacy (Advanced)
 
     /// If enabled, showing hidden icons requires Touch ID / password.
@@ -230,6 +235,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Off by default — users can already see visible icons in the menu bar.
     var secondMenuBarShowVisible: Bool = false
 
+    /// When true, left-clicking the SaneBar icon opens Browse Icons instead of expanding in the menu bar.
+    var leftClickOpensBrowseIcons: Bool = false
+
     /// Menu bar item IDs that should be kept in the always-hidden section across launches.
     /// Stored as `RunningApp.uniqueId` values (best-effort).
     var alwaysHiddenPinnedItemIds: [String] = []
@@ -264,6 +272,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         iconGroups = try container.decodeIfPresent([IconGroup].self, forKey: .iconGroups) ?? []
         showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+        hasSeenFreemiumIntro = try container.decodeIfPresent(Bool.self, forKey: .hasSeenFreemiumIntro) ?? false
         requireAuthToShowHiddenIcons = try container.decodeIfPresent(Bool.self, forKey: .requireAuthToShowHiddenIcons) ?? false
         menuBarAppearance = try container.decodeIfPresent(
             MenuBarAppearanceSettings.self,
@@ -304,11 +313,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
             ?? legacyDropdownPanel
             ?? false
         secondMenuBarShowVisible = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowVisible) ?? false
+        leftClickOpensBrowseIcons = try container.decodeIfPresent(Bool.self, forKey: .leftClickOpensBrowseIcons) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
         case autoRehide, rehideDelay, findIconRehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
-        case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding
+        case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding, hasSeenFreemiumIntro
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
@@ -317,7 +327,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
-        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible, leftClickOpensBrowseIcons
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 

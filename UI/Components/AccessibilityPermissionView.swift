@@ -27,24 +27,44 @@ struct AccessibilityPermissionView: View {
 
             if !accessibilityService.isGranted {
                 VStack(spacing: 12) {
-                    Text("SaneBar needs accessibility permission to control your menu bar icons.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.primary.opacity(0.7))
-                        .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "video.slash.fill")
+                                .foregroundStyle(.teal)
+                                .frame(width: 20)
+                            Text("No screen recording.")
+                                .font(.subheadline)
+                        }
+                        HStack(spacing: 8) {
+                            Image(systemName: "eye.slash.fill")
+                                .foregroundStyle(.teal)
+                                .frame(width: 20)
+                            Text("No screenshots.")
+                                .font(.subheadline)
+                        }
+                        HStack(spacing: 8) {
+                            Image(systemName: "icloud.slash")
+                                .foregroundStyle(.teal)
+                                .frame(width: 20)
+                            Text("No data collected.")
+                                .font(.subheadline)
+                        }
+                    }
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .padding(.horizontal)
 
                     Button {
                         openAccessibilitySettings()
                     } label: {
-                        Label("Open System Settings", systemImage: "gear")
+                        Label("Grant Accessibility", systemImage: "lock.open.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
 
-                    Text("System Settings > Privacy & Security > Accessibility")
+                    Text("Toggle SaneBar on in the list that appears")
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.5))
+                        .foregroundStyle(.primary.opacity(0.9))
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             } else {

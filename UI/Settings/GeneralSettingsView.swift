@@ -205,6 +205,12 @@ struct GeneralSettingsView: View {
                         proGatedRow(feature: .alwaysHidden, label: "Always-hidden section")
                     }
                     CompactDivider()
+                    CompactToggle(
+                        label: "Left-click opens Browse Icons",
+                        isOn: $menuBarManager.settings.leftClickOpensBrowseIcons
+                    )
+                    .help("When enabled, left-clicking the SaneBar icon opens Browse Icons instead of expanding hidden icons in the main menu bar. You can still expand via the keyboard shortcut.")
+                    CompactDivider()
                     CompactRow("Shortcut") {
                         KeyboardShortcuts.Recorder(for: .searchMenuBar)
                     }

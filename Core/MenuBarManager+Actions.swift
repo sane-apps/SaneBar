@@ -130,8 +130,13 @@ extension MenuBarManager {
             logger.info("Option-click: opening Browse Icons")
             SearchWindowController.shared.toggle()
         case .leftClick:
-            logger.info("Left-click: calling toggleHiddenItems()")
-            toggleHiddenItems()
+            if settings.leftClickOpensBrowseIcons {
+                logger.info("Left-click: opening Browse Icons (leftClickOpensBrowseIcons)")
+                SearchWindowController.shared.toggle()
+            } else {
+                logger.info("Left-click: calling toggleHiddenItems()")
+                toggleHiddenItems()
+            }
         case .rightClick:
             showStatusMenu()
         }

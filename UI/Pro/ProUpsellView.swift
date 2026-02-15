@@ -83,8 +83,7 @@ struct ProUpsellView: View {
                 .controlSize(.large)
             }
 
-            // Already purchased
-            Button("I already purchased") {
+            Button("I Have a Key") {
                 showingLicenseEntry = true
             }
             .buttonStyle(.plain)
@@ -182,61 +181,77 @@ struct LicenseEntryView: View {
     @ObservedObject private var licenseService = LicenseService.shared
     @Environment(\.dismiss) private var dismiss
     @State private var licenseKey = ""
+    @State private var showingSuccess = false
 
     var body: some View {
         VStack(spacing: 16) {
-            HStack {
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.primary.opacity(0.5))
+            if showingSuccess {
+                // Success state — brief confirmation before auto-dismiss
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.green)
+                Text("Pro Activated!")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if let email = licenseService.licenseEmail {
+                    Text(email)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary.opacity(0.7))
                 }
-                .buttonStyle(.plain)
-                .help("Close")
-            }
+            } else {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.primary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close")
+                }
 
-            Text("Enter License Key")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
+                Text("Enter License Key")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
 
-            Text("Paste the license key from your purchase confirmation email.")
-                .font(.system(size: 13))
-                .foregroundStyle(.primary.opacity(0.85))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            TextField("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX", text: $licenseKey)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(size: 13, design: .monospaced))
-
-            if let error = licenseService.validationError {
-                Text(error)
+                Text("Paste the license key from your purchase confirmation email.")
                     .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.primary.opacity(0.85))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-            }
 
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    dismiss()
+                TextField("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX", text: $licenseKey)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13, design: .monospaced))
+
+                if let error = licenseService.validationError {
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .keyboardShortcut(.cancelAction)
-                .font(.system(size: 13))
 
-                Button("Activate") {
-                    Task {
-                        await licenseService.activate(key: licenseKey)
+                HStack(spacing: 12) {
+                    Button("Cancel") {
+                        dismiss()
                     }
-                }
-                .keyboardShortcut(.defaultAction)
-                .font(.system(size: 13))
-                .disabled(licenseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || licenseService.isValidating)
+                    .keyboardShortcut(.cancelAction)
+                    .font(.system(size: 13))
 
-                if licenseService.isValidating {
-                    ProgressView()
-                        .controlSize(.small)
+                    Button("Activate") {
+                        Task {
+                            await licenseService.activate(key: licenseKey)
+                        }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .font(.system(size: 13))
+                    .disabled(licenseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || licenseService.isValidating)
+
+                    if licenseService.isValidating {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
                 }
             }
         }
@@ -244,7 +259,14 @@ struct LicenseEntryView: View {
         .frame(width: 400)
         .fixedSize(horizontal: false, vertical: true)
         .onChange(of: licenseService.isPro) { _, newValue in
-            if newValue { dismiss() }
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showingSuccess = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    dismiss()
+                }
+            }
         }
     }
 }

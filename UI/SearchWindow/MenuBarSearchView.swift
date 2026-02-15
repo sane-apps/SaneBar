@@ -682,32 +682,49 @@ struct MenuBarSearchView: View {
 
     private var accessibilityPrompt: some View {
         VStack(spacing: 16) {
-            Image(systemName: "hand.raised.circle")
+            Image(systemName: "lock.shield.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.orange)
+                .foregroundStyle(.teal)
 
-            Text("Accessibility Permission Needed")
+            Text("Grant Access")
                 .font(.headline)
 
-            Text("SaneBar needs Accessibility access to see menu bar icons.\n\nA system dialog should have appeared. Enable SaneBar in System Settings, then try again.")
-                .font(.callout)
-                .foregroundStyle(.primary.opacity(0.7))
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "video.slash.fill")
+                        .foregroundStyle(.teal)
+                        .frame(width: 20)
+                    Text("No screen recording.")
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "eye.slash.fill")
+                        .foregroundStyle(.teal)
+                        .frame(width: 20)
+                    Text("No screenshots.")
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "icloud.slash")
+                        .foregroundStyle(.teal)
+                        .frame(width: 20)
+                    Text("No data collected.")
+                }
+            }
+            .font(.callout)
 
             HStack(spacing: 12) {
-                Button("Open System Settings") {
-                    // Actually open System Settings to Accessibility pane
+                Button("Grant Accessibility") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                         NSWorkspace.shared.open(url)
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(.teal)
 
                 Button("Try Again") {
                     loadCachedApps()
                     refreshApps(force: true)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
             }
         }
         .padding()
