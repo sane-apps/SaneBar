@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SaneBar — Hide Menu Bar Icons &amp; Lock with Touch ID | Mac</title>
-    <meta name="description" content="Hide menu bar clutter and lock sensitive icons with Touch ID. Privacy-first, open source macOS utility. $6.99 one-time, no subscription.">
+    <meta name="description" content="Hide and organize macOS menu bar icons. Basic is free, Pro unlocks Touch ID lock, smart triggers, and custom styling. Open source, 100% private.">
     <link rel="canonical" href="https://sanebar.com">
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
     <meta name="author" content="Mr. Sane">
@@ -17,7 +17,7 @@
 
     <!-- Open Graph -->
     <meta property="og:title" content="SaneBar — Hide Menu Bar Icons & Lock with Touch ID">
-    <meta property="og:description" content="Hide menu bar clutter and lock sensitive icons with Touch ID. Privacy-first, open source macOS utility. $6.99 one-time.">
+    <meta property="og:description" content="Hide and organize macOS menu bar icons. Basic is free, Pro unlocks Touch ID lock, smart triggers, and custom styling. Open source, 100% private.">
     <meta property="og:url" content="https://sanebar.com">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="SaneBar">
@@ -25,7 +25,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="SaneBar — Hide Menu Bar Icons & Lock with Touch ID">
-    <meta name="twitter:description" content="Hide menu bar clutter and lock sensitive icons with Touch ID. Privacy-first, open source macOS utility. $6.99 one-time.">
+    <meta name="twitter:description" content="Hide and organize macOS menu bar icons. Basic is free, Pro unlocks Touch ID lock, smart triggers, and custom styling. Open source, 100% private.">
 
     <!-- Fonts: Elegant typography for luxury feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,11 +40,17 @@
       "name": "SaneBar",
       "operatingSystem": "macOS",
       "applicationCategory": "UtilitiesApplication",
-      "offers": {
+      "offers": [{
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "name": "Free"
+      }, {
         "@type": "Offer",
         "price": "6.99",
-        "priceCurrency": "USD"
-      },
+        "priceCurrency": "USD",
+        "name": "Pro"
+      }],
       "description": "The privacy-first menu bar manager that hides clutter and secures sensitive icons behind Touch ID.",
       "image": "https://sanebar.com/images/branding.png",
       "downloadUrl": "https://go.saneapps.com/buy/sanebar?ref=website",
@@ -53,7 +59,7 @@
         "name": "Mr. Sane",
         "url": "https://github.com/sane-apps"
       },
-      "softwareVersion": "1.3.0",
+      "softwareVersion": "1.5.0",
       "featureList": [
         "Hide Menu Bar Icons",
         "Touch ID Lock",
@@ -259,7 +265,7 @@
 
         /* Hero Section */
         .hero {
-            padding: 180px 0 100px;
+            padding: 120px 0 60px;
             text-align: center;
         }
 
@@ -282,7 +288,7 @@
             font-size: 1.25rem;
             color: var(--text-secondary);
             max-width: 560px;
-            margin: 0 auto 48px;
+            margin: 0 auto 24px;
             font-weight: 400;
             line-height: 1.8;
         }
@@ -298,7 +304,7 @@
             gap: 24px;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 32px;
+            margin-bottom: 20px;
             font-size: 1.17rem;
             color: var(--text-muted);
         }
@@ -314,7 +320,7 @@
             gap: 16px;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 60px;
+            margin-bottom: 24px;
         }
 
         .btn {
@@ -402,17 +408,42 @@
         .carousel-slide {
             display: none;
             animation: fadeIn 0.5s ease-in-out;
+            height: 100%;
         }
 
         .carousel-slide.active {
             display: block;
         }
 
+        .carousel-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 24px 20px;
+        }
+
+        .carousel-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .carousel-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
         .carousel-slide img {
-            width: 100%;
+            max-width: 100%;
+            max-height: 300px;
             height: auto;
             display: block;
-            border-radius: 16px;
+            border-radius: 12px;
+            object-fit: contain;
         }
 
         .carousel-caption {
@@ -474,7 +505,7 @@
             height: 100%;
             background: var(--accent);
             width: 0%;
-            animation: carouselProgress 2s linear infinite;
+            animation: carouselProgress 5s linear infinite;
         }
 
         @keyframes carouselProgress {
@@ -806,6 +837,17 @@
             color: var(--text-secondary);
             font-size: 0.95rem;
             line-height: 1.65;
+        }
+
+        .pro-badge {
+            font-size: 0.65rem;
+            background: var(--accent);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            vertical-align: middle;
+            font-weight: 600;
+            letter-spacing: 0.03em;
         }
 
         a.feature-card {
@@ -1720,47 +1762,99 @@
         <a href="https://sanehosts.com">SaneHosts &mdash; System-Level Ad Blocker</a>
         <a href="https://sanesales.com">SaneSales &mdash; Sales Tracker</a>
         <a href="https://saneapps.com">See all SaneApps &rarr;</a>
-        <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="mobile-nav-cta">Download SaneBar &mdash; $6.99</a>
+        <a href="https://dist.sanebar.com/updates/SaneBar-1.5.0.zip" class="mobile-nav-cta">Free Download</a>
     </div>
 
     <section class="hero">
         <div class="container">
             <h1 class="animate-in delay-2">Bring <em>Sanity</em> to your Menu Bar</h1>
-            <p class="subtitle animate-in delay-3">The <em>only</em> menu bar manager with Touch ID protection.<br>Works flawlessly on macOS Tahoe while others break.</p>
+            <p class="subtitle animate-in delay-3">Hide icons. Show them when you need them.<br>One click to hide. One click to show. That's it.</p>
             <div class="trust-badges animate-in delay-3">
-                <a href="https://forums.basehub.com/sane-apps/SaneBar/1" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">🛡️ Provably private</a>
                 <span>💵 No subscription</span>
+                <a href="https://forums.basehub.com/sane-apps/SaneBar/1" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">🛡️ 100% private</a>
                 <span>🛠️ Actively maintained</span>
             </div>
+            <p class="animate-in delay-4" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Basic is free. Love it? Upgrade to Pro in the app — $6.99, once.</p>
             <div class="cta-buttons animate-in delay-4">
-                <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="btn btn-primary">
+                <a href="https://dist.sanebar.com/updates/SaneBar-1.5.0.zip" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Download — $6.99
-                </a><span class="price-note">*</span>
+                    Free Download
+                </a>
             </div>
-            <p class="system-requirements animate-in delay-4" style="color: var(--text-muted); font-size: 0.85em; margin-top: 12px;">Requires macOS 15.0 (Sequoia) or later</p>
-            <!-- Tutorial Carousel - auto-cycles through the workflow -->
-            <div class="hero-carousel animate-in delay-5">
-                <div class="carousel-container">
+            <div class="animate-in delay-4" style="margin-top: 12px; text-align: center;">
+                <code style="background: var(--bg-card); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: inline-block;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code>
+            </div>
+            <!-- One Click to Hide - interactive demo -->
+            <div class="animate-in delay-5" style="margin-top: 48px;">
+                <h2 style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">How's it work?</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 500;">Click <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; color: rgba(255,255,255,0.9);"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg> below to hide and unhide apps:</p>
+                <div class="demo-container" onclick="toggleDemo()">
+                    <div class="demo-menubar" id="demoMenubar">
+                        <div class="demo-icons">
+                            <span>🔐</span>
+                            <span>💬</span>
+                            <span>🎵</span>
+                            <span>☁️</span>
+                            <span>📡</span>
+                            <span>🔋</span>
+                            <span>📶</span>
+                            <span>🕐</span>
+                            <span>🎙️</span>
+                            <span>🔔</span>
+                            <span>📧</span>
+                            <span>🌐</span>
+                            <span>💾</span>
+                            <span>🖥️</span>
+                            <span>🔒</span>
+                            <span>📊</span>
+                            <span>⚙️</span>
+                            <span>🛡️</span>
+                        </div>
+                        <span class="demo-separator">/</span>
+                        <svg class="demo-sanebar-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="2" y="5" width="20" height="2" rx="1"/>
+                            <rect x="4" y="11" width="16" height="2" rx="1"/>
+                            <rect x="6" y="17" width="12" height="2" rx="1"/>
+                        </svg>
+                    </div>
+                    <div class="demo-label">
+                        <span class="state" id="demoState">Revealed</span>
+                        <span style="color: var(--text-secondary);">— all icons visible</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Showcase Carousel - two ways to view hidden icons -->
+            <h2 style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 48px; margin-bottom: 16px;">How do you handle all the apps hidden by the Mac Notch?</h2>
+            <div class="hero-carousel animate-in delay-5" style="max-width: 520px; margin-top: 0;">
+                <div class="carousel-container" style="height: 420px;">
                     <div class="carousel-progress">
                         <div class="carousel-progress-bar" id="carouselProgress"></div>
                     </div>
                     <div class="carousel-slide active">
-                        <img src="images/find-icon-rightclick-menu.png" alt="Step 1: Right-click any icon">
+                        <div class="carousel-inner">
+                            <p class="carousel-label">Option 1: Icon Panel</p>
+                            <p class="carousel-desc">A compact floating panel shows your hidden icons. Right-click or press ⌘⇧Space to open.</p>
+                            <img src="images/icon-panel.png" alt="Icon Panel">
+                        </div>
                     </div>
                     <div class="carousel-slide">
-                        <img src="images/find-icon-move-hover.png" alt="Step 2: Select Move to Visible">
+                        <div class="carousel-inner">
+                            <p class="carousel-label">Option 2: Second Menu Bar</p>
+                            <p class="carousel-desc">A full-width bar below your menu bar shows all hidden icons. Same shortcut — right-click or ⌘⇧Space.</p>
+                            <img src="images/second-menu-bar.png" alt="Second Menu Bar">
+                        </div>
                     </div>
                     <div class="carousel-slide">
-                        <img src="images/find-icon-visible.png" alt="Step 3: Done! Icon moved">
+                        <div class="carousel-inner">
+                            <p class="carousel-label">Choose Your View</p>
+                            <p class="carousel-desc">Pick the view you prefer in Settings. One shortcut, two options.</p>
+                            <img src="images/browse-settings.png" alt="Settings">
+                        </div>
                     </div>
-                </div>
-                <div class="carousel-caption-wrapper">
-                    <div class="carousel-caption" id="carouselCaption">1. Right-click any icon</div>
                 </div>
                 <div class="carousel-dots">
                     <span class="dot active" onclick="goToSlide(0)"></span>
@@ -1789,50 +1883,60 @@
         </div>
     </section>
 
-    <section class="before-after">
-        <div class="container">
-            <h2 class="section-title">One Click to Hide</h2>
-            <p class="section-subtitle">Click the SaneBar icon to hide everything left of the separator.</p>
-            <div class="demo-container" onclick="toggleDemo()">
-                <div class="demo-menubar" id="demoMenubar">
-                    <!-- Hidden icons (left of separator) - 8 icons for dramatic effect -->
-                    <div class="demo-icons">
-                        <span>🔐</span>
-                        <span>💬</span>
-                        <span>🎵</span>
-                        <span>☁️</span>
-                        <span>📡</span>
-                        <span>🔋</span>
-                        <span>📶</span>
-                        <span>🕐</span>
-                    </div>
-                    <!-- Separator - hides with icons -->
-                    <span class="demo-separator">/</span>
-                    <!-- SaneBar icon - ALWAYS visible (SF Symbol: line.3.horizontal.decrease) -->
-                    <svg class="demo-sanebar-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="2" y="5" width="20" height="2" rx="1"/>
-                        <rect x="4" y="11" width="16" height="2" rx="1"/>
-                        <rect x="6" y="17" width="12" height="2" rx="1"/>
-                    </svg>
-                </div>
-                <div class="demo-label">
-                    <span class="state" id="demoState">Revealed</span>
-                    <span style="color: var(--text-secondary);">— all icons visible</span>
-                </div>
-                <div class="demo-hint">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
-                    </svg>
-                    Click to toggle (just like the real app)
-                </div>
-            </div>
-        </div>
-    </section>
 
     <section class="features" id="features">
         <div class="container">
             <h2 class="section-title">Everything you need. Nothing you don't.</h2>
-            <p class="section-subtitle">Built for power users who value privacy, speed, and control.</p>
+            <p class="section-subtitle">Core features included in Basic. Power features unlock with Pro ($6.99 once).</p>
+            <h3 style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 20px; font-weight: 500;">Included in Basic — free</h3>
+            <div class="feature-grid">
+                <!-- BASIC: One-Click Hide/Show -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </div>
+                    <h3>One-Click Hide &amp; Show</h3>
+                    <p>Click the SaneBar icon to hide or reveal all your menu bar icons. Use ⌘\ to toggle with a keyboard shortcut.</p>
+                </div>
+                <!-- BASIC: Icon Panel & Second Menu Bar -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                        </svg>
+                    </div>
+                    <h3>Icon Panel &amp; Second Menu Bar</h3>
+                    <p>Browse all your hidden icons in a floating panel or a full-width second bar. Pick your view in Settings.</p>
+                </div>
+                <!-- BASIC: Find Icon Search -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                    <h3>Find Icon Search</h3>
+                    <p>Search any menu bar app by name — even icons hidden behind the Notch. Press ⌘⇧Space to open.</p>
+                </div>
+                <!-- BASIC: Auto-Rehide -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Auto-Rehide</h3>
+                    <p>Hidden icons automatically tuck away after a few seconds. No clutter, no maintenance.</p>
+                </div>
+            </div>
+
+            <h3 style="font-size: 1.1rem; color: var(--text-secondary); margin-top: 48px; margin-bottom: 20px; font-weight: 500;">Unlock with Pro — $6.99 once</h3>
             <div class="feature-grid">
                 <!-- 1. Touch ID Lock - THE unique selling point -->
                 <a href="javascript:void(0)" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons')" class="feature-card featured">
@@ -1842,32 +1946,19 @@
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
                     </div>
-                    <h3>Touch ID Lock</h3>
+                    <h3>Touch ID Lock <span class="pro-badge">Pro</span></h3>
                     <p>The <strong>only</strong> menu bar manager with biometric security. Perfect for shared workspaces and presentations.</p>
                 </a>
-                <!-- 2. Power Search - finds icons anywhere -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Power Search — Find any icon, assign shortcuts, move between zones')" class="feature-card">
+                <!-- 2. Icon Activation & Hotkeys -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Icon Activation & Hotkeys — Click to open menus, assign global shortcuts')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                         </svg>
                     </div>
-                    <h3>Power Search</h3>
-                    <p>Find any icon instantly—even behind the Notch. Assign per-app hotkeys, move icons between Hidden and Visible zones.</p>
+                    <h3>Icon Activation & Hotkeys <span class="pro-badge">Pro</span></h3>
+                    <p>Click any icon from panels to open its menu. Assign global hotkeys to your favorite apps. Move icons between Visible, Hidden, and Always-Hidden zones.</p>
                 </a>
-                <!-- 3. Second Menu Bar - floating bar for hidden icons -->
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="3" y1="9" x2="21" y2="9"></line>
-                            <line x1="9" y1="21" x2="9" y2="9"></line>
-                        </svg>
-                    </div>
-                    <h3>Second Menu Bar</h3>
-                    <p>See all hidden icons in a second bar below the menu bar. Right-click to move icons between zones.</p>
-                </div>
                 <!-- 4. Always-Hidden Zone - permanent hide for rarely-used icons -->
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -1877,18 +1968,21 @@
                             <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
                         </svg>
                     </div>
-                    <h3>Always-Hidden Zone</h3>
-                    <p>A dedicated zone for icons you rarely need. Only accessible via Power Search or the Second Menu Bar.</p>
+                    <h3>Always-Hidden Zone <span class="pro-badge">Pro</span></h3>
+                    <p>A dedicated zone for icons you rarely need. Only accessible via Find Icon search or the Second Menu Bar.</p>
                 </div>
-                <!-- 5. Keyboard Shortcuts - global hotkeys + automation -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-shortcuts.png', 'Keyboard Shortcuts — Global hotkeys and AppleScript automation')" class="feature-card">
+                <!-- 5. Profiles & Automation -->
+                <a href="javascript:void(0)" onclick="openLightbox('images/settings-shortcuts.png', 'Profiles & Automation — Saved setups, icon groups, AppleScript')" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
                         </svg>
                     </div>
-                    <h3>Keyboard Shortcuts</h3>
-                    <p>Global hotkeys to toggle, show, hide, or search. AppleScript for Raycast, Alfred, Keyboard Maestro, and Shortcuts.</p>
+                    <h3>Profiles & Automation <span class="pro-badge">Pro</span></h3>
+                    <p>Save different setups for work, home, or presentations. Organize icons into groups. Full AppleScript automation for Shortcuts and workflows.</p>
                 </a>
                 <!-- 4. Smart Triggers - auto-show on conditions -->
                 <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on Focus Mode, battery, WiFi, or app launch')" class="feature-card">
@@ -1898,7 +1992,7 @@
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                     </div>
-                    <h3>Smart Triggers</h3>
+                    <h3>Smart Triggers <span class="pro-badge">Pro</span></h3>
                     <p>Auto-reveal icons when Focus Mode changes, battery is low, apps launch, or you connect to certain WiFi networks.</p>
                 </a>
                 <!-- 5. Gestures & Auto-hide - MISSING BEFORE! -->
@@ -1911,7 +2005,7 @@
                             <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
                         </svg>
                     </div>
-                    <h3>Gestures & Auto-hide</h3>
+                    <h3>Gestures & Auto-hide <span class="pro-badge">Pro</span></h3>
                     <p>Hover, scroll, or click to reveal. Directional scroll (up=show, down=hide). Auto-hide on app switch. Ice-compatible.</p>
                 </a>
                 <!-- 6. Menu Bar Spacing - unique feature -->
@@ -1926,7 +2020,7 @@
                             <path d="M3 12h18"></path>
                         </svg>
                     </div>
-                    <h3>Menu Bar Spacing</h3>
+                    <h3>Menu Bar Spacing <span class="pro-badge">Pro</span></h3>
                     <p>MacBook Pro notch hiding icons? System-wide spacing (1-10) gives you more room.</p>
                 </a>
                 <!-- 7. Custom Appearance - Liquid Glass, tint, dividers -->
@@ -1940,25 +2034,10 @@
                             <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"></path>
                         </svg>
                     </div>
-                    <h3>Custom Appearance</h3>
-                    <p>Liquid Glass on macOS Tahoe. Tint colors, shadows, borders, rounded corners. Up to 12 dividers.</p>
+                    <h3>Custom Appearance <span class="pro-badge">Pro</span></h3>
+                    <p>Liquid Glass on macOS Tahoe. Tint, shadows, borders, corners, dividers. Custom menu bar icon and spacers.</p>
                 </a>
-                <!-- 8. Icon Management - core feature -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Icon Management — Browse Hidden, Visible, or All icons')" class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="5 9 2 12 5 15"></polyline>
-                            <polyline points="9 5 12 2 15 5"></polyline>
-                            <polyline points="15 19 12 22 9 19"></polyline>
-                            <polyline points="19 9 22 12 19 15"></polyline>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
-                            <line x1="12" y1="2" x2="12" y2="22"></line>
-                        </svg>
-                    </div>
-                    <h3>Icon Management</h3>
-                    <p>Browse Hidden, Visible, or All icons. Right-click any icon to move it between zones instantly.</p>
-                </a>
-                <!-- 9. Migration - import from competitors -->
+                <!-- 8. Migration - import from competitors -->
                 <div class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -1967,20 +2046,9 @@
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
                     </div>
-                    <h3>Import from Bartender & Ice</h3>
+                    <h3>Import from Bartender & Ice <span class="pro-badge">Pro</span></h3>
                     <p>Switch in seconds. Import your icon layout from Bartender or Ice with one click. Export/import settings between Macs.</p>
                 </div>
-                <!-- 10. Open Source - trust, privacy -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-about.png', 'Open Source — 100% local, no analytics, audit the code yourself')" class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <path d="M9 12l2 2 4-4"/>
-                        </svg>
-                    </div>
-                    <h3>Open Source</h3>
-                    <p>100% on-device. Zero network calls. No analytics. Audit the code yourself on GitHub.</p>
-                </a>
             </div>
         </div>
     </section>
@@ -2072,55 +2140,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- UNIQUE TO SANEBAR (only we have these - lead with differentiators) -->
+                        <!-- ONLY SANEBAR (verified unique — no competitor has these) -->
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">Touch ID Lock</span>
                                 <span class="feature-desc">Biometric protection for hidden icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Always-Hidden Zone</span>
-                                <span class="feature-desc">Dedicated zone for rarely-used icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Second Menu Bar</span>
-                                <span class="feature-desc">Floating bar showing hidden icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Onboarding Wizard</span>
-                                <span class="feature-desc">Presets &amp; import in 30 seconds</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Gesture Controls</span>
-                                <span class="feature-desc">Scroll, hover, or click to reveal</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
@@ -2141,19 +2165,8 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">Auto-Hide on App Switch</span>
-                                <span class="feature-desc">Icons hide when you change apps</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Menu Bar Spacing</span>
-                                <span class="feature-desc">Recover icons hidden by the notch</span>
+                                <span class="feature-label">Guided Onboarding</span>
+                                <span class="feature-desc">Interactive walkthrough &amp; competitor import</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
@@ -2174,6 +2187,17 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
+                                <span class="feature-label">Menu Bar Spacing</span>
+                                <span class="feature-desc">Recover icons hidden by the notch</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
                                 <span class="feature-label">Settings Export/Import</span>
                                 <span class="feature-desc">Back up and restore your configuration</span>
                             </td>
@@ -2183,49 +2207,48 @@
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                         </tr>
-                        <!-- SANEBAR ADVANTAGE (few others have) -->
+                        <!-- SHARED WITH SOME (we have it, some competitors do too) -->
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Always-Hidden Zone</span>
+                                <span class="feature-desc">Third zone for rarely-used icons</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Gesture Controls</span>
+                                <span class="feature-desc">Scroll, hover, or click to reveal</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Second Menu Bar</span>
+                                <span class="feature-desc">Full-width bar showing hidden icons</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">AppleScript</span>
-                                <span class="feature-desc">Automation & Shortcuts support</span>
+                                <span class="feature-desc">Automation &amp; Shortcuts support</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Visual Zones</span>
-                                <span class="feature-desc">Dividers to organize icons</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">External Monitor Support</span>
-                                <span class="feature-desc">Works across multiple displays</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                        </tr>
-                        <!-- COMMON FEATURES (high demand but not unique) -->
-                        <tr>
-                            <td class="feature-name">
-                                <span class="feature-label">Power Search</span>
-                                <span class="feature-desc">Find any icon by name</span>
-                            </td>
-                            <td class="highlight-col"><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                         </tr>
@@ -2236,11 +2259,21 @@
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Find Icon Search</span>
+                                <span class="feature-desc">Find any icon by name</span>
+                            </td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                             <td><span class="cross">&#10007;</span></td>
                         </tr>
-                        <!-- TABLE STAKES (everyone has, put last) -->
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">Icon Management</span>
@@ -2249,8 +2282,8 @@
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
-                            <td><span class="cross">&#10007;</span></td>
+                            <td><span class="check">&#10003;</span></td>
+                            <td><span class="check">&#10003;</span></td>
                         </tr>
                         <!-- TRUST & VALUE -->
                         <tr>
@@ -2267,10 +2300,10 @@
                         <tr>
                             <td class="feature-name">
                                 <span class="feature-label">Open Source</span>
-                                <span class="feature-desc">$6.99 one-time or build from source</span>
+                                <span class="feature-desc">Audit the code yourself</span>
                             </td>
-                            <td class="highlight-col"><span class="check">$6.99</span></td>
-                            <td><span class="cross">$20</span></td>
+                            <td class="highlight-col"><span class="check">&#10003;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
@@ -2283,8 +2316,19 @@
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
                             <td><span class="check">&#10003;</span></td>
-                            <td><span class="check">&#10003;</span></td>
                             <td><span class="cross">&#10007;</span></td>
+                            <td><span class="cross">&#10007;</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">
+                                <span class="feature-label">Pricing</span>
+                                <span class="feature-desc">One-time, no subscription</span>
+                            </td>
+                            <td class="highlight-col">Free / $6.99</td>
+                            <td style="color: var(--text-primary);">$16</td>
+                            <td style="color: var(--text-primary);">Free</td>
+                            <td style="color: var(--text-primary);">Free</td>
+                            <td style="color: var(--text-primary);">Free</td>
                         </tr>
                     </tbody>
                 </table>
@@ -2380,17 +2424,17 @@
         <section class="sustainability">
         <div class="container">
             <div class="sustainability-card">
-                <h2 style="font-family: 'Playfair Display', serif; font-size: 2.25rem; margin-bottom: 20px;">Open Source ≠ Free</h2>
+                <h2 style="font-family: 'Playfair Display', serif; font-size: 2.25rem; margin-bottom: 20px;">Open Source + Sustainable</h2>
                 <div class="sustainability-body">
-                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 30px;">Great open-source tools die when developers can't sustain them. $6.99 keeps SaneBar alive and actively maintained.</p>
+                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 30px;">SaneBar Basic is free. Pro upgrades and donations keep it alive. Ice is broken. Hidden Bar is abandoned. Bartender sold out. That's what happens without a sustainable model.</p>
                     <div class="sustainability-options">
-                        <a href="https://github.com/sane-apps/SaneBar" class="sustainability-option">
-                            <h4>Build It Yourself</h4>
-                            <p>Download the code. Open source. Build from source for free.</p>
+                        <a href="https://dist.sanebar.com/updates/SaneBar-1.5.0.zip" class="sustainability-option">
+                            <h4>Free Download</h4>
+                            <p>Signed, notarized, ready to use. Core features free forever.</p>
                         </a>
                         <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="sustainability-option featured">
-                            <h4>Buy the DMG — $6.99</h4>
-                            <p>Get a signed, notarized, ready-to-use DMG and support development.</p>
+                            <h4>Upgrade to Pro — $6.99</h4>
+                            <p>Touch ID, triggers, profiles, styling. Supports development.</p>
                         </a>
                     </div>
                 </div>
@@ -2405,13 +2449,14 @@
                 <a href="guides.html">Guides</a>
                 <a href="https://github.com/sane-apps/SaneBar">GitHub</a>
                 <a href="privacy.html">Privacy</a>
-                <a href="https://github.com/sane-apps/SaneBar/issues">Help</a>
+                <a href="https://github.com/sane-apps/SaneBar/issues/new">Report Issue</a>
                 <a href="mailto:hi@saneapps.com">Contact</a>
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/LICENSE">GPL v3 License</a>
                 <a href="https://github.com/sponsors/MrSaneApps"><svg height="12" viewBox="0 0 16 16" width="12" fill="#ea4aaa" style="vertical-align: -1px; margin-right: 3px;"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z"/></svg>Sponsor</a>
                 <a href="https://saneapps.com">SaneApps</a>
             </div>
-            <p id="pricing-note" style="color: var(--text-secondary); font-size: 0.8rem; font-style: italic; opacity: 0.7; margin-bottom: 12px;">*I wanted to make it $5, but processing fees and taxes were... insane. — Mr. Sane</p>
+            <p id="pricing-note" style="color: var(--text-secondary); font-size: 0.8rem; font-style: italic; opacity: 0.7; margin-bottom: 12px;">SaneBar Basic is free. Pro: $6.99 one-time, no subscription.</p>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px;">Requires macOS 15.0 (Sequoia) or later &middot; Apple Silicon</p>
             <p class="footer-copy">Made with care by Mr. Sane &nbsp;•&nbsp; &copy; 2026 SaneBar</p>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px;">"Built for a Sound Mind" &middot; <a href="https://saneapps.com" style="color: var(--text-secondary);">saneapps.com</a></p>
         </div>
@@ -2430,18 +2475,14 @@
         const slides = document.querySelectorAll('.carousel-slide');
         const dots = document.querySelectorAll('.carousel-dots .dot');
         const caption = document.getElementById('carouselCaption');
-        const captions = [
-            '1. Right-click any icon',
-            '2. Select "Move to Visible"',
-            '3. Done! Icon moved'
-        ];
+        const captions = [];
 
         const progressBar = document.getElementById('carouselProgress');
 
         function resetProgressBar() {
             progressBar.style.animation = 'none';
             progressBar.offsetHeight; // Trigger reflow
-            progressBar.style.animation = 'carouselProgress 2s linear';
+            progressBar.style.animation = 'carouselProgress 5s linear';
         }
 
         function goToSlide(n) {
@@ -2452,7 +2493,7 @@
             if (currentSlide < 0) currentSlide = slides.length - 1;
             slides[currentSlide].classList.add('active');
             dots[currentSlide].classList.add('active');
-            caption.textContent = captions[currentSlide];
+            if (caption && captions[currentSlide]) caption.textContent = captions[currentSlide];
             resetProgressBar();
         }
 
@@ -2460,8 +2501,8 @@
             goToSlide(currentSlide + 1);
         }
 
-        // Auto-rotate every 2 seconds (matches progress bar)
-        setInterval(nextSlide, 2000);
+        // Auto-rotate every 5 seconds
+        setInterval(nextSlide, 5000);
         resetProgressBar(); // Start progress bar on load
 
         // Demo toggle - mimics SaneBar's click-to-hide behavior

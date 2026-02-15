@@ -203,10 +203,16 @@ private struct WelcomeActionPage: View {
                         .fill(Color.black.opacity(0.85))
                 )
 
-                Text(isHidden ? "Hidden! Click again to reveal." : "Tip: ⌘ + drag icons in your menu bar to rearrange")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.green)
-                    .frame(height: 18)
+                Group {
+                    if isHidden {
+                        Text("Hidden! Click again to reveal.")
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("Tip").foregroundColor(.teal).bold() + Text(": ⌘ + drag icons in your menu bar to rearrange").foregroundColor(.white)
+                    }
+                }
+                .font(.system(size: 13, weight: .medium))
+                .frame(height: 18)
             }
 
             // Import detection banner
@@ -531,7 +537,7 @@ private struct FreeVsProPage: View {
             .font(.system(size: 28, weight: .bold, design: .serif))
             .foregroundStyle(.white)
 
-        Text("Thank you for being an early adopter.\nYou have lifetime Pro access — on us.")
+        Text("Thank you for being an early adopter.\nYou have lifetime Pro access — on me.")
             .font(.system(size: 15))
             .foregroundStyle(.white.opacity(0.8))
             .multilineTextAlignment(.center)
@@ -558,7 +564,7 @@ private struct FreeVsProPage: View {
                     .font(.system(size: 14))
                     .foregroundStyle(.red)
                 (Text("If you love it, consider ").foregroundColor(.white) +
-                    Text("sponsoring us").foregroundColor(.teal).underline())
+                    Text("sponsoring me").foregroundColor(.teal).underline())
                     .font(.system(size: 14, weight: .medium))
             }
             .padding(.horizontal, 16)
@@ -622,16 +628,16 @@ private struct FreeVsProPage: View {
                 price: "One-time — yours forever",
                 features: [
                     ("checkmark", "Everything in Free, plus:"),
-                    ("hand.point.up", "Hover to reveal"),
-                    ("scroll", "Scroll to reveal"),
+                    ("cursorarrow.click", "Activate & move icons"),
                     ("lock.fill", "Always Hidden zone"),
                     ("touchid", "Touch ID / password lock"),
+                    ("hand.point.up", "Gestures: hover & scroll"),
                     ("paintpalette.fill", "Custom icon & appearance"),
                     ("ruler", "Icon spacing control"),
-                    ("square.split.2x1", "Spacer items"),
                     ("bolt.fill", "Triggers & profiles"),
+                    ("arrow.down.doc", "Import from Bartender / Ice"),
                     ("applescript", "AppleScript automation"),
-                    ("keyboard", "Extra shortcuts")
+                    ("keyboard", "Per-icon hotkeys & shortcuts")
                 ],
                 actions: {
                     AnyView(VStack(spacing: 6) {
@@ -658,13 +664,14 @@ private struct FreeVsProPage: View {
 
             selectableTierCard(
                 tier: .free,
-                title: "Free",
-                price: "Always free",
+                title: "Basic",
+                price: "Free, forever",
                 features: [
                     ("line.3.horizontal.decrease", "Click to hide / show"),
                     ("arrow.left.arrow.right", "⌘ + drag to rearrange"),
                     ("magnifyingglass", "Browse & search icons"),
-                    ("timer", "Auto-rehide")
+                    ("timer", "Auto-rehide"),
+                    ("keyboard", "Toggle & search shortcuts")
                 ]
             )
         }
