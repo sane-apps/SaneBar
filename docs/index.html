@@ -356,6 +356,10 @@
             filter: brightness(1.05);
         }
 
+        .hero-cta-mobile {
+            display: none;
+        }
+
         .btn-secondary {
             background: var(--bg-card);
             color: var(--text-primary);
@@ -1577,7 +1581,7 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             z-index: 150;
-            padding: 80px 32px 40px;
+            padding: 70px 32px 40px;
             overflow-y: auto;
             flex-direction: column;
         }
@@ -1640,21 +1644,66 @@
         @media (max-width: 768px) {
             .hamburger { display: block; }
             .nav-links { display: none; }
-            /* .logo-family removed - now in hero subtitle */
 
-            .highlight-content {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .highlight.reverse .highlight-content {
-                direction: ltr;
-            }
-
+            /* Hero — clean, scannable, no wall of text */
             .hero {
-                padding: 120px 0 60px;
+                padding: 90px 0 32px !important;
             }
 
+            .hero h1 {
+                font-size: 2rem;
+                margin-bottom: 12px;
+                line-height: 1.15;
+            }
+
+            .hero .subtitle {
+                font-size: 1.05rem;
+                line-height: 1.5;
+                margin-bottom: 16px;
+                max-width: none;
+            }
+
+            .hero .subtitle br,
+            .hero .subtitle-extra {
+                display: none;
+            }
+
+            .trust-badges {
+                flex-direction: row;
+                justify-content: center;
+                gap: 12px;
+                font-size: 0.8rem;
+                margin-bottom: 14px;
+            }
+
+            .trust-badges span,
+            .trust-badges a {
+                white-space: nowrap;
+            }
+
+            .hero-pricing,
+            .hero-brew {
+                display: none !important;
+            }
+
+            .hero-cta-desktop {
+                display: none !important;
+            }
+
+            .hero-cta-mobile {
+                display: flex !important;
+            }
+
+            /* Carousel */
+            .hero-carousel {
+                max-width: 100% !important;
+            }
+
+            .carousel-container {
+                height: 300px !important;
+            }
+
+            /* Buttons */
             .cta-buttons {
                 flex-direction: column;
                 align-items: center;
@@ -1666,23 +1715,159 @@
                 justify-content: center;
             }
 
+            /* Sections — tighter vertical rhythm */
+            section {
+                padding-top: 40px !important;
+                padding-bottom: 40px !important;
+            }
+
+            .section-title {
+                font-size: 1.5rem !important;
+                margin-bottom: 12px;
+            }
+
+            .section-subtitle {
+                font-size: 0.95rem;
+                margin-bottom: 28px;
+            }
+
+            /* Hero sub-sections */
+            .hero-demo-section {
+                margin-top: 32px !important;
+            }
+
+            .hero-section-heading {
+                font-size: 1.15rem !important;
+            }
+
+            /* Demo — hide on mobile, doesn't work with touch */
+            .hero-demo-section {
+                display: none !important;
+            }
+
+            /* Video demo */
+            .video-demo {
+                padding: 40px 0 !important;
+            }
+
+            /* Features */
+            .feature-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .feature-card {
+                padding: 20px;
+            }
+
+            .feature-card h3 {
+                font-size: 1rem;
+            }
+
+            .feature-card p {
+                font-size: 0.9rem;
+            }
+
+            /* Testimonials */
+            .testimonial-item {
+                min-width: 280px !important;
+                max-width: 280px !important;
+                padding: 20px;
+            }
+
+            .testimonial-text {
+                font-size: 0.9rem !important;
+            }
+
+            /* Comparison — scrollable on mobile */
+            .comparison-table-wrapper {
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .comparison-table {
+                font-size: 0.8rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 10px 8px !important;
+            }
+
+            .feature-desc {
+                display: none;
+            }
+
+            /* Highlights */
+            .highlight-content {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .highlight.reverse .highlight-content {
+                direction: ltr;
+            }
+
+            .highlight-text h2 {
+                font-size: 1.4rem !important;
+            }
+
+            .highlight-text p {
+                font-size: 0.95rem;
+            }
+
+            /* Download */
+            .download-card {
+                padding: 36px 20px;
+            }
+
+            /* Support */
+            .support-subtitle {
+                font-size: 0.9rem !important;
+            }
+
+            .crypto-addr {
+                font-size: 0.6rem !important;
+                word-break: break-all;
+            }
+
+            .github-sponsor-btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+
+            /* Sustainability */
+            .sustainability-card {
+                padding: 32px 20px;
+            }
+
+            .sustainability-card h2 {
+                font-size: 1.5rem !important;
+            }
+
+            .sustainability-card p {
+                font-size: 0.9rem;
+            }
+
+            /* More apps */
+            .more-apps-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .app-card {
+                padding: 20px !important;
+            }
+
+            /* Footer */
             .footer-links {
                 flex-direction: column;
                 gap: 12px;
                 align-items: center;
             }
 
-            section {
-                padding-top: 48px !important;
-                padding-bottom: 48px !important;
-            }
-
-            .hero {
-                padding-top: 110px !important;
-            }
-
-            .more-apps-grid {
-                grid-template-columns: 1fr;
+            .footer-quote {
+                font-size: 0.85rem !important;
             }
         }
 
@@ -1768,15 +1953,15 @@
     <section class="hero">
         <div class="container">
             <h1 class="animate-in delay-2">Bring <em>Sanity</em> to your Menu Bar</h1>
-            <p class="subtitle animate-in delay-3">Hide icons. Show them when you need them.<br>One click to hide. One click to show. That's it.</p>
+            <p class="subtitle animate-in delay-3">Hide icons. Show them when you need them.<br><span class="subtitle-extra">One click to hide. One click to show. That's it.</span></p>
             <div class="trust-badges animate-in delay-3">
                 <span>💵 No subscription</span>
                 <a href="https://forums.basehub.com/sane-apps/SaneBar/1" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">🛡️ 100% private</a>
                 <span>🛠️ Actively maintained</span>
             </div>
-            <p class="animate-in delay-4" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Basic is free. Love it? Upgrade to Pro in the app — $6.99, once.</p>
+            <p class="animate-in delay-4 hero-pricing" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Basic is free. Love it? Upgrade to Pro in the app — $6.99, once.</p>
             <div class="cta-buttons animate-in delay-4">
-                <a href="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip" class="btn btn-primary">
+                <a href="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip" class="btn btn-primary hero-cta-desktop">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -1784,15 +1969,18 @@
                     </svg>
                     Free Download
                 </a>
+                <a href="https://go.saneapps.com/buy/sanebar?ref=mobile" class="btn btn-primary hero-cta-mobile">
+                    Buy Now — $6.99
+                </a>
             </div>
-            <div class="animate-in delay-4" style="margin-top: 12px; text-align: center;">
+            <div class="animate-in delay-4 hero-brew" style="margin-top: 12px; text-align: center;">
                 <code style="background: var(--bg-card); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: inline-block;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code>
             </div>
             <!-- One Click to Hide - interactive demo -->
-            <div class="animate-in delay-5" style="margin-top: 48px;">
-                <h2 style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">How's it work?</h2>
+            <div class="animate-in delay-5 hero-demo-section" style="margin-top: 48px;">
+                <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">How It Works</h2>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 500;">Click <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; color: rgba(255,255,255,0.9);"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg> below to hide and unhide apps:</p>
-                <div class="demo-container" onclick="toggleDemo()">
+                <div class="demo-container" onclick="toggleDemo()"
                     <div class="demo-menubar" id="demoMenubar">
                         <div class="demo-icons">
                             <span>🔐</span>
@@ -1828,7 +2016,7 @@
                 </div>
             </div>
             <!-- Showcase Carousel - two ways to view hidden icons -->
-            <h2 style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 48px; margin-bottom: 16px;">How do you handle all the apps hidden by the Mac Notch?</h2>
+            <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 48px; margin-bottom: 16px;">How We Handle the Mac Notch</h2>
             <div class="hero-carousel animate-in delay-5" style="max-width: 520px; margin-top: 0;">
                 <div class="carousel-container" style="height: 420px;">
                     <div class="carousel-progress">
