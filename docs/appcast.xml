@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>2.1.2</title>
+            <pubDate>Mon, 16 Feb 2026 14:16:14 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Fix high energy usage, mouse event throttle, Stage Manager fix</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip"
+                       sparkle:version="2102"
+                       sparkle:shortVersionString="2.1.2"
+                       length="4385747"
+                       type="application/octet-stream"
+                       sparkle:edSignature="dc0pzFkVHJ2fMdZtNmD+uEdDxw9jR7MRg2asWjwZnBiwMnTcgqECfYfEq61NmBfMeotoI2j2grtzR2Q7eJCdCg=="/>
+        </item>
+        <item>
             <title>2.1.1</title>
             <pubDate>Mon, 16 Feb 2026 11:18:25 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
