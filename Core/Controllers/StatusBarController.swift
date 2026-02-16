@@ -56,6 +56,10 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Initialization
 
     init() {
+        // Migrate: clear AH positions that are too small (< 200) — they place the
+        // AH separator near the right edge, devouring all menu bar items.
+        Self.migrateCorruptedPositionsIfNeeded()
+
         // Seed positions BEFORE creating items (Ice pattern)
         // Position 0 = rightmost (main), Position 1 = second from right (separator)
         Self.seedPositionsIfNeeded()
@@ -88,7 +92,12 @@ final class StatusBarController: StatusBarControllerProtocol {
             if let item = alwaysHiddenSeparatorItem {
                 NSStatusBar.system.removeStatusItem(item)
                 alwaysHiddenSeparatorItem = nil
-                logger.info("Always-hidden separator removed (feature disabled)")
+                // Clear the stale pixel position so it reseeds cleanly on re-enable.
+                // macOS converts ordinals to pixels after creation — keeping the old
+                // pixel value would skip re-seeding and reuse a stale position.
+                let ahKey = "NSStatusItem Preferred Position \(Self.alwaysHiddenSeparatorAutosaveName)"
+                UserDefaults.standard.removeObject(forKey: ahKey)
+                logger.info("Always-hidden separator removed + position cleared")
             }
             return
         }
@@ -104,27 +113,25 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
 
         alwaysHiddenSeparatorItem = item
-        logger.info("Always-hidden separator created")
+        logger.info("Always-hidden separator created at ordinal 2")
     }
 
     // MARK: - Position Seeding (Ice Pattern)
 
-    /// Seed positions in UserDefaults BEFORE creating status items.
+    /// Seed ordinal positions in UserDefaults BEFORE creating status items (Ice pattern).
+    /// macOS reads these at item creation time as ordering hints, then overwrites with pixels.
     /// Only seeds if no position exists yet - respects user's existing arrangement.
-    /// macOS stores these as pixel positions (can be 100s or 1000s), not ordinal.
     private static func seedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
         let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
 
-        // Only seed if not already set - never override user positions
-        // Note: macOS stores pixel positions, so values like 720 are normal on wide displays
         if defaults.object(forKey: mainKey) == nil {
-            logger.info("Seeding initial main icon position")
+            logger.info("Seeding initial main icon position (ordinal 0)")
             defaults.set(0, forKey: mainKey)
         }
         if defaults.object(forKey: sepKey) == nil {
-            logger.info("Seeding initial separator position")
+            logger.info("Seeding initial separator position (ordinal 1)")
             defaults.set(1, forKey: sepKey)
         }
     }
@@ -133,21 +140,48 @@ final class StatusBarController: StatusBarControllerProtocol {
         let defaults = UserDefaults.standard
         let key = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
 
-        // AH separator must be the LEFTMOST status item (higher position = further left).
-        // macOS stores positions as pixel offsets from the right edge of the screen.
-        // System items like WiFi(299), Bluetooth(405), Siri(437) live at 200-800+.
-        // Using 10000 ensures AH is always further left than any real item,
-        // so nothing accidentally falls into the always-hidden zone.
-        let idealPosition: Double = 10000
-
-        let currentPos = defaults.object(forKey: key) as? Double
-        if currentPos == nil || currentPos! < 1000 {
-            // Seed (nil) or migrate from any broken low value.
-            // AH must be far-left (10000). Values like 2 or 200 place it
-            // among real menu bar items, causing icons to vanish.
-            logger.info("Setting AH separator position: \(idealPosition) (was \(currentPos ?? 0))")
-            defaults.set(idealPosition, forKey: key)
+        // AH separator must be FAR to the left of all menu bar items.
+        // UserDefaults positions are pixel offsets from the right screen edge.
+        // Small values (0, 1, 50) all land near the right edge — useless for AH.
+        //
+        // 10000 is safe: macOS clamps it to the actual screen width and places
+        // the item at the far left. Main/Separator use ordinals (0, 1) which
+        // macOS handles independently — the large AH value doesn't affect them.
+        if defaults.object(forKey: key) == nil {
+            logger.info("Seeding initial AH separator position (10000 = far left)")
+            defaults.set(10000, forKey: key)
         }
+    }
+
+    /// Reset all status item positions to ordinal seeds. Call when positions are
+    /// corrupted (e.g., display-specific pixel values from a different screen).
+    static func resetPositionsToOrdinals() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(mainAutosaveName)")
+        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(separatorAutosaveName)")
+        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)")
+        logger.info("Reset all status item positions — will reseed on next creation")
+    }
+
+    /// One-time migration: clear AH positions that are too small.
+    /// Values < 200 land near the right edge of the screen, causing the AH
+    /// separator to "devour" all items. Clearing lets seedAlwaysHiddenSeparator
+    /// write 10000 (far left) on next enable.
+    private static func migrateCorruptedPositionsIfNeeded() {
+        let defaults = UserDefaults.standard
+        let migrationKey = "SaneBar_PositionMigration_v4"
+        guard !defaults.bool(forKey: migrationKey) else { return }
+
+        let ahKey = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
+
+        if let ahPos = defaults.object(forKey: ahKey) as? Double, ahPos < 200 {
+            // Values like 2 or 50 place AH right next to main/separator.
+            // Clear so it reseeds as 10000 (far left).
+            logger.info("Migrating too-small AH position (was \(ahPos), clearing for reseed)")
+            defaults.removeObject(forKey: ahKey)
+        }
+
+        defaults.set(true, forKey: migrationKey)
     }
 
     // MARK: - Configuration

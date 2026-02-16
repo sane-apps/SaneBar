@@ -40,6 +40,16 @@ final class LicenseService: ObservableObject {
 
     /// Check cached license on launch. Call from `applicationDidFinishLaunching`.
     func checkCachedLicense() {
+        #if DEBUG
+            // Debug builds: auto-grant Pro so developers can test all features
+            // without fighting keychain over SSH. Does NOT ship in release.
+            isPro = true
+            isEarlyAdopter = true
+            licenseEmail = nil
+            licenseLogger.info("DEBUG build — auto-granted Pro access")
+            return
+        #endif
+
         guard let storedKey = try? keychain.string(forKey: Keys.licenseKey),
               !storedKey.isEmpty
         else {
