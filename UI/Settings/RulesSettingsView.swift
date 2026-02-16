@@ -157,6 +157,26 @@ struct RulesSettingsView: View {
                         CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
                             .help("Reveal battery and power icons when battery is low")
 
+                        if menuBarManager.settings.showOnLowBattery {
+                            HStack(spacing: 8) {
+                                Text("Threshold:")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.primary.opacity(0.7))
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(menuBarManager.settings.batteryThreshold) },
+                                        set: { menuBarManager.settings.batteryThreshold = Int($0) }
+                                    ),
+                                    in: 5 ... 50,
+                                    step: 5
+                                )
+                                Text("\(menuBarManager.settings.batteryThreshold)%")
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .frame(width: 36, alignment: .trailing)
+                            }
+                            .padding(.leading, 4)
+                        }
+
                         CompactDivider()
 
                         // App Launch

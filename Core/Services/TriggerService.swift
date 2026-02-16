@@ -24,7 +24,7 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
     private weak var menuBarManager: MenuBarManager?
     private var cancellables = Set<AnyCancellable>()
     private var batteryCheckTimer: Timer?
-    private var lastBatteryWarningLevel: IOPSLowBatteryWarningLevel = kIOPSLowBatteryWarningNone
+    private var wasBelowThreshold: Bool = false
 
     // MARK: - Initialization
 
@@ -104,15 +104,37 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
         guard let manager = menuBarManager else { return }
         guard manager.settings.showOnLowBattery else { return }
 
-        let currentLevel = IOPSGetBatteryWarningLevel()
+        let percentage = currentBatteryPercentage()
+        guard percentage >= 0 else { return } // No battery info available
 
-        // Trigger only on transition TO low battery (not every check)
-        if currentLevel != kIOPSLowBatteryWarningNone, lastBatteryWarningLevel == kIOPSLowBatteryWarningNone {
-            logger.info("Battery trigger: low battery detected, showing hidden items")
+        let threshold = manager.settings.batteryThreshold
+        let isBelowThreshold = percentage <= threshold
+
+        // Trigger only on transition to below threshold (not every check)
+        if isBelowThreshold, !wasBelowThreshold {
+            logger.info("Battery trigger: \(percentage)% <= \(threshold)% threshold, showing hidden items")
             manager.showHiddenItems()
         }
 
-        lastBatteryWarningLevel = currentLevel
+        wasBelowThreshold = isBelowThreshold
+    }
+
+    /// Returns the current battery percentage (0-100), or -1 if unavailable.
+    private func currentBatteryPercentage() -> Int {
+        guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [Any],
+              let first = sources.first
+        else {
+            return -1
+        }
+        guard let description = IOPSGetPowerSourceDescription(snapshot, first as CFTypeRef)?.takeUnretainedValue() as? [String: Any],
+              let currentCapacity = description[kIOPSCurrentCapacityKey as String] as? Int,
+              let maxCapacity = description[kIOPSMaxCapacityKey as String] as? Int,
+              maxCapacity > 0
+        else {
+            return -1
+        }
+        return (currentCapacity * 100) / maxCapacity
     }
 
     /// Call to clean up timer before deallocation

@@ -106,6 +106,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden items when battery drops to low level
     var showOnLowBattery: Bool = false
 
+    /// Battery percentage threshold for triggering (1-100)
+    var batteryThreshold: Int = 20
+
     /// Whether the user has completed first-launch onboarding
     var hasCompletedOnboarding: Bool = false
 
@@ -271,6 +274,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
         iconGroups = try container.decodeIfPresent([IconGroup].self, forKey: .iconGroups) ?? []
         showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
+        batteryThreshold = try container.decodeIfPresent(Int.self, forKey: .batteryThreshold) ?? 20
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
         hasSeenFreemiumIntro = try container.decodeIfPresent(Bool.self, forKey: .hasSeenFreemiumIntro) ?? false
         requireAuthToShowHiddenIcons = try container.decodeIfPresent(Bool.self, forKey: .requireAuthToShowHiddenIcons) ?? false
@@ -318,7 +322,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case autoRehide, rehideDelay, findIconRehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
-        case iconHotkeys, iconGroups, showOnLowBattery, hasCompletedOnboarding, hasSeenFreemiumIntro
+        case iconHotkeys, iconGroups, showOnLowBattery, batteryThreshold, hasCompletedOnboarding, hasSeenFreemiumIntro
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case showOnFocusModeChange, triggerFocusModes
         case requireAuthToShowHiddenIcons
