@@ -28,13 +28,9 @@ private enum SanePalette {
 
 // MARK: - Sane Gradient Background
 
-/// Living mesh gradient background with navy + teal.
-/// Animates by default. Respects Reduce Motion.
+/// Static mesh gradient background with navy + teal.
 struct SaneGradientBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var isWindowVisible = true
 
     var body: some View {
         ZStack {
@@ -42,51 +38,12 @@ struct SaneGradientBackground: View {
                 VisualEffectBackground(material: .hudWindow, blendingMode: .behindWindow)
             }
 
-            if reduceMotion || !isWindowVisible {
-                staticMesh.opacity(0.7)
-            } else {
-                livingMesh.opacity(0.7)
-            }
+            staticMesh.opacity(0.7)
         }
         .ignoresSafeArea()
-        .onAppear { isWindowVisible = true }
-        .onDisappear { isWindowVisible = false }
     }
 
-    // MARK: - Living Mesh (Animated)
-
-    private var livingMesh: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: !isWindowVisible)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-
-            // Multiple independent drift cycles (different speeds = organic)
-            let slow = Float(sin(t / 14.0)) // 14s cycle — main breathing
-            let medium = Float(sin(t / 9.0)) // 9s cycle — secondary drift
-            let fast = Float(cos(t / 7.0)) // 7s cycle — subtle counter-movement
-
-            // Drift amplitudes (subtle — don't want seasickness)
-            let d1 = slow * 0.035
-            let d2 = medium * 0.025
-            let d3 = fast * 0.02
-
-            MeshGradient(
-                width: 4, height: 4,
-                points: [
-                    // Row 0: top edge (fixed)
-                    [0.0, 0.0], [0.33, 0.0], [0.66, 0.0], [1.0, 0.0],
-                    // Row 1: upper — drifts create rolling motion
-                    [0.0, 0.33], [0.35 + d1, 0.30 - d2], [0.68 - d2, 0.32 + d3], [1.0, 0.33],
-                    // Row 2: lower — counter-drift for depth
-                    [0.0, 0.66], [0.32 - d3, 0.65 + d1], [0.65 + d2, 0.68 - d1], [1.0, 0.66],
-                    // Row 3: bottom edge (fixed)
-                    [0.0, 1.0], [0.33, 1.0], [0.66, 1.0], [1.0, 1.0]
-                ],
-                colors: meshColors
-            )
-        }
-    }
-
-    // MARK: - Static Mesh (Reduce Motion)
+    // MARK: - Static Mesh
 
     private var staticMesh: some View {
         MeshGradient(

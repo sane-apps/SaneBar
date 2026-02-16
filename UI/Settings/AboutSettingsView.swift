@@ -71,7 +71,7 @@ struct AboutSettingsView: View {
                     Button {
                         showFeedback = true
                     } label: {
-                        Label("Report Issue", systemImage: "ladybug")
+                        Label("Report a Bug", systemImage: "ladybug")
                     }
 
                     Link(destination: URL(string: "mailto:hi@saneapps.com")!) {

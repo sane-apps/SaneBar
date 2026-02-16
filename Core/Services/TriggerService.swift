@@ -19,7 +19,6 @@ protocol TriggerServiceProtocol {
 /// Service that monitors system events and triggers menu bar visibility
 @MainActor
 final class TriggerService: ObservableObject, TriggerServiceProtocol {
-
     // MARK: - Dependencies
 
     private weak var menuBarManager: MenuBarManager?
@@ -54,9 +53,9 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
     }
 
     private func startBatteryMonitor() {
-        guard batteryCheckTimer == nil else { return }  // Already running
+        guard batteryCheckTimer == nil else { return } // Already running
         logger.info("Starting battery monitor")
-        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.checkBatteryLevel()
             }
@@ -87,7 +86,8 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
         // Get the launched app's bundle ID
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-              let bundleID = app.bundleIdentifier else {
+              let bundleID = app.bundleIdentifier
+        else {
             return
         }
 
@@ -107,7 +107,7 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
         let currentLevel = IOPSGetBatteryWarningLevel()
 
         // Trigger only on transition TO low battery (not every check)
-        if currentLevel != kIOPSLowBatteryWarningNone && lastBatteryWarningLevel == kIOPSLowBatteryWarningNone {
+        if currentLevel != kIOPSLowBatteryWarningNone, lastBatteryWarningLevel == kIOPSLowBatteryWarningNone {
             logger.info("Battery trigger: low battery detected, showing hidden items")
             manager.showHiddenItems()
         }

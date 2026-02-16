@@ -30,19 +30,18 @@ protocol HoverServiceProtocol {
 /// - Only shows icons when cursor is actually in the menu bar area
 @MainActor
 final class HoverService: HoverServiceProtocol {
-
     // MARK: - Types
 
     enum TriggerReason: Equatable {
         case hover
         case scroll(direction: ScrollDirection)
         case click
-        case userDrag  // ⌘+drag started in menu bar
+        case userDrag // ⌘+drag started in menu bar
     }
 
     enum ScrollDirection: Equatable {
-        case up    // Positive deltaY (show in Ice-style)
-        case down  // Negative deltaY (hide in Ice-style)
+        case up // Positive deltaY (show in Ice-style)
+        case down // Negative deltaY (hide in Ice-style)
     }
 
     // MARK: - Properties
@@ -112,6 +111,9 @@ final class HoverService: HoverServiceProtocol {
     private var hoverTimer: Timer?
     private var isMouseInMenuBar = false
     private var lastScrollTime: Date = .distantPast
+    /// Throttle mouse moved events to reduce energy impact (~20fps is plenty for hover detection)
+    private var lastMouseMovedTime: CFAbsoluteTime = 0
+    private let mouseMovedThrottleInterval: CFAbsoluteTime = 0.05 // 50ms = 20fps
 
     // MARK: - Initialization
 
@@ -160,6 +162,13 @@ final class HoverService: HoverServiceProtocol {
         ]
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask) { [weak self] event in
+            // Throttle mouse moved events to reduce energy impact — 50ms interval is plenty for hover detection.
+            // Click, scroll, drag, and flags events are processed immediately (they're infrequent).
+            if event.type == .mouseMoved {
+                let now = CFAbsoluteTimeGetCurrent()
+                guard let self, now - lastMouseMovedTime >= mouseMovedThrottleInterval else { return }
+                lastMouseMovedTime = now
+            }
             Task { @MainActor in
                 self?.handleEvent(event)
             }
@@ -199,21 +208,21 @@ final class HoverService: HoverServiceProtocol {
         }
     }
 
-    private func handleMouseMoved(_ event: NSEvent) {
+    private func handleMouseMoved(_: NSEvent) {
         // Need at least one feature enabled to process mouse movement
-        guard (isEnabled || trackMouseLeave) && !isSuspended else { return }
+        guard isEnabled || trackMouseLeave, !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         let inMenuBar = isInMenuBarRegion(mouseLocation)
 
-        if inMenuBar && !isMouseInMenuBar {
+        if inMenuBar, !isMouseInMenuBar {
             // Entered menu bar region
             isMouseInMenuBar = true
             // Only trigger hover reveal if hover-to-show is enabled
             if isEnabled {
                 scheduleHoverTrigger()
             }
-        } else if !inMenuBar && isMouseInMenuBar {
+        } else if !inMenuBar, isMouseInMenuBar {
             // Left menu bar region
             let distanceFromMenuBar = distanceFromMenuBarTop(mouseLocation)
             if distanceFromMenuBar > leaveThreshold {
@@ -228,7 +237,7 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func handleScrollWheel(_ event: NSEvent) {
-        guard scrollEnabled && !isSuspended else { return }
+        guard scrollEnabled, !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
@@ -250,8 +259,8 @@ final class HoverService: HoverServiceProtocol {
         }
     }
 
-    private func handleLeftMouseDown(_ event: NSEvent) {
-        guard clickEnabled && !isSuspended else { return }
+    private func handleLeftMouseDown(_: NSEvent) {
+        guard clickEnabled, !isSuspended else { return }
 
         let mouseLocation = NSEvent.mouseLocation
         guard isInMenuBarRegion(mouseLocation) else { return }
@@ -262,7 +271,7 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func handleLeftMouseDragged(_ event: NSEvent) {
-        guard userDragEnabled && !isSuspended else { return }
+        guard userDragEnabled, !isSuspended else { return }
 
         // Check if ⌘ is held down (user is rearranging menu bar icons)
         guard event.modifierFlags.contains(.command) else { return }
@@ -278,7 +287,7 @@ final class HoverService: HoverServiceProtocol {
         }
     }
 
-    private func handleLeftMouseUp(_ event: NSEvent) {
+    private func handleLeftMouseUp(_: NSEvent) {
         // End user drag when mouse is released
         if isUserDragging {
             isUserDragging = false
@@ -289,7 +298,7 @@ final class HoverService: HoverServiceProtocol {
 
     private func handleFlagsChanged(_ event: NSEvent) {
         // If ⌘ is released while dragging, end the drag
-        if isUserDragging && !event.modifierFlags.contains(.command) {
+        if isUserDragging, !event.modifierFlags.contains(.command) {
             isUserDragging = false
             logger.debug("⌘ released during drag - allowing auto-hide")
             onUserDragEnd?()
@@ -318,7 +327,7 @@ final class HoverService: HoverServiceProtocol {
 
         hoverTimer = Timer.scheduledTimer(withTimeInterval: hoverDelay, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, self.isMouseInMenuBar else { return }
+                guard let self, self.isMouseInMenuBar else { return }
                 self.onTrigger?(.hover)
             }
         }
