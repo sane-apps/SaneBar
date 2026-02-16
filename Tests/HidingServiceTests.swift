@@ -316,59 +316,56 @@ struct AlwaysHiddenRegressionTests {
         defaults.removeObject(forKey: key)
     }
 
-    @Test("AH position migrates from broken 200 to 10000")
+    @Test("AH seed only writes when key is nil — does not overwrite existing")
     @MainActor
-    func ahPositionMigratesFrom200() {
-        // Regression: existing installs had 200, must be migrated
+    func ahSeedOnlyWritesWhenNil() {
         let defaults = UserDefaults.standard
         let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
 
-        // Simulate broken install with position 200
-        defaults.set(200.0, forKey: key)
-
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-
-        let position = defaults.double(forKey: key)
-        #expect(position == 10000,
-                "Must migrate from broken 200 to 10000")
-
-        // Cleanup
-        defaults.removeObject(forKey: key)
-    }
-
-    @Test("AH position migrates from broken low value (e.g. 2) to 10000")
-    @MainActor
-    func ahPositionMigratesFromLowValue() {
-        // Regression: #52 reported position 2 — any value < 1000 is broken
-        let defaults = UserDefaults.standard
-        let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
-
-        defaults.set(2.0, forKey: key)
-
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-
-        let position = defaults.double(forKey: key)
-        #expect(position == 10000,
-                "Must migrate from broken position 2 to 10000")
-
-        // Cleanup
-        defaults.removeObject(forKey: key)
-    }
-
-    @Test("AH position preserves valid custom positions (>= 1000)")
-    @MainActor
-    func ahPositionPreservesCustom() {
-        // Positions >= 1000 are plausible — don't override
-        let defaults = UserDefaults.standard
-        let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
-
+        // Existing value should NOT be overwritten by seeding
         defaults.set(5000.0, forKey: key)
-
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        #expect(defaults.double(forKey: key) == 5000,
+                "Seed must not overwrite existing position")
 
-        let position = defaults.double(forKey: key)
-        #expect(position == 5000,
-                "Should not override valid position >= 1000")
+        // Cleanup
+        defaults.removeObject(forKey: key)
+    }
+
+    @Test("AH seed writes 10000 when key is nil")
+    @MainActor
+    func ahSeedWrites10000WhenNil() {
+        let defaults = UserDefaults.standard
+        let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
+
+        // Clear so seed triggers
+        defaults.removeObject(forKey: key)
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        #expect(defaults.double(forKey: key) == 10000,
+                "AH position must seed as 10000 (far left)")
+
+        // Cleanup
+        defaults.removeObject(forKey: key)
+    }
+
+    @Test("Toggle off clears AH position for clean re-seed")
+    @MainActor
+    func toggleOffClearsPosition() {
+        // Simulates what ensureAlwaysHiddenSeparator(enabled: false) does:
+        // removing the position key so re-enable seeds cleanly.
+        let defaults = UserDefaults.standard
+        let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
+
+        // Simulate: AH was enabled, macOS assigned pixel position
+        defaults.set(549.0, forKey: key)
+
+        // Simulate toggle off: position cleared
+        defaults.removeObject(forKey: key)
+
+        // Simulate toggle on: should reseed as 10000
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        #expect(defaults.double(forKey: key) == 10000,
+                "After toggle off+on, AH must reseed as 10000")
 
         // Cleanup
         defaults.removeObject(forKey: key)
