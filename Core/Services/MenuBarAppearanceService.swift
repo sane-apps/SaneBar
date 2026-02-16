@@ -412,10 +412,6 @@ struct MenuBarOverlayView: View {
 
     var body: some View {
         GeometryReader { _ in
-            let horizontalInset: CGFloat = viewModel.settings.hasRoundedCorners
-                ? min(10, max(4, viewModel.settings.cornerRadius * 0.75))
-                : 0
-
             ZStack(alignment: .bottom) {
                 // Main appearance layer
                 mainAppearanceLayer
@@ -427,7 +423,6 @@ struct MenuBarOverlayView: View {
                         .frame(height: viewModel.settings.borderWidth)
                 }
             }
-            .padding(.horizontal, horizontalInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .clipShape(overlayShape)
             .shadow(
