@@ -239,7 +239,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         panel.hasShadow = true
