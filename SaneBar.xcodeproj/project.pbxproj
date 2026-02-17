@@ -27,6 +27,7 @@
 		265187C64135D0BBD23E8286 /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */; };
 		2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1467BD772D883402EE5C2E56 /* DiagnosticsService.swift */; };
 		2B73CA2DD25A0FFCD1F7D7D2 /* HidingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8376513461FDCE0D56D48 /* HidingService.swift */; };
+		357F28E6F430EBE6D344A98D /* BartenderImportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */; };
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
@@ -120,6 +121,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BartenderImportServiceTests.swift; sourceTree = "<group>"; };
 		01F25C7DBC9B39EE94549E08 /* OnboardingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingController.swift; sourceTree = "<group>"; };
 		0752D3D1CCD73101C00C78C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0F81708F4F6205FE057FBCEA /* SpaceAnalyzerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceAnalyzerView.swift; sourceTree = "<group>"; };
@@ -299,6 +301,7 @@
 				41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */,
 				B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */,
 				73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */,
+				00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
 				F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */,
@@ -590,6 +593,7 @@
 				D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */,
 				FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */,
 				81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */,
+				357F28E6F430EBE6D344A98D /* BartenderImportServiceTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
 				B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */,

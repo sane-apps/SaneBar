@@ -69,10 +69,14 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Create main item (rightmost, near Control Center)
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         mainItem.autosaveName = Self.mainAutosaveName
+        // Cmd-drag removal can persist hidden state per autosaveName.
+        // Force visible on startup so users don't get "missing icon forever".
+        mainItem.isVisible = true
 
         // Create separator item (to the LEFT of main)
         separatorItem = NSStatusBar.system.statusItem(withLength: 20)
         separatorItem.autosaveName = Self.separatorAutosaveName
+        separatorItem.isVisible = true
 
         // Configure buttons
         if let button = separatorItem.button {
@@ -109,6 +113,7 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         let item = NSStatusBar.system.statusItem(withLength: 14)
         item.autosaveName = Self.alwaysHiddenSeparatorAutosaveName
+        item.isVisible = true
 
         if let button = item.button {
             configureAlwaysHiddenSeparatorButton(button)
