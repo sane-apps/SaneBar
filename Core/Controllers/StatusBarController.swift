@@ -31,7 +31,7 @@ protocol StatusBarControllerProtocol {
 // MARK: - StatusBarController
 
 /// Controller responsible for status bar item configuration and appearance.
-/// Uses the Ice pattern: seed ordinal positions before creating items with autosaveNames.
+/// Seeds ordinal positions in UserDefaults before creating items with autosaveNames.
 @MainActor
 final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Status Items
@@ -60,7 +60,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         // AH separator near the right edge, devouring all menu bar items.
         Self.migrateCorruptedPositionsIfNeeded()
 
-        // Seed positions BEFORE creating items (Ice pattern)
+        // Seed positions BEFORE creating items (position pre-seeding)
         // Position 0 = rightmost (main), Position 1 = second from right (separator)
         Self.seedPositionsIfNeeded()
 
@@ -116,9 +116,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("Always-hidden separator created at ordinal 2")
     }
 
-    // MARK: - Position Seeding (Ice Pattern)
+    // MARK: - Position Pre-Seeding
 
-    /// Seed ordinal positions in UserDefaults BEFORE creating status items (Ice pattern).
+    /// Seed ordinal positions in UserDefaults BEFORE creating status items.
     /// macOS reads these at item creation time as ordering hints, then overwrites with pixels.
     /// Only seeds if no position exists yet - respects user's existing arrangement.
     private static func seedPositionsIfNeeded() {

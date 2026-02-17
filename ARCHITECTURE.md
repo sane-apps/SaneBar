@@ -268,11 +268,9 @@ There is **no Apple API** for programmatic menu bar icon positioning. This was v
 | WWDC sessions | Zero results on this topic |
 
 **Every app that moves icons uses the same hack:** simulate Cmd+drag via CGEvent.
-- **Ice** (25.8k stars): CGEvent + dual event taps ("scrombleEvent") + 5 retries
-- **Bartender**: Private APIs (broke on macOS Tahoe, had to rewrite)
-- **Dozer**: Gave up — doesn't move icons at all
+Common approaches include CGEvent + dual event taps with retries, private APIs (which break across macOS versions), or simply not moving icons at all.
 
-Sources: [Ice source (MenuBarItemManager.swift)](https://github.com/jordanbaird/Ice/blob/main/Ice/MenuBar/MenuBarItems/MenuBarItemManager.swift), [NSStatusItem docs](https://developer.apple.com/documentation/appkit/nsstatusitem)
+Sources: [NSStatusItem docs](https://developer.apple.com/documentation/appkit/nsstatusitem)
 
 ### Three-Zone Architecture
 

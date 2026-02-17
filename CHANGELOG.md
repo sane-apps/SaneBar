@@ -106,7 +106,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 - **Class Diagram**: PlantUML visualization of codebase architecture
 
 ### Changed
-- **Ice Pattern**: Simplified NSStatusItem positioning (removed 880 lines of cruft)
+- **Position Pre-Seeding**: Simplified NSStatusItem positioning (removed 880 lines of cruft)
 - **Session Management**: Improved hooks for development workflow
 
 ### Fixed

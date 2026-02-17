@@ -65,7 +65,7 @@ private enum StatusItemLength {
 /// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its left off screen (x < 0)
 /// 5. To SHOW: Set delimiter's length back to 20 → reveals the hidden icons
 ///
-/// This is how Dozer, Hidden Bar, and similar tools work. No CGEvent needed.
+/// This is the standard length-toggle technique for menu bar managers. No CGEvent needed.
 @MainActor
 final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Published State
@@ -205,7 +205,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         // can return to its normal small size
         if let alwaysHiddenDelimiterItem {
             alwaysHiddenDelimiterItem.length = Self.alwaysHiddenVisualLength
-            // Restore button content (match Ice pattern)
+            // Restore button content after expand
             if let nsItem = alwaysHiddenDelimiterItem as? NSStatusItem, let button = nsItem.button {
                 button.title = "┊"
                 button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .light)

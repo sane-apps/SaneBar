@@ -7,9 +7,9 @@
 - **Right-click** on main icon → Context menu (Find Icon, Settings, Quit)
 - **Separator ("/")** → Visual-only, not interactive
 
-### The Ice Pattern
+### Position Pre-Seeding Pattern
 
-SaneBar uses the same positioning pattern as [Ice](https://github.com/jordanbaird/Ice), a popular open-source menu bar manager.
+SaneBar seeds ordinal positions in UserDefaults before creating NSStatusItems, ensuring consistent ordering.
 
 ```swift
 // 1. SEED positions in UserDefaults BEFORE creating items
@@ -145,13 +145,11 @@ NSStatusItem Preferred Position <autosaveName>
 
 ## Reference Implementation
 
-Ice source code provides the authoritative pattern:
+Key implementation files in SaneBar:
 
-- **StatusItemDefaults.swift**: UserDefaults key proxy
-- **ControlItem.swift**: Item creation with seeding pattern
-- **MigrationManager.swift**: Version upgrades and position migration
-
-Repository: https://github.com/jordanbaird/Ice
+- **StatusBarController.swift**: Position seeding + item creation
+- **HidingService.swift**: Length-toggle hide/show
+- **MenuBarManager.swift**: Central coordination
 
 ---
 

@@ -124,9 +124,9 @@ ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI AVAILABLE" || e
 
 ---
 
-## ⚠️ NSStatusItem Positioning - THE ICE PATTERN
+## ⚠️ NSStatusItem Positioning - POSITION PRE-SEEDING
 
-**SaneBar uses the Ice pattern for positioning. Do NOT reinvent the wheel.**
+**SaneBar uses position pre-seeding for NSStatusItem ordering. Do NOT reinvent the wheel.**
 
 → **Full docs: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`**
 
@@ -160,11 +160,10 @@ init() {
 | Seed BEFORE create | macOS reads position on item creation |
 | Use ordinal (0,1,2), not pixels | macOS interprets as ordering hints |
 | Trust macOS | No recovery/validation/nudge logic needed |
-| Reference: [Ice](https://github.com/jordanbaird/Ice) | The authoritative implementation |
+| Trust macOS positioning | It handles the rest after initial seed |
 
 ### Reference
 
-- Pattern based on [Ice](https://github.com/jordanbaird/Ice) implementation
 - See `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md` for full details
 
 ---

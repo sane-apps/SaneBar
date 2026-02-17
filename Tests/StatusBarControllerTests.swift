@@ -273,7 +273,7 @@ struct StatusBarControllerTests {
     func initializationCreatesItems() {
         let controller = StatusBarController()
 
-        // Items are created as property initializers (like Hidden Bar/Dozer pattern)
+        // Items are created as property initializers for proper WindowServer positioning
         // This ensures proper WindowServer positioning
         #expect(controller.mainItem.button != nil)
         #expect(controller.separatorItem.button != nil)
