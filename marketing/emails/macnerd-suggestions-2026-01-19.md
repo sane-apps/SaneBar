@@ -187,7 +187,7 @@ If SaneBar implemented even 50–60% of this roadmap, it would become:
 - $6.99 one-time pricing (no subscriptions)
 
 ### 🔄 Partially Implemented
-- Deterministic Ordering (Ice pattern, mostly stable)
+- Deterministic Ordering (position pre-seeding, mostly stable)
 - Crash-Resilient State Storage (UserDefaults + position caching)
 
 ### 📋 Not Yet Implemented

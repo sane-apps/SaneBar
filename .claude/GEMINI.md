@@ -16,7 +16,7 @@
 ## ⚠️ Critical Rules (from CLAUDE.md)
 
 *   **No Sandbox**: The app requires Accessibility APIs and cannot be sandboxed.
-*   **Ice Pattern**: Follow the "Ice Pattern" for NSStatusItem positioning (see `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`).
+*   **Position Pre-Seeding**: Follow the position pre-seeding pattern for NSStatusItem positioning (see `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`).
 *   **Verify APIs**: Always use `./scripts/SaneMaster.rb verify_api` before using new Apple APIs.
 
 ## 🔗 Key Links

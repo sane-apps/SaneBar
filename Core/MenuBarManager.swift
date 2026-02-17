@@ -10,7 +10,7 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 
 /// Central manager for menu bar hiding using the length toggle technique.
 ///
-/// HOW IT WORKS (same technique as Dozer, Hidden Bar, and similar tools):
+/// HOW IT WORKS (standard length-toggle technique):
 /// 1. User Cmd+drags menu bar icons to position them left or right of our delimiter
 /// 2. Icons to the RIGHT of delimiter = always visible
 /// 3. Icons to the LEFT of delimiter = can be hidden
