@@ -43,9 +43,11 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Autosave Names
 
-    nonisolated static let mainAutosaveName = "SaneBar_Main"
-    nonisolated static let separatorAutosaveName = "SaneBar_Separator"
-    nonisolated static let alwaysHiddenSeparatorAutosaveName = "SaneBar_AlwaysHiddenSeparator"
+    // Autosave namespace is versioned so we can hard-reset from historically
+    // corrupted status item position keys without depending on manual cleanup.
+    nonisolated static let mainAutosaveName = "SaneBar_Main_v7"
+    nonisolated static let separatorAutosaveName = "SaneBar_Separator_v7"
+    nonisolated static let alwaysHiddenSeparatorAutosaveName = "SaneBar_AlwaysHiddenSeparator_v7"
 
     // MARK: - Icon Names
 
@@ -118,28 +120,19 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Position Pre-Seeding
 
-    /// Seed ordinal positions in UserDefaults BEFORE creating status items.
-    /// macOS reads these at item creation time as ordering hints, then overwrites with pixels.
-    /// Only seeds if no position exists yet - respects user's existing arrangement.
+    /// Seed ordinal positions BEFORE creating status items.
+    /// We intentionally enforce these on each launch to recover from corrupted
+    /// persisted positions (especially ByHost global prefs after Cmd-drag tests).
     private static func seedPositionsIfNeeded() {
-        let defaults = UserDefaults.standard
-        let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
-        let sepKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
-
-        if defaults.object(forKey: mainKey) == nil {
-            logger.info("Seeding initial main icon position (ordinal 0)")
-            defaults.set(0, forKey: mainKey)
-        }
-        if defaults.object(forKey: sepKey) == nil {
-            logger.info("Seeding initial separator position (ordinal 1)")
-            defaults.set(1, forKey: sepKey)
-        }
+        // Always enforce known-good ordering on launch.
+        // This self-heals machines where Cmd-drag experiments persisted
+        // broken status item positions in ByHost global preferences.
+        logger.info("Seeding main/separator positions (main=0, separator=1)")
+        setPreferredPosition(0, forAutosaveName: mainAutosaveName)
+        setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
     }
 
     static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
-        let defaults = UserDefaults.standard
-        let key = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
-
         // AH separator must be FAR to the left of all menu bar items.
         // UserDefaults positions are pixel offsets from the right screen edge.
         // Small values (0, 1, 50) all land near the right edge — useless for AH.
@@ -147,41 +140,103 @@ final class StatusBarController: StatusBarControllerProtocol {
         // 10000 is safe: macOS clamps it to the actual screen width and places
         // the item at the far left. Main/Separator use ordinals (0, 1) which
         // macOS handles independently — the large AH value doesn't affect them.
-        if defaults.object(forKey: key) == nil {
-            logger.info("Seeding initial AH separator position (10000 = far left)")
-            defaults.set(10000, forKey: key)
-        }
+        logger.info("Seeding AH separator position (10000 = far left)")
+        setPreferredPosition(10000, forAutosaveName: alwaysHiddenSeparatorAutosaveName)
     }
 
     /// Reset all status item positions to ordinal seeds. Call when positions are
     /// corrupted (e.g., display-specific pixel values from a different screen).
     static func resetPositionsToOrdinals() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(mainAutosaveName)")
-        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(separatorAutosaveName)")
-        defaults.removeObject(forKey: "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)")
+        removePreferredPosition(forAutosaveName: mainAutosaveName)
+        removePreferredPosition(forAutosaveName: separatorAutosaveName)
+        removePreferredPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName)
         logger.info("Reset all status item positions — will reseed on next creation")
     }
 
-    /// One-time migration: clear AH positions that are too small.
-    /// Values < 200 land near the right edge of the screen, causing the AH
-    /// separator to "devour" all items. Clearing lets seedAlwaysHiddenSeparator
-    /// write 10000 (far left) on next enable.
+    /// One-time recovery migration.
+    /// We had historical machine-specific failures where command-dragging the
+    /// status item out of the menu bar left persistent ByHost position state
+    /// that made SaneBar launch off-screen. Clear all persisted positions once
+    /// so launch-time seeding can restore a stable order.
     private static func migrateCorruptedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
-        let migrationKey = "SaneBar_PositionMigration_v4"
+        let migrationKey = "SaneBar_PositionMigration_v5"
         guard !defaults.bool(forKey: migrationKey) else { return }
 
-        let ahKey = "NSStatusItem Preferred Position \(alwaysHiddenSeparatorAutosaveName)"
-
-        if let ahPos = defaults.object(forKey: ahKey) as? Double, ahPos < 200 {
-            // Values like 2 or 50 place AH right next to main/separator.
-            // Clear so it reseeds as 10000 (far left).
-            logger.info("Migrating too-small AH position (was \(ahPos), clearing for reseed)")
-            defaults.removeObject(forKey: ahKey)
-        }
+        logger.info("Applying v5 status item position recovery")
+        resetPositionsToOrdinals()
 
         defaults.set(true, forKey: migrationKey)
+    }
+
+    // MARK: - Preferred Position Storage
+
+    private static func preferredPositionKey(for autosaveName: String) -> String {
+        "NSStatusItem Preferred Position \(autosaveName)"
+    }
+
+    private static func byHostAutosaveName(for autosaveName: String) -> String {
+        // macOS stores autosave keys in ByHost global prefs using a suffixed
+        // v6 token (e.g. SaneBar_Main -> SaneBar_main_v6).
+        guard let underscore = autosaveName.firstIndex(of: "_") else {
+            return "\(autosaveName)_v6"
+        }
+        let prefix = autosaveName[..<underscore]
+        var suffix = String(autosaveName[autosaveName.index(after: underscore)...])
+        if let first = suffix.first {
+            suffix.replaceSubrange(suffix.startIndex ... suffix.startIndex, with: String(first).lowercased())
+        }
+        return "\(prefix)_\(suffix)_v6"
+    }
+
+    private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
+        "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
+    }
+
+    private static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
+        let appKey = preferredPositionKey(for: autosaveName)
+        UserDefaults.standard.set(value, forKey: appKey)
+        setByHostPreferredPosition(value, forAutosaveName: autosaveName)
+    }
+
+    private static func removePreferredPosition(forAutosaveName autosaveName: String) {
+        let appKey = preferredPositionKey(for: autosaveName)
+        UserDefaults.standard.removeObject(forKey: appKey)
+        removeByHostPreferredPosition(forAutosaveName: autosaveName)
+    }
+
+    private static func setByHostPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
+        let key = byHostPreferredPositionKey(for: autosaveName) as CFString
+        let globalDomain = ".GlobalPreferences" as CFString
+        CFPreferencesSetValue(
+            key,
+            value as NSNumber,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        CFPreferencesSynchronize(
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+    }
+
+    private static func removeByHostPreferredPosition(forAutosaveName autosaveName: String) {
+        let key = byHostPreferredPositionKey(for: autosaveName) as CFString
+        let globalDomain = ".GlobalPreferences" as CFString
+        CFPreferencesSetValue(
+            key,
+            nil,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        CFPreferencesSynchronize(
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
     }
 
     // MARK: - Configuration

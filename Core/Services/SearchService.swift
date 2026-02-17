@@ -515,13 +515,29 @@ final class SearchService: SearchServiceProtocol {
             try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
         }
 
-        // 3. Perform Virtual Click on the menu bar item
-        let clickSuccess = AccessibilityService.shared.clickMenuBarItem(
-            bundleID: app.bundleId,
-            menuExtraId: app.menuExtraIdentifier,
-            statusItemIndex: app.statusItemIndex,
+        // 3. Resolve latest target identity after reveal.
+        // AX child ordering can change when hidden icons become visible.
+        let initialTarget = await resolveLatestClickTarget(for: app, forceRefresh: false)
+
+        // 4. Perform Virtual Click on the menu bar item
+        var clickSuccess = AccessibilityService.shared.clickMenuBarItem(
+            bundleID: initialTarget.bundleId,
+            menuExtraId: initialTarget.menuExtraIdentifier,
+            statusItemIndex: initialTarget.statusItemIndex,
             isRightClick: isRightClick
         )
+
+        // One retry with a forced refresh if first click failed.
+        if !clickSuccess {
+            logger.info("Click failed, retrying after forced menu bar refresh")
+            let refreshedTarget = await resolveLatestClickTarget(for: app, forceRefresh: true)
+            clickSuccess = AccessibilityService.shared.clickMenuBarItem(
+                bundleID: refreshedTarget.bundleId,
+                menuExtraId: refreshedTarget.menuExtraIdentifier,
+                statusItemIndex: refreshedTarget.statusItemIndex,
+                isRightClick: isRightClick
+            )
+        }
 
         if !clickSuccess {
             // Fallback: Just activate the app normally (user can then click the now-visible icon)
@@ -539,5 +555,39 @@ final class SearchService: SearchServiceProtocol {
             let delay = MenuBarManager.shared.settings.findIconRehideDelay
             MenuBarManager.shared.scheduleRehideFromSearch(after: delay)
         }
+    }
+
+    @MainActor
+    private func resolveLatestClickTarget(for original: RunningApp, forceRefresh: Bool) async -> RunningApp {
+        let items = if forceRefresh {
+            await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        } else {
+            await AccessibilityService.shared.listMenuBarItemsWithPositions()
+        }
+
+        // First choice: stable unique identity.
+        if let exact = items.first(where: { $0.app.uniqueId == original.uniqueId })?.app {
+            return exact
+        }
+
+        // Next: bundle + menuExtra identifier.
+        if let menuExtraIdentifier = original.menuExtraIdentifier,
+           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.menuExtraIdentifier == menuExtraIdentifier })?.app {
+            return match
+        }
+
+        // Next: bundle + status item index.
+        if let statusItemIndex = original.statusItemIndex,
+           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.statusItemIndex == statusItemIndex })?.app {
+            return match
+        }
+
+        // Last fallback: closest position within the same bundle.
+        let sameBundle = items.filter { $0.app.bundleId == original.bundleId }.map(\.app)
+        if let originalX = original.xPosition,
+           let closest = sameBundle.min(by: { abs(($0.xPosition ?? originalX) - originalX) < abs(($1.xPosition ?? originalX) - originalX) }) {
+            return closest
+        }
+        return sameBundle.first ?? original
     }
 }

@@ -38,6 +38,33 @@ struct RulesSettingsView: View {
         }
     }
 
+    private var scheduleStartLabel: String {
+        formatScheduleTime(hour: menuBarManager.settings.scheduleStartHour, minute: menuBarManager.settings.scheduleStartMinute)
+    }
+
+    private var scheduleEndLabel: String {
+        formatScheduleTime(hour: menuBarManager.settings.scheduleEndHour, minute: menuBarManager.settings.scheduleEndMinute)
+    }
+
+    private let scheduleWeekdayOptions: [(day: Int, label: String)] = [
+        (1, "Su"), (2, "Mo"), (3, "Tu"), (4, "We"), (5, "Th"), (6, "Fr"), (7, "Sa")
+    ]
+
+    private func formatScheduleTime(hour: Int, minute: Int) -> String {
+        let clampedHour = min(max(hour, 0), 23)
+        let clampedMinute = min(max(minute, 0), 59)
+        return String(format: "%02d:%02d", clampedHour, clampedMinute)
+    }
+
+    private func toggleScheduleDay(_ day: Int) {
+        if menuBarManager.settings.scheduleWeekdays.contains(day) {
+            menuBarManager.settings.scheduleWeekdays.removeAll { $0 == day }
+        } else {
+            menuBarManager.settings.scheduleWeekdays.append(day)
+            menuBarManager.settings.scheduleWeekdays.sort()
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -201,6 +228,61 @@ struct RulesSettingsView: View {
 
                         CompactDivider()
 
+                        // Schedule
+                        CompactToggle(label: "Show on Schedule", isOn: $menuBarManager.settings.showOnSchedule)
+                            .help("Reveal icons when local time enters selected day/time window")
+
+                        if menuBarManager.settings.showOnSchedule {
+                            VStack(alignment: .leading, spacing: 10) {
+                                CompactRow("Days") {
+                                    HStack(spacing: 6) {
+                                        ForEach(scheduleWeekdayOptions, id: \.day) { option in
+                                            let isSelected = menuBarManager.settings.scheduleWeekdays.contains(option.day)
+                                            Button(option.label) {
+                                                toggleScheduleDay(option.day)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(isSelected ? .white : .primary.opacity(0.7))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(
+                                                Capsule()
+                                                    .fill(isSelected ? Color.teal : Color.primary.opacity(0.12))
+                                            )
+                                        }
+                                    }
+                                }
+
+                                CompactRow("From") {
+                                    HStack(spacing: 8) {
+                                        Text(scheduleStartLabel)
+                                            .frame(width: 52, alignment: .trailing)
+                                        Stepper("", value: $menuBarManager.settings.scheduleStartHour, in: 0 ... 23, step: 1)
+                                            .labelsHidden()
+                                    }
+                                }
+
+                                CompactRow("To") {
+                                    HStack(spacing: 8) {
+                                        Text(scheduleEndLabel)
+                                            .frame(width: 52, alignment: .trailing)
+                                        Stepper("", value: $menuBarManager.settings.scheduleEndHour, in: 0 ... 23, step: 1)
+                                            .labelsHidden()
+                                    }
+                                }
+
+                                Text("Set the same start/end time for all-day schedule.")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.primary.opacity(0.65))
+                                    .padding(.leading, 4)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 4)
+                        }
+
+                        CompactDivider()
+
                         // Network
                         CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
                             .help("Reveal icons when connecting to specific Wi-Fi networks")
@@ -318,7 +400,7 @@ struct RulesSettingsView: View {
                             ScriptTriggerSettingsView()
                         }
                     } else {
-                        proGatedRow(feature: .advancedTriggers, label: "Battery, Wi-Fi, Focus, app, and script triggers")
+                        proGatedRow(feature: .advancedTriggers, label: "Battery, schedule, Wi-Fi, Focus, app, and script triggers")
                     }
                 }
             }
@@ -364,7 +446,7 @@ private struct ScriptTriggerSettingsView: View {
     }
 
     private var scriptPathStatus: ScriptPathStatus {
-        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         guard !path.isEmpty else { return .empty }
         let fm = FileManager.default
         guard fm.fileExists(atPath: path) else { return .notFound }
@@ -445,7 +527,7 @@ private struct ScriptTriggerSettingsView: View {
     }
 
     private func runTestScript() {
-        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = menuBarManager.settings.scriptTriggerPath.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         guard !path.isEmpty else { return }
         testResult = "Running..."
 

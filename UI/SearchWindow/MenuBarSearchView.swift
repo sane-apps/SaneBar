@@ -44,7 +44,7 @@ struct MenuBarSearchView: View {
     @State private var refreshTask: Task<Void, Never>?
 
     @State var hotkeyApp: RunningApp?
-    @State private var proUpsellFeature: ProFeature?
+    @State var proUpsellFeature: ProFeature?
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
@@ -848,6 +848,9 @@ struct MenuBarSearchView: View {
             isSelected: selectedAppIndex == index,
             isPro: isPro
         )
+        .dropDestination(for: String.self) { payloads, _ in
+            handleGridReorderDrop(payloads, targetApp: app)
+        }
     }
 }
 

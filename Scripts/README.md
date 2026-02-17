@@ -7,7 +7,13 @@
 ./scripts/SaneMaster.rb test_mode       # Kill -> Build -> Launch -> Logs
 ./scripts/SaneMaster.rb logs --follow   # Stream live logs
 ./scripts/SaneMaster.rb clean_system    # Remove dev artifacts
+./scripts/SaneMaster.rb launch          # Launch app (SaneBar defaults to ProdDebug)
+./scripts/SaneMaster.rb launch --proddebug # Explicit signed local launch
 ```
+
+Note: SaneBar defaults to `ProdDebug` launch mode because some machines can fail to render
+the menu bar item reliably in unsigned `Debug` launches from DerivedData, while installer-like
+signed launches work consistently.
 
 ## CI/CD Helpers (via SaneMaster)
 

@@ -186,7 +186,7 @@ struct SecondMenuBarView: View {
 
     // MARK: - Tile Factory
 
-    private func makeTile(for app: RunningApp, zone: IconZone) -> PanelIconTile {
+    private func makeTile(for app: RunningApp, zone: IconZone) -> some View {
         PanelIconTile(
             app: app,
             zone: zone,
@@ -221,6 +221,10 @@ struct SecondMenuBarView: View {
                 }
             } : nil
         )
+        .draggable(app.uniqueId)
+        .dropDestination(for: String.self) { payloads, _ in
+            handleReorderDrop(payloads, targetApp: app)
+        }
     }
 
     // MARK: - Icon Movement
@@ -266,6 +270,36 @@ struct SecondMenuBarView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onIconMoved?()
         }
+    }
+
+    private func handleReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
+        guard licenseService.isPro else {
+            proUpsellFeature = .zoneMoves
+            return false
+        }
+
+        guard let sourceID = payloads.first, sourceID != targetApp.uniqueId else { return false }
+        let allApps = movableVisible + movableHidden + movableAlwaysHidden
+        guard let sourceApp = allApps.first(where: { $0.uniqueId == sourceID }) else { return false }
+
+        let sourceX = sourceApp.xPosition ?? 0
+        let targetX = targetApp.xPosition ?? 0
+        let placeAfterTarget = sourceX < targetX
+
+        _ = menuBarManager.reorderIcon(
+            sourceBundleID: sourceApp.bundleId,
+            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
+            sourceStatusItemIndex: sourceApp.statusItemIndex,
+            targetBundleID: targetApp.bundleId,
+            targetMenuExtraID: targetApp.menuExtraIdentifier,
+            targetStatusItemIndex: targetApp.statusItemIndex,
+            placeAfterTarget: placeAfterTarget
+        )
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            onIconMoved?()
+        }
+        return true
     }
 
     // MARK: - Empty State

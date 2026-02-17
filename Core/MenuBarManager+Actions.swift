@@ -125,6 +125,8 @@ extension MenuBarManager {
             print("[MenuBarManager] statusItemClicked eventType=\(event.type.rawValue) button=\(event.buttonNumber) modifiers=\(event.modifierFlags.rawValue) clickType=\(clickType)")
         #endif
 
+        let clickedButton = sender as? NSStatusBarButton
+
         switch clickType {
         case .optionClick:
             logger.info("Option-click: opening Browse Icons")
@@ -138,17 +140,28 @@ extension MenuBarManager {
                 toggleHiddenItems()
             }
         case .rightClick:
-            showStatusMenu()
+            showStatusMenu(anchorButton: clickedButton, triggeringEvent: event)
         }
     }
 
-    func showStatusMenu() {
-        guard let statusMenu,
-              let button = mainStatusItem?.button else { return }
+    func showStatusMenu(anchorButton preferredButton: NSStatusBarButton? = nil, triggeringEvent event: NSEvent? = nil) {
+        guard let statusMenu else { return }
+        guard let button = preferredButton ?? mainStatusItem?.button ?? separatorItem?.button else { return }
 
-        logger.info("Showing status menu (anchor: main icon)")
-        // Pop up directly — avoids performClick re-triggering statusItemClicked
-        let origin = NSPoint(x: 0, y: button.bounds.maxY + 5)
+        let anchor = button.identifier?.rawValue ?? "unknown"
+        let buttonFrame = button.frame
+        let windowFrame = button.window?.frame ?? .zero
+        logger.info("Showing status menu (anchor: \(anchor, privacy: .public), buttonFrame: \(buttonFrame.debugDescription, privacy: .public), windowFrame: \(windowFrame.debugDescription, privacy: .public))")
+
+        // Use AppKit's context-menu path when we have a click event.
+        // This anchors to the actual event location and avoids coordinate drift.
+        if let event {
+            NSMenu.popUpContextMenu(statusMenu, with: event, for: button)
+            return
+        }
+
+        // Fallback if no event is available.
+        let origin = NSPoint(x: button.bounds.midX, y: button.bounds.maxY)
         statusMenu.popUp(positioning: nil, at: origin, in: button)
     }
 }
