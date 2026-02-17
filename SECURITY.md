@@ -103,7 +103,7 @@ SaneBar implements:
 - **Hardened Runtime** — Required for notarization
 - **No network entitlements** — App cannot make network connections
 - **Notarized by Apple** — Scanned for malware before distribution
-- **Open source** — Full code available for inspection
+- **100% transparent code** — Full source available for inspection on GitHub
 
 ---
 

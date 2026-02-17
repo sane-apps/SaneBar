@@ -138,9 +138,9 @@ You'll see zero results unless you're actively checking for updates.
 
 ---
 
-## Open Source
+## Transparent Code
 
-SaneBar is fully open source. Every line of code is auditable:
+Every line of SaneBar's code is public and auditable:
 https://github.com/sane-apps/SaneBar
 
 If you find any privacy concern, please open an issue.

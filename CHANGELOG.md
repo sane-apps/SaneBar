@@ -9,7 +9,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## [1.0.18] - 2026-02-02
 
 ### Changed
-- **License**: Switched from MIT to GPL v3
+- **License**: Switched to PolyForm Shield 1.0.0 (previously MIT → GPL v3)
 - **App Icon Style**: Updated to 2D cross-app design language
 
 ### Added
