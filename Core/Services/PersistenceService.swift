@@ -146,6 +146,22 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Also supports special value "(Focus Off)" to trigger when Focus turns off
     var triggerFocusModes: [String] = []
 
+    // MARK: - Schedule Trigger
+
+    /// Show hidden items when local time enters the configured schedule window.
+    var showOnSchedule: Bool = false
+
+    /// Days of week that participate in schedule trigger (1=Sunday ... 7=Saturday).
+    var scheduleWeekdays: [Int] = [2, 3, 4, 5, 6] // Mon-Fri
+
+    /// Schedule start (24h clock).
+    var scheduleStartHour: Int = 9
+    var scheduleStartMinute: Int = 0
+
+    /// Schedule end (24h clock).
+    var scheduleEndHour: Int = 17
+    var scheduleEndMinute: Int = 0
+
     // MARK: - Hover & Gesture Triggers
 
     /// Show hidden icons when hovering near the menu bar
@@ -287,6 +303,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         showDockIcon = try container.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? false
         showOnFocusModeChange = try container.decodeIfPresent(Bool.self, forKey: .showOnFocusModeChange) ?? false
         triggerFocusModes = try container.decodeIfPresent([String].self, forKey: .triggerFocusModes) ?? []
+        showOnSchedule = try container.decodeIfPresent(Bool.self, forKey: .showOnSchedule) ?? false
+        scheduleWeekdays = try container.decodeIfPresent([Int].self, forKey: .scheduleWeekdays) ?? [2, 3, 4, 5, 6]
+        scheduleStartHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartHour) ?? 9, 0), 23)
+        scheduleStartMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartMinute) ?? 0, 0), 59)
+        scheduleEndHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndHour) ?? 17, 0), 23)
+        scheduleEndMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndMinute) ?? 0, 0), 59)
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? true
@@ -325,6 +347,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case iconHotkeys, iconGroups, showOnLowBattery, batteryThreshold, hasCompletedOnboarding, hasSeenFreemiumIntro
         case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
         case showOnFocusModeChange, triggerFocusModes
+        case showOnSchedule, scheduleWeekdays, scheduleStartHour, scheduleStartMinute, scheduleEndHour, scheduleEndMinute
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll, showOnClick, gestureToggles
         case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor

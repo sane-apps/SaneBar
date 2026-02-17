@@ -114,6 +114,34 @@ extension MenuBarSearchView {
         }
     }
 
+    func handleGridReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
+        guard LicenseService.shared.isPro else {
+            proUpsellFeature = .zoneMoves
+            return false
+        }
+
+        guard let sourceBundleID = payloads.first else { return false }
+        guard sourceBundleID != targetApp.bundleId else { return false }
+        guard let sourceApp = filteredApps.first(where: { $0.bundleId == sourceBundleID }) else { return false }
+
+        let sourceX = sourceApp.xPosition ?? 0
+        let targetX = targetApp.xPosition ?? 0
+        let placeAfterTarget = sourceX < targetX
+
+        _ = menuBarManager.reorderIcon(
+            sourceBundleID: sourceApp.bundleId,
+            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
+            sourceStatusItemIndex: sourceApp.statusItemIndex,
+            targetBundleID: targetApp.bundleId,
+            targetMenuExtraID: targetApp.menuExtraIdentifier,
+            targetStatusItemIndex: targetApp.statusItemIndex,
+            placeAfterTarget: placeAfterTarget
+        )
+
+        movingAppId = sourceApp.uniqueId
+        return true
+    }
+
     // MARK: - Keyboard Navigation
 
     /// Whether keyboard navigation should be active (not when modals are open)

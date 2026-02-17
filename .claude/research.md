@@ -1,5 +1,26 @@
 # SaneBar Research Cache
 
+## Off-Screen Menu Bar Icon After Cmd-Drag (Machine-Specific)
+
+**Updated:** 2026-02-17 | **Status:** verified | **TTL:** 30d
+**Source:** Local reproduction + ByHost prefs inspection + script launch path verification
+
+- Repro context: command-dragging SaneBar out of the menu bar during failure-mode testing left machine in persistent bad state.
+- Old ByHost keys remained poisoned:
+  - `NSStatusItem Preferred Position SaneBar_main_v6 = 1310`
+  - `NSStatusItem Preferred Position SaneBar_separator_v6 = 1286`
+- Key finding: installer-like signed launches worked, while local script default `Debug` launch path could stay invisible on this machine.
+- Root cause in tooling: shared SaneMaster launch path always launched `Debug` from DerivedData.
+- Fixes applied:
+  1. `StatusBarController` autosave namespace moved to `v7` (`SaneBar_Main_v7`, etc.) so old poisoned key namespace is ignored.
+  2. SaneMaster launch updated to support `--proddebug` / `--release`.
+  3. SaneBar default launch locked to signed mode (`ProdDebug`) to avoid regression to broken `Debug` behavior.
+- Validation:
+  - `./scripts/SaneMaster.rb launch --proddebug` launches `.../Build/Products/ProdDebug/SaneBar.app`.
+  - Active keys show healthy values in new namespace:
+    - `SaneBar_main_v7_v6 = 0`
+    - `SaneBar_separator_v7_v6 = 1`
+
 ## Ice Competitor Analysis
 
 **Updated:** 2026-02-02 | **Status:** verified | **TTL:** 30d

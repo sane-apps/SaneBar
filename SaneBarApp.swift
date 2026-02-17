@@ -18,6 +18,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
 
+        // Guard against accidental duplicate launches of the same bundle.
+        // Duplicate status items can cause unstable menu anchoring behavior.
+        if terminateIfDuplicateInstanceRunning() {
+            return
+        }
+
         // Move to /Applications if running from Downloads or other location (Release only)
         #if !DEBUG
             if SaneAppMover.moveToApplicationsFolderIfNeeded() { return }
@@ -42,6 +48,19 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         ActivationPolicyManager.applyInitialPolicy()
 
         appLogger.info("🏁 applicationDidFinishLaunching complete")
+    }
+
+    @MainActor
+    private func terminateIfDuplicateInstanceRunning() -> Bool {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return false }
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != currentPID }
+
+        guard !others.isEmpty else { return false }
+        appLogger.error("Duplicate instance detected for bundle \(bundleID, privacy: .public). Terminating current launch.")
+        NSApp.terminate(nil)
+        return true
     }
 
     func application(_: NSApplication, open urls: [URL]) {

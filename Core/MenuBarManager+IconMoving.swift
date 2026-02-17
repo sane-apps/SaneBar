@@ -573,6 +573,105 @@ extension MenuBarManager {
         return true
     }
 
+    /// Reorder one menu bar icon relative to another using Cmd+drag.
+    /// Returns true when the reorder task starts (actual success is async).
+    func reorderIcon(
+        sourceBundleID: String,
+        sourceMenuExtraID: String? = nil,
+        sourceStatusItemIndex: Int? = nil,
+        targetBundleID: String,
+        targetMenuExtraID: String? = nil,
+        targetStatusItemIndex: Int? = nil,
+        placeAfterTarget: Bool
+    ) -> Bool {
+        guard !hidingService.isAnimating, !hidingService.isTransitioning else {
+            logger.warning("🔧 reorderIcon skipped — hiding service busy")
+            return false
+        }
+
+        let wasHidden = hidingState == .hidden
+        let requiresAuth = wasHidden && settings.requireAuthToShowHiddenIcons
+        let originalLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        guard !NSScreen.screens.isEmpty else { return false }
+
+        if let existing = activeMoveTask, !existing.isCancelled {
+            logger.warning("⚠️ Reorder rejected: another move is in progress")
+            return false
+        }
+
+        activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
+            guard let self else { return false }
+
+            await MainActor.run { SearchWindowController.shared.setMoveInProgress(true) }
+            defer {
+                Task { @MainActor [weak self] in
+                    SearchWindowController.shared.setMoveInProgress(false)
+                    self?.activeMoveTask = nil
+                }
+            }
+
+            if requiresAuth {
+                let revealed = await showHiddenItemsNow(trigger: .findIcon)
+                guard revealed else { return false }
+                await MainActor.run { hidingService.cancelRehide() }
+            }
+
+            if wasHidden {
+                await hidingService.showAll()
+                try? await Task.sleep(for: .milliseconds(300))
+            } else {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+
+            let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            var success = accessibilityService.reorderMenuBarIcon(
+                sourceBundleID: sourceBundleID,
+                sourceMenuExtraID: sourceMenuExtraID,
+                sourceStatusItemIndex: sourceStatusItemIndex,
+                targetBundleID: targetBundleID,
+                targetMenuExtraID: targetMenuExtraID,
+                targetStatusItemIndex: targetStatusItemIndex,
+                placeAfterTarget: placeAfterTarget,
+                originalMouseLocation: originalCGPoint
+            )
+
+            if !success {
+                logger.info("🔧 reorderIcon retry...")
+                try? await Task.sleep(for: .milliseconds(200))
+                success = accessibilityService.reorderMenuBarIcon(
+                    sourceBundleID: sourceBundleID,
+                    sourceMenuExtraID: sourceMenuExtraID,
+                    sourceStatusItemIndex: sourceStatusItemIndex,
+                    targetBundleID: targetBundleID,
+                    targetMenuExtraID: targetMenuExtraID,
+                    targetStatusItemIndex: targetStatusItemIndex,
+                    placeAfterTarget: placeAfterTarget,
+                    originalMouseLocation: originalCGPoint
+                )
+            }
+
+            let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+            if wasHidden {
+                await hidingService.restoreFromShowAll()
+                if !shouldSkipHide {
+                    await hidingService.hide()
+                }
+            }
+
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
+            }
+
+            return success
+        }
+
+        return true
+    }
+
     @MainActor
     func moveIconAndWait(
         bundleID: String,

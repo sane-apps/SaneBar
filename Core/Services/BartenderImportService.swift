@@ -44,6 +44,7 @@ enum BartenderImportService {
     struct ImportSummary {
         var movedHidden = 0
         var movedVisible = 0
+        var movedViaWindowFallback = 0
         var failedMoves = 0
         var skippedNotRunning = 0
         var skippedAmbiguous = 0
@@ -57,6 +58,7 @@ enum BartenderImportService {
             var lines = [
                 "Hidden: \(movedHidden)",
                 "Visible: \(movedVisible)",
+                "Moved via window fallback: \(movedViaWindowFallback)",
                 "Failed moves: \(failedMoves)",
                 "Skipped (not running): \(skippedNotRunning)",
                 "Skipped (ambiguous): \(skippedAmbiguous)",
@@ -128,6 +130,7 @@ enum BartenderImportService {
         }
 
         let context = await buildResolutionContext()
+        let runningBundleIDs = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
 
         let wasHidden = menuBarManager.hidingState == .hidden
         if wasHidden {
@@ -150,6 +153,24 @@ enum BartenderImportService {
                 } else {
                     summary.failedMoves += 1
                 }
+            } else if let bundleID = fallbackBundleIDForWindowMove(item, context: context, runningBundleIDs: runningBundleIDs) {
+                // resolveItem counted this as "not running" because AX couldn't see it.
+                // If WindowServer fallback applies, undo that count.
+                if summary.skippedNotRunning > 0 {
+                    summary.skippedNotRunning -= 1
+                }
+
+                if let frame = firstMenuBarWindowFrame(forBundleID: bundleID),
+                   await moveItemFromWindowFrame(
+                       frame: frame,
+                       menuBarManager: menuBarManager,
+                       toHidden: true
+                   ) {
+                    summary.movedHidden += 1
+                    summary.movedViaWindowFallback += 1
+                } else {
+                    summary.failedMoves += 1
+                }
             }
         }
 
@@ -166,6 +187,22 @@ enum BartenderImportService {
                 } else {
                     summary.failedMoves += 1
                 }
+            } else if let bundleID = fallbackBundleIDForWindowMove(item, context: context, runningBundleIDs: runningBundleIDs) {
+                if summary.skippedNotRunning > 0 {
+                    summary.skippedNotRunning -= 1
+                }
+
+                if let frame = firstMenuBarWindowFrame(forBundleID: bundleID),
+                   await moveItemFromWindowFrame(
+                       frame: frame,
+                       menuBarManager: menuBarManager,
+                       toHidden: false
+                   ) {
+                    summary.movedVisible += 1
+                    summary.movedViaWindowFallback += 1
+                } else {
+                    summary.failedMoves += 1
+                }
             }
         }
 
@@ -175,6 +212,65 @@ enum BartenderImportService {
 
         logger.log("🍸 Bartender import complete. \(summary.totalMoved) moved. Not running: \(summary.skippedNotRunning)")
         return summary
+    }
+
+    @MainActor
+    private static func moveItemFromWindowFrame(
+        frame: CGRect,
+        menuBarManager: MenuBarManager,
+        toHidden: Bool
+    ) async -> Bool {
+        guard AccessibilityService.shared.isTrusted else { return false }
+
+        // Match the coordinate conversion used by icon-moving paths.
+        let originalLocation = NSEvent.mouseLocation
+        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+
+        let separatorX: CGFloat?
+        let visibleBoundaryX: CGFloat?
+        if toHidden {
+            separatorX = menuBarManager.getSeparatorOriginX()
+
+            if let ahItem = menuBarManager.alwaysHiddenSeparatorItem,
+               let ahButton = ahItem.button,
+               let ahWindow = ahButton.window,
+               ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {
+                visibleBoundaryX = ahWindow.frame.origin.x + ahWindow.frame.width
+            } else {
+                visibleBoundaryX = nil
+            }
+        } else {
+            separatorX = menuBarManager.getSeparatorRightEdgeX()
+            visibleBoundaryX = menuBarManager.getMainStatusItemLeftEdgeX()
+        }
+
+        guard let separatorX else { return false }
+
+        var success = AccessibilityService.shared.moveMenuBarIcon(
+            fromKnownFrame: frame,
+            toHidden: toHidden,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX,
+            originalMouseLocation: originalCGPoint
+        )
+
+        if !success {
+            try? await Task.sleep(for: .milliseconds(200))
+            success = AccessibilityService.shared.moveMenuBarIcon(
+                fromKnownFrame: frame,
+                toHidden: toHidden,
+                separatorX: separatorX,
+                visibleBoundaryX: visibleBoundaryX,
+                originalMouseLocation: originalCGPoint
+            )
+        }
+
+        if success {
+            AccessibilityService.shared.invalidateMenuBarItemCache()
+            NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
+        }
+        return success
     }
 
     // MARK: - Parsing
@@ -383,5 +479,53 @@ enum BartenderImportService {
 
     private static func normalizeLabel(_ value: String) -> String {
         value.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    private static func fallbackBundleIDForWindowMove(
+        _ item: ParsedItem,
+        context: ResolutionContext,
+        runningBundleIDs: Set<String>
+    ) -> String? {
+        guard !item.raw.hasPrefix("com.surteesstudios.Bartender") else { return nil }
+        guard let bundleMatch = resolveBundleIdAndToken(from: item.raw, availableBundles: runningBundleIDs),
+              bundleMatch.matchedRunning else {
+            return nil
+        }
+
+        // Only fallback when AX cannot see any status items for this running app.
+        if let items = context.availableByBundle[bundleMatch.bundleId], !items.isEmpty {
+            return nil
+        }
+        return bundleMatch.bundleId
+    }
+
+    private static func firstMenuBarWindowFrame(forBundleID bundleID: String) -> CGRect? {
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
+            return nil
+        }
+        let targetPID = app.processIdentifier
+
+        guard let infos = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return nil
+        }
+
+        let candidates = infos.compactMap { info -> CGRect? in
+            guard let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t,
+                  ownerPID == targetPID else { return nil }
+            guard let layer = info[kCGWindowLayer as String] as? Int,
+                  layer == 24 || layer == 25 else { return nil }
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let x = bounds["X"] as? CGFloat,
+                  let y = bounds["Y"] as? CGFloat,
+                  let width = bounds["Width"] as? CGFloat,
+                  let height = bounds["Height"] as? CGFloat else {
+                return nil
+            }
+            guard width > 0, height > 0 else { return nil }
+            return CGRect(x: x, y: y, width: width, height: height)
+        }
+
+        // Right-most window is most likely the active/visible extra in crowded menus.
+        return candidates.max(by: { $0.midX < $1.midX })
     }
 }

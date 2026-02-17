@@ -301,6 +301,74 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(settings.triggerNetworks, [])
     }
 
+    // MARK: - Schedule Trigger Settings
+
+    func testScheduleTriggerDefaults() throws {
+        // Given: default settings
+        let settings = SaneBarSettings()
+
+        // Then: schedule trigger defaults are sensible for weekday work hours
+        XCTAssertFalse(settings.showOnSchedule)
+        XCTAssertEqual(settings.scheduleWeekdays, [2, 3, 4, 5, 6])
+        XCTAssertEqual(settings.scheduleStartHour, 9)
+        XCTAssertEqual(settings.scheduleStartMinute, 0)
+        XCTAssertEqual(settings.scheduleEndHour, 17)
+        XCTAssertEqual(settings.scheduleEndMinute, 0)
+    }
+
+    func testScheduleTriggerEncodesAndDecodes() throws {
+        // Given: custom schedule settings
+        var settings = SaneBarSettings()
+        settings.showOnSchedule = true
+        settings.scheduleWeekdays = [1, 7]
+        settings.scheduleStartHour = 22
+        settings.scheduleStartMinute = 30
+        settings.scheduleEndHour = 6
+        settings.scheduleEndMinute = 15
+
+        // When: encode and decode
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: schedule values are preserved
+        XCTAssertTrue(decoded.showOnSchedule)
+        XCTAssertEqual(decoded.scheduleWeekdays, [1, 7])
+        XCTAssertEqual(decoded.scheduleStartHour, 22)
+        XCTAssertEqual(decoded.scheduleStartMinute, 30)
+        XCTAssertEqual(decoded.scheduleEndHour, 6)
+        XCTAssertEqual(decoded.scheduleEndMinute, 15)
+    }
+
+    func testScheduleTriggerBackwardsCompatibility() throws {
+        // Given: JSON without schedule keys (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "iconHotkeys": {},
+            "showOnLowBattery": false
+        }
+        """
+
+        // When: decode
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        // Then: schedule defaults are applied
+        XCTAssertFalse(settings.showOnSchedule)
+        XCTAssertEqual(settings.scheduleWeekdays, [2, 3, 4, 5, 6])
+        XCTAssertEqual(settings.scheduleStartHour, 9)
+        XCTAssertEqual(settings.scheduleStartMinute, 0)
+        XCTAssertEqual(settings.scheduleEndHour, 17)
+        XCTAssertEqual(settings.scheduleEndMinute, 0)
+    }
+
     // MARK: - Dock Icon Visibility Settings
 
     func testShowDockIconDefaultsToFalse() throws {

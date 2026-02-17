@@ -88,13 +88,14 @@ extension AccessibilityService {
 
     private func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, isRightClick: Bool) -> Bool {
         logger.info("Performing hardware click fallback for \(bundleID)")
-        guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+        guard let frame = getMenuBarIconFrameOnScreen(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
             logger.error("Hardware click failed: could not find icon frame")
             return false
         }
 
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        return simulateHardwareClick(at: center, isRightClick: isRightClick)
+        let originalCursorLocation = CGEvent(source: nil)?.location
+        return simulateHardwareClick(at: center, isRightClick: isRightClick, restoreTo: originalCursorLocation)
     }
 
     // MARK: - Interaction
@@ -141,7 +142,7 @@ extension AccessibilityService {
         return false
     }
 
-    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
+    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool, restoreTo originalPoint: CGPoint? = nil) -> Bool {
         let source = CGEventSource(stateID: .combinedSessionState)
 
         let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
@@ -154,15 +155,98 @@ extension AccessibilityService {
             return false
         }
 
-        mouseDown.post(tap: .cghidEventTap)
+        mouseDown.post(tap: .cgSessionEventTap)
         Thread.sleep(forTimeInterval: 0.01)
-        mouseUp.post(tap: .cghidEventTap)
+        mouseUp.post(tap: .cgSessionEventTap)
+
+        // Avoid leaving the user's pointer at the synthetic click location.
+        if let originalPoint,
+           let restoreEvent = CGEvent(
+               mouseEventSource: source,
+               mouseType: .mouseMoved,
+               mouseCursorPosition: originalPoint,
+               mouseButton: .left
+           ) {
+            restoreEvent.post(tap: .cgSessionEventTap)
+        }
 
         logger.info("Simulated hardware click at \(point.x), \(point.y)")
         return true
     }
 
     // MARK: - Icon Moving (CGEvent-based)
+
+    /// Move a menu bar icon starting from a known WindowServer frame.
+    /// Used for fallback paths when AX can't resolve an element.
+    nonisolated func moveMenuBarIcon(
+        fromKnownFrame iconFrame: CGRect,
+        toHidden: Bool,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat? = nil,
+        originalMouseLocation: CGPoint
+    ) -> Bool {
+        guard isTrusted else {
+            logger.error("🔧 Accessibility permission not granted")
+            return false
+        }
+
+        let moveOffset = max(30, iconFrame.size.width + 20)
+        let targetX: CGFloat = if toHidden, let ahBoundary = visibleBoundaryX {
+            max(separatorX - moveOffset, ahBoundary + 2)
+        } else if toHidden {
+            separatorX - max(80, iconFrame.size.width + 60)
+        } else if let boundary = visibleBoundaryX {
+            max(separatorX + 1, boundary - 2)
+        } else {
+            separatorX + 1
+        }
+
+        let fromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
+        let toPoint = CGPoint(x: targetX, y: iconFrame.midY)
+        return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+    }
+
+    /// Reorder one icon relative to another icon using Cmd+drag.
+    /// Returns true when drag events were posted successfully.
+    nonisolated func reorderMenuBarIcon(
+        sourceBundleID: String,
+        sourceMenuExtraID: String? = nil,
+        sourceStatusItemIndex: Int? = nil,
+        targetBundleID: String,
+        targetMenuExtraID: String? = nil,
+        targetStatusItemIndex: Int? = nil,
+        placeAfterTarget: Bool,
+        originalMouseLocation: CGPoint
+    ) -> Bool {
+        guard isTrusted else {
+            logger.error("🔧 Accessibility permission not granted")
+            return false
+        }
+
+        guard let sourceFrame = getMenuBarIconFrameOnScreen(
+            bundleID: sourceBundleID,
+            menuExtraId: sourceMenuExtraID,
+            statusItemIndex: sourceStatusItemIndex
+        ) else {
+            logger.error("🔧 reorderMenuBarIcon: source frame unavailable")
+            return false
+        }
+
+        guard let targetFrame = getMenuBarIconFrameOnScreen(
+            bundleID: targetBundleID,
+            menuExtraId: targetMenuExtraID,
+            statusItemIndex: targetStatusItemIndex
+        ) else {
+            logger.error("🔧 reorderMenuBarIcon: target frame unavailable")
+            return false
+        }
+
+        let spacing = max(8, targetFrame.width * 0.25)
+        let targetX = placeAfterTarget ? (targetFrame.maxX + spacing) : (targetFrame.minX - spacing)
+        let fromPoint = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
+        let toPoint = CGPoint(x: targetX, y: targetFrame.midY)
+        return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+    }
 
     /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag.
     /// Returns `true` only if post-move verification indicates the icon crossed the separator.
@@ -366,6 +450,31 @@ extension AccessibilityService {
         }
 
         return CGRect(origin: origin, size: size)
+    }
+
+    private nonisolated func getMenuBarIconFrameOnScreen(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        attempts: Int = 20,
+        interval: TimeInterval = 0.05
+    ) -> CGRect? {
+        for attempt in 1 ... attempts {
+            guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+                return nil
+            }
+
+            let center = CGPoint(x: frame.midX, y: frame.midY)
+            let isOnScreen = NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
+
+            if isOnScreen {
+                return frame
+            }
+
+            logger.debug("getMenuBarIconFrameOnScreen: frame off-screen (attempt \(attempt), x=\(frame.origin.x, privacy: .public), y=\(frame.origin.y, privacy: .public))")
+            Thread.sleep(forTimeInterval: interval)
+        }
+        return nil
     }
 
     /// Thread-safe box for cross-thread value passing (semaphore provides synchronization)

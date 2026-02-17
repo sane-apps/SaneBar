@@ -96,6 +96,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     let appearanceService: MenuBarAppearanceService
     let networkTriggerService: NetworkTriggerService
     let focusModeService: FocusModeService
+    let scheduleTriggerService: ScheduleTriggerService
     let scriptTriggerService: ScriptTriggerService
     let hoverService: HoverService
     let updateService: UpdateService
@@ -138,6 +139,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         appearanceService: MenuBarAppearanceService? = nil,
         networkTriggerService: NetworkTriggerService? = nil,
         focusModeService: FocusModeService? = nil,
+        scheduleTriggerService: ScheduleTriggerService? = nil,
         scriptTriggerService: ScriptTriggerService? = nil,
         hoverService: HoverService? = nil,
         updateService: UpdateService? = nil
@@ -151,6 +153,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.appearanceService = appearanceService ?? MenuBarAppearanceService()
         self.networkTriggerService = networkTriggerService ?? NetworkTriggerService()
         self.focusModeService = focusModeService ?? FocusModeService()
+        self.scheduleTriggerService = scheduleTriggerService ?? ScheduleTriggerService()
         self.scriptTriggerService = scriptTriggerService ?? ScriptTriggerService()
         self.hoverService = hoverService ?? HoverService()
         self.updateService = updateService ?? UpdateService()
@@ -179,6 +182,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.onTrigger = { [weak self] reason in
             guard let self else { return }
             Task { @MainActor in
+                guard !self.isMenuOpen else {
+                    logger.debug("Ignoring hover trigger while status menu is open")
+                    return
+                }
                 logger.debug("Hover trigger received: \(String(describing: reason))")
 
                 switch reason {
@@ -232,6 +239,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.onUserDragEnd = { [weak self] in
             guard let self else { return }
             Task { @MainActor in
+                guard !self.isMenuOpen else { return }
                 // Un-pin and allow auto-hide to resume
                 self.isRevealPinned = false
                 if self.settings.autoRehide, !self.shouldSkipHideForExternalMonitor {
@@ -243,6 +251,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hoverService.onLeaveMenuBar = { [weak self] in
             guard let self else { return }
             Task { @MainActor in
+                guard !self.isMenuOpen else { return }
                 // Only auto-hide if autoRehide is enabled and not on external monitor
                 if self.settings.autoRehide, !self.isRevealPinned, !self.shouldSkipHideForExternalMonitor {
                     self.hidingService.scheduleRehide(after: self.settings.rehideDelay)
@@ -351,6 +360,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 focusModeService.startMonitoring()
             }
 
+            scheduleTriggerService.configure(menuBarManager: self)
+            if settings.showOnSchedule {
+                scheduleTriggerService.startMonitoring()
+            }
+
             scriptTriggerService.configure(menuBarManager: self)
             if settings.scriptTriggerEnabled {
                 scriptTriggerService.startMonitoring()
@@ -409,6 +423,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             focusModeService.configure(menuBarManager: self)
             if settings.showOnFocusModeChange {
                 focusModeService.startMonitoring()
+            }
+
+            // Configure schedule trigger
+            scheduleTriggerService.configure(menuBarManager: self)
+            if settings.showOnSchedule {
+                scheduleTriggerService.startMonitoring()
             }
 
             // Configure Script trigger
@@ -525,6 +545,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateAppearance()
                 self?.updateNetworkTrigger(enabled: newSettings.showOnNetworkChange)
                 self?.updateFocusModeTrigger(enabled: newSettings.showOnFocusModeChange)
+                self?.updateScheduleTrigger(enabled: newSettings.showOnSchedule)
                 self?.updateScriptTrigger(settings: newSettings)
                 self?.triggerService.updateBatteryMonitoring(enabled: newSettings.showOnLowBattery)
                 self?.updateHoverService()
@@ -700,6 +721,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             focusModeService.startMonitoring()
         } else {
             focusModeService.stopMonitoring()
+        }
+    }
+
+    private func updateScheduleTrigger(enabled: Bool) {
+        if enabled {
+            scheduleTriggerService.startMonitoring()
+        } else {
+            scheduleTriggerService.stopMonitoring()
         }
     }
 

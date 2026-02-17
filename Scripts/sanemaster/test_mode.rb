@@ -13,19 +13,19 @@ module SaneMasterModules
 
       clear_data if args.include?('--fresh')
 
-      build_config = ENV['SANEBAR_BUILD_CONFIG'] || 'Debug'
-      dd_path = File.expand_path("~/Library/Developer/Xcode/DerivedData/#{project_name}-*/Build/Products/Debug")
-      dd_path = dd_path.sub('/Debug', "/#{build_config}")
+      build_config = launch_build_config(args)
+      puts "🔧 Build configuration: #{build_config}"
+      dd_path = File.expand_path("~/Library/Developer/Xcode/DerivedData/#{project_name}-*/Build/Products/#{build_config}")
       app_path = Dir.glob(File.join(dd_path, "#{project_name}.app")).first
 
       unless app_path && File.exist?(app_path)
-        puts '❌ App binary not found. Run ./Scripts/SaneMaster.rb verify to build.'
+        puts "❌ App binary not found for configuration '#{build_config}'. Run build first."
         return
       end
 
       # STALE BUILD DETECTION - prevents launching outdated binaries
       binary_time = File.mtime(app_path)
-      source_files = Dir.glob("{#{project_name},#{project_name}Tests}/**/*.swift")
+      source_files = project_swift_sources
       newest_source = source_files.max_by { |f| File.mtime(f) }
 
       if newest_source && File.mtime(newest_source) > binary_time
@@ -43,7 +43,7 @@ module SaneMasterModules
           puts '   --force flag set, launching anyway...'
         else
           puts '   Rebuilding to ensure fresh binary...'
-          build_success = system("xcodebuild -scheme #{project_name} -destination \"platform=macOS\" build 2>&1 | grep -E \"(BUILD|error:)\" | tail -3")
+          build_success = system("xcodebuild -scheme #{project_name} -configuration #{build_config} -destination \"platform=macOS\" build 2>&1 | grep -E \"(BUILD|error:)\" | tail -3")
           unless build_success
             puts '   ❌ Rebuild failed!'
             return
@@ -64,6 +64,7 @@ module SaneMasterModules
       end
 
       direct_launch = env_vars.any?
+      ensure_single_instance
 
       if capture_logs
         puts '📝 Capturing logs to stdout...'
@@ -208,6 +209,12 @@ module SaneMasterModules
       puts ''
     end
 
+    def ensure_single_instance
+      puts "🛑 Ensuring single #{project_name} instance..."
+      system("killall -9 #{project_name} 2>/dev/null")
+      sleep 0.3
+    end
+
     def show_screenshots(screenshots_dir)
       puts '2️⃣  Screenshots in project:'
       if Dir.exist?(screenshots_dir)
@@ -269,7 +276,7 @@ module SaneMasterModules
 
     def build_app # rubocop:disable Naming/PredicateMethod -- performs action, not just a query
       puts '4️⃣  Building app...'
-      build_config = ENV['SANEBAR_BUILD_CONFIG'] || 'Debug'
+      build_config = launch_build_config([])
       build_success = system("xcodebuild -scheme #{project_name} -configuration #{build_config} -destination \"platform=macOS\" build 2>&1 | grep -E \"(BUILD|error:)\" | tail -5")
       unless build_success
         puts '   ❌ Build failed! Fix errors before continuing.'
@@ -278,6 +285,29 @@ module SaneMasterModules
       puts '   ✅ Build succeeded'
       puts ''
       true
+    end
+
+    def launch_build_config(args)
+      return 'ProdDebug' if args.include?('--proddebug')
+      return 'Release' if args.include?('--release')
+
+      # SaneBar local testing is only supported in signed launch modes.
+      # Debug mode can trigger invisible/off-screen menu bar icon behavior.
+      if project_name == 'SaneBar'
+        requested = ENV['SANEMASTER_BUILD_CONFIG'] || ENV['SANEBAR_BUILD_CONFIG']
+        return requested if %w[ProdDebug Release].include?(requested)
+        return 'ProdDebug'
+      end
+
+      ENV['SANEMASTER_BUILD_CONFIG'] || 'Debug'
+    end
+
+    def project_swift_sources
+      ignored_roots = %w[.git build .build DerivedData node_modules vendor Pods releases fastlane].freeze
+
+      Dir.glob('**/*.swift').reject do |path|
+        path.split(File::SEPARATOR).any? { |part| ignored_roots.include?(part) }
+      end
     end
 
     def show_log_status(log_file)
