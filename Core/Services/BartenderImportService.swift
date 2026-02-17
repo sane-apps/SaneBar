@@ -529,3 +529,46 @@ enum BartenderImportService {
         return candidates.max(by: { $0.midX < $1.midX })
     }
 }
+
+#if DEBUG
+extension BartenderImportService {
+    static func _test_parseItem(_ raw: String) -> ParsedItem? {
+        parseItem(raw)
+    }
+
+    static func _test_resolveBundleIdAndToken(from raw: String, availableBundles: Set<String>) -> BundleMatch? {
+        resolveBundleIdAndToken(from: raw, availableBundles: availableBundles)
+    }
+
+    static func _test_parseStatusItemIndex(from token: String?) -> Int? {
+        parseStatusItemIndex(from: token)
+    }
+
+    static func _test_menuExtraIdCandidate(from token: String) -> String? {
+        menuExtraIdCandidate(from: token)
+    }
+
+    static func _test_resolutionContext(
+        availableByBundle: [String: [AccessibilityService.MenuBarItemPosition]],
+        availableByMenuExtraId: [String: AccessibilityService.MenuBarItemPosition] = [:],
+        availableByMenuExtraIdLower: [String: AccessibilityService.MenuBarItemPosition] = [:],
+        availableByBundleAndName: [String: AccessibilityService.MenuBarItemPosition] = [:]
+    ) -> ResolutionContext {
+        ResolutionContext(
+            availableByBundle: availableByBundle,
+            availableByMenuExtraId: availableByMenuExtraId,
+            availableByMenuExtraIdLower: availableByMenuExtraIdLower,
+            availableByBundleAndName: availableByBundleAndName
+        )
+    }
+
+    static func _test_fallbackBundleIDForWindowMove(
+        raw: String,
+        context: ResolutionContext,
+        runningBundleIDs: Set<String>
+    ) -> String? {
+        guard let parsed = parseItem(raw) else { return nil }
+        return fallbackBundleIDForWindowMove(parsed, context: context, runningBundleIDs: runningBundleIDs)
+    }
+}
+#endif

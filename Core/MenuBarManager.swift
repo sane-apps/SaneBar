@@ -658,6 +658,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
 
         mainItem.isVisible = true
+        separator.isVisible = true
+        alwaysHiddenSeparatorItem?.isVisible = true
         mainItem.menu = nil
         mainItem.button?.menu = nil
 

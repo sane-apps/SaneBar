@@ -316,17 +316,18 @@ struct AlwaysHiddenRegressionTests {
         defaults.removeObject(forKey: key)
     }
 
-    @Test("AH seed only writes when key is nil — does not overwrite existing")
+    @Test("AH seed enforces 10000 even when key already exists")
     @MainActor
-    func ahSeedOnlyWritesWhenNil() {
+    func ahSeedEnforcesLatestValue() {
         let defaults = UserDefaults.standard
         let key = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
 
-        // Existing value should NOT be overwritten by seeding
+        // Existing value should be overwritten by seeding so startup self-heals
+        // from stale/corrupted values left by prior cmd-drag experiments.
         defaults.set(5000.0, forKey: key)
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-        #expect(defaults.double(forKey: key) == 5000,
-                "Seed must not overwrite existing position")
+        #expect(defaults.double(forKey: key) == 10000,
+                "Seed must enforce 10000 to recover from stale positions")
 
         // Cleanup
         defaults.removeObject(forKey: key)
