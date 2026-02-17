@@ -72,6 +72,12 @@
         "Drag-to-Reorder Icons",
         "Instant Search",
         "Auto-Hide Rules",
+        "Smart Triggers",
+        "Per-Icon Hotkeys",
+        "Custom Appearance",
+        "Menu Bar Spacing",
+        "AppleScript Automation",
+        "Bartender & Ice Import",
         "100% On-Device Privacy"
       ]
     }
@@ -107,6 +113,14 @@
             --success-soft: rgba(52, 211, 153, 0.15);
             --border: #252530;
             --border-subtle: #1e1e28;
+            /* Golden ratio spacing: each step × 1.618 */
+            --phi-xs: 8px;
+            --phi-sm: 13px;
+            --phi-md: 21px;
+            --phi-lg: 34px;
+            --phi-xl: 55px;
+            --phi-2xl: 89px;
+            --phi-3xl: 144px;
         }
 
         * {
@@ -271,7 +285,7 @@
 
         /* Hero Section */
         .hero {
-            padding: 120px 0 60px;
+            padding: var(--phi-3xl) 0 var(--phi-2xl);
             text-align: center;
         }
 
@@ -279,7 +293,7 @@
             font-family: 'Playfair Display', Georgia, serif;
             font-size: clamp(2.75rem, 7vw, 4.5rem);
             font-weight: 600;
-            margin-bottom: 24px;
+            margin-bottom: var(--phi-lg);
             letter-spacing: -0.03em;
             color: var(--text-primary);
             line-height: 1.1;
@@ -294,7 +308,7 @@
             font-size: 1.25rem;
             color: var(--text-secondary);
             max-width: 560px;
-            margin: 0 auto 24px;
+            margin: 0 auto var(--phi-lg);
             font-weight: 400;
             line-height: 1.8;
         }
@@ -307,10 +321,10 @@
 
         .trust-badges {
             display: flex;
-            gap: 24px;
+            gap: var(--phi-lg);
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 20px;
+            margin-bottom: var(--phi-md);
             font-size: 1.17rem;
             color: var(--text-muted);
         }
@@ -323,10 +337,10 @@
 
         .cta-buttons {
             display: flex;
-            gap: 16px;
+            gap: var(--phi-md);
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 24px;
+            margin-bottom: var(--phi-lg);
         }
 
         .btn {
@@ -360,10 +374,6 @@
                 0 4px 12px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15);
             filter: brightness(1.05);
-        }
-
-        .hero-cta-mobile {
-            display: none;
         }
 
         .btn-secondary {
@@ -521,6 +531,160 @@
         @keyframes carouselProgress {
             from { width: 0%; }
             to { width: 100%; }
+        }
+
+        /* Pricing Cards — golden ratio spacing throughout */
+        .hero-pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--phi-lg);
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: var(--phi-xl) var(--phi-lg);
+            text-align: left;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            border-color: rgba(79, 143, 250, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 13px 34px rgba(0, 0, 0, 0.3);
+        }
+
+        .pricing-card.featured {
+            background:
+                radial-gradient(ellipse at 80% 20%, rgba(79, 143, 250, 0.12) 0%, transparent 50%),
+                linear-gradient(160deg, #0d1830 0%, #0a1225 100%);
+            border-color: rgba(79, 143, 250, 0.35);
+            box-shadow: 0 8px 34px rgba(79, 143, 250, 0.1);
+        }
+
+        .pricing-card.featured:hover {
+            box-shadow: 0 13px 55px rgba(79, 143, 250, 0.15);
+        }
+
+        .pricing-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: var(--phi-sm);
+        }
+
+        .pricing-card.featured .pricing-label {
+            color: var(--accent);
+        }
+
+        .pricing-price {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 2.618rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--phi-xs);
+            line-height: 1.1;
+        }
+
+        .pricing-price-note {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: var(--phi-lg);
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin-bottom: var(--phi-lg);
+        }
+
+        .pricing-features li {
+            padding: var(--phi-xs) 0;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--phi-xs);
+        }
+
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+
+        .pricing-card.featured .pricing-features li.extra::before {
+            color: var(--accent);
+            content: '★';
+        }
+
+        .pricing-cta {
+            display: block;
+            text-align: center;
+            padding: var(--phi-sm) var(--phi-md);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-cta-free {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .pricing-cta-free:hover {
+            border-color: var(--accent);
+            background: var(--accent-subtle);
+        }
+
+        .pricing-cta-pro {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 21px var(--accent-glow);
+        }
+
+        .pricing-cta-pro:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 34px var(--accent-glow);
+            filter: brightness(1.05);
+        }
+
+        .pricing-footer {
+            margin-top: var(--phi-lg);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .hero-pricing-grid {
+                grid-template-columns: 1fr;
+                gap: var(--phi-md);
+                max-width: 340px;
+            }
+
+            .pricing-card {
+                padding: var(--phi-lg) var(--phi-md);
+            }
+
+            .pricing-price {
+                font-size: 2rem;
+            }
+
+            .hero-pricing-footer {
+                display: none;
+            }
         }
 
         /* Privacy Badge */
@@ -739,7 +903,7 @@
 
         /* Features Section */
         .features {
-            padding: 100px 0;
+            padding: var(--phi-2xl) 0;
         }
 
         .section-title {
@@ -747,7 +911,7 @@
             font-size: clamp(2rem, 5vw, 2.75rem);
             font-weight: 600;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: var(--phi-md);
             letter-spacing: -0.02em;
             line-height: 1.2;
         }
@@ -757,7 +921,7 @@
             color: var(--text-secondary);
             font-size: 1.1rem;
             max-width: 540px;
-            margin: 0 auto 64px;
+            margin: 0 auto var(--phi-xl);
             line-height: 1.7;
         }
 
@@ -774,7 +938,7 @@
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 24px;
+            gap: var(--phi-lg);
         }
 
         .feature-card {
@@ -819,7 +983,7 @@
 
 
         .feature-icon {
-            margin-bottom: 20px;
+            margin-bottom: var(--phi-md);
             color: var(--accent);
             display: flex;
             align-items: center;
@@ -838,7 +1002,7 @@
 
         .feature-card h3 {
             font-size: 1.2rem;
-            margin-bottom: 12px;
+            margin-bottom: var(--phi-sm);
             font-weight: 600;
             letter-spacing: -0.01em;
         }
@@ -922,13 +1086,13 @@
 
         /* Highlight Section */
         .highlight {
-            padding: 120px 0;
+            padding: var(--phi-2xl) 0;
         }
 
         .highlight-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 80px;
+            gap: var(--phi-xl);
             align-items: center;
         }
 
@@ -991,7 +1155,7 @@
 
         /* Download Section */
         .download {
-            padding: 120px 0;
+            padding: var(--phi-2xl) 0;
             text-align: center;
         }
 
@@ -1074,7 +1238,7 @@
 
         /* Comparison Table */
         .comparison {
-            padding: 100px 0;
+            padding: var(--phi-2xl) 0;
         }
 
         .comparison-table-wrapper {
@@ -1179,7 +1343,7 @@
 
         /* Support Section */
         .support {
-            padding: 80px 0;
+            padding: var(--phi-2xl) 0;
             text-align: center;
         }
 
@@ -1192,9 +1356,9 @@
         }
         
         .support-subtitle {
-             font-style: italic; 
+             font-style: italic;
              max-width: 500px;
-             margin: 0 auto 32px;
+             margin: 0 auto var(--phi-lg);
         }
         
         .support-subtitle span {
@@ -1289,7 +1453,7 @@
 
         /* Cross-Sell Section */
         .more-apps {
-            padding: 80px 0;
+            padding: var(--phi-2xl) 0;
             background: linear-gradient(180deg, transparent, rgba(79, 143, 250, 0.03));
         }
 
@@ -1301,14 +1465,14 @@
         .more-apps-subtitle {
             text-align: center;
             color: var(--text-secondary);
-            margin-bottom: 48px;
+            margin-bottom: var(--phi-xl);
             font-size: 1.1rem;
         }
 
         .more-apps-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
+            gap: var(--phi-lg);
             max-width: 1000px;
             margin: 0 auto;
         }
@@ -1387,7 +1551,7 @@
 
         /* Footer */
         footer {
-            padding: 60px 0 40px;
+            padding: var(--phi-xl) 0 var(--phi-lg);
             border-top: 1px solid var(--border-subtle);
             text-align: center;
             background: linear-gradient(180deg, transparent, rgba(0,0,0,0.2));
@@ -1395,7 +1559,7 @@
 
         .footer-privacy {
             font-size: 1.05rem;
-            margin-bottom: 28px;
+            margin-bottom: var(--phi-lg);
             letter-spacing: 0.02em;
         }
 
@@ -1406,9 +1570,9 @@
 
         .footer-links {
             display: flex;
-            gap: 32px;
+            gap: var(--phi-lg);
             justify-content: center;
-            margin-bottom: 28px;
+            margin-bottom: var(--phi-lg);
         }
 
         .footer-links a {
@@ -1478,14 +1642,14 @@
 
         /* Testimonials - Scrolling */
         .testimonials {
-            padding: 60px 0 100px;
+            padding: var(--phi-2xl) 0;
             text-align: center;
             overflow: hidden;
         }
 
         .testimonial-scroll {
             overflow: hidden;
-            margin-top: 40px;
+            margin-top: var(--phi-xl);
             mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
             -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
@@ -1687,19 +1851,6 @@
                 white-space: nowrap;
             }
 
-            .hero-pricing,
-            .hero-brew {
-                display: none !important;
-            }
-
-            .hero-cta-desktop {
-                display: none !important;
-            }
-
-            .hero-cta-mobile {
-                display: flex !important;
-            }
-
             /* Carousel */
             .hero-carousel {
                 max-width: 100% !important;
@@ -1877,13 +2028,13 @@
             }
         }
 
-            .sustainability { padding: 80px 0; border-top: 1px solid var(--border-subtle); }
+            .sustainability { padding: var(--phi-2xl) 0; border-top: 1px solid var(--border-subtle); }
         .sustainability-card {
             background: linear-gradient(160deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
-            border: 1px solid var(--border-subtle); border-radius: 28px; padding: 60px;
+            border: 1px solid var(--border-subtle); border-radius: 28px; padding: var(--phi-xl);
             max-width: 800px; margin: 0 auto; position: relative; text-align: center;
         }
-        .sustainability-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; }
+        .sustainability-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--phi-md); margin-top: var(--phi-lg); }
         .sustainability-option { 
             text-align: left; border: 1px solid var(--border); padding: 24px; border-radius: 16px; 
             text-decoration: none; color: inherit; transition: all 0.3s;
@@ -1919,6 +2070,7 @@
                 <a href="https://saneapps.com" class="logo-family">Part of the SaneApps family</a>
             </div>
             <div class="nav-links">
+                <a href="#pricing">Pricing</a>
                 <a href="#demo">Demo</a>
                 <a href="#features">Features</a>
                 <a href="#compare">Compare</a>
@@ -1941,6 +2093,7 @@
     <div id="mobileNav" class="mobile-nav">
         <button class="mobile-nav-close" onclick="toggleMobileNav()" aria-label="Close menu">&times;</button>
         <p class="mobile-nav-section">Navigation</p>
+        <a href="#pricing" onclick="toggleMobileNav()">Pricing</a>
         <a href="#demo" onclick="toggleMobileNav()">Demo</a>
         <a href="#features" onclick="toggleMobileNav()">Features</a>
         <a href="#compare" onclick="toggleMobileNav()">Compare</a>
@@ -1965,28 +2118,55 @@
                 <a href="https://forums.basehub.com/sane-apps/SaneBar/1" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">🛡️ 100% private</a>
                 <span>🛠️ Actively maintained</span>
             </div>
-            <p class="animate-in delay-4 hero-pricing" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Basic is free. Love it? Upgrade to Pro in the app — $6.99, once.</p>
-            <div class="cta-buttons animate-in delay-4">
-                <a href="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip" class="btn btn-primary hero-cta-desktop">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    Free Download
-                </a>
-                <a href="https://go.saneapps.com/buy/sanebar?ref=mobile" class="btn btn-primary hero-cta-mobile">
-                    Buy Now — $6.99
-                </a>
+            <!-- Pricing cards — right in the hero so it's the first thing you act on -->
+            <div class="animate-in delay-4 hero-pricing-grid" id="pricing">
+                <div class="pricing-card">
+                    <p class="pricing-label">Basic</p>
+                    <p class="pricing-price">Free</p>
+                    <p class="pricing-price-note">Forever — no catch</p>
+                    <ul class="pricing-features">
+                        <li>Hide &amp; show menu bar icons</li>
+                        <li>Drag-to-reorder icons</li>
+                        <li>Import from Bartender / Ice</li>
+                        <li>Icon Panel or Second Menu Bar</li>
+                        <li>100% on-device privacy</li>
+                    </ul>
+                    <a href="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip" class="pricing-cta pricing-cta-free">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 6px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download Free
+                    </a>
+                </div>
+                <div class="pricing-card featured">
+                    <p class="pricing-label">Pro</p>
+                    <p class="pricing-price">$6.99<span class="price-note">*</span></p>
+                    <p class="pricing-price-note">One-time — yours forever</p>
+                    <ul class="pricing-features">
+                        <li>Everything in Basic, plus:</li>
+                        <li class="extra">Touch ID &amp; password lock</li>
+                        <li class="extra">6 smart triggers (battery, Wi-Fi, Focus, app launch, schedule, script)</li>
+                        <li class="extra">Click &amp; right-click icons from panels</li>
+                        <li class="extra">Per-icon hotkeys &amp; extra shortcuts</li>
+                        <li class="extra">Always Hidden zone</li>
+                        <li class="extra">Icon groups &amp; drag between zones</li>
+                        <li class="extra">Custom appearance (tint, Liquid Glass, borders, shadows)</li>
+                        <li class="extra">Menu bar spacing &amp; dividers</li>
+                        <li class="extra">Gesture customization (toggle, directional scroll)</li>
+                        <li class="extra">Auto-rehide timing &amp; external monitor rules</li>
+                        <li class="extra">Profiles, export/import, Bartender/Ice migration</li>
+                        <li class="extra">Custom menu bar icon</li>
+                        <li class="extra">AppleScript &amp; Shortcuts automation</li>
+                    </ul>
+                    <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" class="pricing-cta pricing-cta-pro">Buy Pro</a>
+                </div>
             </div>
-            <div class="animate-in delay-4 hero-brew" style="margin-top: 12px; text-align: center;">
-                <code style="background: var(--bg-card); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: inline-block;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code>
-            </div>
+            <p class="animate-in delay-4 hero-pricing-footer" style="color: var(--text-muted); font-size: 0.85rem; margin-top: var(--phi-sm);"><code style="background: var(--bg-card); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code></p>
             <!-- One Click to Hide - interactive demo -->
             <div class="animate-in delay-5 hero-demo-section" style="margin-top: 48px;">
                 <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">How It Works</h2>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 500;">Click <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; color: rgba(255,255,255,0.9);"><rect x="2" y="5" width="20" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="6" y="17" width="12" height="2" rx="1"/></svg> below to hide and unhide apps:</p>
-                <div class="demo-container" onclick="toggleDemo()"
+                <div class="demo-container" onclick="toggleDemo()">
                     <div class="demo-menubar" id="demoMenubar">
                         <div class="demo-icons">
                             <span>🔐</span>
@@ -2022,7 +2202,7 @@
                 </div>
             </div>
             <!-- Showcase Carousel - two ways to view hidden icons -->
-            <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 48px; margin-bottom: 16px;">How We Handle the Mac Notch</h2>
+            <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 64px; margin-bottom: 16px;">How We Handle the Mac Notch</h2>
             <div class="hero-carousel animate-in delay-5" style="max-width: 520px; margin-top: 0;">
                 <div class="carousel-container" style="height: 420px;">
                     <div class="carousel-progress">
@@ -2060,7 +2240,7 @@
     </section>
 
     <!-- Video Demo Section -->
-    <section class="video-demo" id="demo" style="padding: 60px 0; background: var(--bg-secondary);">
+    <section class="video-demo" id="demo" style="padding: var(--phi-2xl) 0; background: var(--bg-secondary);">
         <div class="container">
             <h2 class="section-title">See SaneBar in Action</h2>
             <p class="section-subtitle">Watch how easy it is to hide, organize, and secure your menu bar icons.</p>
@@ -2257,6 +2437,10 @@
             <div class="testimonial-track">
                 <!-- Original testimonials -->
                 <div class="testimonial-item">
+                    <p class="testimonial-text">"SaneBar is the first Bartender replacement that feels like it'll actually surpass the original. The speed with which you reply to issue reports and implement new features is phenomenal."</p>
+                    <div class="testimonial-author">HealsCodes (GitHub)</div>
+                </div>
+                <div class="testimonial-item">
                     <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design. In an era of surveillance capitalism, SaneBar's silence is its loudest feature."</p>
                     <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
                 </div>
@@ -2265,8 +2449,8 @@
                     <div class="testimonial-author">u/nxnayx (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
-                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
-                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
+                    <p class="testimonial-text">"Thank you so much for the update and transparency! Stable is definitely better."</p>
+                    <div class="testimonial-author">vurtomatic (GitHub)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"You already have 'Reveal when I scroll up in the menu bar' — exactly how I use Ice. I like it very much!"</p>
@@ -2275,6 +2459,10 @@
                 <div class="testimonial-item">
                     <p class="testimonial-text">"I am using it now and there are no shadow clicks as seen in other menu bar managers."</p>
                     <div class="testimonial-author">u/Elegant_Mobile4311 (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
+                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
@@ -2286,6 +2474,10 @@
                 </div>
                 <!-- Duplicated for seamless loop -->
                 <div class="testimonial-item">
+                    <p class="testimonial-text">"SaneBar is the first Bartender replacement that feels like it'll actually surpass the original. The speed with which you reply to issue reports and implement new features is phenomenal."</p>
+                    <div class="testimonial-author">HealsCodes (GitHub)</div>
+                </div>
+                <div class="testimonial-item">
                     <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design. In an era of surveillance capitalism, SaneBar's silence is its loudest feature."</p>
                     <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
                 </div>
@@ -2294,8 +2486,8 @@
                     <div class="testimonial-author">u/nxnayx (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
-                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
-                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
+                    <p class="testimonial-text">"Thank you so much for the update and transparency! Stable is definitely better."</p>
+                    <div class="testimonial-author">vurtomatic (GitHub)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"You already have 'Reveal when I scroll up in the menu bar' — exactly how I use Ice. I like it very much!"</p>
@@ -2304,6 +2496,10 @@
                 <div class="testimonial-item">
                     <p class="testimonial-text">"I am using it now and there are no shadow clicks as seen in other menu bar managers."</p>
                     <div class="testimonial-author">u/Elegant_Mobile4311 (Reddit)</div>
+                </div>
+                <div class="testimonial-item">
+                    <p class="testimonial-text">"I've been keeping an eye on this type of software since upgrading to macOS 26, and I'm ready to give it a try!"</p>
+                    <div class="testimonial-author">u/Depth_Special (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"Damn! This looks great. I have been desperately looking for a FOSS alternative."</p>
