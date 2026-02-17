@@ -1,7 +1,7 @@
 # SaneBar
 
 [![GitHub stars](https://img.shields.io/github/stars/sane-apps/SaneBar?style=flat-square)](https://github.com/sane-apps/SaneBar/stargazers)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
@@ -206,7 +206,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ## Support
 
-**⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars help others discover quality open source.
+**⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars help others discover quality indie software.
 
 **Cloning without starring?** For real bro? Gimme that star!
 
@@ -326,13 +326,13 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Second Menu Bar** | Yes | Yes | Yes | No |
 | **Find Icon Search** | Yes | Yes | Yes | No |
 | **AppleScript** | Yes | Yes | No | No |
-| **Open Source** | GPL v3 | No | Yes | Yes |
+| **Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
 | **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
 | **Pricing** | Basic (free) / Pro $6.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |
 
 ## License
 
-GPL v3 — see [LICENSE](LICENSE)
+[PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0) — see [LICENSE](LICENSE)
 
-Copyright (c) 2026 SaneApps. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
+Copyright (c) 2025-2026 SaneApps. 100% transparent code — read, audit, and learn from it. Use it for anything except building a competing product.

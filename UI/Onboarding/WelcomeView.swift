@@ -785,7 +785,7 @@ private struct SanePromisePage: View {
             HStack(spacing: 14) {
                 PillarCard(
                     icon: "bolt.fill", color: .yellow, title: "Power",
-                    lines: ["Your data stays on your device.", "Open source.", "Actively maintained."]
+                    lines: ["Your data stays on your device.", "100% transparent code.", "Actively maintained."]
                 )
                 PillarCard(
                     icon: "heart.fill", color: .red, title: "Love",
