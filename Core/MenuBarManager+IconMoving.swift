@@ -120,6 +120,76 @@ extension MenuBarManager {
         return frame.origin.x
     }
 
+    @MainActor
+    func warmSeparatorPositionCache(maxAttempts: Int = 12) async {
+        for attempt in 1 ... maxAttempts {
+            let separatorOrigin = getSeparatorOriginX()
+            let separatorRightEdge = getSeparatorRightEdgeX()
+            _ = getAlwaysHiddenSeparatorOriginX()
+
+            if let separatorOrigin, let separatorRightEdge,
+               separatorOrigin > 0, separatorRightEdge > separatorOrigin {
+                if attempt > 1 {
+                    logger.info("🔧 Warmed separator cache after \(attempt) attempts")
+                }
+                return
+            }
+
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        logger.debug("🔧 Unable to warm separator cache before hide (will use runtime fallbacks)")
+    }
+
+    @MainActor
+    private func computeMoveTargets(
+        toHidden: Bool,
+        separatorOverrideX: CGFloat?
+    ) -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
+        if toHidden {
+            let separatorX = separatorOverrideX ?? getSeparatorOriginX()
+            var alwaysHiddenRightEdgeX: CGFloat?
+            if separatorOverrideX == nil,
+               let ahItem = alwaysHiddenSeparatorItem,
+               let ahButton = ahItem.button,
+               let ahWindow = ahButton.window,
+               ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {
+                alwaysHiddenRightEdgeX = ahWindow.frame.origin.x + ahWindow.frame.width
+                logger.info("🔧 AH separator right edge: \(alwaysHiddenRightEdgeX!)")
+            }
+            return (separatorX, alwaysHiddenRightEdgeX)
+        }
+
+        let separatorX = getSeparatorRightEdgeX()
+        let mainLeftEdge = getMainStatusItemLeftEdgeX()
+        return (separatorX, mainLeftEdge)
+    }
+
+    private func resolveMoveTargetsWithRetries(
+        toHidden: Bool,
+        separatorOverrideX: CGFloat?,
+        maxAttempts: Int = 20
+    ) async -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
+        var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
+
+        for attempt in 1 ... maxAttempts {
+            let targets = await MainActor.run {
+                self.computeMoveTargets(toHidden: toHidden, separatorOverrideX: separatorOverrideX)
+            }
+            lastTargets = targets
+
+            if let separatorX = targets.separatorX, separatorX > 0 {
+                if attempt > 1 {
+                    logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                }
+                return targets
+            }
+
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        return lastTargets
+    }
+
     /// Move an icon to hidden or visible position
     /// - Parameters:
     ///   - bundleID: The bundle ID of the app to move
@@ -220,27 +290,10 @@ extension MenuBarManager {
             }
 
             logger.info("🔧 Getting separator position for move...")
-            let (separatorX, visibleBoundaryX): (CGFloat?, CGFloat?) = await MainActor.run {
-                if toHidden {
-                    let sep = separatorOverrideX ?? self.getSeparatorOriginX()
-                    // AH separator right edge = inner boundary (don't overshoot into AH zone)
-                    // BUT: skip this clamp when separatorOverrideX is set, because that means
-                    // we ARE targeting the AH separator (pin enforcement) and need to cross it.
-                    var ahRight: CGFloat?
-                    if separatorOverrideX == nil,
-                       let ahItem = self.alwaysHiddenSeparatorItem,
-                       let ahButton = ahItem.button,
-                       let ahWindow = ahButton.window,
-                       ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {
-                        ahRight = ahWindow.frame.origin.x + ahWindow.frame.width
-                        logger.info("🔧 AH separator right edge: \(ahRight!)")
-                    }
-                    return (sep, ahRight)
-                }
-                let sep = self.getSeparatorRightEdgeX()
-                let mainLeft = self.getMainStatusItemLeftEdgeX()
-                return (sep, mainLeft)
-            }
+            let (separatorX, visibleBoundaryX) = await self.resolveMoveTargetsWithRetries(
+                toHidden: toHidden,
+                separatorOverrideX: separatorOverrideX
+            )
 
             guard let separatorX else {
                 logger.error("🔧 Cannot get separator position - ABORTING")

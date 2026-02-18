@@ -12,6 +12,31 @@ extension AccessibilityService {
         let width: CGFloat
         let axIdentifier: String?
     }
+
+    internal nonisolated static func resolvedBundleIdentifier(for app: NSRunningApplication) -> String? {
+        if let bundleID = app.bundleIdentifier, !bundleID.isEmpty {
+            return bundleID
+        }
+
+        if let bundleURL = app.bundleURL,
+           let bundleID = Bundle(url: bundleURL)?.bundleIdentifier,
+           !bundleID.isEmpty {
+            return bundleID
+        }
+
+        if var candidateURL = app.executableURL?.deletingLastPathComponent() {
+            while candidateURL.path != "/" {
+                if candidateURL.pathExtension == "app",
+                   let bundleID = Bundle(url: candidateURL)?.bundleIdentifier,
+                   !bundleID.isEmpty {
+                    return bundleID
+                }
+                candidateURL.deleteLastPathComponent()
+            }
+        }
+
+        return nil
+    }
     
     // MARK: - System Wide Search
 
@@ -26,10 +51,15 @@ extension AccessibilityService {
             return menuBarOwnersCache
         }
 
-        // Pre-filter: Only scan apps with bundle identifiers
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+        // Pre-filter: scan everything except ourselves. Some menu extras run from
+        // helper processes where bundleIdentifier is temporarily nil.
         let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
-            guard app.bundleIdentifier != nil else { return false }
-            guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
+            guard app.processIdentifier != selfPID else { return false }
+            if let bundleID = app.bundleIdentifier,
+               bundleID == Bundle.main.bundleIdentifier {
+                return false
+            }
             return true
         }
 
@@ -69,7 +99,7 @@ extension AccessibilityService {
 
         for pid in discoveredPIDs {
             guard let app = NSRunningApplication(processIdentifier: pid),
-                  let bundleID = app.bundleIdentifier else { continue }
+                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
             // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
@@ -85,7 +115,7 @@ extension AccessibilityService {
 
             guard !seenIds.contains(bundleID) else { continue }
             seenIds.insert(bundleID)
-            apps.append(RunningApp(app: app))
+            apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
         }
 
         // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
@@ -136,13 +166,15 @@ extension AccessibilityService {
             return menuBarItemCache
         }
 
-        // Pre-filter: Only scan apps that could have menu bar items
-        // Skip processes without bundle identifiers (XPC services, system agents, helpers)
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+        // Pre-filter: scan everything except ourselves. Some menu extras run from
+        // helper processes where bundleIdentifier is temporarily nil.
         let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
-            // Must have a bundle identifier to be a real app
-            guard app.bundleIdentifier != nil else { return false }
-            // Skip ourselves
-            guard app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
+            guard app.processIdentifier != selfPID else { return false }
+            if let bundleID = app.bundleIdentifier,
+               bundleID == Bundle.main.bundleIdentifier {
+                return false
+            }
             return true
         }
 
@@ -266,7 +298,7 @@ extension AccessibilityService {
             let width = scanned.width
 
             guard let app = NSRunningApplication(processIdentifier: pid),
-                  let bundleID = app.bundleIdentifier else { continue }
+                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
             // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
@@ -280,7 +312,14 @@ extension AccessibilityService {
                 continue  // Don't add the collapsed entry
             }
 
-            let appModel = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: x, width: width)
+            let appModel = RunningApp(
+                app: app,
+                resolvedBundleId: bundleID,
+                statusItemIndex: itemIndex,
+                menuExtraIdentifier: axIdentifier,
+                xPosition: x,
+                width: width
+            )
             // Skip thumbnail pre-calculation - let UI render lazily for faster scanning with 50+ apps
             let key = appModel.uniqueId
 
@@ -289,7 +328,14 @@ extension AccessibilityService {
                 let newX = min(existing.x, x)
                 let newWidth = max(existing.width, width)
                 // Use the new position
-                let updatedApp = RunningApp(app: app, statusItemIndex: itemIndex, menuExtraIdentifier: axIdentifier, xPosition: newX, width: newWidth)
+                let updatedApp = RunningApp(
+                    app: app,
+                    resolvedBundleId: bundleID,
+                    statusItemIndex: itemIndex,
+                    menuExtraIdentifier: axIdentifier,
+                    xPosition: newX,
+                    width: newWidth
+                )
                 appPositions[key] = MenuBarItemPosition(app: updatedApp, x: newX, width: newWidth)
             } else {
                 appPositions[key] = MenuBarItemPosition(app: appModel, x: x, width: width)

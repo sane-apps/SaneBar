@@ -31,9 +31,13 @@ extension AccessibilityService {
 
         let task = Task<[RunningApp], Never> {
             // Candidate apps list must be gathered on the main thread.
+            let selfPID = ProcessInfo.processInfo.processIdentifier
             let candidatePIDs: [pid_t] = NSWorkspace.shared.runningApplications.compactMap { app in
-                guard let bundleID = app.bundleIdentifier else { return nil }
-                guard bundleID != Bundle.main.bundleIdentifier else { return nil }
+                guard app.processIdentifier != selfPID else { return nil }
+                if let bundleID = app.bundleIdentifier,
+                   bundleID == Bundle.main.bundleIdentifier {
+                    return nil
+                }
                 return app.processIdentifier
             }
 
@@ -46,7 +50,7 @@ extension AccessibilityService {
 
             for pid in pidsWithExtras {
                 guard let app = NSRunningApplication(processIdentifier: pid),
-                      let bundleID = app.bundleIdentifier else { continue }
+                      let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
                 // Special case: Control Center - remember its PID for later expansion
                 if bundleID == "com.apple.controlcenter" {
@@ -56,7 +60,7 @@ extension AccessibilityService {
 
                 guard !seenIds.contains(bundleID) else { continue }
                 seenIds.insert(bundleID)
-                apps.append(RunningApp(app: app))
+                apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
             }
 
             // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)

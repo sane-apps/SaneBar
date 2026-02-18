@@ -355,6 +355,30 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         self.statusItemIndex = statusItemIndex
     }
 
+    init(app: NSRunningApplication, resolvedBundleId: String, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
+        bundleId = resolvedBundleId
+        name = app.localizedName ?? "Unknown"
+        iconThumbnail = nil
+        icon = app.icon
+        self.xPosition = xPosition
+        self.width = width
+
+        switch app.activationPolicy {
+        case .regular:
+            policy = .regular
+        case .accessory:
+            policy = .accessory
+        case .prohibited:
+            policy = .prohibited
+        @unknown default:
+            policy = .unknown
+        }
+
+        category = Self.detectCategory(for: app)
+        self.menuExtraIdentifier = menuExtraIdentifier
+        self.statusItemIndex = statusItemIndex
+    }
+
     /// Detect app category from bundle's Info.plist
     private static func detectCategory(for app: NSRunningApplication) -> AppCategory {
         let bundleId = app.bundleIdentifier ?? ""

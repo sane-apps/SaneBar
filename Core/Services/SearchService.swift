@@ -282,10 +282,12 @@ final class SearchService: SearchServiceProtocol {
             return apps
         }
 
-        // Fallback: separator unavailable — can't classify zones, return empty.
-        // The async refresh will populate correctly once positions are available.
-        logger.debug("cachedVisible: no separator, returning empty (will refresh async)")
-        return []
+        // Fallback: separator unavailable — use the same robust single-pass
+        // classifier used by refresh/cachedClassifiedApps.
+        let classified = classifyItems(items)
+        logger.debug("cachedVisible: no separator, fallback visible count \(classified.visible.count, privacy: .public)")
+        logIdentityHealth(apps: classified.visible, context: "cachedVisibleFallback")
+        return classified.visible
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
