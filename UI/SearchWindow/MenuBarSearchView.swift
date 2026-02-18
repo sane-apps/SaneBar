@@ -42,6 +42,7 @@ struct MenuBarSearchView: View {
     @State private var hasAccessibility = false
     @State private var permissionMonitorTask: Task<Void, Never>?
     @State private var refreshTask: Task<Void, Never>?
+    @State private var refreshGeneration = 0
 
     @State var hotkeyApp: RunningApp?
     @State var proUpsellFeature: ProFeature?
@@ -295,14 +296,24 @@ struct MenuBarSearchView: View {
     }
 
     /// Monitor for permission changes - auto-reload when user grants permission
+    @MainActor
     private func startPermissionMonitoring() {
         permissionMonitorTask = Task { @MainActor in
             for await granted in AccessibilityService.shared.permissionStream(includeInitial: false) {
-                if granted, !hasAccessibility {
-                    // Permission was just granted - reload the app list
-                    hasAccessibility = true
+                guard granted != hasAccessibility else { continue }
+
+                hasAccessibility = granted
+                if granted {
+                    // Permission was granted - reload from cache then force refresh.
                     loadCachedApps()
                     refreshApps(force: true)
+                } else {
+                    // Permission was revoked - clear data and stop refresh work.
+                    refreshTask?.cancel()
+                    isRefreshing = false
+                    menuBarApps = []
+                    visibleApps = []
+                    alwaysHiddenApps = []
                 }
             }
         }
@@ -313,6 +324,7 @@ struct MenuBarSearchView: View {
         isSecondMenuBar ? .hidden : mode
     }
 
+    @MainActor
     private func loadCachedApps() {
         // Live check — the cached isGranted can be stale if the DistributedNotification didn't fire
         let liveStatus = AccessibilityService.shared.isTrusted
@@ -351,6 +363,7 @@ struct MenuBarSearchView: View {
         }
     }
 
+    @MainActor
     private func refreshApps(force: Bool = false) {
         refreshTask?.cancel()
 
@@ -359,9 +372,13 @@ struct MenuBarSearchView: View {
             return
         }
 
+        refreshGeneration += 1
+        let generation = refreshGeneration
+
         refreshTask = Task {
             await MainActor.run {
-                isRefreshing = true
+                guard self.refreshGeneration == generation else { return }
+                self.isRefreshing = true
             }
 
             if force {
@@ -372,9 +389,12 @@ struct MenuBarSearchView: View {
 
             // Single-pass refresh for all modes — same backend, consistent results.
             let classified = await service.refreshClassifiedApps()
-            guard !Task.isCancelled else { return }
 
             await MainActor.run {
+                guard self.refreshGeneration == generation else { return }
+                defer { self.isRefreshing = false }
+                guard !Task.isCancelled else { return }
+
                 if isSecondMenuBar {
                     visibleApps = classified.visible
                     menuBarApps = classified.hidden
@@ -391,7 +411,6 @@ struct MenuBarSearchView: View {
                         menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
                     }
                 }
-                isRefreshing = false
             }
         }
     }
@@ -400,13 +419,11 @@ struct MenuBarSearchView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
-            Picker("", selection: modeBinding) {
-                ForEach(availableModes) { mode in
-                    Text(mode.title)
-                        .tag(mode)
+            HStack(spacing: 6) {
+                ForEach(availableModes) { segmentMode in
+                    modeSegment(segmentMode)
                 }
             }
-            .pickerStyle(.segmented)
 
             Button {
                 withAnimation(.easeInOut(duration: 0.12)) {
@@ -432,6 +449,30 @@ struct MenuBarSearchView: View {
         .padding(.horizontal)
         .padding(.top, 12)
         .padding(.bottom, isSearchVisible ? 6 : 10)
+    }
+
+    private func modeSegment(_ segmentMode: Mode) -> some View {
+        let selected = mode == segmentMode
+        return Text(segmentMode.title)
+            .font(.system(size: 12, weight: selected ? .semibold : .medium))
+            .foregroundStyle(selected ? .white : .primary.opacity(0.8))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(selected ? Color.teal : Color.white.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(selected ? Color.teal : Color.white.opacity(0.15), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .onTapGesture {
+                storedMode = segmentMode.rawValue
+            }
+            .dropDestination(for: String.self) { payloads, _ in
+                handleZoneDrop(payloads, targetMode: segmentMode)
+            }
     }
 
     private var groupTabs: some View {
@@ -480,8 +521,8 @@ struct MenuBarSearchView: View {
                         }
                     )
                     .dropDestination(for: String.self) { bundleIds, _ in
-                        for bundleId in bundleIds {
-                            addAppToGroup(bundleId: bundleId, groupId: groupId)
+                        for payload in bundleIds {
+                            addAppToGroup(bundleId: Self.bundleIDFromPayload(payload), groupId: groupId)
                         }
                         return !bundleIds.isEmpty
                     }
@@ -602,6 +643,11 @@ struct MenuBarSearchView: View {
 
         menuBarManager.settings.iconGroups[index].appBundleIds.removeAll { $0 == bundleId }
         menuBarManager.saveSettings()
+    }
+
+    static func bundleIDFromPayload(_ payload: String) -> String {
+        guard let split = payload.range(of: "::") else { return payload }
+        return String(payload[..<split.lowerBound])
     }
 
     private var searchField: some View {

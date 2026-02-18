@@ -20,6 +20,12 @@ extension MenuBarManager {
             let authSetting = settings.requireAuthToShowHiddenIcons
             logger.info("toggleHiddenItems() called - state: \(currentState.rawValue), authSetting: \(authSetting)")
 
+            if currentState == .expanded, shouldSkipHideForExternalMonitor {
+                logger.info("toggleHiddenItems() ignored: external monitor policy keeps icons visible")
+                hidingService.cancelRehide()
+                return
+            }
+
             // If we're about to SHOW (hidden -> expanded), optionally gate with auth.
             // Use hidingService.state directly (not cached hidingState) to avoid sync issues
             if currentState == .hidden, authSetting {
@@ -58,6 +64,15 @@ extension MenuBarManager {
     /// Search and hotkeys should await this before attempting virtual clicks.
     @MainActor
     func showHiddenItemsNow(trigger: RevealTrigger) async -> Bool {
+        if shouldSkipHideForExternalMonitor {
+            let didReveal = hidingService.state == .hidden
+            if didReveal {
+                await hidingService.show()
+            }
+            hidingService.cancelRehide()
+            return didReveal
+        }
+
         if settings.requireAuthToShowHiddenIcons {
             guard !isAuthenticating else { return false }
             isAuthenticating = true

@@ -65,6 +65,7 @@ protocol SearchServiceProtocol: Sendable {
 
 final class SearchService: SearchServiceProtocol {
     static let shared = SearchService()
+    @MainActor private var lastAlwaysHiddenOrderWarningAt: Date?
 
     enum VisibilityZone: Equatable, Hashable {
         case visible
@@ -94,15 +95,31 @@ final class SearchService: SearchServiceProtocol {
             return (separatorX, nil)
         }
 
-        let alwaysHiddenSeparatorX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
-        if let alwaysHiddenSeparatorX, alwaysHiddenSeparatorX >= separatorX {
-            logger.warning("Always-hidden separator is not left of main separator; ignoring always-hidden zone")
-            return (separatorX, nil)
+        if let alwaysHiddenSeparatorX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX(),
+           alwaysHiddenSeparatorX >= separatorX {
+            let now = Date()
+            if let last = lastAlwaysHiddenOrderWarningAt {
+                if now.timeIntervalSince(last) >= 5 {
+                    logger.warning("Always-hidden separator is not left of main separator; attempting repair")
+                    lastAlwaysHiddenOrderWarningAt = now
+                }
+            } else {
+                logger.warning("Always-hidden separator is not left of main separator; attempting repair")
+                lastAlwaysHiddenOrderWarningAt = now
+            }
+
+            MenuBarManager.shared.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "classification")
+            let repairedSeparatorX = separatorOriginXForClassification() ?? separatorX
+            let repairedAlwaysHiddenX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
+            if let repairedAlwaysHiddenX, repairedAlwaysHiddenX < repairedSeparatorX {
+                return (repairedSeparatorX, repairedAlwaysHiddenX)
+            }
+            return (repairedSeparatorX, nil)
         }
 
         // If AH position is unavailable (blocking mode, never cached), return nil for AH.
         // classifyItems will use pinned IDs as a post-pass instead of a fake boundary.
-        return (separatorX, alwaysHiddenSeparatorX)
+        return (separatorX, MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX())
     }
 
     /// Match apps against persisted always-hidden pinned IDs.

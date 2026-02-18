@@ -170,8 +170,8 @@ extension MenuBarManager {
         // Capture original mouse position on MainActor to restore it later accurately.
         // Cocoa coordinates (bottom-left) → CGEvent coordinates (top-left)
         let originalLocation = NSEvent.mouseLocation
-        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
-        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
         guard !NSScreen.screens.isEmpty else {
             logger.error("🔧 moveIcon: No screens available — aborting")
             return false
@@ -331,8 +331,8 @@ extension MenuBarManager {
         let wasHidden = hidingState == .hidden
         let needsAuthCheck = !toAlwaysHidden && wasHidden && settings.requireAuthToShowHiddenIcons
         let originalLocation = NSEvent.mouseLocation
-        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
-        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
         guard !NSScreen.screens.isEmpty else {
             logger.error("🔧 moveIconAlwaysHidden: No screens available — aborting")
             return false
@@ -480,8 +480,8 @@ extension MenuBarManager {
 
         let wasHidden = hidingState == .hidden
         let originalLocation = NSEvent.mouseLocation
-        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
-        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
         guard !NSScreen.screens.isEmpty else { return false }
 
         if let existing = activeMoveTask, !existing.isCancelled {
@@ -592,8 +592,8 @@ extension MenuBarManager {
         let wasHidden = hidingState == .hidden
         let requiresAuth = wasHidden && settings.requireAuthToShowHiddenIcons
         let originalLocation = NSEvent.mouseLocation
-        let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
-        let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
+        let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
         guard !NSScreen.screens.isEmpty else { return false }
 
         if let existing = activeMoveTask, !existing.isCancelled {

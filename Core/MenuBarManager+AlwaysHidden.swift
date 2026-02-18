@@ -6,6 +6,36 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 extension MenuBarManager {
     // MARK: - Always-Hidden Pins (Experimental)
 
+    func repairAlwaysHiddenSeparatorPositionIfNeeded(reason: String) {
+        guard settings.alwaysHiddenSectionEnabled else { return }
+        guard !isRepairingAlwaysHiddenSeparator else { return }
+        guard let separatorX = getSeparatorOriginX(),
+              let alwaysHiddenX = getAlwaysHiddenSeparatorOriginX(),
+              alwaysHiddenX >= separatorX else { return }
+
+        let now = Date()
+        if let lastAttempt = lastAlwaysHiddenRepairAt,
+           now.timeIntervalSince(lastAttempt) < 5 {
+            return
+        }
+        lastAlwaysHiddenRepairAt = now
+        isRepairingAlwaysHiddenSeparator = true
+        defer { isRepairingAlwaysHiddenSeparator = false }
+
+        logger.error(
+            "Always-hidden separator misordered (ah=\(alwaysHiddenX, privacy: .public), sep=\(separatorX, privacy: .public)) — repairing (\(reason, privacy: .public))"
+        )
+
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+        alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+
+        lastKnownAlwaysHiddenSeparatorX = nil
+        AccessibilityService.shared.invalidateMenuBarItemCache()
+    }
+
     /// Pin a menu bar item so it stays in the always-hidden section across launches.
     /// Uses best-effort identity (`RunningApp.uniqueId`).
     /// Validate that a pin identifier contains no control characters and is reasonably formed.
@@ -196,6 +226,7 @@ extension MenuBarManager {
         // Validate separator ordering: always-hidden separator must be LEFT of main separator
         if let mainSeparatorX = getSeparatorOriginX(), alwaysHiddenSeparatorX >= mainSeparatorX {
             logger.error("Always-hidden separator (\(alwaysHiddenSeparatorX)) is not left of main separator (\(mainSeparatorX)) — skipping enforcement")
+            repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "pinEnforcement")
             await hidingService.restoreFromShowAll()
             if wasHidden { await hidingService.hide() }
             return

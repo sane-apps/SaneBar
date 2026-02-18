@@ -26,13 +26,21 @@ struct SecondMenuBarView: View {
     @State private var proUpsellFeature: ProFeature?
 
     // Filter out system items that can't be moved (Clock, Control Center)
+    private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
     private var movableVisible: [RunningApp] {
         guard menuBarManager.settings.secondMenuBarShowVisible else { return [] }
-        return visibleApps.filter { !$0.isUnmovableSystemItem }
+        return allMovableVisible
     }
 
     private var movableHidden: [RunningApp] { apps.filter { !$0.isUnmovableSystemItem } }
     private var movableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
+    private var shouldShowVisibleDropZone: Bool {
+        SecondMenuBarLayout.shouldShowVisibleZone(
+            includeVisibleIcons: menuBarManager.settings.secondMenuBarShowVisible,
+            hiddenCount: movableHidden.count,
+            alwaysHiddenCount: movableAlwaysHidden.count
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -126,24 +134,28 @@ struct SecondMenuBarView: View {
     // MARK: - Horizontal Icon Strip
 
     private var iconStrip: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !movableVisible.isEmpty {
+        let showVisibleZone = shouldShowVisibleDropZone
+        let showHiddenZone = !movableHidden.isEmpty
+        let showAlwaysHiddenZone = !movableAlwaysHidden.isEmpty
+
+        return VStack(alignment: .leading, spacing: 0) {
+            if showVisibleZone {
                 zoneRow(label: "Visible", icon: "eye", apps: movableVisible, zone: .visible)
             }
 
-            if !movableVisible.isEmpty, !movableHidden.isEmpty || !movableAlwaysHidden.isEmpty {
+            if showVisibleZone, showHiddenZone || showAlwaysHiddenZone {
                 zoneDivider
             }
 
-            if !movableHidden.isEmpty {
+            if showHiddenZone {
                 zoneRow(label: "Hidden", icon: "eye.slash", apps: movableHidden, zone: .hidden)
             }
 
-            if !movableHidden.isEmpty, !movableAlwaysHidden.isEmpty {
+            if showHiddenZone, showAlwaysHiddenZone {
                 zoneDivider
             }
 
-            if !movableAlwaysHidden.isEmpty {
+            if showAlwaysHiddenZone {
                 zoneRow(label: "Always Hidden", icon: "lock", apps: movableAlwaysHidden, zone: .alwaysHidden)
             }
         }
@@ -170,10 +182,25 @@ struct SecondMenuBarView: View {
                     ForEach(apps) { app in
                         makeTile(for: app, zone: zone)
                     }
+                    if apps.isEmpty {
+                        Text("Drop here")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.primary.opacity(0.55))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+                            )
+                            .padding(.leading, 2)
+                    }
                 }
             }
         }
         .padding(.vertical, 2)
+        .dropDestination(for: String.self) { payloads, _ in
+            handleZoneDrop(payloads, targetZone: zone)
+        }
     }
 
     private var zoneDivider: some View {
@@ -201,21 +228,21 @@ struct SecondMenuBarView: View {
             },
             onMoveToVisible: zone != .visible ? {
                 if licenseService.isPro {
-                    moveIcon(app, from: zone, to: .visible)
+                    _ = moveIcon(app, from: zone, to: .visible)
                 } else {
                     proUpsellFeature = .zoneMoves
                 }
             } : nil,
             onMoveToHidden: zone != .hidden ? {
                 if licenseService.isPro {
-                    moveIcon(app, from: zone, to: .hidden)
+                    _ = moveIcon(app, from: zone, to: .hidden)
                 } else {
                     proUpsellFeature = .zoneMoves
                 }
             } : nil,
             onMoveToAlwaysHidden: zone != .alwaysHidden ? {
                 if licenseService.isPro {
-                    moveIcon(app, from: zone, to: .alwaysHidden)
+                    _ = moveIcon(app, from: zone, to: .alwaysHidden)
                 } else {
                     proUpsellFeature = .zoneMoves
                 }
@@ -223,53 +250,100 @@ struct SecondMenuBarView: View {
         )
         .draggable(app.uniqueId)
         .dropDestination(for: String.self) { payloads, _ in
-            handleReorderDrop(payloads, targetApp: app)
+            handleTileDrop(payloads, targetApp: app, targetZone: zone)
         }
     }
 
     // MARK: - Icon Movement
 
-    private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) {
+    private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
 
+        let started: Bool
         switch (source, target) {
         case (_, .visible):
             if source == .alwaysHidden { menuBarManager.unpinAlwaysHidden(app: app) }
-            _ = menuBarManager.moveIcon(
+            started = menuBarManager.moveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex, toHidden: false
             )
 
         case (.visible, .hidden):
-            _ = menuBarManager.moveIcon(
+            started = menuBarManager.moveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex, toHidden: true
             )
 
         case (.alwaysHidden, .hidden):
             menuBarManager.unpinAlwaysHidden(app: app)
-            _ = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+            started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex
             )
 
         case (_, .alwaysHidden):
             menuBarManager.pinAlwaysHidden(app: app)
-            _ = menuBarManager.moveIconToAlwaysHidden(
+            started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex
             )
 
         default:
-            break
+            started = false
         }
+
+        guard started else { return false }
 
         // Refresh the panel data after the move takes effect
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onIconMoved?()
         }
+        return true
+    }
+
+    private func sourceForDragID(_ sourceID: String) -> (app: RunningApp, zone: IconZone)? {
+        SecondMenuBarDropResolver.sourceForDragID(
+            sourceID,
+            visible: movableVisible,
+            hidden: movableHidden,
+            alwaysHidden: movableAlwaysHidden
+        )
+    }
+
+    private func handleZoneDrop(_ payloads: [String], targetZone: IconZone) -> Bool {
+        guard licenseService.isPro else {
+            proUpsellFeature = .zoneMoves
+            return false
+        }
+
+        guard let sourceID = payloads.first,
+              let source = sourceForDragID(sourceID),
+              source.zone != targetZone else {
+            return false
+        }
+
+        return moveIcon(source.app, from: source.zone, to: targetZone)
+    }
+
+    private func handleTileDrop(_ payloads: [String], targetApp: RunningApp, targetZone: IconZone) -> Bool {
+        guard licenseService.isPro else {
+            proUpsellFeature = .zoneMoves
+            return false
+        }
+
+        guard let sourceID = payloads.first,
+              let source = sourceForDragID(sourceID) else {
+            return false
+        }
+
+        if source.zone != targetZone {
+            return moveIcon(source.app, from: source.zone, to: targetZone)
+        }
+
+        guard sourceID != targetApp.uniqueId else { return false }
+        return handleReorderDrop(payloads, targetApp: targetApp)
     }
 
     private func handleReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
@@ -286,7 +360,7 @@ struct SecondMenuBarView: View {
         let targetX = targetApp.xPosition ?? 0
         let placeAfterTarget = sourceX < targetX
 
-        _ = menuBarManager.reorderIcon(
+        let started = menuBarManager.reorderIcon(
             sourceBundleID: sourceApp.bundleId,
             sourceMenuExtraID: sourceApp.menuExtraIdentifier,
             sourceStatusItemIndex: sourceApp.statusItemIndex,
@@ -296,7 +370,9 @@ struct SecondMenuBarView: View {
             placeAfterTarget: placeAfterTarget
         )
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        guard started else { return false }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onIconMoved?()
         }
         return true
@@ -365,6 +441,39 @@ struct SecondMenuBarView: View {
 
 enum IconZone {
     case visible, hidden, alwaysHidden
+}
+
+enum SecondMenuBarDropResolver {
+    static func sourceForDragID(
+        _ sourceID: String,
+        visible: [RunningApp],
+        hidden: [RunningApp],
+        alwaysHidden: [RunningApp]
+    ) -> (app: RunningApp, zone: IconZone)? {
+        if let app = visible.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .visible)
+        }
+        if let app = hidden.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .hidden)
+        }
+        if let app = alwaysHidden.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .alwaysHidden)
+        }
+        return nil
+    }
+}
+
+enum SecondMenuBarLayout {
+    static func shouldShowVisibleZone(
+        includeVisibleIcons: Bool,
+        hiddenCount: Int,
+        alwaysHiddenCount: Int
+    ) -> Bool {
+        if includeVisibleIcons {
+            return true
+        }
+        return hiddenCount > 0 || alwaysHiddenCount > 0
+    }
 }
 
 // MARK: - Panel Icon Tile
