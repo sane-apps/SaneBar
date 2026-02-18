@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>2.1.3</title>
+            <pubDate>Tue, 17 Feb 2026 22:06:55 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Fixes machine-specific status item recovery after Cmd-drag removal, hardens icon movement coordinates and external monitor policy, and improves Second Menu Bar drag-and-drop between Hidden/Always Hidden/Visible.</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.3.zip"
+                       sparkle:version="2103"
+                       sparkle:shortVersionString="2.1.3"
+                       length="4435301"
+                       type="application/octet-stream"
+                       sparkle:edSignature="OI/BEvwO6NDBjAqQECaU1gO4J2ry7WKauMDK25SRhkGj51xlEtXVHp5Di5EGn5mrtHj0EyZ8uR7tioK+WP91Dg=="/>
+        </item>
+        <item>
             <title>2.1.2</title>
             <pubDate>Mon, 16 Feb 2026 14:16:14 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
