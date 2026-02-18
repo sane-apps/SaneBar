@@ -177,7 +177,7 @@ struct SecondMenuBarView: View {
             .foregroundStyle(.primary.opacity(0.7))
             .padding(.leading, 2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal, showsIndicators: true) {
                 HStack(spacing: 1) {
                     ForEach(apps) { app in
                         makeTile(for: app, zone: zone)
@@ -195,6 +195,14 @@ struct SecondMenuBarView: View {
                             .padding(.leading, 2)
                     }
                 }
+            }
+            .scrollIndicators(.visible)
+
+            if apps.count > 14 {
+                Text("Scroll sideways to see all icons")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.primary.opacity(0.5))
+                    .padding(.leading, 2)
             }
         }
         .padding(.vertical, 2)
