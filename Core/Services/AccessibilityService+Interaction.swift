@@ -93,9 +93,8 @@ extension AccessibilityService {
             return false
         }
 
-        let center = CGPoint(x: frame.midX, y: frame.midY)
-        let originalCursorLocation = CGEvent(source: nil)?.location
-        return simulateHardwareClick(at: center, isRightClick: isRightClick, restoreTo: originalCursorLocation)
+        let center = normalizedCGEventPoint(fromAccessibilityPoint: CGPoint(x: frame.midX, y: frame.midY))
+        return simulateHardwareClick(at: center, isRightClick: isRightClick)
     }
 
     // MARK: - Interaction
@@ -142,7 +141,7 @@ extension AccessibilityService {
         return false
     }
 
-    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool, restoreTo originalPoint: CGPoint? = nil) -> Bool {
+    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
         let source = CGEventSource(stateID: .combinedSessionState)
 
         let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
@@ -159,19 +158,35 @@ extension AccessibilityService {
         Thread.sleep(forTimeInterval: 0.01)
         mouseUp.post(tap: .cgSessionEventTap)
 
-        // Avoid leaving the user's pointer at the synthetic click location.
-        if let originalPoint,
-           let restoreEvent = CGEvent(
-               mouseEventSource: source,
-               mouseType: .mouseMoved,
-               mouseCursorPosition: originalPoint,
-               mouseButton: .left
-           ) {
-            restoreEvent.post(tap: .cgSessionEventTap)
-        }
-
         logger.info("Simulated hardware click at \(point.x), \(point.y)")
         return true
+    }
+
+    private func normalizedCGEventPoint(fromAccessibilityPoint point: CGPoint) -> CGPoint {
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 0
+        let rawY = point.y
+        let anchorY = menuBarAnchorY(globalMaxY: globalMaxY)
+        let clampedY = Self.normalizedEventY(rawY: rawY, globalMaxY: globalMaxY, anchorY: anchorY)
+        return CGPoint(x: point.x, y: clampedY)
+    }
+
+    private func menuBarAnchorY(globalMaxY: CGFloat) -> CGFloat {
+        guard let frame = MenuBarManager.shared.mainStatusItem?.button?.window?.frame else {
+            return 15
+        }
+        return max(1, min(globalMaxY - frame.midY, globalMaxY - 1))
+    }
+
+    static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
+        let flippedY = globalMaxY - rawY
+
+        // AX values may arrive in either AppKit-unflipped or CoreGraphics-flipped space.
+        // Use the menu bar anchor to pick whichever candidate is closer to reality.
+        let chosenY = abs(rawY - anchorY) <= abs(flippedY - anchorY) ? rawY : flippedY
+
+        let minY: CGFloat = 1
+        let maxY = max(minY, globalMaxY - 1)
+        return min(max(chosenY, minY), maxY)
     }
 
     // MARK: - Icon Moving (CGEvent-based)

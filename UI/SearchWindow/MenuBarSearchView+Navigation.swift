@@ -120,9 +120,9 @@ extension MenuBarSearchView {
             return false
         }
 
-        guard let sourceBundleID = payloads.first else { return false }
-        guard sourceBundleID != targetApp.bundleId else { return false }
-        guard let sourceApp = filteredApps.first(where: { $0.bundleId == sourceBundleID }) else { return false }
+        guard let sourceID = payloads.first else { return false }
+        guard sourceID != targetApp.uniqueId else { return false }
+        guard let sourceApp = filteredApps.first(where: { $0.uniqueId == sourceID }) else { return false }
 
         let sourceX = sourceApp.xPosition ?? 0
         let targetX = targetApp.xPosition ?? 0
@@ -140,6 +140,126 @@ extension MenuBarSearchView {
 
         movingAppId = sourceApp.uniqueId
         return true
+    }
+
+    func handleZoneDrop(_ payloads: [String], targetMode: Mode) -> Bool {
+        guard LicenseService.shared.isPro else {
+            proUpsellFeature = .zoneMoves
+            return false
+        }
+
+        guard let sourceID = payloads.first else { return false }
+
+        // Pull from the shared cache so zone drops work regardless of current tab.
+        let classified = service.cachedClassifiedApps()
+        guard let source = Self.sourceForDropPayload(
+            sourceID,
+            classified: classified,
+            filteredApps: filteredApps,
+            mode: mode,
+            zoneForAllMode: { app in self.appZone(for: app) }
+        ) else {
+            return false
+        }
+
+        let sourceApp = source.app
+        let sourceZone = source.zone
+        let bundleID = sourceApp.bundleId
+        let menuExtraID = sourceApp.menuExtraIdentifier
+        let statusItemIndex = sourceApp.statusItemIndex
+
+        let started: Bool
+        switch targetMode {
+        case .visible:
+            guard sourceZone != AppZone.visible else { return false }
+            if sourceZone == AppZone.alwaysHidden {
+                menuBarManager.unpinAlwaysHidden(app: sourceApp)
+                started = menuBarManager.moveIconFromAlwaysHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex
+                )
+            } else {
+                started = menuBarManager.moveIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    toHidden: false
+                )
+            }
+
+        case .hidden:
+            guard sourceZone != AppZone.hidden else { return false }
+            if sourceZone == AppZone.alwaysHidden {
+                menuBarManager.unpinAlwaysHidden(app: sourceApp)
+                started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex
+                )
+            } else {
+                started = menuBarManager.moveIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    toHidden: true
+                )
+            }
+
+        case .alwaysHidden:
+            guard isAlwaysHiddenEnabled else { return false }
+            guard sourceZone != AppZone.alwaysHidden else { return false }
+            menuBarManager.pinAlwaysHidden(app: sourceApp)
+            started = menuBarManager.moveIconToAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraID,
+                statusItemIndex: statusItemIndex
+            )
+
+        case .all:
+            return false
+        }
+
+        if started {
+            movingAppId = sourceApp.uniqueId
+        }
+        return started
+    }
+
+    static func sourceForDropPayload(
+        _ sourceID: String,
+        classified: (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp]),
+        filteredApps: [RunningApp] = [],
+        mode: Mode? = nil,
+        zoneForAllMode: ((RunningApp) -> AppZone)? = nil
+    ) -> (app: RunningApp, zone: AppZone)? {
+        if let app = classified.visible.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .visible)
+        }
+        if let app = classified.hidden.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .hidden)
+        }
+        if let app = classified.alwaysHidden.first(where: { $0.uniqueId == sourceID }) {
+            return (app, .alwaysHidden)
+        }
+        guard let app = filteredApps.first(where: { $0.uniqueId == sourceID }),
+              let mode else {
+            return nil
+        }
+
+        switch mode {
+        case .visible:
+            return (app, .visible)
+        case .hidden:
+            return (app, .hidden)
+        case .alwaysHidden:
+            return (app, .alwaysHidden)
+        case .all:
+            if let zone = zoneForAllMode?(app) {
+                return (app, zone)
+            }
+            return (app, .visible)
+        }
     }
 
     // MARK: - Keyboard Navigation

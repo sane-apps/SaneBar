@@ -159,17 +159,25 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     /// One-time recovery migration.
-    /// We had historical machine-specific failures where command-dragging the
-    /// status item out of the menu bar left persistent ByHost position state
-    /// that made SaneBar launch off-screen. Clear all persisted positions once
-    /// so launch-time seeding can restore a stable order.
+    /// v5: Cleared corrupted ByHost position state from Cmd-drag experiments.
+    /// v6: Also clears any persisted visibility state (`NSStatusItem Visible`)
+    ///     left by macOS after Cmd-dragging an icon out of the menu bar.
+    ///     Combined with the `isVisible = true` enforcement in init(), this
+    ///     guarantees a fresh start for users upgrading to v2.1.3+.
     private static func migrateCorruptedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
-        let migrationKey = "SaneBar_PositionMigration_v5"
+        let migrationKey = "SaneBar_PositionMigration_v6"
         guard !defaults.bool(forKey: migrationKey) else { return }
 
-        logger.info("Applying v5 status item position recovery")
+        logger.info("Applying v6 status item position + visibility recovery")
         resetPositionsToOrdinals()
+
+        // Also clear any persisted visibility keys macOS may have stored
+        // when a user Cmd-dragged an icon out of the menu bar.
+        for name in [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName] {
+            let visibleKey = "NSStatusItem Visible \(name)"
+            defaults.removeObject(forKey: visibleKey)
+        }
 
         defaults.set(true, forKey: migrationKey)
     }

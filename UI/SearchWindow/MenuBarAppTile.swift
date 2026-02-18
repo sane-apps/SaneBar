@@ -83,7 +83,7 @@ struct MenuBarAppTile: View {
                     .offset(x: 3, y: 3)
             }
         }
-        .draggable(app.bundleId) // Enable drag with bundle ID as payload
+        .draggable(app.uniqueId) // Unique payload avoids collisions for multi-item bundles
         .help(isPro ? app.name : "\(app.name) — Pro required to activate")
         .contextMenu {
             Button("Left-Click (Open)") {

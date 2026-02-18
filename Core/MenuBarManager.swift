@@ -51,6 +51,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
     var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
+    var lastAlwaysHiddenRepairAt: Date?
+    var isRepairingAlwaysHiddenSeparator = false
 
     // MARK: - Screen Detection
 
@@ -82,7 +84,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Check if hiding should be skipped due to external monitor setting
     var shouldSkipHideForExternalMonitor: Bool {
-        settings.disableOnExternalMonitor && isOnExternalMonitor
+        Self.shouldSkipHide(disableOnExternalMonitor: settings.disableOnExternalMonitor, isOnExternalMonitor: isOnExternalMonitor)
+    }
+
+    static func shouldSkipHide(disableOnExternalMonitor: Bool, isOnExternalMonitor: Bool) -> Bool {
+        disableOnExternalMonitor && isOnExternalMonitor
     }
 
     // MARK: - Services
@@ -554,6 +560,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateDividerStyle()
                 self?.updateIconStyle()
                 self?.updateAlwaysHiddenSeparator()
+                self?.enforceExternalMonitorVisibilityPolicy(reason: "settingsChanged")
                 self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
@@ -585,6 +592,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.lastKnownSeparatorRightEdgeX = nil
                 self?.lastKnownAlwaysHiddenSeparatorX = nil
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
+                self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
             }
             .store(in: &cancellables)
 
@@ -640,6 +648,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+    }
+
+    func enforceExternalMonitorVisibilityPolicy(reason: String) {
+        guard settings.disableOnExternalMonitor else { return }
+        guard shouldSkipHideForExternalMonitor else { return }
+
+        logger.info("Enforcing external monitor visibility policy (\(reason, privacy: .public))")
+        hidingService.cancelRehide()
+
+        Task { @MainActor in
+            if self.hidingService.state == .hidden {
+                await self.hidingService.show()
+            }
+        }
     }
 
     // MARK: - Main Icon Visibility
