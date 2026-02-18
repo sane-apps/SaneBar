@@ -21,9 +21,7 @@ extension MenuBarManager {
             logger.info("toggleHiddenItems() called - state: \(currentState.rawValue), authSetting: \(authSetting)")
 
             if currentState == .expanded, shouldSkipHideForExternalMonitor {
-                logger.info("toggleHiddenItems() ignored: external monitor policy keeps icons visible")
-                hidingService.cancelRehide()
-                return
+                logger.info("toggleHiddenItems(): external monitor policy active, honoring explicit user toggle")
             }
 
             // If we're about to SHOW (hidden -> expanded), optionally gate with auth.
