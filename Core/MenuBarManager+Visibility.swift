@@ -105,12 +105,14 @@ extension MenuBarManager {
     }
 
     func showHiddenItems() {
+        logger.info("showHiddenItems() requested")
         Task {
             _ = await showHiddenItemsNow(trigger: .settingsButton)
         }
     }
 
     func hideHiddenItems() {
+        logger.info("hideHiddenItems() requested")
         Task {
             // Skip hiding if user is on external monitor and setting is enabled
             if shouldSkipHideForExternalMonitor {

@@ -507,6 +507,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
             Task { @MainActor in
+                // Cache stable separator coordinates while delimiters are still at
+                // visual size. This avoids nil separator classification after startup hide.
+                await self.warmSeparatorPositionCache()
+
                 // If the user has pinned items to the always-hidden section, enforce them early
                 // (before initial hide) to reduce startup drift/flicker.
                 await self.enforceAlwaysHiddenPinnedItems(reason: "startup")

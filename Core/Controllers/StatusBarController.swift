@@ -126,15 +126,27 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Position Pre-Seeding
 
     /// Seed ordinal positions BEFORE creating status items.
-    /// We intentionally enforce these on each launch to recover from corrupted
-    /// persisted positions (especially ByHost global prefs after Cmd-drag tests).
+    /// Only seed when positions are missing/invalid. Re-seeding on every launch
+    /// destroys user-arranged visible/hidden layouts.
     private static func seedPositionsIfNeeded() {
-        // Always enforce known-good ordering on launch.
-        // This self-heals machines where Cmd-drag experiments persisted
-        // broken status item positions in ByHost global preferences.
-        logger.info("Seeding main/separator positions (main=0, separator=1)")
-        setPreferredPosition(0, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
+        let mainValues = preferredPositionValues(forAutosaveName: mainAutosaveName)
+        let separatorValues = preferredPositionValues(forAutosaveName: separatorAutosaveName)
+
+        let seedMain = shouldSeedPreferredPosition(appValue: mainValues.appValue, byHostValue: mainValues.byHostValue)
+        let seedSeparator = shouldSeedPreferredPosition(appValue: separatorValues.appValue, byHostValue: separatorValues.byHostValue)
+
+        if seedMain {
+            logger.info("Seeding main position (main=0)")
+            setPreferredPosition(0, forAutosaveName: mainAutosaveName)
+        }
+        if seedSeparator {
+            logger.info("Seeding separator position (separator=1)")
+            setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
+        }
+
+        if !seedMain, !seedSeparator {
+            logger.debug("Preserving existing main/separator positions")
+        }
     }
 
     static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
@@ -204,6 +216,46 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
+    }
+
+    nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
+        if let appNumber = numericPositionValue(appValue), appNumber.isFinite {
+            return false
+        }
+        if let byHostNumber = numericPositionValue(byHostValue), byHostNumber.isFinite {
+            return false
+        }
+        return true
+    }
+
+    private nonisolated static func numericPositionValue(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        }
+        if let doubleValue = value as? Double {
+            return doubleValue
+        }
+        if let intValue = value as? Int {
+            return Double(intValue)
+        }
+        if let stringValue = value as? String {
+            return Double(stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        return nil
+    }
+
+    private static func preferredPositionValues(forAutosaveName autosaveName: String) -> (appValue: Any?, byHostValue: Any?) {
+        let appKey = preferredPositionKey(for: autosaveName)
+        let byHostKey = byHostPreferredPositionKey(for: autosaveName) as CFString
+        let globalDomain = ".GlobalPreferences" as CFString
+        let appValue = UserDefaults.standard.object(forKey: appKey)
+        let byHostValue = CFPreferencesCopyValue(
+            byHostKey,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        return (appValue, byHostValue)
     }
 
     private static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {

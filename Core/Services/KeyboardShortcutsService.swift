@@ -1,5 +1,8 @@
 import AppKit
 import KeyboardShortcuts
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "KeyboardShortcutsService")
 
 // MARK: - Shortcut Names
 
@@ -63,6 +66,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
     func registerAllHandlers() {
         // Toggle hidden items (primary shortcut)
         KeyboardShortcuts.onKeyUp(for: .toggleHiddenItems) { [weak self] in
+            logger.info("Hotkey: toggleHiddenItems")
             Task { @MainActor in
                 self?.menuBarManager?.toggleHiddenItems()
             }
@@ -70,6 +74,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
         // Show hidden items
         KeyboardShortcuts.onKeyUp(for: .showHiddenItems) { [weak self] in
+            logger.info("Hotkey: showHiddenItems")
             Task { @MainActor in
                 self?.menuBarManager?.showHiddenItems()
             }
@@ -77,6 +82,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
         // Hide items
         KeyboardShortcuts.onKeyUp(for: .hideItems) { [weak self] in
+            logger.info("Hotkey: hideItems")
             Task { @MainActor in
                 self?.menuBarManager?.hideHiddenItems()
             }
@@ -84,6 +90,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
         // Open settings
         KeyboardShortcuts.onKeyUp(for: .openSettings) {
+            logger.info("Hotkey: openSettings")
             Task { @MainActor in
                 SettingsOpener.open()
             }
@@ -91,6 +98,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
 
         // Menu bar search
         KeyboardShortcuts.onKeyUp(for: .searchMenuBar) {
+            logger.info("Hotkey: searchMenuBar")
             Task { @MainActor in
                 SearchWindowController.shared.toggle()
             }

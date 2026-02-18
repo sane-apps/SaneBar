@@ -67,6 +67,60 @@ struct StatusBarControllerTests {
         #expect(StatusBarController.alwaysHiddenSeparatorAutosaveName.hasPrefix("SaneBar_"))
     }
 
+    @Test("Position seed runs when both app and ByHost values are missing")
+    func shouldSeedWhenAllValuesMissing() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: nil,
+            byHostValue: nil
+        )
+        #expect(shouldSeed == true)
+    }
+
+    @Test("Position seed skips when app value already exists")
+    func shouldNotSeedWhenAppValueExists() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: 42,
+            byHostValue: nil
+        )
+        #expect(shouldSeed == false)
+    }
+
+    @Test("Position seed skips when ByHost value already exists")
+    func shouldNotSeedWhenByHostValueExists() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: nil,
+            byHostValue: NSNumber(value: 17)
+        )
+        #expect(shouldSeed == false)
+    }
+
+    @Test("Position seed skips when app value is numeric string")
+    func shouldNotSeedWhenAppValueStringExists() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: "42",
+            byHostValue: nil
+        )
+        #expect(shouldSeed == false)
+    }
+
+    @Test("Position seed skips when ByHost value is numeric string")
+    func shouldNotSeedWhenByHostValueStringExists() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: nil,
+            byHostValue: "17"
+        )
+        #expect(shouldSeed == false)
+    }
+
+    @Test("Position seed ignores invalid non-numeric values")
+    func shouldSeedWhenValuesAreInvalid() {
+        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+            appValue: "bad",
+            byHostValue: Date()
+        )
+        #expect(shouldSeed == true)
+    }
+
     // MARK: - Icon Constants Tests
 
     @Test("Icon names are valid SF Symbol names")
