@@ -274,6 +274,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         case "com.apple.menuextra.display": "Display"
         case "com.apple.menuextra.sound": "Sound"
         case "com.apple.menuextra.airplay": "AirPlay"
+        case "com.apple.menuextra.now-playing": "Now Playing"
+        case "com.apple.menuextra.siri": "Siri"
+        case "com.apple.menuextra.spotlight": "Spotlight"
         default:
             nil
         }
@@ -324,6 +327,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         case "com.apple.menuextra.display": "display"
         case "com.apple.menuextra.sound": "speaker.wave.2"
         case "com.apple.menuextra.airplay": "airplayvideo"
+        case "com.apple.menuextra.now-playing": "music.note"
+        case "com.apple.menuextra.siri": "sparkles"
+        case "com.apple.menuextra.spotlight": "magnifyingglass"
         default: "circle.grid.2x2"
         }
     }

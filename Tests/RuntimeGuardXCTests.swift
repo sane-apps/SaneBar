@@ -23,4 +23,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertFalse(MenuBarManager.shouldSkipHide(disableOnExternalMonitor: false, isOnExternalMonitor: true))
         XCTAssertFalse(MenuBarManager.shouldSkipHide(disableOnExternalMonitor: true, isOnExternalMonitor: false))
     }
+
+    func testManualHideRequestsAreNotSuppressedByExternalMonitorPolicy() {
+        XCTAssertFalse(
+            MenuBarManager.shouldIgnoreHideRequest(
+                disableOnExternalMonitor: true,
+                isOnExternalMonitor: true,
+                origin: .manual
+            )
+        )
+    }
+
+    func testAutomaticHideRequestsAreSuppressedByExternalMonitorPolicy() {
+        XCTAssertTrue(
+            MenuBarManager.shouldIgnoreHideRequest(
+                disableOnExternalMonitor: true,
+                isOnExternalMonitor: true,
+                origin: .automatic
+            )
+        )
+    }
 }

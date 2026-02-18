@@ -20,6 +20,11 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 /// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
 final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
+    enum HideRequestOrigin: Sendable {
+        case manual
+        case automatic
+    }
+
     // MARK: - Singleton
 
     static let shared = MenuBarManager()
@@ -84,11 +89,27 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Check if hiding should be skipped due to external monitor setting
     var shouldSkipHideForExternalMonitor: Bool {
-        Self.shouldSkipHide(disableOnExternalMonitor: settings.disableOnExternalMonitor, isOnExternalMonitor: isOnExternalMonitor)
+        Self.shouldIgnoreHideRequest(
+            disableOnExternalMonitor: settings.disableOnExternalMonitor,
+            isOnExternalMonitor: isOnExternalMonitor,
+            origin: .automatic
+        )
     }
 
     static func shouldSkipHide(disableOnExternalMonitor: Bool, isOnExternalMonitor: Bool) -> Bool {
-        disableOnExternalMonitor && isOnExternalMonitor
+        shouldIgnoreHideRequest(
+            disableOnExternalMonitor: disableOnExternalMonitor,
+            isOnExternalMonitor: isOnExternalMonitor,
+            origin: .automatic
+        )
+    }
+
+    static func shouldIgnoreHideRequest(
+        disableOnExternalMonitor: Bool,
+        isOnExternalMonitor: Bool,
+        origin: HideRequestOrigin
+    ) -> Bool {
+        disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
     }
 
     // MARK: - Services

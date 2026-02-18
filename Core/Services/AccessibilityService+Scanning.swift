@@ -37,6 +37,38 @@ extension AccessibilityService {
 
         return nil
     }
+
+    internal nonisolated static func bundleIdentifierFallback(fromAXIdentifier axIdentifier: String?) -> String? {
+        guard let raw = axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else { return nil }
+
+        // Apple menu-extra identifiers identify the menu extra, not the owning app process.
+        if raw.hasPrefix("com.apple.menuextra.") {
+            return nil
+        }
+
+        // Common third-party shape: com.vendor.App-Item-0
+        if let range = raw.range(of: "-Item-", options: .backwards) {
+            let candidate = String(raw[..<range.lowerBound])
+            if isLikelyBundleIdentifier(candidate) {
+                return candidate
+            }
+        }
+
+        if isLikelyBundleIdentifier(raw) {
+            return raw
+        }
+
+        return nil
+    }
+
+    private nonisolated static func isLikelyBundleIdentifier(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.contains(" ") else { return false }
+        guard trimmed.contains(".") else { return false }
+        return trimmed.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil
+    }
     
     // MARK: - System Wide Search
 
@@ -116,6 +148,15 @@ extension AccessibilityService {
             guard !seenIds.contains(bundleID) else { continue }
             seenIds.insert(bundleID)
             apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
+        }
+
+        // Some macOS builds expose system extras through AXMenuBar instead of AXExtrasMenuBar.
+        // Ensure we still attempt targeted expansion for these owners.
+        if controlCenterPID == nil {
+            controlCenterPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.controlcenter").first?.processIdentifier
+        }
+        if systemUIServerPID == nil {
+            systemUIServerPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systemuiserver").first?.processIdentifier
         }
 
         // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
@@ -297,8 +338,9 @@ extension AccessibilityService {
             let x = scanned.x
             let width = scanned.width
 
-            guard let app = NSRunningApplication(processIdentifier: pid),
-                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
+            guard let app = NSRunningApplication(processIdentifier: pid) else { continue }
+            guard let bundleID = Self.resolvedBundleIdentifier(for: app)
+                ?? Self.bundleIdentifierFallback(fromAXIdentifier: axIdentifier) else { continue }
 
             // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
@@ -340,6 +382,15 @@ extension AccessibilityService {
             } else {
                 appPositions[key] = MenuBarItemPosition(app: appModel, x: x, width: width)
             }
+        }
+
+        // Some macOS builds expose system extras through AXMenuBar instead of AXExtrasMenuBar.
+        // Ensure we still attempt targeted expansion for these owners.
+        if controlCenterPID == nil {
+            controlCenterPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.controlcenter").first?.processIdentifier
+        }
+        if systemUIServerPID == nil {
+            systemUIServerPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systemuiserver").first?.processIdentifier
         }
 
         // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
