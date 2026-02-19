@@ -91,7 +91,7 @@ struct AccessibilityServiceTests {
     func testAccessibilitySettingsURLIsValid() {
         // REGRESSION: "Open System Settings" button wasn't opening anything
         // because it called requestAccessibility() instead of opening the URL
-        let urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        let urlString = AccessibilityService.accessibilitySettingsURLString
         let url = URL(string: urlString)
 
         #expect(url != nil, "Accessibility Settings URL must be valid")

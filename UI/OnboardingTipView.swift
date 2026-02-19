@@ -115,10 +115,7 @@ struct OnboardingTipView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
-                    // Actually open System Settings to the Accessibility pane
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
                     permissionRequested = true
                 } label: {
                     Label("Open System Settings", systemImage: "gear")

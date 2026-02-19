@@ -130,6 +130,37 @@ NSStatusItem Preferred Position <autosaveName>
 
 ---
 
+## Display-Aware Position Validation
+
+macOS converts ordinal seeds (0, 1) to pixel offsets after first launch. If the app later runs on a different display (Migration Assistant, different Mac, monitor change), those stale pixel positions are meaningless but would pass normal validation.
+
+### How It Works
+
+On launch, `StatusBarController` checks:
+1. **Stored screen width** (`SaneBar_CalibratedScreenWidth` in UserDefaults)
+2. If no stored width (first launch after update): stamps current width, accepts positions as-is
+3. If width changed >10% AND positions are pixel values (>10, <9000): resets to ordinals
+4. After position cache warming, stamps the current screen width
+
+### Detection Logic
+
+| Position Value | Classification |
+|---------------|----------------|
+| 0, 1, 2 | Ordinal seed — not pixel-like |
+| 10000 | AH sentinel — not pixel-like |
+| 207, 800, 2400 | Pixel offset — pixel-like |
+
+### When Reset Triggers
+
+| Scenario | Reset? | Why |
+|----------|--------|-----|
+| Same Mac, same display | No | Width matches |
+| First launch after update | No | No stored width — stamps and accepts |
+| Migration Assistant to new Mac | Yes | Different width + pixel positions |
+| External monitor swap | Yes | Different width + pixel positions |
+
+---
+
 ## Anti-Patterns to Avoid
 
 | Approach | Why It Fails |

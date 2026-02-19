@@ -483,7 +483,14 @@ extension AccessibilityService {
             let isOnScreen = NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
 
             if isOnScreen {
-                return frame
+                // Verify position is stable (icon may be on-screen but still sliding)
+                Thread.sleep(forTimeInterval: 0.08)
+                if let recheck = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex),
+                   abs(recheck.origin.x - frame.origin.x) < 2 {
+                    return recheck
+                }
+                logger.debug("getMenuBarIconFrameOnScreen: position unstable (attempt \(attempt))")
+                continue
             }
 
             logger.debug("getMenuBarIconFrameOnScreen: frame off-screen (attempt \(attempt), x=\(frame.origin.x, privacy: .public), y=\(frame.origin.y, privacy: .public))")

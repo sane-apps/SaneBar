@@ -300,4 +300,67 @@ extension MenuBarManager {
             await hidingService.hide()
         }
     }
+
+    // MARK: - Pin Reconciliation After Cmd+Drag
+
+    /// Reconcile pin list with physical icon positions after a user Cmd+drag.
+    /// Auto-pins items found in the AH zone that aren't pinned yet.
+    /// Auto-unpins items found outside the AH zone (with safety margin).
+    func reconcilePinsAfterUserDrag() async {
+        guard settings.alwaysHiddenSectionEnabled else { return }
+        guard alwaysHiddenSeparatorItem != nil else { return }
+        guard AccessibilityService.shared.isTrusted else { return }
+
+        // Wait for macOS to finish relayout after drag
+        try? await Task.sleep(for: .milliseconds(400))
+
+        guard let ahSeparatorX = getAlwaysHiddenSeparatorOriginX() else {
+            logger.debug("reconcilePins: AH separator not found — skipping")
+            return
+        }
+
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        guard !items.isEmpty else { return }
+
+        var currentPins = Set(settings.alwaysHiddenPinnedItemIds)
+        let originalPins = currentPins
+        var changed = false
+
+        for item in items {
+            guard !item.app.isUnmovableSystemItem else { continue }
+            let pinId = item.app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isValidPinId(pinId) else { continue }
+
+            let inAH = isInAlwaysHiddenZone(
+                itemX: item.x,
+                itemWidth: item.app.width,
+                alwaysHiddenSeparatorX: ahSeparatorX
+            )
+
+            if inAH, !currentPins.contains(pinId) {
+                // Auto-pin: item is in AH zone but not pinned
+                currentPins.insert(pinId)
+                logger.info("reconcilePins: auto-pinned \(pinId, privacy: .private)")
+                changed = true
+            } else if !inAH, currentPins.contains(pinId) {
+                // Auto-unpin: item was dragged out of AH zone
+                // Safety: only unpin if clearly outside (midX > ahSeparatorX + 20)
+                let width = max(1, item.app.width ?? 22)
+                let midX = item.x + (width / 2)
+                if midX > ahSeparatorX + 20 {
+                    currentPins.remove(pinId)
+                    logger.info("reconcilePins: auto-unpinned \(pinId, privacy: .private)")
+                    changed = true
+                }
+            }
+        }
+
+        if changed {
+            settings.alwaysHiddenPinnedItemIds = Array(currentPins).sorted()
+            let added = currentPins.subtracting(originalPins).count
+            let removed = originalPins.subtracting(currentPins).count
+            logger.info("reconcilePins: \(added) pinned, \(removed) unpinned")
+            AccessibilityService.shared.invalidateMenuBarItemCache()
+        }
+    }
 }

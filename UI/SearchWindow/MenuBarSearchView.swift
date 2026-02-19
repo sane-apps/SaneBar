@@ -272,7 +272,11 @@ struct MenuBarSearchView: View {
                     proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
                 }
             },
-            onRetry: { loadCachedApps(); refreshApps(force: true) },
+            onRetry: {
+                _ = AccessibilityService.shared.requestAccessibility()
+                loadCachedApps()
+                refreshApps(force: true)
+            },
             onIconMoved: { loadCachedApps(); refreshApps(force: true) },
             searchText: $searchText
         )
@@ -759,14 +763,13 @@ struct MenuBarSearchView: View {
 
             HStack(spacing: 12) {
                 Button("Grant Accessibility") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.teal)
 
                 Button("Try Again") {
+                    _ = AccessibilityService.shared.requestAccessibility()
                     loadCachedApps()
                     refreshApps(force: true)
                 }

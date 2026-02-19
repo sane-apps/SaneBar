@@ -24,15 +24,34 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     /// True when running as a test host — skip real Keychain calls to avoid password prompts.
     private let isTestEnvironment: Bool
+    /// True when running automation with explicit keychain bypass.
+    private let isKeychainBypassed: Bool
+    /// Fallback storage for no-keychain automation mode.
+    private let fallbackDefaults: UserDefaults
 
     init(service: String = Bundle.main.bundleIdentifier ?? "com.sanebar.app") {
         self.service = service
+        self.fallbackDefaults = UserDefaults(suiteName: "\(service).no-keychain") ?? .standard
+        let debugBypass: Bool = {
+#if DEBUG
+            return ProcessInfo.processInfo.environment["SANEAPPS_ENABLE_KEYCHAIN_IN_DEBUG"] != "1"
+#else
+            return false
+#endif
+        }()
         isTestEnvironment = NSClassFromString("XCTestCase") != nil
             || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        isKeychainBypassed = debugBypass
+            || ProcessInfo.processInfo.environment["SANEAPPS_DISABLE_KEYCHAIN"] == "1"
+            || ProcessInfo.processInfo.arguments.contains("--sane-no-keychain")
     }
 
     func bool(forKey key: String) throws -> Bool? {
         guard !isTestEnvironment else { return nil }
+        if isKeychainBypassed {
+            guard fallbackDefaults.object(forKey: fallbackKey(key)) != nil else { return nil }
+            return fallbackDefaults.bool(forKey: fallbackKey(key))
+        }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -51,6 +70,10 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     func set(_ value: Bool, forKey key: String) throws {
         guard !isTestEnvironment else { return }
+        if isKeychainBypassed {
+            fallbackDefaults.set(value, forKey: fallbackKey(key))
+            return
+        }
         let data = Data([value ? 1 : 0])
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -78,6 +101,9 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     func string(forKey key: String) throws -> String? {
         guard !isTestEnvironment else { return nil }
+        if isKeychainBypassed {
+            return fallbackDefaults.string(forKey: fallbackKey(key))
+        }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -96,6 +122,10 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     func set(_ value: String, forKey key: String) throws {
         guard !isTestEnvironment else { return }
+        if isKeychainBypassed {
+            fallbackDefaults.set(value, forKey: fallbackKey(key))
+            return
+        }
         guard let data = value.data(using: .utf8) else { return }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -123,6 +153,10 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     func delete(_ key: String) throws {
         guard !isTestEnvironment else { return }
+        if isKeychainBypassed {
+            fallbackDefaults.removeObject(forKey: fallbackKey(key))
+            return
+        }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -132,5 +166,9 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError(status: status)
         }
+    }
+
+    private func fallbackKey(_ key: String) -> String {
+        "sane.no-keychain.\(service).\(key)"
     }
 }
