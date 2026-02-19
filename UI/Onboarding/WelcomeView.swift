@@ -473,9 +473,7 @@ private struct PermissionPage: View {
                 .padding(.top, 8)
             } else {
                 Button {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    _ = accessibilityService.openAccessibilitySettings(promptIfNeeded: true)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.open.fill")

@@ -68,6 +68,7 @@ final class AccessibilityService: ObservableObject {
     // MARK: - Singleton
 
     static let shared = AccessibilityService()
+    nonisolated static let accessibilitySettingsURLString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
     // MARK: - Published State
 
@@ -232,5 +233,15 @@ final class AccessibilityService: ObservableObject {
             }
         }
         return trusted
+    }
+
+    /// Prompt for accessibility (if needed) and open the Accessibility pane in System Settings.
+    @discardableResult
+    func openAccessibilitySettings(promptIfNeeded: Bool = true) -> Bool {
+        if promptIfNeeded {
+            _ = requestAccessibility()
+        }
+        guard let url = URL(string: Self.accessibilitySettingsURLString) else { return false }
+        return NSWorkspace.shared.open(url)
     }
 }

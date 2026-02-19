@@ -267,6 +267,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             guard let self else { return }
             Task { @MainActor in
                 guard !self.isMenuOpen else { return }
+
+                // Reconcile AH pins with physical positions after Cmd+drag
+                await self.reconcilePinsAfterUserDrag()
+
                 // Un-pin and allow auto-hide to resume
                 self.isRevealPinned = false
                 if self.settings.autoRehide, !self.shouldSkipHideForExternalMonitor {
@@ -531,6 +535,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 // Cache stable separator coordinates while delimiters are still at
                 // visual size. This avoids nil separator classification after startup hide.
                 await self.warmSeparatorPositionCache()
+
+                // Stamp calibrated screen width now that positions are stable
+                if let w = NSScreen.main?.frame.width {
+                    UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
+                }
 
                 // If the user has pinned items to the always-hidden section, enforce them early
                 // (before initial hide) to reduce startup drift/flicker.

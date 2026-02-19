@@ -433,40 +433,34 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     // MARK: - Settings
 
-    private enum KeychainKeys {
+    private enum LegacyKeychainKeys {
         static let requireAuthToShowHiddenIcons = "settings.requireAuthToShowHiddenIcons"
     }
 
     func saveSettings(_ settings: SaneBarSettings) throws {
-        try persistRequireAuthSetting(settings.requireAuthToShowHiddenIcons)
         let data = try encoder.encode(settings)
-        let sanitized = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: data)
-        try sanitized.write(to: settingsFileURL, options: .atomic)
+        try data.write(to: settingsFileURL, options: .atomic)
     }
 
     func loadSettings() throws -> SaneBarSettings {
         guard fileManager.fileExists(atPath: settingsFileURL.path) else {
             var settings = SaneBarSettings()
-            settings.requireAuthToShowHiddenIcons = (try? keychain.bool(forKey: KeychainKeys.requireAuthToShowHiddenIcons)) ?? false
+            if let legacy = try? keychain.bool(forKey: LegacyKeychainKeys.requireAuthToShowHiddenIcons) {
+                settings.requireAuthToShowHiddenIcons = legacy
+            }
             return settings
         }
 
         let data = try Data(contentsOf: settingsFileURL)
-        let legacy = legacyRequireAuthInfo(from: data)
         var settings = try decoder.decode(SaneBarSettings.self, from: data)
 
-        let keychainValue = try? keychain.bool(forKey: KeychainKeys.requireAuthToShowHiddenIcons)
-        if let keychainValue {
-            settings.requireAuthToShowHiddenIcons = keychainValue
-        } else if legacy.present {
-            try persistRequireAuthSetting(legacy.value)
-            settings.requireAuthToShowHiddenIcons = legacy.value
-        }
-
-        // If the legacy key existed, strip it to avoid drift / confusion.
-        if legacy.present {
-            let rewritten = try stripTopLevelKey("requireAuthToShowHiddenIcons", from: encoder.encode(settings))
+        let hasJSONValue = hasTopLevelKey("requireAuthToShowHiddenIcons", in: data)
+        if !hasJSONValue,
+           let legacy = try? keychain.bool(forKey: LegacyKeychainKeys.requireAuthToShowHiddenIcons) {
+            settings.requireAuthToShowHiddenIcons = legacy
+            let rewritten = try encoder.encode(settings)
             try rewritten.write(to: settingsFileURL, options: .atomic)
+            try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
         }
 
         return settings
@@ -476,32 +470,16 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     func clearAll() throws {
         try? fileManager.removeItem(at: settingsFileURL)
-        try? keychain.delete(KeychainKeys.requireAuthToShowHiddenIcons)
+        try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
     }
 
-    private func persistRequireAuthSetting(_ value: Bool) throws {
-        if value {
-            try keychain.set(true, forKey: KeychainKeys.requireAuthToShowHiddenIcons)
-        } else {
-            try keychain.delete(KeychainKeys.requireAuthToShowHiddenIcons)
-        }
-    }
-
-    private func legacyRequireAuthInfo(from data: Data) -> (present: Bool, value: Bool) {
+    private func hasTopLevelKey(_ key: String, in data: Data) -> Bool {
         guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
-              let dict = object as? [String: Any],
-              let raw = dict["requireAuthToShowHiddenIcons"]
+              let dict = object as? [String: Any]
         else {
-            return (false, false)
+            return false
         }
-        return (true, (raw as? Bool) ?? false)
-    }
-
-    private func stripTopLevelKey(_ key: String, from data: Data) throws -> Data {
-        let object = try JSONSerialization.jsonObject(with: data, options: [])
-        guard var dict = object as? [String: Any] else { return data }
-        dict.removeValue(forKey: key)
-        return try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
+        return dict.keys.contains(key)
     }
 
     // MARK: - Custom Icon

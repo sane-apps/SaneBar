@@ -271,17 +271,12 @@ struct SecondMenuBarView: View {
 
         let started: Bool
         switch (source, target) {
-        case (_, .visible):
-            if source == .alwaysHidden { menuBarManager.unpinAlwaysHidden(app: app) }
-            started = menuBarManager.moveIcon(
+        // From Always Hidden
+        case (.alwaysHidden, .visible):
+            menuBarManager.unpinAlwaysHidden(app: app)
+            started = menuBarManager.moveIconFromAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex, toHidden: false
-            )
-
-        case (.visible, .hidden):
-            started = menuBarManager.moveIcon(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex, toHidden: true
+                statusItemIndex: statusItemIndex
             )
 
         case (.alwaysHidden, .hidden):
@@ -291,14 +286,36 @@ struct SecondMenuBarView: View {
                 statusItemIndex: statusItemIndex
             )
 
-        case (_, .alwaysHidden):
+        // From Hidden
+        case (.hidden, .visible):
+            started = menuBarManager.moveIcon(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex, toHidden: false
+            )
+
+        case (.hidden, .alwaysHidden):
             menuBarManager.pinAlwaysHidden(app: app)
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex
             )
 
-        default:
+        // From Visible
+        case (.visible, .hidden):
+            started = menuBarManager.moveIcon(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex, toHidden: true
+            )
+
+        case (.visible, .alwaysHidden):
+            menuBarManager.pinAlwaysHidden(app: app)
+            started = menuBarManager.moveIconToAlwaysHidden(
+                bundleID: bundleID, menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+
+        // No-op (same zone)
+        case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
             started = false
         }
 
@@ -328,7 +345,8 @@ struct SecondMenuBarView: View {
 
         guard let sourceID = payloads.first,
               let source = sourceForDragID(sourceID),
-              source.zone != targetZone else {
+              source.zone != targetZone
+        else {
             return false
         }
 
@@ -342,7 +360,8 @@ struct SecondMenuBarView: View {
         }
 
         guard let sourceID = payloads.first,
-              let source = sourceForDragID(sourceID) else {
+              let source = sourceForDragID(sourceID)
+        else {
             return false
         }
 
@@ -429,9 +448,7 @@ struct SecondMenuBarView: View {
             Spacer()
 
             Button("Grant") {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                    NSWorkspace.shared.open(url)
-                }
+                _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
             }
             .controlSize(.small)
             .buttonStyle(.borderedProminent)

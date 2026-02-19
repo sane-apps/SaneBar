@@ -54,13 +54,26 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static let iconExpanded = "line.3.horizontal.decrease"
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let maxSpacerCount = 12
+    private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
 
     // MARK: - Initialization
 
     init() {
+        // Cmd-drag can persist NSStatusItem visibility overrides. Clear them on
+        // every launch so a single drag-out cannot permanently hide SaneBar.
+        Self.clearPersistedVisibilityOverrides()
+
         // Migrate: clear AH positions that are too small (< 200) — they place the
         // AH separator near the right edge, devouring all menu bar items.
         Self.migrateCorruptedPositionsIfNeeded()
+
+        // Display-aware validation: reset pixel positions from a different screen
+        if Self.positionsNeedDisplayReset() {
+            Self.resetPositionsToOrdinals()
+            if let w = NSScreen.main?.frame.width {
+                UserDefaults.standard.set(w, forKey: Self.screenWidthKey)
+            }
+        }
 
         // Seed positions BEFORE creating items (position pre-seeding)
         // Position 0 = rightmost (main), Position 1 = second from right (separator)
@@ -170,26 +183,94 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("Reset all status item positions — will reseed on next creation")
     }
 
+    // MARK: - Display-Aware Position Validation
+
+    /// Returns true if a position value looks like a pixel offset rather than an ordinal seed.
+    /// Ordinals are small integers (0, 1, 2). The AH sentinel is 10000.
+    /// Pixel offsets from macOS fall in the range ~50–5000 for typical displays.
+    nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool {
+        guard let v = value else { return false }
+        return v > 10 && v < 9000
+    }
+
+    /// Returns true if the stored and current screen widths differ by more than 10%.
+    nonisolated static func isSignificantWidthChange(stored: Double, current: Double) -> Bool {
+        guard stored > 0 else { return false }
+        let ratio = abs(current - stored) / stored
+        return ratio > 0.10
+    }
+
+    /// Check if positions need a display reset due to a screen width change.
+    /// - First launch after update (no stored width): stamps current width, returns false.
+    /// - Same screen (width matches within 10%): returns false.
+    /// - Different screen AND pixel-like positions: returns true (triggers reset).
+    private static func positionsNeedDisplayReset() -> Bool {
+        let defaults = UserDefaults.standard
+        let storedWidth = defaults.double(forKey: screenWidthKey)
+
+        guard let currentWidth = NSScreen.main?.frame.width else { return false }
+
+        if storedWidth == 0 {
+            // First launch after update — stamp current width, accept positions as-is
+            defaults.set(currentWidth, forKey: screenWidthKey)
+            logger.info("Display validation: first run, stamping screen width \(currentWidth)")
+            return false
+        }
+
+        guard isSignificantWidthChange(stored: storedWidth, current: currentWidth) else {
+            return false
+        }
+
+        // Screen changed significantly — check if positions are pixel values
+        let mainKey = preferredPositionKey(for: mainAutosaveName)
+        let sepKey = preferredPositionKey(for: separatorAutosaveName)
+        let mainPos = defaults.object(forKey: mainKey) as? Double
+        let sepPos = defaults.object(forKey: sepKey) as? Double
+
+        let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
+
+        if hasPixelPositions {
+            logger.info("Display validation: screen width changed (\(storedWidth) → \(currentWidth)) with pixel positions — resetting")
+        }
+
+        return hasPixelPositions
+    }
+
+    /// Clears persisted visibility overrides written by macOS after cmd-dragging
+    /// a status item out of the menu bar.
+    private static func clearPersistedVisibilityOverrides() {
+        let defaults = UserDefaults.standard
+        var clearedAny = false
+
+        for name in [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName] {
+            let appKey = "NSStatusItem Visible \(name)"
+            if defaults.object(forKey: appKey) != nil {
+                defaults.removeObject(forKey: appKey)
+                clearedAny = true
+            }
+
+            if removeByHostVisibilityOverrides(forAutosaveName: name) {
+                clearedAny = true
+            }
+        }
+
+        if clearedAny {
+            logger.info("Cleared persisted NSStatusItem visibility overrides")
+        }
+    }
+
     /// One-time recovery migration.
     /// v5: Cleared corrupted ByHost position state from Cmd-drag experiments.
-    /// v6: Also clears any persisted visibility state (`NSStatusItem Visible`)
-    ///     left by macOS after Cmd-dragging an icon out of the menu bar.
-    ///     Combined with the `isVisible = true` enforcement in init(), this
-    ///     guarantees a fresh start for users upgrading to v2.1.3+.
+    /// v6: Added persisted visibility cleanup for cmd-drag hidden state.
+    /// v7: Re-runs the full recovery after autosave namespace updates.
     private static func migrateCorruptedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
-        let migrationKey = "SaneBar_PositionMigration_v6"
+        let migrationKey = "SaneBar_PositionMigration_v7"
         guard !defaults.bool(forKey: migrationKey) else { return }
 
-        logger.info("Applying v6 status item position + visibility recovery")
+        logger.info("Applying v7 status item position + visibility recovery")
         resetPositionsToOrdinals()
-
-        // Also clear any persisted visibility keys macOS may have stored
-        // when a user Cmd-dragged an icon out of the menu bar.
-        for name in [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName] {
-            let visibleKey = "NSStatusItem Visible \(name)"
-            defaults.removeObject(forKey: visibleKey)
-        }
+        clearPersistedVisibilityOverrides()
 
         defaults.set(true, forKey: migrationKey)
     }
@@ -214,8 +295,29 @@ final class StatusBarController: StatusBarControllerProtocol {
         return "\(prefix)_\(suffix)_v6"
     }
 
+    /// Legacy variation observed in the field where the entire suffix is lowercased
+    /// (e.g. SaneBar_AlwaysHiddenSeparator_v7 -> SaneBar_alwayshiddenseparator_v7_v6).
+    private static func legacyLowercasedByHostAutosaveName(for autosaveName: String) -> String {
+        guard let underscore = autosaveName.firstIndex(of: "_") else {
+            return "\(autosaveName.lowercased())_v6"
+        }
+        let prefix = autosaveName[..<underscore]
+        let suffix = String(autosaveName[autosaveName.index(after: underscore)...]).lowercased()
+        return "\(prefix)_\(suffix)_v6"
+    }
+
     private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
+    }
+
+    private static func byHostVisibilityKey(for autosaveName: String) -> String {
+        "NSStatusItem Visible \(byHostAutosaveName(for: autosaveName))"
+    }
+
+    private static func byHostVisibilityKeys(for autosaveName: String) -> [String] {
+        let canonical = byHostVisibilityKey(for: autosaveName)
+        let legacy = "NSStatusItem Visible \(legacyLowercasedByHostAutosaveName(for: autosaveName))"
+        return canonical == legacy ? [canonical] : [canonical, legacy]
     }
 
     nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
@@ -302,6 +404,40 @@ final class StatusBarController: StatusBarControllerProtocol {
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
         )
+    }
+
+    private static func removeByHostVisibilityOverrides(forAutosaveName autosaveName: String) -> Bool {
+        let globalDomain = ".GlobalPreferences" as CFString
+        var removedAny = false
+
+        for keyString in byHostVisibilityKeys(for: autosaveName) {
+            let key = keyString as CFString
+            let existing = CFPreferencesCopyValue(
+                key,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            guard existing != nil else { continue }
+
+            CFPreferencesSetValue(
+                key,
+                nil,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            removedAny = true
+        }
+
+        if removedAny {
+            CFPreferencesSynchronize(
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+        }
+        return removedAny
     }
 
     // MARK: - Configuration

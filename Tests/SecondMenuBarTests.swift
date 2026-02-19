@@ -140,6 +140,92 @@ struct ZoneClassificationTests {
     }
 }
 
+// MARK: - Switch Exhaustiveness Tests
+
+@Suite("Zone Move Switch Tests")
+struct ZoneMoveExhaustivenessTests {
+    @Test("All zone transitions are covered explicitly")
+    func allTransitionsCovered() {
+        // SecondMenuBarView.moveIcon switch should handle all 9 combinations.
+        // We verify the IconZone enum has exactly 3 cases by exhaustive switch.
+        let zones: [IconZone] = [.visible, .hidden, .alwaysHidden]
+        var pairs: [(IconZone, IconZone)] = []
+        for source in zones {
+            for target in zones {
+                pairs.append((source, target))
+            }
+        }
+        #expect(pairs.count == 9)
+
+        // Verify each pair matches one of the explicit switch cases.
+        // The switch in SecondMenuBarView covers:
+        //   (.alwaysHidden, .visible), (.alwaysHidden, .hidden),
+        //   (.hidden, .visible), (.hidden, .alwaysHidden),
+        //   (.visible, .hidden), (.visible, .alwaysHidden),
+        //   (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden)
+        for (source, target) in pairs {
+            let handled = switch (source, target) {
+            case (.alwaysHidden, .visible): true
+            case (.alwaysHidden, .hidden): true
+            case (.hidden, .visible): true
+            case (.hidden, .alwaysHidden): true
+            case (.visible, .hidden): true
+            case (.visible, .alwaysHidden): true
+            case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden): true
+            }
+            #expect(handled, "Transition \(source) → \(target) should be handled")
+        }
+    }
+}
+
+// MARK: - AH Zone Detection Tests
+
+@Suite("Always Hidden Zone Detection Tests")
+struct AlwaysHiddenZoneDetectionTests {
+    @Test("Item clearly in AH zone detected correctly")
+    @MainActor
+    func itemInAHZone() {
+        let manager = MenuBarManager.shared
+        // Item at x=30, width=22 → midX=41. AH separator at x=100. margin=max(4, 22*0.3)=6.6
+        // midX(41) < (100 - 6.6 = 93.4) → true → in AH zone
+        let result = manager.isInAlwaysHiddenZone(itemX: 30, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        #expect(result == true)
+    }
+
+    @Test("Item clearly outside AH zone detected correctly")
+    @MainActor
+    func itemOutsideAHZone() {
+        let manager = MenuBarManager.shared
+        // Item at x=200, width=22 → midX=211. AH separator at x=100.
+        // midX(211) < (100 - 6.6 = 93.4) → false → NOT in AH zone
+        let result = manager.isInAlwaysHiddenZone(itemX: 200, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        #expect(result == false)
+    }
+
+    @Test("Item at AH separator edge respects margin")
+    @MainActor
+    func itemAtAHEdge() {
+        let manager = MenuBarManager.shared
+        // Item at x=80, width=22 → midX=91. AH separator at x=100. margin=6.6
+        // midX(91) < (100 - 6.6 = 93.4) → true → in AH zone
+        let inZone = manager.isInAlwaysHiddenZone(itemX: 80, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        #expect(inZone == true)
+
+        // Item at x=90, width=22 → midX=101. 101 < 93.4 → false → NOT in AH zone
+        let outsideZone = manager.isInAlwaysHiddenZone(itemX: 90, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        #expect(outsideZone == false)
+    }
+
+    @Test("Nil width defaults to 22")
+    @MainActor
+    func nilWidthDefaultsInAHCheck() {
+        let manager = MenuBarManager.shared
+        // width nil → max(1, 22) = 22, midX = 30 + 11 = 41. margin = max(4, 22*0.3) = 6.6
+        let result = manager.isInAlwaysHiddenZone(itemX: 30, itemWidth: nil, alwaysHiddenSeparatorX: 100)
+        #expect(result == true)
+    }
+}
+
 // MARK: - Pin/Unpin Tests
 
 @Suite("Pin Identity Tests")

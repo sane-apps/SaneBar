@@ -37,9 +37,7 @@ struct MenuBarSearchAccessibilityPrompt: View {
 
             HStack(spacing: 12) {
                 Button("Grant Accessibility") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.teal)

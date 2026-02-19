@@ -87,11 +87,7 @@ struct AccessibilityPermissionView: View {
     }
 
     private func openAccessibilitySettings() {
-        // Deep link to Accessibility pane
-        let urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-        if let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
-        }
+        _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
     }
 }
 

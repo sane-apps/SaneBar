@@ -121,6 +121,99 @@ struct StatusBarControllerTests {
         #expect(shouldSeed == true)
     }
 
+    @Test("Init clears persisted status-item visibility overrides")
+    @MainActor
+    func initClearsPersistedVisibilityOverrides() {
+        let defaults = UserDefaults.standard
+        let appKeys = [
+            "NSStatusItem Visible \(StatusBarController.mainAutosaveName)",
+            "NSStatusItem Visible \(StatusBarController.separatorAutosaveName)",
+            "NSStatusItem Visible \(StatusBarController.alwaysHiddenSeparatorAutosaveName)",
+        ]
+        let byHostKeys = [
+            "NSStatusItem Visible SaneBar_main_v7_v6",
+            "NSStatusItem Visible SaneBar_separator_v7_v6",
+            "NSStatusItem Visible SaneBar_alwaysHiddenSeparator_v7_v6",
+            "NSStatusItem Visible SaneBar_alwayshiddenseparator_v7_v6", // legacy lowercased variant seen in the field
+        ]
+        let originalAppValues: [(String, Any?)] = appKeys.map { ($0, defaults.object(forKey: $0)) }
+        let originalByHostValues: [(String, CFPropertyList?)] = byHostKeys.map { key in
+            let value = CFPreferencesCopyValue(
+                key as CFString,
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            return (key, value as CFPropertyList?)
+        }
+        defer {
+            for (key, value) in originalAppValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            for (key, value) in originalByHostValues {
+                if let value {
+                    CFPreferencesSetValue(
+                        key as CFString,
+                        value,
+                        ".GlobalPreferences" as CFString,
+                        kCFPreferencesCurrentUser,
+                        kCFPreferencesCurrentHost
+                    )
+                } else {
+                    CFPreferencesSetValue(
+                        key as CFString,
+                        nil,
+                        ".GlobalPreferences" as CFString,
+                        kCFPreferencesCurrentUser,
+                        kCFPreferencesCurrentHost
+                    )
+                }
+            }
+            CFPreferencesSynchronize(
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+        }
+
+        for key in appKeys {
+            defaults.set(false, forKey: key)
+        }
+        for key in byHostKeys {
+            CFPreferencesSetValue(
+                key as CFString,
+                kCFBooleanFalse,
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+        }
+        CFPreferencesSynchronize(
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+
+        _ = StatusBarController()
+
+        for key in appKeys {
+            #expect(defaults.object(forKey: key) == nil, "Visibility override should be cleared for \(key)")
+        }
+        for key in byHostKeys {
+            let value = CFPreferencesCopyValue(
+                key as CFString,
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            #expect(value == nil, "ByHost visibility override should be cleared for \(key)")
+        }
+    }
+
     // MARK: - Icon Constants Tests
 
     @Test("Icon names are valid SF Symbol names")
@@ -331,5 +424,61 @@ struct StatusBarControllerTests {
         // This ensures proper WindowServer positioning
         #expect(controller.mainItem.button != nil)
         #expect(controller.separatorItem.button != nil)
+    }
+
+    // MARK: - Display-Aware Position Validation
+
+    @Test("Ordinal seeds are not pixel-like", arguments: [0.0, 1.0, 2.0])
+    func ordinalsNotPixelLike(_ value: Double) {
+        #expect(!StatusBarController.isPixelLikePosition(value))
+    }
+
+    @Test("AH sentinel (10000) is not pixel-like")
+    func ahSentinelNotPixelLike() {
+        #expect(!StatusBarController.isPixelLikePosition(10000))
+    }
+
+    @Test("nil is not pixel-like")
+    func nilNotPixelLike() {
+        #expect(!StatusBarController.isPixelLikePosition(nil))
+    }
+
+    @Test("Typical pixel offsets are pixel-like", arguments: [207.0, 400.0, 800.0, 1200.0, 2400.0])
+    func pixelOffsetsArePixelLike(_ value: Double) {
+        #expect(StatusBarController.isPixelLikePosition(value))
+    }
+
+    @Test("Same screen width is not a significant change")
+    func sameWidthNotSignificant() {
+        #expect(!StatusBarController.isSignificantWidthChange(stored: 1440, current: 1440))
+    }
+
+    @Test("Small width change (<10%) is not significant")
+    func smallChangeNotSignificant() {
+        // 5% change: 1440 → 1512
+        #expect(!StatusBarController.isSignificantWidthChange(stored: 1440, current: 1512))
+    }
+
+    @Test("Large width change (>10%) is significant")
+    func largeChangeIsSignificant() {
+        // 1440 → 2560 (78% change)
+        #expect(StatusBarController.isSignificantWidthChange(stored: 1440, current: 2560))
+    }
+
+    @Test("Zero stored width is not a significant change")
+    func zeroStoredNotSignificant() {
+        #expect(!StatusBarController.isSignificantWidthChange(stored: 0, current: 1440))
+    }
+
+    @Test("Boundary: exactly 10% change is not significant")
+    func boundaryTenPercent() {
+        // Exactly 10%: 1000 → 1100
+        #expect(!StatusBarController.isSignificantWidthChange(stored: 1000, current: 1100))
+    }
+
+    @Test("Just over 10% change is significant")
+    func justOverTenPercent() {
+        // 10.1%: 1000 → 1101
+        #expect(StatusBarController.isSignificantWidthChange(stored: 1000, current: 1101))
     }
 }
