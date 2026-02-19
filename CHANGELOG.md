@@ -6,6 +6,17 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.6] - 2026-02-19
+
+- Fixed a persistent corrupted-state bug where Cmd-dragging SaneBar out of the menu bar could keep it hidden across relaunches.
+- Added launch-time self-healing for both current and legacy ByHost visibility keys so previously affected installs recover automatically.
+- Fixed second-menu-bar drag/drop routing for Always Hidden and Hidden transitions (including previously no-op move paths).
+- Improved Accessibility grant flow in Browse Icons and onboarding by centralizing "Grant" behavior and forcing a fresh permission re-check on retry.
+- Preserved the "Require authentication to show hidden icons" setting for upgrade users by migrating legacy keychain-backed values into settings JSON.
+- Added regression coverage for corrupted visibility recovery, zone-transition exhaustiveness, and auth-setting migration.
+
+---
+
 ## [2.1.5] - 2026-02-18
 
 ### Fixed
