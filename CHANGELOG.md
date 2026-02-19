@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.7] - 2026-02-19
+
+Fixes second-menu-bar regression where visible icons could collapse into hidden after install; improves move reliability and adds regression coverage.
+
+---
+
 ## [2.1.6] - 2026-02-19
 
 - Fixed a persistent corrupted-state bug where Cmd-dragging SaneBar out of the menu bar could keep it hidden across relaunches.
