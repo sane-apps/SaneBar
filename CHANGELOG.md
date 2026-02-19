@@ -6,6 +6,89 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.5] - 2026-02-18
+
+### Fixed
+- **External Monitor Toggle**: Manual show/hide toggle now works correctly on external monitors
+- **Apple Menu-Extra Detection**: Improved canonicalization for missing or ambiguous system identifiers
+
+---
+
+## [2.1.4] - 2026-02-18
+
+### Fixed
+- **Zone Move Reliability**: Fixed regressions in moving icons between visible/hidden zones
+- **Visible/Hidden Persistence**: Icon section assignments now persist correctly across restarts
+- **Helper-Hosted Extras**: Improved detection for apps like Little Snitch that host menu extras via helper processes
+- **Separator Fallback**: Better target resolution and fallback classification for separator items
+
+---
+
+## [2.1.3] - 2026-02-18
+
+### Fixed
+- **Status Item Recovery**: Fixed machine-specific icon recovery after Cmd-drag removal
+- **Icon Movement Coordinates**: Hardened coordinate calculations for icon moves
+- **External Monitor Policy**: Improved handling of external monitor show/hide policy
+- **Second Menu Bar Drag-and-Drop**: Improved drag between Hidden, Always Hidden, and Visible zones
+
+---
+
+## [2.1.2] - 2026-02-16
+
+### Fixed
+- **High Energy Usage**: Resolved animated background causing excessive CPU/energy drain
+- **Mouse Event Throttle**: Added throttling to reduce unnecessary event processing
+- **Stage Manager**: Fixed compatibility with macOS Stage Manager
+
+---
+
+## [2.1.1] - 2026-02-16
+
+### Fixed
+- **Rounded Corners Truncation**: Removed horizontal inset causing clipped corners (#64)
+- **Website Download Links**: Updated stale v1.5.0 links to current version
+
+---
+
+## [2.1.0] - 2026-02-15
+
+### Fixed
+- **Always-Hidden Separator Position**: Fixed toggle stability and positioning
+- **Pro Mode Debugging**: Debug builds now skip test host correctly
+
+---
+
+## [2.0.0] - 2026-02-15
+
+### Added
+- **Second Menu Bar**: Browse hidden icons in a dedicated panel (left-click or right-click trigger, configurable in Settings)
+- **Freemium Model**: Free users get full Browse Icons; Pro unlocks icon moving, advanced triggers, and customization
+- **Killer Onboarding**: Animated setup wizard with presets, import detection, and progress bar
+- **Schedule Triggers**: Auto-show/hide icons on a time-based schedule
+- **Battery Threshold Trigger**: Auto-reveal icons when battery drops below a set level
+- **Icon Reorder**: Drag-and-drop icon reordering in Second Menu Bar
+- **Move to Applications Prompt**: Guides users to move app from Downloads to Applications
+- **Script Triggers**: Per-icon AppleScript commands for automation
+
+### Changed
+- **Renamed "Floating Panel" to "Second Menu Bar"**: Clearer naming with segmented picker UI (#58)
+- **Second Menu Bar Layout**: 3-row layout with frosted glass and animated gradient
+- **Onboarding Overhaul**: Streamlined permissions, one-click setup, accessibility prompt improvements
+- **Website Overhaul**: Basic/Pro feature cards, hero pricing, golden ratio spacing, mobile-optimized
+
+### Fixed
+- **Reduce Transparency**: Tint renders at full opacity, Liquid Glass skipped when enabled (#34)
+- **Keyboard Shortcuts**: No longer reset after user clears them (#46)
+- **Find Icon**: Window stays open during icon interactions
+- **Click-Through**: Fixed click-through behavior on hidden icons
+- **Always-Hidden Enforcement**: Improved reliability of always-hidden icon persistence
+- **Hotkey Display Sync**: Fixed display not updating after hotkey changes (#57)
+- **Move to Visible Race Condition**: Fixed timing issue when promoting icons (#56)
+- **Build from Source**: External contributors can build without signing certificate (#44)
+
+---
+
 ## [1.0.18] - 2026-02-02
 
 ### Changed
