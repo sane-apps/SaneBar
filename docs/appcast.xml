@@ -3,6 +3,23 @@
     <channel>
         <title>SaneBar Changelog</title>
         <item>
+            <title>2.1.7</title>
+            <pubDate>Thu, 19 Feb 2026 18:56:21 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Fixes second-menu-bar regression where visible icons could collapse into hidden after install; improves move reliability and adds regression coverage.</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.7.zip"
+                       sparkle:version="2107"
+                       sparkle:shortVersionString="2.1.7"
+                       length="4443549"
+                       type="application/octet-stream"
+                       sparkle:edSignature="Y897vkBPNCNVV1YnLEjR4hzKe2rlxWWTwgEp5ZDKc2nvCXsqGaZ087XSOfeMltNBHa+9NEah/1bWQAvItIBYCg=="/>
+        </item>
+        <item>
             <title>2.1.6</title>
             <pubDate>Thu, 19 Feb 2026 14:17:23 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
