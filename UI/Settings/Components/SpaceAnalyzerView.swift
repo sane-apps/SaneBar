@@ -32,7 +32,7 @@ struct SpaceAnalyzerView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Storage Visualization")
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.92))
 
                     // The Bar
                     GeometryReader { geo in
@@ -79,7 +79,7 @@ struct SpaceAnalyzerView: View {
                             .foregroundStyle(.orange)
                         Spacer()
                         Label("Free: \(Int(totalWidth - usedWidth))px", systemImage: "circle")
-                            .foregroundStyle(.primary.opacity(0.6))
+                            .foregroundStyle(.white.opacity(0.9))
                     }
                     .font(.system(size: 13))
                 }
@@ -107,7 +107,7 @@ struct SpaceAnalyzerView: View {
                                 Text(item.app.name)
                                 Spacer()
                                 Text("\(Int(item.width))px")
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                                     .font(.monospacedDigit(.body)())
                             }
                         }

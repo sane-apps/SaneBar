@@ -25,6 +25,11 @@ struct SecondMenuBarView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var proUpsellFeature: ProFeature?
 
+    // Second-menu-bar readability: force high-contrast white text on glass background.
+    private let textPrimary = Color.white
+    private let textSecondary = Color.white.opacity(0.92)
+    private let textMuted = Color.white.opacity(0.82)
+
     // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
     private var movableVisible: [RunningApp] {
@@ -86,10 +91,15 @@ struct SecondMenuBarView: View {
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 10))
-                    .foregroundStyle(.primary.opacity(0.4))
-                TextField("Search", text: $searchText)
+                    .foregroundStyle(textMuted)
+                TextField(
+                    "Search",
+                    text: $searchText,
+                    prompt: Text("Search").foregroundStyle(textSecondary)
+                )
                     .textFieldStyle(.plain)
                     .font(.system(size: 11))
+                    .foregroundStyle(textPrimary)
                     .focused($isSearchFocused)
                 if !searchText.isEmpty {
                     Button {
@@ -97,7 +107,7 @@ struct SecondMenuBarView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(.primary.opacity(0.4))
+                            .foregroundStyle(textMuted)
                     }
                     .buttonStyle(.plain)
                 }
@@ -114,7 +124,7 @@ struct SecondMenuBarView: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(textSecondary)
             }
             .buttonStyle(.plain)
             .help("Settings")
@@ -122,7 +132,7 @@ struct SecondMenuBarView: View {
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(textSecondary)
             }
             .buttonStyle(.plain)
             .help("Close (Esc)")
@@ -172,9 +182,9 @@ struct SecondMenuBarView: View {
                     .font(.system(size: 10, weight: .semibold))
                 Text("\(apps.count)")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.4))
+                    .foregroundStyle(textMuted)
             }
-            .foregroundStyle(.primary.opacity(0.7))
+            .foregroundStyle(textPrimary)
             .padding(.leading, 2)
 
             ScrollView(.horizontal, showsIndicators: true) {
@@ -183,9 +193,9 @@ struct SecondMenuBarView: View {
                         makeTile(for: app, zone: zone)
                     }
                     if apps.isEmpty {
-                        Text("Drop here")
+                        Text("Drop to \(label)")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.primary.opacity(0.55))
+                            .foregroundStyle(textSecondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)
                             .background(
@@ -201,7 +211,7 @@ struct SecondMenuBarView: View {
             if apps.count > 14 {
                 Text("Scroll sideways to see all icons")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(textMuted)
                     .padding(.leading, 2)
             }
         }
@@ -414,14 +424,14 @@ struct SecondMenuBarView: View {
                     .controlSize(.small)
                 Text("Scanning...")
                     .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .foregroundStyle(textSecondary)
             } else {
                 Image(systemName: "menubar.rectangle")
                     .font(.system(size: 18))
-                    .foregroundStyle(.primary.opacity(0.3))
+                    .foregroundStyle(textMuted)
                 Text("No icons found")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.6))
+                    .foregroundStyle(textSecondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -438,17 +448,18 @@ struct SecondMenuBarView: View {
                 .foregroundStyle(.orange)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Accessibility Needed")
+                Text("Grant Access")
                     .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(textPrimary)
                 Text("Required to detect icons")
                     .font(.system(size: 11))
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(textSecondary)
             }
 
             Spacer()
 
             Button("Grant") {
-                _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
+                _ = AccessibilityService.shared.openAccessibilitySettings()
             }
             .controlSize(.small)
             .buttonStyle(.borderedProminent)
@@ -494,10 +505,9 @@ enum SecondMenuBarLayout {
         hiddenCount: Int,
         alwaysHiddenCount: Int
     ) -> Bool {
-        if includeVisibleIcons {
-            return true
-        }
-        return hiddenCount > 0 || alwaysHiddenCount > 0
+        _ = hiddenCount
+        _ = alwaysHiddenCount
+        return includeVisibleIcons
     }
 }
 
@@ -575,12 +585,12 @@ private struct PanelIconTile: View {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white.opacity(icon.isTemplate ? 0.95 : 1.0))
                 .aspectRatio(contentMode: .fit)
         } else {
             Image(systemName: "app.fill")
                 .resizable()
-                .foregroundStyle(.primary.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.9))
                 .aspectRatio(contentMode: .fit)
         }
     }

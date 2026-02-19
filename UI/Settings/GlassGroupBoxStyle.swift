@@ -7,7 +7,7 @@ struct GlassGroupBoxStyle: GroupBoxStyle {
         VStack(alignment: .leading, spacing: 12) {
             configuration.label
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
 
             configuration.content
         }

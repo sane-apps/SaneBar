@@ -34,7 +34,7 @@ struct ExperimentalSettingsView: View {
             }
 
             Text("These features are newer and may not work perfectly on every setup. If something doesn't work right, let us know — it helps a lot.")
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
 
             // Buttons inline
             HStack {
@@ -47,7 +47,7 @@ struct ExperimentalSettingsView: View {
                 .tint(.orange)
 
                 Text("·")
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.92))
 
                 Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
                     Label("View Issues", systemImage: "arrow.up.right.square")

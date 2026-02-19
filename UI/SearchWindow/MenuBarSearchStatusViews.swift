@@ -36,8 +36,8 @@ struct MenuBarSearchAccessibilityPrompt: View {
             .font(.callout)
 
             HStack(spacing: 12) {
-                Button("Grant Accessibility") {
-                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
+                Button("Open Accessibility Settings") {
+                    _ = AccessibilityService.shared.openAccessibilitySettings()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.teal)
@@ -84,11 +84,11 @@ struct MenuBarSearchEmptyState: View {
 
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
 
             Text(subtitle)
                 .font(.callout)
-                .foregroundStyle(.primary.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
         }
         .padding()
@@ -103,11 +103,11 @@ struct MenuBarSearchNoMatchState: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundStyle(.primary.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.9))
 
             Text("No matches for \"\(searchText)\"")
                 .font(.headline)
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

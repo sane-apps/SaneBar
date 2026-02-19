@@ -56,7 +56,7 @@ struct MenuBarAppTile: View {
                 if showName {
                     Text(app.name)
                         .font(.system(size: max(9, iconSize * 0.18)))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(width: tileSize - 4)
@@ -130,13 +130,13 @@ struct MenuBarAppTile: View {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)
-                .foregroundStyle(.primary.opacity(icon.isTemplate ? 0.6 : 1.0))
+                .foregroundStyle(.white.opacity(icon.isTemplate ? 0.6 : 1.0))
                 .aspectRatio(contentMode: .fit)
                 .frame(width: iconSize * 0.7, height: iconSize * 0.7)
         } else {
             Image(systemName: "app.fill")
                 .resizable()
-                .foregroundStyle(.primary.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.9))
                 .aspectRatio(contentMode: .fit)
                 .frame(width: iconSize * 0.7, height: iconSize * 0.7)
         }

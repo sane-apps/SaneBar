@@ -14,7 +14,7 @@ struct CompactSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {

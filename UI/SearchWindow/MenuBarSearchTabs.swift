@@ -12,7 +12,7 @@ struct SmartGroupTab: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: isSelected ? .medium : .regular))
-                .foregroundStyle(.primary.opacity(isSelected ? 1.0 : 0.7))
+                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
@@ -35,7 +35,7 @@ struct GroupTabButton: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: isSelected ? .medium : .regular))
-                .foregroundStyle(.primary.opacity(isSelected ? 1.0 : 0.7))
+                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(

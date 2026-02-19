@@ -244,6 +244,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.delegate = self
         panel.hasShadow = true
         panel.isMovableByWindowBackground = true
+        panel.hidesOnDeactivate = false
         panel.animationBehavior = .utilityWindow
         panel.minSize = NSSize(width: 180, height: 80)
         panel.maxSize = NSSize(width: 800, height: 500)

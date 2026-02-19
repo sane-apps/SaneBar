@@ -24,16 +24,6 @@ func safeAXValue(_ ref: CFTypeRef) -> AXValue? {
     return unsafeDowncast(ref as AnyObject, to: AXValue.self)
 }
 
-// MARK: - Accessibility Prompt Helper
-
-/// Request accessibility with system prompt
-/// Uses the string key directly to avoid concurrency issues with kAXTrustedCheckOptionPrompt
-private nonisolated func requestAccessibilityWithPrompt() -> Bool {
-    // "AXTrustedCheckOptionPrompt" is the string value of kAXTrustedCheckOptionPrompt
-    let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-    return AXIsProcessTrustedWithOptions(options)
-}
-
 // MARK: - Permission Change Notification
 
 private extension Notification.Name {
@@ -216,13 +206,13 @@ final class AccessibilityService: ObservableObject {
         AXIsProcessTrusted()
     }
 
-    /// Request accessibility permission - shows system prompt if not trusted
-    /// Returns true if already trusted, false if user needs to grant permission
+    /// Check accessibility permission state without showing a system prompt.
+    /// Returns true if already trusted, false if user needs to grant permission in System Settings.
     @discardableResult
     func requestAccessibility() -> Bool {
-        let trusted = requestAccessibilityWithPrompt()
+        let trusted = AXIsProcessTrusted()
         if !trusted {
-            logger.info("Accessibility not trusted - system prompt shown")
+            logger.info("Accessibility not trusted")
         } else {
             // Update our cached state if already granted
             if !isGranted {
@@ -235,12 +225,9 @@ final class AccessibilityService: ObservableObject {
         return trusted
     }
 
-    /// Prompt for accessibility (if needed) and open the Accessibility pane in System Settings.
+    /// Open the Accessibility pane in System Settings.
     @discardableResult
-    func openAccessibilitySettings(promptIfNeeded: Bool = true) -> Bool {
-        if promptIfNeeded {
-            _ = requestAccessibility()
-        }
+    func openAccessibilitySettings() -> Bool {
         guard let url = URL(string: Self.accessibilitySettingsURLString) else { return false }
         return NSWorkspace.shared.open(url)
     }

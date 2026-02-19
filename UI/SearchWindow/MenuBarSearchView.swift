@@ -459,7 +459,7 @@ struct MenuBarSearchView: View {
         let selected = mode == segmentMode
         return Text(segmentMode.title)
             .font(.system(size: 12, weight: selected ? .semibold : .medium))
-            .foregroundStyle(selected ? .white : .primary.opacity(0.8))
+            .foregroundStyle(selected ? .white : .white.opacity(0.92))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
@@ -547,7 +547,7 @@ struct MenuBarSearchView: View {
                 } label: {
                     Label("Custom", systemImage: "plus")
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.92))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(
@@ -657,8 +657,12 @@ struct MenuBarSearchView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.primary.opacity(0.6))
-            TextField("Filter by name…", text: $searchText)
+                .foregroundStyle(.white.opacity(0.9))
+            TextField(
+                "Filter by name…",
+                text: $searchText,
+                prompt: Text("Filter by name…").foregroundStyle(.white.opacity(0.9))
+            )
                 .textFieldStyle(.plain)
                 .font(.body)
                 .focused($isSearchFieldFocused)
@@ -668,7 +672,7 @@ struct MenuBarSearchView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.primary.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .buttonStyle(.plain)
             }
@@ -689,7 +693,7 @@ struct MenuBarSearchView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                         Text("Scanning menu bar icons…")
-                            .foregroundStyle(.primary.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.92))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -718,11 +722,11 @@ struct MenuBarSearchView: View {
             }
 
             Text("\(filteredApps.count) \(label)")
-                .foregroundStyle(.primary.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.9))
 
             Spacer()
-            Text("Right-click an icon for hotkeys")
-                .foregroundStyle(.primary.opacity(0.5))
+            Text("Right-click an icon for actions")
+                .foregroundStyle(.white.opacity(0.9))
         }
         .font(.system(size: 13))
         .padding(.horizontal, 12)
@@ -762,8 +766,8 @@ struct MenuBarSearchView: View {
             .font(.callout)
 
             HStack(spacing: 12) {
-                Button("Grant Accessibility") {
-                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
+                Button("Open Accessibility Settings") {
+                    _ = AccessibilityService.shared.openAccessibilitySettings()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.teal)
@@ -788,11 +792,11 @@ struct MenuBarSearchView: View {
 
             Text(emptyStateTitle)
                 .font(.headline)
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
 
             Text(emptyStateSubtitle)
                 .font(.callout)
-                .foregroundStyle(.primary.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
         }
         .padding()
@@ -825,11 +829,11 @@ struct MenuBarSearchView: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundStyle(.primary.opacity(0.4))
+                .foregroundStyle(.white.opacity(0.9))
 
             Text("No matches for \(searchText)")
                 .font(.headline)
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

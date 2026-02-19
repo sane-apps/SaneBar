@@ -28,12 +28,12 @@ struct HotkeyAssignmentSheet: View {
                     Image(nsImage: icon)
                         .resizable()
                         .renderingMode(icon.isTemplate ? .template : .original)
-                        .foregroundStyle(.primary.opacity(icon.isTemplate ? 0.6 : 1.0))
+                        .foregroundStyle(.white.opacity(icon.isTemplate ? 0.6 : 1.0))
                         .frame(width: 28, height: 28)
                 } else {
                     Image(systemName: "app.fill")
                         .frame(width: 28, height: 28)
-                        .foregroundStyle(.primary.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
 
                 Text(app.name)
@@ -45,7 +45,7 @@ struct HotkeyAssignmentSheet: View {
 
             HStack(spacing: 8) {
                 Text("Hotkey:")
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.92))
 
                 KeyboardShortcuts.Recorder(for: IconHotkeysService.shortcutName(for: app.bundleId))
                     .onChange(of: KeyboardShortcuts.getShortcut(for: IconHotkeysService.shortcutName(for: app.bundleId))) { _, newShortcut in

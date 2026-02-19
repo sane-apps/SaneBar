@@ -26,7 +26,7 @@ struct FeedbackView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.primary.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.9))
                         .font(.title2)
                 }
                 .buttonStyle(.plain)
@@ -41,7 +41,7 @@ struct FeedbackView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("What happened?")
                             .font(.subheadline)
-                            .foregroundStyle(.primary.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.92))
                         TextEditor(text: $issueDescription)
                             .font(.body)
                             .frame(minHeight: 120)
@@ -58,7 +58,7 @@ struct FeedbackView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("We'll automatically attach:")
                             .font(.subheadline)
-                            .foregroundStyle(.primary.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.92))
 
                         VStack(alignment: .leading, spacing: 4) {
                             Label("App version & macOS version", systemImage: "info.circle")
@@ -68,7 +68,7 @@ struct FeedbackView: View {
                             Label("Menu bar state snapshot (separator positions & counts)", systemImage: "menubar.rectangle")
                         }
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.92))
                     }
                     .padding()
                     .background(Color.primary.opacity(0.1))
@@ -80,7 +80,7 @@ struct FeedbackView: View {
                             .foregroundStyle(.green)
                         Text("Opens in your browser. Nothing is sent without your approval.")
                             .font(.system(size: 13))
-                            .foregroundStyle(.primary.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.92))
                     }
                 }
                 .padding()
