@@ -80,8 +80,8 @@ final class SecondMenuBarDropXCTests: XCTestCase {
         )
     }
 
-    func testVisibleZoneShownAsDropTargetWhenSettingDisabledButHiddenItemsExist() {
-        XCTAssertTrue(
+    func testVisibleZoneHiddenWhenSettingDisabledEvenIfHiddenItemsExist() {
+        XCTAssertFalse(
             SecondMenuBarLayout.shouldShowVisibleZone(
                 includeVisibleIcons: false,
                 hiddenCount: 2,
@@ -90,8 +90,8 @@ final class SecondMenuBarDropXCTests: XCTestCase {
         )
     }
 
-    func testVisibleZoneShownAsDropTargetWhenSettingDisabledButAlwaysHiddenItemsExist() {
-        XCTAssertTrue(
+    func testVisibleZoneHiddenWhenSettingDisabledEvenIfAlwaysHiddenItemsExist() {
+        XCTAssertFalse(
             SecondMenuBarLayout.shouldShowVisibleZone(
                 includeVisibleIcons: false,
                 hiddenCount: 0,

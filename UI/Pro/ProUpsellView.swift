@@ -22,7 +22,7 @@ struct ProUpsellView: View {
                 Button { closeView() } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(.primary.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .buttonStyle(.plain)
                 .help("Close")
@@ -36,13 +36,13 @@ struct ProUpsellView: View {
 
                 Text(feature.rawValue)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(feature.description)
                     .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.92))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -67,7 +67,7 @@ struct ProUpsellView: View {
 
                 Text("One-time purchase")
                     .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.92))
 
                 Button {
                     NSWorkspace.shared.open(LicenseService.checkoutURL)
@@ -110,7 +110,7 @@ struct ProUpsellView: View {
                 .frame(width: 20)
             Text(text)
                 .font(.system(size: 13))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -192,11 +192,11 @@ struct LicenseEntryView: View {
                     .foregroundStyle(.green)
                 Text("Pro Activated!")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 if let email = licenseService.licenseEmail {
                     Text(email)
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.92))
                 }
             } else {
                 HStack {
@@ -204,7 +204,7 @@ struct LicenseEntryView: View {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(.primary.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.9))
                     }
                     .buttonStyle(.plain)
                     .help("Close")
@@ -212,11 +212,11 @@ struct LicenseEntryView: View {
 
                 Text("Enter License Key")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
 
                 Text("Paste the license key from your purchase confirmation email.")
                     .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.92))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 

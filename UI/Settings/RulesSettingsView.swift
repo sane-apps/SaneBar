@@ -157,9 +157,9 @@ struct RulesSettingsView: View {
                             }
                             Text(menuBarManager.settings.gestureMode == .showOnly
                                 ? "Gestures reveal hidden icons"
-                                : "Click toggles, scroll up shows, scroll down hides")
+                                : "Scroll up shows icons, scroll down hides icons")
                                 .font(.system(size: 13))
-                                .foregroundStyle(.primary.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.92))
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 4)
                         } else {
@@ -188,7 +188,7 @@ struct RulesSettingsView: View {
                             HStack(spacing: 8) {
                                 Text("Threshold:")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                                 Slider(
                                     value: Binding(
                                         get: { Double(menuBarManager.settings.batteryThreshold) },
@@ -214,7 +214,7 @@ struct RulesSettingsView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("If these apps open:")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                                     .padding(.leading, 4)
 
                                 AppPickerView(
@@ -243,7 +243,7 @@ struct RulesSettingsView: View {
                                             }
                                             .buttonStyle(.plain)
                                             .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(isSelected ? .white : .primary.opacity(0.7))
+                                            .foregroundStyle(isSelected ? .white : .white.opacity(0.92))
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 4)
                                             .background(
@@ -274,7 +274,7 @@ struct RulesSettingsView: View {
 
                                 Text("Set the same start/end time for all-day schedule.")
                                     .font(.system(size: 12))
-                                    .foregroundStyle(.primary.opacity(0.65))
+                                    .foregroundStyle(.white.opacity(0.9))
                                     .padding(.leading, 4)
                             }
                             .padding(.vertical, 8)
@@ -312,7 +312,7 @@ struct RulesSettingsView: View {
                                             menuBarManager.settings.triggerNetworks.removeAll { $0 == network }
                                         } label: {
                                             Image(systemName: "xmark")
-                                                .foregroundStyle(.primary.opacity(0.6))
+                                                .foregroundStyle(.white.opacity(0.9))
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -364,14 +364,14 @@ struct RulesSettingsView: View {
                                 ForEach(menuBarManager.settings.triggerFocusModes, id: \.self) { mode in
                                     HStack {
                                         Image(systemName: mode == "(Focus Off)" ? "moon" : "moon.fill")
-                                            .foregroundStyle(.primary.opacity(0.6))
+                                            .foregroundStyle(.white.opacity(0.9))
                                         Text(mode)
                                         Spacer()
                                         Button {
                                             menuBarManager.settings.triggerFocusModes.removeAll { $0 == mode }
                                         } label: {
                                             Image(systemName: "xmark")
-                                                .foregroundStyle(.primary.opacity(0.6))
+                                                .foregroundStyle(.white.opacity(0.9))
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -383,7 +383,7 @@ struct RulesSettingsView: View {
                                 if menuBarManager.settings.triggerFocusModes.isEmpty {
                                     Text("No Focus Modes configured. Enable a Focus Mode in System Settings to add it here.")
                                         .font(.system(size: 13))
-                                        .foregroundStyle(.primary.opacity(0.7))
+                                        .foregroundStyle(.white.opacity(0.92))
                                 }
                             }
                             .padding(.vertical, 8)
@@ -394,7 +394,7 @@ struct RulesSettingsView: View {
 
                         // Script Trigger
                         CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
-                            .help("Run a script on a timer — exit 0 shows icons, non-zero hides")
+                            .help("Run a script every few seconds. Exit 0 shows icons; any other exit code hides them.")
 
                         if menuBarManager.settings.scriptTriggerEnabled {
                             ScriptTriggerSettingsView()
@@ -520,7 +520,7 @@ private struct ScriptTriggerSettingsView: View {
 
             Text("Exit code 0 = show hidden icons, non-zero = hide.")
                 .font(.system(size: 13))
-                .foregroundStyle(.primary.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.92))
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 4)

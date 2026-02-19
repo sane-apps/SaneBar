@@ -473,12 +473,12 @@ private struct PermissionPage: View {
                 .padding(.top, 8)
             } else {
                 Button {
-                    _ = accessibilityService.openAccessibilitySettings(promptIfNeeded: true)
+                    _ = accessibilityService.openAccessibilitySettings()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.open.fill")
                             .font(.system(size: 14))
-                        Text("Grant Accessibility")
+                        Text("Open Accessibility Settings")
                             .font(.system(size: 15, weight: .semibold))
                     }
                 }
@@ -537,7 +537,7 @@ private struct FreeVsProPage: View {
 
         Text("Thank you for being an early adopter.\nYou have lifetime Pro access — on me.")
             .font(.system(size: 15))
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.white.opacity(0.92))
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
 
@@ -598,7 +598,7 @@ private struct FreeVsProPage: View {
 
         Text("All features unlocked.\nI couldn't do this without you.")
             .font(.system(size: 15))
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.white.opacity(0.92))
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
 

@@ -120,7 +120,7 @@ struct GeneralSettingsView: View {
                             CompactRow("Licensed to") {
                                 Text(email)
                                     .font(.system(size: 13))
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                             }
                         }
                         CompactDivider()
@@ -136,7 +136,7 @@ struct GeneralSettingsView: View {
                             HStack(spacing: 6) {
                                 Text("Free")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                             }
                         }
                         CompactDivider()
@@ -171,7 +171,7 @@ struct GeneralSettingsView: View {
 
                 // 3. Browse Icons
                 CompactSection("Browse Icons") {
-                    CompactRow("Opens as") {
+                    CompactRow("Browse Icons view") {
                         Picker("", selection: Binding(
                             get: { menuBarManager.settings.useSecondMenuBar },
                             set: { newValue in
@@ -185,14 +185,14 @@ struct GeneralSettingsView: View {
                         .pickerStyle(.segmented)
                         .frame(width: 240)
                     }
-                    .help("Icon Panel: Search, hotkeys, and icon management. Second Menu Bar: A bar below the menu bar showing your hidden icons.")
+                    .help("Choose how Browse Icons opens. Icon Panel is the full window with search and actions. Second Menu Bar is a compact strip under the menu bar.")
                     if menuBarManager.settings.useSecondMenuBar {
                         CompactDivider()
                         CompactToggle(
                             label: "Include visible icons",
                             isOn: $menuBarManager.settings.secondMenuBarShowVisible
                         )
-                        .help("Show visible (non-hidden) icons in the Second Menu Bar for organizing. Off by default since visible icons are already in the menu bar.")
+                        .help("Show visible (non-hidden) icons in the Second Menu Bar. When off, the Visible row is hidden.")
                     }
                     CompactDivider()
                     if licenseService.isPro {
@@ -200,7 +200,7 @@ struct GeneralSettingsView: View {
                             label: "Always-hidden section",
                             isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
                         )
-                        .help("Adds a second separator — icons between the two separators stay hidden even when you reveal the rest.")
+                        .help("Adds a second separator. Icons between separators stay hidden even when you reveal the rest. Turning this off hides the section only; assignments are preserved and behave as Hidden until re-enabled.")
                     } else {
                         proGatedRow(feature: .alwaysHidden, label: "Always-hidden section")
                     }
@@ -209,7 +209,7 @@ struct GeneralSettingsView: View {
                         label: "Left-click opens Browse Icons",
                         isOn: $menuBarManager.settings.leftClickOpensBrowseIcons
                     )
-                    .help("When enabled, left-clicking the SaneBar icon opens Browse Icons instead of expanding hidden icons in the main menu bar. You can still expand via the keyboard shortcut.")
+                    .help("When on, left-click opens Browse Icons instead of expanding hidden icons in the main menu bar.")
                     CompactDivider()
                     CompactRow("Shortcut") {
                         KeyboardShortcuts.Recorder(for: .searchMenuBar)
@@ -245,7 +245,7 @@ struct GeneralSettingsView: View {
                         if savedProfiles.isEmpty {
                             CompactRow("Saved") {
                                 Text("No saved profiles")
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                             }
                         } else {
                             ForEach(savedProfiles) { profile in
@@ -253,7 +253,7 @@ struct GeneralSettingsView: View {
                                     HStack {
                                         Text(profile.modifiedAt.formatted(date: .abbreviated, time: .shortened))
                                             .font(.system(size: 13))
-                                            .foregroundStyle(.primary.opacity(0.7))
+                                            .foregroundStyle(.white.opacity(0.92))
 
                                         Button("Load") { loadProfile(profile) }
                                             .buttonStyle(.bordered)
@@ -263,7 +263,7 @@ struct GeneralSettingsView: View {
                                             deleteProfile(profile)
                                         } label: {
                                             Image(systemName: "trash")
-                                                .foregroundStyle(.primary.opacity(0.6))
+                                                .foregroundStyle(.white.opacity(0.9))
                                         }
                                         .buttonStyle(.plain)
                                     }

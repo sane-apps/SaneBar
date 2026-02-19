@@ -14,7 +14,7 @@ struct AccessibilityPermissionView: View {
 
                 Text(accessibilityService.isGranted ? "Accessibility Access Granted" : "Accessibility Access Required")
                     .font(.headline)
-                    .foregroundStyle(.primary.opacity(accessibilityService.isGranted ? 1.0 : 0.7))
+                    .foregroundStyle(.white.opacity(accessibilityService.isGranted ? 1.0 : 0.92))
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 16)
@@ -50,13 +50,13 @@ struct AccessibilityPermissionView: View {
                                 .font(.subheadline)
                         }
                     }
-                    .foregroundStyle(.primary.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
                     .padding(.horizontal)
 
                     Button {
                         openAccessibilitySettings()
                     } label: {
-                        Label("Grant Accessibility", systemImage: "lock.open.fill")
+                        Label("Open Accessibility Settings", systemImage: "lock.open.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -64,7 +64,7 @@ struct AccessibilityPermissionView: View {
 
                     Text("Toggle SaneBar on in the list that appears")
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             } else {
@@ -87,7 +87,7 @@ struct AccessibilityPermissionView: View {
     }
 
     private func openAccessibilitySettings() {
-        _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
+        _ = AccessibilityService.shared.openAccessibilitySettings()
     }
 }
 

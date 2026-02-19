@@ -273,7 +273,7 @@ struct AppearanceSettingsView: View {
                                     .foregroundStyle(.orange)
                                 Text("Log out to verify changes.")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(.primary.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.92))
                                 Spacer()
                             }
                             .padding(.vertical, 4)

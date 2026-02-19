@@ -107,15 +107,15 @@ struct OnboardingTipView: View {
             if permissionRequested || hasAccessibility {
                 Text("SaneBar is ready to use! If \"Browse Icons\" doesn't work, check that SaneBar is enabled in **System Settings → Privacy → Accessibility**.")
                     .font(.callout)
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.92))
             } else {
                 Text("For **Browse Icons** to work, SaneBar needs Accessibility permission.")
                     .font(.callout)
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.92))
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
-                    _ = AccessibilityService.shared.openAccessibilitySettings(promptIfNeeded: true)
+                    _ = AccessibilityService.shared.openAccessibilitySettings()
                     permissionRequested = true
                 } label: {
                     Label("Open System Settings", systemImage: "gear")
@@ -125,7 +125,7 @@ struct OnboardingTipView: View {
 
                 Text("Toggle **SaneBar** ON in the list, then come back here.")
                     .font(.system(size: 13))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.9))
             }
 
             Divider()
@@ -157,7 +157,7 @@ struct OnboardingTipView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
                 .frame(width: 20)
-                .foregroundStyle(.primary.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.9))
             Text(LocalizedStringKey(text))
         }
     }
