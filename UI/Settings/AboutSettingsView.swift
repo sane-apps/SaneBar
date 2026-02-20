@@ -105,7 +105,7 @@ struct AboutSettingsView: View {
     private var licensesSheet: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Open Source Licenses")
+                Text("Third-Party Licenses")
                     .font(.headline)
                 Spacer()
                 Button("Done") {

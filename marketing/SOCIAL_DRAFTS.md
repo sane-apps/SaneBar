@@ -44,7 +44,7 @@ If you're frustrated with Ice crashing on macOS Tahoe...
 I built SaneBar because I had the same problem.
 
 • Actually works on 26.x
-• Open source
+• 100% Transparent Code
 • $6.99 one-time (or free to build)
 
 https://sanebar.com
@@ -68,24 +68,24 @@ Verify yourself:
 
 $6.99 or build from source: https://sanebar.com
 
-#macOS #privacy #indiedev #opensource
+#macOS #privacy #indiedev #transparentcode
 ```
 **Status:** Ready to post
 
-### Draft 2: Open Source Angle
+### Draft 2: Transparent Code Angle
 ```
-Made my menu bar manager open source because Bartender got acquired and added telemetry.
+Published the full source code for my menu bar manager because Bartender got acquired and added telemetry.
 
 SaneBar:
 - Touch ID to reveal hidden icons
 - Zero network calls
 - Works on macOS Tahoe
-- MIT license
+- PolyForm Shield 1.0.0 license
 
 GitHub: https://github.com/sane-apps/SaneBar
 Website: https://sanebar.com
 
-#FOSS #macOS #indiedev
+#macOS #indiedev #transparentcode
 ```
 **Status:** Ready to post (day 2)
 
@@ -99,7 +99,7 @@ Website: https://sanebar.com
 ```
 Had the same issue. Ended up building my own: sanebar.com
 
-Works on Tahoe, open source, $6.99 or build yourself.
+Works on Tahoe, 100% Transparent Code, $6.99 or build yourself.
 ```
 
 ### Respond to Bartender concerns
@@ -120,7 +120,7 @@ sanebar.com if you want to try it.
 | Day 1 | Twitter | PH Launch announcement |
 | Day 1 | Mastodon | Privacy focus post |
 | Day 2 | Twitter | Privacy angle |
-| Day 2 | Mastodon | Open source angle |
+| Day 2 | Mastodon | Transparent code angle |
 | Day 3 | Twitter | Competitor pain point |
 
 ---

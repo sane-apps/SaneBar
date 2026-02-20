@@ -54,7 +54,7 @@ Quick facts:
 - Hides/shows menu bar icons with a click or keyboard shortcut
 - 100% on-device, no analytics, no cloud
 - Works on macOS Tahoe (15.0+) while competitors break
-- $6.99 one-time purchase (open source on GitHub)
+- $6.99 one-time purchase (100% Transparent Code on GitHub)
 
 SaneBar emerged as a privacy-focused alternative after the Bartender
 acquisition raised trust concerns in 2024. Would love to share more
@@ -109,7 +109,7 @@ and I didn't trust the new owners with my menu bar data.
 
 SaneBar is:
 - 100% on-device (no analytics, no cloud)
-- Open source on GitHub
+- 100% Transparent Code on GitHub
 - Works on macOS Tahoe while others break
 
 Looking for feedback on the UX — especially the "Find Icon" search
@@ -174,7 +174,7 @@ The **Bartender acquisition controversy (2024)** created an opening:
 
 **Position SaneBar as**:
 - The trustworthy alternative
-- 100% on-device, open source
+- 100% on-device, 100% Transparent Code
 - No sketchy ownership changes
 
 ---
@@ -255,7 +255,7 @@ The **Bartender acquisition controversy (2024)** created an opening:
 | Directory | URL | Notes |
 |-----------|-----|-------|
 | **Indie App Catalog** | indiecatalog.app/submit-app | 2,000+ indie apps, Apple-focused |
-| **OpenAlternative** | openalternative.co | Open source alternatives directory |
+| **OpenAlternative** | openalternative.co | Transparent code alternatives directory |
 | **Setapp consideration** | setapp.com | Could apply for inclusion (revenue share model) |
 
 ### Podcasts to Pitch

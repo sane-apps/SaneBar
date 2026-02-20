@@ -7,7 +7,7 @@ Ready-to-send pitches. Copy, paste, send.
 ## 1. 9to5Mac Indie App Spotlight
 
 **To:** michaelb@9to5mac.com
-**Subject:** SaneBar - Privacy-first menu bar manager (open source, macOS 15+)
+**Subject:** SaneBar - Privacy-first menu bar manager (100% Transparent Code, macOS 15+)
 
 Hi Michael,
 
@@ -17,14 +17,14 @@ I built SaneBar after the Bartender acquisition raised trust concerns in 2024. I
 - 100% on-device — zero network requests, no analytics, no account
 - Secure Reveal — lock hidden icons behind Touch ID/password (first menu bar app to do this)
 - Find Hidden Icon — search and click any menu bar app, even ones hidden behind the Notch
-- Open source on GitHub, MIT licensed
+- 100% Transparent Code on GitHub, PolyForm Shield 1.0.0 licensed
 
 It's free, works on macOS 15 Sequoia and the upcoming Tahoe with Liquid Glass support, and was built pair-programming with Claude AI.
 
 **Links:**
 - Website: https://sanebar.com
-- GitHub: https://github.com/sane-apps/SaneBar (open source, build from source free)
-- Purchase: $6.99 at sanebar.com (notarized DMG)
+- GitHub: https://github.com/sane-apps/SaneBar (100% Transparent Code, build from source free)
+- Purchase: $6.99 at sanebar.com (notarized download)
 
 Happy to provide screenshots, promo codes, or answer any questions.
 
@@ -40,7 +40,7 @@ Stephan
 **Website:** https://sanebar.com/
 
 **Description:**
-SaneBar is a free, open-source menu bar manager for macOS that hides clutter and keeps everything accessible. Unlike other menu bar apps, SaneBar makes zero network requests — your data never leaves your Mac.
+SaneBar is a free, 100% Transparent Code menu bar manager for macOS that hides clutter and keeps everything accessible. Unlike other menu bar apps, SaneBar makes zero network requests — your data never leaves your Mac.
 
 Key features:
 - One-click hide/show with customizable hotkey
@@ -52,7 +52,7 @@ Key features:
 
 Built as a privacy-focused alternative after trust concerns around the Bartender acquisition.
 
-**Tags:** menu bar, menubar, privacy, utility, productivity, macos, open source, free
+**Tags:** menu bar, menubar, privacy, utility, productivity, macos, transparent code, free
 
 **Alternatives to:** Bartender, Hidden Bar, Ice, Vanilla, Dozer
 
@@ -65,7 +65,7 @@ Built as a privacy-focused alternative after trust concerns around the Bartender
 **Developer:** Mr. Sane
 **Website:** https://sanebar.com/
 **Download URL:** https://sanebar.com
-**License:** GPL v3 (Free, Open Source)
+**License:** PolyForm Shield 1.0.0 (Free for personal use)
 **OS:** macOS 15.0+ (Sequoia)
 
 **Description:**
@@ -89,11 +89,11 @@ Features:
 
 **App Name:** SaneBar
 **Platform:** macOS
-**Price:** Free (Open Source)
+**Price:** Free (100% Transparent Code)
 **App Store / Website:** https://sanebar.com/
 
 **Short Description:**
-Privacy-first menu bar manager. Hide clutter, lock icons behind Touch ID, find any app with Power Search. 100% on-device, open source.
+Privacy-first menu bar manager. Hide clutter, lock icons behind Touch ID, find any app with Power Search. 100% on-device, 100% Transparent Code.
 
 **Why it's special:**
 Built as a Bartender alternative after the 2024 acquisition raised privacy concerns. SaneBar makes zero network requests — everything stays on your Mac. First menu bar app with Secure Reveal (Touch ID/password protection) and Find Hidden Icon (search apps even behind the Notch).
@@ -110,7 +110,7 @@ I'm an indie developer who built SaneBar, a macOS menu bar manager, entirely thr
 
 **Potential topics:**
 - AI-assisted development: What actually works (and what doesn't) when coding with LLMs
-- Building trust through transparency: Why I went open source and zero-network
+- Building trust through transparency: Why I published the full source and went zero-network
 - The macOS indie scene: Competing with established apps on a $0 marketing budget
 - Technical deep-dive: Working with Apple's Accessibility APIs
 

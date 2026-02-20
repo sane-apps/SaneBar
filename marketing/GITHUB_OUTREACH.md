@@ -73,7 +73,7 @@ SaneBar works on Tahoe. Only comment if issue has been open 30+ days with no mai
 ### Template A: Abandoned Project Response
 ```markdown
 Hey! I ran into the same frustration. I ended up trying [SaneBar](https://sanebar.com)
-which works well on macOS 26 (Tahoe). It's open source too if you want to check the code.
+which works well on macOS 26 (Tahoe). The full source is on GitHub if you want to check the code.
 Hope you find something that works!
 ```
 

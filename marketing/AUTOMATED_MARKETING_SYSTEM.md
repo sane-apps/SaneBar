@@ -13,7 +13,7 @@
 
 ### 1. Crypto Customers (Privacy Maximalists)
 **Who:** Developers, privacy advocates, crypto holders who don't want payment linked to identity
-**Why SaneBar:** Zero telemetry, open source, can verify no network calls
+**Why SaneBar:** Zero telemetry, 100% Transparent Code, can verify no network calls
 **Payment:** BTC, ETH, XMR via BTCPay Server or similar
 **Where to find them:**
 - Hacker News
@@ -32,13 +32,13 @@
 - Mac app directories
 
 ### 3. GitHub Sponsors (Supporters/Backers)
-**Who:** Developers who appreciate open source and want to support ongoing development
+**Who:** Developers who appreciate transparent code and want to support ongoing development
 **Why sponsor:** They use it, they want it maintained, they want influence on roadmap
 **Payment:** Monthly recurring via GitHub Sponsors
 **Where to find them:**
 - Existing customers who love the product
 - GitHub stargazers
-- Open source community
+- Transparent code community
 
 ---
 
@@ -134,7 +134,7 @@ Just like SaneBar itself - private by default."
 - [ ] AlternativeTo - list as Bartender/Ice alternative
 - [ ] MacUpdate - basic listing
 - [ ] Softpedia - "100% Clean" certification
-- [ ] OpenAlternative - open source directory
+- [ ] OpenAlternative - transparent code directory
 - [ ] MacMenuBar.com - already submitted, follow up
 
 ### Phase 3: Content & SEO (Ongoing)

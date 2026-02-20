@@ -37,7 +37,7 @@ Hidden Bar is abandoned - doesn't work on macOS Tahoe at all.
 | Issue | Problem | SaneBar Advantage |
 |-------|---------|-------------------|
 | #336 | Can't open on macOS 26.1 | We support Tahoe |
-| #339 | Users asking to open source it | We're already open source |
+| #339 | Users asking to open source it | We're already 100% Transparent Code |
 | #338 | No autostart/launch at login | We have this |
 
 ### Key Quote
@@ -63,7 +63,7 @@ Before commenting on competitor issues:
 ```
 I had similar issues with [Ice/Hidden Bar] on Tahoe.
 
-Ended up switching to SaneBar (sanebar.com) - it's open source and works on 26.x.
+Ended up switching to SaneBar (sanebar.com) - the full source is on GitHub and it works on 26.x.
 The Touch ID lock feature is also nice if you have sensitive icons.
 
 No affiliation, just a happy user who got tired of the crashes.

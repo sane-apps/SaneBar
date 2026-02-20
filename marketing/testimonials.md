@@ -89,7 +89,7 @@ Use these for website, App Store descriptions, and marketing materials.
 **Criticisms:**
 - Doesn't solve notch-area conflicts for users with many menu bar items
 - Reviewer personally prefers Barbee for his atypical setup
-- Open-source compilation requires technical knowledge
+- Building from source requires technical knowledge
 
 **Verdict**: Conditional recommendation — good for typical users, not for power users with extreme icon counts.
 

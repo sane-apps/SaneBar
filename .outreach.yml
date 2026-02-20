@@ -91,7 +91,7 @@ influencer_outreach:
       date: "2026-01-26"
       reply: null
       template: "productivity"
-      subject: "A new open-source menu bar manager..."
+      subject: "A new 100% Transparent Code menu bar manager..."
       bullets_lead: "Smart Triggers"
 
     - name: "Francesco D'Alessio (Keep Productive)"
@@ -99,7 +99,7 @@ influencer_outreach:
       date: "2026-01-26"
       reply: null
       template: "productivity"
-      subject: "A new open-source menu bar manager..."
+      subject: "A new 100% Transparent Code menu bar manager..."
       hook: "I love that you focus on tools that...help maintain focus! I got one for you:"
 
     - name: "SpawnPoiint (Chris)"
@@ -120,7 +120,7 @@ influencer_outreach:
 customer_conversations:
   - name: "James Turnbull"
     email: "james@ltl.so"
-    thread: "Thanks for grabbing SaneBar"
+    thread: "Thanks for downloading SaneBar"
     status: "sent"
     date: "2026-01-26"
     notes: "Tech author (Docker Book, Terraform Book), ex-CTO Kickstarter, ex-VP Docker. Paying customer. Sent same-day thank-you. No ask — just welcome. Monitor for reply."
