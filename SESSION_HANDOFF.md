@@ -1,83 +1,94 @@
 # Session Handoff — SaneBar
 
-**Date:** 2026-02-19 (release + stabilization session)  
-**Last released version:** `v2.1.6` (build `2106`) — released on Feb 19, 2026  
-**Working tree:** clean (`main` == `origin/main`)
+**Date:** 2026-02-19 (script consolidation + docs audit)
+**Last released version:** `v2.1.7` (build `2107`)
+**Working tree:** pending commit (script cleanup + doc updates)
 
 ---
 
 ## Current State
 
-- Persistent corrupted-state recovery is fixed and shipped in `v2.1.6`.
-- Accessibility grant loop and second menu bar drag/drop regressions are fixed and shipped.
-- Release deployment is complete across all channels.
-- Open GitHub issues: **none** (all remaining issues were responded to and closed).
+- Script consolidation complete: ~75 scripts → ~32 active scripts.
+- Dead code removed: 41 stale SaneBar/scripts/sanemaster/ files + 4 superseded CI bash scripts.
+- Two bugs fixed in infra/scripts (mini-training-report.sh filename, mini-nightly.sh sync).
+- qa.rb rewritten to remove stale constants, refocused on actual project verification.
+- ARCHITECTURE.md updated with full Operations & Scripts Reference catalog.
+- DEVELOPMENT.md condensed and augmented with Release Process, Build Strategy, Testing sections.
 
 ---
 
-## What Shipped in v2.1.6
+## What Changed
 
-1. Fixed persistent hidden/corrupted status-item state after Cmd-drag removal by clearing app + ByHost visibility overrides at launch, including legacy lowercased ByHost keys.
-2. Fixed Accessibility grant loop by centralizing Grant behavior and forcing fresh permission re-check on retry.
-3. Fixed second-menu-bar drag/drop transition handling across Hidden/Visible/Always Hidden routes (including previously no-op paths).
-4. Added migration for legacy keychain-backed `requireAuthToShowHiddenIcons` into settings JSON, with tests.
-5. Expanded regression coverage for corrupted-state recovery, zone transitions, and auth-setting migration.
+### Deleted (Phase 1)
+- `SaneBar/scripts/sanemaster/` — 41 stale files (dead copy, all real modules in SaneProcess)
+- `SaneProcess/scripts/enable_tests_for_ci.sh` — replaced by `SaneMaster.rb enable_ci_tests`
+- `SaneProcess/scripts/restore_tests_after_ci.sh` — replaced by `SaneMaster.rb restore_ci_tests`
+- `SaneProcess/scripts/post_mock_generation.sh` — replaced by `SaneMaster.rb fix_mocks`
+- `SaneProcess/scripts/monitor_tests.sh` — replaced by `SaneMaster.rb monitor_tests`
+
+### Fixed (Phase 2)
+- `infra/scripts/mini-training-report.sh`: referenced `training_report.md` but file is `training_report_SaneAI.md`
+- `infra/scripts/mini-nightly.sh`: synced from source of truth (was missing Runner.app fix + SPM support)
+
+### Updated (Phases 3-4)
+- `scripts/qa.rb`: removed stale hooks/modules constants, refocused on syntax, delegation, versions, URLs
+- `ARCHITECTURE.md`: added Operations & Scripts Reference (~85 lines)
+- `DEVELOPMENT.md`: condensed Available Tools (97→~40 lines), added Release Process + Build Strategy
 
 ---
 
-## Release Verification (Independent)
+## Verification
 
-- Direct ZIP live: `https://dist.sanebar.com/updates/SaneBar-2.1.6.zip` (`200 OK`)
-- ZIP SHA-256 verified: `b82673ac260ef3c6e22896a6846ef66a134c2560d8e6f4e2205b7b49a80d8035`
-- Appcast live and updated: `https://sanebar.com/appcast.xml` (`2.1.6` top item, correct signature/version/build)
-- GitHub release live: `https://github.com/sane-apps/SaneBar/releases/tag/v2.1.6`
-- Homebrew tap updated: `sane-apps/homebrew-tap` cask now `2.1.6` with matching SHA
-- Checkout redirect verified: `https://go.saneapps.com/buy/sanebar` -> LemonSqueezy checkout (`200`)
-- Artifact trust checks passed on downloaded release app:
-  - `codesign --verify --deep --strict`
-  - `spctl -a -vv` accepted notarized app
-  - `stapler validate` passed
+- All .rb files pass `ruby -c` syntax check
+- All .sh files pass `bash -n` syntax check
+- All .py files pass `python3 -m py_compile`
+- `ruby scripts/qa.rb` passes (exit 0, warnings only for expected Swift import issues)
+- `./scripts/SaneMaster.rb help` lists all categories
+- `ruby scripts/SaneMaster_standalone.rb` works
+- `ruby scripts/button_map.rb`, `ruby scripts/trace_flow.rb`, `ruby scripts/marketing_screenshots.rb --list` all produce output
+- ARCHITECTURE.md: 430 lines (under 500 target)
+- DEVELOPMENT.md: 569 lines (under 600 target)
+- No CLAUDE.md references point to deleted files
 
 ---
 
 ## GitHub Issues Status
 
-- Closed in this release cycle:
-  - `#77` second bar drag/drop + responsiveness
-  - `#76` accessibility grant loop
-  - `#74` earlier duplicate/related second-bar report
-  - `#65` outreach/help-wanted tracker (closed as non-product release blocker)
-- Current open issue count: **0**
-
----
-
-## Tooling Notes
-
-- GitHub MCP bridge is hardened at `~/.codex/bin/github-mcp-bridge.mjs` with safer token and framing handling.
-- Bridge path works in direct protocol tests, but this current Codex thread still reports `Transport closed` for `mcp__github__*`; `gh` CLI remains the reliable fallback for live GitHub operations in-session.
+- Open issues: check with `gh issue list`
+- No new issues from this work
 
 ---
 
 ## Active Research / Follow-ups
 
-- Active `research.md` topics requiring immediate action: **none** for this release.
-- Recommended next follow-up: monitor support inbox + new issue creation for 24h post-release.
+- Serena memory `script-consolidation-audit-feb19` written with full details
+- License key SOP now referenced from ARCHITECTURE.md (was only in Serena memory before)
+- SETTINGS-INVENTORY.md has a stale backtick in a GitHub URL (pre-existing, cosmetic)
+
+---
+
+## Commits Pending (3 repos)
+
+1. **SaneBar**: delete scripts/sanemaster/, update qa.rb, ARCHITECTURE.md, DEVELOPMENT.md
+2. **SaneProcess**: delete 4 dead CI scripts
+3. **infra**: fix mini-training-report.sh, sync mini-nightly.sh
 
 ---
 
 ## Session Summary
 
 ### Done
-- Shipped `v2.1.6` with corrupted-state, accessibility, and second-bar fixes.
-- Verified all distribution channels and release notes quality.
-- Closed all remaining open GitHub issues after release verification.
+- Consolidated ~75 scripts to ~32 by removing 45 dead files across 2 repos
+- Fixed 2 bugs in infra/scripts (wrong filename, stale copy)
+- Rewrote qa.rb to match post-consolidation reality
+- Wrote comprehensive Operations & Scripts catalog in ARCHITECTURE.md
+- Condensed and improved DEVELOPMENT.md with release, build, and testing sections
 
 ### Docs
-- `SESSION_HANDOFF.md` refreshed to current release state and issue status.
-
-### SOP
-- 9/10 (all release gates passed; in-thread GitHub MCP transport remains stale despite bridge hardening and direct protocol success).
+- ARCHITECTURE.md: updated with full Operations & Scripts Reference
+- DEVELOPMENT.md: condensed + augmented
+- SESSION_HANDOFF.md: refreshed
 
 ### Next
-- Watch for regressions from real-world upgrades to `2.1.6`.
-- Restart Codex session before relying on `mcp__github__*` calls again.
+- Commit changes across 3 repos (SaneBar, SaneProcess, infra)
+- Deploy mini-nightly.sh to Mac Mini via `deploy.sh`

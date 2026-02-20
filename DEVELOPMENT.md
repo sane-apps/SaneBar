@@ -469,98 +469,82 @@ When blocked, follow the **Research Protocol** (section above). Start with `brea
 
 ## Available Tools
 
-### SaneMaster Commands
+Full script catalog with descriptions: see **ARCHITECTURE.md § Operations & Scripts Reference**.
+
+### Key Commands
 
 ```bash
 ./scripts/SaneMaster.rb verify          # Build + tests
 ./scripts/SaneMaster.rb verify --clean  # Full clean build
 ./scripts/SaneMaster.rb test_mode       # Kill → Build → Launch → Logs
-./scripts/SaneMaster.rb launch          # Launch app
 ./scripts/SaneMaster.rb logs --follow   # Stream live logs
-./scripts/SaneMaster.rb clean --nuclear # Deep clean (all caches)
 ./scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
-./scripts/SaneMaster.rb session_end     # End session with memory capture
+ruby scripts/qa.rb                      # Pre-release QA checks
 ```
 
 ### Tool Decision Matrix
 
-| Situation | Tool to Use | Why |
-|-----------|-------------|-----|
-| **Need API signature/existence** | `./scripts/SaneMaster.rb verify_api` | SDK is source of truth (Rule #2) |
-| **Need API usage examples** | `apple-docs` MCP | Rich examples, WWDC context |
-| **Need library docs (KeyboardShortcuts, etc.)** | `context7` MCP | Real-time docs from source |
-| **Build/test the project** | `./scripts/SaneMaster.rb verify` | Always use SaneMaster (Rule #5) |
-| **Generate mock classes** | `./scripts/SaneMaster.rb gen_mock` (Mockolo) | Fast protocol→mock generation |
-| **GitHub issues/PRs** | `github` MCP | Create issues, review PRs |
-| **Remember context across sessions** | `memory` MCP | Persistent knowledge graph |
+| Situation | Tool |
+|-----------|------|
+| Build/test | `./scripts/SaneMaster.rb verify` (Rule #5) |
+| Launch for testing | `sane_test.rb SaneBar` (prefers Mac Mini) |
+| API signature check | `./scripts/SaneMaster.rb verify_api` (Rule #2) |
+| API usage examples | `apple-docs` MCP |
+| Library docs | `context7` MCP |
+| Mock generation | `./scripts/SaneMaster.rb gen_mock` |
+| Pre-release QA | `ruby scripts/qa.rb` |
 
-### SaneLoop: SOP Enforcement Loop
+### Build Strategy
 
-**Purpose**: Forces Claude to complete ALL SOP requirements before claiming a task is done.
+```bash
+# Prefer Mac Mini for builds and testing (home network only)
+ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI" || echo "LOCAL"
 
-**How it works**:
-1. Run `/sane-loop` with a prompt containing SOP requirements
-2. Claude works on the task
-3. When Claude tries to exit, a Stop hook intercepts and feeds the prompt back
-4. Claude sees previous work and iterates until completion criteria are met
-5. Loop exits when `<promise>COMPLETE</promise>` appears or max iterations hit
+# Mac Mini (preferred)
+ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar
 
-**MANDATORY Rules** (learned from 700+ iteration failure on 2026-01-02):
+# Local fallback (only if Mini unreachable)
+ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
+```
 
-| Rule | Requirement | Why |
-|------|-------------|-----|
-| **Always set `--max-iterations`** | Use 10-20, NEVER 0 or omit | Prevents infinite loops |
-| **Always set `--completion-promise`** | Clear, verifiable text | Loop needs exit condition |
-| **Promise must be TRUE** | Only output when genuinely complete | Don't lie to escape loop |
+---
 
-✅ DO:
+## Release Process
+
+1. **Bump version** — update MARKETING_VERSION + CURRENT_PROJECT_VERSION in `project.yml`
+2. **Preflight** — `./scripts/SaneMaster.rb release_preflight` (9 safety checks)
+3. **Release** — `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project $(pwd) --full --version X.Y.Z --notes "..." --deploy`
+4. **Verify** — check appcast at `https://sanebar.com/appcast.xml`, confirm DMG on `dist.sanebar.com`
+5. **Monitor** — morning releases preferred, gives full day to watch for issues
+
+Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
+
+**Critical:** Same version number = Sparkle won't offer update. Always bump before building.
+
+---
+
+## Testing
+
+- Unit tests: `Tests/` directory, Swift Testing framework (`import Testing`, `@Test`, `#expect`)
+- E2E checklist: `docs/E2E_TESTING_CHECKLIST.md`
+- Button mapping: `ruby scripts/button_map.rb`
+- Flow tracing: `ruby scripts/trace_flow.rb <function>`
+- Notarization: `docs/NOTARIZATION.md`
+
+---
+
+## SaneLoop: SOP Enforcement Loop
+
+Forces Claude to complete ALL SOP requirements before claiming done.
+
+**MANDATORY rules** (learned from 700+ iteration failure):
+- Always set `--max-iterations` (10-20, NEVER 0)
+- Always set `--completion-promise` (clear, verifiable text)
+
 ```bash
 /sane-loop "Fix bug X" --completion-promise "BUG-FIXED" --max-iterations 15
-/sane-loop "Add feature Y" --completion-promise "FEATURE-COMPLETE" --max-iterations 20
+/cancel-sane   # Cancel active loop
 ```
-
-❌ DON'T:
-```bash
-/sane-loop "Fix bug X"  # NO! Missing both required flags
-/sane-loop "Fix bug X" --max-iterations 0  # NO! Unlimited = infinite loop
-```
-
-**Usage for bug fixes**:
-
-```bash
-/sane-loop "Fix: [describe bug]
-
-SOP Requirements (verify before completing):
-1. ./scripts/SaneMaster.rb verify passes
-2. killall -9 SaneBar && ./scripts/SaneMaster.rb launch
-3. ./scripts/SaneMaster.rb logs --follow (check for errors)
-4. Regression test added in Tests/
-5. GitHub issue updated/closed
-6. Self-rating 1-10 provided
-
-Output <promise>SOP-COMPLETE</promise> ONLY when ALL verified." --completion-promise "SOP-COMPLETE" --max-iterations 10
-```
-
-**Usage for features**:
-
-```bash
-/sane-loop "Implement: [describe feature]
-
-Requirements: [list requirements]
-
-SOP: verify passes, logs checked, self-rating provided.
-
-<promise>FEATURE-DONE</promise>" --completion-promise "FEATURE-DONE" --max-iterations 15
-```
-
-**Commands**:
-- `/sane-loop "<prompt>" --completion-promise "<text>" --max-iterations N` - Start loop
-- `/cancel-sane` - Cancel active loop
-
-**When to use**:
-- Complex bug fixes requiring multiple verification steps
-- Feature implementations with many requirements
-- Any task where Claude tends to skip SOP steps
 
 ---
 
