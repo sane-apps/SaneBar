@@ -325,7 +325,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Second Menu Bar** | Yes | Yes | Yes | No |
 | **Find Icon Search** | Yes | Yes | Yes | No |
 | **AppleScript** | Yes | Yes | No | No |
-| **Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
+| **100% Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
 | **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
 | **Pricing** | Basic (free) / Pro $6.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |

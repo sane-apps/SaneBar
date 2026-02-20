@@ -138,7 +138,7 @@ You'll see zero results unless you're actively checking for updates.
 
 ---
 
-## Transparent Code
+## 100% Transparent Code
 
 Every line of SaneBar's code is public and auditable:
 https://github.com/sane-apps/SaneBar
