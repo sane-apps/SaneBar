@@ -4,6 +4,23 @@
         <title>SaneBar Changelog</title>
         <item>
             <title>2.1.7</title>
+            <pubDate>Fri, 20 Feb 2026 16:50:28 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>Changes</h2>
+                <p>Update to version 2.1.7</p>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.7.zip"
+                       sparkle:version="2107"
+                       sparkle:shortVersionString="2.1.7"
+                       length="4444927"
+                       type="application/octet-stream"
+                       sparkle:edSignature="CA4odQhU9K+tcpRa2JMYNWsU/rXUJwULfqB7YCYEy71Erh+FcaVbJwIS+jaXQCKdZAPSmuy/PljuE+/Brnx+DA=="/>
+        </item>
+        <item>
+            <title>2.1.7</title>
             <pubDate>Thu, 19 Feb 2026 18:56:21 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
@@ -18,28 +35,6 @@
                        length="4443549"
                        type="application/octet-stream"
                        sparkle:edSignature="Y897vkBPNCNVV1YnLEjR4hzKe2rlxWWTwgEp5ZDKc2nvCXsqGaZ087XSOfeMltNBHa+9NEah/1bWQAvItIBYCg=="/>
-        </item>
-        <item>
-            <title>2.1.6</title>
-            <pubDate>Thu, 19 Feb 2026 14:17:23 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>Changes</h2>
-                <p>- Fixed a persistent corrupted-state bug where Cmd-dragging SaneBar out of the menu bar could keep it hidden across relaunches.
-- Added launch-time self-healing for both current and legacy ByHost visibility keys so previously affected installs recover automatically.
-- Fixed second-menu-bar drag/drop routing for Always Hidden and Hidden transitions (including previously no-op move paths).
-- Improved Accessibility grant flow in Browse Icons and onboarding by centralizing "Grant" behavior and forcing a fresh permission re-check on retry.
-- Preserved the "Require authentication to show hidden icons" setting for upgrade users by migrating legacy keychain-backed values into settings JSON.
-- Added regression coverage for corrupted visibility recovery, zone-transition exhaustiveness, and auth-setting migration.</p>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.6.zip"
-                       sparkle:version="2106"
-                       sparkle:shortVersionString="2.1.6"
-                       length="4445864"
-                       type="application/octet-stream"
-                       sparkle:edSignature="Ti2xe0PTZ02Uf+f3r0goWDR/+NHi+RFQ9RxYroBRO/wLgDtKt1wA2baqsgLzNXkcp7u6kdrISHIeqzCGOLijDw=="/>
         </item>
         <item>
             <title>2.1.5</title>
@@ -76,23 +71,6 @@
                        sparkle:edSignature="geLuq6vW5LS58U+NYZA8LPTAuVekybIo28VxbXtBSlKF7DRuT3ACT8GihWOlErG+u0Fl7zBpj+LA5Z7dDDAHAg=="/>
         </item>
         <item>
-            <title>2.1.3</title>
-            <pubDate>Tue, 17 Feb 2026 22:06:55 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>Changes</h2>
-                <p>Fixes machine-specific status item recovery after Cmd-drag removal, hardens icon movement coordinates and external monitor policy, and improves Second Menu Bar drag-and-drop between Hidden/Always Hidden/Visible.</p>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.3.zip"
-                       sparkle:version="2103"
-                       sparkle:shortVersionString="2.1.3"
-                       length="4435301"
-                       type="application/octet-stream"
-                       sparkle:edSignature="OI/BEvwO6NDBjAqQECaU1gO4J2ry7WKauMDK25SRhkGj51xlEtXVHp5Di5EGn5mrtHj0EyZ8uR7tioK+WP91Dg=="/>
-        </item>
-        <item>
             <title>2.1.2</title>
             <pubDate>Mon, 16 Feb 2026 14:16:14 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
@@ -126,7 +104,6 @@
                        type="application/octet-stream"
                        sparkle:edSignature="08Zuaic3GQlfafZezVSdgJICSJS+YVlr6GG9MJv8oCuVgCEKDQr+EhJQKFexVwNi1teka+RrTK2CKsGvgTSqAQ=="/>
         </item>
-        <!-- Only keep last 2 versions. Sparkle reads the latest item for updates.
-             Older entries were generating unnecessary download traffic from bots/crawlers. -->
+        <!-- Known-bad builds are removed from the feed so auto-update never offers them. -->
     </channel>
 </rss>
