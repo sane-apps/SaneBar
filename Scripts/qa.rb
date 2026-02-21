@@ -28,6 +28,9 @@ class ProjectQA
   README = File.join(PROJECT_ROOT, 'README.md')
   DEVELOPMENT_MD = File.join(PROJECT_ROOT, 'DEVELOPMENT.md')
   PROJECT_YML = File.join(PROJECT_ROOT, 'project.yml')
+  APPCAST_XML = File.join(PROJECT_ROOT, 'docs', 'appcast.xml')
+  STATUS_BAR_CONTROLLER_SWIFT = File.join(PROJECT_ROOT, 'Core', 'Controllers', 'StatusBarController.swift')
+  STATUS_BAR_CONTROLLER_TESTS = File.join(PROJECT_ROOT, 'Tests', 'StatusBarControllerTests.swift')
   SANEMASTER_CLI = File.join(__dir__, 'SaneMaster.rb')
   SANEMASTER_STANDALONE = File.join(__dir__, 'SaneMaster_standalone.rb')
   RULES_DIR = File.join(PROJECT_ROOT, '.claude', 'rules')
@@ -40,6 +43,15 @@ class ProjectQA
 
   # Number of .claude/rules/ files (code style rules)
   EXPECTED_CODE_RULE_COUNT = 8
+
+  # Versions that must never be re-offered via Sparkle after regressions.
+  BLOCKED_APPCAST_VERSIONS = %w[2.1.3 2.1.6].freeze
+  REQUIRED_MIGRATION_TEST_TITLES = [
+    'Migration preserves healthy custom positions on upgrade',
+    'Migration resets positions when legacy always-hidden position is corrupted',
+    'Upgrade matrix handles healthy and corrupted states safely',
+    'Real upgrade snapshots from 2.1.2 and 2.1.5 preserve layout',
+  ].freeze
 
   def initialize
     @errors = []
@@ -58,6 +70,8 @@ class ProjectQA
     check_script_syntax_sh
     check_code_rules
     check_version_consistency
+    check_appcast_guardrails
+    check_migration_guardrails
     check_urls
 
     puts
@@ -258,6 +272,86 @@ class ProjectQA
       details = versions.map { |f, v| "#{f}=v#{v}" }.join(', ')
       @warnings << "Version mismatch: #{details}"
       puts "⚠️  Mismatch: #{details}"
+    end
+  end
+
+  def check_appcast_guardrails
+    print "Checking appcast guardrails... "
+
+    unless File.exist?(APPCAST_XML)
+      @warnings << "Appcast file not found at #{APPCAST_XML}"
+      puts "⚠️  appcast.xml missing"
+      return
+    end
+
+    content = File.read(APPCAST_XML)
+    versions = content.scan(/sparkle:shortVersionString="(\d+\.\d+\.\d+)"/).flatten
+
+    if versions.empty?
+      @warnings << "No sparkle:shortVersionString entries found in appcast.xml"
+      puts "⚠️  no versions found"
+      return
+    end
+
+    blocked_present = versions & BLOCKED_APPCAST_VERSIONS
+    unless blocked_present.empty?
+      @errors << "Blocked appcast version(s) present: #{blocked_present.join(', ')}"
+      puts "❌ blocked versions present: #{blocked_present.join(', ')}"
+      return
+    end
+
+    puts "✅ no blocked versions (#{BLOCKED_APPCAST_VERSIONS.join(', ')})"
+  end
+
+  def check_migration_guardrails
+    print "Checking migration guardrails... "
+
+    unless File.exist?(STATUS_BAR_CONTROLLER_SWIFT) && File.exist?(STATUS_BAR_CONTROLLER_TESTS)
+      @errors << "Migration guardrail files missing (StatusBarController or tests)"
+      puts "❌ missing source/test file"
+      return
+    end
+
+    source = File.read(STATUS_BAR_CONTROLLER_SWIFT)
+    tests = File.read(STATUS_BAR_CONTROLLER_TESTS)
+    failures = []
+
+    stable_key_match = source.match(/stablePositionMigrationKey\s*=\s*"([^"]+)"/)
+    unless stable_key_match
+      failures << 'stablePositionMigrationKey constant not found in StatusBarController.swift'
+      stable_key = nil
+    else
+      stable_key = stable_key_match[1]
+    end
+
+    unless source.match?(/if\s+shouldResetPositionsForKnownCorruption\(\)/)
+      failures << 'migrateCorruptedPositionsIfNeeded must gate resets with shouldResetPositionsForKnownCorruption()'
+    end
+
+    unless source.match?(/private static func shouldResetPositionsForKnownCorruption\(\)/)
+      failures << 'shouldResetPositionsForKnownCorruption() predicate is missing from StatusBarController.swift'
+    end
+
+    if stable_key && !tests.include?(stable_key)
+      failures << "Tests missing stable migration key '#{stable_key}' — migration key changes must be paired with regression tests"
+    end
+
+    legacy_keys = source.scan(/"SaneBar_PositionMigration_v\d+"/).map { |value| value.delete('"') }.uniq
+    missing_legacy = legacy_keys.reject { |key| tests.include?(key) }
+    unless missing_legacy.empty?
+      failures << "Tests missing legacy migration keys: #{missing_legacy.join(', ')}"
+    end
+
+    missing_titles = REQUIRED_MIGRATION_TEST_TITLES.reject { |title| tests.include?(title) }
+    unless missing_titles.empty?
+      failures << "Missing required migration regression test titles: #{missing_titles.join(' | ')}"
+    end
+
+    if failures.empty?
+      puts '✅ migration key changes are guarded by corruption + preservation tests'
+    else
+      failures.each { |failure| @errors << failure }
+      puts "❌ #{failures.count} guardrail failure(s)"
     end
   end
 

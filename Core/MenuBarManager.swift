@@ -89,10 +89,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Check if hiding should be skipped due to external monitor setting
     var shouldSkipHideForExternalMonitor: Bool {
+        shouldIgnoreHideRequest(origin: .automatic)
+    }
+
+    func shouldIgnoreHideRequest(origin: HideRequestOrigin) -> Bool {
         Self.shouldIgnoreHideRequest(
             disableOnExternalMonitor: settings.disableOnExternalMonitor,
             isOnExternalMonitor: isOnExternalMonitor,
-            origin: .automatic
+            origin: origin
         )
     }
 
@@ -110,6 +114,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         origin: HideRequestOrigin
     ) -> Bool {
         disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
+    }
+
+    static func shouldRecoverStartupPositions(separatorX: CGFloat?, mainX: CGFloat?) -> Bool {
+        guard let separatorX, let mainX else { return false }
+        guard separatorX > 0, mainX > 0 else { return false }
+        return separatorX >= mainX
     }
 
     // MARK: - Services
@@ -540,6 +550,25 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 if let w = NSScreen.main?.frame.width {
                     UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
                 }
+
+                // Startup invariant: the separator must be left of the main icon.
+                // If not, soft-recover seeds and keep the bar visible for this run.
+                let startupSeparatorX = self.getSeparatorOriginX()
+                let startupMainX = self.getMainStatusItemLeftEdgeX()
+                if Self.shouldRecoverStartupPositions(separatorX: startupSeparatorX, mainX: startupMainX) {
+                    logger.error(
+                        "Startup invariant failed (separator=\(startupSeparatorX ?? -1, privacy: .public), main=\(startupMainX ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
+                    )
+                    StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: self.settings.alwaysHiddenSectionEnabled)
+                    self.lastKnownSeparatorX = nil
+                    self.lastKnownSeparatorRightEdgeX = nil
+                    self.lastKnownAlwaysHiddenSeparatorX = nil
+                    await self.hidingService.show()
+                    return
+                }
+
+                // Repair AH separator ordering drift before any startup hide.
+                self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
 
                 // If the user has pinned items to the always-hidden section, enforce them early
                 // (before initial hide) to reduce startup drift/flicker.

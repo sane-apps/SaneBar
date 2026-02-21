@@ -514,7 +514,7 @@ ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
 1. **Bump version** — update MARKETING_VERSION + CURRENT_PROJECT_VERSION in `project.yml`
 2. **Preflight** — `./scripts/SaneMaster.rb release_preflight` (9 safety checks)
 3. **Release** — `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project $(pwd) --full --version X.Y.Z --notes "..." --deploy`
-4. **Verify** — check appcast at `https://sanebar.com/appcast.xml`, confirm DMG on `dist.sanebar.com`
+4. **Verify** — check appcast at https://sanebar.com/appcast.xml, confirm DMG on dist.sanebar.com
 5. **Monitor** — morning releases preferred, gives full day to watch for issues
 
 Full SOP: `SaneProcess/templates/RELEASE_SOP.md`

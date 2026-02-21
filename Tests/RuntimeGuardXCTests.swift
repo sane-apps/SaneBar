@@ -43,4 +43,37 @@ final class RuntimeGuardXCTests: XCTestCase {
             )
         )
     }
+
+    func testStartupRecoveryTriggersWhenSeparatorIsRightOfMain() {
+        XCTAssertTrue(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 1200,
+                mainX: 1100
+            )
+        )
+    }
+
+    func testStartupRecoveryDoesNotTriggerForHealthyOrdering() {
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100
+            )
+        )
+    }
+
+    func testStartupRecoveryDoesNotTriggerWithMissingCoordinates() {
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: nil,
+                mainX: 1100
+            )
+        )
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: nil
+            )
+        )
+    }
 }

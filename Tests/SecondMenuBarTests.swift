@@ -43,6 +43,36 @@ struct ZoneClassificationTests {
         #expect(zone2 == .hidden)
     }
 
+    @Test("Boundary sweep: two-zone classification stays stable across icon widths")
+    func twoZoneBoundarySweep() {
+        let separatorX: CGFloat = 500
+        let widths: [CGFloat] = [10, 16, 22, 44, 120]
+        let margin: CGFloat = 6
+
+        for width in widths {
+            let hiddenMidX = separatorX - margin - 0.1
+            let visibleMidX = separatorX - margin + 0.1
+            let hiddenX = hiddenMidX - (width / 2)
+            let visibleX = visibleMidX - (width / 2)
+
+            let hiddenZone = service.classifyZone(
+                itemX: hiddenX,
+                itemWidth: width,
+                separatorX: separatorX,
+                alwaysHiddenSeparatorX: nil
+            )
+            let visibleZone = service.classifyZone(
+                itemX: visibleX,
+                itemWidth: width,
+                separatorX: separatorX,
+                alwaysHiddenSeparatorX: nil
+            )
+
+            #expect(hiddenZone == .hidden, "width=\(width): expected hidden just left of margin")
+            #expect(visibleZone == .visible, "width=\(width): expected visible just right of margin")
+        }
+    }
+
     // MARK: - classifyZone with Three Zones (always-hidden separator present)
 
     @Test("Item left of AH separator is always-hidden")
@@ -73,6 +103,47 @@ struct ZoneClassificationTests {
             itemX: 600, itemWidth: 22, separatorX: 500, alwaysHiddenSeparatorX: 100
         )
         #expect(zone == .visible)
+    }
+
+    @Test("Boundary sweep: three-zone classification stays stable across icon widths")
+    func threeZoneBoundarySweep() {
+        let separatorX: CGFloat = 500
+        let alwaysHiddenSeparatorX: CGFloat = 120
+        let widths: [CGFloat] = [10, 16, 22, 44, 120]
+        let margin: CGFloat = 6
+
+        for width in widths {
+            let alwaysHiddenMidX = alwaysHiddenSeparatorX - margin - 0.1
+            let hiddenMidX = alwaysHiddenSeparatorX + margin + 10
+            let visibleMidX = separatorX - margin + 0.1
+
+            let alwaysHiddenX = alwaysHiddenMidX - (width / 2)
+            let hiddenX = hiddenMidX - (width / 2)
+            let visibleX = visibleMidX - (width / 2)
+
+            let alwaysHiddenZone = service.classifyZone(
+                itemX: alwaysHiddenX,
+                itemWidth: width,
+                separatorX: separatorX,
+                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            )
+            let hiddenZone = service.classifyZone(
+                itemX: hiddenX,
+                itemWidth: width,
+                separatorX: separatorX,
+                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            )
+            let visibleZone = service.classifyZone(
+                itemX: visibleX,
+                itemWidth: width,
+                separatorX: separatorX,
+                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            )
+
+            #expect(alwaysHiddenZone == .alwaysHidden, "width=\(width): expected always-hidden zone")
+            #expect(hiddenZone == .hidden, "width=\(width): expected hidden zone")
+            #expect(visibleZone == .visible, "width=\(width): expected visible zone")
+        }
     }
 
     // MARK: - Edge Cases

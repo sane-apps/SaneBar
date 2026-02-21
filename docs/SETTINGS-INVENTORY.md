@@ -165,7 +165,7 @@
 ### Links Row
 | Control | Type | Destination |
 |---------|------|-------------|
-| GitHub | Link button | `https://github.com/sane-apps/SaneBar` |
+| GitHub | Link button | https://github.com/sane-apps/SaneBar |
 | Licenses | Button | Opens licenses sheet |
 | Support | Button | Opens support sheet (heart icon, crypto addresses) |
 

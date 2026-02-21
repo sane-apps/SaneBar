@@ -112,12 +112,6 @@ extension MenuBarManager {
     func hideHiddenItems() {
         logger.info("hideHiddenItems() requested")
         Task {
-            // Skip hiding if user is on external monitor and setting is enabled
-            if shouldSkipHideForExternalMonitor {
-                logger.debug("Skipping hide: user is on external monitor")
-                return
-            }
-
             isRevealPinned = false
             hidingService.cancelRehide()
             await hidingService.hide()

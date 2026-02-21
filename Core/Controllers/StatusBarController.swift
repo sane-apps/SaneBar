@@ -55,6 +55,14 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let maxSpacerCount = 12
     private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+    private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
+    private static let legacyMigrationKeys = [
+        "SaneBar_PositionMigration_v4",
+        "SaneBar_PositionMigration_v5",
+        "SaneBar_PositionMigration_v6",
+        "SaneBar_PositionMigration_v7"
+    ]
+    private static let minimumSafeAlwaysHiddenPosition = 200.0
 
     // MARK: - Initialization
 
@@ -63,8 +71,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         // every launch so a single drag-out cannot permanently hide SaneBar.
         Self.clearPersistedVisibilityOverrides()
 
-        // Migrate: clear AH positions that are too small (< 200) — they place the
-        // AH separator near the right edge, devouring all menu bar items.
+        // One-time migration for known corrupted position state.
+        // Healthy user layouts are preserved.
         Self.migrateCorruptedPositionsIfNeeded()
 
         // Display-aware validation: reset pixel positions from a different screen
@@ -183,6 +191,18 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("Reset all status item positions — will reseed on next creation")
     }
 
+    /// Best-effort startup recovery used when runtime invariants detect a bad
+    /// separator layout. This keeps the current session usable and seeds safe
+    /// positions for the next status-item relayout/restart.
+    static func recoverStartupPositions(alwaysHiddenEnabled: Bool) {
+        resetPositionsToOrdinals()
+        seedPositionsIfNeeded()
+        if alwaysHiddenEnabled {
+            seedAlwaysHiddenSeparatorPositionIfNeeded()
+        }
+        logger.info("Applied startup position recovery seeds")
+    }
+
     // MARK: - Display-Aware Position Validation
 
     /// Returns true if a position value looks like a pixel offset rather than an ordinal seed.
@@ -260,19 +280,64 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     /// One-time recovery migration.
-    /// v5: Cleared corrupted ByHost position state from Cmd-drag experiments.
-    /// v6: Added persisted visibility cleanup for cmd-drag hidden state.
-    /// v7: Re-runs the full recovery after autosave namespace updates.
+    /// Important: do not version-bump this key for routine patch releases.
+    /// Position resets must be gated on explicit corruption checks.
     private static func migrateCorruptedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
-        let migrationKey = "SaneBar_PositionMigration_v7"
-        guard !defaults.bool(forKey: migrationKey) else { return }
+        guard !defaults.bool(forKey: stablePositionMigrationKey) else { return }
 
-        logger.info("Applying v7 status item position + visibility recovery")
-        resetPositionsToOrdinals()
+        if shouldResetPositionsForKnownCorruption() {
+            logger.info("Applying status item position recovery for known corrupted state")
+            resetPositionsToOrdinals()
+        } else {
+            logger.info("Skipping status item position reset (no known corruption)")
+        }
+
         clearPersistedVisibilityOverrides()
 
-        defaults.set(true, forKey: migrationKey)
+        defaults.set(true, forKey: stablePositionMigrationKey)
+
+        // Backfill legacy migration sentinels so downgrades/older builds don't
+        // re-run broad reset paths on healthy layouts.
+        for key in legacyMigrationKeys {
+            defaults.set(true, forKey: key)
+        }
+    }
+
+    private static func shouldResetPositionsForKnownCorruption() -> Bool {
+        if hasInvalidPositionValue(forAutosaveName: mainAutosaveName) {
+            return true
+        }
+        if hasInvalidPositionValue(forAutosaveName: separatorAutosaveName) {
+            return true
+        }
+        if hasTooSmallAlwaysHiddenPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName) {
+            return true
+        }
+        if hasTooSmallAlwaysHiddenPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator") {
+            return true
+        }
+        return false
+    }
+
+    private static func hasInvalidPositionValue(forAutosaveName autosaveName: String) -> Bool {
+        let values = preferredPositionValues(forAutosaveName: autosaveName)
+        return isInvalidPosition(values.appValue) || isInvalidPosition(values.byHostValue)
+    }
+
+    private static func hasTooSmallAlwaysHiddenPosition(forAutosaveName autosaveName: String) -> Bool {
+        let values = preferredPositionValues(forAutosaveName: autosaveName)
+        return isTooSmallAlwaysHiddenPosition(values.appValue) || isTooSmallAlwaysHiddenPosition(values.byHostValue)
+    }
+
+    private static func isInvalidPosition(_ value: Any?) -> Bool {
+        guard let number = numericPositionValue(value) else { return false }
+        return !number.isFinite || number < 0
+    }
+
+    private static func isTooSmallAlwaysHiddenPosition(_ value: Any?) -> Bool {
+        guard let number = numericPositionValue(value), number.isFinite else { return false }
+        return number > 0 && number < minimumSafeAlwaysHiddenPosition
     }
 
     // MARK: - Preferred Position Storage
