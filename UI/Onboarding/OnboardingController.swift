@@ -31,6 +31,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
             defer: false
         )
 
+        window.appearance = NSAppearance(named: .darkAqua)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true

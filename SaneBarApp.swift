@@ -195,6 +195,7 @@ enum SettingsOpener {
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "SaneBar Settings"
+        window.appearance = NSAppearance(named: .darkAqua)
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 450, height: 400))
         window.center()

@@ -143,6 +143,7 @@ enum ProUpsellWindow {
         )
 
         panel.contentView = hostingView
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.title = "Unlock Pro"
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
