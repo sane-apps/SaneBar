@@ -47,3 +47,21 @@ mcps:
 
 website: true
 website_domain: sanebar.com
+
+appstore:
+  enabled: true
+  # Create/register SaneBar in App Store Connect, then set its numeric app_id.
+  app_id: "6759464256"
+  configuration: Release
+  platforms: [macos]
+  category: public.app-category.utilities
+  age_rating: "4+"
+  privacy_policy_url: "https://sanebar.com/privacy"
+  support_url: "https://sanebar.com/support"
+  review_notes: "SaneBar manages menu bar icon visibility and positioning. The feature uses Accessibility APIs (AXIsProcessTrusted, AXUIElement) and CGEvent-based interactions to inspect and move status items exactly where users place them. The app also supports optional AppleScript automation for user-triggered workflows. These capabilities cannot work without Accessibility/automation permissions because macOS does not provide a lower-privilege API to read or reposition third-party menu bar items."
+  screenshots:
+    macos: marketing/appstore-images/*.png
+  contact:
+    name: "Stephan Joseph"
+    phone: "+17277589785"
+    email: "hi@saneapps.com"

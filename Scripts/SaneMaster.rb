@@ -79,7 +79,7 @@ resolved_sanebar_build_config() {
   esac
 
   case "${command}" in
-  test_mode | tm | launch)
+  test_mode | tm | launch | build)
     # Mirrors SaneProcess default for SaneBar local runtime testing.
     echo "ProdDebug"
     ;;
