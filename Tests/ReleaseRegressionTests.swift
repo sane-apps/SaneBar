@@ -487,3 +487,84 @@ struct VisibilityZoneClassificationTests {
         #expect(effectiveWidth == 1, "Zero width should be clamped to 1")
     }
 }
+
+// MARK: - Appcast Release Guardrail Tests
+
+@Suite("Appcast Release Guardrails")
+struct AppcastReleaseGuardrailTests {
+    private let blockedVersions: Set<String> = ["2.1.3", "2.1.6"]
+
+    private func repositoryRoot() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
+    }
+
+    private func parseShortVersions(from xml: String) -> [String] {
+        let pattern = #"sparkle:shortVersionString="([0-9]+\.[0-9]+\.[0-9]+)""#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let nsRange = NSRange(xml.startIndex..., in: xml)
+        return regex.matches(in: xml, range: nsRange).compactMap { match in
+            guard let range = Range(match.range(at: 1), in: xml) else { return nil }
+            return String(xml[range])
+        }
+    }
+
+    private func parseMarketingVersion(from projectYml: String) -> String? {
+        let pattern = #"MARKETING_VERSION:\s*["']?([0-9]+\.[0-9]+\.[0-9]+)["']?"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let nsRange = NSRange(projectYml.startIndex..., in: projectYml)
+        guard let match = regex.firstMatch(in: projectYml, range: nsRange),
+              let range = Range(match.range(at: 1), in: projectYml)
+        else { return nil }
+        return String(projectYml[range])
+    }
+
+    private func semverTuple(_ version: String) -> (Int, Int, Int)? {
+        let parts = version.split(separator: ".")
+        guard parts.count == 3,
+              let major = Int(parts[0]),
+              let minor = Int(parts[1]),
+              let patch = Int(parts[2])
+        else { return nil }
+        return (major, minor, patch)
+    }
+
+    @Test("Blocked versions are never offered in appcast")
+    func blockedVersionsAreAbsent() throws {
+        let appcastURL = repositoryRoot().appendingPathComponent("docs/appcast.xml")
+        let xml = try String(contentsOf: appcastURL, encoding: .utf8)
+        let versions = Set(parseShortVersions(from: xml))
+        let blockedPresent = versions.intersection(blockedVersions)
+        #expect(blockedPresent.isEmpty, "Blocked versions found in appcast: \(blockedPresent.sorted())")
+    }
+
+    @Test("Appcast newest entry matches current project marketing version")
+    func newestMatchesProjectVersion() throws {
+        let root = repositoryRoot()
+        let appcastXML = try String(contentsOf: root.appendingPathComponent("docs/appcast.xml"), encoding: .utf8)
+        let projectYml = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
+        let versions = parseShortVersions(from: appcastXML)
+        let marketingVersion = parseMarketingVersion(from: projectYml)
+
+        #expect(!versions.isEmpty, "No appcast versions found")
+        #expect(marketingVersion != nil, "Could not parse MARKETING_VERSION from project.yml")
+        #expect(versions.first == marketingVersion, "Newest appcast entry should match MARKETING_VERSION")
+    }
+
+    @Test("Appcast entries are sorted newest-to-oldest")
+    func appcastIsSortedDescending() throws {
+        let appcastURL = repositoryRoot().appendingPathComponent("docs/appcast.xml")
+        let xml = try String(contentsOf: appcastURL, encoding: .utf8)
+        let versions = parseShortVersions(from: xml)
+        let tuples = versions.compactMap(semverTuple)
+
+        #expect(tuples.count == versions.count, "All appcast versions must be valid semver")
+
+        let sorted = tuples.sorted(by: >)
+        let isSortedDescending = tuples.count == sorted.count && zip(tuples, sorted).allSatisfy { lhs, rhs in
+            lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
+        }
+        #expect(isSortedDescending, "Appcast versions must be sorted newest-first")
+    }
+}
