@@ -31,6 +31,26 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://sanebar.com/how-to-migrate-from-bartender-to-sanebar.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sanebar.com/how-to-fix-menu-bar-icons-behind-notch-mac.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sanebar.com/how-to-auto-show-menu-bar-icons-mac.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sanebar.com/how-to-customize-menu-bar-appearance-mac.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://sanebar.com/privacy.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
