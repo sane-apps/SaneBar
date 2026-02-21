@@ -25,10 +25,64 @@ launches:
     notes: "Received PH badge. Peak sales day was Jan 25 (42 orders)."
 
   - platform: "LaunchIgniter"
-    url: "https://launchigniter.com/launch/sanebar"
+    url: "https://launchigniter.com/product/sanebar"
     date: "2026-01-26"
     status: "live"
-    notes: "Launched Jan 26. Early — monitor for traction."
+    notes: "3 launches (Jan 26, Feb 2, Feb 16). 3 votes each. Minimal traction."
+
+  - platform: "Hacker News"
+    url: "https://news.ycombinator.com/item?id=46832829"
+    date: "2026-02"
+    status: "live"
+    notes: "1 point, zero comments. No traction."
+
+  - platform: "awesome-mac"
+    url: "https://github.com/jaywcjlove/awesome-mac/pull/1804"
+    date: "2026-02-10"
+    status: "merged"
+    notes: "99k star repo. SaneBar, SaneClick, SaneClip, SaneHosts all listed."
+
+  - platform: "open-source-mac-os-apps"
+    url: "https://github.com/serhii-londar/open-source-mac-os-apps"
+    date: "2026-02-20"
+    status: "merged"
+    notes: "47k star repo. All 5 apps merged (PRs #1007-1011)."
+
+  - platform: "awesome-macOS"
+    url: "https://github.com/iCHAIT/awesome-macOS/pull/696"
+    date: "2026-02-20"
+    status: "submitted"
+    notes: "17.8k star repo. PR #696 (SaneBar). Individual PRs per guidelines."
+
+  - platform: "PayOnce.tools"
+    url: "https://www.payonce.tools/tools/sanebar"
+    date: "2026-01-25"
+    status: "live"
+    notes: "Editor's Pick. Verified One-Time Payment badge."
+
+  - platform: "OnMyMenubar.app"
+    url: "https://onmymenubar.app/sanebar/"
+    date: "2026"
+    status: "live"
+    notes: "Detailed listing with CPU/RAM stats, 241 tests noted."
+
+  - platform: "MacMenuBar.com"
+    url: "https://macmenubar.com/sanebar/"
+    date: "2026-01"
+    status: "live"
+    notes: "Listed in Menu Bar Managers category."
+
+  - platform: "Badgeify blog"
+    url: "https://badgeify.app/top-3-bartender-free-alternatives-to-manage-your-mac-menu-bar/"
+    date: "2026"
+    status: "live"
+    notes: "Listed under 'New Bartender Alternatives Worth Considering (2026)'. Competitor blog."
+
+  - platform: "Dr.Buho"
+    url: "https://www.drbuho.com/how-to/bartender-alternatives"
+    date: "2026"
+    status: "live"
+    notes: "7 Best Bartender Alternatives. Details unclear (page blocked)."
 
 # --- COMPETITOR RESPONSES (already posted — don't suggest re-posting) ---
 competitor_responses:
@@ -47,6 +101,13 @@ competitor_responses:
     comments: 0
     action: "Friends to comment. 0 comments — first mover advantage."
     notes: "French Mac blog. Praised Touch ID + stability. Reviewer prefers Barbee for his edge case. Review of v1.0.11."
+
+  - platform: "vvmac.fr (2nd mention)"
+    url: "https://vvmac.fr/wordpress_b/flash-du-samedi-7-fevrier-2026/"
+    date_found: "2026-02-07"
+    type: "organic_press"
+    tone: "casual positive"
+    notes: "Weekly flash roundup. SaneBar mentioned alongside Hidden Bar and Barbee as a good bar manager."
 
   - platform: "ifun.de"
     url: "https://www.ifun.de/menueleisten-management-mit-tightermenubar-und-sanebar-273129/"
