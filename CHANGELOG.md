@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.9] - 2026-02-20
+
+Maintenance release: closes open issue backlog (including #79), reconciles Air/mini release state, and hardens release automation.
+
+---
+
 ## [2.1.7] - 2026-02-19
 
 Fixes second-menu-bar regression where visible icons could collapse into hidden after install; improves move reliability and adds regression coverage.
