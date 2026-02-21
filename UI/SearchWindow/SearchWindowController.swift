@@ -206,6 +206,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.title = "Icon Panel"
         window.titlebarSeparatorStyle = .line
         window.backgroundColor = .windowBackgroundColor
+        window.appearance = NSAppearance(named: .darkAqua)
         window.isMovableByWindowBackground = true
         window.level = .floating
         window.isReleasedWhenClosed = false
@@ -236,6 +237,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
 
         panel.contentView = hostingView
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.level = .floating
