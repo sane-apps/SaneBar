@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Migrate from Bartender to SaneBar on Mac - SaneBar</title>
+    <meta name="description" content="Bartender was acquired and Ice is limited. Compare your options and migrate to SaneBar with automatic import of your existing layout.">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#08080c">
+    <link rel="canonical" href="https://sanebar.com/how-to-migrate-from-bartender-to-sanebar.html">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://sanebar.com/how-to-migrate-from-bartender-to-sanebar.html">
+    <meta property="og:title" content="How to Migrate from Bartender to SaneBar on Mac">
+    <meta property="og:description" content="Bartender was acquired. Ice is limited. Migrate to SaneBar and import your existing layout automatically.">
+    <meta property="og:image" content="https://sanebar.com/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="SaneBar">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="How to Migrate from Bartender to SaneBar on Mac">
+    <meta name="twitter:description" content="Bartender was acquired. Ice is limited. Migrate to SaneBar and import your existing layout automatically.">
+    <meta name="twitter:image" content="https://sanebar.com/images/og-image.png">
+    <meta name="twitter:site" content="@saneapps">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "How to Migrate from Bartender to SaneBar on Mac",
+        "description": "Bartender was acquired and Ice is limited. Compare your options and migrate to SaneBar with automatic import of your existing layout.",
+        "author": { "@type": "Organization", "name": "SaneApps" },
+        "publisher": { "@type": "Organization", "name": "SaneBar", "url": "https://sanebar.com" },
+        "datePublished": "2026-02-20",
+        "dateModified": "2026-02-20"
+    }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #08080c;
+            --bg-secondary: #0f0f16;
+            --bg-card: #16161f;
+            --accent: #4f8ffa;
+            --accent-soft: #3b7ce8;
+            --accent-glow: rgba(79, 143, 250, 0.25);
+            --success: #34d399;
+            --text-primary: #f5f5f8;
+            --text-secondary: #c0c0d0;
+            --text-muted: #a0a0b0;
+            --border: #252530;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Reusing Navbar Styles */
+        nav {
+            padding: 20px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        nav .container { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 1.25rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .logo img { width: 32px; height: 32px; border-radius: 0; }
+
+        .nav-links { display: flex; gap: 32px; align-items: center; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-primary); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+            color: #ffffff !important;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 24px var(--accent-glow);
+        }
+
+        /* Article Styles */
+        article.container { padding: 200px 24px 100px; }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            margin-bottom: 24px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            max-width: 700px;
+        }
+
+        .option-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+
+        .option-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option-card h3 .badge {
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 100px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .winner-card {
+            border-color: var(--accent);
+            background: linear-gradient(145deg, var(--bg-card) 0%, rgba(79, 143, 250, 0.05) 100%);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .winner-card::before {
+            content: "Recommended";
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: var(--accent);
+            color: white;
+            padding: 6px 40px;
+            transform: rotate(45deg);
+            font-size: 0.8rem;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .code-block {
+            background: #000;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: monospace;
+            color: #34d399;
+            margin: 20px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        ul { list-style: none; margin-top: 20px; }
+
+        li {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .icon-check { color: var(--success); flex-shrink: 0; font-weight: bold; }
+        .icon-cross { color: #ef4444; flex-shrink: 0; font-weight: bold; }
+        .icon-neutral { color: var(--text-muted); flex-shrink: 0; }
+
+        .cta-btn {
+            display: inline-block;
+            margin-top: 24px;
+            background: var(--accent);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .cta-btn:hover { transform: translateY(-2px); }
+
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="container">
+            <a href="index.html" class="logo">
+                <img src="images/branding.png" alt="SaneBar">
+                SaneBar
+            </a>
+            <div class="nav-links">
+                <a href="guides.html">All Guides</a>
+                <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="btn-primary">Download</a>
+            </div>
+        </div>
+    </nav>
+
+    <article class="container">
+        <h1>How to Migrate from Bartender to SaneBar on Mac</h1>
+        <p class="subtitle">Bartender was acquired by an unknown company. Ice is open source but limited. Here are your three options for managing your Mac's menu bar in 2026.</p>
+
+        <!-- Option 1: Ice (Open Source) -->
+        <div class="option-card">
+            <h2>Option 1: Ice (Open Source) <span class="badge">Free</span></h2>
+            <p>Ice is a free, open-source menu bar manager. It covers the basics &mdash; hiding and showing icons, an always-hidden section, and hover/scroll gestures. A solid choice if you only need the fundamentals.</p>
+
+            <ul>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Free &amp; Open Source:</strong> No cost, fully transparent code.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>No Touch ID Lock:</strong> Anyone who clicks your menu bar can see your hidden apps.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>No Smart Triggers:</strong> No auto-show based on battery, Wi-Fi, Focus Mode, or app launches.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>No Import from Bartender:</strong> You have to set up your layout from scratch.</div></li>
+                <li><span class="icon-neutral">&minus;</span> <div><strong>No Profiles:</strong> One layout for everything &mdash; no switching between work and home setups.</div></li>
+            </ul>
+        </div>
+
+        <!-- Option 2: Bartender (Legacy) -->
+        <div class="option-card">
+            <h2>Option 2: Bartender (Legacy) <span class="badge">Acquired</span></h2>
+            <p>Bartender was the original menu bar manager for Mac. In 2024, it was quietly acquired by an unknown company. The new owners updated it with unclear privacy practices, and the app now costs $16+.</p>
+
+            <ul>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Mature Feature Set:</strong> Gestures, search, second menu bar &mdash; it works.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>Privacy Concerns:</strong> Closed source, acquired by unknown entity. You cannot verify what it does with accessibility data.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>Expensive:</strong> $16+ with paid major upgrades.</div></li>
+                <li><span class="icon-cross">&#10007;</span> <div><strong>No Touch ID Lock:</strong> No biometric protection for sensitive icons.</div></li>
+                <li><span class="icon-neutral">&minus;</span> <div><strong>Uncertain Future:</strong> New ownership direction is unclear.</div></li>
+            </ul>
+        </div>
+
+        <!-- Option 3: SaneBar (The Sane Way) -->
+        <div class="option-card winner-card">
+            <h2>Option 3: The Sane Way (SaneBar) <span class="badge" style="background:var(--accent); color:white; border:none;">Winner</span></h2>
+            <p>SaneBar is the privacy-first menu bar manager with automatic import from both Bartender and Ice. It reads your existing configuration file and migrates your icon layout, behavioral settings, and preferences in seconds.</p>
+
+            <ul>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Import from Bartender:</strong> SaneBar reads your Bartender plist and automatically moves icons into the correct zones (hidden, visible, always-hidden). Behavioral settings like hover delay and auto-rehide are imported too.</div></li>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Import from Ice:</strong> SaneBar imports Ice behavioral settings (hover, scroll, spacing, auto-rehide) from the Ice preferences file.</div></li>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Touch ID / Password Lock:</strong> The only menu bar manager that locks hidden icons behind biometrics. Protect crypto wallets, VPNs, and messaging apps.</div></li>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Smart Triggers:</strong> Auto-show icons based on low battery, Wi-Fi network, app launch, Focus Mode, schedule, external monitor, or custom scripts.</div></li>
+                <li><span class="icon-check">&#10003;</span> <div><strong>100% On-Device:</strong> Zero network requests. No analytics. No telemetry. Verify with Little Snitch: zero connections.</div></li>
+                <li><span class="icon-check">&#10003;</span> <div><strong>Price:</strong> Basic is free. Pro is $6.99 once &mdash; own it forever.</div></li>
+            </ul>
+
+            <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="cta-btn">Get SaneBar for $6.99</a>
+        </div>
+
+        <p style="text-align: center; color: var(--text-secondary); margin-top: 60px;">
+            <a href="guides.html" style="color: var(--text-muted); text-decoration: none;">&larr; Back to Guides</a>
+        </p>
+
+    </article>
+
+    <footer style="padding: 40px 0 30px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center; margin-top: 60px;">
+        <div class="container">
+            <div style="display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap;">
+                <a href="index.html" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Home</a>
+                <a href="guides.html" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Guides</a>
+                <a href="https://github.com/sane-apps/SaneBar" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">GitHub</a>
+                <a href="https://github.com/sane-apps/SaneBar/blob/main/PRIVACY.md" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Privacy</a>
+                <a href="mailto:hi@saneapps.com" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Contact</a>
+            </div>
+            <p style="color: rgba(255,255,255,0.35); font-size: 0.85rem;">Made with care by Mr. Sane &nbsp;&middot;&nbsp; &copy; 2026 SaneBar</p>
+        </div>
+    </footer>
+
+    <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "84644a6edeb447338ab2b1641135cb99"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>
