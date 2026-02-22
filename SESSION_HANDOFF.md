@@ -6,6 +6,14 @@
 
 ---
 
+## Update — 2026-02-21
+
+- Direct distribution release `v2.1.9` is live and verified (dist/appcast/Homebrew/GitHub).
+- GitHub release-blocking issues are closed (0 open in `sane-apps/SaneBar`).
+- App Store submission is intentionally deferred to tomorrow (`2026-02-22`) pending new screenshots and final App Store listing pass.
+
+---
+
 ## Current State
 
 - Script consolidation complete: ~75 scripts → ~32 active scripts.

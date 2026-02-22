@@ -25,6 +25,7 @@ if args.contains("--unregister") {
 // instead of layer 0 (regular window layer). Setting this in applicationDidFinishLaunching
 // is TOO LATE - the window layer is determined when the run loop starts.
 app.setActivationPolicy(.accessory)
+app.appearance = NSAppearance(named: .darkAqua)
 
 // SAFETY: Enforce bundle ID separation between dev and release builds
 // ProdDebug config uses production bundle ID intentionally (for testing with real permissions)
