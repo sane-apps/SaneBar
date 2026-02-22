@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.10] - 2026-02-21
+
+Dark mode consistency improvements, purchase flow clarity updates, and stability fixes.
+
+---
+
 ## [2.1.9] - 2026-02-20
 
 Maintenance release: closes open issue backlog (including #79), reconciles Air/mini release state, and hardens release automation.
