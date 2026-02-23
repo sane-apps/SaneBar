@@ -77,6 +77,17 @@ extension AccessibilityService {
             return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
         }
 
+        // Verify item is on-screen before AXPress. After SaneBar reveals hidden
+        // items, macOS re-layouts asynchronously. AXPress returns .success on
+        // off-screen elements without opening any menu — this is why left-click
+        // (AXPress path) fails while right-click (hardware path) works (#102).
+        // Hardware click already has its own on-screen polling via
+        // getMenuBarIconFrameOnScreen(); AXPress was missing this gate.
+        if !isElementOnScreen(item) {
+            logger.info("Target item off-screen; skipping AXPress, using hardware click")
+            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+        }
+
         // Try AX first
         if performSmartPress(on: item, isRightClick: isRightClick) {
             return true
@@ -95,6 +106,39 @@ extension AccessibilityService {
 
         let center = normalizedCGEventPoint(fromAccessibilityPoint: CGPoint(x: frame.midX, y: frame.midY))
         return simulateHardwareClick(at: center, isRightClick: isRightClick)
+    }
+
+    // MARK: - On-Screen Verification
+
+    /// Check whether an AX element's position is on any connected screen.
+    /// Hidden icons are pushed far off-screen (x ≈ -3000+). AXPress returns
+    /// .success on these elements without opening any menu — this gate ensures
+    /// we only attempt AXPress on genuinely visible items.
+    private func isElementOnScreen(_ element: AXUIElement) -> Bool {
+        var positionValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
+              let posValue = positionValue,
+              CFGetTypeID(posValue) == AXValueGetTypeID(),
+              let axPosValue = safeAXValue(posValue)
+        else { return false }
+
+        var origin = CGPoint.zero
+        guard AXValueGetValue(axPosValue, .cgPoint, &origin) else { return false }
+
+        var sizeValue: CFTypeRef?
+        var size = CGSize(width: 22, height: 22)
+        if AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+           let sVal = sizeValue,
+           CFGetTypeID(sVal) == AXValueGetTypeID(),
+           let axSizeVal = safeAXValue(sVal) {
+            var s = CGSize.zero
+            if AXValueGetValue(axSizeVal, .cgSize, &s) {
+                size = CGSize(width: max(1, s.width), height: max(1, s.height))
+            }
+        }
+
+        let center = CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
+        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
     }
 
     // MARK: - Interaction
@@ -392,6 +436,15 @@ extension AccessibilityService {
         }
 
         return movedToExpectedSide
+    }
+
+    /// Lightweight position query for polling loops (e.g. `waitForIconOnScreen`).
+    /// Returns the center point of the icon's AX frame, or nil if unavailable.
+    nonisolated func menuBarItemPosition(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGPoint? {
+        guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+            return nil
+        }
+        return CGPoint(x: frame.midX, y: frame.midY)
     }
 
     private nonisolated func getMenuBarIconFrame(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGRect? {

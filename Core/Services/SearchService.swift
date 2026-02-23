@@ -528,15 +528,20 @@ final class SearchService: SearchServiceProtocol {
         // 1. Show hidden menu bar items first
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
 
-        // 2. Wait for menu bar animation to complete
-        // When icons move from hidden (left of separator) to visible, macOS needs time
+        // 2. Wait for menu bar re-layout after reveal.
+        // Previously used a fixed 500ms sleep which was insufficient on slower
+        // systems with many hidden icons (#69, #77, #102). Now polls until the
+        // target icon reaches a stable on-screen position (up to 2s).
         if didReveal {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms base for initial animation
+            await waitForIconOnScreen(app: app)
         }
 
         // 3. Resolve latest target identity after reveal.
-        // AX child ordering can change when hidden icons become visible.
-        let initialTarget = await resolveLatestClickTarget(for: app, forceRefresh: false)
+        // AX child ordering changes when hidden icons become visible — stale
+        // cached data causes AXPress to target the wrong (off-screen) element,
+        // which returns .success without opening any menu (#69, #77, #102).
+        let initialTarget = await resolveLatestClickTarget(for: app, forceRefresh: didReveal)
 
         // 4. Perform Virtual Click on the menu bar item
         var clickSuccess = AccessibilityService.shared.clickMenuBarItem(
@@ -608,5 +613,51 @@ final class SearchService: SearchServiceProtocol {
             return closest
         }
         return sameBundle.first ?? original
+    }
+
+    /// Poll until the target icon reaches a stable on-screen position.
+    /// After `showHiddenItemsNow()`, macOS re-layouts menu bar items asynchronously.
+    /// Icons may still be at off-screen x ≈ -3000 when the caller's base wait ends.
+    @MainActor
+    private func waitForIconOnScreen(app: RunningApp, maxWaitMs: Int = 1800) async {
+        let intervalMs = 50
+        let maxAttempts = maxWaitMs / intervalMs
+        var previousX: CGFloat?
+
+        // Capture MainActor-isolated references before entering detached tasks
+        let axService = AccessibilityService.shared
+        let bundleId = app.bundleId
+        let menuExtraId = app.menuExtraIdentifier
+        let statusItemIndex = app.statusItemIndex
+
+        for attempt in 1 ... maxAttempts {
+            // Read AX position from background thread to avoid blocking MainActor
+            let position: CGPoint? = await Task.detached {
+                axService.menuBarItemPosition(
+                    bundleID: bundleId,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex
+                )
+            }.value
+
+            if let pos = position {
+                let isOnScreen = NSScreen.screens.contains {
+                    $0.frame.insetBy(dx: -2, dy: -2).contains(pos)
+                }
+                if isOnScreen {
+                    // Stability: position hasn't changed since last poll
+                    if let prev = previousX, abs(prev - pos.x) < 2 {
+                        if attempt > 2 {
+                            logger.info("Icon on-screen after \(attempt * intervalMs)ms")
+                        }
+                        return
+                    }
+                    previousX = pos.x
+                }
+            }
+
+            try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
+        }
+        logger.warning("Icon did not reach stable on-screen position within \(maxWaitMs)ms")
     }
 }
