@@ -3,6 +3,12 @@ import XCTest
 
 @MainActor
 final class RuntimeGuardXCTests: XCTestCase {
+    private func projectRootURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Tests/
+            .deletingLastPathComponent() // project root
+    }
+
     func testNormalizedEventYKeepsAlreadyFlippedMenuBarY() {
         let y = AccessibilityService.normalizedEventY(rawY: 15, globalMaxY: 1440, anchorY: 15)
         XCTAssertEqual(y, 15, accuracy: 0.001)
@@ -74,6 +80,34 @@ final class RuntimeGuardXCTests: XCTestCase {
                 separatorX: 900,
                 mainX: nil
             )
+        )
+    }
+
+    func testSearchServiceRefreshesTargetAfterReveal() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("await waitForIconOnScreen(app: app)"),
+            "SearchService.activate should wait for icon re-layout after reveal (#102)"
+        )
+        XCTAssertTrue(
+            source.contains("resolveLatestClickTarget(for: app, forceRefresh: didReveal)"),
+            "SearchService.activate should force-refresh click target identity after reveal (#102)"
+        )
+    }
+
+    func testAccessibilityClickSkipsAXPressForOffscreenItems() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if !isElementOnScreen(item)"),
+            "clickMenuBarItem should gate AXPress behind on-screen checks (#102)"
+        )
+        XCTAssertTrue(
+            source.contains("Target item off-screen; skipping AXPress, using hardware click"),
+            "Off-screen targets should route to hardware fallback (#102)"
         )
     }
 }
