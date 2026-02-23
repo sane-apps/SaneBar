@@ -61,6 +61,15 @@ appstore:
   review_notes: "SaneBar manages menu bar icon visibility and positioning. The feature uses Accessibility APIs (AXIsProcessTrusted, AXUIElement) and CGEvent-based interactions to inspect and move status items exactly where users place them. The app also supports optional AppleScript automation for user-triggered workflows. These capabilities cannot work without Accessibility/automation permissions because macOS does not provide a lower-privilege API to read or reposition third-party menu bar items."
   screenshots:
     macos: marketing/appstore-images/*.png
+  entitlements: SaneBar/SaneBar-AppStore.entitlements
+  build_flags:
+    - CODE_SIGN_ENTITLEMENTS=SaneBar/SaneBar-AppStore.entitlements
+    - CODE_SIGN_STYLE=automatic
+    - 'INFOPLIST_KEY_SUFeedURL='
+    - 'INFOPLIST_KEY_SUEnableAutomaticChecks='
+    - 'INFOPLIST_KEY_SUPublicEDKey='
+  strip_frameworks:
+    - Sparkle.framework
   contact:
     name: "Stephan Joseph"
     phone: "+1[removed-for-privacy]"

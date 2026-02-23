@@ -541,6 +541,13 @@ struct AppcastReleaseGuardrailTests {
 
     @Test("Appcast newest entry matches current project marketing version")
     func newestMatchesProjectVersion() throws {
+        // App Store submission preflight should not be blocked by Sparkle appcast drift.
+        // This guardrail is for direct-download release sequencing.
+        let env = ProcessInfo.processInfo.environment
+        if env["SANEMASTER_APPSTORE_PREFLIGHT"] == "1" || env["SANEPROCESS_APPSTORE_BUILD"] == "1" {
+            return
+        }
+
         let root = repositoryRoot()
         let appcastXML = try String(contentsOf: root.appendingPathComponent("docs/appcast.xml"), encoding: .utf8)
         let projectYml = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
