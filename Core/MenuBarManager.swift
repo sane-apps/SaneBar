@@ -381,6 +381,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         hidingService.configure(delimiterItem: separator)
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
+        // Unified fire-time guard for ALL auto-rehide paths (#97).
+        // Checked when the timer actually fires, not when it's scheduled.
+        // Prevents hiding while user is interacting with any menu (SaneBar's or third-party).
+        hidingService.shouldRehide = { [weak self] in
+            guard let self else { return true }
+            return !isMenuOpen && !hoverService.isMouseInMenuBar
+        }
+
         // Now do the rest of setup
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self else { return }
@@ -532,6 +540,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
+        // Unified fire-time guard for ALL auto-rehide paths (#97).
+        // Checked when the timer actually fires, not when it's scheduled.
+        // Prevents hiding while user is interacting with any menu (SaneBar's or third-party).
+        hidingService.shouldRehide = { [weak self] in
+            guard let self else { return true }
+            return !isMenuOpen && !hoverService.isMouseInMenuBar
+        }
+
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
         updateDividerStyle()
@@ -634,13 +650,15 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                // Only trigger if the setting is enabled and icons are currently visible
+                // Only trigger if the setting is enabled and icons are currently visible.
+                // Note: fire-time guard in hidingService.shouldRehide handles menu
+                // interaction safety (#97) — no need to duplicate here.
                 if settings.rehideOnAppChange,
                    hidingState == .expanded,
                    !isRevealPinned,
                    !shouldSkipHideForExternalMonitor {
-                    logger.debug("App changed - triggering auto-hide")
-                    hidingService.scheduleRehide(after: 0.5) // Small delay for smooth transition
+                    logger.debug("App changed - scheduling auto-hide")
+                    hidingService.scheduleRehide(after: 0.5)
                 }
             }
             .store(in: &cancellables)
@@ -888,6 +906,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             settings.showOnUserDrag = true
             settings.hasSeenFreemiumIntro = true
             saveSettings()
+            Task.detached { try? await EventTracker.log("new_free_user") }
 
             // Enable launch at login by default
             try? SMAppService.mainApp.register()
@@ -901,6 +920,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             settings.hasSeenFreemiumIntro = true
             saveSettings()
             LicenseService.shared.grantEarlyAdopterPro()
+            Task.detached { try? await EventTracker.log("early_adopter_grant") }
             logger.info("Early adopter detected — granted Pro, re-showing onboarding")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

@@ -13,6 +13,9 @@ protocol HoverServiceProtocol {
     var scrollEnabled: Bool { get set }
     var clickEnabled: Bool { get set }
     var trackMouseLeave: Bool { get set }
+    /// Whether the mouse cursor is currently in the menu bar region.
+    /// Used by rehide guards to prevent hiding while user interacts with any menu.
+    var isMouseInMenuBar: Bool { get }
     func start()
     func stop()
 }
@@ -104,12 +107,14 @@ final class HoverService: HoverServiceProtocol {
     /// Height of the hover detection zone (typically menu bar height)
     private let detectionZoneHeight: CGFloat = 24
 
-    /// How far outside menu bar triggers leave event
-    private let leaveThreshold: CGFloat = 50
+    /// How far outside menu bar triggers leave event.
+    /// 200px covers tall dropdown menus (100+ items). Previously 50px, which caused
+    /// isMouseInMenuBar to go false while user was still interacting with tall menus (#97).
+    private let leaveThreshold: CGFloat = 200
 
     private var globalMonitor: Any?
     private var hoverTimer: Timer?
-    private var isMouseInMenuBar = false
+    private(set) var isMouseInMenuBar = false
     private var lastScrollTime: Date = .distantPast
     /// Throttle mouse moved events to reduce energy impact (~20fps is plenty for hover detection)
     private var lastMouseMovedTime: CFAbsoluteTime = 0

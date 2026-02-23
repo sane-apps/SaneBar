@@ -448,6 +448,8 @@ final class HoverServiceProtocolMock: HoverServiceProtocol {
     private(set) var trackMouseLeaveSetCallCount = 0
     var trackMouseLeave: Bool = false { didSet { trackMouseLeaveSetCallCount += 1 } }
 
+    var isMouseInMenuBar: Bool = false
+
     private(set) var startCallCount = 0
     var startHandler: (() -> Void)?
     func start() {

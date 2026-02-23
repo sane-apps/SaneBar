@@ -315,6 +315,11 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     private var rehideTask: Task<Void, Never>?
 
+    /// Fire-time safety check: called right before `hide()` executes after the timer expires.
+    /// Returns true if it's safe to rehide, false to skip (e.g. user is interacting with a menu).
+    /// Set by MenuBarManager to provide unified guard logic for ALL rehide paths.
+    var shouldRehide: (() -> Bool)?
+
     /// Schedule auto-rehide after delay
     func scheduleRehide(after delay: TimeInterval) {
         rehideTask?.cancel()
@@ -323,6 +328,11 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if !Task.isCancelled {
+                    // Fire-time guard: skip if user is interacting with any menu (#97)
+                    if let shouldRehide, !shouldRehide() {
+                        logger.debug("Rehide skipped — fire-time guard active")
+                        return
+                    }
                     await hide()
                 }
             } catch {

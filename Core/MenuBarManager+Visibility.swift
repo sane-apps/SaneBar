@@ -97,6 +97,7 @@ extension MenuBarManager {
     }
 
     /// Schedule a rehide specifically from Find Icon search (always hides, ignores autoRehide setting)
+    /// Note: fire-time guard in hidingService.shouldRehide handles menu interaction safety (#97).
     func scheduleRehideFromSearch(after delay: TimeInterval) {
         guard !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
         hidingService.scheduleRehide(after: delay)
