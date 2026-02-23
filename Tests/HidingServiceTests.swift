@@ -72,6 +72,45 @@ struct HidingServiceTests {
                 "State should remain unchanged")
     }
 
+    @Test("Rehide fire-time guard blocks hide while user is interacting")
+    @MainActor
+    func scheduleRehideHonorsFireTimeGuard() async throws {
+        let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        service.configure(delimiterItem: mainItem)
+
+        service.shouldRehide = { false }
+        service.scheduleRehide(after: 0.05)
+        try await Task.sleep(nanoseconds: 150_000_000)
+
+        #expect(service.state == .expanded,
+                "Rehide should be skipped when fire-time guard returns false")
+        #expect(mainItem.length == 20,
+                "Main delimiter should stay expanded when rehide is skipped")
+    }
+
+    @Test("Rehide guard is evaluated at fire time, not schedule time")
+    @MainActor
+    func scheduleRehideEvaluatesGuardAtFireTime() async throws {
+        let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        service.configure(delimiterItem: mainItem)
+
+        var allowRehide = false
+        service.shouldRehide = { allowRehide }
+
+        service.scheduleRehide(after: 0.08)
+        try await Task.sleep(nanoseconds: 30_000_000)
+        allowRehide = true
+
+        try await Task.sleep(nanoseconds: 150_000_000)
+
+        #expect(service.state == .hidden,
+                "Rehide should run once guard becomes true before timer fires")
+        #expect(mainItem.length == 10000,
+                "Main delimiter should be collapsed after successful rehide")
+    }
+
     // MARK: - Nil Delimiter Tests (Crash Prevention)
 
     @Test("Toggle with nil delimiter does not crash")
