@@ -53,7 +53,7 @@ struct StatusBarControllerTests {
         let names = [
             StatusBarController.mainAutosaveName,
             StatusBarController.separatorAutosaveName,
-            StatusBarController.alwaysHiddenSeparatorAutosaveName,
+            StatusBarController.alwaysHiddenSeparatorAutosaveName
         ]
 
         let uniqueNames = Set(names)
@@ -129,12 +129,16 @@ struct StatusBarControllerTests {
             "NSStatusItem Visible \(StatusBarController.mainAutosaveName)",
             "NSStatusItem Visible \(StatusBarController.separatorAutosaveName)",
             "NSStatusItem Visible \(StatusBarController.alwaysHiddenSeparatorAutosaveName)",
+            "NSStatusItem Visible SaneBar_spacer_0" // spacer app-domain
         ]
         let byHostKeys = [
             "NSStatusItem Visible SaneBar_main_v7_v6",
             "NSStatusItem Visible SaneBar_separator_v7_v6",
             "NSStatusItem Visible SaneBar_alwaysHiddenSeparator_v7_v6",
-            "NSStatusItem Visible SaneBar_alwayshiddenseparator_v7_v6", // legacy lowercased variant seen in the field
+            "NSStatusItem Visible SaneBar_alwayshiddenseparator_v7_v6", // legacy lowercased variant
+            "NSStatusItem Visible SaneBar_Main_v7_v6", // unknown variant: no lowercasing (#86)
+            "NSStatusItem VisibleCC SaneBar_main_v7_v6", // macOS 26 VisibleCC key
+            "NSStatusItem Visible SaneBar_spacer_0_v6" // spacer ByHost key
         ]
         let originalAppValues: [(String, Any?)] = appKeys.map { ($0, defaults.object(forKey: $0)) }
         let originalByHostValues: [(String, CFPropertyList?)] = byHostKeys.map { key in
@@ -228,7 +232,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -252,7 +256,7 @@ struct StatusBarControllerTests {
 
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
-        defaults.set(10_000.0, forKey: alwaysHiddenKey)
+        defaults.set(10000.0, forKey: alwaysHiddenKey)
         defaults.removeObject(forKey: legacyAlwaysHiddenKey)
 
         _ = StatusBarController()
@@ -279,7 +283,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -303,7 +307,7 @@ struct StatusBarControllerTests {
 
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
-        defaults.set(10_000.0, forKey: alwaysHiddenKey)
+        defaults.set(10000.0, forKey: alwaysHiddenKey)
         defaults.set(50.0, forKey: legacyAlwaysHiddenKey) // Corrupted legacy AH position
 
         _ = StatusBarController()
@@ -340,7 +344,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -359,7 +363,7 @@ struct StatusBarControllerTests {
                 name: "v2.1.2 healthy custom layout",
                 main: 420.0,
                 separator: 360.0,
-                alwaysHidden: 10_000.0,
+                alwaysHidden: 10000.0,
                 legacyAlwaysHidden: nil,
                 expectedMain: 420.0,
                 expectedSeparator: 360.0
@@ -368,7 +372,7 @@ struct StatusBarControllerTests {
                 name: "v2.1.3 corrupted legacy AH",
                 main: 420.0,
                 separator: 360.0,
-                alwaysHidden: 10_000.0,
+                alwaysHidden: 10000.0,
                 legacyAlwaysHidden: 50.0,
                 expectedMain: 0.0,
                 expectedSeparator: 1.0
@@ -377,11 +381,11 @@ struct StatusBarControllerTests {
                 name: "v2.1.6 invalid separator position",
                 main: 420.0,
                 separator: -24.0,
-                alwaysHidden: 10_000.0,
+                alwaysHidden: 10000.0,
                 legacyAlwaysHidden: nil,
                 expectedMain: 0.0,
                 expectedSeparator: 1.0
-            ),
+            )
         ]
 
         for scenario in scenarios {
@@ -448,7 +452,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -464,8 +468,8 @@ struct StatusBarControllerTests {
 
         // Values mirror real-world healthy snapshots reported in 2.1.2/2.1.5 era upgrades.
         let snapshots: [Snapshot] = [
-            Snapshot(name: "v2.1.2-style", main: 97.0, separator: 546.0, alwaysHidden: 6_072.0),
-            Snapshot(name: "v2.1.5-style", main: 420.0, separator: 360.0, alwaysHidden: 10_000.0),
+            Snapshot(name: "v2.1.2-style", main: 97.0, separator: 546.0, alwaysHidden: 6072.0),
+            Snapshot(name: "v2.1.5-style", main: 420.0, separator: 360.0, alwaysHidden: 10000.0)
         ]
 
         for snapshot in snapshots {
@@ -515,7 +519,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -539,7 +543,7 @@ struct StatusBarControllerTests {
         // First launch from corrupted legacy state should recover to 0/1.
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
-        defaults.set(10_000.0, forKey: alwaysHiddenKey)
+        defaults.set(10000.0, forKey: alwaysHiddenKey)
         defaults.set(50.0, forKey: legacyAlwaysHiddenKey)
         _ = StatusBarController()
 
@@ -574,7 +578,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth",
+            "SaneBar_CalibratedScreenWidth"
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -598,7 +602,7 @@ struct StatusBarControllerTests {
         // Snapshot pattern from real reports: pixel-like but healthy custom positions.
         defaults.set(97.0, forKey: mainKey)
         defaults.set(546.0, forKey: separatorKey)
-        defaults.set(6_072.0, forKey: alwaysHiddenKey)
+        defaults.set(6072.0, forKey: alwaysHiddenKey)
 
         // Simulate successive upgrades/restarts.
         _ = StatusBarController() // first upgrade
@@ -611,7 +615,7 @@ struct StatusBarControllerTests {
 
         #expect(mainValue == 97.0, "Healthy custom main position must survive repeated upgrades")
         #expect(separatorValue == 546.0, "Healthy custom separator position must survive repeated upgrades")
-        #expect(ahValue == 6_072.0, "Healthy always-hidden position must survive repeated upgrades")
+        #expect(ahValue == 6072.0, "Healthy always-hidden position must survive repeated upgrades")
         #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"))
     }
 

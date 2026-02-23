@@ -262,16 +262,25 @@ final class StatusBarController: StatusBarControllerProtocol {
         let defaults = UserDefaults.standard
         var clearedAny = false
 
+        // App-domain cleanup: named items + spacer prefix sweep
         for name in [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName] {
             let appKey = "NSStatusItem Visible \(name)"
             if defaults.object(forKey: appKey) != nil {
                 defaults.removeObject(forKey: appKey)
                 clearedAny = true
             }
+        }
 
-            if removeByHostVisibilityOverrides(forAutosaveName: name) {
-                clearedAny = true
-            }
+        // Spacer app-domain keys (SaneBar_spacer_0 through SaneBar_spacer_11)
+        let spacerPrefix = "NSStatusItem Visible SaneBar_spacer_"
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(spacerPrefix) {
+            defaults.removeObject(forKey: key)
+            clearedAny = true
+        }
+
+        // ByHost cleanup: wildcard enumeration catches ALL variants
+        if removeAllByHostVisibilityOverrides() {
+            clearedAny = true
         }
 
         if clearedAny {
@@ -360,29 +369,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         return "\(prefix)_\(suffix)_v6"
     }
 
-    /// Legacy variation observed in the field where the entire suffix is lowercased
-    /// (e.g. SaneBar_AlwaysHiddenSeparator_v7 -> SaneBar_alwayshiddenseparator_v7_v6).
-    private static func legacyLowercasedByHostAutosaveName(for autosaveName: String) -> String {
-        guard let underscore = autosaveName.firstIndex(of: "_") else {
-            return "\(autosaveName.lowercased())_v6"
-        }
-        let prefix = autosaveName[..<underscore]
-        let suffix = String(autosaveName[autosaveName.index(after: underscore)...]).lowercased()
-        return "\(prefix)_\(suffix)_v6"
-    }
-
     private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
-    }
-
-    private static func byHostVisibilityKey(for autosaveName: String) -> String {
-        "NSStatusItem Visible \(byHostAutosaveName(for: autosaveName))"
-    }
-
-    private static func byHostVisibilityKeys(for autosaveName: String) -> [String] {
-        let canonical = byHostVisibilityKey(for: autosaveName)
-        let legacy = "NSStatusItem Visible \(legacyLowercasedByHostAutosaveName(for: autosaveName))"
-        return canonical == legacy ? [canonical] : [canonical, legacy]
     }
 
     nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
@@ -471,38 +459,41 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
     }
 
-    private static func removeByHostVisibilityOverrides(forAutosaveName autosaveName: String) -> Bool {
+    /// Enumerate ALL ByHost keys matching SaneBar visibility prefixes and remove them.
+    /// This catches every variant macOS may write — known casing, legacy lowercased,
+    /// future `_vN` suffixes, spacer items, and macOS 26's `VisibleCC` keys.
+    private static func removeAllByHostVisibilityOverrides() -> Bool {
         let globalDomain = ".GlobalPreferences" as CFString
-        var removedAny = false
+        guard let allKeys = CFPreferencesCopyKeyList(
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        ) as? [String] else { return false }
 
-        for keyString in byHostVisibilityKeys(for: autosaveName) {
-            let key = keyString as CFString
-            let existing = CFPreferencesCopyValue(
-                key,
-                globalDomain,
-                kCFPreferencesCurrentUser,
-                kCFPreferencesCurrentHost
-            )
-            guard existing != nil else { continue }
+        let prefixes = [
+            "NSStatusItem Visible SaneBar_",
+            "NSStatusItem VisibleCC SaneBar_"
+        ]
+        let keysToRemove = allKeys.filter { key in
+            prefixes.contains(where: { key.hasPrefix($0) })
+        }
+        guard !keysToRemove.isEmpty else { return false }
 
+        for key in keysToRemove {
             CFPreferencesSetValue(
-                key,
+                key as CFString,
                 nil,
                 globalDomain,
                 kCFPreferencesCurrentUser,
                 kCFPreferencesCurrentHost
             )
-            removedAny = true
         }
-
-        if removedAny {
-            CFPreferencesSynchronize(
-                globalDomain,
-                kCFPreferencesCurrentUser,
-                kCFPreferencesCurrentHost
-            )
-        }
-        return removedAny
+        CFPreferencesSynchronize(
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        return true
     }
 
     // MARK: - Configuration
