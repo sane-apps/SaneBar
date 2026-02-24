@@ -110,4 +110,28 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Off-screen targets should route to hardware fallback (#102)"
         )
     }
+
+    func testSearchWindowForcesDarkColorSchemeAtSwiftUIBoundary() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains(".preferredColorScheme(.dark)"),
+            "Search windows should force dark color scheme so Icon Panel text stays readable in light mode (#85)"
+        )
+    }
+
+    func testSearchWindowReappliesDarkAppearanceWhenShown() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("applyDarkAppearance(to: window)"),
+            "Search window show() should reapply dark appearance before display to avoid washed-out panel state (#85)"
+        )
+        XCTAssertTrue(
+            source.contains("window.contentView?.appearance = dark"),
+            "Dark appearance must propagate to the hosted content view to keep SwiftUI/AppKit in sync (#85)"
+        )
+    }
 }

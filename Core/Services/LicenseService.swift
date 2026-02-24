@@ -127,6 +127,7 @@ final class LicenseService: ObservableObject {
                 try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
                 validationError = nil
+                Task.detached { await EventTracker.log("license_activated") }
                 licenseLogger.info("License activated successfully")
             } else {
                 validationError = result.error ?? "Invalid license key."

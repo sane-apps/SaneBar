@@ -72,8 +72,16 @@ resolved_sanebar_build_config() {
 
   requested="${SANEMASTER_BUILD_CONFIG:-${SANEBAR_BUILD_CONFIG:-}}"
   case "${requested}" in
-  ProdDebug | Release)
-    echo "${requested}"
+  Debug | debug)
+    echo "Debug"
+    return 0
+    ;;
+  ProdDebug | proddebug)
+    echo "ProdDebug"
+    return 0
+    ;;
+  Release | release)
+    echo "Release"
     return 0
     ;;
   esac
