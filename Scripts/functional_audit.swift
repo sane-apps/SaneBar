@@ -79,8 +79,10 @@ test("Default hotkey (⌘\\) configured", category: "Core") {
 test("Auto-hide with configurable delay", category: "Core") {
     let settings = "\(projectRoot)/Core/Services/PersistenceService.swift"
     let hasRehide = fileContains(settings, "autoRehide") || fileContains(settings, "rehideDelay")
-    let generalView = "\(projectRoot)/UI/Settings/GeneralSettingsView.swift"
-    let hasUI = fileContains(generalView, "rehideDelay") && fileContains(generalView, "Stepper")
+    let rulesView = "\(projectRoot)/UI/Settings/RulesSettingsView.swift"
+    let hasUI = fileContains(rulesView, "autoRehide")
+        && fileContains(rulesView, "rehideDelay")
+        && fileContains(rulesView, "Stepper")
     return (hasRehide && hasUI, "autoRehide=\(hasRehide), UI=\(hasUI)")
 }
 
@@ -100,7 +102,7 @@ test("SearchService implements getHiddenMenuBarApps", category: "FindIcon") {
 }
 
 test("Virtual click implemented", category: "FindIcon") {
-    let accessibility = "\(projectRoot)/Core/Services/AccessibilityService.swift"
+    let accessibility = "\(projectRoot)/Core/Services/AccessibilityService+Interaction.swift"
     let hasClick = fileContains(accessibility, "clickMenuBarItem")
     let hasPress = fileContains(accessibility, "performPress") || fileContains(accessibility, "AXPress")
     return (hasClick && hasPress, "clickMenuBarItem=\(hasClick), performPress=\(hasPress)")
@@ -108,15 +110,19 @@ test("Virtual click implemented", category: "FindIcon") {
 
 test("Open System Settings button ACTUALLY opens System Settings", category: "FindIcon") {
     let searchView = "\(projectRoot)/UI/SearchWindow/MenuBarSearchView.swift"
-    // Check for the CORRECT pattern - should use NSWorkspace.shared.open, NOT requestAccessibility
-    let hasCorrectURL = fileContains(searchView, "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    let hasNSWorkspace = fileContains(searchView, "NSWorkspace.shared.open")
-    // Make sure it's NOT using the broken pattern
-    let buttonLines = grepFile(searchView, "Open System Settings")
-    let hasRequestAccessibility = buttonLines.contains { $0.contains("requestAccessibility") }
+    let statusViews = "\(projectRoot)/UI/SearchWindow/MenuBarSearchStatusViews.swift"
+    let secondMenuBarView = "\(projectRoot)/UI/SearchWindow/SecondMenuBarView.swift"
 
-    let passed = hasCorrectURL && hasNSWorkspace && !hasRequestAccessibility
-    return (passed, "CorrectURL=\(hasCorrectURL), NSWorkspace=\(hasNSWorkspace), BrokenPattern=\(hasRequestAccessibility)")
+    // Current architecture routes button actions through AccessibilityService helper.
+    let hasOpenHelper = fileContains(searchView, "openAccessibilitySettings()")
+        || fileContains(statusViews, "openAccessibilitySettings()")
+        || fileContains(secondMenuBarView, "openAccessibilitySettings()")
+    let hasServiceURL = fileContains(
+        "\(projectRoot)/Core/Services/AccessibilityService.swift",
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    )
+
+    return (hasOpenHelper && hasServiceURL, "helper=\(hasOpenHelper), serviceURL=\(hasServiceURL)")
 }
 
 test("Permission monitoring with distributed notification", category: "FindIcon") {
@@ -136,10 +142,15 @@ test("Onboarding view exists", category: "Onboarding") {
 }
 
 test("Onboarding Open System Settings button works correctly", category: "Onboarding") {
-    let onboarding = "\(projectRoot)/UI/OnboardingTipView.swift"
-    let hasCorrectURL = fileContains(onboarding, "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    let hasNSWorkspace = fileContains(onboarding, "NSWorkspace.shared.open")
-    return (hasCorrectURL && hasNSWorkspace, "CorrectURL=\(hasCorrectURL), NSWorkspace=\(hasNSWorkspace)")
+    let onboardingTip = "\(projectRoot)/UI/OnboardingTipView.swift"
+    let welcomeView = "\(projectRoot)/UI/Onboarding/WelcomeView.swift"
+    let hasOpenHelper = fileContains(onboardingTip, "openAccessibilitySettings()")
+        || fileContains(welcomeView, "openAccessibilitySettings()")
+    let hasServiceURL = fileContains(
+        "\(projectRoot)/Core/Services/AccessibilityService.swift",
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    )
+    return (hasOpenHelper && hasServiceURL, "helper=\(hasOpenHelper), serviceURL=\(hasServiceURL)")
 }
 
 // MARK: - 4. PER-ICON HOTKEYS
@@ -153,9 +164,11 @@ test("IconHotkeysService exists", category: "Hotkeys") {
 
 test("Hotkey recording UI in search window footer", category: "Hotkeys") {
     let searchView = "\(projectRoot)/UI/SearchWindow/MenuBarSearchView.swift"
-    let hasRecorder = fileContains(searchView, "KeyboardShortcuts.Recorder")
-    let hasIconHotkeys = fileContains(searchView, "IconHotkeysService")
-    let savesToSettings = fileContains(searchView, "iconHotkeys")
+    let actionsView = "\(projectRoot)/UI/SearchWindow/MenuBarSearchView+Actions.swift"
+    let hasRecorder = fileContains(searchView, "HotkeyAssignmentSheet")
+        && fileContains(actionsView, "KeyboardShortcuts.Recorder")
+    let hasIconHotkeys = fileContains(actionsView, "IconHotkeysService")
+    let savesToSettings = fileContains(actionsView, "iconHotkeys")
     return (hasRecorder && hasIconHotkeys && savesToSettings, "Recorder=\(hasRecorder), Service=\(hasIconHotkeys), Saves=\(savesToSettings)")
 }
 
@@ -181,9 +194,9 @@ test("Scroll trigger implemented", category: "Gestures") {
 }
 
 test("Gesture settings in UI", category: "Gestures") {
-    let generalView = "\(projectRoot)/UI/Settings/GeneralSettingsView.swift"
-    let hasHoverToggle = fileContains(generalView, "showOnHover")
-    let hasScrollToggle = fileContains(generalView, "showOnScroll")
+    let rulesView = "\(projectRoot)/UI/Settings/RulesSettingsView.swift"
+    let hasHoverToggle = fileContains(rulesView, "showOnHover")
+    let hasScrollToggle = fileContains(rulesView, "showOnScroll")
     return (hasHoverToggle && hasScrollToggle, "hover=\(hasHoverToggle), scroll=\(hasScrollToggle)")
 }
 
@@ -265,8 +278,8 @@ test("ShortcutsSettingsView exists", category: "Settings") {
     return (fileExists("\(projectRoot)/UI/Settings/ShortcutsSettingsView.swift"), "Not found")
 }
 
-test("AdvancedSettingsView exists", category: "Settings") {
-    return (fileExists("\(projectRoot)/UI/Settings/AdvancedSettingsView.swift"), "Not found")
+test("RulesSettingsView exists", category: "Settings") {
+    return (fileExists("\(projectRoot)/UI/Settings/RulesSettingsView.swift"), "Not found")
 }
 
 test("AboutSettingsView exists", category: "Settings") {

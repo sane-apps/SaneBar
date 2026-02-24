@@ -548,6 +548,15 @@ struct AppcastReleaseGuardrailTests {
             return
         }
 
+        // Developers frequently stage version bumps before publishing a signed appcast
+        // item. Enforce strict appcast alignment in CI/release contexts, while letting
+        // local verification focus on functional regressions.
+        let enforceInLocalRuns = env["SANEMASTER_ENFORCE_APPCAST_ALIGNMENT"] == "1"
+        let isCI = env["CI"] == "1" || env["CI"]?.lowercased() == "true"
+        if !isCI, !enforceInLocalRuns {
+            return
+        }
+
         let root = repositoryRoot()
         let appcastXML = try String(contentsOf: root.appendingPathComponent("docs/appcast.xml"), encoding: .utf8)
         let projectYml = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
