@@ -43,6 +43,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// Prevents auto-close during icon moves (CGEvent causes resignKey)
     private(set) var isMoveInProgress = false
+    private var autoCloseSuppressedUntil: Date = .distantPast
 
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
@@ -132,6 +133,15 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window?.orderOut(nil)
         window = nil
         currentMode = nil
+    }
+
+    /// Temporarily suppress resign-key auto-close after icon activation.
+    /// Clicking an icon often shifts focus to the target app/popover, which should
+    /// not be treated as an explicit request to dismiss the panel.
+    func suppressAutoCloseForActivation(duration: TimeInterval = 1.0) {
+        autoCloseSuppressedUntil = Date().addingTimeInterval(duration)
+        resignCloseTask?.cancel()
+        resignCloseTask = nil
     }
 
     // MARK: - Window Positioning
@@ -287,6 +297,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Users expect the panel to stay open while they interact with
         // opened menus/dropdowns. They close it explicitly (X / Esc / click outside).
         if currentMode == .secondMenuBar { return }
+        if shouldSuppressResignAutoClose() { return }
 
         // Skip auto-close when a sheet (e.g. Pro upsell) is attached — the sheet
         // steals key status but the user expects the parent window to stay open.
@@ -300,6 +311,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled else { return }
             guard !(window?.isKeyWindow ?? false) else { return }
+            guard !shouldSuppressResignAutoClose() else { return }
             // Re-check for sheets after the delay (sheet may have appeared during sleep)
             guard window?.attachedSheet == nil else { return }
             close()
@@ -315,5 +327,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_: Notification) {
         // If user explicitly closes, we can either keep it or nil it.
         // Keeping it is better for performance.
+    }
+
+    private func shouldSuppressResignAutoClose(now: Date = Date()) -> Bool {
+        now < autoCloseSuppressedUntil
     }
 }

@@ -141,6 +141,30 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testSearchServiceDebouncesBackToBackActivationRequests() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("activationDebounceInterval: TimeInterval = 0.45"),
+            "SearchService.activate should debounce rapid duplicate requests to prevent panel lockups on double-click"
+        )
+        XCTAssertTrue(
+            source.contains("beginActivationIfAllowed(for: app.uniqueId"),
+            "SearchService.activate should pass through shared activation guard logic"
+        )
+    }
+
+    func testSearchServiceSkipsActivationWhenAnotherActivationIsInFlight() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if let inFlight = activationInFlightAppID"),
+            "SearchService.activate should reject overlapping activation workflows while one request is in progress"
+        )
+    }
+
     func testAccessibilityClickSkipsAXPressForOffscreenItems() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -176,6 +200,30 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("window.contentView?.appearance = dark"),
             "Dark appearance must propagate to the hosted content view to keep SwiftUI/AppKit in sync (#85)"
+        )
+    }
+
+    func testSearchWindowSuppressesResignAutoCloseAfterActivation() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("func suppressAutoCloseForActivation"),
+            "SearchWindowController should expose shared activation suppression to keep panels open on app click"
+        )
+        XCTAssertTrue(
+            source.contains("if shouldSuppressResignAutoClose() { return }"),
+            "windowDidResignKey should skip auto-close while activation suppression is active"
+        )
+    }
+
+    func testMenuBarSearchActivationUsesSharedCloseSuppression() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("SearchWindowController.shared.suppressAutoCloseForActivation()"),
+            "Both Icon Panel and Second Menu Bar activation should use unified close suppression backend"
         )
     }
 

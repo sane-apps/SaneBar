@@ -109,6 +109,7 @@ extension MenuBarSearchView {
     }
 
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
+        SearchWindowController.shared.suppressAutoCloseForActivation()
         Task {
             await service.activate(app: app, isRightClick: isRightClick)
         }
