@@ -65,11 +65,24 @@ struct MenuBarAppTile: View {
             .frame(width: tileSize, height: showName ? tileSize + 16 : tileSize)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .fill(
+                        isSelected
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.10, green: 0.38, blue: 0.56).opacity(0.18),
+                                        Color(red: 0.13, green: 0.25, blue: 0.45).opacity(0.12)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            : AnyShapeStyle(Color.clear)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? Color.white.opacity(0.28) : Color.clear, lineWidth: 1.5)
             )
         })
         .buttonStyle(.plain)

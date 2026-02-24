@@ -13,8 +13,7 @@ enum SearchWindowMode {
 // MARK: - KeyablePanel
 
 /// Panel subclass that accepts key status for borderless panels.
-/// Required so `windowDidResignKey` fires when clicking outside,
-/// enabling auto-close behavior for the second menu bar.
+/// Needed for keyboard focus + shortcuts on borderless second-menu-bar panel.
 private class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
@@ -41,9 +40,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// The mode this window was created for (nil if no window exists)
     private var currentMode: SearchWindowMode?
 
-    /// Prevents auto-close during icon moves (CGEvent causes resignKey)
+    /// Prevents explicit closes during icon moves (CGEvent can flip key status)
     private(set) var isMoveInProgress = false
-    private var autoCloseSuppressedUntil: Date = .distantPast
 
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
@@ -133,15 +131,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window?.orderOut(nil)
         window = nil
         currentMode = nil
-    }
-
-    /// Temporarily suppress resign-key auto-close after icon activation.
-    /// Clicking an icon often shifts focus to the target app/popover, which should
-    /// not be treated as an explicit request to dismiss the panel.
-    func suppressAutoCloseForActivation(duration: TimeInterval = 1.0) {
-        autoCloseSuppressedUntil = Date().addingTimeInterval(duration)
-        resignCloseTask?.cancel()
-        resignCloseTask = nil
     }
 
     // MARK: - Window Positioning
@@ -287,49 +276,17 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
-    private var resignCloseTask: Task<Void, Never>?
-
     func windowDidResignKey(_: Notification) {
-        // Skip auto-close during moves — CGEvent Cmd+drag steals key status
+        // Keep both panels open on focus loss. Auto-close on resign caused
+        // click-triggered dismissals while launching icons/popovers.
         guard !isMoveInProgress else { return }
-
-        // Second menu bar panel: never auto-close on resignKey.
-        // Users expect the panel to stay open while they interact with
-        // opened menus/dropdowns. They close it explicitly (X / Esc / click outside).
-        if currentMode == .secondMenuBar { return }
-        if shouldSuppressResignAutoClose() { return }
-
-        // Skip auto-close when a sheet (e.g. Pro upsell) is attached — the sheet
-        // steals key status but the user expects the parent window to stay open.
-        if window?.attachedSheet != nil { return }
-
-        // Brief delay — clicking a menu bar icon opens its dropdown which
-        // steals key status momentarily. If the window regains key within
-        // the grace period (user clicked inside Find Icon again), skip close.
-        resignCloseTask?.cancel()
-        resignCloseTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            guard !(window?.isKeyWindow ?? false) else { return }
-            guard !shouldSuppressResignAutoClose() else { return }
-            // Re-check for sheets after the delay (sheet may have appeared during sleep)
-            guard window?.attachedSheet == nil else { return }
-            close()
-        }
     }
 
-    func windowDidBecomeKey(_: Notification) {
-        // Window regained focus — cancel any pending resign-close
-        resignCloseTask?.cancel()
-        resignCloseTask = nil
-    }
+    func windowDidBecomeKey(_: Notification) {}
 
     func windowWillClose(_: Notification) {
         // If user explicitly closes, we can either keep it or nil it.
         // Keeping it is better for performance.
     }
 
-    private func shouldSuppressResignAutoClose(now: Date = Date()) -> Bool {
-        now < autoCloseSuppressedUntil
-    }
 }

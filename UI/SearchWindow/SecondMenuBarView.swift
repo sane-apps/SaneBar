@@ -29,8 +29,8 @@ struct SecondMenuBarView: View {
     private let textPrimary = Color.white
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
-    private let accentStart = Color(red: 0.16, green: 0.72, blue: 0.96)
-    private let accentEnd = Color(red: 0.33, green: 0.45, blue: 1.0)
+    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
+    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
 
     // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
@@ -536,8 +536,8 @@ private struct PanelIconTile: View {
     /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
     /// while `.fit` preserves aspect ratio (no deformation).
     private let tileSize: CGFloat = 32
-    private let accentStart = Color(red: 0.16, green: 0.72, blue: 0.96)
-    private let accentEnd = Color(red: 0.33, green: 0.45, blue: 1.0)
+    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
+    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
     private var iconSize: CGFloat {
         let icon = app.iconThumbnail ?? app.icon
         // System template icons are non-square and deform when overscaled.
@@ -565,7 +565,7 @@ private struct PanelIconTile: View {
                     .font(.system(size: 7))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color(red: 0.16, green: 0.72, blue: 0.96), Color(red: 0.33, green: 0.45, blue: 1.0)],
+                            colors: [accentStart, accentEnd],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -585,7 +585,7 @@ private struct PanelIconTile: View {
         if isHovering {
             return AnyShapeStyle(
                 LinearGradient(
-                    colors: [accentStart.opacity(0.32), accentEnd.opacity(0.22)],
+                    colors: [accentStart.opacity(0.16), accentEnd.opacity(0.11)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

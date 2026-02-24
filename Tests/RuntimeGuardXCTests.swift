@@ -165,6 +165,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testSearchServiceRunsClickOffMainAndSkipsSlowRetry() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Task.detached(priority: .userInitiated)"),
+            "SearchService.activate should run click path off-main-thread to avoid UI stalls during AX calls"
+        )
+        XCTAssertTrue(
+            source.contains("Click failed after slow attempt; skipping forced-refresh retry"),
+            "SearchService.activate should avoid compounding delays by skipping retry after a slow failed click"
+        )
+    }
+
     func testAccessibilityClickSkipsAXPressForOffscreenItems() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -203,27 +217,21 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testSearchWindowSuppressesResignAutoCloseAfterActivation() throws {
+    func testSearchWindowUsesExplicitClosePolicy() throws {
         let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("func suppressAutoCloseForActivation"),
-            "SearchWindowController should expose shared activation suppression to keep panels open on app click"
+            source.contains("func windowDidResignKey"),
+            "SearchWindowController should still observe resign-key transitions"
         )
         XCTAssertTrue(
-            source.contains("if shouldSuppressResignAutoClose() { return }"),
-            "windowDidResignKey should skip auto-close while activation suppression is active"
+            source.contains("click-triggered dismissals while launching icons/popovers"),
+            "SearchWindowController should keep search panels open when focus shifts during icon activation"
         )
-    }
-
-    func testMenuBarSearchActivationUsesSharedCloseSuppression() throws {
-        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
-        let source = try String(contentsOf: fileURL, encoding: .utf8)
-
-        XCTAssertTrue(
-            source.contains("SearchWindowController.shared.suppressAutoCloseForActivation()"),
-            "Both Icon Panel and Second Menu Bar activation should use unified close suppression backend"
+        XCTAssertFalse(
+            source.contains("resignCloseTask = Task"),
+            "windowDidResignKey should not schedule delayed auto-close tasks"
         )
     }
 

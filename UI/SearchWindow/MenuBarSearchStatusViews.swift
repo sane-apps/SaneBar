@@ -3,12 +3,22 @@ import SwiftUI
 struct MenuBarSearchAccessibilityPrompt: View {
     let loadCachedApps: () -> Void
     let refreshApps: (Bool) -> Void
+    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
+    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
+
+    private var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentStart, accentEnd],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.teal)
+                .foregroundStyle(accentGradient)
 
             Text("Grant Access")
                 .font(.headline)
@@ -16,19 +26,19 @@ struct MenuBarSearchAccessibilityPrompt: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "video.slash.fill")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No screen recording.")
                 }
                 HStack(spacing: 8) {
                     Image(systemName: "eye.slash.fill")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No screenshots.")
                 }
                 HStack(spacing: 8) {
                     Image(systemName: "icloud.slash")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No data collected.")
                 }
@@ -40,7 +50,7 @@ struct MenuBarSearchAccessibilityPrompt: View {
                     _ = AccessibilityService.shared.openAccessibilitySettings()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.teal)
+                .tint(accentStart)
 
                 Button("Try Again") {
                     loadCachedApps()

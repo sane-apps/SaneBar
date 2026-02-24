@@ -7,6 +7,8 @@ struct SmartGroupTab: View {
     let icon: String
     let isSelected: Bool
     let action: () -> Void
+    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
+    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
 
     var body: some View {
         Button(action: action) {
@@ -17,7 +19,21 @@ struct SmartGroupTab: View {
                 .padding(.vertical, 5)
                 .background(
                     Capsule()
-                        .fill(isSelected ? .white.opacity(0.15) : .clear)
+                        .fill(
+                            isSelected
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [accentStart.opacity(0.20), accentEnd.opacity(0.14)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyShapeStyle(.clear)
+                        )
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.white.opacity(0.2) : Color.clear, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -30,6 +46,8 @@ struct GroupTabButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
+    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
+    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
 
     var body: some View {
         Button(action: action) {
@@ -40,7 +58,21 @@ struct GroupTabButton: View {
                 .padding(.vertical, 5)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.accentColor.opacity(0.25) : .clear)
+                        .fill(
+                            isSelected
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [accentStart.opacity(0.24), accentEnd.opacity(0.17)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyShapeStyle(.clear)
+                        )
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Color.white.opacity(0.2) : Color.clear, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)

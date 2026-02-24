@@ -66,6 +66,10 @@ protocol SearchServiceProtocol: Sendable {
 final class SearchService: SearchServiceProtocol {
     static let shared = SearchService()
     @MainActor private var lastAlwaysHiddenOrderWarningAt: Date?
+    @MainActor private var activationInFlightAppID: String?
+    @MainActor private var lastActivatedAppID: String?
+    @MainActor private var lastActivationAt: Date = .distantPast
+    @MainActor private let activationDebounceInterval: TimeInterval = 0.45
 
     enum VisibilityZone: Equatable, Hashable {
         case visible
@@ -525,6 +529,11 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func activate(app: RunningApp, isRightClick: Bool = false) async {
+        if !beginActivationIfAllowed(for: app.uniqueId, nameForLog: app.name) {
+            return
+        }
+        defer { finishActivation(for: app.uniqueId) }
+
         // 1. Show hidden menu bar items first
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
 
@@ -542,25 +551,47 @@ final class SearchService: SearchServiceProtocol {
         // cached data causes AXPress to target the wrong (off-screen) element,
         // which returns .success without opening any menu (#69, #77, #102).
         let initialTarget = await resolveLatestClickTarget(for: app, forceRefresh: didReveal)
+        let initialFallbackCenter = fallbackCenter(for: initialTarget)
+        let axService = AccessibilityService.shared
 
-        // 4. Perform Virtual Click on the menu bar item
-        var clickSuccess = AccessibilityService.shared.clickMenuBarItem(
-            bundleID: initialTarget.bundleId,
-            menuExtraId: initialTarget.menuExtraIdentifier,
-            statusItemIndex: initialTarget.statusItemIndex,
-            isRightClick: isRightClick
-        )
-
-        // One retry with a forced refresh if first click failed.
-        if !clickSuccess {
-            logger.info("Click failed, retrying after forced menu bar refresh")
-            let refreshedTarget = await resolveLatestClickTarget(for: app, forceRefresh: true)
-            clickSuccess = AccessibilityService.shared.clickMenuBarItem(
-                bundleID: refreshedTarget.bundleId,
-                menuExtraId: refreshedTarget.menuExtraIdentifier,
-                statusItemIndex: refreshedTarget.statusItemIndex,
+        // 4. Perform click off-main-thread to avoid UI stalls when AX APIs block.
+        let firstAttemptStart = Date()
+        var clickSuccess = await Task.detached(priority: .userInitiated) {
+            axService.clickMenuBarItem(
+                bundleID: initialTarget.bundleId,
+                menuExtraId: initialTarget.menuExtraIdentifier,
+                statusItemIndex: initialTarget.statusItemIndex,
+                fallbackCenter: initialFallbackCenter,
                 isRightClick: isRightClick
             )
+        }.value
+        let firstAttemptDuration = Date().timeIntervalSince(firstAttemptStart)
+        if firstAttemptDuration > 1.5 {
+            logger.info("Click attempt took \(firstAttemptDuration, privacy: .public)s")
+        }
+
+        // One retry with a forced refresh if first click failed.
+        // Skip retry when first attempt is already slow, to avoid compounding delay.
+        if !clickSuccess {
+            let likelyNoExtras = AccessibilityService.shared.likelyLacksExtrasMenuBar(bundleID: initialTarget.bundleId)
+            if likelyNoExtras {
+                logger.info("Click failed and AXExtrasMenuBar is unavailable; skipping forced-refresh retry")
+            } else if firstAttemptDuration > 1.5 {
+                logger.info("Click failed after slow attempt; skipping forced-refresh retry")
+            } else {
+                logger.info("Click failed, retrying after forced menu bar refresh")
+                let refreshedTarget = await resolveLatestClickTarget(for: app, forceRefresh: true)
+                let refreshedFallbackCenter = fallbackCenter(for: refreshedTarget)
+                clickSuccess = await Task.detached(priority: .userInitiated) {
+                    axService.clickMenuBarItem(
+                        bundleID: refreshedTarget.bundleId,
+                        menuExtraId: refreshedTarget.menuExtraIdentifier,
+                        statusItemIndex: refreshedTarget.statusItemIndex,
+                        fallbackCenter: refreshedFallbackCenter,
+                        isRightClick: isRightClick
+                    )
+                }.value
+            }
         }
 
         if !clickSuccess {
@@ -579,6 +610,39 @@ final class SearchService: SearchServiceProtocol {
             let delay = MenuBarManager.shared.settings.findIconRehideDelay
             MenuBarManager.shared.scheduleRehideFromSearch(after: delay)
         }
+    }
+
+    /// Prevents overlapping click workflows and debounces accidental double-clicks.
+    @MainActor
+    func beginActivationIfAllowed(for appUniqueID: String, nameForLog: String? = nil, now: Date = Date()) -> Bool {
+        if let inFlight = activationInFlightAppID {
+            if let nameForLog {
+                logger.info("Skipping activation for \(nameForLog, privacy: .private): \(inFlight, privacy: .private) is already in progress")
+            } else {
+                logger.info("Skipping activation: \(inFlight, privacy: .private) is already in progress")
+            }
+            return false
+        }
+
+        if lastActivatedAppID == appUniqueID,
+           now.timeIntervalSince(lastActivationAt) < activationDebounceInterval {
+            if let nameForLog {
+                logger.info("Debounced duplicate activation for \(nameForLog, privacy: .private)")
+            } else {
+                logger.info("Debounced duplicate activation for \(appUniqueID, privacy: .private)")
+            }
+            return false
+        }
+
+        activationInFlightAppID = appUniqueID
+        return true
+    }
+
+    @MainActor
+    func finishActivation(for appUniqueID: String, at finishedAt: Date = Date()) {
+        activationInFlightAppID = nil
+        lastActivatedAppID = appUniqueID
+        lastActivationAt = finishedAt
     }
 
     @MainActor
@@ -615,6 +679,13 @@ final class SearchService: SearchServiceProtocol {
         return sameBundle.first ?? original
     }
 
+    @MainActor
+    private func fallbackCenter(for app: RunningApp) -> CGPoint? {
+        guard let x = app.xPosition else { return nil }
+        let width = max(1, app.width ?? 22)
+        return CGPoint(x: x + (width / 2), y: 15)
+    }
+
     /// Poll until the target icon reaches a stable on-screen position.
     /// After `showHiddenItemsNow()`, macOS re-layouts menu bar items asynchronously.
     /// Icons may still be at off-screen x ≈ -3000 when the caller's base wait ends.
@@ -623,6 +694,7 @@ final class SearchService: SearchServiceProtocol {
         let intervalMs = 50
         let maxAttempts = maxWaitMs / intervalMs
         var previousX: CGFloat?
+        var nilStreak = 0
 
         // Capture MainActor-isolated references before entering detached tasks
         let axService = AccessibilityService.shared
@@ -641,6 +713,7 @@ final class SearchService: SearchServiceProtocol {
             }.value
 
             if let pos = position {
+                nilStreak = 0
                 let isOnScreen = NSScreen.screens.contains {
                     $0.frame.insetBy(dx: -2, dy: -2).contains(pos)
                 }
@@ -653,6 +726,17 @@ final class SearchService: SearchServiceProtocol {
                         return
                     }
                     previousX = pos.x
+                }
+            } else {
+                nilStreak += 1
+                if axService.likelyLacksExtrasMenuBar(bundleID: bundleId) {
+                    logger.debug("Skipping on-screen wait for \(bundleId, privacy: .private): AXExtrasMenuBar unavailable")
+                    return
+                }
+                // Avoid long stalls for transient AX failures where position is unavailable.
+                if nilStreak >= 4 {
+                    logger.debug("Skipping on-screen wait for \(bundleId, privacy: .private): icon position unavailable")
+                    return
                 }
             }
 

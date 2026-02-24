@@ -7,12 +7,12 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "Accessibili
 extension AccessibilityService {
     // MARK: - Actions
 
-    func clickMenuBarItem(for bundleID: String) -> Bool {
-        clickMenuBarItem(bundleID: bundleID, menuExtraId: nil)
+    nonisolated func clickMenuBarItem(for bundleID: String) -> Bool {
+        clickMenuBarItem(bundleID: bundleID, menuExtraId: nil, fallbackCenter: nil)
     }
 
     /// Perform a "Virtual Click" on a specific menu bar item.
-    func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, isRightClick: Bool = false) -> Bool {
+    nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false) -> Bool {
         let menuExtraIdString = menuExtraId ?? "nil"
         let statusItemIndexString = statusItemIndex.map(String.init) ?? "nil"
         logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString), rightClick: \(isRightClick))")
@@ -27,19 +27,37 @@ extension AccessibilityService {
             return false
         }
 
-        return clickSystemWideItem(for: app.processIdentifier, bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+        return clickSystemWideItem(
+            for: app.processIdentifier,
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            fallbackCenter: fallbackCenter,
+            isRightClick: isRightClick
+        )
     }
 
-    private func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, isRightClick: Bool) -> Bool {
+    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool) -> Bool {
         let appElement = AXUIElementCreateApplication(targetPID)
 
         var extrasBar: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
         guard result == .success, let bar = extrasBar else {
-            logger.debug("App \(targetPID) has no AXExtrasMenuBar")
-            // Fallback: If AX fails to find the bar, we try to get the frame directly and hardware-click
-            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+            logger.debug("App \(targetPID) has no AXExtrasMenuBar (error \(result.rawValue))")
+            Task { @MainActor in
+                AccessibilityService.shared.markExtrasMenuBarUnavailable(bundleID: bundleID)
+            }
+            // If AX bar is unavailable, frame-based fallback usually fails too.
+            // Use spatial fallback (from scanner coordinates) when available.
+            if let fallbackCenter {
+                let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
+                return simulateHardwareClick(at: point, isRightClick: isRightClick)
+            }
+            return false
+        }
+        Task { @MainActor in
+            AccessibilityService.shared.markExtrasMenuBarAvailable(bundleID: bundleID)
         }
 
         guard let barElement = safeAXUIElement(bar) else { return false }
@@ -49,7 +67,13 @@ extension AccessibilityService {
 
         guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
             logger.debug("No items in app's Extras Menu Bar")
-            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+            return hardwareClickAsFallback(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                fallbackCenter: fallbackCenter,
+                isRightClick: isRightClick
+            )
         }
 
         logger.info("Found \(items.count) status item(s) for PID \(targetPID)")
@@ -74,7 +98,13 @@ extension AccessibilityService {
 
         guard let item = targetItem else {
             logger.warning("Could not find target status item for click")
-            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+            return hardwareClickAsFallback(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                fallbackCenter: fallbackCenter,
+                isRightClick: isRightClick
+            )
         }
 
         // Verify item is on-screen before AXPress. After SaneBar reveals hidden
@@ -85,7 +115,13 @@ extension AccessibilityService {
         // getMenuBarIconFrameOnScreen(); AXPress was missing this gate.
         if !isElementOnScreen(item) {
             logger.info("Target item off-screen; skipping AXPress, using hardware click")
-            return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+            return hardwareClickAsFallback(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                fallbackCenter: fallbackCenter,
+                isRightClick: isRightClick
+            )
         }
 
         // Try AX first
@@ -94,18 +130,30 @@ extension AccessibilityService {
         }
 
         // Fallback to hardware event
-        return hardwareClickAsFallback(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex, isRightClick: isRightClick)
+        return hardwareClickAsFallback(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            fallbackCenter: fallbackCenter,
+            isRightClick: isRightClick
+        )
     }
 
-    private func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, isRightClick: Bool) -> Bool {
+    private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool) -> Bool {
         logger.info("Performing hardware click fallback for \(bundleID)")
-        guard let frame = getMenuBarIconFrameOnScreen(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
-            logger.error("Hardware click failed: could not find icon frame")
-            return false
+        if let frame = getMenuBarIconFrameOnScreen(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) {
+            let center = normalizedCGEventPoint(fromAccessibilityPoint: CGPoint(x: frame.midX, y: frame.midY))
+            return simulateHardwareClick(at: center, isRightClick: isRightClick)
         }
 
-        let center = normalizedCGEventPoint(fromAccessibilityPoint: CGPoint(x: frame.midX, y: frame.midY))
-        return simulateHardwareClick(at: center, isRightClick: isRightClick)
+        if let fallbackCenter {
+            logger.info("Hardware click fallback: using spatial center fallback for \(bundleID)")
+            let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
+            return simulateHardwareClick(at: point, isRightClick: isRightClick)
+        }
+
+        logger.error("Hardware click failed: could not find icon frame")
+        return false
     }
 
     // MARK: - On-Screen Verification
@@ -114,7 +162,7 @@ extension AccessibilityService {
     /// Hidden icons are pushed far off-screen (x ≈ -3000+). AXPress returns
     /// .success on these elements without opening any menu — this gate ensures
     /// we only attempt AXPress on genuinely visible items.
-    private func isElementOnScreen(_ element: AXUIElement) -> Bool {
+    private nonisolated func isElementOnScreen(_ element: AXUIElement) -> Bool {
         var positionValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
               let posValue = positionValue,
@@ -143,7 +191,7 @@ extension AccessibilityService {
 
     // MARK: - Interaction
 
-    private func performSmartPress(on element: AXUIElement, isRightClick: Bool) -> Bool {
+    private nonisolated func performSmartPress(on element: AXUIElement, isRightClick: Bool) -> Bool {
         // AX doesn't have a native "right-click" action for most items,
         // so we usually fallback to hardware click for that.
         if isRightClick { return false }
@@ -163,7 +211,7 @@ extension AccessibilityService {
         return false
     }
 
-    private func performPress(on element: AXUIElement) -> Bool {
+    private nonisolated func performPress(on element: AXUIElement) -> Bool {
         let error = AXUIElementPerformAction(element, kAXPressAction as CFString)
 
         if error == .success {
@@ -185,7 +233,7 @@ extension AccessibilityService {
         return false
     }
 
-    private func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
+    private nonisolated func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
         let source = CGEventSource(stateID: .combinedSessionState)
 
         let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
@@ -206,22 +254,15 @@ extension AccessibilityService {
         return true
     }
 
-    private func normalizedCGEventPoint(fromAccessibilityPoint point: CGPoint) -> CGPoint {
+    private nonisolated func normalizedCGEventPoint(fromAccessibilityPoint point: CGPoint) -> CGPoint {
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 0
         let rawY = point.y
-        let anchorY = menuBarAnchorY(globalMaxY: globalMaxY)
+        let anchorY: CGFloat = 15
         let clampedY = Self.normalizedEventY(rawY: rawY, globalMaxY: globalMaxY, anchorY: anchorY)
         return CGPoint(x: point.x, y: clampedY)
     }
 
-    private func menuBarAnchorY(globalMaxY: CGFloat) -> CGFloat {
-        guard let frame = MenuBarManager.shared.mainStatusItem?.button?.window?.frame else {
-            return 15
-        }
-        return max(1, min(globalMaxY - frame.midY, globalMaxY - 1))
-    }
-
-    static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
+    nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
         let flippedY = globalMaxY - rawY
 
         // AX values may arrive in either AppKit-unflipped or CoreGraphics-flipped space.

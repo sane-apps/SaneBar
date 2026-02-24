@@ -107,11 +107,11 @@ struct MenuBarSearchView: View {
     }
 
     private var accentStart: Color {
-        Color(red: 0.16, green: 0.72, blue: 0.96)
+        Color(red: 0.10, green: 0.38, blue: 0.56)
     }
 
     private var accentEnd: Color {
-        Color(red: 0.33, green: 0.45, blue: 1.0)
+        Color(red: 0.13, green: 0.25, blue: 0.45)
     }
 
     private var accentGradient: LinearGradient {
@@ -503,14 +503,20 @@ struct MenuBarSearchView: View {
         let selected = mode == segmentMode
         return Text(segmentMode.title)
             .font(.system(size: 12, weight: selected ? .semibold : .medium))
-            .foregroundStyle(selected ? .white : .white.opacity(0.9))
+            .foregroundStyle(selected ? .white : .white.opacity(0.92))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(
                         selected
-                            ? AnyShapeStyle(accentGradient.opacity(0.92))
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [accentStart.opacity(0.40), accentEnd.opacity(0.30)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                             : AnyShapeStyle(
                                 LinearGradient(
                                     colors: [Color.white.opacity(0.11), Color.white.opacity(0.05)],
@@ -524,12 +530,12 @@ struct MenuBarSearchView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         selected
-                            ? Color.white.opacity(0.36)
+                            ? Color.white.opacity(0.26)
                             : Color.white.opacity(0.18),
                         lineWidth: 1
                     )
             )
-            .shadow(color: selected ? accentEnd.opacity(0.28) : .clear, radius: 8, y: 2)
+            .shadow(color: selected ? Color.black.opacity(0.2) : .clear, radius: 6, y: 1)
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .onTapGesture {
                 storedMode = segmentMode.rawValue

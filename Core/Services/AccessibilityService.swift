@@ -92,6 +92,7 @@ final class AccessibilityService: ObservableObject {
 
     var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
+    private var bundlesWithoutExtrasMenuBar: Set<String> = []
 
     // MARK: - Initialization
 
@@ -230,5 +231,19 @@ final class AccessibilityService: ObservableObject {
     func openAccessibilitySettings() -> Bool {
         guard let url = URL(string: Self.accessibilitySettingsURLString) else { return false }
         return NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - AXExtrasMenuBar Capability Cache
+
+    func markExtrasMenuBarUnavailable(bundleID: String) {
+        bundlesWithoutExtrasMenuBar.insert(bundleID)
+    }
+
+    func markExtrasMenuBarAvailable(bundleID: String) {
+        bundlesWithoutExtrasMenuBar.remove(bundleID)
+    }
+
+    func likelyLacksExtrasMenuBar(bundleID: String) -> Bool {
+        bundlesWithoutExtrasMenuBar.contains(bundleID)
     }
 }
