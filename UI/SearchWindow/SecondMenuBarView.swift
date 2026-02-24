@@ -29,6 +29,8 @@ struct SecondMenuBarView: View {
     private let textPrimary = Color.white
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
+    private let accentStart = Color(red: 0.16, green: 0.72, blue: 0.96)
+    private let accentEnd = Color(red: 0.33, green: 0.45, blue: 1.0)
 
     // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
@@ -64,7 +66,7 @@ struct SecondMenuBarView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    colorScheme == .dark ? Color.white.opacity(0.12) : Color.teal.opacity(0.15),
+                    colorScheme == .dark ? Color.white.opacity(0.12) : Color.blue.opacity(0.18),
                     lineWidth: 1
                 )
         )
@@ -97,10 +99,10 @@ struct SecondMenuBarView: View {
                     text: $searchText,
                     prompt: Text("Search").foregroundStyle(textSecondary)
                 )
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundStyle(textPrimary)
-                    .focused($isSearchFocused)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(textPrimary)
+                .focused($isSearchFocused)
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
@@ -223,7 +225,7 @@ struct SecondMenuBarView: View {
 
     private var zoneDivider: some View {
         Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.teal.opacity(0.10))
+            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.blue.opacity(0.12))
             .frame(height: 1)
             .padding(.horizontal, 2)
             .padding(.vertical, 2)
@@ -505,9 +507,12 @@ enum SecondMenuBarLayout {
         hiddenCount: Int,
         alwaysHiddenCount: Int
     ) -> Bool {
-        _ = hiddenCount
-        _ = alwaysHiddenCount
-        return includeVisibleIcons
+        if includeVisibleIcons {
+            return true
+        }
+        // Keep a visible drop target available when the panel is active,
+        // even if visible icons are not rendered in this mode.
+        return hiddenCount > 0 || alwaysHiddenCount > 0
     }
 }
 
@@ -531,6 +536,8 @@ private struct PanelIconTile: View {
     /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
     /// while `.fit` preserves aspect ratio (no deformation).
     private let tileSize: CGFloat = 32
+    private let accentStart = Color(red: 0.16, green: 0.72, blue: 0.96)
+    private let accentEnd = Color(red: 0.33, green: 0.45, blue: 1.0)
     private var iconSize: CGFloat {
         let icon = app.iconThumbnail ?? app.icon
         // System template icons are non-square and deform when overscaled.
@@ -556,7 +563,13 @@ private struct PanelIconTile: View {
             if !isPro {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 7))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(red: 0.16, green: 0.72, blue: 0.96), Color(red: 0.33, green: 0.45, blue: 1.0)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .padding(2)
                     .background(Circle().fill(.ultraThinMaterial))
                     .offset(x: 2, y: 2)
@@ -570,7 +583,13 @@ private struct PanelIconTile: View {
 
     private var tileBackground: some ShapeStyle {
         if isHovering {
-            return AnyShapeStyle(Color.teal.opacity(0.18))
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [accentStart.opacity(0.32), accentEnd.opacity(0.22)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
         }
         return AnyShapeStyle(
             colorScheme == .dark

@@ -106,6 +106,22 @@ struct MenuBarSearchView: View {
         return AppCategory.allCases.filter { categories.contains($0) }
     }
 
+    private var accentStart: Color {
+        Color(red: 0.16, green: 0.72, blue: 0.96)
+    }
+
+    private var accentEnd: Color {
+        Color(red: 0.33, green: 0.45, blue: 1.0)
+    }
+
+    private var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentStart, accentEnd],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     var filteredApps: [RunningApp] {
         var apps = menuBarApps
             .filter { !$0.isUnmovableSystemItem }
@@ -438,6 +454,20 @@ struct MenuBarSearchView: View {
                 }
             } label: {
                 Image(systemName: isSearchVisible ? "xmark.circle" : "magnifyingglass")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 26, height: 26)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help(isSearchVisible ? "Hide filter" : "Filter")
@@ -446,6 +476,20 @@ struct MenuBarSearchView: View {
                 refreshApps(force: true)
             } label: {
                 Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 26, height: 26)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("Refresh")
@@ -459,17 +503,33 @@ struct MenuBarSearchView: View {
         let selected = mode == segmentMode
         return Text(segmentMode.title)
             .font(.system(size: 12, weight: selected ? .semibold : .medium))
-            .foregroundStyle(selected ? .white : .white.opacity(0.92))
+            .foregroundStyle(selected ? .white : .white.opacity(0.9))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(selected ? Color.teal : Color.white.opacity(0.08))
+                    .fill(
+                        selected
+                            ? AnyShapeStyle(accentGradient.opacity(0.92))
+                            : AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.11), Color.white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(selected ? Color.teal : Color.white.opacity(0.15), lineWidth: 1)
+                    .stroke(
+                        selected
+                            ? Color.white.opacity(0.36)
+                            : Color.white.opacity(0.18),
+                        lineWidth: 1
+                    )
             )
+            .shadow(color: selected ? accentEnd.opacity(0.28) : .clear, radius: 8, y: 2)
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .onTapGesture {
                 storedMode = segmentMode.rawValue
@@ -663,9 +723,9 @@ struct MenuBarSearchView: View {
                 text: $searchText,
                 prompt: Text("Filter by name…").foregroundStyle(.white.opacity(0.9))
             )
-                .textFieldStyle(.plain)
-                .font(.body)
-                .focused($isSearchFieldFocused)
+            .textFieldStyle(.plain)
+            .font(.body)
+            .focused($isSearchFieldFocused)
 
             if !searchText.isEmpty {
                 Button {
@@ -738,7 +798,7 @@ struct MenuBarSearchView: View {
         VStack(spacing: 16) {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.teal)
+                .foregroundStyle(accentGradient)
 
             Text("Grant Access")
                 .font(.headline)
@@ -746,19 +806,19 @@ struct MenuBarSearchView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "video.slash.fill")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No screen recording.")
                 }
                 HStack(spacing: 8) {
                     Image(systemName: "eye.slash.fill")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No screenshots.")
                 }
                 HStack(spacing: 8) {
                     Image(systemName: "icloud.slash")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(accentGradient)
                         .frame(width: 20)
                     Text("No data collected.")
                 }
@@ -769,15 +829,36 @@ struct MenuBarSearchView: View {
                 Button("Open Accessibility Settings") {
                     _ = AccessibilityService.shared.openAccessibilitySettings()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.teal)
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(accentGradient)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
 
                 Button("Try Again") {
                     _ = AccessibilityService.shared.requestAccessibility()
                     loadCachedApps()
                     refreshApps(force: true)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.94))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color.white.opacity(0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
             }
         }
         .padding()

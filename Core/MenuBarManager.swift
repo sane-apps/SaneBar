@@ -116,10 +116,26 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
     }
 
-    static func shouldRecoverStartupPositions(separatorX: CGFloat?, mainX: CGFloat?) -> Bool {
+    static func shouldRecoverStartupPositions(
+        separatorX: CGFloat?,
+        mainX: CGFloat?,
+        mainRightGap: CGFloat? = nil,
+        screenWidth: CGFloat? = nil
+    ) -> Bool {
         guard let separatorX, let mainX else { return false }
         guard separatorX > 0, mainX > 0 else { return false }
-        return separatorX >= mainX
+        if separatorX >= mainX {
+            return true
+        }
+
+        // Machine-specific corruption can preserve an apparently "ordered"
+        // separator/main pair that still lands far from the Control Center side.
+        // Recover when the main icon drifts too far from the right edge.
+        guard let mainRightGap, let screenWidth else { return false }
+        guard mainRightGap > 0, screenWidth > 0 else { return false }
+
+        let maxAllowedRightGap = max(500, screenWidth * 0.45)
+        return mainRightGap > maxAllowedRightGap
     }
 
     // MARK: - Services
@@ -571,9 +587,22 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 // If not, soft-recover seeds and keep the bar visible for this run.
                 let startupSeparatorX = self.getSeparatorOriginX()
                 let startupMainX = self.getMainStatusItemLeftEdgeX()
-                if Self.shouldRecoverStartupPositions(separatorX: startupSeparatorX, mainX: startupMainX) {
+                let startupMainWindow = self.mainStatusItem?.button?.window
+                let startupScreenWidth = startupMainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
+                let startupMainRightGap: CGFloat? = {
+                    guard let startupMainWindow else { return nil }
+                    guard let rightEdge = startupMainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
+                    return rightEdge - startupMainWindow.frame.origin.x
+                }()
+
+                if Self.shouldRecoverStartupPositions(
+                    separatorX: startupSeparatorX,
+                    mainX: startupMainX,
+                    mainRightGap: startupMainRightGap,
+                    screenWidth: startupScreenWidth
+                ) {
                     logger.error(
-                        "Startup invariant failed (separator=\(startupSeparatorX ?? -1, privacy: .public), main=\(startupMainX ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
+                        "Startup invariant failed (separator=\(startupSeparatorX ?? -1, privacy: .public), main=\(startupMainX ?? -1, privacy: .public), rightGap=\(startupMainRightGap ?? -1, privacy: .public), width=\(startupScreenWidth ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
                     )
                     StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: self.settings.alwaysHiddenSectionEnabled)
                     self.lastKnownSeparatorX = nil
@@ -585,10 +614,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 // Repair AH separator ordering drift before any startup hide.
                 self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
-
-                // If the user has pinned items to the always-hidden section, enforce them early
-                // (before initial hide) to reduce startup drift/flicker.
-                await self.enforceAlwaysHiddenPinnedItems(reason: "startup")
 
                 // Skip startup hide if user is on external monitor
                 if self.shouldSkipHideForExternalMonitor {
@@ -605,6 +630,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     logger.info("Skipping initial hide: external monitor connected with always-show enabled")
                     return
                 }
+
+                // If the user has pinned items to the always-hidden section, enforce them
+                // after external-monitor policy checks so we never run automation moves in
+                // a policy-disabled state.
+                await self.enforceAlwaysHiddenPinnedItems(reason: "startup")
+
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }

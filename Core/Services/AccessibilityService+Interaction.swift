@@ -233,6 +233,15 @@ extension AccessibilityService {
         return min(max(chosenY, minY), maxY)
     }
 
+    /// Shared zone-edge verification used after cmd-drag moves.
+    /// Uses icon midpoint (same basis as UI zone classification) to avoid
+    /// false negatives when macOS lands just to the right of the separator.
+    nonisolated static func frameIsInTargetZone(afterFrame: CGRect, separatorX: CGFloat, toHidden: Bool, margin: CGFloat = 6) -> Bool {
+        let midpointX = afterFrame.midX
+        let threshold = separatorX - margin
+        return toHidden ? midpointX < threshold : midpointX >= threshold
+    }
+
     // MARK: - Icon Moving (CGEvent-based)
 
     /// Move a menu bar icon starting from a known WindowServer frame.
@@ -418,21 +427,17 @@ extension AccessibilityService {
 
         logger.info("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
-        // Verify icon landed on the expected side of the separator.
-        // For hidden: icon's left edge must be LEFT of separatorX.
-        // For visible: icon's left edge must be clearly RIGHT of separatorX.
-        // "Visible" uses a margin to avoid boundary ambiguity; "hidden" uses a
-        // tight check because the separator will physically block icons in place
-        // once it re-expands (even icons just 1px across the line are trapped).
-        let visibleMargin = max(4, afterFrame.size.width * 0.3)
-        let movedToExpectedSide: Bool = if toHidden {
-            afterFrame.origin.x < separatorX
-        } else {
-            afterFrame.origin.x > (separatorX + visibleMargin)
-        }
+        // Verify icon landed in the expected zone using midpoint-based logic.
+        // This aligns with SearchService zone classification and prevents
+        // false negatives when visible moves land close to the separator.
+        let movedToExpectedSide = Self.frameIsInTargetZone(
+            afterFrame: afterFrame,
+            separatorX: separatorX,
+            toHidden: toHidden
+        )
 
         if !movedToExpectedSide {
-            logger.error("🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public)")
+            logger.error("🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public)")
         }
 
         return movedToExpectedSide

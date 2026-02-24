@@ -77,7 +77,16 @@ struct MenuBarAppTile: View {
             if !isPro {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 8))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.16, green: 0.72, blue: 0.96),
+                                Color(red: 0.33, green: 0.45, blue: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .padding(3)
                     .background(Circle().fill(.ultraThinMaterial))
                     .offset(x: 3, y: 3)

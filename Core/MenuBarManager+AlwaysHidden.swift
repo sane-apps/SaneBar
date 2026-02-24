@@ -12,6 +12,12 @@ extension MenuBarManager {
         guard let separatorX = getSeparatorOriginX(),
               let alwaysHiddenX = getAlwaysHiddenSeparatorOriginX(),
               alwaysHiddenX >= separatorX else { return }
+        guard separatorX > 1, alwaysHiddenX > 1 else {
+            logger.debug(
+                "Always-hidden repair skipped due unresolved coordinates (ah=\(alwaysHiddenX, privacy: .public), sep=\(separatorX, privacy: .public))"
+            )
+            return
+        }
 
         let now = Date()
         if let lastAttempt = lastAlwaysHiddenRepairAt,
@@ -34,6 +40,29 @@ extension MenuBarManager {
 
         lastKnownAlwaysHiddenSeparatorX = nil
         AccessibilityService.shared.invalidateMenuBarItemCache()
+
+        // Validate after macOS settles the relayout. If still misordered, apply
+        // a stronger seed reset so the next scene pass cannot reuse stale state.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            guard let self else { return }
+            guard let postSepX = self.getSeparatorOriginX(),
+                  let postAHX = self.getAlwaysHiddenSeparatorOriginX(),
+                  postSepX > 1,
+                  postAHX > 1,
+                  postAHX >= postSepX else { return }
+
+            logger.error(
+                "Always-hidden separator still misordered after repair (ah=\(postAHX, privacy: .public), sep=\(postSepX, privacy: .public)) — applying hard position recovery"
+            )
+            StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: true)
+            self.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
+            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+            self.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+            self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
+            self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
+            self.lastKnownAlwaysHiddenSeparatorX = nil
+            AccessibilityService.shared.invalidateMenuBarItemCache()
+        }
     }
 
     /// Pin a menu bar item so it stays in the always-hidden section across launches.
@@ -131,6 +160,12 @@ extension MenuBarManager {
     // MARK: - Pin Enforcement
 
     func scheduleAlwaysHiddenPinEnforcement(reason: String, filterBundleId: String? = nil, delay: Duration) {
+        guard !shouldSkipHideForExternalMonitor else {
+            logger.info(
+                "Always-hidden pin enforcement skipped by external monitor policy (\(reason, privacy: .public))"
+            )
+            return
+        }
         alwaysHiddenPinEnforcementTask?.cancel()
         alwaysHiddenPinEnforcementTask = Task { [weak self] in
             guard let self else { return }
@@ -182,6 +217,12 @@ extension MenuBarManager {
     }
 
     func enforceAlwaysHiddenPinnedItems(reason: String, filterBundleId: String? = nil) async {
+        guard !shouldSkipHideForExternalMonitor else {
+            logger.info(
+                "Always-hidden pin enforcement skipped by external monitor policy (\(reason, privacy: .public))"
+            )
+            return
+        }
         guard alwaysHiddenSeparatorItem != nil else { return }
         guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
 

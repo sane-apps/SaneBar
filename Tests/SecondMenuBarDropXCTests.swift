@@ -1,5 +1,5 @@
-import XCTest
 @testable import SaneBar
+import XCTest
 
 final class SecondMenuBarDropXCTests: XCTestCase {
     func testSourceResolutionFindsVisibleApp() {
@@ -80,8 +80,8 @@ final class SecondMenuBarDropXCTests: XCTestCase {
         )
     }
 
-    func testVisibleZoneHiddenWhenSettingDisabledEvenIfHiddenItemsExist() {
-        XCTAssertFalse(
+    func testVisibleZoneShownAsDropTargetWhenSettingDisabledAndHiddenItemsExist() {
+        XCTAssertTrue(
             SecondMenuBarLayout.shouldShowVisibleZone(
                 includeVisibleIcons: false,
                 hiddenCount: 2,
@@ -90,8 +90,8 @@ final class SecondMenuBarDropXCTests: XCTestCase {
         )
     }
 
-    func testVisibleZoneHiddenWhenSettingDisabledEvenIfAlwaysHiddenItemsExist() {
-        XCTAssertFalse(
+    func testVisibleZoneShownAsDropTargetWhenSettingDisabledAndAlwaysHiddenItemsExist() {
+        XCTAssertTrue(
             SecondMenuBarLayout.shouldShowVisibleZone(
                 includeVisibleIcons: false,
                 hiddenCount: 0,

@@ -1,5 +1,5 @@
-import XCTest
 @testable import SaneBar
+import XCTest
 
 @MainActor
 final class RuntimeGuardXCTests: XCTestCase {
@@ -22,6 +22,28 @@ final class RuntimeGuardXCTests: XCTestCase {
     func testNormalizedEventYClampsOutOfRangeValues() {
         let y = AccessibilityService.normalizedEventY(rawY: 1451, globalMaxY: 1440, anchorY: 30)
         XCTAssertEqual(y, 1, accuracy: 0.001)
+    }
+
+    func testFrameInTargetZoneTreatsNearBoundaryVisibleAsVisible() {
+        let frame = CGRect(x: 101, y: 0, width: 22, height: 22) // midX=112
+        XCTAssertTrue(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: frame,
+                separatorX: 100,
+                toHidden: false
+            )
+        )
+    }
+
+    func testFrameInTargetZoneTreatsLeftSideAsHidden() {
+        let frame = CGRect(x: 60, y: 0, width: 22, height: 22) // midX=71
+        XCTAssertTrue(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: frame,
+                separatorX: 100,
+                toHidden: true
+            )
+        )
     }
 
     func testShouldSkipHideForExternalMonitorPolicy() {
@@ -64,6 +86,28 @@ final class RuntimeGuardXCTests: XCTestCase {
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 900,
                 mainX: 1100
+            )
+        )
+    }
+
+    func testStartupRecoveryTriggersWhenMainIconIsTooFarFromRightEdge() {
+        XCTAssertTrue(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 900,
+                screenWidth: 1440
+            )
+        )
+    }
+
+    func testStartupRecoveryAllowsReasonableRightEdgeGap() {
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 300,
+                screenWidth: 1440
             )
         )
     }
@@ -132,6 +176,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("window.contentView?.appearance = dark"),
             "Dark appearance must propagate to the hosted content view to keep SwiftUI/AppKit in sync (#85)"
+        )
+    }
+
+    func testStartupExternalMonitorPolicyRunsBeforeAlwaysHiddenEnforcement() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        guard let skipIndex = source.range(of: "if self.shouldSkipHideForExternalMonitor"),
+              let enforceIndex = source.range(of: "await self.enforceAlwaysHiddenPinnedItems(reason: \"startup\")")
+        else {
+            XCTFail("Startup external-monitor or always-hidden enforcement blocks not found")
+            return
+        }
+
+        XCTAssertLessThan(
+            skipIndex.lowerBound.utf16Offset(in: source),
+            enforceIndex.lowerBound.utf16Offset(in: source),
+            "Startup should skip under external-monitor policy before always-hidden automation runs"
         )
     }
 }
