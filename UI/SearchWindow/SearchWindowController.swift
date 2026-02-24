@@ -85,6 +85,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
 
         guard let window else { return }
+        applyDarkAppearance(to: window)
 
         if desiredMode == .findIcon {
             if let searchText, !searchText.isEmpty {
@@ -192,6 +193,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let contentView = MenuBarSearchView(onDismiss: { [weak self] in
             self?.close()
         })
+        .preferredColorScheme(.dark)
 
         let hostingView = NSHostingView(rootView: contentView)
 
@@ -206,12 +208,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.title = "Icon Panel"
         window.titlebarSeparatorStyle = .line
         window.backgroundColor = .windowBackgroundColor
-        window.appearance = NSAppearance(named: .darkAqua)
         window.isMovableByWindowBackground = true
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.hasShadow = true
+        applyDarkAppearance(to: window)
 
         self.window = window
     }
@@ -223,6 +225,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 self?.close()
             }
         )
+        .preferredColorScheme(.dark)
 
         let hostingView = NSHostingView(rootView: contentView)
         // Let SwiftUI drive the intrinsic size
@@ -237,7 +240,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
 
         panel.contentView = hostingView
-        panel.appearance = NSAppearance(named: .darkAqua)
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.level = .floating
@@ -262,8 +264,15 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             contentView.layer?.shadowRadius = 12
             contentView.layer?.shadowOffset = CGSize(width: 0, height: -4)
         }
+        applyDarkAppearance(to: panel)
 
         window = panel
+    }
+
+    private func applyDarkAppearance(to window: NSWindow) {
+        let dark = NSAppearance(named: .darkAqua)
+        window.appearance = dark
+        window.contentView?.appearance = dark
     }
 
     // MARK: - NSWindowDelegate

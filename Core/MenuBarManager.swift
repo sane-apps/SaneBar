@@ -906,7 +906,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             settings.showOnUserDrag = true
             settings.hasSeenFreemiumIntro = true
             saveSettings()
-            Task.detached { try? await EventTracker.log("new_free_user") }
+            Task.detached { await EventTracker.log("new_free_user") }
 
             // Enable launch at login by default
             try? SMAppService.mainApp.register()
@@ -920,7 +920,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             settings.hasSeenFreemiumIntro = true
             saveSettings()
             LicenseService.shared.grantEarlyAdopterPro()
-            Task.detached { try? await EventTracker.log("early_adopter_grant") }
+            Task.detached { await EventTracker.log("early_adopter_grant") }
             logger.info("Early adopter detected — granted Pro, re-showing onboarding")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
