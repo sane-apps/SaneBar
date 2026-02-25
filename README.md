@@ -336,6 +336,10 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 Copyright (c) 2025-2026 SaneApps. 100% transparent code — read, audit, and learn from it. Use it for anything except building a competing product.
 
+## Third-Party Notices
+
+Third-party open-source attributions are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 <!-- SANEAPPS_AI_CONTRIB_START -->
 ### Become a Contributor (Even if You Don't Code)
 

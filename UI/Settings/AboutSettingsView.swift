@@ -129,7 +129,7 @@ struct AboutSettingsView: View {
                                 .font(.headline)
 
                             Text("""
-                            MIT License
+                            MIT License (third-party dependency)
 
                             Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
