@@ -29,8 +29,8 @@ struct SecondMenuBarView: View {
     private let textPrimary = Color.white
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
-    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
-    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
+    private let accentStart = Color(red: 0.11, green: 0.32, blue: 0.50)
+    private let accentEnd = Color(red: 0.11, green: 0.23, blue: 0.39)
 
     // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
@@ -40,12 +40,21 @@ struct SecondMenuBarView: View {
     }
 
     private var movableHidden: [RunningApp] { apps.filter { !$0.isUnmovableSystemItem } }
-    private var movableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
+    private var allMovableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
+    private var movableAlwaysHidden: [RunningApp] {
+        guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return [] }
+        guard menuBarManager.settings.secondMenuBarShowAlwaysHidden else { return [] }
+        return allMovableAlwaysHidden
+    }
     private var shouldShowVisibleDropZone: Bool {
         SecondMenuBarLayout.shouldShowVisibleZone(
-            includeVisibleIcons: menuBarManager.settings.secondMenuBarShowVisible,
-            hiddenCount: movableHidden.count,
-            alwaysHiddenCount: movableAlwaysHidden.count
+            includeVisibleIcons: menuBarManager.settings.secondMenuBarShowVisible
+        )
+    }
+    private var shouldShowAlwaysHiddenDropZone: Bool {
+        SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
+            alwaysHiddenZoneEnabled: menuBarManager.settings.alwaysHiddenSectionEnabled,
+            includeAlwaysHiddenIcons: menuBarManager.settings.secondMenuBarShowAlwaysHidden
         )
     }
 
@@ -147,12 +156,18 @@ struct SecondMenuBarView: View {
 
     private var iconStrip: some View {
         let showVisibleZone = shouldShowVisibleDropZone
-        let showHiddenZone = !movableHidden.isEmpty
-        let showAlwaysHiddenZone = !movableAlwaysHidden.isEmpty
+        let showHiddenZone = true
+        let showAlwaysHiddenZone = shouldShowAlwaysHiddenDropZone
 
         return VStack(alignment: .leading, spacing: 0) {
             if showVisibleZone {
-                zoneRow(label: "Visible", icon: "eye", apps: movableVisible, zone: .visible)
+                zoneRow(
+                    label: "Visible",
+                    icon: "eye",
+                    apps: movableVisible,
+                    totalCount: allMovableVisible.count,
+                    zone: .visible
+                )
             }
 
             if showVisibleZone, showHiddenZone || showAlwaysHiddenZone {
@@ -160,7 +175,13 @@ struct SecondMenuBarView: View {
             }
 
             if showHiddenZone {
-                zoneRow(label: "Hidden", icon: "eye.slash", apps: movableHidden, zone: .hidden)
+                zoneRow(
+                    label: "Hidden",
+                    icon: "eye.slash",
+                    apps: movableHidden,
+                    totalCount: movableHidden.count,
+                    zone: .hidden
+                )
             }
 
             if showHiddenZone, showAlwaysHiddenZone {
@@ -168,21 +189,33 @@ struct SecondMenuBarView: View {
             }
 
             if showAlwaysHiddenZone {
-                zoneRow(label: "Always Hidden", icon: "lock", apps: movableAlwaysHidden, zone: .alwaysHidden)
+                zoneRow(
+                    label: "Always Hidden",
+                    icon: "lock",
+                    apps: movableAlwaysHidden,
+                    totalCount: allMovableAlwaysHidden.count,
+                    zone: .alwaysHidden
+                )
             }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
     }
 
-    private func zoneRow(label: String, icon: String, apps: [RunningApp], zone: IconZone) -> some View {
+    private func zoneRow(
+        label: String,
+        icon: String,
+        apps: [RunningApp],
+        totalCount: Int,
+        zone: IconZone
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 3) {
                 Image(systemName: icon)
                     .font(.system(size: 9))
                 Text(label)
                     .font(.system(size: 10, weight: .semibold))
-                Text("\(apps.count)")
+                Text("\(totalCount)")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(textMuted)
             }
@@ -195,9 +228,9 @@ struct SecondMenuBarView: View {
                         makeTile(for: app, zone: zone)
                     }
                     if apps.isEmpty {
-                        Text("Drop to \(label)")
+                        Text(totalCount > 0 ? "\(totalCount) hidden by filter" : "Drop to \(label)")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(textSecondary)
+                            .foregroundStyle(totalCount > 0 ? textMuted : textSecondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)
                             .background(
@@ -260,7 +293,7 @@ struct SecondMenuBarView: View {
                     proUpsellFeature = .zoneMoves
                 }
             } : nil,
-            onMoveToAlwaysHidden: zone != .alwaysHidden ? {
+            onMoveToAlwaysHidden: (menuBarManager.settings.alwaysHiddenSectionEnabled && zone != .alwaysHidden) ? {
                 if licenseService.isPro {
                     _ = moveIcon(app, from: zone, to: .alwaysHidden)
                 } else {
@@ -306,6 +339,7 @@ struct SecondMenuBarView: View {
             )
 
         case (.hidden, .alwaysHidden):
+            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
             menuBarManager.pinAlwaysHidden(app: app)
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
@@ -320,6 +354,7 @@ struct SecondMenuBarView: View {
             )
 
         case (.visible, .alwaysHidden):
+            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
             menuBarManager.pinAlwaysHidden(app: app)
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
@@ -332,6 +367,17 @@ struct SecondMenuBarView: View {
         }
 
         guard started else { return false }
+
+        // Keep UX predictable: if user moves into a filtered-off row,
+        // auto-enable that row so the result is immediately visible.
+        switch target {
+        case .visible where !menuBarManager.settings.secondMenuBarShowVisible:
+            menuBarManager.settings.secondMenuBarShowVisible = true
+        case .alwaysHidden where !menuBarManager.settings.secondMenuBarShowAlwaysHidden:
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+        default:
+            break
+        }
 
         // Refresh the panel data after the move takes effect
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -503,16 +549,16 @@ enum SecondMenuBarDropResolver {
 
 enum SecondMenuBarLayout {
     static func shouldShowVisibleZone(
-        includeVisibleIcons: Bool,
-        hiddenCount: Int,
-        alwaysHiddenCount: Int
+        includeVisibleIcons: Bool
     ) -> Bool {
-        if includeVisibleIcons {
-            return true
-        }
-        // Keep a visible drop target available when the panel is active,
-        // even if visible icons are not rendered in this mode.
-        return hiddenCount > 0 || alwaysHiddenCount > 0
+        includeVisibleIcons
+    }
+
+    static func shouldShowAlwaysHiddenZone(
+        alwaysHiddenZoneEnabled: Bool,
+        includeAlwaysHiddenIcons: Bool
+    ) -> Bool {
+        alwaysHiddenZoneEnabled && includeAlwaysHiddenIcons
     }
 }
 
@@ -536,8 +582,8 @@ private struct PanelIconTile: View {
     /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
     /// while `.fit` preserves aspect ratio (no deformation).
     private let tileSize: CGFloat = 32
-    private let accentStart = Color(red: 0.10, green: 0.38, blue: 0.56)
-    private let accentEnd = Color(red: 0.13, green: 0.25, blue: 0.45)
+    private let accentStart = Color(red: 0.11, green: 0.32, blue: 0.50)
+    private let accentEnd = Color(red: 0.11, green: 0.23, blue: 0.39)
     private var iconSize: CGFloat {
         let icon = app.iconThumbnail ?? app.icon
         // System template icons are non-square and deform when overscaled.

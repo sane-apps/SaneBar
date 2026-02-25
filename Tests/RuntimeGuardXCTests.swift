@@ -170,12 +170,42 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("Task.detached(priority: .userInitiated)"),
-            "SearchService.activate should run click path off-main-thread to avoid UI stalls during AX calls"
+            source.contains("withTaskGroup(of: ClickAttemptResult.self)"),
+            "SearchService.activate should run click path through a bounded background task group to avoid UI stalls during AX calls"
         )
         XCTAssertTrue(
             source.contains("Click failed after slow attempt; skipping forced-refresh retry"),
             "SearchService.activate should avoid compounding delays by skipping retry after a slow failed click"
+        )
+        XCTAssertTrue(
+            source.contains("Click failed after timeout; skipping forced-refresh retry"),
+            "SearchService.activate should skip retry when a click attempt times out to avoid duplicate delayed activations"
+        )
+        XCTAssertTrue(
+            source.contains("shouldPreferHardwareFirst(for app: RunningApp)"),
+            "SearchService should expose a hardware-first policy for unstable Apple menu extras (e.g. Spotlight)"
+        )
+        XCTAssertTrue(
+            source.contains("return app.bundleId.hasPrefix(\"com.apple.\")"),
+            "SearchService should prefer hardware-first for Apple-owned menu extras that are AX-unstable across macOS builds"
+        )
+        XCTAssertTrue(
+            source.contains("if app.menuExtraIdentifier == nil"),
+            "SearchService should prefer hardware-first when a status item lacks stable AX per-item identity"
+        )
+    }
+
+    func testBrowseFlowsAvoidImmediateRehideAndDeferSearchRehideWhileVisible() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let shouldScheduleImmediateRehide = trigger != .search && trigger != .findIcon"),
+            "showHiddenItemsNow should not arm the short rehide timer for Browse Icons flows"
+        )
+        XCTAssertTrue(
+            source.contains("SearchWindowController.shared.isVisible"),
+            "Search rehide should defer while Browse Icons is still visible"
         )
     }
 
@@ -190,6 +220,14 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Target item off-screen; skipping AXPress, using hardware click"),
             "Off-screen targets should route to hardware fallback (#102)"
+        )
+        XCTAssertTrue(
+            source.contains("using immediate spatial center"),
+            "Hardware fallback should use an immediate on-screen spatial click before expensive AX frame polling"
+        )
+        XCTAssertTrue(
+            source.contains("attempts: 10"),
+            "Hardware click fallback should use bounded AX frame polling to prevent long UI stalls"
         )
     }
 
@@ -232,6 +270,67 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertFalse(
             source.contains("resignCloseTask = Task"),
             "windowDidResignKey should not schedule delayed auto-close tasks"
+        )
+    }
+
+    func testSearchWindowCloseSchedulesDeferredRehideWhenExpanded() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("manager.scheduleRehideFromSearch(after: manager.settings.findIconRehideDelay)"),
+            "Closing Browse Icons should schedule rehide only after panel dismissal"
+        )
+    }
+
+    func testIconPanelForcesAlwaysHiddenWhenNeeded() {
+        XCTAssertTrue(
+            SearchWindowController.shouldForceAlwaysHiddenForIconPanel(
+                mode: .findIcon,
+                isPro: true,
+                useSecondMenuBar: false,
+                alwaysHiddenEnabled: false
+            )
+        )
+    }
+
+    func testIconPanelDoesNotForceAlwaysHiddenForFreeUsers() {
+        XCTAssertFalse(
+            SearchWindowController.shouldForceAlwaysHiddenForIconPanel(
+                mode: .findIcon,
+                isPro: false,
+                useSecondMenuBar: false,
+                alwaysHiddenEnabled: false
+            )
+        )
+    }
+
+    func testSecondMenuBarDoesNotForceAlwaysHidden() {
+        XCTAssertFalse(
+            SearchWindowController.shouldForceAlwaysHiddenForIconPanel(
+                mode: .secondMenuBar,
+                isPro: true,
+                useSecondMenuBar: true,
+                alwaysHiddenEnabled: false
+            )
+        )
+    }
+
+    func testRightClickPathAttemptsAXShowMenuBeforeHardwareFallback() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if isRightClick {"),
+            "Right-click path should be explicit in performSmartPress"
+        )
+        XCTAssertTrue(
+            source.contains("performShowMenu(on: element)"),
+            "Right-click path should attempt AXShowMenu before forcing hardware click"
+        )
+        XCTAssertTrue(
+            source.contains("let restorePoint: CGPoint? = isRightClick ? nil : currentCGEventMousePoint()"),
+            "Hardware fallback should restore cursor after left-click to avoid pointer jumps"
         )
     }
 

@@ -73,39 +73,42 @@ final class SecondMenuBarDropXCTests: XCTestCase {
     func testVisibleZoneAlwaysShownWhenSettingEnabled() {
         XCTAssertTrue(
             SecondMenuBarLayout.shouldShowVisibleZone(
-                includeVisibleIcons: true,
-                hiddenCount: 0,
-                alwaysHiddenCount: 0
+                includeVisibleIcons: true
             )
         )
     }
 
-    func testVisibleZoneShownAsDropTargetWhenSettingDisabledAndHiddenItemsExist() {
-        XCTAssertTrue(
-            SecondMenuBarLayout.shouldShowVisibleZone(
-                includeVisibleIcons: false,
-                hiddenCount: 2,
-                alwaysHiddenCount: 0
-            )
-        )
-    }
-
-    func testVisibleZoneShownAsDropTargetWhenSettingDisabledAndAlwaysHiddenItemsExist() {
-        XCTAssertTrue(
-            SecondMenuBarLayout.shouldShowVisibleZone(
-                includeVisibleIcons: false,
-                hiddenCount: 0,
-                alwaysHiddenCount: 1
-            )
-        )
-    }
-
-    func testVisibleZoneHiddenWhenSettingDisabledAndNoMovableHiddenItems() {
+    func testVisibleZoneHiddenWhenSettingDisabled() {
         XCTAssertFalse(
             SecondMenuBarLayout.shouldShowVisibleZone(
-                includeVisibleIcons: false,
-                hiddenCount: 0,
-                alwaysHiddenCount: 0
+                includeVisibleIcons: false
+            )
+        )
+    }
+
+    func testAlwaysHiddenZoneShownWhenEnabledAndIncluded() {
+        XCTAssertTrue(
+            SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
+                alwaysHiddenZoneEnabled: true,
+                includeAlwaysHiddenIcons: true
+            )
+        )
+    }
+
+    func testAlwaysHiddenZoneHiddenWhenZoneDisabledEvenIfIncluded() {
+        XCTAssertFalse(
+            SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
+                alwaysHiddenZoneEnabled: false,
+                includeAlwaysHiddenIcons: true
+            )
+        )
+    }
+
+    func testAlwaysHiddenZoneHiddenWhenNotIncluded() {
+        XCTAssertFalse(
+            SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
+                alwaysHiddenZoneEnabled: true,
+                includeAlwaysHiddenIcons: false
             )
         )
     }

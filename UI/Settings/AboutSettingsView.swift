@@ -59,7 +59,7 @@ struct AboutSettingsView: View {
                         showSupport = true
                     } label: {
                         Label {
-                            Text("Support")
+                            Text("Donate")
                         } icon: {
                             Image(systemName: "heart.fill")
                                 .foregroundStyle(.red)
@@ -74,8 +74,12 @@ struct AboutSettingsView: View {
                         Label("Report a Bug", systemImage: "ladybug")
                     }
 
+                    Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
+                        Label("View Issues", systemImage: "arrow.up.right.square")
+                    }
+
                     Link(destination: URL(string: "mailto:hi@saneapps.com")!) {
-                        Label("Email Us", systemImage: "envelope")
+                        Label("Email Me", systemImage: "envelope")
                     }
                 }
             }
@@ -204,7 +208,7 @@ struct AboutSettingsView: View {
     private var supportSheet: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Support SaneBar")
+                Text("Donate to SaneBar")
                     .font(.headline)
                 Spacer()
                 Button("Done") {

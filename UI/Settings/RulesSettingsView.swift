@@ -65,6 +65,42 @@ struct RulesSettingsView: View {
         }
     }
 
+    private var gestureModeSummary: String {
+        menuBarManager.settings.gestureMode == .showOnly
+            ? "Gestures reveal hidden icons."
+            : "Scroll up shows icons, scroll down hides icons."
+    }
+
+    private func gestureModeHelp(_ mode: SaneBarSettings.GestureMode) -> String {
+        switch mode {
+        case .showOnly:
+            "Gestures only reveal hidden icons."
+        case .showAndHide:
+            "Gestures toggle visibility (scroll up show, scroll down hide)."
+        }
+    }
+
+    private func segmentedChoiceButton(
+        _ title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(isSelected ? Color.blue.opacity(0.9) : Color.white.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -146,18 +182,20 @@ struct RulesSettingsView: View {
                         CompactDivider()
                         if licenseService.isPro {
                             CompactRow("Gesture behavior") {
-                                Picker("", selection: $menuBarManager.settings.gestureMode) {
+                                HStack(spacing: 6) {
                                     ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
-                                        Text(mode.rawValue).tag(mode)
+                                        segmentedChoiceButton(
+                                            mode.rawValue,
+                                            isSelected: menuBarManager.settings.gestureMode == mode
+                                        ) {
+                                            menuBarManager.settings.gestureMode = mode
+                                        }
+                                        .help(gestureModeHelp(mode))
                                     }
                                 }
-                                .pickerStyle(.segmented)
-                                .frame(width: 180)
-                                .help("Show only: gestures only reveal. Show and hide: gestures toggle visibility")
+                                .frame(width: 220)
                             }
-                            Text(menuBarManager.settings.gestureMode == .showOnly
-                                ? "Gestures reveal hidden icons"
-                                : "Scroll up shows icons, scroll down hides icons")
+                            Text(gestureModeSummary)
                                 .font(.system(size: 13))
                                 .foregroundStyle(.white.opacity(0.92))
                                 .padding(.horizontal, 16)

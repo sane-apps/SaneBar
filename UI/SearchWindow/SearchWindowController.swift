@@ -48,6 +48,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
     }
 
+    var isVisible: Bool {
+        window?.isVisible == true
+    }
+
     // MARK: - Toggle
 
     /// Toggle the search window visibility.
@@ -72,6 +76,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
     func show(mode: SearchWindowMode? = nil, prefill searchText: String? = nil) {
         let desiredMode = mode ?? activeMode
+        normalizeBrowseModeSettings(for: desiredMode)
 
         // If mode changed, recreate the window
         if currentMode != nil, currentMode != desiredMode {
@@ -110,6 +115,28 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         NotificationCenter.default.post(name: Self.windowDidShowNotification, object: nil)
     }
 
+    private func normalizeBrowseModeSettings(for mode: SearchWindowMode) {
+        let manager = MenuBarManager.shared
+        if Self.shouldForceAlwaysHiddenForIconPanel(
+            mode: mode,
+            isPro: LicenseService.shared.isPro,
+            useSecondMenuBar: manager.settings.useSecondMenuBar,
+            alwaysHiddenEnabled: manager.settings.alwaysHiddenSectionEnabled
+        ) {
+            manager.settings.alwaysHiddenSectionEnabled = true
+        }
+    }
+
+    static func shouldForceAlwaysHiddenForIconPanel(
+        mode: SearchWindowMode,
+        isPro: Bool,
+        useSecondMenuBar: Bool,
+        alwaysHiddenEnabled: Bool
+    ) -> Bool {
+        // Icon Panel is the primary browse workflow. Keep always-hidden enabled for Pro there.
+        mode == .findIcon && isPro && !useSecondMenuBar && !alwaysHiddenEnabled
+    }
+
     /// Set move-in-progress flag to prevent auto-close during CGEvent Cmd+drag
     func setMoveInProgress(_ inProgress: Bool) {
         isMoveInProgress = inProgress
@@ -120,9 +147,18 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Don't close while a move is in progress — CGEvent mouse
         // simulation causes resignKey which would break the move.
         guard !isMoveInProgress else { return }
+
+        let manager = MenuBarManager.shared
         window?.orderOut(nil)
+
+        if manager.hidingService.state == .expanded,
+           !manager.isRevealPinned,
+           !manager.shouldSkipHideForExternalMonitor {
+            manager.scheduleRehideFromSearch(after: manager.settings.findIconRehideDelay)
+        }
+
         // Resume hover/click triggers
-        MenuBarManager.shared.hoverService.isSuspended = false
+        manager.hoverService.isSuspended = false
         // Do NOT set window to nil, we reuse it for performance
     }
 

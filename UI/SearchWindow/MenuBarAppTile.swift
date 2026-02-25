@@ -70,8 +70,8 @@ struct MenuBarAppTile: View {
                             ? AnyShapeStyle(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 0.10, green: 0.38, blue: 0.56).opacity(0.18),
-                                        Color(red: 0.13, green: 0.25, blue: 0.45).opacity(0.12)
+                                        Color(red: 0.11, green: 0.32, blue: 0.50).opacity(0.16),
+                                        Color(red: 0.11, green: 0.23, blue: 0.39).opacity(0.11)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -93,8 +93,8 @@ struct MenuBarAppTile: View {
                     .foregroundStyle(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.16, green: 0.72, blue: 0.96),
-                                Color(red: 0.33, green: 0.45, blue: 1.0)
+                                Color(red: 0.11, green: 0.32, blue: 0.50),
+                                Color(red: 0.11, green: 0.23, blue: 0.39)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing

@@ -88,18 +88,28 @@ extension MenuBarManager {
         let didReveal = hidingService.state == .hidden
         await hidingService.show()
 
-        // Refresh rehide timer on every trigger (Hover/Scroll/Click) to prevent
-        // icons hiding while the user is still actively interacting with them.
-        if settings.autoRehide, !isRevealPinned, !shouldSkipHideForExternalMonitor {
+        // Search / Find Icon paths use their own dedicated delay handling so
+        // we don't double-schedule and close target menus too early.
+        let shouldScheduleImmediateRehide = trigger != .search && trigger != .findIcon
+
+        // Refresh rehide timer on user/automation reveals to prevent icons
+        // hiding while the user is still actively interacting with them.
+        if shouldScheduleImmediateRehide, settings.autoRehide, !isRevealPinned, !shouldSkipHideForExternalMonitor {
             hidingService.scheduleRehide(after: settings.rehideDelay)
         }
         return didReveal
     }
 
-    /// Schedule a rehide specifically from Find Icon search (always hides, ignores autoRehide setting)
-    /// Note: fire-time guard in hidingService.shouldRehide handles menu interaction safety (#97).
+    /// Schedule a rehide specifically from Find Icon / Browse Icons flows.
+    /// This always hides (ignores autoRehide setting) but defers while Browse Icons
+    /// stays visible, so active panel interactions are never interrupted.
+    @MainActor
     func scheduleRehideFromSearch(after delay: TimeInterval) {
         guard !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
+        if SearchWindowController.shared.isVisible {
+            logger.debug("Search rehide deferred while Browse Icons is visible")
+            return
+        }
         hidingService.scheduleRehide(after: delay)
     }
 

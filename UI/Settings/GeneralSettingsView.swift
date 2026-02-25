@@ -1,5 +1,4 @@
 import AppKit
-import KeyboardShortcuts
 import LocalAuthentication
 import os.log
 import ServiceManagement
@@ -21,6 +20,35 @@ struct GeneralSettingsView: View {
     @State private var newProfileName = ""
     @State private var showingResetAlert = false
     @State private var showingLicenseEntry = false
+    @State private var showBrowseRowCustomization = false
+
+    enum BrowseLeftClickMode: String, CaseIterable, Identifiable {
+        case toggleHidden
+        case openBrowseIcons
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .toggleHidden: "Toggle Hidden"
+            case .openBrowseIcons: "Open Browse"
+            }
+        }
+    }
+
+    enum SecondMenuBarPreset: String, CaseIterable, Identifiable {
+        case minimal
+        case balanced
+        case power
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .minimal: "Minimal"
+            case .balanced: "Balanced"
+            case .power: "Power"
+            }
+        }
+    }
 
     private struct SettingsExport: Codable {
         let version: Int
@@ -36,6 +64,83 @@ struct GeneralSettingsView: View {
                 ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
             }
         )
+    }
+
+    private var leftClickModeBinding: Binding<BrowseLeftClickMode> {
+        Binding(
+            get: { menuBarManager.settings.leftClickOpensBrowseIcons ? .openBrowseIcons : .toggleHidden },
+            set: { mode in
+                menuBarManager.settings.leftClickOpensBrowseIcons = (mode == .openBrowseIcons)
+            }
+        )
+    }
+
+    private var secondMenuBarPresetBinding: Binding<SecondMenuBarPreset> {
+        Binding(
+            get: {
+                SecondMenuBarPreset.resolve(
+                    showVisible: menuBarManager.settings.secondMenuBarShowVisible,
+                    showAlwaysHidden: menuBarManager.settings.secondMenuBarShowAlwaysHidden
+                )
+            },
+            set: { preset in
+                applySecondMenuBarPreset(preset)
+            }
+        )
+    }
+
+    private var browseDestinationLabel: String {
+        menuBarManager.settings.useSecondMenuBar ? "Second Menu Bar" : "Icon Panel"
+    }
+
+    private var browseOpenActionLabel: String {
+        menuBarManager.settings.useSecondMenuBar ? "Open Second Menu Bar" : "Open Icon Panel"
+    }
+
+    private func leftClickModeTitle(_ mode: BrowseLeftClickMode) -> String {
+        switch mode {
+        case .toggleHidden:
+            "Toggle Hidden"
+        case .openBrowseIcons:
+            browseOpenActionLabel
+        }
+    }
+
+    private var secondMenuBarRowsSummary: String {
+        var rows = ["Hidden"]
+        if menuBarManager.settings.secondMenuBarShowVisible {
+            rows.append("Visible")
+        }
+        if menuBarManager.settings.secondMenuBarShowAlwaysHidden {
+            rows.append("Always Hidden")
+        }
+        return rows.joined(separator: " + ")
+    }
+
+    private func browseIconsViewOptionHelp(useSecondMenuBar: Bool) -> String {
+        useSecondMenuBar
+            ? "Open the Second Menu Bar strip under the menu bar."
+            : "Open the Icon Panel window with search and actions."
+    }
+
+    private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
+        switch preset {
+        case .minimal:
+            "Show only the Hidden row."
+        case .balanced:
+            "Show Hidden and Visible rows."
+        case .power:
+            "Show Hidden, Visible, and Always Hidden rows."
+        }
+    }
+
+    private func leftClickModeHelp(_ mode: BrowseLeftClickMode) -> String {
+        switch mode {
+        case .toggleHidden:
+            "Left-click the SaneBar icon to show or hide icons."
+        case .openBrowseIcons:
+            "Left-click the SaneBar icon to open \(browseDestinationLabel)."
+        }
     }
 
     /// Custom binding that requires auth to DISABLE the security setting
@@ -88,7 +193,133 @@ struct GeneralSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // 1. Startup Status
+                // 1. Browse Icons
+                CompactSection("Browse Icons") {
+                    CompactRow("Browse Icons view") {
+                        HStack(spacing: 6) {
+                            segmentedChoiceButton(
+                                "Icon Panel",
+                                isSelected: !menuBarManager.settings.useSecondMenuBar
+                            ) {
+                                applyBrowseIconsViewSelection(false)
+                            }
+                            .help(browseIconsViewOptionHelp(useSecondMenuBar: false))
+
+                            segmentedChoiceButton(
+                                "Second Menu Bar",
+                                isSelected: menuBarManager.settings.useSecondMenuBar
+                            ) {
+                                applyBrowseIconsViewSelection(true)
+                            }
+                            .help(browseIconsViewOptionHelp(useSecondMenuBar: true))
+                        }
+                        .frame(width: 260)
+                    }
+
+                    if licenseService.isPro, menuBarManager.settings.useSecondMenuBar {
+                        CompactDivider()
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 10) {
+                                Text("Visible rows")
+                                    .foregroundStyle(.white.opacity(0.94))
+
+                                Spacer(minLength: 0)
+
+                                HStack(spacing: 6) {
+                                    ForEach(SecondMenuBarPreset.allCases) { preset in
+                                        segmentedChoiceButton(
+                                            preset.title,
+                                            isSelected: secondMenuBarPresetBinding.wrappedValue == preset
+                                        ) {
+                                            secondMenuBarPresetBinding.wrappedValue = preset
+                                        }
+                                        .help(secondMenuBarPresetHelp(preset))
+                                    }
+                                }
+                                .frame(width: 260)
+                            }
+
+                            Text(secondMenuBarRowsSummary)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.86))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .help(secondMenuBarRowsSummary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        if secondMenuBarPresetBinding.wrappedValue == .power {
+                            CompactDivider()
+                            CompactRow("Customize rows") {
+                                Button(showBrowseRowCustomization ? "Hide" : "Show") {
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        showBrowseRowCustomization.toggle()
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Show or hide row-level options.")
+                            }
+
+                            if showBrowseRowCustomization {
+                                CompactDivider()
+                                CompactToggle(
+                                    label: "Include visible icons",
+                                    isOn: $menuBarManager.settings.secondMenuBarShowVisible
+                                )
+                                .help("Show visible (non-hidden) icons in the Second Menu Bar.")
+
+                                CompactDivider()
+                                CompactToggle(
+                                    label: "Include always-hidden icons",
+                                    isOn: $menuBarManager.settings.secondMenuBarShowAlwaysHidden
+                                )
+                                .help("Show always-hidden icons in the Second Menu Bar.")
+                            }
+                        }
+                    } else if !licenseService.isPro {
+                        CompactDivider()
+                        proGatedRow(feature: .alwaysHidden, label: "Second Menu Bar zone controls")
+                    }
+                    CompactDivider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Left-click SaneBar icon")
+                            Spacer()
+                        }
+                        .foregroundStyle(.white.opacity(0.94))
+                        HStack(spacing: 6) {
+                            ForEach(BrowseLeftClickMode.allCases) { mode in
+                                segmentedChoiceButton(
+                                    leftClickModeTitle(mode),
+                                    isSelected: leftClickModeBinding.wrappedValue == mode
+                                ) {
+                                    leftClickModeBinding.wrappedValue = mode
+                                }
+                                .help(leftClickModeHelp(mode))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Text("Tip: Right-click the SaneBar icon opens the app menu.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.white.opacity(0.86))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                }
+
+                // 2. Security — Pro
+                CompactSection("Security") {
+                    if licenseService.isPro {
+                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
+                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
+                    } else {
+                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
+                    }
+                }
+
+                // 3. Startup Status
                 CompactSection("Startup") {
                     CompactToggle(label: "Start automatically at login", isOn: Binding(
                         get: { launchAtLogin },
@@ -101,120 +332,6 @@ struct GeneralSettingsView: View {
                     CompactDivider()
                     CompactToggle(label: "Show app in Dock", isOn: showDockIconBinding)
                         .help("Show SaneBar icon in the Dock (menu bar icon always visible)")
-                }
-
-                // 2. Pro License
-                CompactSection("Pro License") {
-                    if licenseService.isPro {
-                        CompactRow("Status") {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(.green)
-                                Text("Pro")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.green)
-                            }
-                        }
-                        if let email = licenseService.licenseEmail {
-                            CompactDivider()
-                            CompactRow("Licensed to") {
-                                Text(email)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            }
-                        }
-                        CompactDivider()
-                        CompactRow("Actions") {
-                            Button("Deactivate License") {
-                                licenseService.deactivate()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                    } else {
-                        CompactRow("Status") {
-                            HStack(spacing: 6) {
-                                Text("Free")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            }
-                        }
-                        CompactDivider()
-                        CompactRow("Upgrade") {
-                            HStack(spacing: 8) {
-                                Button("Unlock Pro — $6.99") {
-                                    NSWorkspace.shared.open(LicenseService.checkoutURL)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.teal)
-                                .controlSize(.small)
-
-                                Button("Enter Key") {
-                                    showingLicenseEntry = true
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-                        }
-                    }
-                }
-
-                // 3. Privacy (Auth) — Pro
-                CompactSection("Security") {
-                    if licenseService.isPro {
-                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
-                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
-                    } else {
-                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
-                    }
-                }
-
-                // 3. Browse Icons
-                CompactSection("Browse Icons") {
-                    CompactRow("Browse Icons view") {
-                        Picker("", selection: Binding(
-                            get: { menuBarManager.settings.useSecondMenuBar },
-                            set: { newValue in
-                                menuBarManager.settings.useSecondMenuBar = newValue
-                                SearchWindowController.shared.resetWindow()
-                            }
-                        )) {
-                            Text("Icon Panel").tag(false)
-                            Text("Second Menu Bar").tag(true)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 240)
-                    }
-                    .help("Choose how Browse Icons opens. Icon Panel is the full window with search and actions. Second Menu Bar is a compact strip under the menu bar.")
-                    if menuBarManager.settings.useSecondMenuBar {
-                        CompactDivider()
-                        CompactToggle(
-                            label: "Include visible icons",
-                            isOn: $menuBarManager.settings.secondMenuBarShowVisible
-                        )
-                        .help("Show visible (non-hidden) icons in the Second Menu Bar. When off, the Visible row is hidden.")
-                    }
-                    CompactDivider()
-                    if licenseService.isPro {
-                        CompactToggle(
-                            label: "Always-hidden section",
-                            isOn: $menuBarManager.settings.alwaysHiddenSectionEnabled
-                        )
-                        .help("Adds a second separator. Icons between separators stay hidden even when you reveal the rest. Turning this off hides the section only; assignments are preserved and behave as Hidden until re-enabled.")
-                    } else {
-                        proGatedRow(feature: .alwaysHidden, label: "Always-hidden section")
-                    }
-                    CompactDivider()
-                    CompactToggle(
-                        label: "Left-click opens Browse Icons",
-                        isOn: $menuBarManager.settings.leftClickOpensBrowseIcons
-                    )
-                    .help("When on, left-click opens Browse Icons instead of expanding hidden icons in the main menu bar.")
-                    CompactDivider()
-                    CompactRow("Shortcut") {
-                        KeyboardShortcuts.Recorder(for: .searchMenuBar)
-                    }
-                    .help("Customizable keyboard shortcut to open Browse Icons")
                 }
 
                 // 4. Updates
@@ -324,7 +441,63 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 7. Troubleshooting
+                // 7. Pro License
+                CompactSection("Pro License") {
+                    if licenseService.isPro {
+                        CompactRow("Status") {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.green)
+                                Text("Pro")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        if let email = licenseService.licenseEmail {
+                            CompactDivider()
+                            CompactRow("Licensed to") {
+                                Text(email)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.white.opacity(0.92))
+                            }
+                        }
+                        CompactDivider()
+                        CompactRow("Actions") {
+                            Button("Deactivate License") {
+                                licenseService.deactivate()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } else {
+                        CompactRow("Status") {
+                            HStack(spacing: 6) {
+                                Text("Free")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.white.opacity(0.92))
+                            }
+                        }
+                        CompactDivider()
+                        CompactRow("Upgrade") {
+                            HStack(spacing: 8) {
+                                Button("Unlock Pro — $6.99") {
+                                    NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.teal)
+                                .controlSize(.small)
+
+                                Button("Enter Key") {
+                                    showingLicenseEntry = true
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+
+                // 8. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
@@ -367,6 +540,55 @@ struct GeneralSettingsView: View {
     }
 
     // MARK: - Pro Gating Helper
+
+    private func segmentedChoiceButton(
+        _ title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(isSelected ? Color.blue.opacity(0.9) : Color.white.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyBrowseIconsViewSelection(_ useSecondMenuBar: Bool) {
+        menuBarManager.settings.useSecondMenuBar = useSecondMenuBar
+        // Icon Panel is the primary browse workflow. Keep always-hidden available there.
+        if !useSecondMenuBar, licenseService.isPro, !menuBarManager.settings.alwaysHiddenSectionEnabled {
+            menuBarManager.settings.alwaysHiddenSectionEnabled = true
+        }
+        SearchWindowController.shared.resetWindow()
+    }
+
+    private func applySecondMenuBarPreset(_ preset: SecondMenuBarPreset) {
+        switch preset {
+        case .minimal:
+            menuBarManager.settings.secondMenuBarShowVisible = false
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = false
+            showBrowseRowCustomization = false
+        case .balanced:
+            menuBarManager.settings.secondMenuBarShowVisible = true
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = false
+            showBrowseRowCustomization = false
+        case .power:
+            menuBarManager.settings.secondMenuBarShowVisible = true
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+            if !menuBarManager.settings.alwaysHiddenSectionEnabled {
+                menuBarManager.settings.alwaysHiddenSectionEnabled = true
+            }
+        }
+    }
 
     private func proGatedRow(feature: ProFeature, label: String) -> some View {
         CompactRow(label) {
@@ -637,5 +859,18 @@ struct GeneralSettingsView: View {
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         alert.runModal()
+    }
+}
+
+extension GeneralSettingsView.SecondMenuBarPreset {
+    static func resolve(showVisible: Bool, showAlwaysHidden: Bool) -> Self {
+        switch (showVisible, showAlwaysHidden) {
+        case (false, false):
+            return .minimal
+        case (true, false):
+            return .balanced
+        case (true, true), (false, true):
+            return .power
+        }
     }
 }

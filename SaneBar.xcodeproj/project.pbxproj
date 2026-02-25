@@ -76,6 +76,7 @@
 		A583F001627821380801AED9 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1048F0D4BA791A53CF0D482 /* PersistenceServiceTests.swift */; };
 		A5C6AEDCAC6B07C8C9B7D474 /* SecondMenuBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */; };
 		A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1779B5B710715DD106EE34 /* TriggerService.swift */; };
+		A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */; };
 		AA113AF7B7D2944334AA41F0 /* IconMovingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D77834D54799A501DFEAA7D8 /* IconMovingTests.swift */; };
 		AACD9A6170B39E6B630846A0 /* SaneBar.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */; };
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
@@ -223,6 +224,7 @@
 		E6A3CF4EB20C40A90C97D996 /* LicenseServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseServiceTests.swift; sourceTree = "<group>"; };
 		EB2C108D39FB5084CC3C11DA /* SettingsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsController.swift; sourceTree = "<group>"; };
 		ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppearanceService.swift; sourceTree = "<group>"; };
+		EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsSimplificationXCTests.swift; sourceTree = "<group>"; };
 		F03C6BAC13E153AFBB2FC78C /* LicenseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseService.swift; sourceTree = "<group>"; };
 		F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysServiceTests.swift; sourceTree = "<group>"; };
 		F673CE7642E1AAD7BE7ADBCC /* DMGIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = DMGIcon.icns; sourceTree = "<group>"; };
@@ -312,6 +314,7 @@
 				B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */,
 				73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */,
 				00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */,
+				EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
 				F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */,
@@ -609,6 +612,7 @@
 				FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */,
 				81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */,
 				357F28E6F430EBE6D344A98D /* BartenderImportServiceTests.swift in Sources */,
+				A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
 				B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */,

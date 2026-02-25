@@ -12,7 +12,7 @@ extension AccessibilityService {
     }
 
     /// Perform a "Virtual Click" on a specific menu bar item.
-    nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false) -> Bool {
+    nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false) -> Bool {
         let menuExtraIdString = menuExtraId ?? "nil"
         let statusItemIndexString = statusItemIndex.map(String.init) ?? "nil"
         logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString), rightClick: \(isRightClick))")
@@ -24,6 +24,11 @@ extension AccessibilityService {
 
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
             logger.warning("App not running: \(bundleID)")
+            if let fallbackCenter {
+                logger.info("App missing; using spatial fallback click for \(bundleID)")
+                let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
+                return simulateHardwareClick(at: point, isRightClick: isRightClick)
+            }
             return false
         }
 
@@ -33,11 +38,26 @@ extension AccessibilityService {
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
             fallbackCenter: fallbackCenter,
-            isRightClick: isRightClick
+            isRightClick: isRightClick,
+            preferHardwareFirst: preferHardwareFirst
         )
     }
 
-    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool) -> Bool {
+    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool) -> Bool {
+        if preferHardwareFirst {
+            logger.info("Using hardware-first click path for \(bundleID)")
+            if hardwareClickAsFallback(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                fallbackCenter: fallbackCenter,
+                isRightClick: isRightClick
+            ) {
+                return true
+            }
+            logger.info("Hardware-first click did not resolve target; falling back to AX actions")
+        }
+
         let appElement = AXUIElementCreateApplication(targetPID)
 
         var extrasBar: CFTypeRef?
@@ -141,7 +161,22 @@ extension AccessibilityService {
 
     private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool) -> Bool {
         logger.info("Performing hardware click fallback for \(bundleID)")
-        if let frame = getMenuBarIconFrameOnScreen(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) {
+        // Fast path: if caller already provided an on-screen target center,
+        // click there immediately instead of AX frame polling.
+        if let fallbackCenter,
+           isAccessibilityPointOnAnyScreen(fallbackCenter) {
+            logger.info("Hardware click fallback: using immediate spatial center for \(bundleID)")
+            let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
+            return simulateHardwareClick(at: point, isRightClick: isRightClick)
+        }
+
+        if let frame = getMenuBarIconFrameOnScreen(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            attempts: 10,
+            interval: 0.03
+        ) {
             let center = normalizedCGEventPoint(fromAccessibilityPoint: CGPoint(x: frame.midX, y: frame.midY))
             return simulateHardwareClick(at: center, isRightClick: isRightClick)
         }
@@ -154,6 +189,10 @@ extension AccessibilityService {
 
         logger.error("Hardware click failed: could not find icon frame")
         return false
+    }
+
+    private nonisolated func isAccessibilityPointOnAnyScreen(_ point: CGPoint) -> Bool {
+        NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(point) }
     }
 
     // MARK: - On-Screen Verification
@@ -192,9 +231,26 @@ extension AccessibilityService {
     // MARK: - Interaction
 
     private nonisolated func performSmartPress(on element: AXUIElement, isRightClick: Bool) -> Bool {
-        // AX doesn't have a native "right-click" action for most items,
-        // so we usually fallback to hardware click for that.
-        if isRightClick { return false }
+        if isRightClick {
+            if performShowMenu(on: element) { return true }
+            if performPress(on: element) {
+                logger.info("AXShowMenu unavailable; falling back to AXPress for right-click")
+                return true
+            }
+
+            var children: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
+               let childItems = children as? [AXUIElement] {
+                for child in childItems {
+                    if performShowMenu(on: child) { return true }
+                    if performPress(on: child) {
+                        logger.info("AXShowMenu unavailable on child; falling back to AXPress for right-click")
+                        return true
+                    }
+                }
+            }
+            return false
+        }
 
         // Some apps (Antinote, BetterDisplay) have nested clickable elements.
         // We look for any child that supports AXPress if the top-level doesn't.
@@ -208,6 +264,20 @@ extension AccessibilityService {
             }
         }
 
+        return false
+    }
+
+    private nonisolated func performShowMenu(on element: AXUIElement) -> Bool {
+        var actionNames: CFArray?
+        if AXUIElementCopyActionNames(element, &actionNames) == .success,
+           let names = actionNames as? [String],
+           names.contains("AXShowMenu") {
+            let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
+            if menuError == .success {
+                logger.info("AXShowMenu successful")
+                return true
+            }
+        }
         return false
     }
 
@@ -235,6 +305,7 @@ extension AccessibilityService {
 
     private nonisolated func simulateHardwareClick(at point: CGPoint, isRightClick: Bool) -> Bool {
         let source = CGEventSource(stateID: .combinedSessionState)
+        let restorePoint: CGPoint? = isRightClick ? nil : currentCGEventMousePoint()
 
         let mouseDownType: CGEventType = isRightClick ? .rightMouseDown : .leftMouseDown
         let mouseUpType: CGEventType = isRightClick ? .rightMouseUp : .leftMouseUp
@@ -249,9 +320,24 @@ extension AccessibilityService {
         mouseDown.post(tap: .cgSessionEventTap)
         Thread.sleep(forTimeInterval: 0.01)
         mouseUp.post(tap: .cgSessionEventTap)
+        if let restorePoint,
+           let restoreEvent = CGEvent(
+               mouseEventSource: source,
+               mouseType: .mouseMoved,
+               mouseCursorPosition: restorePoint,
+               mouseButton: .left
+           ) {
+            restoreEvent.post(tap: .cgSessionEventTap)
+        }
 
         logger.info("Simulated hardware click at \(point.x), \(point.y)")
         return true
+    }
+
+    private nonisolated func currentCGEventMousePoint() -> CGPoint {
+        let location = NSEvent.mouseLocation
+        let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? location.y
+        return CGPoint(x: location.x, y: globalMaxY - location.y)
     }
 
     private nonisolated func normalizedCGEventPoint(fromAccessibilityPoint point: CGPoint) -> CGPoint {

@@ -107,11 +107,11 @@ struct MenuBarSearchView: View {
     }
 
     private var accentStart: Color {
-        Color(red: 0.10, green: 0.38, blue: 0.56)
+        Color(red: 0.11, green: 0.32, blue: 0.50)
     }
 
     private var accentEnd: Color {
-        Color(red: 0.13, green: 0.25, blue: 0.45)
+        Color(red: 0.11, green: 0.23, blue: 0.39)
     }
 
     private var accentGradient: LinearGradient {
@@ -512,7 +512,7 @@ struct MenuBarSearchView: View {
                         selected
                             ? AnyShapeStyle(
                                 LinearGradient(
-                                    colors: [accentStart.opacity(0.40), accentEnd.opacity(0.30)],
+                                    colors: [accentStart.opacity(0.30), accentEnd.opacity(0.22)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )

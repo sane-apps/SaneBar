@@ -254,6 +254,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Off by default — users can already see visible icons in the menu bar.
     var secondMenuBarShowVisible: Bool = false
 
+    /// Include always-hidden icons in the Second Menu Bar panel.
+    /// On by default to keep the third zone discoverable.
+    var secondMenuBarShowAlwaysHidden: Bool = true
+
     /// When true, left-clicking the SaneBar icon opens Browse Icons instead of expanding in the menu bar.
     var leftClickOpensBrowseIcons: Bool = false
 
@@ -339,6 +343,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
             ?? legacyDropdownPanel
             ?? false
         secondMenuBarShowVisible = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowVisible) ?? false
+        secondMenuBarShowAlwaysHidden = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowAlwaysHidden) ?? true
         leftClickOpensBrowseIcons = try container.decodeIfPresent(Bool.self, forKey: .leftClickOpensBrowseIcons) ?? false
     }
 
@@ -354,7 +359,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
-        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible, leftClickOpensBrowseIcons
+        case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible, secondMenuBarShowAlwaysHidden, leftClickOpensBrowseIcons
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 

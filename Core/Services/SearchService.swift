@@ -70,6 +70,7 @@ final class SearchService: SearchServiceProtocol {
     @MainActor private var lastActivatedAppID: String?
     @MainActor private var lastActivationAt: Date = .distantPast
     @MainActor private let activationDebounceInterval: TimeInterval = 0.45
+    @MainActor private let clickAttemptTimeoutMs: Int = 900
 
     enum VisibilityZone: Equatable, Hashable {
         case visible
@@ -534,6 +535,8 @@ final class SearchService: SearchServiceProtocol {
         }
         defer { finishActivation(for: app.uniqueId) }
 
+        let preferHardwareFirst = shouldPreferHardwareFirst(for: app)
+
         // 1. Show hidden menu bar items first
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
 
@@ -542,8 +545,12 @@ final class SearchService: SearchServiceProtocol {
         // systems with many hidden icons (#69, #77, #102). Now polls until the
         // target icon reaches a stable on-screen position (up to 2s).
         if didReveal {
-            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms base for initial animation
-            await waitForIconOnScreen(app: app)
+            try? await Task.sleep(nanoseconds: 80_000_000) // keep this short; polling handles settling
+            // Hardware-first paths poll frame visibility during fallback click,
+            // so skip extra AX position polling for faster response.
+            if !preferHardwareFirst {
+                await waitForIconOnScreen(app: app)
+            }
         }
 
         // 3. Resolve latest target identity after reveal.
@@ -556,18 +563,20 @@ final class SearchService: SearchServiceProtocol {
 
         // 4. Perform click off-main-thread to avoid UI stalls when AX APIs block.
         let firstAttemptStart = Date()
-        var clickSuccess = await Task.detached(priority: .userInitiated) {
-            axService.clickMenuBarItem(
-                bundleID: initialTarget.bundleId,
-                menuExtraId: initialTarget.menuExtraIdentifier,
-                statusItemIndex: initialTarget.statusItemIndex,
-                fallbackCenter: initialFallbackCenter,
-                isRightClick: isRightClick
-            )
-        }.value
+        let firstAttempt = await performClickAttempt(
+            axService: axService,
+            target: initialTarget,
+            fallbackCenter: initialFallbackCenter,
+            isRightClick: isRightClick,
+            preferHardwareFirst: preferHardwareFirst
+        )
+        var clickSuccess = firstAttempt.success
         let firstAttemptDuration = Date().timeIntervalSince(firstAttemptStart)
-        if firstAttemptDuration > 1.5 {
+        if firstAttemptDuration > 1.2 {
             logger.info("Click attempt took \(firstAttemptDuration, privacy: .public)s")
+        }
+        if firstAttempt.timedOut {
+            logger.warning("Click attempt timed out after \(self.clickAttemptTimeoutMs, privacy: .public)ms")
         }
 
         // One retry with a forced refresh if first click failed.
@@ -576,21 +585,22 @@ final class SearchService: SearchServiceProtocol {
             let likelyNoExtras = AccessibilityService.shared.likelyLacksExtrasMenuBar(bundleID: initialTarget.bundleId)
             if likelyNoExtras {
                 logger.info("Click failed and AXExtrasMenuBar is unavailable; skipping forced-refresh retry")
+            } else if firstAttempt.timedOut {
+                logger.info("Click failed after timeout; skipping forced-refresh retry")
             } else if firstAttemptDuration > 1.5 {
                 logger.info("Click failed after slow attempt; skipping forced-refresh retry")
             } else {
                 logger.info("Click failed, retrying after forced menu bar refresh")
                 let refreshedTarget = await resolveLatestClickTarget(for: app, forceRefresh: true)
                 let refreshedFallbackCenter = fallbackCenter(for: refreshedTarget)
-                clickSuccess = await Task.detached(priority: .userInitiated) {
-                    axService.clickMenuBarItem(
-                        bundleID: refreshedTarget.bundleId,
-                        menuExtraId: refreshedTarget.menuExtraIdentifier,
-                        statusItemIndex: refreshedTarget.statusItemIndex,
-                        fallbackCenter: refreshedFallbackCenter,
-                        isRightClick: isRightClick
-                    )
-                }.value
+                let refreshedAttempt = await performClickAttempt(
+                    axService: axService,
+                    target: refreshedTarget,
+                    fallbackCenter: refreshedFallbackCenter,
+                    isRightClick: isRightClick,
+                    preferHardwareFirst: shouldPreferHardwareFirst(for: refreshedTarget)
+                )
+                clickSuccess = refreshedAttempt.success
             }
         }
 
@@ -609,6 +619,60 @@ final class SearchService: SearchServiceProtocol {
         if didReveal {
             let delay = MenuBarManager.shared.settings.findIconRehideDelay
             MenuBarManager.shared.scheduleRehideFromSearch(after: delay)
+        }
+    }
+
+    @MainActor
+    private func shouldPreferHardwareFirst(for app: RunningApp) -> Bool {
+        if app.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {
+            return true
+        }
+        // Items without a stable per-item AX identifier are typically less
+        // reliable via AXPress and benefit from direct click semantics.
+        if app.menuExtraIdentifier == nil {
+            return true
+        }
+        // Apple-owned menu extras (e.g. Spotlight) can report AXPress success
+        // while behaving inconsistently across macOS builds. Prefer hardware
+        // click first for com.apple.* owners to match real user interaction.
+        return app.bundleId.hasPrefix("com.apple.")
+    }
+
+    private struct ClickAttemptResult: Sendable {
+        let success: Bool
+        let timedOut: Bool
+    }
+
+    @MainActor
+    private func performClickAttempt(
+        axService: AccessibilityService,
+        target: RunningApp,
+        fallbackCenter: CGPoint?,
+        isRightClick: Bool,
+        preferHardwareFirst: Bool
+    ) async -> ClickAttemptResult {
+        let timeoutMs = clickAttemptTimeoutMs
+        return await withTaskGroup(of: ClickAttemptResult.self) { group in
+            group.addTask(priority: .userInitiated) {
+                let success = axService.clickMenuBarItem(
+                    bundleID: target.bundleId,
+                    menuExtraId: target.menuExtraIdentifier,
+                    statusItemIndex: target.statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    preferHardwareFirst: preferHardwareFirst
+                )
+                return ClickAttemptResult(success: success, timedOut: false)
+            }
+
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutMs) * 1_000_000)
+                return ClickAttemptResult(success: false, timedOut: true)
+            }
+
+            let result = await group.next() ?? ClickAttemptResult(success: false, timedOut: true)
+            group.cancelAll()
+            return result
         }
     }
 

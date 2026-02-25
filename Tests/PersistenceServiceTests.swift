@@ -97,6 +97,43 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(settings.alwaysHiddenPinnedItemIds, [])
     }
 
+    func testSecondMenuBarShowAlwaysHiddenDefaultsToTrue() {
+        let settings = SaneBarSettings()
+        XCTAssertTrue(settings.secondMenuBarShowAlwaysHidden)
+    }
+
+    func testSecondMenuBarShowAlwaysHiddenEncodesAndDecodes() throws {
+        var settings = SaneBarSettings()
+        settings.secondMenuBarShowAlwaysHidden = false
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertFalse(decoded.secondMenuBarShowAlwaysHidden)
+    }
+
+    func testSecondMenuBarShowAlwaysHiddenBackwardsCompatibility() throws {
+        // Given: JSON without secondMenuBarShowAlwaysHidden (old format)
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": [],
+            "iconHotkeys": {}
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertTrue(settings.secondMenuBarShowAlwaysHidden)
+    }
+
     // MARK: - Low Battery Trigger
 
     func testShowOnLowBatteryDefaultsToFalse() throws {
