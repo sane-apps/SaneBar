@@ -471,6 +471,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             // Create status items (with additional retry logic inside)
             setupStatusItem()
 
+            // Validate status item positions after macOS has laid them out.
+            // If WindowServer's position cache is corrupted, auto-bump the
+            // autosaveName version and recreate items.
+            self.schedulePositionValidation()
+
             // These all depend on status items being ready
             updateSpacers()
             setupObservers()
@@ -564,6 +569,27 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             return !isMenuOpen && !hoverService.isMouseInMenuBar
         }
 
+        // Wire recovery callback for position corruption self-healing
+        statusBarController.onItemsRecreated = { [weak self] main, separator in
+            guard let self else { return }
+            self.mainStatusItem = main
+            self.separatorItem = separator
+
+            if let button = main.button {
+                button.action = #selector(statusItemClicked)
+                button.target = self
+                button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            }
+
+            self.hidingService.configure(delimiterItem: separator)
+            self.clearStatusItemMenus()
+            self.updateMainIconVisibility()
+            self.updateDividerStyle()
+            self.updateIconStyle()
+
+            logger.info("Re-wired status items after autosave version bump")
+        }
+
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
         updateDividerStyle()
@@ -639,6 +665,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }
+        }
+    }
+
+    /// Validates status item positions after a delay, auto-recovering if corrupted.
+    private func schedulePositionValidation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, !self.usingExternalItems else { return }
+            guard !StatusBarController.validateItemPosition(self.statusBarController.mainItem) else {
+                return // Position is healthy
+            }
+            logger.error("Status item not in menu bar — triggering autosave version bump")
+            let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
+            self.statusBarController.onItemsRecreated?(newMain, newSep)
         }
     }
 
