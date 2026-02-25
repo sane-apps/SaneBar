@@ -112,6 +112,42 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testStartupRecoveryTriggersWhenMainIconDriftsIntoNotchDeadZone() {
+        XCTAssertTrue(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1300,
+                mainRightGap: 220,
+                screenWidth: 1728,
+                notchRightSafeMinX: 1450
+            )
+        )
+    }
+
+    func testStartupRecoveryAllowsMainIconInsideNotchSafeRightZone() {
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1462,
+                mainRightGap: 220,
+                screenWidth: 1728,
+                notchRightSafeMinX: 1450
+            )
+        )
+    }
+
+    func testStartupRecoveryFallsBackToRightGapWhenNoNotchBoundary() {
+        XCTAssertFalse(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 300,
+                screenWidth: 1440,
+                notchRightSafeMinX: nil
+            )
+        )
+    }
+
     func testStartupRecoveryDoesNotTriggerWithMissingCoordinates() {
         XCTAssertFalse(
             MenuBarManager.shouldRecoverStartupPositions(

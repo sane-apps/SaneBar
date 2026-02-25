@@ -120,12 +120,23 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         separatorX: CGFloat?,
         mainX: CGFloat?,
         mainRightGap: CGFloat? = nil,
-        screenWidth: CGFloat? = nil
+        screenWidth: CGFloat? = nil,
+        notchRightSafeMinX: CGFloat? = nil
     ) -> Bool {
         guard let separatorX, let mainX else { return false }
         guard separatorX > 0, mainX > 0 else { return false }
         if separatorX >= mainX {
             return true
+        }
+
+        // On notched displays, keep the main icon in the right auxiliary area
+        // (near Control Center). If it drifts left of this boundary, treat as
+        // corrupted placement and recover startup positions.
+        if let notchRightSafeMinX, notchRightSafeMinX > 0 {
+            let notchTolerance: CGFloat = 8
+            if mainX < (notchRightSafeMinX - notchTolerance) {
+                return true
+            }
         }
 
         // Machine-specific corruption can preserve an apparently "ordered"
@@ -589,6 +600,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 let startupMainX = self.getMainStatusItemLeftEdgeX()
                 let startupMainWindow = self.mainStatusItem?.button?.window
                 let startupScreenWidth = startupMainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
+                let startupNotchRightSafeMinX = startupMainWindow?.screen?.auxiliaryTopRightArea?.minX
+                    ?? NSScreen.main?.auxiliaryTopRightArea?.minX
                 let startupMainRightGap: CGFloat? = {
                     guard let startupMainWindow else { return nil }
                     guard let rightEdge = startupMainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
@@ -599,7 +612,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     separatorX: startupSeparatorX,
                     mainX: startupMainX,
                     mainRightGap: startupMainRightGap,
-                    screenWidth: startupScreenWidth
+                    screenWidth: startupScreenWidth,
+                    notchRightSafeMinX: startupNotchRightSafeMinX
                 ) {
                     logger.error(
                         "Startup invariant failed (separator=\(startupSeparatorX ?? -1, privacy: .public), main=\(startupMainX ?? -1, privacy: .public), rightGap=\(startupMainRightGap ?? -1, privacy: .public), width=\(startupScreenWidth ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
