@@ -2,16 +2,19 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>SaneBar Changelog</title>
-        
-                        
-                        <item>
+        <item>
             <title>2.1.11</title>
             <pubDate>Wed, 25 Feb 2026 01:09:01 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Improved icon movement and ordering in both Browse Icons views.\nFixed startup placement and recovery for menu bar icons.\nMade left-click and right-click actions more reliable and responsive.\nReduced unexpected auto-close behavior while managing icons.</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Smoother icon dragging and reordering in Browse Icons</li>
+                <li>Icons now return to the right place after restarting your Mac</li>
+                <li>Clicking icons from the panel is faster and more reliable</li>
+                <li>The panel stays open while you're working with your icons</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.11.zip"
@@ -27,8 +30,10 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Maintenance release: closes open issue backlog (including #79), reconciles Air/mini release state, and hardens release automation.</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Bug fixes and stability improvements</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.9.zip"
@@ -44,8 +49,10 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Fixes #79: preserve icon layout across upgrades by corruption-gated migration recovery and startup separator soft-recovery.</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Your icon layout is now preserved when updating SaneBar</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.8.zip"
@@ -61,8 +68,10 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Update to version 2.1.7</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Bug fixes and performance improvements</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.7.zip"
@@ -78,8 +87,10 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Update to version 2.1.5</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Bug fixes and performance improvements</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.5.zip"
@@ -95,8 +106,11 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Fixes zone-move reliability and visible/hidden persistence regressions. Hardens menu bar item detection for helper-hosted extras (including Little Snitch paths), improves separator target resolution and fallback classification, and adds regression coverage for status-item position seeding/restore behavior.</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Moving icons between Visible, Hidden, and Always Hidden is more reliable</li>
+                <li>Better detection of all your menu bar icons, including third-party apps</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.4.zip"
@@ -112,8 +126,11 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Fix high energy usage, mouse event throttle, Stage Manager fix</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Reduced energy usage — lighter on your battery</li>
+                <li>Fixed compatibility with Stage Manager</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip"
@@ -129,8 +146,10 @@
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
-                <h2>Changes</h2>
-                <p>Fixed: Menu bar overlay rounded corners were truncated at full screen width (fixes #64)</p>
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixed menu bar overlay appearance on full-width displays</li>
+                </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.1.zip"

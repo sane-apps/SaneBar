@@ -1,4 +1,4 @@
-# Marketing Screenshot Automation Process
+# Marketing Screenshot Automation Process (Current)
 
 > Reusable process for capturing professional marketing screenshots across all Sane apps.
 
@@ -40,27 +40,28 @@ osascript -e 'tell application "SaneBar" to hide items'
 
 ```bash
 # List available shots for this app
-./Scripts/marketing_screenshots.rb --list
+./scripts/marketing_screenshots.rb --list
 
-# Capture single screenshot (app window must be open!)
-./Scripts/marketing_screenshots.rb --shot settings-advanced
+# Capture single screenshot (target app window/state must be visible)
+./scripts/marketing_screenshots.rb --shot icon-panel
 
-# Capture ALL screenshots
-./Scripts/marketing_screenshots.rb
+# Capture all configured screenshots
+./scripts/marketing_screenshots.rb
 ```
 
 ## How It Works
 
 1. **Alex's `screenshot` tool** - Automatically finds window by app name + title filter
 2. **Shadow included** - Professional look with `-s` flag
-3. **ImageMagick polish** - Resize for web, optimize quality
-4. **Standardized output** - Saves to `marketing/screenshots/`
+3. **Guard rails in script** - Rejects invalid captures (for example, line-only `second-menu-bar` captures)
+4. **ImageMagick polish** - Resize for web, optimize quality
+5. **Standardized output** - Saves to `marketing/screenshots/`
 
 ## Adding to a New App
 
 1. **Copy the script:**
    ```bash
-   cp ~/SaneApps/apps/SaneBar/Scripts/marketing_screenshots.rb ~/YourApp/Scripts/
+   cp ~/SaneApps/apps/SaneBar/scripts/marketing_screenshots.rb ~/YourApp/scripts/
    ```
 
 2. **Edit the SHOTS hash** to define your app's screenshots:
@@ -78,7 +79,7 @@ osascript -e 'tell application "SaneBar" to hide items'
 
 3. **Run it:**
    ```bash
-   ./Scripts/marketing_screenshots.rb
+   ./scripts/marketing_screenshots.rb
    ```
 
 ## Best Practices
@@ -108,6 +109,10 @@ Each shot in `SHOTS` hash:
 **Wrong window captured**
 - Use `-t` title filter to be more specific
 - Close other windows from same app
+
+**Second Menu Bar capture became a thin line**
+- `marketing_screenshots.rb` now rejects captures below minimum height for this shot.
+- Re-open Browse Icons in Second Menu Bar mode, then re-run `--shot second-menu-bar`.
 
 **Quality issues**
 - Adjust ImageMagick settings in `polish_screenshot` method

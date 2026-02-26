@@ -67,6 +67,7 @@ Choose the style that suits you — set it during onboarding or change anytime i
 - **Second Menu Bar** — A full secondary bar stretches across the screen below your menu bar, showing all hidden icons in their natural order.
 
 Both modes let you right-click any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones.
+You can also drag icons directly to reorder and move between zones in both views.
 
 ---
 

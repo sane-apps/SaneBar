@@ -1,254 +1,166 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Marketing Screenshot Automation
-# Reusable process for capturing app screenshots for marketing materials
+# Marketing Screenshot Automation (Current UI)
 #
 # Usage:
-#   ./Scripts/marketing_screenshots.rb              # Capture all SaneBar screenshots
-#   ./Scripts/marketing_screenshots.rb --list       # List available shots
-#   ./Scripts/marketing_screenshots.rb --shot NAME  # Capture specific shot
+#   ./scripts/marketing_screenshots.rb --list
+#   ./scripts/marketing_screenshots.rb --shot icon-panel
+#   ./scripts/marketing_screenshots.rb
 #
-# Requirements:
-#   pip3 install screenshot
-#   brew install imagemagick (for polish effects)
+# Notes:
+# - This script captures CURRENT settings/image targets used by docs/index.html.
+# - Some shots depend on app state (for example second-menu-bar requires browse mode = Second Menu Bar).
 
 require 'fileutils'
-require 'json'
 
-SCREENSHOT_TOOL = '/Users/sj/Library/Python/3.13/bin/screenshot'
-OUTPUT_DIR = File.expand_path('../marketing/screenshots', __dir__)
-TEMP_DIR = '/tmp/marketing_screenshots'
-APP_NAME = File.basename(File.expand_path('..', __dir__))
+SCREENSHOT_TOOL = File.expand_path('~/Library/Python/3.13/bin/screenshot')
+OUTPUT_DIR = File.expand_path('../docs/images', __dir__)
+APP_NAME = 'SaneBar'
 
-# Screenshot definitions - customize per app
-# Each shot defines: app name, window title filter, output filename, description
-# Optional: tab (toolbar button to click), scroll (0.0-1.0 scroll position)
 SHOTS = {
   'settings-general' => {
-    app: APP_NAME,
-    tab: 'General',
-    scroll: 0.0,
-    filename: 'general-settings.png',
-    description: 'General settings tab'
+    title: 'General',
+    filename: 'settings-general.png',
+    description: 'General tab (Browse Icons + startup/update/license sections)'
+  },
+  'settings-rules' => {
+    title: 'Rules',
+    filename: 'settings-rules.png',
+    description: 'Rules tab (rehide, reveal gestures, triggers)'
+  },
+  'settings-appearance' => {
+    title: 'Appearance',
+    filename: 'settings-appearance.png',
+    description: 'Appearance tab (icon style, divider, layout, spacing)'
   },
   'settings-shortcuts' => {
-    app: APP_NAME,
-    tab: 'Shortcuts',
-    scroll: 0.0,
-    filename: 'shortcuts-settings.png',
-    description: 'Keyboard shortcuts tab'
+    title: 'Shortcuts',
+    filename: 'settings-shortcuts.png',
+    description: 'Shortcuts tab (hotkeys + automation)'
   },
-  'settings-advanced-top' => {
-    app: APP_NAME,
-    tab: 'Advanced',
-    scroll: 0.0,
-    filename: 'advanced-settings-top.png',
-    description: 'Advanced settings (Privacy & Auto-show)'
+  'settings-help' => {
+    title: 'Help',
+    filename: 'settings-about.png',
+    description: 'Help tab (links, licenses, bug report, donate)'
   },
-  'settings-advanced-spacing' => {
-    app: APP_NAME,
-    tab: 'Advanced',
-    scroll: 0.5,
-    filename: 'advanced-settings-spacing.png',
-    description: 'Advanced settings (System Icon Spacing)'
+  'browse-settings' => {
+    title: 'General',
+    filename: 'browse-settings.png',
+    description: 'General tab focused on Browse Icons section'
   },
-  'settings-about' => {
-    app: APP_NAME,
-    tab: 'About',
-    scroll: 0.0,
-    filename: 'about-settings.png',
-    description: 'About tab'
+  'icon-panel' => {
+    title: 'Icon Panel',
+    filename: 'icon-panel.png',
+    description: 'Browse Icons window in Icon Panel mode',
+    min_height: 300
   },
-  'find-icon' => {
-    app: APP_NAME,
-    title: nil, # No navigation needed
-    filename: 'find-icon-window.png',
-    description: 'Find Icon search window'
-  },
-  # Menu bar shots - AUTOMATED via AppleScript commands
-  'menubar-hidden' => {
-    app: nil,
-    region: 'menubar',
-    sanebar_cmd: 'hide items',  # Ensure icons are hidden first
-    filename: 'menubar-hidden.png',
-    description: 'Menu bar with icons HIDDEN (clean look)'
-  },
-  'menubar-revealed' => {
-    app: nil,
-    region: 'menubar',
-    sanebar_cmd: 'show hidden',  # Reveal icons first
-    filename: 'menubar-revealed.png',
-    description: 'Menu bar with icons REVEALED'
+  'second-menu-bar' => {
+    title: nil,
+    filename: 'second-menu-bar.png',
+    description: 'Browse Icons in Second Menu Bar mode (ensure this is the only SaneBar window before capture)',
+    min_height: 120
   }
 }.freeze
 
-# Control App via AppleScript
-def sanebar_command(cmd)
-  system('osascript', '-e', "tell application \"#{APP_NAME}\" to #{cmd}")
-  sleep 0.5  # Wait for animation
-end
+ONBOARDING_SYNC = {
+  'icon-panel.png' => 'Resources/Assets.xcassets/OnboardingIconPanel.imageset/icon-panel.png',
+  'second-menu-bar.png' => 'Resources/Assets.xcassets/OnboardingSecondMenuBar.imageset/second-menu-bar.png',
+  'browse-settings.png' => 'Resources/Assets.xcassets/OnboardingBrowseSettings.imageset/browse-settings.png'
+}.freeze
 
-# Capture just the menu bar region
-def capture_menubar(filename)
-  temp_file = "/tmp/menubar-full.png"
-
-  # Capture full screen
-  system('screencapture', '-x', temp_file)
-
-  # Crop to menu bar (top 40 pixels, full width)
-  # Get screen width first
-  width = `system_profiler SPDisplaysDataType | grep Resolution | head -1`.match(/(\d+) x/)[1] rescue '2560'
-
-  system('magick', temp_file,
-         '-crop', "#{width}x50+0+0",  # Top 50px of screen
-         '+repage',
-         '-resize', '1200x>',  # Max 1200px wide for marketing
-         filename)
-end
-
-# Navigate to a specific tab and scroll position
-def navigate_to(app, tab: nil, scroll: nil)
-  return unless tab || scroll
-
-  script = %(
-    tell application "System Events"
-      tell process "#{app}"
-  )
-
-  if tab
-    script += %(
-        click button "#{tab}" of toolbar 1 of window 1
-        delay 0.3
-    )
+def ensure_prereqs
+  unless File.executable?(SCREENSHOT_TOOL)
+    warn "❌ screenshot tool not found at #{SCREENSHOT_TOOL}"
+    exit 1
   end
-
-  if scroll
-    script += %(
-        tell scroll area 1 of group 1 of window 1
-          tell scroll bar 1
-            set value to #{scroll}
-          end tell
-        end tell
-        delay 0.2
-    )
-  end
-
-  script += %(
-      end tell
-    end tell
-  )
-
-  system('osascript', '-e', script)
-end
-
-def setup_dirs
   FileUtils.mkdir_p(OUTPUT_DIR)
-  FileUtils.mkdir_p(TEMP_DIR)
-end
-
-def capture_screenshot(shot_name, shot_config)
-  temp_file = File.join(TEMP_DIR, "#{shot_name}-raw.png")
-  final_file = File.join(OUTPUT_DIR, shot_config[:filename])
-
-  warn "📸 Capturing: #{shot_config[:description]}..."
-
-  # Handle menu bar region capture differently
-  if shot_config[:region] == 'menubar'
-    # Execute SaneBar command first (hide/show icons)
-    if shot_config[:sanebar_cmd]
-      sanebar_command(shot_config[:sanebar_cmd])
-      warn "   🎛️  Executed: tell SaneBar to #{shot_config[:sanebar_cmd]}"
-    end
-    capture_menubar(final_file)
-    warn "   ✅ Saved: #{final_file}"
-    return true
-  end
-
-  # Navigate to correct tab/scroll position first
-  if shot_config[:tab] || shot_config[:scroll]
-    navigate_to(shot_config[:app], tab: shot_config[:tab], scroll: shot_config[:scroll])
-    warn "   🧭 Navigated to #{shot_config[:tab] || 'position'}"
-  end
-
-  # Build screenshot command
-  cmd = [SCREENSHOT_TOOL, shot_config[:app], '-s'] # -s for shadow
-  # Use tab name as title filter if we navigated to a tab
-  title_filter = shot_config[:title] || shot_config[:tab]
-  cmd += ['-t', title_filter] if title_filter
-  cmd += ['-f', temp_file]
-
-  success = system(*cmd)
-  unless success
-    warn "   ❌ Failed to capture #{shot_name}"
-    return false
-  end
-
-  # Apply marketing polish with ImageMagick
-  polish_screenshot(temp_file, final_file)
-
-  warn "   ✅ Saved: #{final_file}"
-  true
-end
-
-def polish_screenshot(input, output)
-  # Add subtle enhancements for marketing
-  # - Ensure consistent sizing
-  # - Add slight shadow boost if needed
-  system('magick', input,
-         '-resize', '800x>', # Max width 800px for web
-         '-quality', '95',
-         output)
 end
 
 def list_shots
-  warn "Available screenshots:"
+  warn 'Available screenshots:'
   SHOTS.each do |name, config|
     warn "  #{name.ljust(20)} - #{config[:description]}"
+  end
+  warn "\nTip: Open the target SaneBar window/state first, then run --shot NAME."
+end
+
+def capture(name, config)
+  output = File.join(OUTPUT_DIR, config[:filename])
+  temp_output = "#{output}.tmp.png"
+  FileUtils.rm_f(temp_output)
+
+  cmd = [SCREENSHOT_TOOL, APP_NAME, '-s']
+  cmd += ['-t', config[:title]] if config[:title]
+  cmd += ['-f', temp_output]
+
+  warn "📸 Capturing #{name} -> #{config[:filename]}"
+  ok = system(*cmd)
+  unless ok
+    warn "   ❌ Capture failed for #{name}. Ensure the target window/state is visible."
+    return false
+  end
+
+  width, height = read_dimensions(temp_output)
+  min_height = config[:min_height]
+  if min_height && (height.nil? || height < min_height)
+    warn "   ❌ Rejected #{name}: capture height #{height || 'unknown'} is below minimum #{min_height}px."
+    warn "      This usually means a collapsed line capture. Keep the existing screenshot and retry with the target window open."
+    FileUtils.rm_f(temp_output)
+    return false
+  end
+
+  FileUtils.mv(temp_output, output)
+  warn "   ✅ #{output}"
+  true
+end
+
+def read_dimensions(path)
+  output = `sips -g pixelWidth -g pixelHeight "#{path}" 2>/dev/null`
+  width = output[/pixelWidth:\s*(\d+)/, 1]&.to_i
+  height = output[/pixelHeight:\s*(\d+)/, 1]&.to_i
+  [width, height]
+end
+
+def sync_onboarding
+  ONBOARDING_SYNC.each do |src_name, dest_rel|
+    src = File.join(OUTPUT_DIR, src_name)
+    dest = File.expand_path("../#{dest_rel}", __dir__)
+    next unless File.exist?(src)
+
+    FileUtils.cp(src, dest)
+    warn "🔁 Synced #{src_name} -> #{dest_rel}"
   end
 end
 
 def capture_all
-  setup_dirs
-
-  warn "🎬 Marketing Screenshot Capture"
-  warn "================================"
-  warn ""
-  warn "⚠️  Make sure the app windows are open and positioned!"
-  warn ""
-
-  success_count = 0
+  success = 0
   SHOTS.each do |name, config|
-    success_count += 1 if capture_screenshot(name, config)
+    success += 1 if capture(name, config)
   end
-
-  warn ""
-  warn "📊 Captured #{success_count}/#{SHOTS.size} screenshots"
-  warn "📁 Output: #{OUTPUT_DIR}"
+  sync_onboarding
+  warn "\nDone: #{success}/#{SHOTS.size} captured"
 end
 
-def capture_single(shot_name)
-  unless SHOTS.key?(shot_name)
-    warn "❌ Unknown shot: #{shot_name}"
-    warn "   Use --list to see available shots"
+def capture_one(name)
+  config = SHOTS[name]
+  unless config
+    warn "❌ Unknown shot: #{name}"
+    list_shots
     exit 1
   end
 
-  setup_dirs
-  capture_screenshot(shot_name, SHOTS[shot_name])
+  capture(name, config)
+  sync_onboarding
 end
 
-# Main
+ensure_prereqs
+
 case ARGV[0]
 when '--list', '-l'
   list_shots
 when '--shot', '-s'
-  capture_single(ARGV[1])
-when '--help', '-h'
-  warn "Usage: #{$PROGRAM_NAME} [--list | --shot NAME | --help]"
-  warn "  (no args)    Capture all screenshots"
-  warn "  --list       List available shots"
-  warn "  --shot NAME  Capture specific shot"
+  capture_one(ARGV[1])
 else
   capture_all
 end

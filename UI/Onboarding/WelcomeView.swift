@@ -344,7 +344,7 @@ private struct BrowseIconsPage: View {
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Open with ⌘ Shift Space or right-click the SaneBar icon")
+            Text("Open with ⌘⇧Space. You can also set left-click on the SaneBar icon to open Browse Icons.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
 
@@ -359,9 +359,10 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(8)
                         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    Text("Grid view with search")
+                    Text("Grid view with search. Drag to reorder or move between Hidden, Visible, and Always Hidden.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -375,9 +376,10 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(6)
                         .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                    Text("Compact strip below menu bar")
+                    Text("Compact strip below the menu bar with the same drag and zone controls.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
                 }
                 .frame(width: 220)
             }
@@ -398,9 +400,10 @@ private struct ChooseViewPage: View {
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Settings → General → Browse Icons")
+            Text("Settings → General → Browse Icons. Switch views anytime — drag and zone behavior stays the same.")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
 
             Image("OnboardingBrowseSettings")
                 .resizable()
