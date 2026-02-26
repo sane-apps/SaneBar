@@ -282,11 +282,11 @@ struct MenuBarSearchView: View {
             isRefreshing: isRefreshing,
             onDismiss: onDismiss,
             onActivate: { app, isRightClick in
-                if LicenseService.shared.isPro {
-                    activateApp(app, isRightClick: isRightClick)
-                } else {
-                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                if isRightClick, !LicenseService.shared.isPro {
+                    proUpsellFeature = .rightClickFromPanels
+                    return
                 }
+                activateApp(app, isRightClick: isRightClick)
             },
             onRetry: {
                 _ = AccessibilityService.shared.requestAccessibility()
@@ -964,11 +964,11 @@ struct MenuBarSearchView: View {
             iconSize: grid.iconSize,
             tileSize: grid.tileSize,
             onActivate: { isRightClick in
-                if isPro {
-                    activateApp(app, isRightClick: isRightClick)
-                } else {
-                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                if isRightClick, !isPro {
+                    proUpsellFeature = .rightClickFromPanels
+                    return
                 }
+                activateApp(app, isRightClick: isRightClick)
             },
             onSetHotkey: {
                 if isPro {

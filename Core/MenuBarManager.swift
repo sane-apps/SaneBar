@@ -400,6 +400,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             quitAction: #selector(quitApp),
             target: self
         ))
+        updateUpdateMenuAvailability()
         statusMenu?.delegate = self
         separator.menu = nil
         clearStatusItemMenus()
@@ -558,6 +559,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             quitAction: #selector(quitApp),
             target: self
         ))
+        updateUpdateMenuAvailability()
         statusMenu?.delegate = self
         clearStatusItemMenus()
 
@@ -653,6 +655,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }
+        }
+    }
+
+    private func updateUpdateMenuAvailability() {
+        guard let updateItem = statusMenu?.item(withTitle: "Check for Updates...") else { return }
+        updateItem.isEnabled = updateService.isUpdateChannelEnabled
+        if updateService.isUpdateChannelEnabled {
+            updateItem.toolTip = nil
+        } else {
+            updateItem.toolTip = "Updates are available from the installed /Applications/SaneBar.app build."
         }
     }
 

@@ -70,4 +70,36 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         )
         XCTAssertTrue(normalized)
     }
+
+    func testFreeModeNormalizesSecondMenuBarRowsToMinimal() {
+        let normalized = MenuBarManager.normalizedSecondMenuBarRows(
+            isPro: false,
+            showVisible: true,
+            showAlwaysHidden: true
+        )
+        XCTAssertFalse(normalized.showVisible)
+        XCTAssertFalse(normalized.showAlwaysHidden)
+    }
+
+    func testProModeKeepsSecondMenuBarRows() {
+        let normalized = MenuBarManager.normalizedSecondMenuBarRows(
+            isPro: true,
+            showVisible: true,
+            showAlwaysHidden: false
+        )
+        XCTAssertTrue(normalized.showVisible)
+        XCTAssertFalse(normalized.showAlwaysHidden)
+    }
+
+    func testSparkleUpdatesAllowedForReleaseBundleIdentifier() {
+        XCTAssertTrue(UpdateService.supportsSparkleUpdates(bundleIdentifier: "com.sanebar.app"))
+    }
+
+    func testSparkleUpdatesRejectedForDevBundleIdentifier() {
+        XCTAssertFalse(UpdateService.supportsSparkleUpdates(bundleIdentifier: "com.sanebar.dev"))
+    }
+
+    func testSparkleUpdatesRejectedWhenBundleIdentifierMissing() {
+        XCTAssertFalse(UpdateService.supportsSparkleUpdates(bundleIdentifier: nil))
+    }
 }

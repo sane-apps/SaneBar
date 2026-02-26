@@ -70,15 +70,51 @@ extension MenuBarManager {
         return false
     }
 
+    nonisolated static func normalizedSecondMenuBarRows(
+        isPro: Bool,
+        showVisible: Bool,
+        showAlwaysHidden: Bool
+    ) -> (showVisible: Bool, showAlwaysHidden: Bool) {
+        // Keep free mode coherent and predictable: Second Menu Bar defaults to
+        // Minimal (Hidden only), regardless of stale persisted Pro settings.
+        guard !isPro else {
+            return (showVisible, showAlwaysHidden)
+        }
+        return (false, false)
+    }
+
     func normalizeLicenseDependentDefaults() {
+        let isPro = LicenseService.shared.isPro
         let normalized = Self.normalizedLeftClickOpensBrowseIcons(
-            isPro: LicenseService.shared.isPro,
+            isPro: isPro,
             useSecondMenuBar: settings.useSecondMenuBar,
             leftClickOpensBrowseIcons: settings.leftClickOpensBrowseIcons
         )
-        guard normalized != settings.leftClickOpensBrowseIcons else { return }
-        settings.leftClickOpensBrowseIcons = normalized
-        logger.info("Normalized free-mode left click behavior to Toggle Hidden")
+        let normalizedRows = Self.normalizedSecondMenuBarRows(
+            isPro: isPro,
+            showVisible: settings.secondMenuBarShowVisible,
+            showAlwaysHidden: settings.secondMenuBarShowAlwaysHidden
+        )
+
+        var changed = false
+        if normalized != settings.leftClickOpensBrowseIcons {
+            settings.leftClickOpensBrowseIcons = normalized
+            changed = true
+            logger.info("Normalized free-mode left click behavior to Toggle Hidden")
+        }
+
+        if normalizedRows.showVisible != settings.secondMenuBarShowVisible {
+            settings.secondMenuBarShowVisible = normalizedRows.showVisible
+            changed = true
+        }
+        if normalizedRows.showAlwaysHidden != settings.secondMenuBarShowAlwaysHidden {
+            settings.secondMenuBarShowAlwaysHidden = normalizedRows.showAlwaysHidden
+            changed = true
+        }
+
+        if changed, !isPro {
+            logger.info("Normalized free-mode Second Menu Bar rows to Minimal")
+        }
     }
 
     // MARK: - Menu Actions

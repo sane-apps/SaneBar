@@ -472,7 +472,7 @@ struct GeneralSettingsView: View {
                     } else {
                         CompactRow("Status") {
                             HStack(spacing: 6) {
-                                Text("Free")
+                                Text("Basic")
                                     .font(.system(size: 13))
                                     .foregroundStyle(.white.opacity(0.92))
                             }
