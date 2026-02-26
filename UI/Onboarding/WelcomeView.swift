@@ -344,7 +344,7 @@ private struct BrowseIconsPage: View {
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Open with ⌘⇧Space. You can also set left-click on the SaneBar icon to open Browse Icons.")
+            Text("Open with ⌘⇧Space. In Browse Icons, left-click drag reorders and moves zones, and right-click gives quick Move actions.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
 
@@ -359,7 +359,7 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(8)
                         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    Text("Grid view with search. Drag to reorder or move between Hidden, Visible, and Always Hidden.")
+                    Text("Grid view with search. Left-click drag to reorder or move between Hidden, Visible, and Always Hidden. Right-click for quick Move actions.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
@@ -376,7 +376,7 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(6)
                         .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                    Text("Compact strip below the menu bar with the same drag and zone controls.")
+                    Text("Compact strip below the menu bar with the same left-click drag and right-click Move actions as Icon Panel.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)

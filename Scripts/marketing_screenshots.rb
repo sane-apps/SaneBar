@@ -14,9 +14,28 @@
 
 require 'fileutils'
 
-SCREENSHOT_TOOL = File.expand_path('~/Library/Python/3.13/bin/screenshot')
 OUTPUT_DIR = File.expand_path('../docs/images', __dir__)
 APP_NAME = 'SaneBar'
+
+def resolve_screenshot_tool
+  env_override = ENV['SANEBAR_SCREENSHOT_TOOL']
+  return env_override if env_override && !env_override.empty? && File.executable?(env_override)
+
+  from_path = `command -v screenshot 2>/dev/null`.strip
+  return from_path unless from_path.empty?
+
+  candidates = %w[
+    ~/Library/Python/3.13/bin/screenshot
+    ~/Library/Python/3.12/bin/screenshot
+    ~/Library/Python/3.11/bin/screenshot
+    ~/Library/Python/3.10/bin/screenshot
+    ~/Library/Python/3.9/bin/screenshot
+  ].map { |p| File.expand_path(p) }
+
+  candidates.find { |path| File.executable?(path) }
+end
+
+SCREENSHOT_TOOL = resolve_screenshot_tool
 
 SHOTS = {
   'settings-general' => {
@@ -70,8 +89,8 @@ ONBOARDING_SYNC = {
 }.freeze
 
 def ensure_prereqs
-  unless File.executable?(SCREENSHOT_TOOL)
-    warn "❌ screenshot tool not found at #{SCREENSHOT_TOOL}"
+  unless SCREENSHOT_TOOL && File.executable?(SCREENSHOT_TOOL)
+    warn "❌ screenshot tool not found (checked PATH and ~/Library/Python/*/bin/screenshot)"
     exit 1
   end
   FileUtils.mkdir_p(OUTPUT_DIR)
