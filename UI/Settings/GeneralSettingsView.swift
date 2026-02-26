@@ -301,7 +301,7 @@ struct GeneralSettingsView: View {
                         }
                         .frame(maxWidth: .infinity)
 
-                        Text("Tip: Right-click the SaneBar icon opens the app menu.")
+                        Text("Tip: Right-click the SaneBar icon to open the app menu.")
                             .font(.system(size: 12))
                             .foregroundStyle(.white.opacity(0.86))
                     }
