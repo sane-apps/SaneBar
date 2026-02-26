@@ -387,4 +387,5 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Startup should skip under external-monitor policy before always-hidden automation runs"
         )
     }
+
 }

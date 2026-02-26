@@ -595,9 +595,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 if let w = NSScreen.main?.frame.width {
                     UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
                 }
-
-                // Startup invariant: the separator must be left of the main icon.
-                // If not, soft-recover seeds and keep the bar visible for this run.
                 let startupSeparatorX = self.getSeparatorOriginX()
                 let startupMainX = self.getMainStatusItemLeftEdgeX()
                 let startupMainWindow = self.mainStatusItem?.button?.window
@@ -609,7 +606,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     guard let rightEdge = startupMainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
                     return rightEdge - startupMainWindow.frame.origin.x
                 }()
-
+                if !self.settings.hasCompletedOnboarding,
+                   startupSeparatorX == nil || startupMainX == nil {
+                    logger.error("Onboarding startup missing icon coordinates — applying soft recovery and skipping initial hide")
+                    StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: self.settings.alwaysHiddenSectionEnabled)
+                    self.lastKnownSeparatorX = nil
+                    self.lastKnownSeparatorRightEdgeX = nil
+                    self.lastKnownAlwaysHiddenSeparatorX = nil
+                    await self.hidingService.show()
+                    return
+                }
                 if Self.shouldRecoverStartupPositions(
                     separatorX: startupSeparatorX,
                     mainX: startupMainX,
@@ -627,7 +633,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     await self.hidingService.show()
                     return
                 }
-
                 // Repair AH separator ordering drift before any startup hide.
                 self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
 

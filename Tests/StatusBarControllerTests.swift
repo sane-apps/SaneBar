@@ -121,6 +121,92 @@ struct StatusBarControllerTests {
         #expect(shouldSeed == true)
     }
 
+    @Test("Init forces anchor seeding when launch override is enabled")
+    @MainActor
+    func initForcesAnchorWhenOverrideEnabled() {
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+        let variable = "SANEBAR_FORCE_ANCHOR_ON_LAUNCH"
+        let originalEnv = getenv(variable).map { String(cString: $0) }
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalEnv {
+                setenv(variable, originalEnv, 1)
+            } else {
+                unsetenv(variable)
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        if let width = NSScreen.main?.frame.width {
+            defaults.set(width, forKey: screenWidthKey)
+        }
+        defaults.set(420.0, forKey: mainKey)
+        defaults.set(360.0, forKey: separatorKey)
+
+        setenv(variable, "1", 1)
+        _ = StatusBarController()
+
+        let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+        #expect(mainValue == 0.0, "Override should force main anchor seed")
+        #expect(separatorValue == 1.0, "Override should force separator anchor seed")
+    }
+
+    @Test("Init preserves existing positions when launch override is disabled")
+    @MainActor
+    func initPreservesPositionsWhenOverrideDisabled() {
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+        let variable = "SANEBAR_FORCE_ANCHOR_ON_LAUNCH"
+        let originalEnv = getenv(variable).map { String(cString: $0) }
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalEnv {
+                setenv(variable, originalEnv, 1)
+            } else {
+                unsetenv(variable)
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        if let width = NSScreen.main?.frame.width {
+            defaults.set(width, forKey: screenWidthKey)
+        }
+        defaults.set(420.0, forKey: mainKey)
+        defaults.set(360.0, forKey: separatorKey)
+
+        setenv(variable, "0", 1)
+        _ = StatusBarController()
+
+        let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+        #expect(mainValue == 420.0, "Disabled override should preserve existing main position")
+        #expect(separatorValue == 360.0, "Disabled override should preserve existing separator position")
+    }
+
     @Test("Init clears persisted status-item visibility overrides")
     @MainActor
     func initClearsPersistedVisibilityOverrides() {
