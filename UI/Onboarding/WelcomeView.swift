@@ -7,7 +7,7 @@ private let navyBg = Color(red: 0.06, green: 0.08, blue: 0.16)
 private enum Tier { case free, pro }
 
 /// Welcome onboarding view shown on first launch
-/// Structure: Welcome → Browse Icons → Sane Promise → Permission → Free vs Pro
+/// Structure: Welcome → Browse Icons → Sane Promise → Permission → Basic vs Pro
 public struct WelcomeView: View {
     @State private var currentPage = 0
     @State private var navigateForward = true
@@ -344,7 +344,7 @@ private struct BrowseIconsPage: View {
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Open with ⌘⇧Space. In Browse Icons, left-click drag reorders and moves zones, and right-click gives quick Move actions.")
+            Text("Open with ⌘⇧Space. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
 
@@ -359,7 +359,7 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(8)
                         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    Text("Grid view with search. Left-click drag to reorder or move between Hidden, Visible, and Always Hidden. Right-click for quick Move actions.")
+                    Text("Grid view with search. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
@@ -376,7 +376,7 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(6)
                         .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                    Text("Compact strip below the menu bar with the same left-click drag and right-click Move actions as Icon Panel.")
+                    Text("Compact strip below the menu bar. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
@@ -400,7 +400,7 @@ private struct ChooseViewPage: View {
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Settings → General → Browse Icons. Switch views anytime — drag and zone behavior stays the same.")
+            Text("Settings → General → Browse Icons. Switch views anytime. Basic keeps left-click activation in both views; Pro adds drag and right-click Move actions.")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -500,7 +500,7 @@ private struct PermissionPage: View {
     }
 }
 
-// MARK: - Page 5: Free vs Pro
+// MARK: - Page 5: Basic vs Pro
 
 private struct FreeVsProPage: View {
     @ObservedObject private var licenseService = LicenseService.shared
@@ -613,7 +613,7 @@ private struct FreeVsProPage: View {
         Spacer()
     }
 
-    // MARK: - Free vs Pro Selection (new users)
+    // MARK: - Basic vs Pro Selection (new users)
 
     @ViewBuilder
     private func selectionView() -> some View {
@@ -621,14 +621,14 @@ private struct FreeVsProPage: View {
             .font(.system(size: 28, weight: .bold, design: .serif))
             .foregroundStyle(.white)
 
-        // Selectable tier cards — Pro first (left), Free second (right)
+        // Selectable tier cards — Pro first (left), Basic second (right)
         HStack(alignment: .top, spacing: 14) {
             selectableTierCard(
                 tier: .pro,
                 title: "Pro — $6.99",
                 price: "One-time — yours forever",
                 features: [
-                    ("checkmark", "Everything in Free, plus:"),
+                    ("checkmark", "Everything in Basic, plus:"),
                     ("cursorarrow.click", "Activate & move icons"),
                     ("lock.fill", "Always Hidden zone"),
                     ("touchid", "Touch ID / password lock"),
@@ -666,10 +666,10 @@ private struct FreeVsProPage: View {
             selectableTierCard(
                 tier: .free,
                 title: "Basic",
-                price: "Free, forever",
+                price: "$0 forever",
                 features: [
                     ("line.3.horizontal.decrease", "Click to hide / show"),
-                    ("arrow.left.arrow.right", "⌘ + drag to rearrange"),
+                    ("cursorarrow.click", "Left-click to open icons"),
                     ("magnifyingglass", "Browse & search icons"),
                     ("timer", "Auto-rehide"),
                     ("keyboard", "Toggle & search shortcuts")
@@ -878,7 +878,7 @@ private struct PillarCard: View {
         .background(OnboardingBackground())
 }
 
-#Preview("Page 5 - Free vs Pro") {
+#Preview("Page 5 - Basic vs Pro") {
     FreeVsProPage(selectedTier: .constant(.pro))
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())

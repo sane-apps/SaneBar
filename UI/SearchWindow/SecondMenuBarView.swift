@@ -273,11 +273,11 @@ struct SecondMenuBarView: View {
             colorScheme: colorScheme,
             isPro: licenseService.isPro,
             onActivate: { isRightClick in
-                if licenseService.isPro {
-                    onActivate(app, isRightClick)
-                } else {
-                    proUpsellFeature = isRightClick ? .rightClickFromPanels : .iconActivation
+                if isRightClick, !licenseService.isPro {
+                    proUpsellFeature = .rightClickFromPanels
+                    return
                 }
+                onActivate(app, isRightClick)
             },
             onMoveToVisible: zone != .visible ? {
                 if licenseService.isPro {
@@ -622,7 +622,7 @@ private struct PanelIconTile: View {
             }
         }
         .onHover { isHovering = $0 }
-        .help(isPro ? app.name : "\(app.name) — Pro required to activate")
+        .help(isPro ? app.name : "\(app.name) — Pro unlocks right-click and move actions")
         .contextMenu { contextMenuItems }
         .accessibilityLabel(Text(app.name))
     }

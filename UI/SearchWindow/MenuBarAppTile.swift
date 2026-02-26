@@ -106,7 +106,7 @@ struct MenuBarAppTile: View {
             }
         }
         .draggable(app.uniqueId) // Unique payload avoids collisions for multi-item bundles
-        .help(isPro ? app.name : "\(app.name) — Pro required to activate")
+        .help(isPro ? app.name : "\(app.name) — Pro unlocks right-click and move actions")
         .contextMenu {
             Button("Left-Click (Open)") {
                 onActivate(false)

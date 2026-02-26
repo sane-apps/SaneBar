@@ -7,13 +7,13 @@
 [![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-open--source--mac--os--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
-> **⭐ Star this repo if it's useful!** · **[Free Download](https://sanebar.com)** · **[Upgrade to Pro — $6.99](https://sanebar.com)** · Keeps development alive
+> **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $6.99](https://sanebar.com)** · Keeps development alive
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
 **Your menu bar. Not theirs.**
 
-Hide icons. Show them when you need them. That's it. Basic is free, with optional Pro features for power users.
+Hide icons. Show them when you need them. That's it. Basic is $0, with optional Pro features for power users.
 
 | | |
 |---|---|
@@ -31,7 +31,7 @@ Hide icons. Show them when you need them. That's it. Basic is free, with optiona
 
 ## Download
 
-**SaneBar Basic is free.** Hide and show icons, browse your menu bar, search for any icon — all included.
+**SaneBar Basic is $0.** Hide and show icons, browse your menu bar, search for any icon — all included.
 
 Want more? **[Upgrade to Pro ($6.99 once)](https://sanebar.com)** for Touch ID lock, smart triggers, profiles, custom styling, and more. One-time purchase, no subscriptions.
 
@@ -66,19 +66,19 @@ Choose the style that suits you — set it during onboarding or change anytime i
 - **Icon Panel** — A floating panel appears below the menu bar showing your hidden icons. Clean, compact, click to dismiss.
 - **Second Menu Bar** — A full secondary bar stretches across the screen below your menu bar, showing all hidden icons in their natural order.
 
-Both modes let you right-click any icon to move it between **Visible**, **Hidden**, or **Always-Hidden** zones.
-You can also drag icons directly to reorder and move between zones in both views.
+Both modes support left-click icon activation in Basic.
+Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **Always-Hidden**, plus right-click quick move actions.
 
 ---
 
 ## Features
 
-### Basic — Free, Everything You Need
+### Basic — $0, Everything You Need
 
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
 - **⌘+drag to organize** — Choose which icons hide and which stay visible
 - **Icon Panel or Second Menu Bar** — Two ways to view hidden icons (see above)
-- **Find Icon search** — Search any menu bar app by name, even behind the Notch (activating icons is Pro)
+- **Find Icon search** — Search any menu bar app by name, even behind the Notch
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
 - **100% on-device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: zero connections.
@@ -87,7 +87,7 @@ You can also drag icons directly to reorder and move between zones in both views
 
 ### Pro — Power User Features ($6.99 once)
 
-Everything free, plus:
+Everything in Basic, plus:
 
 - **Touch ID / Password Lock** — The *only* menu bar manager that locks hidden icons behind biometrics. Protect crypto wallets, messaging tools, VPNs.
 - **Always-Hidden Zone** — A dedicated zone for icons you rarely need, only accessible via Find Icon or Second Menu Bar
@@ -118,7 +118,7 @@ A first-run walkthrough gets you set up in under a minute:
 3. **Browse your icons** — See all your menu bar apps at a glance
 4. **Choose your view** — Pick Icon Panel or Second Menu Bar
 5. **Permissions** — Grant Accessibility access (required for menu bar management)
-6. **Free vs Pro** — See what's included and what Pro unlocks
+6. **Basic vs Pro** — See what's included and what Pro unlocks
 
 Works perfectly on Macs with Notch. **100% private** — no network requests, no analytics, no account.
 
@@ -294,7 +294,7 @@ osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 <details>
 <summary>The story</summary>
 
-Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked. Now it's free for everyone.
+Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked. Now Basic is $0 for everyone.
 
 </details>
 
@@ -328,7 +328,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **AppleScript** | Yes | Yes | No | No |
 | **100% Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
 | **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
-| **Pricing** | Basic (free) / Pro $6.99 | $16 | Free | Free |
+| **Pricing** | Basic ($0) / Pro $6.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |
 
 ## License
