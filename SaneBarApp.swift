@@ -38,6 +38,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         // Check cached Pro license (Keychain)
         LicenseService.shared.checkCachedLicense()
+        MenuBarManager.shared.normalizeLicenseDependentDefaults()
 
         // Configure keyboard shortcuts
         let shortcutsService = KeyboardShortcutsService.shared

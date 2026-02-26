@@ -43,4 +43,31 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         )
         XCTAssertEqual(preset, .power)
     }
+
+    func testFreeSecondMenuBarForcesLeftClickToggleHidden() {
+        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+            isPro: false,
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: true
+        )
+        XCTAssertFalse(normalized)
+    }
+
+    func testProSecondMenuBarKeepsLeftClickOpenBrowse() {
+        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+            isPro: true,
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: true
+        )
+        XCTAssertTrue(normalized)
+    }
+
+    func testFreeIconPanelCanKeepLeftClickOpenBrowse() {
+        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+            isPro: false,
+            useSecondMenuBar: false,
+            leftClickOpensBrowseIcons: true
+        )
+        XCTAssertTrue(normalized)
+    }
 }

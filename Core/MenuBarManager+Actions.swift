@@ -59,6 +59,28 @@ extension MenuBarManager {
         }
     }
 
+    nonisolated static func normalizedLeftClickOpensBrowseIcons(
+        isPro: Bool,
+        useSecondMenuBar: Bool,
+        leftClickOpensBrowseIcons: Bool
+    ) -> Bool {
+        guard !isPro, useSecondMenuBar, leftClickOpensBrowseIcons else {
+            return leftClickOpensBrowseIcons
+        }
+        return false
+    }
+
+    func normalizeLicenseDependentDefaults() {
+        let normalized = Self.normalizedLeftClickOpensBrowseIcons(
+            isPro: LicenseService.shared.isPro,
+            useSecondMenuBar: settings.useSecondMenuBar,
+            leftClickOpensBrowseIcons: settings.leftClickOpensBrowseIcons
+        )
+        guard normalized != settings.leftClickOpensBrowseIcons else { return }
+        settings.leftClickOpensBrowseIcons = normalized
+        logger.info("Normalized free-mode left click behavior to Toggle Hidden")
+    }
+
     // MARK: - Menu Actions
 
     @objc func menuToggleHiddenItems(_: Any?) {
@@ -132,7 +154,17 @@ extension MenuBarManager {
             logger.info("Option-click: opening Browse Icons")
             SearchWindowController.shared.toggle()
         case .leftClick:
-            if settings.leftClickOpensBrowseIcons {
+            let normalizedOpenBrowse = Self.normalizedLeftClickOpensBrowseIcons(
+                isPro: LicenseService.shared.isPro,
+                useSecondMenuBar: settings.useSecondMenuBar,
+                leftClickOpensBrowseIcons: settings.leftClickOpensBrowseIcons
+            )
+            if normalizedOpenBrowse != settings.leftClickOpensBrowseIcons {
+                settings.leftClickOpensBrowseIcons = normalizedOpenBrowse
+                logger.info("Left-click setting normalized for free mode")
+            }
+
+            if normalizedOpenBrowse {
                 logger.info("Left-click: opening Browse Icons (leftClickOpensBrowseIcons)")
                 SearchWindowController.shared.toggle()
             } else {

@@ -744,6 +744,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 )
             }
             .store(in: &cancellables)
+
+        LicenseService.shared.$isPro
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.normalizeLicenseDependentDefaults()
+            }
+            .store(in: &cancellables)
     }
 
     func clearStatusItemMenus() {
