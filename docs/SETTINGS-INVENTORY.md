@@ -1,205 +1,170 @@
-# SaneBar Settings - Complete Inventory
+# SaneBar Settings Inventory (Current)
 
-> **AUTHORITATIVE SOURCE** - Read this before making ANY settings UI changes.
-> Last updated: 2026-01-12
+> Source of truth for current settings UI and labels.
+> Last updated: 2026-02-25
 
----
+## Sidebar Tabs
+- `General`
+- `Rules`
+- `Appearance`
+- `Shortcuts`
+- `Help`
 
-## General Tab
-
-### Section: Startup
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Open SaneBar when I log in | Toggle | `LaunchAtLogin.Toggle` |
-| Show in Dock | Toggle | `settings.showDockIcon` |
-
-### Section: Can't find an icon?
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Reveal All / Hide All | Button | State-dependent: `hidingState == .hidden` |
-| Find Icon… | Button | Opens `SearchWindowController` |
-
-### Section: When I reveal hidden icons…
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Auto-hide after a few seconds | Toggle | `settings.autoRehide` |
-| Wait X seconds | Stepper | `settings.rehideDelay` (1-10) |
-
-### Section: Gestures
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Reveal when I hover near the top | Toggle | `settings.showOnHover` |
-| Delay | Slider | `settings.hoverDelay` (50-500ms) |
-| Reveal when I scroll up in menu bar | Toggle | `settings.showOnScroll` |
-
-### Section: How to organize your menu bar
-| Control | Type | Notes |
-|---------|------|-------|
-| DisclosureGroup | Expandable | Contains instructions with SF Symbols |
-| - ⌘+drag icons to rearrange | Label | `hand.draw` icon |
-| - Icons left of / get hidden | Label | `eye.slash` icon |
-| - Icons between / and ≡ stay visible | Label | `eye` icon |
-| - The ≡ icon is always visible | Text | |
-| - Click ≡ to show/hide | Text | |
-| - Notch warning (conditional) | Label | Shows if `hasNotch == true` |
+Code: `UI/SettingsView.swift`
 
 ---
 
-## Shortcuts Tab
+## General
 
-### Section: Keyboard Shortcuts
-| Control | Type | Shortcut Name |
-|---------|------|---------------|
-| Find any icon | KeyRecorder | `.searchMenuBar` |
-| Show/hide icons | KeyRecorder | `.toggleHiddenItems` |
-| Show icons | KeyRecorder | `.showHiddenItems` |
-| Hide icons | KeyRecorder | `.hideItems` |
-| Open settings | KeyRecorder | `.openSettings` |
+### Browse Icons
+- `Browse Icons view`: `Icon Panel` / `Second Menu Bar`
+- `Visible rows` presets (Pro + Second Menu Bar only):
+  - `Minimal` (Hidden)
+  - `Balanced` (Hidden + Visible)
+  - `Power` (Hidden + Visible + Always Hidden)
+- `Customize rows` (Power preset only):
+  - `Include visible icons`
+  - `Include always-hidden icons`
+- `Left-click SaneBar icon`:
+  - `Toggle Hidden`
+  - `Open Icon Panel` or `Open Second Menu Bar` (dynamic label)
+- Tip text: right-click opens app menu
 
-**Footer:** "Find any icon works for hidden icons AND icons behind the notch. Or Option-click the SaneBar icon."
+### Security
+- `Touch ID to unlock hidden icons` (Pro)
 
-### Section: Automation
-| Control | Type | Value |
-|---------|------|-------|
-| AppleScript command | Copyable text | `osascript -e 'tell app "SaneBar" to toggle'` |
-| Copy button | Button | Copies command to clipboard |
+### Startup
+- `Start automatically at login`
+- `Show app in Dock`
 
-**Footer:** "Commands: toggle, show hidden, hide items"
+### Software Updates
+- `Check for updates automatically`
+- `Check Now`
 
----
+### Saved Profiles (Pro)
+- Save current settings as profile
+- Load/delete saved profiles
 
-## Advanced Tab
+### Data (Pro)
+- Export/import settings JSON
+- Import from Bartender / Ice
 
-### Section: Privacy
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Require Touch ID or password to reveal | Toggle | `settings.requireAuthToShowHiddenIcons` |
+### Pro License
+- Status: `Free` or `Pro`
+- Free: `Unlock Pro`, `Enter Key`
+- Pro: licensed email, `Deactivate License`
 
-**Footer:** "You'll need to authenticate before hidden icons appear."
+### Maintenance
+- `Reset to Defaults…`
 
-### Section: Automatically show hidden icons
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| When battery is low | Toggle | `settings.showOnLowBattery` |
-| When certain apps open | Toggle | `settings.showOnAppLaunch` |
-| - App picker | Sheet | Shows when toggle enabled |
-| On specific WiFi networks | Toggle | `settings.showOnNetworkChange` |
-| - Network names | TextField | Comma-separated |
-| - Add current network (SSID) | Button | Shows current SSID |
-| When Focus Mode changes | Toggle | `settings.showOnFocusModeChange` |
-| - Focus Mode names | List | `settings.triggerFocusModes` |
-| - Add current Focus Mode | Button | Shows current active Focus |
-| - Add "(Focus Off)" | Button | Trigger when Focus turns off |
-
-### Section: Appearance
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Custom menu bar style | Toggle | `settings.menuBarAppearance.isEnabled` (master) |
-| Use Liquid Glass effect | Toggle | `settings.menuBarAppearance.useLiquidGlass` (macOS 26+) |
-| Tint color | ColorPicker | `settings.menuBarAppearance.tintColor` |
-| Tint strength | Stepper | `settings.menuBarAppearance.tintOpacity` (5-50%) |
-| Add shadow | Toggle | `settings.menuBarAppearance.hasShadow` |
-| Add border | Toggle | `settings.menuBarAppearance.hasBorder` |
-| Rounded corners | Toggle | `settings.menuBarAppearance.hasRoundedCorners` |
-| - Corner size | Stepper | `settings.menuBarAppearance.cornerRadius` (4-16pt) |
-| Extra dividers | Stepper | `settings.spacerCount` (0-12) |
-| Divider style | Segmented | `settings.spacerStyle` → Line / Dot |
-| Divider width | Segmented | `settings.spacerWidth` → Compact / Normal / Wide |
-
-**Footer (macOS 26+):** "Liquid Glass uses macOS Tahoe's new translucent material. Dividers help organize icons."
-**Footer (older):** "Dividers help you visually group icons. ⌘+drag to position them."
-
-### Section: System Icon Spacing
-| Control | Type | Code Reference |
-|---------|------|----------------|
-| Tighter menu bar icons | Toggle | Enables spacing controls |
-| Icon spacing | Stepper | `settings.menuBarSpacing` (1-10) |
-| Click padding | Stepper | `settings.menuBarSelectionPadding` (1-10) |
-| Reset to system defaults | Button | Clears both values |
-
-**Footer (enabled):** "⚠️ Logout required to apply. Affects all apps system-wide."
-**Footer (disabled):** "Recover icons hidden by the notch! Tighter spacing = more room before icons get cut off."
-
-### Section: App shortcuts (conditional)
-> Only shows if `settings.iconHotkeys` is not empty
-
-| Control | Type | Notes |
-|---------|------|-------|
-| Per-app hotkey list | List | App name + delete button |
-
-**Footer:** "Press Search, pick an app, and assign a key to add more."
-
-### Section: Saved settings
-| Control | Type | Notes |
-|---------|------|-------|
-| Profile list | List | Name, date, Load button, Delete button |
-| Save current settings… | Button | Opens alert with name field |
-
-**Footer:** "Save your setup to restore later or share between Macs."
+Code: `UI/Settings/GeneralSettingsView.swift`
 
 ---
 
-## About Tab
+## Rules
 
-### App Identity (centered)
-| Element | Type | Notes |
-|---------|------|-------|
-| App icon | Image | 72x72, `NSApp.applicationIconImage` |
-| SaneBar | Title | `.font(.title)` |
-| Version X.X.X | Text | From bundle, `.font(.body)` |
-| Made by Mr. Sane, USA | Text | `.font(.body)`, tertiary color |
+### Hiding Behavior
+- `Hide icons automatically`
+- Pro customizations:
+  - `Wait before hiding`
+  - `Wait after Browse Icons`
+  - `Hide when app changes`
+  - `Always show on external monitors`
 
-### Updates
-| Control | Type | Notes |
-|---------|------|-------|
-| Check for Updates | Button | `.buttonStyle(.bordered)` |
-| Check automatically | Checkbox | `settings.checkForUpdatesAutomatically` |
+### Revealing
+- `Show when mouse hovers top edge`
+- `Show when scrolling on menu bar`
+- Pro: gesture behavior (`Show only` / `Show and Hide`)
+- `Show when rearranging icons`
 
-### Trust Info (non-clickable labels)
-| Label | Icon | Notes |
-|-------|------|-------|
-| 100% Local | `laptopcomputer` | Secondary color, not a button |
-| No Analytics | `eye.slash` | Secondary color, not a button |
-| Open Source | `lock.open` | Secondary color, not a button |
+### Automatic Triggers (Pro)
+- Low battery threshold
+- Specific app launch trigger list
+- Schedule (days + start/end)
+- Wi-Fi trigger list
+- Focus Mode trigger list
+- Script trigger path
 
-### Links Row
-| Control | Type | Destination |
-|---------|------|-------------|
-| GitHub | Link button | https://github.com/sane-apps/SaneBar |
-| Licenses | Button | Opens licenses sheet |
-| Support | Button | Opens support sheet (heart icon, crypto addresses) |
-
-### Footer
-| Control | Type | Notes |
-|---------|------|-------|
-| Reset to Defaults | Button | Destructive, plain style, tertiary color |
+Code: `UI/Settings/RulesSettingsView.swift`
 
 ---
 
-## Image Assets Reference
+## Appearance
 
-| Asset | File | Purpose |
-|-------|------|---------|
-| **Menu Bar Icon** | `menubar-icon.svg` | The ≡ in actual menu bar (monochrome, no background) |
-| **App/Dock Icon** | `branding.png` | Dock, marketing, website (blue glowing lines on dark bg) |
+### Menu Bar Icon
+- Built-in icon styles + custom image (Pro)
 
-**DO NOT CONFUSE THESE** - See Memory entity `SaneBar-Icon-Assets` for details.
+### Divider Style
+- Primary divider style
+- Pro: extra dividers + extra divider style
+
+### Menu Bar Style (Pro)
+- `Custom Appearance`
+- `Translucent Background` (when supported)
+- Light/Dark tint + intensity
+- Shadow / Border / Rounded corners
+- Corner radius control
+
+### Menu Bar Layout (Pro)
+- `Reduce space between icons`
+- Item spacing + click area
+- logout reminder
+
+Code: `UI/Settings/AppearanceSettingsView.swift`
 
 ---
 
-## Screenshots Needed
+## Shortcuts
 
-| Screenshot | File | Shows |
-|------------|------|-------|
-| General tab (top) | `settings-general-top.png` | Startup, Can't find icon |
-| General tab (bottom) | `settings-general-bottom.png` | Gestures, How to organize |
-| General tab (howto expanded) | `settings-general-howto.png` | DisclosureGroup open |
-| Shortcuts tab | `shortcuts.png` | All keyboard shortcuts |
-| Advanced tab (top) | `settings-advanced-top.png` | Privacy, Auto-show |
-| Advanced tab (appearance) | `settings-advanced-appearance.png` | Full appearance section |
-| About tab | `settings-about.png` | Full about section |
-| Find Icon (hidden) | `find-icon.png` | Hidden tab selected |
-| Find Icon (visible) | `find-icon-visible.png` | **NEEDED** |
-| Find Icon (all) | `find-icon-all.png` | **NEEDED** |
-| Menu bar hidden | `menubar-hidden.png` | Clean state |
-| Menu bar revealed | `menubar-revealed.png` | All icons visible |
+### Global Hotkeys
+- Browse Icons
+- Show/Hide icons
+- Show icons (Pro)
+- Hide icons (Pro)
+- Open Settings (Pro)
+
+### Automation
+- AppleScript command row + copy
+- Pro automation command set
+
+Code: `UI/Settings/ShortcutsSettingsView.swift`
+
+---
+
+## Help
+
+### Identity + Trust
+- App icon, version
+- `Made with ❤️ in 🇺🇸 · 100% On-Device · No Analytics`
+
+### Actions
+- GitHub
+- Licenses
+- Donate
+- Report a Bug
+- View Issues
+- Email Me
+
+### Popovers
+- Third-party license text
+- Donation/support panel
+- Feedback form
+
+Code: `UI/Settings/AboutSettingsView.swift`
+
+---
+
+## Browse Window Modes
+
+### Icon Panel
+- Modes: `Hidden`, `Visible`, `Always Hidden` (if enabled), `All`
+- Search + category tabs + icon grid
+- Drag reorder and drag between zones
+
+### Second Menu Bar
+- Inline row layout under menu bar
+- Search + close button
+- Row visibility depends on General preset/toggles
+- Drag reorder and drag between zones
+
+Code: `UI/SearchWindow/MenuBarSearchView.swift`, `UI/SearchWindow/SearchWindowController.swift`

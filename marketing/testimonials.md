@@ -19,6 +19,30 @@ Use these for website, App Store descriptions, and marketing materials.
 | "Thank you for this awesome software! It works great and **more stable than Ice**." | u/a_tsygankov | Jan 2026 | r/macapps |
 | "I am using it now and there are **no shadow clicks as seen in bartenders**, etc." | u/Elegant_Mobile4311 | Jan 2026 | r/macapps |
 
+### Customer Emails
+
+| Quote | Source | Date | Platform |
+|-------|--------|------|----------|
+| "Checkout was perfect and the app is **nicely done and getting even better**. Congrats on the great work." | Steven B. | Feb 2026 | Email |
+| "**Love the app!** Moved from ICE because it was buggy, **this one seems less buggy**." | Nathan | Feb 2026 | Email |
+| "Your app is **SO much better than Bartender**." | Socials | Feb 2026 | Email |
+| "That's why I **love independent developers**…" | Martin S. | Feb 2026 | Email |
+| "I liked what I saw in the **implementation in the free version**." | Judson V. | Feb 2026 | Email |
+| "It appears you have been **very busy updating SaneBar** :)" | Glenn C. | Feb 2026 | Email |
+| "**I use Sanebar daily**." | bledu | Feb 2026 | Email |
+| "I purchased Sanebar this time." | Glenn C. | Feb 2026 | Email |
+| "I would love to **use SaneBar again**." | Steven B. | Feb 2026 | Email |
+| "You have **convinced me to become a supporter**." | Anonymous | Feb 2026 | Email |
+| "Appreciate the app too!" | Michael S. | Feb 2026 | Email |
+
+### SaneClip Customer Emails
+
+| Quote | Source | Date | Platform |
+|-------|--------|------|----------|
+| "I purchased Saneclip because I **loved the free version**. You do **amazing work**." | Glenn C. | Feb 2026 | Email |
+| "Thanks for the **great SaneClip app**." | Peter L. | Feb 2026 | Email |
+| "That is awesome, thank you. **Even more awesome, thank you again**." | Glenn C. | Feb 2026 | Email |
+
 ### First Impressions
 
 | Quote | Source | Date | Platform |
