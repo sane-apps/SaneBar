@@ -49,7 +49,6 @@
 		6EB978727259DBDB0C8D3604 /* HoverService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0B1C1B3F989733A71F1C53 /* HoverService.swift */; };
 		7348B2397B78857F7F0F5067 /* SettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2C108D39FB5084CC3C11DA /* SettingsController.swift */; };
 		78364D2694684C7224FA4CC9 /* AppPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D027630FBC2AD0F663CD9E /* AppPickerView.swift */; };
-		7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7964193D5AD4625CACDE8EEA /* FeedbackView.swift */; };
 		7EF44B90BDC1E1B61C440092 /* MenuBarSearchDropXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07648C7B8E9380436BB4E913 /* MenuBarSearchDropXCTests.swift */; };
 		7FE0E1A0A93B6BBFC56B1326 /* AccessibilityService+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */; };
 		7FF67990299B4744B95580C9 /* AppleScriptCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */; };
@@ -82,7 +81,6 @@
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
 		B207D8C90670B575527260F2 /* KeyboardShortcutsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */; };
-		B30C54ADC77F31606492836B /* MoveToApplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */; };
 		B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */; };
 		B6B2CD2D4CD087C383D7ED63 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24E45F7A61568E66AD0C4B3 /* PersistenceService.swift */; };
 		B9F295619796D283AF4FAA20 /* ProUpsellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3D9175D5601B48A3DF3792 /* ProUpsellView.swift */; };
@@ -139,7 +137,6 @@
 		1905495077B20635EBB95815 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		1C44A611F63679EE63152C89 /* SecondMenuBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondMenuBarTests.swift; sourceTree = "<group>"; };
 		1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSearchTabs.swift; sourceTree = "<group>"; };
-		1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveToApplications.swift; sourceTree = "<group>"; };
 		1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarApp.swift; sourceTree = "<group>"; };
 		23E2D67002C964909F979DC3 /* KeyboardShortcutsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsService.swift; sourceTree = "<group>"; };
 		26C33525F13C653C654FBABD /* SearchWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowTests.swift; sourceTree = "<group>"; };
@@ -171,13 +168,13 @@
 		70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppearanceServiceTests.swift; sourceTree = "<group>"; };
 		7386E7B1B55EE182670DC1FF /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommandsTests.swift; sourceTree = "<group>"; };
-		7964193D5AD4625CACDE8EEA /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTipView.swift; sourceTree = "<group>"; };
 		7DB8FB11A62C776997531541 /* MenuBarManager+Visibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Visibility.swift"; sourceTree = "<group>"; };
 		811791DA82C601D836AA5DA4 /* EventTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTracker.swift; sourceTree = "<group>"; };
 		86E43D8C4F0157E62129DA8C /* AccessibilityService+MenuExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+MenuExtras.swift"; sourceTree = "<group>"; };
 		942C3046181869463F2CFC3A /* MenuBarAppGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppGrid.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
+		957722D9C0FDB1AD278BD2A8 /* SaneUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SaneUI; path = ../../infra/SaneUI; sourceTree = SOURCE_ROOT; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesSettingsView.swift; sourceTree = "<group>"; };
@@ -352,11 +349,20 @@
 				559CC16A1F18750B4B3C5181 /* main.swift */,
 				1DC1DEABE0AD3084ABB62CF5 /* SaneBarApp.swift */,
 				90F8FA130E087A281C816B2A /* Core */,
+				87CCE63AA9875766C2200640 /* Packages */,
 				409A8D62B36CC252BED0A4E4 /* Resources */,
 				5FE61272586955420BA4EDE2 /* Tests */,
 				0DD89DD44DE1F44FF53B12A4 /* UI */,
 				D14A5D400198233C0D7C948F /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		87CCE63AA9875766C2200640 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				957722D9C0FDB1AD278BD2A8 /* SaneUI */,
+			);
+			name = Packages;
 			sourceTree = "<group>";
 		};
 		8B3B0395225A66EBED761B56 /* Settings */ = {
@@ -365,7 +371,6 @@
 				B3021B24B132BD1CF5EB4BEC /* AboutSettingsView.swift */,
 				AA9A64F4720057AEA3A9D2BF /* AppearanceSettingsView.swift */,
 				B4F4D7269B075B2DE26AD428 /* ExperimentalSettingsView.swift */,
-				7964193D5AD4625CACDE8EEA /* FeedbackView.swift */,
 				C40E63F060F56871BB430C49 /* GeneralSettingsView.swift */,
 				3A218401975140553BE0ACD4 /* GlassGroupBoxStyle.swift */,
 				9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */,
@@ -384,7 +389,6 @@
 				B47EAB812336A7077961C80B /* MenuBarManager+IconMoving.swift */,
 				612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */,
 				7DB8FB11A62C776997531541 /* MenuBarManager+Visibility.swift */,
-				1D953F8953D756B5FE122BE1 /* MoveToApplications.swift */,
 				13A5496922BE222586C82A3D /* Controllers */,
 				9B59B9EFDE3FBE4F62C13BDD /* Models */,
 				F4D16756A6A53AD0A4F56F30 /* Services */,
@@ -554,8 +558,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-				A871E8365465929714B96C8F /* XCRemoteSwiftPackageReference "SaneUI" */,
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				26BB2A6428731BCB5913F9B0 /* XCLocalSwiftPackageReference "../../infra/SaneUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -663,7 +667,6 @@
 				2725F150B8AF26E4E1FA186C /* DiagnosticsService.swift in Sources */,
 				69FABB8AEFC229152B263FE0 /* EventTracker.swift in Sources */,
 				F2A45D40AC6364627D6707A5 /* ExperimentalSettingsView.swift in Sources */,
-				7EAF404EBAA0F4698EC1A163 /* FeedbackView.swift in Sources */,
 				A2A8600AC5CF8E3D7BCDF565 /* FocusModeService.swift in Sources */,
 				ECDD72BA688BD144E830C796 /* GeneralSettingsView.swift in Sources */,
 				FA278407964B45FDDD174E2E /* GlassGroupBoxStyle.swift in Sources */,
@@ -689,7 +692,6 @@
 				980CD5A9F2BC2D549B507EF1 /* MenuBarSearchView+Navigation.swift in Sources */,
 				989984BF940C74CFBCF07B3F /* MenuBarSearchView.swift in Sources */,
 				3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */,
-				B30C54ADC77F31606492836B /* MoveToApplications.swift in Sources */,
 				990EA56319E0AAB9C2A3590A /* NetworkTriggerService.swift in Sources */,
 				08DAB706A1865F8E3B520362 /* OnboardingController.swift in Sources */,
 				FCABD367FF36BBD7A6C58084 /* OnboardingTipView.swift in Sources */,
@@ -1118,6 +1120,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		26BB2A6428731BCB5913F9B0 /* XCLocalSwiftPackageReference "../../infra/SaneUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../infra/SaneUI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -1125,14 +1134,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.8.0;
-			};
-		};
-		A871E8365465929714B96C8F /* XCRemoteSwiftPackageReference "SaneUI" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sane-apps/SaneUI.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
 			};
 		};
 		D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
@@ -1153,7 +1154,6 @@
 		};
 		9146DE18EA818507DD9C5AE1 /* SaneUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A871E8365465929714B96C8F /* XCRemoteSwiftPackageReference "SaneUI" */;
 			productName = SaneUI;
 		};
 		E264258C707319B447D489AC /* KeyboardShortcuts */ = {

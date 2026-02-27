@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import os.log
+import SaneUI
 import ServiceManagement
 import SwiftUI
 
@@ -923,16 +924,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // BUG-023 Fix: Apply dock visibility IMMEDIATELY on settings load
         // This prevents the dock icon from flashing visible on startup when disabled
-        ActivationPolicyManager.applyPolicy(showDockIcon: settings.showDockIcon)
+        SaneActivationPolicy.applyPolicy(showDockIcon: settings.showDockIcon)
     }
 
     func saveSettings() {
-        // Sync to controller and save
         settingsController.settings = settings
         settingsController.saveQuietly()
-        // Re-register hotkeys when settings change
         iconHotkeysService.registerHotkeys(from: settings)
-        // Ensure hover service is updated
         updateHoverService()
     }
 

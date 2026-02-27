@@ -1,6 +1,7 @@
 import AppKit
 import LocalAuthentication
 import os.log
+import SaneUI
 import ServiceManagement
 import SwiftUI
 
@@ -9,9 +10,7 @@ private let settingsLogger = Logger(subsystem: "com.sanebar.app", category: "Set
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @ObservedObject private var licenseService = LicenseService.shared
-    @State private var launchAtLogin = false
     @State private var isAuthenticating = false // Prevent duplicate auth prompts
-    @State private var isCheckingForUpdates = false // Debounce update checks
     @State private var proUpsellFeature: ProFeature?
 
     // Profiles Logic
@@ -61,7 +60,7 @@ struct GeneralSettingsView: View {
             get: { menuBarManager.settings.showDockIcon },
             set: { newValue in
                 menuBarManager.settings.showDockIcon = newValue
-                ActivationPolicyManager.applyPolicy(showDockIcon: newValue)
+                SaneActivationPolicy.applyPolicy(showDockIcon: newValue)
             }
         )
     }
@@ -71,6 +70,7 @@ struct GeneralSettingsView: View {
             get: { menuBarManager.settings.leftClickOpensBrowseIcons ? .openBrowseIcons : .toggleHidden },
             set: { mode in
                 menuBarManager.settings.leftClickOpensBrowseIcons = (mode == .openBrowseIcons)
+                normalizeBrowseModeSettingsForCurrentPlan()
             }
         )
     }
@@ -321,39 +321,17 @@ struct GeneralSettingsView: View {
 
                 // 3. Startup Status
                 CompactSection("Startup") {
-                    CompactToggle(label: "Start automatically at login", isOn: Binding(
-                        get: { launchAtLogin },
-                        set: { newValue in
-                            launchAtLogin = newValue
-                            setLaunchAtLogin(newValue)
-                        }
-                    ))
-                    .help("Launch SaneBar when you log in to your Mac")
+                    SaneLoginItemToggle()
                     CompactDivider()
-                    CompactToggle(label: "Show app in Dock", isOn: showDockIconBinding)
-                        .help("Show SaneBar icon in the Dock (menu bar icon always visible)")
+                    SaneDockIconToggle(showDockIcon: showDockIconBinding)
                 }
 
                 // 4. Updates
                 CompactSection("Software Updates") {
-                    CompactToggle(label: "Check for updates automatically", isOn: $menuBarManager.settings.checkForUpdatesAutomatically)
-                        .help("Periodically check for new versions of SaneBar")
-                    CompactDivider()
-                    CompactRow("Actions") {
-                        Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
-                            guard !isCheckingForUpdates else { return }
-                            isCheckingForUpdates = true
-                            menuBarManager.userDidClickCheckForUpdates()
-                            // Re-enable after 5 seconds (debounce)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                isCheckingForUpdates = false
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(isCheckingForUpdates)
-                        .help("Check for updates right now")
-                    }
+                    SaneSparkleRow(
+                        automaticallyChecks: $menuBarManager.settings.checkForUpdatesAutomatically,
+                        onCheckNow: { menuBarManager.userDidClickCheckForUpdates() }
+                    )
                 }
 
                 // 5. Profiles — Pro
@@ -513,7 +491,7 @@ struct GeneralSettingsView: View {
             .padding(20)
         }
         .onAppear {
-            checkLaunchAtLogin()
+            normalizeBrowseModeSettingsForCurrentPlan()
             loadProfiles()
         }
         .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
@@ -568,7 +546,31 @@ struct GeneralSettingsView: View {
         if !useSecondMenuBar, licenseService.isPro, !menuBarManager.settings.alwaysHiddenSectionEnabled {
             menuBarManager.settings.alwaysHiddenSectionEnabled = true
         }
+        normalizeBrowseModeSettingsForCurrentPlan()
         SearchWindowController.shared.resetWindow()
+    }
+
+    private func normalizeBrowseModeSettingsForCurrentPlan() {
+        let normalizedLeftClick = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+            isPro: licenseService.isPro,
+            useSecondMenuBar: menuBarManager.settings.useSecondMenuBar,
+            leftClickOpensBrowseIcons: menuBarManager.settings.leftClickOpensBrowseIcons
+        )
+        if normalizedLeftClick != menuBarManager.settings.leftClickOpensBrowseIcons {
+            menuBarManager.settings.leftClickOpensBrowseIcons = normalizedLeftClick
+        }
+
+        let normalizedRows = MenuBarManager.normalizedSecondMenuBarRows(
+            isPro: licenseService.isPro,
+            showVisible: menuBarManager.settings.secondMenuBarShowVisible,
+            showAlwaysHidden: menuBarManager.settings.secondMenuBarShowAlwaysHidden
+        )
+        if normalizedRows.showVisible != menuBarManager.settings.secondMenuBarShowVisible {
+            menuBarManager.settings.secondMenuBarShowVisible = normalizedRows.showVisible
+        }
+        if normalizedRows.showAlwaysHidden != menuBarManager.settings.secondMenuBarShowAlwaysHidden {
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = normalizedRows.showAlwaysHidden
+        }
     }
 
     private func applySecondMenuBarPreset(_ preset: SecondMenuBarPreset) {
@@ -608,39 +610,6 @@ struct GeneralSettingsView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    // MARK: - Startup Helpers
-
-    /// Whether this build is running from a proper install location (not DerivedData).
-    /// Debug builds from Xcode run from DerivedData and should never register as login items,
-    /// because that pollutes the Background Task Management database with stale paths.
-    private var isProperInstall: Bool {
-        let path = Bundle.main.bundlePath
-        return !path.contains("DerivedData")
-    }
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        guard isProperInstall else {
-            print("[SaneBar] Skipping login item registration — running from DerivedData")
-            launchAtLogin = false
-            return
-        }
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            print("Failed to set launch at login: \(error)")
-            launchAtLogin = !launchAtLogin
-        }
-    }
-
-    private func checkLaunchAtLogin() {
-        let status = SMAppService.mainApp.status
-        launchAtLogin = (status == .enabled)
     }
 
     // MARK: - Profile Helpers
@@ -866,11 +835,11 @@ extension GeneralSettingsView.SecondMenuBarPreset {
     static func resolve(showVisible: Bool, showAlwaysHidden: Bool) -> Self {
         switch (showVisible, showAlwaysHidden) {
         case (false, false):
-            return .minimal
+            .minimal
         case (true, false):
-            return .balanced
+            .balanced
         case (true, true), (false, true):
-            return .power
+            .power
         }
     }
 }

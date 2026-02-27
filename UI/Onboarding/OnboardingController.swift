@@ -1,4 +1,5 @@
 import AppKit
+import SaneUI
 import SwiftUI
 
 /// Manages the onboarding window lifecycle
@@ -16,7 +17,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
 
         // DON'T force .regular here - windows work fine in .accessory mode
         // The dock icon visibility should only be controlled by the user's showDockIcon setting
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         let welcomeView = WelcomeView { [weak self] in
             self?.dismiss()
@@ -63,6 +64,6 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         MenuBarManager.shared.saveSettings()
 
         // Restore accessory policy (hide Dock icon)
-        ActivationPolicyManager.restorePolicy()
+        SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
     }
 }

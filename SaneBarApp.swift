@@ -1,6 +1,7 @@
 import AppKit
 import KeyboardShortcuts
 import os.log
+import SaneUI
 import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
@@ -46,7 +47,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         shortcutsService.setDefaultsIfNeeded()
 
         // Apply user's preferred policy (may override to .regular if dock icon enabled)
-        ActivationPolicyManager.applyInitialPolicy()
+        SaneActivationPolicy.applyInitialPolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
 
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
@@ -183,7 +184,7 @@ enum SettingsOpener {
         // DON'T force .regular here - respect the user's showDockIcon setting
         // An .accessory app CAN have visible windows (the dock icon just won't show)
         // This fixes the bug where dock icon appears when Settings opens despite setting being OFF
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         if let window = settingsWindow, window.isVisible {
             window.makeKeyAndOrderFront(nil)
@@ -216,101 +217,6 @@ enum SettingsOpener {
 /// Handles settings window lifecycle events
 private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
     func windowWillClose(_: Notification) {
-        ActivationPolicyManager.restorePolicy()
-    }
-}
-
-// MARK: - ActivationPolicyManager
-
-/// Manages the app's activation policy based on user settings
-enum ActivationPolicyManager {
-    private static let logger = Logger(subsystem: "com.sanebar.app", category: "ActivationPolicyManager")
-
-    @MainActor
-    private static var didFinishLaunchingObserver: Any?
-
-    @MainActor
-    static func applyInitialPolicy() {
-        guard !isHeadlessEnvironment() else { return }
-
-        if didFinishLaunchingObserver == nil {
-            didFinishLaunchingObserver = NotificationCenter.default.addObserver(
-                forName: NSApplication.didFinishLaunchingNotification,
-                object: nil,
-                queue: .main
-            ) { _ in
-                Task { @MainActor in
-                    enforcePolicy(retries: 6)
-                }
-            }
-        }
-
-        DispatchQueue.main.async {
-            Task { @MainActor in
-                enforcePolicy(retries: 10)
-            }
-        }
-    }
-
-    @MainActor
-    private static func enforcePolicy(retries: Int) {
-        guard let app = NSApp else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                Task { @MainActor in
-                    enforcePolicy(retries: max(0, retries - 1))
-                }
-            }
-            return
-        }
-
-        let settings = MenuBarManager.shared.settings
-        let policy: NSApplication.ActivationPolicy = settings.showDockIcon ? .regular : .accessory
-
-        if app.activationPolicy() != policy {
-            app.setActivationPolicy(policy)
-            logger.info("Applied activation policy: \(policy == .regular ? "regular" : "accessory")")
-        }
-
-        guard retries > 0 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            Task { @MainActor in
-                guard let app = NSApp else { return }
-                if app.activationPolicy() != policy {
-                    app.setActivationPolicy(policy)
-                }
-                enforcePolicy(retries: retries - 1)
-            }
-        }
-    }
-
-    private static func isHeadlessEnvironment() -> Bool {
-        let env = ProcessInfo.processInfo.environment
-        if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil { return true }
-        if let bundleID = Bundle.main.bundleIdentifier,
-           bundleID.hasSuffix("Tests") || bundleID.contains("xctest") { return true }
-        if NSClassFromString("XCTestCase") != nil { return true }
-        return false
-    }
-
-    @MainActor
-    static func restorePolicy() {
-        guard !isHeadlessEnvironment() else { return }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            Task { @MainActor in
-                enforcePolicy(retries: 4)
-            }
-        }
-    }
-
-    @MainActor
-    static func applyPolicy(showDockIcon: Bool) {
-        guard !isHeadlessEnvironment() else { return }
-        let policy: NSApplication.ActivationPolicy = showDockIcon ? .regular : .accessory
-        NSApp.setActivationPolicy(policy)
-
-        if showDockIcon {
-            NSApp.activate(ignoringOtherApps: false)
-        }
+        SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
     }
 }
