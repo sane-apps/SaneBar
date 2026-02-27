@@ -2,23 +2,27 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>SaneBar Changelog</title>
-                <item>
+                
+        <item>
             <title>2.1.12</title>
-            <pubDate>Fri, 27 Feb 2026 11:55:18 -0500</pubDate>
+            <pubDate>Fri, 27 Feb 2026 12:24:07 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
                 <h2>What's New</h2>
                 <ul>
+                <li>Clearer onboarding guidance for first-time setup</li>
+                <li>More reliable permission handling and recovery</li>
+                <li>Visual polish for a cleaner, more premium experience</li>
                 </ul>
                 ]]>
             </description>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip"
                        sparkle:version="2112"
                        sparkle:shortVersionString="2.1.12"
-                       length="7898841"
+                       length="7898857"
                        type="application/octet-stream"
-                       sparkle:edSignature="4NlTxbD4PDU3wm9Xrozcm6IIfIdrTmD4YgKzFTPgspRjBzup0PaUZJrolmF3CErXhsMPIrb0rMdvJDeU+WNpAg=="/>
+                       sparkle:edSignature="xCSx++9lZ3zlM0y96/1/7ad3choScDB4WHu/Sn+X+wVOBtDn8Tg93WhA+NoQ3DEjUp7VnsjTyL8DwwH1OjCFBA=="/>
         </item>
 <item>
             <title>2.1.11</title>
