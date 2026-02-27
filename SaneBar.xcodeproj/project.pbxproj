@@ -33,6 +33,7 @@
 		37F4EDD85F4FC4DFF497E9A4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0752D3D1CCD73101C00C78C2 /* Assets.xcassets */; };
 		3C8C5B9FE3807675F4188000 /* MenuBarSpacingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */; };
 		41B6B227638F2EAEE03C5113 /* MenuBarAppearanceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF623EFF23CD550A7ADBD3 /* MenuBarAppearanceServiceTests.swift */; };
+		448BF390710BADE439A47407 /* SaneAccentPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE42B243AD08B5E06E0A70F9 /* SaneAccentPalette.swift */; };
 		44E37A74C3AE370683F08F7C /* SaneUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9146DE18EA818507DD9C5AE1 /* SaneUI */; };
 		4750E806DFD53FA21CA85EA7 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7006047073EF32646E02E67 /* StatusBarControllerTests.swift */; };
 		4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */; };
@@ -205,6 +206,7 @@
 		CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverServiceTests.swift; sourceTree = "<group>"; };
 		CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSpacingServiceTests.swift; sourceTree = "<group>"; };
 		CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
+		CE42B243AD08B5E06E0A70F9 /* SaneAccentPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneAccentPalette.swift; sourceTree = "<group>"; };
 		CE5A542C8A14777015A6DBF1 /* MenuBarSearchView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarSearchView+Actions.swift"; sourceTree = "<group>"; };
 		CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Cache.swift"; sourceTree = "<group>"; };
 		D09AE59754E6F1AFF593D071 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
@@ -420,6 +422,7 @@
 				E2D027630FBC2AD0F663CD9E /* AppPickerView.swift */,
 				C341796679514B8BAEF48E22 /* Backgrounds.swift */,
 				D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */,
+				CE42B243AD08B5E06E0A70F9 /* SaneAccentPalette.swift */,
 				B76B2C71385EBA45B9E99923 /* VisualEffectBackground.swift */,
 			);
 			path = Components;
@@ -700,6 +703,7 @@
 				B9F295619796D283AF4FAA20 /* ProUpsellView.swift in Sources */,
 				996C746D150C4ADE190C86DB /* RulesSettingsView.swift in Sources */,
 				568DF28CA44E4228C14694D3 /* RunningApp.swift in Sources */,
+				448BF390710BADE439A47407 /* SaneAccentPalette.swift in Sources */,
 				5C22295993EFF0A7E32B1670 /* SaneBarApp.swift in Sources */,
 				C27E4FD28E5557809A4C3026 /* SaneBarProfile.swift in Sources */,
 				D2871B156F56853B56E41C06 /* ScheduleTriggerService.swift in Sources */,
