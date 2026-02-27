@@ -9,6 +9,7 @@ configs:
   Debug: debug
   ProdDebug: debug
   Release: release
+  Release-AppStore: release
 
 packages:
   KeyboardShortcuts:
@@ -140,6 +141,12 @@ targets:
           DEVELOPMENT_TEAM: M78L6FXD48
           CODE_SIGN_IDENTITY: "Developer ID Application"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
+        Release-AppStore:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_STYLE: Automatic
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar-AppStore.entitlements
     postCompileScripts:
       - script: |
           export PATH="/opt/homebrew/bin:$PATH"
