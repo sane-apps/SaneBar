@@ -64,7 +64,7 @@ struct ProUpsellView: View {
             VStack(spacing: 8) {
                 Text("$6.99")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(SaneAccentPalette.soft)
+                    .foregroundStyle(Color.saneAccentSoft)
 
                 Text("One-time purchase")
                     .font(.system(size: 13))
@@ -88,7 +88,7 @@ struct ProUpsellView: View {
                 showingLicenseEntry = true
             }
             .buttonStyle(.plain)
-            .foregroundStyle(SaneAccentPalette.soft)
+            .foregroundStyle(Color.saneAccentSoft)
             .font(.system(size: 13))
         }
         .padding(24)
