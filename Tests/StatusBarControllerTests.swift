@@ -67,6 +67,67 @@ struct StatusBarControllerTests {
         #expect(StatusBarController.alwaysHiddenSeparatorAutosaveName.hasPrefix("SaneBar_"))
     }
 
+    @Test("Autosave version defaults to base when key is unset")
+    func autosaveVersionDefaultsToBase() {
+        let defaults = UserDefaults.standard
+        let key = "SaneBar_AutosaveVersion"
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original {
+                defaults.set(original, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.removeObject(forKey: key)
+        #expect(StatusBarController.autosaveVersion == 7)
+    }
+
+    @Test("Autosave names use stored autosave version")
+    func autosaveNamesUseStoredVersion() {
+        let defaults = UserDefaults.standard
+        let key = "SaneBar_AutosaveVersion"
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original {
+                defaults.set(original, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(14, forKey: key)
+        #expect(StatusBarController.mainAutosaveName == "SaneBar_Main_v14")
+        #expect(StatusBarController.separatorAutosaveName == "SaneBar_Separator_v14")
+        #expect(StatusBarController.alwaysHiddenSeparatorAutosaveName == "SaneBar_AlwaysHiddenSeparator_v14")
+    }
+
+    @Test("Recreate with bumped version updates autosave namespace")
+    @MainActor
+    func recreateItemsBumpsAutosaveVersion() {
+        let defaults = UserDefaults.standard
+        let key = "SaneBar_AutosaveVersion"
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original {
+                defaults.set(original, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(10, forKey: key)
+        let controller = StatusBarController()
+        let oldMain = controller.mainItem
+
+        let (newMain, _) = controller.recreateItemsWithBumpedVersion()
+
+        #expect(defaults.integer(forKey: key) == 11)
+        #expect(newMain !== oldMain)
+        #expect(StatusBarController.mainAutosaveName == "SaneBar_Main_v11")
+    }
+
     @Test("Position seed runs when both app and ByHost values are missing")
     func shouldSeedWhenAllValuesMissing() {
         let shouldSeed = StatusBarController.shouldSeedPreferredPosition(

@@ -483,6 +483,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             // Create status items (with additional retry logic inside)
             setupStatusItem()
+            schedulePositionValidation()
 
             // These all depend on status items being ready
             updateSpacers()
@@ -578,6 +579,31 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             return !isMenuOpen && !hoverService.isMouseInMenuBar
         }
 
+        // If WindowServer position cache is corrupted and the controller
+        // recreates items with a bumped autosave namespace, re-wire references.
+        statusBarController.onItemsRecreated = { [weak self] main, separator in
+            guard let self else { return }
+            self.mainStatusItem = main
+            self.separatorItem = separator
+            self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
+
+            if let button = main.button {
+                button.action = #selector(statusItemClicked)
+                button.target = self
+                button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            }
+
+            self.hidingService.configure(delimiterItem: separator)
+            self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
+            self.clearStatusItemMenus()
+            self.updateMainIconVisibility()
+            self.updateDividerStyle()
+            self.updateIconStyle()
+            self.updateAlwaysHiddenSeparator()
+
+            logger.info("Re-wired status items after autosave recovery")
+        }
+
         // Apply main icon visibility based on settings
         updateMainIconVisibility()
         updateDividerStyle()
@@ -661,6 +687,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }
+        }
+    }
+
+    /// Validate status-item position after layout settles. If WindowServer has a
+    /// corrupted position cache, recover by bumping autosave namespace and recreating.
+    private func schedulePositionValidation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, !self.usingExternalItems else { return }
+            guard !StatusBarController.validateItemPosition(self.statusBarController.mainItem) else {
+                return
+            }
+            logger.error("Status item appears off-menu-bar — triggering autosave recovery")
+            let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
+            self.statusBarController.onItemsRecreated?(newMain, newSep)
         }
     }
 

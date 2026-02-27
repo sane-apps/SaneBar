@@ -45,9 +45,27 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // Autosave namespace is versioned so we can hard-reset from historically
     // corrupted status item position keys without depending on manual cleanup.
-    nonisolated static let mainAutosaveName = "SaneBar_Main_v7"
-    nonisolated static let separatorAutosaveName = "SaneBar_Separator_v7"
-    nonisolated static let alwaysHiddenSeparatorAutosaveName = "SaneBar_AlwaysHiddenSeparator_v7"
+    // Keep base at v7 to avoid resetting healthy existing user layouts.
+    nonisolated private static let autosaveVersionKey = "SaneBar_AutosaveVersion"
+    nonisolated private static let baseAutosaveVersion = 7
+    nonisolated private static let maxAutosaveVersion = 99
+
+    nonisolated static var autosaveVersion: Int {
+        let stored = UserDefaults.standard.integer(forKey: autosaveVersionKey)
+        return stored > 0 ? stored : baseAutosaveVersion
+    }
+
+    nonisolated static var mainAutosaveName: String {
+        "SaneBar_Main_v\(autosaveVersion)"
+    }
+
+    nonisolated static var separatorAutosaveName: String {
+        "SaneBar_Separator_v\(autosaveVersion)"
+    }
+
+    nonisolated static var alwaysHiddenSeparatorAutosaveName: String {
+        "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)"
+    }
 
     // MARK: - Icon Names
 
@@ -118,6 +136,79 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
 
         logger.info("StatusBarController initialized")
+    }
+
+    // MARK: - Position Validation & Self-Healing
+
+    /// Callback invoked after status items are recreated due to corruption recovery.
+    var onItemsRecreated: ((_ main: NSStatusItem, _ separator: NSStatusItem) -> Void)?
+
+    /// Checks whether a status item window appears in the menu bar area.
+    /// Returns true when position looks healthy, or when the window isn't available yet.
+    static func validateItemPosition(_ item: NSStatusItem) -> Bool {
+        guard let window = item.button?.window else {
+            return true
+        }
+        guard let screen = window.screen ?? NSScreen.main else {
+            return true
+        }
+        let tolerance: CGFloat = 50
+        return abs(screen.frame.maxY - window.frame.maxY) <= tolerance
+    }
+
+    /// Bumps autosave namespace and recreates status items to escape WindowServer
+    /// position cache corruption keyed by autosaveName.
+    func recreateItemsWithBumpedVersion() -> (main: NSStatusItem, separator: NSStatusItem) {
+        let oldVersion = Self.autosaveVersion
+        let nextVersion = oldVersion + 1
+        guard nextVersion <= Self.maxAutosaveVersion else {
+            logger.error("Autosave version cap reached (\(Self.maxAutosaveVersion))")
+            return (mainItem, separatorItem)
+        }
+
+        let hadAlwaysHiddenSeparator = alwaysHiddenSeparatorItem != nil
+
+        UserDefaults.standard.set(nextVersion, forKey: Self.autosaveVersionKey)
+        logger.warning("Bumping autosave version \(oldVersion) → \(nextVersion) for status item recovery")
+
+        NSStatusBar.system.removeStatusItem(mainItem)
+        NSStatusBar.system.removeStatusItem(separatorItem)
+        if let ah = alwaysHiddenSeparatorItem {
+            NSStatusBar.system.removeStatusItem(ah)
+            alwaysHiddenSeparatorItem = nil
+        }
+
+        Self.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
+        Self.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
+        Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
+
+        Self.seedPositionsIfNeeded()
+        if hadAlwaysHiddenSeparator {
+            Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        }
+
+        mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        mainItem.autosaveName = Self.mainAutosaveName
+        mainItem.isVisible = true
+
+        separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        separatorItem.autosaveName = Self.separatorAutosaveName
+        separatorItem.isVisible = true
+
+        if let button = separatorItem.button {
+            configureSeparatorButton(button)
+        }
+        if let button = mainItem.button {
+            button.title = ""
+            button.image = makeMainSymbolImage(name: Self.iconHidden)
+        }
+
+        if hadAlwaysHiddenSeparator {
+            ensureAlwaysHiddenSeparator(enabled: true)
+        }
+
+        logger.info("Recreated status items with autosave version \(nextVersion)")
+        return (mainItem, separatorItem)
     }
 
     // MARK: - Always-Hidden Separator (Experimental)
