@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.12] - 2026-02-27
+
+SaneUI polish + onboarding clarity update\n\n- Premium navy/teal visual pass across onboarding and settings\n- Clearer zone movement and browse mode explanations\n- Improved accessibility permission UX and icon readability\n- Reliability fixes for rehide/hover behavior\n- Added sanebar:// automation commands and copy icon ID actions\n- Updated website screenshots and notch explainer copy
+
+---
+
 ## [2.1.11] - 2026-02-25
 
 Improved icon movement and ordering in both Browse Icons views.\nFixed startup placement and recovery for menu bar icons.\nMade left-click and right-click actions more reliable and responsive.\nReduced unexpected auto-close behavior while managing icons.
