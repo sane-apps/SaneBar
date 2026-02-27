@@ -73,7 +73,7 @@ struct SettingsView: View {
     private func iconColor(for tab: SettingsTab) -> Color {
         switch tab {
         case .general: .gray
-        case .rules: .purple
+        case .rules: .teal
         case .appearance: .blue
         case .shortcuts: .orange
         case .about: .secondary

@@ -151,14 +151,17 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let manager = MenuBarManager.shared
         window?.orderOut(nil)
 
+        // Resume hover/click triggers and refresh pointer state before scheduling rehide.
+        // Without this, isMouseInMenuBar can stay stale while monitoring was suspended,
+        // which can suppress rehide indefinitely until the next mouse-move event.
+        manager.hoverService.isSuspended = false
+        manager.hoverService.refreshMouseInMenuBarState()
+
         if manager.hidingService.state == .expanded,
            !manager.isRevealPinned,
            !manager.shouldSkipHideForExternalMonitor {
             manager.scheduleRehideFromSearch(after: manager.settings.findIconRehideDelay)
         }
-
-        // Resume hover/click triggers
-        manager.hoverService.isSuspended = false
         // Do NOT set window to nil, we reuse it for performance
     }
 

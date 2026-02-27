@@ -255,4 +255,51 @@ struct HoverServiceTests {
         #expect(mock.isEnabled == true)
         #expect(mock.scrollEnabled == true)
     }
+
+    // MARK: - Menu Bar Interaction Region Tests
+
+    @Test("Menu bar interaction region includes the top menu strip")
+    func testInteractionRegionIncludesMenuStrip() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let point = NSPoint(x: 100, y: 890)
+
+        let result = HoverService.isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: [screen],
+            detectionZoneHeight: 24,
+            leaveThreshold: 200
+        )
+
+        #expect(result == true)
+    }
+
+    @Test("Menu bar interaction region includes the dropdown zone below menu bar")
+    func testInteractionRegionIncludesDropdownZone() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let point = NSPoint(x: 100, y: 760) // 140px below menu bar top
+
+        let result = HoverService.isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: [screen],
+            detectionZoneHeight: 24,
+            leaveThreshold: 200
+        )
+
+        #expect(result == true)
+    }
+
+    @Test("Menu bar interaction region excludes points far below threshold")
+    func testInteractionRegionExcludesFarBelowThreshold() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let point = NSPoint(x: 100, y: 640) // 260px below menu bar top
+
+        let result = HoverService.isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: [screen],
+            detectionZoneHeight: 24,
+            leaveThreshold: 200
+        )
+
+        #expect(result == false)
+    }
 }

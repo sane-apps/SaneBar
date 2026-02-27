@@ -118,6 +118,10 @@ struct MenuBarAppTile: View {
             Button("Set Hotkey…") {
                 onSetHotkey()
             }
+            Divider()
+            Button("Copy Icon ID") {
+                copyIconID(app.uniqueId)
+            }
             if let toggleAction = onToggleHidden {
                 Divider()
                 Button(isHidden ? "Move to Visible" : "Move to Hidden") {
@@ -162,5 +166,10 @@ struct MenuBarAppTile: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: iconSize * 0.7, height: iconSize * 0.7)
         }
+    }
+
+    private func copyIconID(_ iconID: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(iconID, forType: .string)
     }
 }

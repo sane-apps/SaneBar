@@ -1,4 +1,5 @@
 import AppKit
+import SaneUI
 import SwiftUI
 
 // MARK: - OnboardingTipView
@@ -18,7 +19,7 @@ struct OnboardingTipView: View {
             HStack(spacing: 6) {
                 ForEach(0 ..< 2) { step in
                     Circle()
-                        .fill(step == currentStep ? Color.accentColor : Color.primary.opacity(0.3))
+                        .fill(step == currentStep ? Color.saneAccent : Color.primary.opacity(0.3))
                         .frame(width: 8, height: 8)
                 }
             }
@@ -67,7 +68,7 @@ struct OnboardingTipView: View {
             HStack {
                 Image(systemName: "hand.wave.fill")
                     .font(.title)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.saneAccent)
                 Text("Welcome to SaneBar!")
                     .font(.headline)
             }
@@ -89,6 +90,7 @@ struct OnboardingTipView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.saneAccent)
         }
     }
 
@@ -119,9 +121,25 @@ struct OnboardingTipView: View {
                     permissionRequested = true
                 } label: {
                     Label("Open System Settings", systemImage: "gear")
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 9)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.saneAccentSoft.opacity(0.98), Color.saneAccent.opacity(0.98)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9)
+                                .stroke(Color.white.opacity(0.16), lineWidth: 0.9)
+                        )
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
 
                 Text("Toggle **SaneBar** ON in the list, then come back here.")
                     .font(.system(size: 13))
@@ -147,6 +165,7 @@ struct OnboardingTipView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color.saneAccent)
             }
         }
     }

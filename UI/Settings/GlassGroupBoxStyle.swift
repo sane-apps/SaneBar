@@ -1,4 +1,5 @@
 import SwiftUI
+import SaneUI
 
 struct GlassGroupBoxStyle: GroupBoxStyle {
     @Environment(\.colorScheme) private var colorScheme
@@ -30,14 +31,14 @@ struct GlassGroupBoxStyle: GroupBoxStyle {
                 .stroke(
                     colorScheme == .dark
                         ? Color.white.opacity(0.1)
-                        : Color.teal.opacity(0.12),
+                        : Color.saneAccent.opacity(0.16),
                     lineWidth: 1
                 )
         )
         .shadow(
             color: colorScheme == .dark
                 ? .black.opacity(0.15)
-                : .teal.opacity(0.06),
+                : .saneAccentDeep.opacity(0.10),
             radius: 4, y: 2
         )
     }

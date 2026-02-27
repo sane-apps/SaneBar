@@ -1,19 +1,68 @@
 import AppKit
+import SaneUI
 import SwiftUI
 
-// Onboarding palette: teal accent, navy cards
+// Onboarding palette: softened SaneUI teal accents + navy cards
 private let cardBg = Color(red: 0.08, green: 0.10, blue: 0.18)
 private let navyBg = Color(red: 0.06, green: 0.08, blue: 0.16)
+private let saneAccentDeep = Color.saneAccentDeep
+private let saneAccent = Color.saneAccent
+private let saneAccentSoft = Color.saneAccentSoft
+private let saneAccentGradient = LinearGradient(
+    colors: [saneAccentSoft, saneAccent],
+    startPoint: .leading,
+    endPoint: .trailing
+)
+private let saneButtonGradient = LinearGradient(
+    colors: [saneAccentSoft.opacity(0.98), saneAccent.opacity(0.98)],
+    startPoint: .topLeading,
+    endPoint: .bottomTrailing
+)
 private enum Tier { case free, pro }
 
+private struct OnboardingPrimaryButtonStyle: ButtonStyle {
+    let cornerRadius: CGFloat
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
+
+    init(cornerRadius: CGFloat = 9, horizontalPadding: CGFloat = 16, verticalPadding: CGFloat = 8) {
+        self.cornerRadius = cornerRadius
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(saneButtonGradient)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.9)
+            )
+            .shadow(
+                color: saneAccentDeep.opacity(configuration.isPressed ? 0.20 : 0.30),
+                radius: configuration.isPressed ? 3 : 8,
+                x: 0,
+                y: configuration.isPressed ? 1 : 3
+            )
+            .scaleEffect(configuration.isPressed ? 0.99 : 1.0)
+            .animation(.easeInOut(duration: 0.14), value: configuration.isPressed)
+    }
+}
+
 /// Welcome onboarding view shown on first launch
-/// Structure: Welcome → Browse Icons → Sane Promise → Permission → Basic vs Pro
+/// Structure: Welcome → Browse Icons → Zone Guide → Choose View → Sane Promise → Permission → Upgrade
 public struct WelcomeView: View {
     @State private var currentPage = 0
     @State private var navigateForward = true
     @State private var selectedTier: Tier = .pro
     let onComplete: () -> Void
-    private let totalPages = 7
+    private let totalPages = 8
 
     public init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -28,10 +77,11 @@ public struct WelcomeView: View {
                     case 0: WelcomeActionPage()
                     case 1: DontSkipPage()
                     case 2: BrowseIconsPage()
-                    case 3: ChooseViewPage()
-                    case 4: SanePromisePage()
-                    case 5: PermissionPage()
-                    case 6: FreeVsProPage(selectedTier: $selectedTier)
+                    case 3: ZoneGuidePage()
+                    case 4: ChooseViewPage()
+                    case 5: SanePromisePage()
+                    case 6: PermissionPage()
+                    case 7: FreeVsProPage(selectedTier: $selectedTier)
                     default: WelcomeActionPage()
                     }
                 }
@@ -48,7 +98,7 @@ public struct WelcomeView: View {
             HStack(spacing: 4) {
                 ForEach(0 ..< totalPages, id: \.self) { index in
                     Capsule()
-                        .fill(index <= currentPage ? Color.teal : Color.white.opacity(0.15))
+                        .fill(index <= currentPage ? saneAccent : Color.white.opacity(0.15))
                         .frame(height: 4)
                         .animation(.easeInOut(duration: 0.3), value: currentPage)
                 }
@@ -79,8 +129,7 @@ public struct WelcomeView: View {
                             currentPage += 1
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.teal)
+                    .buttonStyle(OnboardingPrimaryButtonStyle())
                 } else {
                     Button("Get Started") {
                         if selectedTier == .pro, !LicenseService.shared.isPro {
@@ -88,9 +137,7 @@ public struct WelcomeView: View {
                         }
                         onComplete()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.teal)
-                    .controlSize(.large)
+                    .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 10, horizontalPadding: 20, verticalPadding: 9))
                 }
             }
             .padding(.horizontal, 40)
@@ -110,7 +157,7 @@ private struct OnboardingBackground: View {
 
             // Radial glow (matches website hero)
             RadialGradient(
-                colors: [Color.teal.opacity(0.12), Color.clear],
+                colors: [saneAccentDeep.opacity(0.14), Color.clear],
                 center: .top,
                 startRadius: 50,
                 endRadius: 400
@@ -149,7 +196,7 @@ private struct WelcomeActionPage: View {
                 .font(.system(size: 30, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            (Text("One click to ") + Text("hide").foregroundColor(.teal) + Text(". One click to ") + Text("reveal").foregroundColor(.teal) + Text("."))
+            (Text("One click to ") + Text("hide").foregroundColor(saneAccentSoft) + Text(". One click to ") + Text("reveal").foregroundColor(saneAccentSoft) + Text("."))
                 .font(.system(size: 17))
                 .foregroundStyle(.white.opacity(0.9))
 
@@ -180,9 +227,9 @@ private struct WelcomeActionPage: View {
                             Image(systemName: "line.3.horizontal.decrease")
                                 .font(.system(size: 14, weight: .semibold))
                             Text("CLICK!")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 13, weight: .bold))
                         }
-                        .foregroundStyle(Color.teal)
+                        .foregroundStyle(saneAccentSoft)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
                         .background(navyBg)
@@ -208,7 +255,7 @@ private struct WelcomeActionPage: View {
                         Text("Hidden! Click again to reveal.")
                             .foregroundStyle(.white)
                     } else {
-                        Text("Tip").foregroundColor(.teal).bold() + Text(": ⌘ + drag icons in your menu bar to rearrange").foregroundColor(.white)
+                        Text("Tip").foregroundColor(saneAccentSoft).bold() + Text(": ⌘ + drag icons in your menu bar to rearrange").foregroundColor(.white)
                     }
                 }
                 .font(.system(size: 13, weight: .medium))
@@ -242,7 +289,7 @@ private struct WelcomeActionPage: View {
         } else {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.right.arrow.left.circle.fill")
-                    .foregroundStyle(Color.teal)
+                    .foregroundStyle(saneAccent)
                 Text("Switching from \(competitor)?")
                     .font(.system(size: 13))
                     .foregroundStyle(.white)
@@ -251,17 +298,17 @@ private struct WelcomeActionPage: View {
                 }
                 .font(.system(size: 13, weight: .semibold))
                 .buttonStyle(.borderedProminent)
-                .tint(Color.teal)
+                .tint(saneAccent)
                 .controlSize(.small)
             }
             .padding(10)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.teal.opacity(0.08))
+                    .fill(saneAccentDeep.opacity(0.12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.teal.opacity(0.2), lineWidth: 1)
+                            .stroke(saneAccent.opacity(0.28), lineWidth: 1)
                     )
             )
             .padding(.horizontal, 20)
@@ -313,7 +360,7 @@ private struct DontSkipPage: View {
 
             Image(systemName: "hand.wave.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.teal)
+                .foregroundStyle(saneAccent)
 
             Text("Don't skip this.")
                 .font(.system(size: 28, weight: .bold, design: .serif))
@@ -339,18 +386,19 @@ private struct DontSkipPage: View {
 
 private struct BrowseIconsPage: View {
     var body: some View {
-        VStack(spacing: 10) {
-            (Text("Browse").foregroundColor(.teal) + Text(" Your Icons — Two Options"))
+        VStack(spacing: 13) {
+            (Text("Browse").foregroundStyle(saneAccentGradient) + Text(" Your Icons — Two Options"))
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Open with ⌘⇧Space. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
+            Text("Open with ⌘⇧Space.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
 
-            HStack(alignment: .center, spacing: 16) {
+            HStack(alignment: .top, spacing: 18) {
                 // Icon Panel
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     Text("Icon Panel")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
@@ -359,15 +407,15 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(8)
                         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    Text("Grid view with search. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
-                        .font(.system(size: 12))
+                    Text("Grid view for browsing and organizing icons.")
+                        .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
 
                 // Second Menu Bar
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     Text("Second Menu Bar")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
@@ -376,31 +424,126 @@ private struct BrowseIconsPage: View {
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(6)
                         .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                    Text("Compact strip below the menu bar. Basic includes left-click icon activation. Pro unlocks drag reordering, drag zone moves, and right-click quick Move actions.")
-                        .font(.system(size: 12))
+                    Text("Compact strip below the menu bar for quick organization.")
+                        .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
                 }
-                .frame(width: 220)
+                .frame(maxWidth: .infinity)
             }
 
             Spacer()
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
     }
 }
 
-// MARK: - Page 3: Choose Your View
+// MARK: - Page 3: Zone Guide
+
+private struct ZoneGuidePage: View {
+    private struct ZoneRow {
+        let title: String
+        let detail: String
+        let icon: String
+        let accent: Color
+    }
+
+    private let rows: [ZoneRow] = [
+        ZoneRow(
+            title: "Visible",
+            detail: "Stays shown in your menu bar.",
+            icon: "checkmark.circle.fill",
+            accent: saneAccentSoft
+        ),
+        ZoneRow(
+            title: "Hidden",
+            detail: "Shows when SaneBar is active.",
+            icon: "eye.slash.fill",
+            accent: .yellow.opacity(0.9)
+        ),
+        ZoneRow(
+            title: "Always Hidden",
+            detail: "Stays hidden even while revealing hidden icons.",
+            icon: "lock.fill",
+            accent: .orange.opacity(0.92)
+        )
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            (Text("Move Between ").foregroundStyle(saneAccentGradient) + Text("Zones"))
+                .font(.system(size: 28, weight: .bold, design: .serif))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("Drag works in both browse views:")
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("• Icon Panel: drag an icon onto the zone tab: Visible, Hidden, or Always Hidden.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("• Second Menu Bar: drag an icon into the destination row: Visible, Hidden, or Always Hidden.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("• In the macOS menu bar itself, rearranging uses ⌘ + drag.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .center, spacing: 10) {
+                        Image(systemName: row.icon)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(row.accent)
+                            .frame(width: 18)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.title)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+
+                            Text(row.detail)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                    }
+                    .padding(.vertical, 9)
+                    .padding(.horizontal, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.white.opacity(0.06))
+                    )
+                }
+            }
+            .padding(.top, 8)
+
+            Spacer()
+        }
+        .padding(.horizontal, 38)
+        .padding(.vertical, 16)
+    }
+}
+
+// MARK: - Page 4: Choose Your View
 
 private struct ChooseViewPage: View {
     var body: some View {
-        VStack(spacing: 10) {
-            (Text("Choose").foregroundColor(.teal) + Text(" Your View"))
+        VStack(spacing: 13) {
+            (Text("Choose").foregroundStyle(saneAccentGradient) + Text(" Your View"))
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Settings → General → Browse Icons. Switch views anytime. Basic keeps left-click activation in both views; Pro adds drag and right-click Move actions.")
+            Text("Settings → General → Browse Icons.\nSwitch views anytime.")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -412,13 +555,13 @@ private struct ChooseViewPage: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 18)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
     }
 }
 
-// MARK: - Page 4: Permission
+// MARK: - Page 5: Permission
 
 private struct PermissionPage: View {
     @ObservedObject private var accessibilityService = AccessibilityService.shared
@@ -429,7 +572,7 @@ private struct PermissionPage: View {
 
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.teal)
+                .foregroundStyle(saneAccent)
 
             Text("Grant Access")
                 .font(.system(size: 28, weight: .bold, design: .serif))
@@ -439,7 +582,7 @@ private struct PermissionPage: View {
                 HStack(spacing: 10) {
                     Image(systemName: "video.slash.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(Color.teal)
+                        .foregroundStyle(saneAccent)
                         .frame(width: 28)
                     Text("No screen recording.")
                         .font(.system(size: 17, weight: .medium))
@@ -448,7 +591,7 @@ private struct PermissionPage: View {
                 HStack(spacing: 10) {
                     Image(systemName: "eye.slash.fill")
                         .font(.system(size: 20))
-                        .foregroundStyle(Color.teal)
+                        .foregroundStyle(saneAccent)
                         .frame(width: 28)
                     Text("No screenshots.")
                         .font(.system(size: 17, weight: .medium))
@@ -457,7 +600,7 @@ private struct PermissionPage: View {
                 HStack(spacing: 10) {
                     Image(systemName: "icloud.slash")
                         .font(.system(size: 20))
-                        .foregroundStyle(Color.teal)
+                        .foregroundStyle(saneAccent)
                         .frame(width: 28)
                     Text("No data collected.")
                         .font(.system(size: 17, weight: .medium))
@@ -485,12 +628,10 @@ private struct PermissionPage: View {
                             .font(.system(size: 15, weight: .semibold))
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.teal)
-                .controlSize(.large)
+                .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 10, horizontalPadding: 18, verticalPadding: 10))
 
                 Text("Toggle SaneBar on in the list that appears")
-                    .font(.system(size: 12))
+                    .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.9))
             }
 
@@ -500,7 +641,7 @@ private struct PermissionPage: View {
     }
 }
 
-// MARK: - Page 5: Basic vs Pro
+// MARK: - Page 7: Basic vs Pro
 
 private struct FreeVsProPage: View {
     @ObservedObject private var licenseService = LicenseService.shared
@@ -532,7 +673,7 @@ private struct FreeVsProPage: View {
 
         Image(systemName: "gift.fill")
             .font(.system(size: 44))
-            .foregroundStyle(Color.teal)
+            .foregroundStyle(saneAccent)
 
         Text("Welcome Back!")
             .font(.system(size: 28, weight: .bold, design: .serif))
@@ -565,7 +706,7 @@ private struct FreeVsProPage: View {
                     .font(.system(size: 14))
                     .foregroundStyle(.red)
                 (Text("If you love it, consider ").foregroundColor(.white) +
-                    Text("sponsoring me").foregroundColor(.teal).underline())
+                    Text("sponsoring me").foregroundColor(saneAccentSoft).underline())
                     .font(.system(size: 14, weight: .medium))
             }
             .padding(.horizontal, 16)
@@ -575,7 +716,7 @@ private struct FreeVsProPage: View {
                     .fill(cardBg)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.teal.opacity(0.3), lineWidth: 1)
+                            .stroke(saneAccent.opacity(0.34), lineWidth: 1)
                     )
             )
         }
@@ -617,7 +758,7 @@ private struct FreeVsProPage: View {
 
     @ViewBuilder
     private func selectionView() -> some View {
-        (Text("Choose").foregroundColor(.teal) + Text(" Your Plan"))
+        (Text("Choose").foregroundStyle(saneAccentGradient) + Text(" Your Plan"))
             .font(.system(size: 28, weight: .bold, design: .serif))
             .foregroundStyle(.white)
 
@@ -649,16 +790,14 @@ private struct FreeVsProPage: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.teal)
-                        .controlSize(.regular)
+                        .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 9, horizontalPadding: 14, verticalPadding: 7))
 
                         Button("I Have a Key") {
                             showingLicenseEntry = true
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                     })
                 }
             )
@@ -691,17 +830,17 @@ private struct FreeVsProPage: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(isPro ? Color.teal : .white)
+                        .foregroundStyle(isPro ? saneAccentSoft : .white)
                     if let price {
                         Text(price)
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.9))
                     }
                 }
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 18))
-                    .foregroundStyle(isSelected ? (isPro ? Color.teal : .white) : .white.opacity(0.9))
+                    .foregroundStyle(isSelected ? (isPro ? saneAccentSoft : .white) : .white.opacity(0.9))
             }
 
             Rectangle()
@@ -712,11 +851,11 @@ private struct FreeVsProPage: View {
                 ForEach(features, id: \.1) { icon, text in
                     HStack(alignment: .top, spacing: 7) {
                         Image(systemName: icon)
-                            .font(.system(size: 11))
-                            .foregroundStyle(isPro ? Color.teal : .white)
+                            .font(.system(size: 13))
+                            .foregroundStyle(isPro ? saneAccentSoft : .white)
                             .frame(width: 14)
                         Text(text)
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundStyle(.white)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -737,14 +876,14 @@ private struct FreeVsProPage: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(cardBg)
-                .shadow(color: isSelected ? Color.teal.opacity(0.15) : .clear, radius: 10, x: 0, y: 4)
+                .shadow(color: isSelected ? saneAccent.opacity(0.18) : .clear, radius: 10, x: 0, y: 4)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
                     isSelected
-                        ? (isPro ? Color.teal : Color.white.opacity(0.8))
-                        : Color.teal.opacity(0.15),
+                        ? (isPro ? saneAccentSoft : Color.white.opacity(0.8))
+                        : saneAccent.opacity(0.2),
                     lineWidth: isSelected ? 2 : 1
                 )
         )
@@ -757,12 +896,12 @@ private struct FreeVsProPage: View {
     }
 }
 
-// MARK: - Page 4: Sane Promise
+// MARK: - Page 6: Sane Promise
 
 private struct SanePromisePage: View {
     var body: some View {
         VStack(spacing: 20) {
-            (Text("Why").foregroundColor(.teal) + Text(" SaneBar?"))
+            Text("Our Sane Philosophy")
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
@@ -770,14 +909,9 @@ private struct SanePromisePage: View {
                 Text("\"For God has not given us a spirit of fear,")
                     .font(.system(size: 15, design: .serif))
                     .foregroundStyle(.white)
-                (Text("but of ").foregroundColor(.white) +
-                    Text("power").foregroundColor(.yellow) +
-                    Text(" and of ").foregroundColor(.white) +
-                    Text("love").foregroundColor(.red) +
-                    Text(" and of a ").foregroundColor(.white) +
-                    Text("sound mind").foregroundColor(.cyan) +
-                    Text(".\"").foregroundColor(.white))
+                Text("but of power and of love and of a sound mind.\"")
                     .font(.system(size: 15, design: .serif))
+                    .foregroundStyle(.white)
                 Text("— 2 Timothy 1:7")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.9))
@@ -824,12 +958,12 @@ private struct PillarCard: View {
                 ForEach(lines, id: \.self) { line in
                     HStack(alignment: .top, spacing: 5) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.green)
                             .frame(width: 12)
                             .padding(.top, 2)
                         Text(line)
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundStyle(.white)
                     }
                 }
@@ -843,9 +977,9 @@ private struct PillarCard: View {
                 .fill(cardBg)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.teal.opacity(0.2), lineWidth: 1)
+                        .stroke(saneAccent.opacity(0.24), lineWidth: 1)
                 )
-                .shadow(color: Color.teal.opacity(0.1), radius: 8, x: 0, y: 3)
+                .shadow(color: saneAccentDeep.opacity(0.16), radius: 8, x: 0, y: 3)
         )
     }
 }

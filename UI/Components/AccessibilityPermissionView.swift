@@ -1,7 +1,9 @@
+import SaneUI
 import SwiftUI
 
 struct AccessibilityPermissionView: View {
     @ObservedObject var accessibilityService = AccessibilityService.shared
+    private let brightTeal = Color(red: 0.55, green: 0.96, blue: 0.93)
 
     var body: some View {
         VStack(spacing: 16) {
@@ -30,21 +32,21 @@ struct AccessibilityPermissionView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: "video.slash.fill")
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(brightTeal)
                                 .frame(width: 20)
                             Text("No screen recording.")
                                 .font(.subheadline)
                         }
                         HStack(spacing: 8) {
                             Image(systemName: "eye.slash.fill")
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(brightTeal)
                                 .frame(width: 20)
                             Text("No screenshots.")
                                 .font(.subheadline)
                         }
                         HStack(spacing: 8) {
                             Image(systemName: "icloud.slash")
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(brightTeal)
                                 .frame(width: 20)
                             Text("No data collected.")
                                 .font(.subheadline)
@@ -57,10 +59,26 @@ struct AccessibilityPermissionView: View {
                         openAccessibilitySettings()
                     } label: {
                         Label("Open Accessibility Settings", systemImage: "lock.open.fill")
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.saneAccentSoft.opacity(0.98), Color.saneAccent.opacity(0.98)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.white.opacity(0.18), lineWidth: 0.9)
+                            )
+                            .shadow(color: Color.saneAccentDeep.opacity(0.28), radius: 8, x: 0, y: 3)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(.plain)
 
                     Text("Toggle SaneBar on in the list that appears")
                         .font(.system(size: 13))

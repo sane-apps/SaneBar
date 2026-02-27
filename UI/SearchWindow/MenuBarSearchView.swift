@@ -158,6 +158,7 @@ struct MenuBarSearchView: View {
             }
         }
         .onAppear {
+            _ = syncAccessibilityState()
             loadCachedApps()
             refreshApps()
             startPermissionMonitoring()
@@ -203,8 +204,16 @@ struct MenuBarSearchView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: SearchWindowController.windowDidShowNotification)) { _ in
             // Window reused (not destroyed on close) — reload when re-shown
+            _ = syncAccessibilityState()
             loadCachedApps()
             refreshApps()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            let nowTrusted = syncAccessibilityState()
+            if nowTrusted {
+                loadCachedApps()
+                refreshApps(force: true)
+            }
         }
         .onDisappear {
             permissionMonitorTask?.cancel()
@@ -289,7 +298,7 @@ struct MenuBarSearchView: View {
                 activateApp(app, isRightClick: isRightClick)
             },
             onRetry: {
-                _ = AccessibilityService.shared.requestAccessibility()
+                _ = syncAccessibilityState()
                 loadCachedApps()
                 refreshApps(force: true)
             },
@@ -345,15 +354,16 @@ struct MenuBarSearchView: View {
     }
 
     @MainActor
-    private func loadCachedApps() {
-        // Live check — the cached isGranted can be stale if the DistributedNotification didn't fire
-        let liveStatus = AccessibilityService.shared.isTrusted
+    private func syncAccessibilityState() -> Bool {
+        // force a live trust check and keep published state in sync
+        let liveStatus = AccessibilityService.shared.requestAccessibility()
         hasAccessibility = liveStatus
+        return liveStatus
+    }
 
-        // Sync the service's published state if it was stale
-        if liveStatus, !AccessibilityService.shared.isGranted {
-            AccessibilityService.shared.requestAccessibility()
-        }
+    @MainActor
+    private func loadCachedApps() {
+        let liveStatus = syncAccessibilityState()
 
         guard hasAccessibility else {
             menuBarApps = []
@@ -387,7 +397,7 @@ struct MenuBarSearchView: View {
     private func refreshApps(force: Bool = false) {
         refreshTask?.cancel()
 
-        guard hasAccessibility else {
+        guard syncAccessibilityState() else {
             isRefreshing = false
             return
         }
@@ -801,35 +811,49 @@ struct MenuBarSearchView: View {
     }
 
     private var accessibilityPrompt: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(accentGradient)
+                .font(.system(size: 52, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.62, green: 0.97, blue: 0.95),
+                            Color(red: 0.35, green: 0.83, blue: 0.90)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
 
             Text("Grant Access")
-                .font(.headline)
+                .font(.system(size: 24, weight: .bold, design: .serif))
+                .foregroundStyle(.white.opacity(0.97))
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
                     Image(systemName: "video.slash.fill")
-                        .foregroundStyle(accentGradient)
+                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
                         .frame(width: 20)
                     Text("No screen recording.")
+                        .foregroundStyle(.white.opacity(0.92))
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "eye.slash.fill")
-                        .foregroundStyle(accentGradient)
+                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
                         .frame(width: 20)
                     Text("No screenshots.")
+                        .foregroundStyle(.white.opacity(0.92))
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "icloud.slash")
-                        .foregroundStyle(accentGradient)
+                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
                         .frame(width: 20)
                     Text("No data collected.")
+                        .foregroundStyle(.white.opacity(0.92))
                 }
             }
-            .font(.callout)
+            .font(.system(size: 17, weight: .medium))
+            .padding(.vertical, 2)
 
             HStack(spacing: 12) {
                 Button("Open Accessibility Settings") {
@@ -837,37 +861,56 @@ struct MenuBarSearchView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
                 .background(
-                    RoundedRectangle(cornerRadius: 9)
-                        .fill(accentGradient)
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.23, green: 0.66, blue: 0.88),
+                                    Color(red: 0.16, green: 0.47, blue: 0.74)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.9)
                 )
+                .shadow(color: Color(red: 0.10, green: 0.28, blue: 0.48).opacity(0.35), radius: 8, x: 0, y: 3)
 
                 Button("Try Again") {
-                    _ = AccessibilityService.shared.requestAccessibility()
+                    _ = syncAccessibilityState()
                     loadCachedApps()
                     refreshApps(force: true)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white.opacity(0.94))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .foregroundStyle(.white.opacity(0.95))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
                 .background(
-                    RoundedRectangle(cornerRadius: 9)
-                        .fill(Color.white.opacity(0.12))
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.14))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 0.9)
                 )
             }
         }
-        .padding()
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.black.opacity(0.16))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+        )
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

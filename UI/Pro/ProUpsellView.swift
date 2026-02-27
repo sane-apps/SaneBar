@@ -1,4 +1,5 @@
 import SwiftUI
+import SaneUI
 
 /// Sheet shown when a free user tries a Pro action. Contextual to the feature they tapped.
 struct ProUpsellView: View {
@@ -32,7 +33,7 @@ struct ProUpsellView: View {
             VStack(spacing: 8) {
                 Image(systemName: feature.icon)
                     .font(.system(size: 36))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(Color.saneAccent)
 
                 Text(feature.rawValue)
                     .font(.system(size: 17, weight: .semibold))
@@ -63,7 +64,7 @@ struct ProUpsellView: View {
             VStack(spacing: 8) {
                 Text("$6.99")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(Color.saneAccentSoft)
 
                 Text("One-time purchase")
                     .font(.system(size: 13))
@@ -79,7 +80,7 @@ struct ProUpsellView: View {
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.teal)
+                .tint(Color.saneAccent)
                 .controlSize(.large)
             }
 
@@ -87,7 +88,7 @@ struct ProUpsellView: View {
                 showingLicenseEntry = true
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.teal)
+            .foregroundStyle(Color.saneAccentSoft)
             .font(.system(size: 13))
         }
         .padding(24)
@@ -106,7 +107,7 @@ struct ProUpsellView: View {
     private func proPoint(icon: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(.teal)
+                .foregroundStyle(Color.saneAccent)
                 .frame(width: 20)
             Text(text)
                 .font(.system(size: 13))

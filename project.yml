@@ -98,6 +98,10 @@ targets:
         OSAScriptingDefinition: SaneBar.sdef
         NSAppleEventsUsageDescription: "SaneBar needs to control other applications to manage your menu bar items."
         NSAccessibilityUsageDescription: "SaneBar needs accessibility permissions to detect and manage menu bar items."
+        CFBundleURLTypes:
+          - CFBundleURLName: "com.sanebar.app"
+            CFBundleURLSchemes:
+              - "sanebar"
         LSApplicationCategoryType: "public.app-category.utilities"
         SUFeedURL: "https://sanebar.com/appcast.xml"
         SUEnableSystemProfiling: false

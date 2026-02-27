@@ -462,7 +462,7 @@ struct GeneralSettingsView: View {
                                     NSWorkspace.shared.open(LicenseService.checkoutURL)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.teal)
+                                .tint(Color.saneAccent)
                                 .controlSize(.small)
 
                                 Button("Enter Key") {
@@ -534,7 +534,15 @@ struct GeneralSettingsView: View {
                 .padding(.vertical, 5)
                 .background(
                     RoundedRectangle(cornerRadius: 7)
-                        .fill(isSelected ? Color.blue.opacity(0.9) : Color.white.opacity(0.08))
+                        .fill(
+                            isSelected
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: [.saneAccentDeep.opacity(0.96), .saneAccent.opacity(0.96)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                : AnyShapeStyle(Color.white.opacity(0.08))
+                        )
                 )
         }
         .buttonStyle(.plain)
@@ -603,10 +611,10 @@ struct GeneralSettingsView: View {
                     Text("Pro")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(.teal)
+                .foregroundStyle(Color.saneAccentSoft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Capsule().fill(.teal.opacity(0.12)))
+                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
             }
             .buttonStyle(.plain)
         }

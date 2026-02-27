@@ -68,6 +68,7 @@ private enum StatusItemLength {
 /// This is the standard length-toggle technique for menu bar managers. No CGEvent needed.
 @MainActor
 final class HidingService: ObservableObject, HidingServiceProtocol {
+    private static let rehideGuardRetryDelay: TimeInterval = 0.2
     // MARK: - Published State
 
     /// Start expanded for safe position validation - MenuBarManager will hide after validation passes
@@ -78,7 +79,9 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Configuration
 
     /// The delimiter status item whose length we toggle
-    private weak var delimiterItem: StatusItemProtocol?
+    // Strong reference avoids intermittent nil during long-running sessions
+    // (weak delimiter could drop and break auto-rehide scheduling/hide paths).
+    private var delimiterItem: StatusItemProtocol?
 
     /// The always-hidden delimiter — when expanded, this stays large to keep always-hidden items off-screen
     private weak var alwaysHiddenDelimiterItem: StatusItemProtocol?
@@ -330,7 +333,10 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
                 if !Task.isCancelled {
                     // Fire-time guard: skip if user is interacting with any menu (#97)
                     if let shouldRehide, !shouldRehide() {
-                        logger.debug("Rehide skipped — fire-time guard active")
+                        logger.debug("Rehide deferred — fire-time guard active")
+                        if state == .expanded {
+                            scheduleRehide(after: Self.rehideGuardRetryDelay)
+                        }
                         return
                     }
                     await hide()

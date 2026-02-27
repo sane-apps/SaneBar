@@ -1,4 +1,5 @@
 import SwiftUI
+import SaneUI
 
 struct CompactSection<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -38,14 +39,14 @@ struct CompactSection<Content: View>: View {
                     .stroke(
                         colorScheme == .dark
                             ? Color.white.opacity(0.12)
-                            : Color.teal.opacity(0.15),
+                            : Color.saneAccent.opacity(0.18),
                         lineWidth: 1
                     )
             )
             .shadow(
                 color: colorScheme == .dark
                     ? .black.opacity(0.15)
-                    : .teal.opacity(0.08),
+                    : .saneAccentDeep.opacity(0.12),
                 radius: colorScheme == .dark ? 6 : 4,
                 x: 0, y: 2
             )

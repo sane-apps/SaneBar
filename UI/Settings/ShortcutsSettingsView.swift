@@ -1,9 +1,49 @@
+import AppKit
 import KeyboardShortcuts
+import SaneUI
 import SwiftUI
 
 struct ShortcutsSettingsView: View {
+    private struct AutomationCommand: Identifiable {
+        let id: String
+        let title: String
+        let command: String
+    }
+
     @ObservedObject private var licenseService = LicenseService.shared
     @State private var proUpsellFeature: ProFeature?
+    private let automationCommands: [AutomationCommand] = [
+        .init(
+            id: "toggle",
+            title: "Toggle hidden icons",
+            command: "open \"sanebar://toggle\""
+        ),
+        .init(
+            id: "show",
+            title: "Show hidden icons",
+            command: "open \"sanebar://show\""
+        ),
+        .init(
+            id: "hide",
+            title: "Hide icons",
+            command: "open \"sanebar://hide\""
+        ),
+        .init(
+            id: "search",
+            title: "Open search",
+            command: "open \"sanebar://search\""
+        ),
+        .init(
+            id: "settings",
+            title: "Open settings",
+            command: "open \"sanebar://settings\""
+        ),
+        .init(
+            id: "applescript-toggle",
+            title: "AppleScript toggle",
+            command: "osascript -e 'tell application \"SaneBar\" to toggle'"
+        )
+    ]
 
     var body: some View {
         ScrollView {
@@ -59,27 +99,36 @@ struct ShortcutsSettingsView: View {
                 // 2. Automation — Pro
                 CompactSection("Automation") {
                     if licenseService.isPro {
-                        CompactRow("AppleScript Toggle") {
-                            HStack {
-                                Text("osascript -e 'tell app \"SaneBar\" to toggle'")
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .help("Use this command in scripts or automation tools")
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(automationCommands.enumerated()), id: \.element.id) { index, item in
+                                CompactRow(item.title) {
+                                    HStack {
+                                        Text(item.command)
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .textSelection(.enabled)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                            .help("Use this command in Alfred, scripts, or shell automation")
 
-                                Spacer()
+                                        Spacer()
 
-                                Button {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString("osascript -e 'tell app \"SaneBar\" to toggle'", forType: .string)
-                                } label: {
-                                    Image(systemName: "doc.on.doc")
+                                        Button {
+                                            copyToClipboard(item.command)
+                                        } label: {
+                                            Text("Copy")
+                                                .font(.system(size: 11, weight: .semibold))
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("Copy command to clipboard")
+                                    }
                                 }
-                                .buttonStyle(.borderless)
-                                .help("Copy command to clipboard")
+
+                                if index < automationCommands.count - 1 {
+                                    CompactDivider()
+                                }
                             }
                         }
+                        .padding(4)
                     } else {
                         proGatedRow(feature: .appleScript, label: "AppleScript automation commands")
                     }
@@ -105,12 +154,17 @@ struct ShortcutsSettingsView: View {
                     Text("Pro")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(.teal)
+                .foregroundStyle(Color.saneAccentSoft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Capsule().fill(.teal.opacity(0.12)))
+                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private func copyToClipboard(_ command: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
     }
 }

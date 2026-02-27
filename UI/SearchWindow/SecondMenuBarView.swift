@@ -669,6 +669,12 @@ private struct PanelIconTile: View {
 
         Divider()
 
+        Button("Copy Icon ID") {
+            copyIconID(app.uniqueId)
+        }
+
+        Divider()
+
         // Zone labels
         switch zone {
         case .hidden:
@@ -707,5 +713,10 @@ private struct PanelIconTile: View {
                 SwiftUI.Label("Move to Always Hidden", systemImage: "lock")
             }
         }
+    }
+
+    private func copyIconID(_ iconID: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(iconID, forType: .string)
     }
 }

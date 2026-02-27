@@ -1,3 +1,4 @@
+import SaneUI
 import SwiftUI
 
 struct AppearanceSettingsView: View {
@@ -304,10 +305,10 @@ struct AppearanceSettingsView: View {
                     Text("Pro")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(.teal)
+                .foregroundStyle(Color.saneAccentSoft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Capsule().fill(.teal.opacity(0.12)))
+                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
             }
             .buttonStyle(.plain)
         }

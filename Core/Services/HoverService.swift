@@ -87,7 +87,16 @@ final class HoverService: HoverServiceProtocol {
     }
 
     /// Temporarily suspend all triggers (e.g. when Find Icon window is open)
-    var isSuspended: Bool = false
+    var isSuspended: Bool = false {
+        didSet {
+            guard isSuspended != oldValue else { return }
+            if isSuspended {
+                cancelHoverTimer()
+            } else {
+                refreshMouseInMenuBarState()
+            }
+        }
+    }
 
     /// Called when hover/scroll should reveal icons
     var onTrigger: ((TriggerReason) -> Void)?
@@ -138,6 +147,18 @@ final class HoverService: HoverServiceProtocol {
 
     func stop() {
         stopMonitoring()
+    }
+
+    /// Refreshes cached mouse-in-menu-bar state from the current cursor position.
+    /// Useful when monitoring was suspended and no mouse-move event fired yet.
+    func refreshMouseInMenuBarState() {
+        let mouseLocation = NSEvent.mouseLocation
+        isMouseInMenuBar = Self.isPointInMenuBarInteractionRegion(
+            mouseLocation,
+            screens: NSScreen.screens,
+            detectionZoneHeight: detectionZoneHeight,
+            leaveThreshold: leaveThreshold
+        )
     }
 
     // MARK: - Private Methods
@@ -319,6 +340,43 @@ final class HoverService: HoverServiceProtocol {
 
         // Check if point is in the menu bar vertical band
         return point.y >= menuBarBottom && point.y <= menuBarTop
+    }
+
+    static func isPointInMenuBarInteractionRegion(
+        _ point: NSPoint,
+        screens: [NSScreen],
+        detectionZoneHeight: CGFloat = 24,
+        leaveThreshold: CGFloat = 200
+    ) -> Bool {
+        isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: screens.map(\.frame),
+            detectionZoneHeight: detectionZoneHeight,
+            leaveThreshold: leaveThreshold
+        )
+    }
+
+    static func isPointInMenuBarInteractionRegion(
+        _ point: NSPoint,
+        screenFrames: [CGRect],
+        detectionZoneHeight: CGFloat = 24,
+        leaveThreshold: CGFloat = 200
+    ) -> Bool {
+        guard let screenFrame = screenFrames.first(where: { NSMouseInRect(point, $0, false) }) else {
+            return false
+        }
+
+        let menuBarTop = screenFrame.maxY
+        let menuBarBottom = menuBarTop - detectionZoneHeight
+
+        // In the menu bar strip itself.
+        if point.y >= menuBarBottom && point.y <= menuBarTop {
+            return true
+        }
+
+        // In the interaction zone directly below menu bar (for open menus/popovers).
+        let distanceBelowMenuBar = menuBarTop - point.y
+        return distanceBelowMenuBar > 0 && distanceBelowMenuBar <= leaveThreshold
     }
 
     private func distanceFromMenuBarTop(_ point: NSPoint) -> CGFloat {
