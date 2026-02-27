@@ -52,7 +52,7 @@ appstore:
   enabled: true
   # Create/register SaneBar in App Store Connect, then set its numeric app_id.
   app_id: "6759464256"
-  configuration: Release
+  configuration: Release-AppStore
   platforms: [macos]
   category: public.app-category.utilities
   age_rating: "4+"
@@ -63,8 +63,6 @@ appstore:
     macos: marketing/appstore-images/*.png
   entitlements: SaneBar/SaneBar-AppStore.entitlements
   build_flags:
-    - CODE_SIGN_ENTITLEMENTS=SaneBar/SaneBar-AppStore.entitlements
-    - CODE_SIGN_STYLE=automatic
     - 'INFOPLIST_KEY_SUFeedURL='
     - 'INFOPLIST_KEY_SUEnableAutomaticChecks='
     - 'INFOPLIST_KEY_SUPublicEDKey='
