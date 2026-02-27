@@ -123,7 +123,7 @@ headless_keychain_blocking() {
 }
 
 enforce_signing_preflight() {
-  local keychain password command
+  local keychain password command explicit_signed_config allow_unsigned_fallback
   command="${1:-}"
   shift || true
 
@@ -131,8 +131,31 @@ enforce_signing_preflight() {
 
   keychain="${SANEBAR_KEYCHAIN_PATH:-${LOGIN_KEYCHAIN}}"
   password="${SANEBAR_KEYCHAIN_PASSWORD:-${KEYCHAIN_PASSWORD:-${KEYCHAIN_PASS:-}}}"
+  explicit_signed_config="0"
+  for arg in "$@"; do
+    case "${arg}" in
+    --proddebug | --release)
+      explicit_signed_config="1"
+      ;;
+    esac
+  done
+  allow_unsigned_fallback="${SANEMASTER_ALLOW_UNSIGNED_FALLBACK:-1}"
 
   if headless_keychain_blocking && [ -z "${password}" ]; then
+    if [[ "${allow_unsigned_fallback}" != "0" && "${explicit_signed_config}" == "0" ]]; then
+      case "${command}" in
+      launch | test_mode | tm)
+        export SANEMASTER_BUILD_CONFIG="Debug"
+        cat <<EOF
+⚠️  Signed ${command} blocked in headless session (keychain locked).
+   Falling back to unsigned Debug build for this run.
+   Set SANEMASTER_ALLOW_UNSIGNED_FALLBACK=0 to disable this fallback.
+
+EOF
+        return 0
+        ;;
+      esac
+    fi
     cat <<EOF
 ❌ Signed ${command} build blocked: login keychain is not accessible in this headless session.
    Keychain: ${keychain}
