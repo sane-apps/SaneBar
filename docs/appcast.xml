@@ -2,7 +2,25 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>SaneBar Changelog</title>
-        <item>
+                <item>
+            <title>2.1.12</title>
+            <pubDate>Fri, 27 Feb 2026 11:55:18 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip"
+                       sparkle:version="2112"
+                       sparkle:shortVersionString="2.1.12"
+                       length="7898841"
+                       type="application/octet-stream"
+                       sparkle:edSignature="4NlTxbD4PDU3wm9Xrozcm6IIfIdrTmD4YgKzFTPgspRjBzup0PaUZJrolmF3CErXhsMPIrb0rMdvJDeU+WNpAg=="/>
+        </item>
+<item>
             <title>2.1.11</title>
             <pubDate>Wed, 25 Feb 2026 01:09:01 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
