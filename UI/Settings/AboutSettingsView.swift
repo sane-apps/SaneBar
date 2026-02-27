@@ -1,4 +1,5 @@
 import AppKit
+import SaneUI
 import SwiftUI
 
 struct AboutSettingsView: View {
@@ -100,7 +101,10 @@ struct AboutSettingsView: View {
             supportSheet
         }
         .popover(isPresented: $showFeedback, arrowEdge: .bottom) {
-            FeedbackView()
+            SaneFeedbackView(
+                diagnosticsService: .shared,
+                extraAttachments: [("menubar.rectangle", "Menu bar state snapshot (separator positions & counts)")]
+            )
         }
     }
 
@@ -247,7 +251,7 @@ struct AboutSettingsView: View {
                         .padding(.horizontal, 40)
 
                     // GitHub Sponsors
-                    Link(destination: URL(string: "https://github.com/sponsors/sane-apps")!) {
+                    Link(destination: URL(string: "https://github.com/sponsors/MrSaneApps")!) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
                                 .foregroundStyle(.pink)
@@ -307,7 +311,8 @@ private struct CryptoAddressRow: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(address, forType: .string)
                 copied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.5))
                     copied = false
                 }
             } label: {

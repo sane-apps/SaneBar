@@ -1,3 +1,4 @@
+import SaneUI
 import SwiftUI
 
 struct ExperimentalSettingsView: View {
@@ -13,7 +14,10 @@ struct ExperimentalSettingsView: View {
         }
         .padding(20)
         .sheet(isPresented: $showingFeedback) {
-            FeedbackView()
+            SaneFeedbackView(
+                diagnosticsService: .shared,
+                extraAttachments: [("menubar.rectangle", "Menu bar state snapshot (separator positions & counts)")]
+            )
         }
     }
 
