@@ -305,10 +305,10 @@ struct AppearanceSettingsView: View {
                     Text("Pro")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(Color.saneAccentSoft)
+                .foregroundStyle(SaneAccentPalette.soft)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
+                .background(Capsule().fill(SaneAccentPalette.deep.opacity(0.32)))
             }
             .buttonStyle(.plain)
         }

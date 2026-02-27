@@ -128,7 +128,7 @@ struct OnboardingTipView: View {
                             RoundedRectangle(cornerRadius: 9)
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.saneAccentSoft.opacity(0.98), Color.saneAccent.opacity(0.98)],
+                                        colors: [SaneAccentPalette.soft.opacity(0.98), Color.saneAccent.opacity(0.98)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )

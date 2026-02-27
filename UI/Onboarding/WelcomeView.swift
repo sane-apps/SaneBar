@@ -6,9 +6,9 @@ import SwiftUI
 // Onboarding palette: softened SaneUI teal accents + navy cards
 private let cardBg = Color(red: 0.08, green: 0.10, blue: 0.18)
 private let navyBg = Color(red: 0.06, green: 0.08, blue: 0.16)
-private let saneAccentDeep = Color.saneAccentDeep
+private let saneAccentDeep = SaneAccentPalette.deep
 private let saneAccent = Color.saneAccent
-private let saneAccentSoft = Color.saneAccentSoft
+private let saneAccentSoft = SaneAccentPalette.soft
 private let saneAccentGradient = LinearGradient(
     colors: [saneAccentSoft, saneAccent],
     startPoint: .leading,

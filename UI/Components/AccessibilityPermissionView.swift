@@ -66,7 +66,7 @@ struct AccessibilityPermissionView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color.saneAccentSoft.opacity(0.98), Color.saneAccent.opacity(0.98)],
+                                            colors: [SaneAccentPalette.soft.opacity(0.98), Color.saneAccent.opacity(0.98)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -76,7 +76,7 @@ struct AccessibilityPermissionView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.white.opacity(0.18), lineWidth: 0.9)
                             )
-                            .shadow(color: Color.saneAccentDeep.opacity(0.28), radius: 8, x: 0, y: 3)
+                            .shadow(color: SaneAccentPalette.deep.opacity(0.28), radius: 8, x: 0, y: 3)
                     }
                     .buttonStyle(.plain)
 
