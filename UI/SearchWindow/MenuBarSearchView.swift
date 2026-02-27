@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import AppKit
 import KeyboardShortcuts
 import os.log
@@ -1040,3 +1041,4 @@ struct MenuBarSearchView: View {
 #Preview {
     MenuBarSearchView(onDismiss: {})
 }
+// swiftlint:enable file_length

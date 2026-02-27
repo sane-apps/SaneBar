@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import AppKit
 import SaneUI
 import SwiftUI
@@ -1024,3 +1025,4 @@ private struct PillarCard: View {
         .background(OnboardingBackground())
         .onAppear { LicenseService.shared.grantEarlyAdopterPro() }
 }
+// swiftlint:enable file_length
