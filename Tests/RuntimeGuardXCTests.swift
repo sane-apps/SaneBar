@@ -388,4 +388,28 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testStartupHideIsSuppressedWhenAccessibilityPermissionIsMissing() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Skipping initial hide: accessibility permission not granted"),
+            "Startup should keep icons visible when Accessibility trust is unavailable"
+        )
+    }
+
+    func testLegacyUpgradePathDoesNotAutoGrantProFromSettingsState() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Legacy upgrade detected — showing freemium intro (manual grant only)"),
+            "Legacy upgrade path should be explicit/manual for Pro grants"
+        )
+        XCTAssertFalse(
+            source.contains("grantEarlyAdopterPro()"),
+            "MenuBarManager should not auto-grant Pro based only on local settings flags"
+        )
+    }
+
 }

@@ -679,6 +679,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     return
                 }
 
+                // Failsafe: if Accessibility trust is currently unavailable,
+                // keep icons visible instead of collapsing everything behind
+                // the delimiter where recovery/browse actions are degraded.
+                if !AccessibilityService.shared.isGranted {
+                    logger.warning("Skipping initial hide: accessibility permission not granted")
+                    return
+                }
+
                 // If the user has pinned items to the always-hidden section, enforce them
                 // after external-monitor policy checks so we never run automation moves in
                 // a policy-disabled state.
@@ -1023,12 +1031,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 OnboardingController.shared.show()
             }
         } else if !settings.hasSeenFreemiumIntro {
-            // Existing user upgrading — grant early adopter Pro and re-show onboarding
+            // Existing user upgrading — show freemium intro once.
+            // Do NOT auto-grant Pro from local settings state; that path is spoofable.
             settings.hasSeenFreemiumIntro = true
             saveSettings()
-            LicenseService.shared.grantEarlyAdopterPro()
-            Task.detached { await EventTracker.log("early_adopter_grant") }
-            logger.info("Early adopter detected — granted Pro, re-showing onboarding")
+            logger.info("Legacy upgrade detected — showing freemium intro (manual grant only)")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 OnboardingController.shared.show()

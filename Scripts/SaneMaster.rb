@@ -146,6 +146,7 @@ enforce_signing_preflight() {
       case "${command}" in
       launch | test_mode | tm)
         export SANEMASTER_BUILD_CONFIG="Debug"
+        export SANEMASTER_UNSIGNED_FALLBACK_ACTIVE="1"
         cat <<EOF
 ⚠️  Signed ${command} blocked in headless session (keychain locked).
    Falling back to unsigned Debug build for this run.

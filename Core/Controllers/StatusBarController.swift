@@ -300,6 +300,14 @@ final class StatusBarController: StatusBarControllerProtocol {
             return true
         }
 
+        // Legacy upgrade path:
+        // Older installs may have a settings file without onboarding keys.
+        // Treat those users as completed so we do NOT re-force anchor seeds.
+        if json["hasCompletedOnboarding"] == nil {
+            logger.info("Legacy settings detected (missing hasCompletedOnboarding) — skipping forced anchor seed")
+            return false
+        }
+
         // Keep forcing anchor until onboarding is fully complete.
         let hasCompletedOnboarding = (json["hasCompletedOnboarding"] as? Bool) ?? false
         return !hasCompletedOnboarding

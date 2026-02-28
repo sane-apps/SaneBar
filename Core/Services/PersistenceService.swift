@@ -114,7 +114,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     /// Whether the user has seen the freemium intro (Pro vs Free page).
     /// Existing users who upgrade (hasCompletedOnboarding=true, hasSeenFreemiumIntro=false)
-    /// are detected as early adopters and granted lifetime Pro.
+    /// are shown this intro once. Pro activation is explicit/manual only.
     var hasSeenFreemiumIntro: Bool = false
 
     // MARK: - Privacy (Advanced)
@@ -458,14 +458,29 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
         let data = try Data(contentsOf: settingsFileURL)
         var settings = try decoder.decode(SaneBarSettings.self, from: data)
+        var shouldRewriteJSON = false
 
-        let hasJSONValue = hasTopLevelKey("requireAuthToShowHiddenIcons", in: data)
-        if !hasJSONValue,
+        // Legacy onboarding migration:
+        // Existing installs can predate this key. If the settings file already
+        // exists but lacks hasCompletedOnboarding, treat as completed so update
+        // launches don't apply first-run defaults or force anchor resets.
+        let hasOnboardingKey = hasTopLevelKey("hasCompletedOnboarding", in: data)
+        if !hasOnboardingKey {
+            settings.hasCompletedOnboarding = true
+            shouldRewriteJSON = true
+        }
+
+        let hasAuthKey = hasTopLevelKey("requireAuthToShowHiddenIcons", in: data)
+        if !hasAuthKey,
            let legacy = try? keychain.bool(forKey: LegacyKeychainKeys.requireAuthToShowHiddenIcons) {
             settings.requireAuthToShowHiddenIcons = legacy
+            shouldRewriteJSON = true
+            try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
+        }
+
+        if shouldRewriteJSON {
             let rewritten = try encoder.encode(settings)
             try rewritten.write(to: settingsFileURL, options: .atomic)
-            try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
         }
 
         return settings

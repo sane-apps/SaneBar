@@ -878,4 +878,55 @@ final class PersistenceServiceTests: XCTestCase {
         let dict = try XCTUnwrap(object as? [String: Any])
         XCTAssertEqual(dict["requireAuthToShowHiddenIcons"] as? Bool, false)
     }
+
+    func testLegacySettingsWithoutOnboardingKeyMigrateToCompleted() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        let legacyJSON = """
+        {
+          "autoRehide": true,
+          "rehideDelay": 5
+        }
+        """
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        try legacyJSON.data(using: .utf8)!.write(to: settingsURL, options: .atomic)
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertTrue(loaded.hasCompletedOnboarding, "Legacy installs should be treated as completed onboarding")
+
+        let rewrittenData = try Data(contentsOf: settingsURL)
+        let rewrittenObject = try JSONSerialization.jsonObject(with: rewrittenData, options: [])
+        let rewrittenDict = try XCTUnwrap(rewrittenObject as? [String: Any])
+        XCTAssertEqual(rewrittenDict["hasCompletedOnboarding"] as? Bool, true)
+    }
+
+    func testExplicitOnboardingFalseIsPreservedForRealFirstRun() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        let firstRunJSON = """
+        {
+          "autoRehide": true,
+          "hasCompletedOnboarding": false
+        }
+        """
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        try firstRunJSON.data(using: .utf8)!.write(to: settingsURL, options: .atomic)
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertFalse(loaded.hasCompletedOnboarding, "Explicit onboarding=false should not be overridden")
+    }
 }
