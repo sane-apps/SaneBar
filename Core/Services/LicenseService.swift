@@ -1,5 +1,8 @@
 import Foundation
 import os.log
+#if canImport(StoreKit)
+    import StoreKit
+#endif
 
 private let licenseLogger = Logger(subsystem: "com.sanebar.app", category: "License")
 
@@ -10,6 +13,7 @@ private let licenseLogger = Logger(subsystem: "com.sanebar.app", category: "Lice
 @MainActor
 final class LicenseService: ObservableObject {
     static let shared = LicenseService()
+    private static let appStoreProductIDInfoPlistKey = "AppStoreProductID"
 
     // MARK: - Published State
 
@@ -17,7 +21,10 @@ final class LicenseService: ObservableObject {
     @Published private(set) var isEarlyAdopter: Bool = false
     @Published private(set) var licenseEmail: String?
     @Published private(set) var isValidating: Bool = false
+    @Published private(set) var isPurchasing: Bool = false
+    @Published private(set) var appStoreDisplayPrice: String?
     @Published var validationError: String?
+    @Published var purchaseError: String?
 
     // MARK: - Keychain Keys
 
@@ -31,15 +38,34 @@ final class LicenseService: ObservableObject {
     private let offlineGraceDays: TimeInterval = 30
 
     private let keychain: KeychainServiceProtocol
+    #if canImport(StoreKit)
+        private var appStoreProduct: Product?
+    #endif
 
     init(keychain: KeychainServiceProtocol = KeychainService.shared) {
         self.keychain = keychain
+    }
+
+    var usesAppStorePurchase: Bool {
+        #if APP_STORE
+            return Self.appStoreProductIDFromBundle() != nil
+        #else
+            return false
+        #endif
     }
 
     // MARK: - Startup
 
     /// Check cached license on launch. Call from `applicationDidFinishLaunching`.
     func checkCachedLicense() {
+        if usesAppStorePurchase {
+            Task {
+                await preloadAppStoreProduct()
+                await refreshAppStoreEntitlement()
+            }
+            return
+        }
+
         #if DEBUG
             // Debug builds: auto-grant Pro so developers can test all features
             // without fighting keychain over SSH. Does NOT ship in release.
@@ -60,6 +86,7 @@ final class LicenseService: ObservableObject {
             isPro = false
             isEarlyAdopter = false
             licenseEmail = nil
+            purchaseError = nil
             licenseLogger.info("No cached license key — free mode")
             return
         }
@@ -107,6 +134,11 @@ final class LicenseService: ObservableObject {
 
     /// Validate a license key with LemonSqueezy and activate Pro.
     func activate(key: String) async {
+        if usesAppStorePurchase {
+            validationError = "Use in-app purchase to unlock Pro in this App Store build."
+            return
+        }
+
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             validationError = "Please enter a license key."
@@ -143,6 +175,10 @@ final class LicenseService: ObservableObject {
 
     /// Remove stored license and revert to free mode.
     func deactivate() {
+        if usesAppStorePurchase {
+            purchaseError = "App Store purchases are managed by Apple. Use Restore Purchases if needed."
+            return
+        }
         try? keychain.delete(Keys.licenseKey)
         try? keychain.delete(Keys.licenseEmail)
         try? keychain.delete(Keys.lastValidation)
@@ -154,6 +190,138 @@ final class LicenseService: ObservableObject {
     }
 
     // MARK: - Private
+
+    private static func appStoreProductIDFromBundle() -> String? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: appStoreProductIDInfoPlistKey) as? String else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    func preloadAppStoreProduct() async {
+        guard usesAppStorePurchase, let productID = Self.appStoreProductIDFromBundle() else { return }
+        #if canImport(StoreKit)
+            do {
+                let products = try await Product.products(for: [productID])
+                appStoreProduct = products.first
+                appStoreDisplayPrice = appStoreProduct?.displayPrice ?? appStoreDisplayPrice
+                if appStoreProduct == nil {
+                    purchaseError = "Pro purchase is not configured yet in App Store Connect."
+                    licenseLogger.error("StoreKit product not found for \(productID)")
+                }
+            } catch {
+                purchaseError = "Could not load App Store pricing right now."
+                licenseLogger.error("StoreKit product fetch failed: \(error.localizedDescription)")
+            }
+        #else
+            purchaseError = "App Store purchases are not available on this platform."
+        #endif
+    }
+
+    func purchasePro() async {
+        guard usesAppStorePurchase, let productID = Self.appStoreProductIDFromBundle() else {
+            purchaseError = "This build uses direct license purchase."
+            return
+        }
+
+        #if canImport(StoreKit)
+            isPurchasing = true
+            purchaseError = nil
+            validationError = nil
+
+            if appStoreProduct == nil {
+                await preloadAppStoreProduct()
+            }
+
+            guard let product = appStoreProduct else {
+                purchaseError = "Pro purchase is not configured yet in App Store Connect."
+                isPurchasing = false
+                return
+            }
+
+            do {
+                let result = try await product.purchase()
+                switch result {
+                case let .success(verification):
+                    guard case let .verified(transaction) = verification else {
+                        purchaseError = "Purchase verification failed. Please try again."
+                        isPurchasing = false
+                        return
+                    }
+
+                    if transaction.productID != productID {
+                        purchaseError = "Unexpected product received from App Store."
+                        isPurchasing = false
+                        return
+                    }
+
+                    await transaction.finish()
+                    isPro = true
+                    isEarlyAdopter = false
+                    licenseEmail = nil
+                    purchaseError = nil
+                    validationError = nil
+                    licenseLogger.info("App Store purchase completed for \(productID)")
+                case .pending:
+                    purchaseError = "Purchase is pending approval."
+                case .userCancelled:
+                    break
+                @unknown default:
+                    purchaseError = "Purchase was not completed."
+                }
+            } catch {
+                purchaseError = "Purchase failed. Please try again."
+                licenseLogger.error("StoreKit purchase failed: \(error.localizedDescription)")
+            }
+
+            isPurchasing = false
+        #else
+            purchaseError = "App Store purchases are not available on this platform."
+        #endif
+    }
+
+    func restorePurchases() async {
+        guard usesAppStorePurchase else { return }
+        #if canImport(StoreKit)
+            isPurchasing = true
+            purchaseError = nil
+            do {
+                try await AppStore.sync()
+                await refreshAppStoreEntitlement()
+                if !isPro {
+                    purchaseError = "No prior Pro purchase was found for this Apple ID."
+                }
+            } catch {
+                purchaseError = "Restore failed. Please try again."
+                licenseLogger.error("StoreKit restore failed: \(error.localizedDescription)")
+            }
+            isPurchasing = false
+        #else
+            purchaseError = "App Store purchases are not available on this platform."
+        #endif
+    }
+
+    private func refreshAppStoreEntitlement() async {
+        guard usesAppStorePurchase, let productID = Self.appStoreProductIDFromBundle() else { return }
+        #if canImport(StoreKit)
+            var unlocked = false
+            for await result in Transaction.currentEntitlements {
+                guard case let .verified(transaction) = result else { continue }
+                guard transaction.productID == productID else { continue }
+                guard transaction.revocationDate == nil else { continue }
+                unlocked = true
+                break
+            }
+            isPro = unlocked
+            isEarlyAdopter = false
+            if unlocked {
+                validationError = nil
+                purchaseError = nil
+            }
+            licenseLogger.info("App Store entitlement check: \(unlocked ? "pro" : "free")")
+        #endif
+    }
 
     private func revalidate(key: String) async {
         do {

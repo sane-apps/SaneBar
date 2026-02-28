@@ -1256,7 +1256,7 @@
             border-radius: 16px;
             overflow: hidden;
             border: 1px solid var(--border);
-            min-width: 700px;
+            min-width: 640px;
         }
 
         .comparison-table th,
@@ -1452,6 +1452,44 @@
             font-weight: 500;
             margin-top: 12px;
         }
+
+.crypto-how {
+    margin-top: 14px;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.crypto-how strong { color: var(--text-primary); }
+.crypto-how ol { margin: 12px 0 0; padding-left: 20px; }
+.crypto-how li { margin-bottom: 6px; }
+.crypto-how a { color: var(--accent); text-decoration: none; }
+.crypto-how a:hover { text-decoration: underline; }
+.crypto-faq {
+    margin-top: 14px;
+    text-align: left;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 12px 14px;
+}
+.crypto-faq summary {
+    cursor: pointer;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.crypto-faq p {
+    margin: 10px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
 
         /* Cross-Sell Section */
         .more-apps {
@@ -1928,10 +1966,26 @@
             }
 
             /* Testimonials */
+            .testimonial-scroll {
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x mandatory;
+                mask-image: none;
+                -webkit-mask-image: none;
+                padding: 0 16px 8px;
+            }
+
+            .testimonial-track {
+                animation: none;
+                gap: 14px;
+            }
+
             .testimonial-item {
-                min-width: 280px !important;
-                max-width: 280px !important;
+                min-width: 82vw !important;
+                max-width: 82vw !important;
                 padding: 20px;
+                scroll-snap-align: start;
             }
 
             .testimonial-text {
@@ -1944,6 +1998,7 @@
             }
 
             .comparison-table {
+                min-width: 560px;
                 font-size: 0.8rem;
             }
 
@@ -2108,7 +2163,7 @@
         <a href="https://sanehosts.com">SaneHosts &mdash; System-Level Ad Blocker</a>
         <a href="https://sanesales.com">SaneSales &mdash; Sales Tracker</a>
         <a href="https://saneapps.com">See all SaneApps &rarr;</a>
-        <a href="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip" class="mobile-nav-cta">Download Basic</a>
+        <a href="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip" class="mobile-nav-cta" data-cta="download_free">Download Free</a>
     </div>
 
     <section class="hero">
@@ -2124,7 +2179,7 @@
             <div class="animate-in delay-4 hero-pricing-grid" id="pricing">
                 <div class="pricing-card">
                     <p class="pricing-label">Basic</p>
-                    <p class="pricing-price">$0</p>
+                    <p class="pricing-price">Free</p>
                     <p class="pricing-price-note">Forever — no catch</p>
                     <ul class="pricing-features">
                         <li>Hide &amp; show menu bar icons</li>
@@ -2133,11 +2188,11 @@
                         <li>Icon Panel or Second Menu Bar</li>
                         <li>100% on-device privacy</li>
                     </ul>
-                    <a href="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip" class="pricing-cta pricing-cta-free">
+                    <a href="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip" class="pricing-cta pricing-cta-free" data-cta="download_free">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 6px;">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
-                        Download Basic
+                        Download Free
                     </a>
                 </div>
                 <div class="pricing-card featured">
@@ -2160,7 +2215,7 @@
                         <li class="extra">Custom menu bar icon</li>
                         <li class="extra">AppleScript &amp; Shortcuts automation</li>
                     </ul>
-                    <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" class="pricing-cta pricing-cta-pro">Buy Pro</a>
+                    <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" class="pricing-cta pricing-cta-pro" data-cta="buy_pro">Buy Pro</a>
                 </div>
             </div>
             <p class="animate-in delay-4 hero-pricing-footer" style="color: var(--text-muted); font-size: 0.85rem; margin-top: var(--phi-sm);"><code style="background: var(--bg-card); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code></p>
@@ -2452,7 +2507,7 @@
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design."</p>
-                    <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
+                    <div class="testimonial-author">u/Kevin_Cossaboon (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"Checkout was perfect and the app is nicely done and getting even better. Congrats on the great work."</p>
@@ -2517,7 +2572,7 @@
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"For Maximum Privacy & Security: SaneBar is the unequivocal winner. Its architecture prevents data exfiltration by design."</p>
-                    <div class="testimonial-author">u/Kevin_Cossaboon via Gemini (Reddit)</div>
+                    <div class="testimonial-author">u/Kevin_Cossaboon (Reddit)</div>
                 </div>
                 <div class="testimonial-item">
                     <p class="testimonial-text">"Checkout was perfect and the app is nicely done and getting even better. Congrats on the great work."</p>
@@ -2747,7 +2802,7 @@
                         </tr>
                         <tr>
                             <td class="feature-name">
-                                <span class="feature-label">100% Transparent Code</span>
+                                <span class="feature-label">&#128269; 100% Transparent Code</span>
                                 <span class="feature-desc">Read every line on GitHub</span>
                             </td>
                             <td class="highlight-col"><span class="check">&#10003;</span></td>
@@ -2805,23 +2860,36 @@
                 <div class="crypto-grid">
                     <div class="crypto-item crypto-btc">
                         <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/btc.svg" alt="BTC" width="24" height="24">
-                        <code class="crypto-addr" onclick="copyToClipboard(this)">3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke</code>
+                        <code class="crypto-addr" onclick="copyToClipboard(this)" data-asset="BTC">3Go9nJu3dj2qaa4EAYXrTsTf5AnhcrPQke</code>
                     </div>
                     <div class="crypto-item crypto-eth">
                         <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/eth.svg" alt="ETH" width="24" height="24">
-                        <code class="crypto-addr" onclick="copyToClipboard(this)">0x026668feA51c27F0803055B8c0d881ac2F1e7C3e</code>
+                        <code class="crypto-addr" onclick="copyToClipboard(this)" data-asset="ETH">0x026668feA51c27F0803055B8c0d881ac2F1e7C3e</code>
                     </div>
                     <div class="crypto-item crypto-sol">
-                        <img class="crypto-logo" src="https://cryptologos.cc/logos/solana-sol-logo.svg" alt="SOL" width="24" height="24">
-                        <code class="crypto-addr" onclick="copyToClipboard(this)">FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ</code>
+                        <img class="crypto-logo" src="https://solana.com/src/img/branding/solanaLogoMark.svg" alt="SOL" width="24" height="24">
+                        <code class="crypto-addr" onclick="copyToClipboard(this)" data-asset="SOL">FBvU83GUmwEYk3HMwZh3GBorGvrVVWSPb8VLCKeLiWZZ</code>
                     </div>
                     <div class="crypto-item crypto-zec">
                         <img class="crypto-logo" src="https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/zec.svg" alt="ZEC" width="24" height="24">
-                        <code class="crypto-addr" onclick="copyToClipboard(this)">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
+                        <code class="crypto-addr" onclick="copyToClipboard(this)" data-asset="ZEC">t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN</code>
                     </div>
                 </div>
                 <p class="crypto-hint">Click any address to copy</p>
-            </div>
+            
+<div class="crypto-how">
+    <strong>How it works:</strong>
+    <ol>
+        <li>Send $6.99 (or more) to any address above</li>
+        <li>Email <a href="mailto:hi@saneapps.com">hi@saneapps.com</a> with your transaction ID or screenshot</li>
+        <li>I'll verify and reply with your download link</li>
+    </ol>
+</div>
+<details class="crypto-faq">
+    <summary>FAQ: what happens after I pay with crypto?</summary>
+    <p>I verify the transaction, then I reply with your Pro download link. If I miss your email, follow up and I will fix it.</p>
+</details>
+</div>
         </div>
     </section>
 
@@ -2903,9 +2971,8 @@
                 <a href="https://github.com/sponsors/MrSaneApps"><svg height="12" viewBox="0 0 16 16" width="12" fill="#ea4aaa" style="vertical-align: -1px; margin-right: 3px;"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z"/></svg>Sponsor</a>
                 <a href="https://saneapps.com">SaneApps</a>
             </div>
-            <p id="pricing-note" style="color: var(--text-secondary); font-size: 0.8rem; font-style: italic; opacity: 0.7; margin-bottom: 12px;">SaneBar Basic is $0. Pro: $6.99 one-time, no subscription.</p>
             <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px;">Requires macOS 15.0 (Sequoia) or later &middot; Apple Silicon</p>
-            <p class="footer-copy">Made with care by Mr. Sane &nbsp;•&nbsp; &copy; 2026 SaneBar</p>
+            <p class="footer-copy">Made with ❤️ in America by Mr. Sane &middot; &copy; 2026 SaneApps</p>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px;">"Built for a Sound Mind" &middot; <a href="https://saneapps.com" style="color: var(--text-secondary);">saneapps.com</a></p>
         </div>
     </footer>
@@ -2975,8 +3042,32 @@
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
+        const APP_ID = 'sanebar';
+
+        function trackCta(eventName, metadata) {
+            const detail = Object.assign({ app: APP_ID, event: eventName }, metadata || {});
+            if (typeof window.plausible === 'function') {
+                window.plausible(eventName, { props: detail });
+            }
+            if (typeof window.sa_event === 'function') {
+                window.sa_event(eventName, detail);
+            }
+            window.dispatchEvent(new CustomEvent('saneapps:cta', { detail }));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-cta]').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    trackCta(el.getAttribute('data-cta'), { href: el.getAttribute('href') || '' });
+                });
+            });
+        });
+
         function copyToClipboard(el) {
             navigator.clipboard.writeText(el.textContent);
+            if (el.closest('.crypto-item')) {
+                trackCta('crypto_copy', { asset: el.getAttribute('data-asset') || 'UNKNOWN' });
+            }
             const orig = el.textContent;
             el.textContent = 'Copied!';
             setTimeout(() => el.textContent = orig, 1500);

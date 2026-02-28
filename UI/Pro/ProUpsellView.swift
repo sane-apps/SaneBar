@@ -62,7 +62,7 @@ struct ProUpsellView: View {
 
             // Price + CTA
             VStack(spacing: 8) {
-                Text("$6.99")
+                Text(licenseService.appStoreDisplayPrice ?? "$6.99")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.saneAccentSoft)
 
@@ -70,26 +70,57 @@ struct ProUpsellView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
 
-                Button {
-                    NSWorkspace.shared.open(LicenseService.checkoutURL)
-                } label: {
-                    Text("Unlock Pro")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.saneAccent)
-                .controlSize(.large)
-            }
+                if licenseService.usesAppStorePurchase {
+                    Button {
+                        Task { await licenseService.purchasePro() }
+                    } label: {
+                        Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.saneAccent)
+                    .controlSize(.large)
+                    .disabled(licenseService.isPurchasing)
 
-            Button("I Have a Key") {
-                showingLicenseEntry = true
+                    Button("Restore Purchases") {
+                        Task { await licenseService.restorePurchases() }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(licenseService.isPurchasing)
+                } else {
+                    Button {
+                        NSWorkspace.shared.open(LicenseService.checkoutURL)
+                    } label: {
+                        Text("Unlock Pro")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.saneAccent)
+                    .controlSize(.large)
+
+                    Button("I Have a Key") {
+                        showingLicenseEntry = true
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.saneAccentSoft)
+                    .font(.system(size: 13))
+                }
+
+                if let purchaseError = licenseService.purchaseError {
+                    Text(purchaseError)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.saneAccentSoft)
-            .font(.system(size: 13))
         }
         .padding(24)
         .frame(width: 380)
@@ -101,6 +132,11 @@ struct ProUpsellView: View {
         }
         .onChange(of: licenseService.isPro) { _, newValue in
             if newValue { closeView() }
+        }
+        .onAppear {
+            if licenseService.usesAppStorePurchase {
+                Task { await licenseService.preloadAppStoreProduct() }
+            }
         }
     }
 

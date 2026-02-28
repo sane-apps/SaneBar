@@ -52,6 +52,7 @@ appstore:
   enabled: true
   # Create/register SaneBar in App Store Connect, then set its numeric app_id.
   app_id: "6759464256"
+  product_id: "com.sanebar.app.pro.unlock"
   configuration: Release-AppStore
   platforms: [macos]
   category: public.app-category.utilities

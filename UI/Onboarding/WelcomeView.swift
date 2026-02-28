@@ -56,14 +56,15 @@ private struct OnboardingPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Welcome onboarding view shown on first launch
-/// Structure: Welcome → Browse Icons → Zone Guide → Choose View → Sane Promise → Permission → Upgrade
+/// Welcome onboarding view shown on first launch.
+/// Canonical structure: Welcome → Don't Skip → Core Workflow → Advanced Workflow →
+/// Sane Philosophy → Permissions → Plan / Upgrade
 public struct WelcomeView: View {
     @State private var currentPage = 0
     @State private var navigateForward = true
     @State private var selectedTier: Tier = .pro
     let onComplete: () -> Void
-    private let totalPages = 8
+    private let totalPages = 7
 
     public init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -79,10 +80,9 @@ public struct WelcomeView: View {
                     case 1: DontSkipPage()
                     case 2: BrowseIconsPage()
                     case 3: ZoneGuidePage()
-                    case 4: ChooseViewPage()
-                    case 5: SanePromisePage()
-                    case 6: PermissionPage()
-                    case 7: FreeVsProPage(selectedTier: $selectedTier)
+                    case 4: SanePromisePage()
+                    case 5: PermissionPage()
+                    case 6: FreeVsProPage(selectedTier: $selectedTier)
                     default: WelcomeActionPage()
                     }
                 }
@@ -134,7 +134,11 @@ public struct WelcomeView: View {
                 } else {
                     Button("Get Started") {
                         if selectedTier == .pro, !LicenseService.shared.isPro {
-                            NSWorkspace.shared.open(LicenseService.checkoutURL)
+                            if LicenseService.shared.usesAppStorePurchase {
+                                Task { await LicenseService.shared.purchasePro() }
+                            } else {
+                                NSWorkspace.shared.open(LicenseService.checkoutURL)
+                            }
                         }
                         onComplete()
                     }
@@ -352,7 +356,7 @@ private struct WelcomeActionPage: View {
     }
 }
 
-// MARK: - Page 1: Don't Skip
+// MARK: - Page 2: Don't Skip
 
 private struct DontSkipPage: View {
     var body: some View {
@@ -383,16 +387,16 @@ private struct DontSkipPage: View {
     }
 }
 
-// MARK: - Page 2: Browse Icons
+// MARK: - Page 3: Core Workflow
 
 private struct BrowseIconsPage: View {
     var body: some View {
         VStack(spacing: 13) {
-            (Text("Browse").foregroundStyle(saneAccentGradient) + Text(" Your Icons — Two Options"))
+            (Text("Core ").foregroundStyle(.white) + Text("Workflow").foregroundStyle(saneAccentGradient))
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
 
-            Text("Open with ⌘⇧Space.")
+            Text("Open with ⌘⇧Space, then browse icons in either layout.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -440,7 +444,7 @@ private struct BrowseIconsPage: View {
     }
 }
 
-// MARK: - Page 3: Zone Guide
+// MARK: - Page 4: Advanced Workflow
 
 private struct ZoneGuidePage: View {
     private struct ZoneRow {
@@ -473,12 +477,12 @@ private struct ZoneGuidePage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            (Text("Move Between ").foregroundStyle(saneAccentGradient) + Text("Zones"))
+            (Text("Advanced ").foregroundStyle(.white) + Text("Workflow").foregroundStyle(saneAccentGradient))
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Drag works in both browse views:")
+            Text("Move icons between zones and pick the browse style you like.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -499,6 +503,32 @@ private struct ZoneGuidePage: View {
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Browse style")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Text("Settings → General → Browse Icons. You can switch between Icon Panel and Second Menu Bar anytime.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Image("OnboardingBrowseSettings")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .cornerRadius(8)
+                    .shadow(color: .black.opacity(0.3), radius: 7, x: 0, y: 4)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
@@ -534,35 +564,7 @@ private struct ZoneGuidePage: View {
         .padding(.vertical, 16)
     }
 }
-
-// MARK: - Page 4: Choose Your View
-
-private struct ChooseViewPage: View {
-    var body: some View {
-        VStack(spacing: 13) {
-            (Text("Choose").foregroundStyle(saneAccentGradient) + Text(" Your View"))
-                .font(.system(size: 28, weight: .bold, design: .serif))
-                .foregroundStyle(.white)
-
-            Text("Settings → General → Browse Icons.\nSwitch views anytime.")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
-                .multilineTextAlignment(.center)
-
-            Image("OnboardingBrowseSettings")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .cornerRadius(10)
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
-    }
-}
-
-// MARK: - Page 5: Permission
+// MARK: - Page 6: Permissions
 
 private struct PermissionPage: View {
     @ObservedObject private var accessibilityService = AccessibilityService.shared
@@ -642,7 +644,7 @@ private struct PermissionPage: View {
     }
 }
 
-// MARK: - Page 7: Basic vs Pro
+// MARK: - Page 7: Plan / Upgrade
 
 private struct FreeVsProPage: View {
     @ObservedObject private var licenseService = LicenseService.shared
@@ -784,21 +786,48 @@ private struct FreeVsProPage: View {
                 ],
                 actions: {
                     AnyView(VStack(spacing: 6) {
-                        Button {
-                            NSWorkspace.shared.open(LicenseService.checkoutURL)
-                        } label: {
-                            Text("Unlock Pro")
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 9, horizontalPadding: 14, verticalPadding: 7))
+                        if licenseService.usesAppStorePurchase {
+                            Button {
+                                Task { await licenseService.purchasePro() }
+                            } label: {
+                                Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 9, horizontalPadding: 14, verticalPadding: 7))
+                            .disabled(licenseService.isPurchasing)
 
-                        Button("I Have a Key") {
-                            showingLicenseEntry = true
+                            Button("Restore Purchases") {
+                                Task { await licenseService.restorePurchases() }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .font(.system(size: 13))
+                            .disabled(licenseService.isPurchasing)
+                        } else {
+                            Button {
+                                NSWorkspace.shared.open(LicenseService.checkoutURL)
+                            } label: {
+                                Text("Unlock Pro")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 9, horizontalPadding: 14, verticalPadding: 7))
+
+                            Button("I Have a Key") {
+                                showingLicenseEntry = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .font(.system(size: 13))
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .font(.system(size: 13))
+
+                        if let purchaseError = licenseService.purchaseError {
+                            Text(purchaseError)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                        }
                     })
                 }
             )
@@ -897,7 +926,7 @@ private struct FreeVsProPage: View {
     }
 }
 
-// MARK: - Page 6: Sane Promise
+// MARK: - Page 5: Sane Philosophy
 
 private struct SanePromisePage: View {
     var body: some View {
@@ -925,7 +954,7 @@ private struct SanePromisePage: View {
                 )
                 PillarCard(
                     icon: "heart.fill", color: .red, title: "Love",
-                    lines: ["Built to serve you.", "Pay once, yours forever.", "No subscriptions."]
+                    lines: ["Built to serve you.", "Pay once, yours forever.", "No subscriptions. No ads."]
                 )
                 PillarCard(
                     icon: "brain.head.profile", color: .cyan, title: "Sound Mind",
@@ -989,31 +1018,31 @@ private struct PillarCard: View {
     WelcomeView(onComplete: {})
 }
 
-#Preview("Page 1 - Choose View") {
-    ChooseViewPage()
-        .frame(width: 700, height: 520)
-        .background(OnboardingBackground())
-}
-
-#Preview("Page 2 - Browse Icons") {
+#Preview("Page 3 - Core Workflow") {
     BrowseIconsPage()
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())
 }
 
-#Preview("Page 3 - Philosophy") {
+#Preview("Page 4 - Advanced Workflow") {
+    ZoneGuidePage()
+        .frame(width: 700, height: 520)
+        .background(OnboardingBackground())
+}
+
+#Preview("Page 5 - Sane Philosophy") {
     SanePromisePage()
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())
 }
 
-#Preview("Page 4 - Permission") {
+#Preview("Page 6 - Permissions") {
     PermissionPage()
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())
 }
 
-#Preview("Page 5 - Basic vs Pro") {
+#Preview("Page 7 - Plan / Upgrade") {
     FreeVsProPage(selectedTier: .constant(.pro))
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())

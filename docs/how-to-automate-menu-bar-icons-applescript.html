@@ -163,6 +163,142 @@
 
         .cta-btn:hover { transform: translateY(-2px); }
 
+    
+/* Mobile Guide Guardrails */
+@media (max-width: 768px) {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    body {
+        overflow-x: hidden;
+        font-size: 16px;
+        line-height: 1.65;
+    }
+
+    .container {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    nav {
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+
+    nav .container,
+    .nav-content,
+    .header-content {
+        gap: 10px;
+    }
+
+    .nav-links {
+        gap: 12px !important;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .nav-links a {
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        padding: 8px 14px;
+    }
+
+    .header,
+    .hero {
+        padding-top: 140px !important;
+    }
+
+    h1 {
+        font-size: clamp(1.9rem, 8.2vw, 2.45rem) !important;
+        line-height: 1.18;
+        letter-spacing: -0.015em;
+        text-wrap: balance;
+    }
+
+    h2 {
+        font-size: clamp(1.35rem, 5.9vw, 1.78rem) !important;
+        line-height: 1.24;
+        text-wrap: balance;
+    }
+
+    h3 {
+        font-size: clamp(1.08rem, 4.9vw, 1.34rem) !important;
+        line-height: 1.3;
+        text-wrap: balance;
+    }
+
+    p,
+    li {
+        font-size: 0.98rem;
+        line-height: 1.65;
+        overflow-wrap: break-word;
+    }
+
+    article,
+    article.container {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    .subtitle,
+    .tagline,
+    .header p,
+    .guide-card p,
+    .option-card p,
+    .support-text {
+        font-size: 0.98rem !important;
+        line-height: 1.65;
+        max-width: 68ch;
+    }
+
+    .guides-grid,
+    .apps-grid,
+    .faq-grid,
+    .pros-cons,
+    .comparison,
+    .highlight-content,
+    .sustainability-options {
+        grid-template-columns: 1fr !important;
+    }
+
+    .option-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    pre,
+    table,
+    .table-wrapper,
+    .comparison-table-wrapper,
+    .code-block {
+        max-width: 100%;
+    }
+
+    pre,
+    .table-wrapper,
+    .comparison-table-wrapper,
+    .code-block {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 520px;
+    }
+
+    .code-block,
+    pre {
+        font-size: 0.82rem;
+    }
+}
+
+
     </style>
 </head>
 <body>
@@ -241,7 +377,7 @@
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/PRIVACY.md" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Privacy</a>
                 <a href="mailto:hi@saneapps.com" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem;">Contact</a>
             </div>
-            <p style="color: rgba(255,255,255,0.35); font-size: 0.85rem;">Made with care by Mr. Sane &nbsp;&middot;&nbsp; &copy; 2026 SaneBar</p>
+            <p style="color: rgba(255,255,255,0.35); font-size: 0.85rem;">Made with ❤️ in America by Mr. Sane &middot; &copy; 2026 SaneApps</p>
         </div>
     </footer>
 

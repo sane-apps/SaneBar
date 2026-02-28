@@ -441,11 +441,25 @@ struct GeneralSettingsView: View {
                         }
                         CompactDivider()
                         CompactRow("Actions") {
-                            Button("Deactivate License") {
-                                licenseService.deactivate()
+                            if licenseService.usesAppStorePurchase {
+                                HStack(spacing: 10) {
+                                    Text("Managed by App Store")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.white.opacity(0.82))
+                                    Button("Restore Purchases") {
+                                        Task { await licenseService.restorePurchases() }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(licenseService.isPurchasing)
+                                }
+                            } else {
+                                Button("Deactivate License") {
+                                    licenseService.deactivate()
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                         }
                     } else {
                         CompactRow("Status") {
@@ -457,19 +471,46 @@ struct GeneralSettingsView: View {
                         }
                         CompactDivider()
                         CompactRow("Upgrade") {
-                            HStack(spacing: 8) {
-                                Button("Unlock Pro — $6.99") {
-                                    NSWorkspace.shared.open(LicenseService.checkoutURL)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color.saneAccent)
-                                .controlSize(.small)
+                            if licenseService.usesAppStorePurchase {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 8) {
+                                        Button("Unlock Pro — \(licenseService.appStoreDisplayPrice ?? "$6.99")") {
+                                            Task { await licenseService.purchasePro() }
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .tint(Color.saneAccent)
+                                        .controlSize(.small)
+                                        .disabled(licenseService.isPurchasing)
 
-                                Button("Enter Key") {
-                                    showingLicenseEntry = true
+                                        Button("Restore Purchases") {
+                                            Task { await licenseService.restorePurchases() }
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                        .disabled(licenseService.isPurchasing)
+                                    }
+
+                                    if let purchaseError = licenseService.purchaseError {
+                                        Text(purchaseError)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.red)
+                                    }
                                 }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                            } else {
+                                HStack(spacing: 8) {
+                                    Button("Unlock Pro — $6.99") {
+                                        NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(Color.saneAccent)
+                                    .controlSize(.small)
+
+                                    Button("Enter Key") {
+                                        showingLicenseEntry = true
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
                             }
                         }
                     }
@@ -493,6 +534,9 @@ struct GeneralSettingsView: View {
         .onAppear {
             normalizeBrowseModeSettingsForCurrentPlan()
             loadProfiles()
+            if licenseService.usesAppStorePurchase {
+                Task { await licenseService.preloadAppStoreProduct() }
+            }
         }
         .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
             TextField("Name", text: $newProfileName)

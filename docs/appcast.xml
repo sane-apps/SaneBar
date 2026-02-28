@@ -2,185 +2,28 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>SaneBar Changelog</title>
-                
-        <item>
-            <title>2.1.12</title>
-            <pubDate>Fri, 27 Feb 2026 12:24:07 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Clearer onboarding guidance for first-time setup</li>
-                <li>More reliable permission handling and recovery</li>
-                <li>Visual polish for a cleaner, more premium experience</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip"
-                       sparkle:version="2112"
-                       sparkle:shortVersionString="2.1.12"
-                       length="7898857"
-                       type="application/octet-stream"
-                       sparkle:edSignature="xCSx++9lZ3zlM0y96/1/7ad3choScDB4WHu/Sn+X+wVOBtDn8Tg93WhA+NoQ3DEjUp7VnsjTyL8DwwH1OjCFBA=="/>
-        </item>
-<item>
-            <title>2.1.11</title>
-            <pubDate>Wed, 25 Feb 2026 01:09:01 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Smoother icon dragging and reordering in Browse Icons</li>
-                <li>Icons now return to the right place after restarting your Mac</li>
-                <li>Clicking icons from the panel is faster and more reliable</li>
-                <li>The panel stays open while you're working with your icons</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.11.zip"
-                       sparkle:version="2111"
-                       sparkle:shortVersionString="2.1.11"
-                       length="4481949"
-                       type="application/octet-stream"
-                       sparkle:edSignature="wupqZ7LN8Olxc/FJXvZjzpR/vUOtCo/ExUB/XP2bKuSfIlxPHsbQIG9vI7DKM4D8JPU/mZU9Fb3ddFdEgoLLDg=="/>
-        </item>
-<item>
-            <title>2.1.9</title>
-            <pubDate>Fri, 20 Feb 2026 20:34:56 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Bug fixes and stability improvements</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.9.zip"
-                       sparkle:version="2109"
-                       sparkle:shortVersionString="2.1.9"
-                       length="4444933"
-                       type="application/octet-stream"
-                       sparkle:edSignature="7sGsobI4KDopSE2Ltmcmu0HzjvKgLQO2iUJLgI/CpLuVLMoM+QoJApYd/Vrj/F2n7VelPVc5UZ+GYjg2K6owDg=="/>
-        </item>
-<item>
-            <title>2.1.8</title>
-            <pubDate>Fri, 20 Feb 2026 19:42:39 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Your icon layout is now preserved when updating SaneBar</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.8.zip"
-                       sparkle:version="2108"
-                       sparkle:shortVersionString="2.1.8"
-                       length="4443361"
-                       type="application/octet-stream"
-                       sparkle:edSignature="z1WXCsyyxbTzHiLEvtZPdXIzAPFYi+hXDoTOUoYPnrPNaDfHq0GuVeqYUr8FtwiwnrewmcSeAQVM77Gvjtv2DQ=="/>
-        </item>
-<item>
-            <title>2.1.7</title>
-            <pubDate>Fri, 20 Feb 2026 19:23:03 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Bug fixes and performance improvements</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.7.zip"
-                       sparkle:version="2107"
-                       sparkle:shortVersionString="2.1.7"
-                       length="4444925"
-                       type="application/octet-stream"
-                       sparkle:edSignature="xFi1v5C+nkqvL1PUiiog7fzKJxMLmgOlu9CCXLqowgl+8fqdSI8d66kluDboeCF8+/zHwKwe4F1w1PWcwCrvBg=="/>
-        </item>
-<item>
-            <title>2.1.5</title>
-            <pubDate>Wed, 18 Feb 2026 18:58:38 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Bug fixes and performance improvements</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.5.zip"
-                       sparkle:version="2105"
-                       sparkle:shortVersionString="2.1.5"
-                       length="4440119"
-                       type="application/octet-stream"
-                       sparkle:edSignature="nrivKHvEOqHss/L6xv0UQ9uKbAzTxKj046TTC/tZ4jW2jkoAEYZ5ShSlWWI7B9Nw8IKHSZkDoKIJ+x8ag69VBA=="/>
-        </item>
-        <item>
-            <title>2.1.4</title>
-            <pubDate>Wed, 18 Feb 2026 11:10:34 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Moving icons between Visible, Hidden, and Always Hidden is more reliable</li>
-                <li>Better detection of all your menu bar icons, including third-party apps</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.4.zip"
-                       sparkle:version="2104"
-                       sparkle:shortVersionString="2.1.4"
-                       length="4437147"
-                       type="application/octet-stream"
-                       sparkle:edSignature="geLuq6vW5LS58U+NYZA8LPTAuVekybIo28VxbXtBSlKF7DRuT3ACT8GihWOlErG+u0Fl7zBpj+LA5Z7dDDAHAg=="/>
-        </item>
-        <item>
-            <title>2.1.2</title>
-            <pubDate>Mon, 16 Feb 2026 14:16:14 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Reduced energy usage — lighter on your battery</li>
-                <li>Fixed compatibility with Stage Manager</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.2.zip"
-                       sparkle:version="2102"
-                       sparkle:shortVersionString="2.1.2"
-                       length="4385747"
-                       type="application/octet-stream"
-                       sparkle:edSignature="dc0pzFkVHJ2fMdZtNmD+uEdDxw9jR7MRg2asWjwZnBiwMnTcgqECfYfEq61NmBfMeotoI2j2grtzR2Q7eJCdCg=="/>
-        </item>
-        <item>
-            <title>2.1.1</title>
-            <pubDate>Mon, 16 Feb 2026 11:18:25 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Fixed menu bar overlay appearance on full-width displays</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.1.zip"
-                       sparkle:version="2101"
-                       sparkle:shortVersionString="2.1.1"
-                       length="4389113"
-                       type="application/octet-stream"
-                       sparkle:edSignature="08Zuaic3GQlfafZezVSdgJICSJS+YVlr6GG9MJv8oCuVgCEKDQr+EhJQKFexVwNi1teka+RrTK2CKsGvgTSqAQ=="/>
-        </item>
-        <!-- Known-bad builds are removed from the feed so auto-update never offers them. -->
-    </channel>
+
+    <item>
+                <title>2.1.12</title>
+                <pubDate>Fri, 27 Feb 2026 12:24:07 -0500</pubDate>
+                <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+                <description>
+                    <![CDATA[
+                    <h2>What's New</h2>
+                    <ul>
+                    <li>Clearer onboarding guidance for first-time setup</li>
+                    <li>More reliable permission handling and recovery</li>
+                    <li>Visual polish for a cleaner, more premium experience</li>
+                    </ul>
+                    ]]>
+                </description>
+                <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip"
+                           sparkle:version="2112"
+                           sparkle:shortVersionString="2.1.12"
+                           length="7898857"
+                           type="application/octet-stream"
+                           sparkle:edSignature="xCSx++9lZ3zlM0y96/1/7ad3choScDB4WHu/Sn+X+wVOBtDn8Tg93WhA+NoQ3DEjUp7VnsjTyL8DwwH1OjCFBA=="/>
+            </item>
+
+  </channel>
 </rss>

@@ -25,6 +25,8 @@
 	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>AppStoreProductID</key>
+	<string>com.sanebar.app.pro.unlock</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
