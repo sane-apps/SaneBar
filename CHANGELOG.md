@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.13] - 2026-02-28
+
+Critical hotfix: recovers from corrupted WindowServer status-item position cache that could cause menu bar icons to disappear or fail to restore. Automatically self-heals autosave namespace and rebuilds status items.
+
+---
+
 ## [2.1.12] - 2026-02-27
 
 SaneUI polish + onboarding clarity update\n\n- Premium navy/teal visual pass across onboarding and settings\n- Clearer zone movement and browse mode explanations\n- Improved accessibility permission UX and icon readability\n- Reliability fixes for rehide/hover behavior\n- Added sanebar:// automation commands and copy icon ID actions\n- Updated website screenshots and notch explainer copy
