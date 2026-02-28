@@ -93,63 +93,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         shouldIgnoreHideRequest(origin: .automatic)
     }
 
-    func shouldIgnoreHideRequest(origin: HideRequestOrigin) -> Bool {
-        Self.shouldIgnoreHideRequest(
-            disableOnExternalMonitor: settings.disableOnExternalMonitor,
-            isOnExternalMonitor: isOnExternalMonitor,
-            origin: origin
-        )
-    }
-
-    static func shouldSkipHide(disableOnExternalMonitor: Bool, isOnExternalMonitor: Bool) -> Bool {
-        shouldIgnoreHideRequest(
-            disableOnExternalMonitor: disableOnExternalMonitor,
-            isOnExternalMonitor: isOnExternalMonitor,
-            origin: .automatic
-        )
-    }
-
-    static func shouldIgnoreHideRequest(
-        disableOnExternalMonitor: Bool,
-        isOnExternalMonitor: Bool,
-        origin: HideRequestOrigin
-    ) -> Bool {
-        disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
-    }
-
-    static func shouldRecoverStartupPositions(
-        separatorX: CGFloat?,
-        mainX: CGFloat?,
-        mainRightGap: CGFloat? = nil,
-        screenWidth: CGFloat? = nil,
-        notchRightSafeMinX: CGFloat? = nil
-    ) -> Bool {
-        guard let separatorX, let mainX else { return false }
-        guard separatorX > 0, mainX > 0 else { return false }
-        if separatorX >= mainX {
-            return true
-        }
-
-        // On notched displays, keep the main icon in the right auxiliary area
-        // (near Control Center). If it drifts left of this boundary, treat as
-        // corrupted placement and recover startup positions.
-        if let notchRightSafeMinX, notchRightSafeMinX > 0 {
-            let notchTolerance: CGFloat = 8
-            if mainX < (notchRightSafeMinX - notchTolerance) {
-                return true
-            }
-        }
-
-        // Machine-specific corruption can preserve an apparently "ordered"
-        // separator/main pair that still lands far from the Control Center side.
-        // Recover when the main icon drifts too far from the right edge.
-        guard let mainRightGap, let screenWidth else { return false }
-        guard mainRightGap > 0, screenWidth > 0 else { return false }
-
-        let maxAllowedRightGap = max(500, screenWidth * 0.45)
-        return mainRightGap > maxAllowedRightGap
-    }
-
     // MARK: - Services
 
     let hidingService: HidingService
@@ -709,16 +652,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error("Status item appears off-menu-bar — triggering autosave recovery")
             let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
             self.statusBarController.onItemsRecreated?(newMain, newSep)
-        }
-    }
-
-    private func updateUpdateMenuAvailability() {
-        guard let updateItem = statusMenu?.item(withTitle: "Check for Updates...") else { return }
-        updateItem.isEnabled = updateService.isUpdateChannelEnabled
-        if updateService.isUpdateChannelEnabled {
-            updateItem.toolTip = nil
-        } else {
-            updateItem.toolTip = "Updates are available from the installed /Applications/SaneBar.app build."
         }
     }
 

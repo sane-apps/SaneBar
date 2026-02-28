@@ -26,4 +26,15 @@ extension MenuBarManager {
     func syncUpdateConfiguration() {
         updateService.automaticallyChecksForUpdates = settings.checkForUpdatesAutomatically
     }
+
+    func updateUpdateMenuAvailability() {
+        guard let updateItem = statusMenu?.item(withTitle: "Check for Updates...") else { return }
+        updateItem.isEnabled = updateService.isUpdateChannelEnabled
+        if updateService.isUpdateChannelEnabled {
+            updateItem.toolTip = nil
+        } else {
+            updateItem.toolTip = "Updates are available from the installed /Applications/SaneBar.app build."
+        }
+    }
+
 }
