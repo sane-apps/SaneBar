@@ -8,21 +8,51 @@ extension MenuBarSearchView {
 
     enum AppZone { case visible, hidden, alwaysHidden }
 
+    static func separatorBoundaryForAllTabClassification(
+        separatorRightEdgeX: CGFloat?,
+        separatorOriginX: CGFloat?
+    ) -> CGFloat? {
+        if let separatorRightEdgeX, separatorRightEdgeX > 0 {
+            return separatorRightEdgeX
+        }
+        if let separatorOriginX, separatorOriginX > 0 {
+            return separatorOriginX
+        }
+        return nil
+    }
+
+    static func classifyAllTabZone(
+        midX: CGFloat,
+        separatorBoundaryX: CGFloat?,
+        alwaysHiddenSeparatorX: CGFloat?,
+        margin: CGFloat = 6
+    ) -> AppZone {
+        guard let separatorBoundaryX else { return .visible }
+
+        if let alwaysHiddenSeparatorX,
+           alwaysHiddenSeparatorX > 0,
+           alwaysHiddenSeparatorX < separatorBoundaryX,
+           midX < (alwaysHiddenSeparatorX - margin) {
+            return .alwaysHidden
+        }
+
+        return midX < (separatorBoundaryX - margin) ? .hidden : .visible
+    }
+
     /// Classify an app's current zone based on its X position vs separator positions.
     func appZone(for app: RunningApp) -> AppZone {
         guard let xPos = app.xPosition else { return .visible }
         let midX = xPos + ((app.width ?? 22) / 2)
-        let margin: CGFloat = 6
+        let separatorBoundaryX = Self.separatorBoundaryForAllTabClassification(
+            separatorRightEdgeX: menuBarManager.getSeparatorRightEdgeX(),
+            separatorOriginX: menuBarManager.getSeparatorOriginX()
+        )
 
-        if let ahX = menuBarManager.getAlwaysHiddenSeparatorOriginX(),
-           midX < (ahX - margin) {
-            return .alwaysHidden
-        }
-        if let sepX = menuBarManager.getSeparatorOriginX(),
-           midX < (sepX - margin) {
-            return .hidden
-        }
-        return .visible
+        return Self.classifyAllTabZone(
+            midX: midX,
+            separatorBoundaryX: separatorBoundaryX,
+            alwaysHiddenSeparatorX: menuBarManager.getAlwaysHiddenSeparatorOriginX()
+        )
     }
 
     // MARK: - Action Factories
