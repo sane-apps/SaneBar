@@ -3,7 +3,28 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-            <item>
+                    <item>
+            <title>2.1.16</title>
+            <pubDate>Sat, 28 Feb 2026 21:36:28 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improved auto-hide reliability when closing Icon Panel and switching browse views.</li>
+                <li>Made icon movement refresh faster and more consistent across Hidden, Visible, and Always Hidden tabs.</li>
+                <li>Improved launch stability to avoid duplicate-instance and permission confusion during testing and daily use.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.16.zip"
+                       sparkle:version="2116"
+                       sparkle:shortVersionString="2.1.16"
+                       length="7948664"
+                       type="application/octet-stream"
+                       sparkle:edSignature="jkJZfVh0dNc13hSNrJ02GnhRCvQoP663uc3VXPrHIU67nRH8kJ1mbyLEjjRNO4w4ZynvR6RqkEkAysbx9SEIBA=="/>
+        </item>
+<item>
             <title>2.1.14</title>
             <pubDate>Sat, 28 Feb 2026 07:54:37 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
