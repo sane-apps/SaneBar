@@ -251,7 +251,7 @@ extension MenuBarManager {
 
         guard !filteredPins.isEmpty else { return }
 
-        let wasHidden = hidingState == .hidden
+        let wasHidden = hidingService.state == .hidden
 
         // Reveal ALL items using the shield pattern (safe from any state)
         await hidingService.showAll()

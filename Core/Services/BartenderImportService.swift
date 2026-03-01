@@ -142,10 +142,10 @@ enum BartenderImportService {
         let context = await buildResolutionContext()
         let runningBundleIDs = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
 
-        let wasHidden = menuBarManager.hidingState == .hidden
+        let wasHidden = menuBarManager.hidingService.state == .hidden
         if wasHidden {
             let revealed = await menuBarManager.showHiddenItemsNow(trigger: .settingsButton)
-            if !revealed, menuBarManager.hidingState == .hidden {
+            if !revealed, menuBarManager.hidingService.state == .hidden {
                 throw ImportError.authRequired
             }
         }
