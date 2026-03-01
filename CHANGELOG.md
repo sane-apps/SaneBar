@@ -6,6 +6,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.16] - 2026-02-28
+
+Improved auto-hide reliability when closing Icon Panel and switching browse views.
+Made icon movement refresh faster and more consistent across Hidden, Visible, and Always Hidden tabs.
+Improved launch stability to avoid duplicate-instance and permission confusion during testing and daily use.
+
+---
+
 ## [2.1.13] - 2026-02-28
 
 Critical hotfix: recovers from corrupted WindowServer status-item position cache that could cause menu bar icons to disappear or fail to restore. Automatically self-heals autosave namespace and rebuilds status items.
