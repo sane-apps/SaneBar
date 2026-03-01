@@ -238,74 +238,6 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Position Pre-Seeding
 
-    /// Seed ordinal positions BEFORE creating status items.
-    /// Only seed when positions are missing/invalid. Re-seeding on every launch
-    /// destroys user-arranged visible/hidden layouts.
-    private static func seedPositionsIfNeeded() {
-        let mainValues = preferredPositionValues(forAutosaveName: mainAutosaveName)
-        let separatorValues = preferredPositionValues(forAutosaveName: separatorAutosaveName)
-
-        let seedMain = shouldSeedPreferredPosition(appValue: mainValues.appValue, byHostValue: mainValues.byHostValue)
-        let seedSeparator = shouldSeedPreferredPosition(appValue: separatorValues.appValue, byHostValue: separatorValues.byHostValue)
-
-        if seedMain {
-            logger.info("Seeding main position (main=0)")
-            setPreferredPosition(0, forAutosaveName: mainAutosaveName)
-        }
-        if seedSeparator {
-            logger.info("Seeding separator position (separator=1)")
-            setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
-        }
-
-        if !seedMain, !seedSeparator {
-            logger.debug("Preserving existing main/separator positions")
-        }
-    }
-
-    private static func forceMainAndSeparatorAnchorSeed() {
-        logger.info("Onboarding startup: forcing main/separator anchor seeds near Control Center")
-        setPreferredPosition(0, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
-    }
-
-    private static func shouldForceAnchorNearControlCenterOnLaunch() -> Bool {
-        if let forced = ProcessInfo.processInfo.environment["SANEBAR_FORCE_ANCHOR_ON_LAUNCH"] {
-            return forced == "1"
-        }
-
-        // Unit tests intentionally exercise migration/seed behavior with crafted
-        // defaults and should not be affected by onboarding-first-run policy.
-        if NSClassFromString("XCTestCase") != nil ||
-            ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-            return false
-        }
-
-        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return true
-        }
-        let settingsURL = base.appendingPathComponent("SaneBar", isDirectory: true)
-            .appendingPathComponent("settings.json")
-
-        guard let data = try? Data(contentsOf: settingsURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
-            // No settings file yet => true first launch.
-            return true
-        }
-
-        // Legacy upgrade path:
-        // Older installs may have a settings file without onboarding keys.
-        // Treat those users as completed so we do NOT re-force anchor seeds.
-        if json["hasCompletedOnboarding"] == nil {
-            logger.info("Legacy settings detected (missing hasCompletedOnboarding) — skipping forced anchor seed")
-            return false
-        }
-
-        // Keep forcing anchor until onboarding is fully complete.
-        let hasCompletedOnboarding = (json["hasCompletedOnboarding"] as? Bool) ?? false
-        return !hasCompletedOnboarding
-    }
-
     static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
         // AH separator must be FAR to the left of all menu bar items.
         // UserDefaults positions are pixel offsets from the right screen edge.
@@ -548,16 +480,6 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
-    }
-
-    nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
-        if let appNumber = numericPositionValue(appValue), appNumber.isFinite {
-            return false
-        }
-        if let byHostNumber = numericPositionValue(byHostValue), byHostNumber.isFinite {
-            return false
-        }
-        return true
     }
 
     private nonisolated static func numericPositionValue(_ value: Any?) -> Double? {

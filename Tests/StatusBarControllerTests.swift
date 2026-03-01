@@ -128,146 +128,6 @@ struct StatusBarControllerTests {
         #expect(StatusBarController.mainAutosaveName == "SaneBar_Main_v11")
     }
 
-    @Test("Position seed runs when both app and ByHost values are missing")
-    func shouldSeedWhenAllValuesMissing() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: nil,
-            byHostValue: nil
-        )
-        #expect(shouldSeed == true)
-    }
-
-    @Test("Position seed skips when app value already exists")
-    func shouldNotSeedWhenAppValueExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: 42,
-            byHostValue: nil
-        )
-        #expect(shouldSeed == false)
-    }
-
-    @Test("Position seed skips when ByHost value already exists")
-    func shouldNotSeedWhenByHostValueExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: nil,
-            byHostValue: NSNumber(value: 17)
-        )
-        #expect(shouldSeed == false)
-    }
-
-    @Test("Position seed skips when app value is numeric string")
-    func shouldNotSeedWhenAppValueStringExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: "42",
-            byHostValue: nil
-        )
-        #expect(shouldSeed == false)
-    }
-
-    @Test("Position seed skips when ByHost value is numeric string")
-    func shouldNotSeedWhenByHostValueStringExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: nil,
-            byHostValue: "17"
-        )
-        #expect(shouldSeed == false)
-    }
-
-    @Test("Position seed ignores invalid non-numeric values")
-    func shouldSeedWhenValuesAreInvalid() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
-            appValue: "bad",
-            byHostValue: Date()
-        )
-        #expect(shouldSeed == true)
-    }
-
-    @Test("Init forces anchor seeding when launch override is enabled")
-    @MainActor
-    func initForcesAnchorWhenOverrideEnabled() {
-        let defaults = UserDefaults.standard
-        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
-        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
-        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
-        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey]
-        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
-        let variable = "SANEBAR_FORCE_ANCHOR_ON_LAUNCH"
-        let originalEnv = getenv(variable).map { String(cString: $0) }
-        defer {
-            for (key, value) in originalValues {
-                if let value {
-                    defaults.set(value, forKey: key)
-                } else {
-                    defaults.removeObject(forKey: key)
-                }
-            }
-            if let originalEnv {
-                setenv(variable, originalEnv, 1)
-            } else {
-                unsetenv(variable)
-            }
-        }
-
-        defaults.set(true, forKey: migrationKey)
-        if let width = NSScreen.main?.frame.width {
-            defaults.set(width, forKey: screenWidthKey)
-        }
-        defaults.set(420.0, forKey: mainKey)
-        defaults.set(360.0, forKey: separatorKey)
-
-        setenv(variable, "1", 1)
-        _ = StatusBarController()
-
-        let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
-        let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(mainValue == 0.0, "Override should force main anchor seed")
-        #expect(separatorValue == 1.0, "Override should force separator anchor seed")
-    }
-
-    @Test("Init preserves existing positions when launch override is disabled")
-    @MainActor
-    func initPreservesPositionsWhenOverrideDisabled() {
-        let defaults = UserDefaults.standard
-        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
-        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
-        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
-        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey]
-        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
-        let variable = "SANEBAR_FORCE_ANCHOR_ON_LAUNCH"
-        let originalEnv = getenv(variable).map { String(cString: $0) }
-        defer {
-            for (key, value) in originalValues {
-                if let value {
-                    defaults.set(value, forKey: key)
-                } else {
-                    defaults.removeObject(forKey: key)
-                }
-            }
-            if let originalEnv {
-                setenv(variable, originalEnv, 1)
-            } else {
-                unsetenv(variable)
-            }
-        }
-
-        defaults.set(true, forKey: migrationKey)
-        if let width = NSScreen.main?.frame.width {
-            defaults.set(width, forKey: screenWidthKey)
-        }
-        defaults.set(420.0, forKey: mainKey)
-        defaults.set(360.0, forKey: separatorKey)
-
-        setenv(variable, "0", 1)
-        _ = StatusBarController()
-
-        let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
-        let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(mainValue == 420.0, "Disabled override should preserve existing main position")
-        #expect(separatorValue == 360.0, "Disabled override should preserve existing separator position")
-    }
-
     @Test("Init clears persisted status-item visibility overrides")
     @MainActor
     func initClearsPersistedVisibilityOverrides() {
@@ -459,10 +319,10 @@ struct StatusBarControllerTests {
 
         _ = StatusBarController()
 
-        let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
-        let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(mainValue == 0.0, "Corrupted legacy AH position should trigger main reset to ordinal seed")
-        #expect(separatorValue == 1.0, "Corrupted legacy AH position should trigger separator reset to ordinal seed")
+        let mainValue = defaults.object(forKey: mainKey)
+        let separatorValue = defaults.object(forKey: separatorKey)
+        #expect(mainValue == nil, "Corrupted legacy AH position should clear main position")
+        #expect(separatorValue == nil, "Corrupted legacy AH position should clear separator position")
         #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"),
                 "Stable migration key should be set after recovery")
     }
@@ -476,8 +336,8 @@ struct StatusBarControllerTests {
             let separator: Double?
             let alwaysHidden: Double?
             let legacyAlwaysHidden: Double?
-            let expectedMain: Double
-            let expectedSeparator: Double
+            let expectedMain: Double?
+            let expectedSeparator: Double?
         }
 
         let defaults = UserDefaults.standard
@@ -521,8 +381,8 @@ struct StatusBarControllerTests {
                 separator: 360.0,
                 alwaysHidden: 10000.0,
                 legacyAlwaysHidden: 50.0,
-                expectedMain: 0.0,
-                expectedSeparator: 1.0
+                expectedMain: nil,
+                expectedSeparator: nil
             ),
             Scenario(
                 name: "v2.1.6 invalid separator position",
@@ -530,8 +390,8 @@ struct StatusBarControllerTests {
                 separator: -24.0,
                 alwaysHidden: 10000.0,
                 legacyAlwaysHidden: nil,
-                expectedMain: 0.0,
-                expectedSeparator: 1.0
+                expectedMain: nil,
+                expectedSeparator: nil
             )
         ]
 
@@ -571,8 +431,8 @@ struct StatusBarControllerTests {
 
             let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
             let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-            #expect(mainValue == scenario.expectedMain, "\(scenario.name): main position mismatch")
-            #expect(separatorValue == scenario.expectedSeparator, "\(scenario.name): separator position mismatch")
+            #expect(mainValue == scenario.expectedMain, "\(scenario.name): main position mismatch (got \(String(describing: mainValue)))")
+            #expect(separatorValue == scenario.expectedSeparator, "\(scenario.name): separator position mismatch (got \(String(describing: separatorValue)))")
             #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"),
                     "\(scenario.name): migration key should be set")
         }
@@ -687,17 +547,17 @@ struct StatusBarControllerTests {
             defaults.set(currentWidth, forKey: "SaneBar_CalibratedScreenWidth")
         }
 
-        // First launch from corrupted legacy state should recover to 0/1.
+        // First launch from corrupted legacy state should clear positions.
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
         defaults.set(10000.0, forKey: alwaysHiddenKey)
         defaults.set(50.0, forKey: legacyAlwaysHiddenKey)
         _ = StatusBarController()
 
-        let recoveredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
-        let recoveredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(recoveredMain == 0.0)
-        #expect(recoveredSeparator == 1.0)
+        let recoveredMain = defaults.object(forKey: mainKey)
+        let recoveredSeparator = defaults.object(forKey: separatorKey)
+        #expect(recoveredMain == nil)
+        #expect(recoveredSeparator == nil)
         #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"))
 
         // User rearranges after recovery.
