@@ -13,7 +13,7 @@ extension NSMenu {
 
 // MARK: - StatusBarControllerTests
 
-@Suite("StatusBarController Tests")
+@Suite("StatusBarController Tests", .serialized)
 struct StatusBarControllerTests {
     // MARK: - Icon Name Tests
 
@@ -719,6 +719,7 @@ struct StatusBarControllerTests {
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
         let alwaysHiddenKey = "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
+        let legacyAlwaysHiddenKey = "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator"
         let migrationKeys = [
             "SaneBar_PositionRecovery_Migration_v1",
             "SaneBar_PositionMigration_v4",
@@ -727,7 +728,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v7",
             "SaneBar_CalibratedScreenWidth"
         ]
-        let allKeys = [mainKey, separatorKey, alwaysHiddenKey] + migrationKeys
+        let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
         defer {
             for (key, value) in originalValues {
@@ -742,6 +743,7 @@ struct StatusBarControllerTests {
         for key in migrationKeys {
             defaults.removeObject(forKey: key)
         }
+        defaults.removeObject(forKey: legacyAlwaysHiddenKey)
         if let currentWidth = NSScreen.main?.frame.width {
             defaults.set(currentWidth, forKey: "SaneBar_CalibratedScreenWidth")
         }
