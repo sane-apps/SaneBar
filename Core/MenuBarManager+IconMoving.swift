@@ -358,7 +358,7 @@ extension MenuBarManager {
         // Fix: for moves INTO the hidden zone, use the separator's LEFT edge.
         // For moves INTO the visible zone, ensure we're expanded, then use the RIGHT edge.
 
-        let wasHidden = hidingState == .hidden
+        let wasHidden = hidingService.state == .hidden
         logger.info("🔧 wasHidden: \(wasHidden)")
 
         // SECURITY: If moving from hidden to visible, use auth-protected reveal path
@@ -519,7 +519,7 @@ extension MenuBarManager {
             return false
         }
 
-        let wasHidden = hidingState == .hidden
+        let wasHidden = hidingService.state == .hidden
         let needsAuthCheck = !toAlwaysHidden && wasHidden && settings.requireAuthToShowHiddenIcons
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
@@ -673,7 +673,7 @@ extension MenuBarManager {
             return false
         }
 
-        let wasHidden = hidingState == .hidden
+        let wasHidden = hidingService.state == .hidden
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
@@ -788,7 +788,7 @@ extension MenuBarManager {
             return false
         }
 
-        let wasHidden = hidingState == .hidden
+        let wasHidden = hidingService.state == .hidden
         let requiresAuth = wasHidden && settings.requireAuthToShowHiddenIcons
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080

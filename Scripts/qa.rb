@@ -653,6 +653,8 @@ class ProjectQA
       /drag/,
       /cursor|mouse/,
       /cannot open/,
+      /does not function|doesn't function|doesnt function/,
+      /nothing seems to happen|nothing happens/,
       /won't show|wont show/,
       /not working/,
       /broke/,
