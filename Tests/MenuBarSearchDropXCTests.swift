@@ -123,4 +123,50 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             "com.apple.menuextra.battery"
         )
     }
+
+    func testAllTabBoundaryPrefersSeparatorRightEdge() {
+        let boundary = MenuBarSearchView.separatorBoundaryForAllTabClassification(
+            separatorRightEdgeX: 1205,
+            separatorOriginX: 454
+        )
+        XCTAssertEqual(boundary, 1205)
+    }
+
+    func testAllTabBoundaryFallsBackToOrigin() {
+        let boundary = MenuBarSearchView.separatorBoundaryForAllTabClassification(
+            separatorRightEdgeX: nil,
+            separatorOriginX: 1170
+        )
+        XCTAssertEqual(boundary, 1170)
+    }
+
+    func testAllTabClassificationIgnoresAlwaysHiddenSeparatorWhenMisordered() {
+        let zone = MenuBarSearchView.classifyAllTabZone(
+            midX: 320,
+            separatorBoundaryX: 1200,
+            alwaysHiddenSeparatorX: 1400
+        )
+
+        switch zone {
+        case .hidden:
+            break
+        default:
+            XCTFail("Expected hidden when AH separator is not left of main separator")
+        }
+    }
+
+    func testAllTabClassificationUsesAlwaysHiddenWhenOrdered() {
+        let zone = MenuBarSearchView.classifyAllTabZone(
+            midX: 180,
+            separatorBoundaryX: 1200,
+            alwaysHiddenSeparatorX: 250
+        )
+
+        switch zone {
+        case .alwaysHidden:
+            break
+        default:
+            XCTFail("Expected alwaysHidden when item midpoint is left of AH separator")
+        }
+    }
 }

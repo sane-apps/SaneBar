@@ -898,3 +898,50 @@ struct MoveToVisibleRegressionTests {
         #expect(totalTime == 490, "Total drag operation: ~490ms")
     }
 }
+
+@Suite("Icon Moving — Separator Cache Coherency")
+struct IconMovingSeparatorCacheCoherencyTests {
+    @Test("Repairs stale right-edge cache from origin cache")
+    func repairsStaleRightEdgeFromOrigin() {
+        let resolved = MenuBarManager.normalizedSeparatorRightEdge(
+            cachedRightEdge: 454,
+            cachedOrigin: 1168,
+            estimatedRightEdge: nil,
+            mainLeftEdge: 1386
+        )
+        #expect(resolved == 1188)
+    }
+
+    @Test("Clamps right-edge cache left of main icon boundary")
+    func clampsRightEdgeToMainBoundary() {
+        let resolved = MenuBarManager.normalizedSeparatorRightEdge(
+            cachedRightEdge: 1450,
+            cachedOrigin: 1200,
+            estimatedRightEdge: nil,
+            mainLeftEdge: 1386
+        )
+        #expect(resolved == 1384)
+    }
+
+    @Test("Falls back to estimated edge when caches are missing")
+    func fallsBackToEstimatedEdge() {
+        let resolved = MenuBarManager.normalizedSeparatorRightEdge(
+            cachedRightEdge: nil,
+            cachedOrigin: nil,
+            estimatedRightEdge: 1190,
+            mainLeftEdge: 1386
+        )
+        #expect(resolved == 1190)
+    }
+
+    @Test("Repairs inverted edge cache to one point right of origin")
+    func repairsInvertedEdge() {
+        let resolved = MenuBarManager.normalizedSeparatorRightEdge(
+            cachedRightEdge: 1000,
+            cachedOrigin: 1168,
+            estimatedRightEdge: nil,
+            mainLeftEdge: 1386
+        )
+        #expect(resolved == 1188)
+    }
+}

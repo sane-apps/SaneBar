@@ -6,14 +6,64 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 extension MenuBarManager {
     // MARK: - Icon Moving
 
+    nonisolated static let separatorVisualWidth: CGFloat = 20
+
+    /// Normalize stale/misaligned separator right-edge cache using origin cache,
+    /// main-icon estimate, and visible boundary guardrails.
+    nonisolated static func normalizedSeparatorRightEdge(
+        cachedRightEdge: CGFloat?,
+        cachedOrigin: CGFloat?,
+        estimatedRightEdge: CGFloat?,
+        mainLeftEdge: CGFloat?
+    ) -> CGFloat? {
+        var candidate = cachedRightEdge
+
+        if let origin = cachedOrigin, origin > 0 {
+            // Repair missing, inverted, or implausibly distant right-edge caches.
+            if candidate == nil || (candidate ?? 0) <= origin || (candidate ?? 0) > (origin + 250) {
+                candidate = origin + separatorVisualWidth
+            }
+        }
+
+        if candidate == nil {
+            candidate = estimatedRightEdge
+        }
+
+        if let mainLeftEdge, mainLeftEdge > 0, let edge = candidate, edge >= mainLeftEdge {
+            candidate = max(1, mainLeftEdge - 2)
+        }
+
+        if let origin = cachedOrigin, origin > 0, let edge = candidate, edge <= origin {
+            candidate = origin + 1
+        }
+
+        guard let resolved = candidate, resolved > 0 else { return nil }
+        return resolved
+    }
+
+    private func resolvedSeparatorRightEdgeFromCaches() -> CGFloat? {
+        let normalized = Self.normalizedSeparatorRightEdge(
+            cachedRightEdge: lastKnownSeparatorRightEdgeX,
+            cachedOrigin: lastKnownSeparatorX,
+            estimatedRightEdge: estimatedSeparatorEdgesFromMainIcon()?.rightEdgeX,
+            mainLeftEdge: getMainStatusItemLeftEdgeX()
+        )
+
+        if let normalized {
+            lastKnownSeparatorRightEdgeX = normalized
+        }
+
+        return normalized
+    }
+
     /// Fallback estimate for separator edges when WindowServer reports stale/off-screen
     /// frames and no cache is available yet. We derive this from the main icon edge,
     /// because the separator is placed immediately to its left at visual width.
     private func estimatedSeparatorEdgesFromMainIcon() -> (originX: CGFloat, rightEdgeX: CGFloat)? {
         guard let mainLeftEdgeX = getMainStatusItemLeftEdgeX(), mainLeftEdgeX > 0 else { return nil }
 
-        // Separator visual width is 20 in normal state.
-        let visualWidth: CGFloat = 20
+        // Separator visual width in normal (non-blocking) mode.
+        let visualWidth: CGFloat = Self.separatorVisualWidth
         let originX = max(1, mainLeftEdgeX - visualWidth)
         let rightEdgeX = originX + visualWidth
         return (originX, rightEdgeX)
@@ -29,11 +79,14 @@ extension MenuBarManager {
         // If in blocking mode (length > 1000), live position is off-screen — use cache
         if separatorItem.length > 1000 {
             if let cachedX = lastKnownSeparatorX {
+                _ = resolvedSeparatorRightEdgeFromCaches()
                 logger.debug("🔧 getSeparatorOriginX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
                 return cachedX
             }
 
             if let estimated = estimatedSeparatorEdgesFromMainIcon() {
+                lastKnownSeparatorX = estimated.originX
+                lastKnownSeparatorRightEdgeX = estimated.rightEdgeX
                 logger.warning("🔧 getSeparatorOriginX: blocking mode with empty cache, using estimated \(estimated.originX)")
                 return estimated.originX
             }
@@ -100,35 +153,35 @@ extension MenuBarManager {
     func getSeparatorRightEdgeX() -> CGFloat? {
         guard let separatorItem else {
             logger.error("🔧 getSeparatorRightEdgeX: separatorItem is nil")
-            return lastKnownSeparatorRightEdgeX
+            return resolvedSeparatorRightEdgeFromCaches()
         }
 
         // If in blocking mode (length > 1000), live position is off-screen — use cache.
         // This mirrors getSeparatorOriginX() which already has this check.
         if separatorItem.length > 1000 {
-            let cachedX = lastKnownSeparatorRightEdgeX ?? -1
+            let cachedX = resolvedSeparatorRightEdgeFromCaches() ?? -1
             logger.debug("🔧 getSeparatorRightEdgeX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
-            return lastKnownSeparatorRightEdgeX
+            return cachedX > 0 ? cachedX : nil
         }
 
         guard let separatorButton = separatorItem.button,
               let separatorWindow = separatorButton.window
         else {
             logger.error("🔧 getSeparatorRightEdgeX: button or window is nil")
-            return lastKnownSeparatorRightEdgeX
+            return resolvedSeparatorRightEdgeFromCaches()
         }
         let frame = separatorWindow.frame
         logger.info("🔧 getSeparatorRightEdgeX: window.frame = \(String(describing: frame))")
         guard frame.width > 0 else {
             logger.error("🔧 getSeparatorRightEdgeX: frame.width is 0")
-            return lastKnownSeparatorRightEdgeX
+            return resolvedSeparatorRightEdgeFromCaches()
         }
 
         // If window frame looks stale (width > 1000 or origin off-screen),
         // WindowServer hasn't finished relayout after showAll() — use cache.
         // showAll() sets length=20 immediately but the window frame lags behind.
         if frame.width > 1000 || frame.origin.x < 0 {
-            if let cachedX = lastKnownSeparatorRightEdgeX {
+            if let cachedX = resolvedSeparatorRightEdgeFromCaches() {
                 logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
                 return cachedX
             }

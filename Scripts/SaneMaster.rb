@@ -12,6 +12,33 @@ LOGIN_KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
 
 cd "${PROJECT_ROOT}"
 
+hydrate_sanemaster_project_metadata() {
+  local manifest name scheme
+
+  manifest="${PROJECT_ROOT}/.saneprocess"
+  [ -f "${manifest}" ] || return 0
+
+  name="$(awk -F': ' '$1=="name"{print $2; exit}' "${manifest}" | tr -d '"' | xargs)"
+  scheme="$(awk -F': ' '$1=="scheme"{print $2; exit}' "${manifest}" | tr -d '"' | xargs)"
+
+  if [ -n "${name}" ] && [ -z "${SANEMASTER_PROJECT:-}" ]; then
+    export SANEMASTER_PROJECT="${name}"
+  fi
+
+  if [ -n "${scheme}" ] && [ -z "${SANEMASTER_SCHEME:-}" ]; then
+    export SANEMASTER_SCHEME="${scheme}"
+  fi
+
+  if [ -n "${name}" ]; then
+    if [ -z "${SANEMASTER_TEST_TARGET:-}" ]; then
+      export SANEMASTER_TEST_TARGET="${name}Tests"
+    fi
+    if [ -z "${SANEMASTER_UI_TEST_TARGET:-}" ]; then
+      export SANEMASTER_UI_TEST_TARGET="${name}UITests"
+    fi
+  fi
+}
+
 prepare_signing_keychain() {
   local keychain password identities identity
 
@@ -186,6 +213,8 @@ requires_codesign_prep() {
 if requires_codesign_prep "${1:-}"; then
   prepare_signing_keychain
 fi
+
+hydrate_sanemaster_project_metadata
 
 enforce_signing_preflight "${1:-}" "${@:2}"
 
