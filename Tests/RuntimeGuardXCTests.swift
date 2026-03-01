@@ -14,6 +14,46 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertEqual(y, 15, accuracy: 0.001)
     }
 
+    func testDuplicateLaunchPolicyTerminatesCurrentWhenAnotherInstanceExists() throws {
+        let fileURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("scheduleDuplicateInstanceTerminationCheckIfNeeded()"),
+            "Startup path should guard against duplicate app instances"
+        )
+        XCTAssertTrue(
+            source.contains("static func duplicateLaunchResolution(othersAtLaunch: Int, othersAfterGrace: Int?) -> DuplicateLaunchResolution"),
+            "Duplicate-launch guard should only terminate when another live instance is detected"
+        )
+        XCTAssertTrue(
+            source.contains("return othersAfterGrace > 0 ? .terminateCurrent : .noConflict"),
+            "Duplicate-launch resolution should only terminate when another instance remains after grace period"
+        )
+        XCTAssertTrue(
+            source.contains("NSApp.terminate(nil)"),
+            "Duplicate-launch guard should terminate the current launch to prevent dual-runtime corruption"
+        )
+    }
+
+    func testAppStartupInitializesSingleMenuBarRuntimePath() throws {
+        let fileURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("scheduleDuplicateInstanceTerminationCheckIfNeeded()"),
+            "Startup should short-circuit when a duplicate SaneBar instance is already running"
+        )
+        XCTAssertTrue(
+            source.contains("NSApp.setActivationPolicy(.accessory)"),
+            "SaneBar should configure accessory activation before creating menu bar status items"
+        )
+        XCTAssertTrue(
+            source.contains("_ = MenuBarManager.shared"),
+            "Startup should initialize MenuBarManager exactly once from the app delegate path"
+        )
+    }
+
     func testNormalizedEventYFlipsUnflippedMenuBarY() {
         let y = AccessibilityService.normalizedEventY(rawY: 1425, globalMaxY: 1440, anchorY: 15)
         XCTAssertEqual(y, 15, accuracy: 0.001)
@@ -43,6 +83,32 @@ final class RuntimeGuardXCTests: XCTestCase {
                 separatorX: 100,
                 toHidden: true
             )
+        )
+    }
+
+    func testHiddenMoveTargetFormulaPreservesSeparatorAndLaneSafety() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let farHiddenX = separatorX - max(80, iconWidth + 60)"),
+            "Hidden-move targeting should branch on always-hidden lane availability"
+        )
+        XCTAssertTrue(
+            source.contains("let minRegularHiddenX = ahBoundary + 2"),
+            "Hidden moves should not overshoot left of the lane floor when an always-hidden boundary exists"
+        )
+        XCTAssertTrue(
+            source.contains("guard let ahBoundary = visibleBoundaryX else { return farHiddenX }"),
+            "Hidden moves without an always-hidden boundary should keep the direct farHiddenX target"
+        )
+        XCTAssertTrue(
+            source.contains("let maxRegularHiddenX = separatorX - separatorSafety"),
+            "Hidden moves should enforce a separator-side safety margin for reliable midpoint verification"
+        )
+        XCTAssertTrue(
+            source.contains("return min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)"),
+            "Hidden move target should be clamped to the valid lane window"
         )
     }
 
@@ -231,6 +297,28 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testSearchServiceUsesStableSeparatorOriginForClassificationBoundary() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func separatorBoundaryXForClassification() -> CGFloat?"),
+            "SearchService should centralize separator lookup through a dedicated classification helper"
+        )
+        XCTAssertTrue(
+            source.contains("MenuBarManager.shared.getSeparatorRightEdgeX()"),
+            "Classification helper should prefer separator right-edge cache for stable hidden/visible partitioning"
+        )
+        XCTAssertTrue(
+            source.contains("MenuBarManager.shared.getSeparatorOriginX()"),
+            "Classification helper should use the main separator origin for stable hidden/visible partitioning"
+        )
+        XCTAssertTrue(
+            source.contains("repairAlwaysHiddenSeparatorPositionIfNeeded(reason: \"classification\")"),
+            "Classification should attempt separator repair when always-hidden ordering is invalid"
+        )
+    }
+
     func testBrowseFlowsAvoidImmediateRehideAndDeferSearchRehideWhileVisible() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -314,8 +402,40 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("manager.scheduleRehideFromSearch(after: manager.settings.findIconRehideDelay)"),
-            "Closing Browse Icons should schedule rehide only after panel dismissal"
+            source.contains("manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)"),
+            "Closing Browse Icons should arm rehide directly after panel dismissal"
+        )
+        XCTAssertTrue(
+            source.contains("refreshMouseInMenuBarStateForBrowseDismissal()"),
+            "Browse panel dismissal should refresh hover state using strict strip bounds so rehide does not get stuck near the menu bar"
+        )
+    }
+
+    func testFireTimeRehideGuardAllowsBrowseWhenHoverMonitoringIsSuspended() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("func canAutoRehideAtFireTime() -> Bool"),
+            "MenuBarManager should centralize fire-time rehide guard logic in a dedicated helper"
+        )
+        XCTAssertTrue(
+            source.contains("if hoverService.isSuspended"),
+            "Rehide guard should explicitly allow auto-rehide while Browse Icons intentionally suspends hover monitoring"
+        )
+    }
+
+    func testSecondMenuBarShowKeepsAutoRehideActiveWhenExpanded() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("second-menu-bar show scheduled rehide after"),
+            "Second Menu Bar show should keep expanded auto-rehide active instead of cancelling it indefinitely"
+        )
+        XCTAssertTrue(
+            source.contains("manager.settings.autoRehide"),
+            "Second Menu Bar show should only schedule in auto-rehide mode"
         )
     }
 
@@ -370,31 +490,159 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testStartupExternalMonitorPolicyRunsBeforeAlwaysHiddenEnforcement() throws {
+    func testStartupExternalMonitorPolicyRunsBeforeInitialHide() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         guard let skipIndex = source.range(of: "if self.shouldSkipHideForExternalMonitor"),
-              let enforceIndex = source.range(of: "await self.enforceAlwaysHiddenPinnedItems(reason: \"startup\")")
+              let hideIndex = source.range(of: "await self.hidingService.hide()")
         else {
-            XCTFail("Startup external-monitor or always-hidden enforcement blocks not found")
+            XCTFail("Startup external-monitor or initial-hide blocks not found")
             return
         }
 
         XCTAssertLessThan(
             skipIndex.lowerBound.utf16Offset(in: source),
-            enforceIndex.lowerBound.utf16Offset(in: source),
-            "Startup should skip under external-monitor policy before always-hidden automation runs"
+            hideIndex.lowerBound.utf16Offset(in: source),
+            "Startup should apply external-monitor policy before attempting initial hide"
         )
     }
 
-    func testStartupHideIsSuppressedWhenAccessibilityPermissionIsMissing() throws {
+    func testStartupHideContinuesWhenAccessibilityPermissionIsMissing() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
+            source.contains("Accessibility permission not granted at startup — continuing initial hide"),
+            "Startup should still hide at launch even when Accessibility trust is temporarily unavailable"
+        )
+        XCTAssertFalse(
+            source.contains("startupDeferredPermissionGrant"),
+            "Launch-time permission callbacks should not trigger pin drag automation"
+        )
+        XCTAssertFalse(
+            source.contains("await self.enforceAlwaysHiddenPinnedItems(reason: \"startup\")"),
+            "Startup should not run always-hidden pin enforcement before initial hide"
+        )
+        XCTAssertFalse(
             source.contains("Skipping initial hide: accessibility permission not granted"),
-            "Startup should keep icons visible when Accessibility trust is unavailable"
+            "Legacy startup skip behavior should be removed to prevent stuck-open launch regressions"
+        )
+    }
+
+    func testSearchViewOnlyForcesLiveAccessibilityProbeOnRetry() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func syncAccessibilityState() -> Bool"),
+            "Search view should centralize accessibility trust checks in one sync helper"
+        )
+        XCTAssertTrue(
+            source.contains("let liveStatus = forceProbe ?"),
+            "Accessibility sync helper should perform a live trust probe when state is refreshed"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.requestAccessibility(promptUser: promptUser)"),
+            "Accessibility sync helper should perform a live trust probe when state is refreshed"
+        )
+        XCTAssertTrue(
+            source.contains("Button(\"Try Again\") {"),
+            "Search view should expose a retry CTA in the accessibility prompt"
+        )
+        XCTAssertTrue(
+            source.contains("syncAccessibilityState(forceProbe: true, promptUser: true)"),
+            "Retry CTA should re-run accessibility synchronization before continuing"
+        )
+    }
+
+    func testSearchViewSchedulesDeferredFollowupRefreshAfterMoveEvent() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("schedulePostMoveFollowupRefresh()"),
+            "Move notifications should schedule a deferred follow-up refresh to converge post-drag classification"
+        )
+        XCTAssertTrue(
+            source.contains("private func schedulePostMoveFollowupRefresh()"),
+            "Search view should centralize delayed post-move refresh behavior in a dedicated helper"
+        )
+        XCTAssertTrue(
+            source.contains("try? await Task.sleep(for: .milliseconds(320))"),
+            "Deferred post-move refresh should wait briefly for WindowServer/AX geometry to settle"
+        )
+        XCTAssertTrue(
+            source.contains("postMoveRefreshTask?.cancel()"),
+            "Deferred post-move refresh must cancel previous scheduled work to avoid refresh pileups"
+        )
+    }
+
+    func testBrowseModeSwitchTransitionsVisiblePanelToNewMode() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let wasBrowseVisible = SearchWindowController.shared.isVisible"),
+            "Settings mode switch should detect whether a browse panel is currently visible"
+        )
+        XCTAssertTrue(
+            source.contains("let nextMode: SearchWindowMode = useSecondMenuBar ? .secondMenuBar : .findIcon"),
+            "Settings mode switch should compute the target browse mode explicitly"
+        )
+        XCTAssertTrue(
+            source.contains("SearchWindowController.shared.transition(to: nextMode)"),
+            "Switching while visible should keep browse open by transitioning to the new mode"
+        )
+    }
+
+    func testSearchWindowResetWindowRestoresRehideWhenVisible() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let wasVisible = window?.isVisible == true"),
+            "resetWindow should detect visible-panel resets"
+        )
+        XCTAssertTrue(
+            source.contains("manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)"),
+            "Visible reset should re-arm rehide so hidden icons don't stay stuck open"
+        )
+        XCTAssertTrue(
+            source.contains("func transition(to mode: SearchWindowMode)"),
+            "SearchWindowController should expose explicit mode transition support"
+        )
+    }
+
+    func testSearchWindowWindowWillCloseRestoresRehide() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func handleBrowseDismissal(reason: String)"),
+            "SearchWindowController should centralize panel-close teardown in a dedicated helper"
+        )
+        XCTAssertTrue(
+            source.contains("handleBrowseDismissal(reason: \"windowWillClose\")"),
+            "windowWillClose should run the same teardown path so titlebar closes re-arm auto-rehide"
+        )
+    }
+
+    func testSearchWindowPanelIdleTimeoutClosesAndQuickRehides() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let idleDelaySeconds: TimeInterval = (mode == .findIcon) ? 10 : 20"),
+            "Browse panel idle timeout should use mode-specific defaults (10s icon panel, 20s second menu bar)"
+        )
+        XCTAssertTrue(
+            source.contains("window.frame.contains(NSEvent.mouseLocation)"),
+            "Idle timeout should defer when the pointer is still inside the panel"
+        )
+        XCTAssertTrue(
+            source.contains("manager.hidingService.scheduleRehide(after: 0.2)"),
+            "Idle timeout close should force a short rehide delay so the menu bar does not stay expanded"
         )
     }
 

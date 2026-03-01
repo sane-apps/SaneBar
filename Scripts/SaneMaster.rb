@@ -88,8 +88,9 @@ resolved_sanebar_build_config() {
 
   case "${command}" in
   test_mode | tm | launch | build)
-    # Mirrors SaneProcess default for SaneBar local runtime testing.
-    echo "ProdDebug"
+    # Default to release-style signing for local runtime tests so
+    # Accessibility/TCC trust identity stays stable across launches.
+    echo "Release"
     ;;
   *)
     echo "Debug"
@@ -139,7 +140,7 @@ enforce_signing_preflight() {
       ;;
     esac
   done
-  allow_unsigned_fallback="${SANEMASTER_ALLOW_UNSIGNED_FALLBACK:-1}"
+  allow_unsigned_fallback="${SANEMASTER_ALLOW_UNSIGNED_FALLBACK:-0}"
 
   if headless_keychain_blocking && [ -z "${password}" ]; then
     if [[ "${allow_unsigned_fallback}" != "0" && "${explicit_signed_config}" == "0" ]]; then
@@ -150,7 +151,8 @@ enforce_signing_preflight() {
         cat <<EOF
 ⚠️  Signed ${command} blocked in headless session (keychain locked).
    Falling back to unsigned Debug build for this run.
-   Set SANEMASTER_ALLOW_UNSIGNED_FALLBACK=0 to disable this fallback.
+   Set SANEMASTER_ALLOW_UNSIGNED_FALLBACK=0 to keep this strict mode (default).
+   Set SANEMASTER_ALLOW_UNSIGNED_FALLBACK=1 only for explicit debug-only runs.
 
 EOF
         return 0

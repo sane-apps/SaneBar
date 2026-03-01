@@ -363,6 +363,26 @@ final class StatusBarController: StatusBarControllerProtocol {
         return ratio > 0.10
     }
 
+    /// Decide whether a display-change-based position reset is safe to apply.
+    /// We only auto-reset when all of the following are true:
+    /// - width change is significant
+    /// - stored values look pixel-based (not ordinal seeds)
+    /// - user is on a single-display setup
+    ///
+    /// Multi-display setups frequently report different "main" widths across restarts
+    /// even when layout is healthy. Resetting there causes avoidable layout regressions.
+    nonisolated static func shouldResetForDisplayChange(
+        storedWidth: Double,
+        currentWidth: Double,
+        hasPixelPositions: Bool,
+        screenCount: Int
+    ) -> Bool {
+        guard hasPixelPositions else { return false }
+        guard isSignificantWidthChange(stored: storedWidth, current: currentWidth) else { return false }
+        guard screenCount <= 1 else { return false }
+        return true
+    }
+
     /// Check if positions need a display reset due to a screen width change.
     /// - First launch after update (no stored width): stamps current width, returns false.
     /// - Same screen (width matches within 10%): returns false.
@@ -372,6 +392,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         let storedWidth = defaults.double(forKey: screenWidthKey)
 
         guard let currentWidth = NSScreen.main?.frame.width else { return false }
+        let screenCount = max(1, NSScreen.screens.count)
 
         if storedWidth == 0 {
             // First launch after update — stamp current width, accept positions as-is
@@ -391,12 +412,31 @@ final class StatusBarController: StatusBarControllerProtocol {
         let sepPos = defaults.object(forKey: sepKey) as? Double
 
         let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
+        let shouldReset = shouldResetForDisplayChange(
+            storedWidth: storedWidth,
+            currentWidth: currentWidth,
+            hasPixelPositions: hasPixelPositions,
+            screenCount: screenCount
+        )
 
-        if hasPixelPositions {
-            logger.info("Display validation: screen width changed (\(storedWidth) → \(currentWidth)) with pixel positions — resetting")
+        if shouldReset {
+            logger.info(
+                "Display validation: screen width changed (\(storedWidth) → \(currentWidth)) with pixel positions on single display — resetting"
+            )
+            return true
         }
 
-        return hasPixelPositions
+        // Preserve healthy layouts on multi-display setups where "main" width
+        // can legitimately vary between launches. Re-stamp width to avoid
+        // repeatedly re-evaluating the same benign drift.
+        if hasPixelPositions, screenCount > 1 {
+            logger.info(
+                "Display validation: width changed (\(storedWidth) → \(currentWidth)) on multi-display setup (\(screenCount) screens) — preserving layout"
+            )
+            defaults.set(currentWidth, forKey: screenWidthKey)
+        }
+
+        return false
     }
 
     /// Clears persisted visibility overrides written by macOS after cmd-dragging

@@ -6,6 +6,20 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 extension MenuBarManager {
     // MARK: - Visibility Control
 
+    func canAutoRehideAtFireTime() -> Bool {
+        if isMenuOpen {
+            return false
+        }
+
+        // Browse/Icon Panel intentionally suspends hover tracking. In that state,
+        // stale hover-region state must not block rehide forever.
+        if hoverService.isSuspended {
+            return true
+        }
+
+        return !hoverService.isMouseInMenuBar
+    }
+
     enum RevealTrigger: String, Sendable {
         case hotkey
         case search
@@ -164,7 +178,7 @@ extension MenuBarManager {
     /// stays visible, so active panel interactions are never interrupted.
     @MainActor
     func scheduleRehideFromSearch(after delay: TimeInterval) {
-        guard !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
+        guard !shouldSkipHideForExternalMonitor else { return }
         if SearchWindowController.shared.isVisible {
             logger.debug("Search rehide deferred while Browse Icons is visible")
             return

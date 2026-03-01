@@ -369,6 +369,47 @@ extension AccessibilityService {
         return toHidden ? midpointX < threshold : midpointX >= threshold
     }
 
+    /// Shared target X selection for Cmd+drag moves.
+    /// Hidden moves enforce a safety offset left of the separator to prevent
+    /// "looks moved but still visible" landings near the boundary.
+    nonisolated static func moveTargetX(
+        toHidden: Bool,
+        iconWidth: CGFloat,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat?
+    ) -> CGFloat {
+        let moveOffset = max(30, iconWidth + 20)
+
+        if toHidden {
+            // No clamp = direct hidden move.
+            let farHiddenX = separatorX - max(80, iconWidth + 60)
+            guard let ahBoundary = visibleBoundaryX else { return farHiddenX }
+
+            // Hidden lane is between AH separator right edge and main separator left edge.
+            // Keep enough room from separator so midpoint verification is reliable.
+            let minRegularHiddenX = ahBoundary + 2
+            let separatorSafety = max(20, (iconWidth * 0.5) + 12)
+            let maxRegularHiddenX = separatorX - separatorSafety
+
+            // If the lane is too narrow, prioritize landing left of separator.
+            guard minRegularHiddenX <= maxRegularHiddenX else {
+                return maxRegularHiddenX
+            }
+
+            return min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)
+        }
+
+        if let boundary = visibleBoundaryX {
+            // Bounded visible target:
+            // - prefer a short hop just right of separator (separator + moveOffset)
+            // - never overshoot into/through SaneBar icon (boundary - 2)
+            // - still handle flush layouts by forcing at least separator + 1
+            return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))
+        }
+
+        return separatorX + 1
+    }
+
     // MARK: - Icon Moving (CGEvent-based)
 
     /// Move a menu bar icon starting from a known WindowServer frame.
@@ -378,6 +419,7 @@ extension AccessibilityService {
         toHidden: Bool,
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
+        eventTap: CGEventTapLocation = .cghidEventTap,
         originalMouseLocation: CGPoint
     ) -> Bool {
         guard isTrusted else {
@@ -385,20 +427,18 @@ extension AccessibilityService {
             return false
         }
 
-        let moveOffset = max(30, iconFrame.size.width + 20)
-        let targetX: CGFloat = if toHidden, let ahBoundary = visibleBoundaryX {
-            max(separatorX - moveOffset, ahBoundary + 2)
-        } else if toHidden {
-            separatorX - max(80, iconFrame.size.width + 60)
-        } else if let boundary = visibleBoundaryX {
-            max(separatorX + 1, boundary - 2)
-        } else {
-            separatorX + 1
-        }
+        let targetX = Self.moveTargetX(
+            toHidden: toHidden,
+            iconWidth: iconFrame.size.width,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX
+        )
 
-        let fromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
-        let toPoint = CGPoint(x: targetX, y: iconFrame.midY)
-        return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+        let rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
+        let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
+        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
+        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
+        return performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
     }
 
     /// Reorder one icon relative to another icon using Cmd+drag.
@@ -438,8 +478,10 @@ extension AccessibilityService {
 
         let spacing = max(8, targetFrame.width * 0.25)
         let targetX = placeAfterTarget ? (targetFrame.maxX + spacing) : (targetFrame.minX - spacing)
-        let fromPoint = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
-        let toPoint = CGPoint(x: targetX, y: targetFrame.midY)
+        let rawFromPoint = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
+        let rawToPoint = CGPoint(x: targetX, y: targetFrame.midY)
+        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
+        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
         return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
     }
 
@@ -454,9 +496,11 @@ extension AccessibilityService {
         toHidden: Bool,
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
+        eventTap: CGEventTapLocation = .cghidEventTap,
         originalMouseLocation: CGPoint
     ) -> Bool {
-        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public)")
+        let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
+        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
 
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -494,37 +538,30 @@ extension AccessibilityService {
         // Hidden: LEFT of separator (into hidden zone) — need enough offset to clearly cross.
         // Visible: just LEFT of the SaneBar icon — macOS auto-inserts the icon there.
         //          Never overshoot past SaneBar or the icon lands in the system area.
-        let moveOffset = max(30, iconFrame.size.width + 20)
-        let targetX: CGFloat = if toHidden, let ahBoundary = visibleBoundaryX {
-            // Clamp: stay right of AH separator so we land in hidden zone, not AH zone
-            max(separatorX - moveOffset, ahBoundary + 2)
-        } else if toHidden {
-            // No clamp = enforcement or direct AH targeting. Drag farther left
-            // to decisively cross the separator (macOS has snap-back resistance).
-            separatorX - max(80, iconFrame.size.width + 60)
-        } else if let boundary = visibleBoundaryX {
-            // Target just left of SaneBar icon, but always right of separator.
-            // When they're flush (both 1696), this gives separatorX + 1 — right of separator,
-            // at the SaneBar icon boundary. macOS auto-inserts and pushes SaneBar right.
-            max(separatorX + 1, boundary - 2)
-        } else {
-            // Fallback if no boundary — just past separator
-            separatorX + 1
-        }
+        let targetX = Self.moveTargetX(
+            toHidden: toHidden,
+            iconWidth: iconFrame.size.width,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX
+        )
 
         logger.info("🔧 Target X: \(targetX, privacy: .public)")
 
-        // Apple docs: kAXPositionAttribute returns GLOBAL screen coordinates.
-        // CGEvent also uses global screen coordinates.
-        // Use the icon's actual AX Y position instead of hardcoding Y=12,
-        // which breaks with accessibility zoom, enlarged text, or non-standard menu bar heights.
-        let menuBarY = iconFrame.midY
-        let fromPoint = CGPoint(x: iconFrame.midX, y: menuBarY)
-        let toPoint = CGPoint(x: targetX, y: menuBarY)
+        // AX and CGEvent Y-axis orientation can differ by OS/build.
+        // Normalize both points so drag coordinates stay anchored to the menu bar.
+        let rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
+        let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
+        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
+        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
 
+        if abs(fromPoint.y - rawFromPoint.y) > 2 || abs(toPoint.y - rawToPoint.y) > 2 {
+            logger.debug(
+                "🔧 Normalized drag Y from raw (\(rawFromPoint.y, privacy: .public)->\(fromPoint.y, privacy: .public), \(rawToPoint.y, privacy: .public)->\(toPoint.y, privacy: .public))"
+            )
+        }
         logger.info("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
 
-        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
         guard didPostEvents else {
             logger.error("🔧 Cmd+drag failed: could not post events")
             return false
@@ -692,27 +729,33 @@ extension AccessibilityService {
     /// Perform a Cmd+drag operation using CGEvent (runs on background thread).
     /// Uses human-like timing (Ice-style): pre-position cursor, hide cursor,
     /// slow multi-step drag, dual event tap posting for reliability.
-    private nonisolated func performCmdDrag(from: CGPoint, to: CGPoint, restoreTo originalCGPoint: CGPoint) -> Bool {
+    private nonisolated func performCmdDrag(
+        from: CGPoint,
+        to: CGPoint,
+        eventTap: CGEventTapLocation = .cghidEventTap,
+        restoreTo originalCGPoint: CGPoint
+    ) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         let result = ResultBox()
+        let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
 
         DispatchQueue.global(qos: .userInitiated).async {
             // Verify both from and to are on valid screens
             let screens = NSScreen.screens
             guard !screens.isEmpty else {
-                logger.warning("🔧 performCmdDrag: no screens available — aborting")
+                logger.warning("🔧 performCmdDrag(\(tapName, privacy: .public)): no screens available — aborting")
                 semaphore.signal()
                 return
             }
             let fromOnScreen = screens.contains { $0.frame.contains(from) }
             let targetOnScreen = screens.contains { $0.frame.contains(to) }
             if !fromOnScreen {
-                logger.warning("🔧 performCmdDrag: from point (\(from.x), \(from.y)) is off-screen — aborting")
+                logger.warning("🔧 performCmdDrag(\(tapName, privacy: .public)): from point (\(from.x), \(from.y)) is off-screen — aborting")
                 semaphore.signal()
                 return
             }
             if !targetOnScreen {
-                logger.warning("🔧 performCmdDrag: target point (\(to.x), \(to.y)) is off-screen — aborting")
+                logger.warning("🔧 performCmdDrag(\(tapName, privacy: .public)): target point (\(to.x), \(to.y)) is off-screen — aborting")
                 semaphore.signal()
                 return
             }
@@ -724,7 +767,7 @@ extension AccessibilityService {
                 mouseCursorPosition: from,
                 mouseButton: .left
             ) {
-                moveToStart.post(tap: .cghidEventTap)
+                moveToStart.post(tap: eventTap)
                 Thread.sleep(forTimeInterval: 0.05) // Let cursor settle
             }
 
@@ -745,7 +788,7 @@ extension AccessibilityService {
                 return
             }
             mouseDown.flags = .maskCommand
-            mouseDown.post(tap: .cghidEventTap)
+            mouseDown.post(tap: eventTap)
             Thread.sleep(forTimeInterval: 0.05) // Hold before dragging (human-like)
 
             // 4. Multi-step drag with human-like timing
@@ -764,7 +807,7 @@ extension AccessibilityService {
                     mouseButton: .left
                 ) {
                     drag.flags = .maskCommand
-                    drag.post(tap: .cghidEventTap)
+                    drag.post(tap: eventTap)
                     Thread.sleep(forTimeInterval: 0.015)
                 }
             }
@@ -781,7 +824,7 @@ extension AccessibilityService {
                 return
             }
             mouseUp.flags = .maskCommand
-            mouseUp.post(tap: .cghidEventTap)
+            mouseUp.post(tap: eventTap)
             Thread.sleep(forTimeInterval: 0.15) // Let the 'drop' settle
 
             // 6. Restore cursor position
@@ -791,7 +834,7 @@ extension AccessibilityService {
                 mouseCursorPosition: originalCGPoint,
                 mouseButton: .left
             ) {
-                restoreEvent.post(tap: .cghidEventTap)
+                restoreEvent.post(tap: eventTap)
             }
 
             result.value = true
@@ -805,14 +848,14 @@ extension AccessibilityService {
 
         let waitResult = semaphore.wait(timeout: .now() + 2.0)
         if waitResult == .timedOut {
-            logger.error("🔧 performCmdDrag: semaphore timed out — forcing mouseUp to prevent stuck cursor")
+            logger.error("🔧 performCmdDrag(\(tapName, privacy: .public)): semaphore timed out — forcing mouseUp to prevent stuck cursor")
             // Force-release mouse button to prevent cursor being stuck in drag state
             if let forceUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: to, mouseButton: .left) {
-                forceUp.post(tap: .cghidEventTap)
+                forceUp.post(tap: eventTap)
             }
             // Restore cursor position even on timeout
             if let restore = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: originalCGPoint, mouseButton: .left) {
-                restore.post(tap: .cghidEventTap)
+                restore.post(tap: eventTap)
             }
             return false
         }

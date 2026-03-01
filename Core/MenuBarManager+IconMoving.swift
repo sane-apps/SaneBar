@@ -34,10 +34,6 @@ extension MenuBarManager {
             }
 
             if let estimated = estimatedSeparatorEdgesFromMainIcon() {
-                lastKnownSeparatorX = estimated.originX
-                if lastKnownSeparatorRightEdgeX == nil {
-                    lastKnownSeparatorRightEdgeX = estimated.rightEdgeX
-                }
                 logger.warning("🔧 getSeparatorOriginX: blocking mode with empty cache, using estimated \(estimated.originX)")
                 return estimated.originX
             }
@@ -67,10 +63,6 @@ extension MenuBarManager {
         }
 
         if let estimated = estimatedSeparatorEdgesFromMainIcon() {
-            lastKnownSeparatorX = estimated.originX
-            if lastKnownSeparatorRightEdgeX == nil {
-                lastKnownSeparatorRightEdgeX = estimated.rightEdgeX
-            }
             logger.warning("🔧 getSeparatorOriginX: stale/off-screen frame with empty cache, using estimated \(estimated.originX)")
             return estimated.originX
         }
@@ -142,8 +134,6 @@ extension MenuBarManager {
             }
 
             if let estimated = estimatedSeparatorEdgesFromMainIcon() {
-                lastKnownSeparatorX = estimated.originX
-                lastKnownSeparatorRightEdgeX = estimated.rightEdgeX
                 logger.warning("🔧 getSeparatorRightEdgeX: stale frame with empty cache, using estimated \(estimated.rightEdgeX)")
                 return estimated.rightEdgeX
             }
@@ -179,11 +169,26 @@ extension MenuBarManager {
     @MainActor
     func warmSeparatorPositionCache(maxAttempts: Int = 12) async {
         for attempt in 1 ... maxAttempts {
-            let separatorOrigin = getSeparatorOriginX()
-            let separatorRightEdge = getSeparatorRightEdgeX()
+            if let separatorButton = separatorItem?.button,
+               let separatorWindow = separatorButton.window {
+                let frame = separatorWindow.frame
+                if frame.origin.x > 0, frame.width > 0, frame.width < 1000 {
+                    lastKnownSeparatorX = frame.origin.x
+                    lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
+                    _ = getAlwaysHiddenSeparatorOriginX()
+                    if attempt > 1 {
+                        logger.info("🔧 Warmed separator cache after \(attempt) attempts")
+                    }
+                    return
+                }
+            }
+
             _ = getAlwaysHiddenSeparatorOriginX()
 
-            if let separatorOrigin, let separatorRightEdge,
+            // Do not treat estimated fallback as "warmed" cache.
+            // We only accept live WindowServer coordinates here.
+            if let separatorOrigin = lastKnownSeparatorX,
+               let separatorRightEdge = lastKnownSeparatorRightEdgeX,
                separatorOrigin > 0, separatorRightEdge > separatorOrigin {
                 if attempt > 1 {
                     logger.info("🔧 Warmed separator cache after \(attempt) attempts")
@@ -194,6 +199,17 @@ extension MenuBarManager {
             try? await Task.sleep(for: .milliseconds(50))
         }
         logger.debug("🔧 Unable to warm separator cache before hide (will use runtime fallbacks)")
+    }
+
+    /// Refresh cached separator boundaries after a drag mutation while separators
+    /// are still at visual size. This prevents post-move zone classification from
+    /// using stale hidden-mode cache values.
+    @MainActor
+    func refreshSeparatorCacheAfterMove() async {
+        await warmSeparatorPositionCache(maxAttempts: 16)
+        _ = getSeparatorOriginX()
+        _ = getSeparatorRightEdgeX()
+        _ = getAlwaysHiddenSeparatorOriginX()
     }
 
     @MainActor
@@ -234,10 +250,12 @@ extension MenuBarManager {
             lastTargets = targets
 
             if let separatorX = targets.separatorX, separatorX > 0 {
-                if attempt > 1 {
-                    logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                if toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0) {
+                    if attempt > 1 {
+                        logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                    }
+                    return targets
                 }
-                return targets
             }
 
             try? await Task.sleep(for: .milliseconds(50))
@@ -355,6 +373,12 @@ extension MenuBarManager {
                 logger.error("🔧 Cannot get separator position - ABORTING")
                 return false
             }
+            if !toHidden {
+                guard let visibleBoundaryX, visibleBoundaryX > 0 else {
+                    logger.error("🔧 Missing visible boundary for move-to-visible - ABORTING")
+                    return false
+                }
+            }
             logger.info("🔧 Separator for move: X=\(separatorX), visibleBoundary=\(visibleBoundaryX ?? -1)")
 
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
@@ -373,7 +397,7 @@ extension MenuBarManager {
             // One retry if verification failed — icon may have partially moved
             // or AX position hadn't settled yet on slower Macs.
             if !success {
-                logger.info("🔧 Retrying move once...")
+                logger.info("🔧 Retrying move once with session tap...")
                 try? await Task.sleep(for: .milliseconds(200))
                 success = accessibilityService.moveMenuBarIcon(
                     bundleID: bundleID,
@@ -382,10 +406,15 @@ extension MenuBarManager {
                     toHidden: toHidden,
                     separatorX: separatorX,
                     visibleBoundaryX: visibleBoundaryX,
+                    eventTap: .cgSessionEventTap,
                     originalMouseLocation: originalCGPoint
                 )
                 logger.info("🔧 Retry returned: \(success, privacy: .public)")
             }
+
+            // Update cached separator boundaries to the post-drag geometry before
+            // any hide transition pushes separators off-screen.
+            await self.refreshSeparatorCacheAfterMove()
 
             // Restore shield pattern and re-hide if we expanded.
             // This MUST complete before refreshing — otherwise the AX scan
@@ -506,7 +535,7 @@ extension MenuBarManager {
 
             // One retry if verification failed
             if !success {
-                logger.info("🔧 Always-hidden move retry...")
+                logger.info("🔧 Always-hidden move retry with session tap...")
                 try? await Task.sleep(for: .milliseconds(200))
                 success = accessibilityService.moveMenuBarIcon(
                     bundleID: bundleID,
@@ -515,10 +544,14 @@ extension MenuBarManager {
                     toHidden: toAlwaysHidden,
                     separatorX: separatorX,
                     visibleBoundaryX: visibleBoundaryX,
+                    eventTap: .cgSessionEventTap,
                     originalMouseLocation: originalCGPoint
                 )
                 logger.info("🔧 Always-hidden retry returned: \(success, privacy: .public)")
             }
+
+            // Keep classification boundary caches aligned with the new layout.
+            await self.refreshSeparatorCacheAfterMove()
 
             // 5. Restore: re-block always-hidden items (shield pattern)
             await hidingService.restoreFromShowAll()
@@ -648,7 +681,7 @@ extension MenuBarManager {
             )
 
             if !success {
-                logger.info("🔧 AH-to-Hidden move retry...")
+                logger.info("🔧 AH-to-Hidden move retry with session tap...")
                 try? await Task.sleep(for: .milliseconds(200))
                 success = accessibilityService.moveMenuBarIcon(
                     bundleID: bundleID,
@@ -657,9 +690,13 @@ extension MenuBarManager {
                     toHidden: false,
                     separatorX: ahSepRightEdge,
                     visibleBoundaryX: mainSepOriginX,
+                    eventTap: .cgSessionEventTap,
                     originalMouseLocation: originalCGPoint
                 )
             }
+
+            // Keep classification boundary caches aligned with the new layout.
+            await self.refreshSeparatorCacheAfterMove()
 
             // 4. Restore shield and re-hide (BEFORE refresh)
             await hidingService.restoreFromShowAll()
@@ -760,6 +797,9 @@ extension MenuBarManager {
                     originalMouseLocation: originalCGPoint
                 )
             }
+
+            // Keep classification boundary caches aligned with the new layout.
+            await self.refreshSeparatorCacheAfterMove()
 
             let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
             if wasHidden {

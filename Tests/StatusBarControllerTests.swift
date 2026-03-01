@@ -1033,4 +1033,48 @@ struct StatusBarControllerTests {
         // 10.1%: 1000 → 1101
         #expect(StatusBarController.isSignificantWidthChange(stored: 1000, current: 1101))
     }
+
+    @Test("Display reset triggers for significant change on single display with pixel positions")
+    func shouldResetForDisplayChangeSingleDisplay() {
+        let shouldReset = StatusBarController.shouldResetForDisplayChange(
+            storedWidth: 1440,
+            currentWidth: 2560,
+            hasPixelPositions: true,
+            screenCount: 1
+        )
+        #expect(shouldReset)
+    }
+
+    @Test("Display reset is suppressed on multi-display setups")
+    func shouldNotResetForDisplayChangeMultiDisplay() {
+        let shouldReset = StatusBarController.shouldResetForDisplayChange(
+            storedWidth: 1440,
+            currentWidth: 2560,
+            hasPixelPositions: true,
+            screenCount: 2
+        )
+        #expect(!shouldReset)
+    }
+
+    @Test("Display reset is suppressed when positions are ordinal-like")
+    func shouldNotResetWithoutPixelPositions() {
+        let shouldReset = StatusBarController.shouldResetForDisplayChange(
+            storedWidth: 1440,
+            currentWidth: 2560,
+            hasPixelPositions: false,
+            screenCount: 1
+        )
+        #expect(!shouldReset)
+    }
+
+    @Test("Display reset is suppressed when change is below threshold")
+    func shouldNotResetBelowThreshold() {
+        let shouldReset = StatusBarController.shouldResetForDisplayChange(
+            storedWidth: 1440,
+            currentWidth: 1512,
+            hasPixelPositions: true,
+            screenCount: 1
+        )
+        #expect(!shouldReset)
+    }
 }

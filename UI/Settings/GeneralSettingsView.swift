@@ -593,13 +593,20 @@ struct GeneralSettingsView: View {
     }
 
     private func applyBrowseIconsViewSelection(_ useSecondMenuBar: Bool) {
+        let wasBrowseVisible = SearchWindowController.shared.isVisible
         menuBarManager.settings.useSecondMenuBar = useSecondMenuBar
         // Icon Panel is the primary browse workflow. Keep always-hidden available there.
         if !useSecondMenuBar, licenseService.isPro, !menuBarManager.settings.alwaysHiddenSectionEnabled {
             menuBarManager.settings.alwaysHiddenSectionEnabled = true
         }
         normalizeBrowseModeSettingsForCurrentPlan()
-        SearchWindowController.shared.resetWindow()
+
+        let nextMode: SearchWindowMode = useSecondMenuBar ? .secondMenuBar : .findIcon
+        if wasBrowseVisible {
+            SearchWindowController.shared.transition(to: nextMode)
+        } else {
+            SearchWindowController.shared.resetWindow()
+        }
     }
 
     private func normalizeBrowseModeSettingsForCurrentPlan() {

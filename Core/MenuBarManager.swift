@@ -93,6 +93,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         shouldIgnoreHideRequest(origin: .automatic)
     }
 
+    /// Prevent development/test builds from mutating persistent login-item state.
+    /// This avoids DerivedData/dev runs poisoning launch-at-login on user machines.
+    private func canMutateLaunchAtLogin() -> Bool {
+        let bundlePath = Bundle.main.bundleURL.path
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+
+        if bundlePath.contains("/DerivedData/") { return false }
+        if bundleID.hasSuffix(".dev") { return false }
+        return bundlePath.hasPrefix("/Applications/")
+    }
+
     // MARK: - Services
 
     let hidingService: HidingService
@@ -358,7 +369,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Prevents hiding while user is interacting with any menu (SaneBar's or third-party).
         hidingService.shouldRehide = { [weak self] in
             guard let self else { return true }
-            return !isMenuOpen && !hoverService.isMouseInMenuBar
+            return self.canAutoRehideAtFireTime()
         }
 
         // Now do the rest of setup
@@ -519,7 +530,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Prevents hiding while user is interacting with any menu (SaneBar's or third-party).
         hidingService.shouldRehide = { [weak self] in
             guard let self else { return true }
-            return !isMenuOpen && !hoverService.isMouseInMenuBar
+            return self.canAutoRehideAtFireTime()
         }
 
         // If WindowServer position cache is corrupted and the controller
@@ -622,18 +633,18 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     return
                 }
 
-                // Failsafe: if Accessibility trust is currently unavailable,
-                // keep icons visible instead of collapsing everything behind
-                // the delimiter where recovery/browse actions are degraded.
-                if !AccessibilityService.shared.isGranted {
-                    logger.warning("Skipping initial hide: accessibility permission not granted")
-                    return
+                let hasAccessibilityPermission = AccessibilityService.shared.isGranted
+                if !hasAccessibilityPermission {
+                    logger.warning(
+                        "Accessibility permission not granted at startup — continuing initial hide; launch-time pin automation is deferred"
+                    )
+                } else if !self.settings.alwaysHiddenPinnedItemIds.isEmpty {
+                    // Launch-time pin enforcement used Cmd+drag automation before the
+                    // first hide and could keep the menu bar expanded long enough to
+                    // look like auto-rehide was broken. Keep startup deterministic:
+                    // hide first, then rely on normal runtime enforcement paths.
+                    logger.info("Skipping launch-time always-hidden pin automation to keep startup hide deterministic")
                 }
-
-                // If the user has pinned items to the always-hidden section, enforce them
-                // after external-monitor policy checks so we never run automation moves in
-                // a policy-disabled state.
-                await self.enforceAlwaysHiddenPinnedItems(reason: "startup")
 
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
@@ -956,9 +967,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             saveSettings()
             Task.detached { await EventTracker.log("new_free_user") }
 
-            // Enable launch at login by default
-            try? SMAppService.mainApp.register()
-            logger.info("Applied Smart defaults for first-launch onboarding (incl. launch at login)")
+            // Enable launch at login by default (installed app only).
+            if canMutateLaunchAtLogin() {
+                try? SMAppService.mainApp.register()
+                logger.info("Applied Smart defaults for first-launch onboarding (incl. launch at login)")
+            } else {
+                logger.warning("Skipping launch-at-login auto-register for non-canonical app path: \(Bundle.main.bundleURL.path, privacy: .public)")
+            }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 OnboardingController.shared.show()

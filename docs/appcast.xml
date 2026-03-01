@@ -3,27 +3,24 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-    <item>
-                <title>2.1.12</title>
-                <pubDate>Fri, 27 Feb 2026 12:24:07 -0500</pubDate>
-                <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-                <description>
-                    <![CDATA[
-                    <h2>What's New</h2>
-                    <ul>
-                    <li>Clearer onboarding guidance for first-time setup</li>
-                    <li>More reliable permission handling and recovery</li>
-                    <li>Visual polish for a cleaner, more premium experience</li>
-                    </ul>
-                    ]]>
-                </description>
-                <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.12.zip"
-                           sparkle:version="2112"
-                           sparkle:shortVersionString="2.1.12"
-                           length="7898857"
-                           type="application/octet-stream"
-                           sparkle:edSignature="xCSx++9lZ3zlM0y96/1/7ad3choScDB4WHu/Sn+X+wVOBtDn8Tg93WhA+NoQ3DEjUp7VnsjTyL8DwwH1OjCFBA=="/>
-            </item>
-
+            <item>
+            <title>2.1.14</title>
+            <pubDate>Sat, 28 Feb 2026 07:54:37 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Critical hotfix: recovers from corrupted WindowServer status-item position cache that could cause menu bar icons to disappear or fail to restore. Automatically self-heals autosave namespace and rebuilds status items.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.14.zip"
+                       sparkle:version="2114"
+                       sparkle:shortVersionString="2.1.14"
+                       length="8004305"
+                       type="application/octet-stream"
+                       sparkle:edSignature="2E2KC1JFY8aiHuXcN+KLtRAaw3zs8GQBehK9FK9lXLg3a3J06glTSNbzIUX+INEUV1LetUtCHQu1ChJeAnapDQ=="/>
+        </item>
   </channel>
 </rss>

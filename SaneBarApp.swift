@@ -11,6 +11,22 @@ private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
 // CLEAN: Single initialization path - only MenuBarManager creates status items
 
 class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
+    enum DuplicateLaunchResolution: Equatable {
+        case noConflict
+        case waitForHandoff
+        case terminateCurrent
+    }
+
+    static let duplicateLaunchGraceNanoseconds: UInt64 = 2_000_000_000
+    static let automaticTerminationReason = "SaneBar must stay active as a menu bar app"
+    private var keepAliveActivity: NSObjectProtocol?
+
+    static func duplicateLaunchResolution(othersAtLaunch: Int, othersAfterGrace: Int?) -> DuplicateLaunchResolution {
+        guard othersAtLaunch > 0 else { return .noConflict }
+        guard let othersAfterGrace else { return .waitForHandoff }
+        return othersAfterGrace > 0 ? .terminateCurrent : .noConflict
+    }
+
     // No @main - using main.swift instead
 
     func applicationDidFinishLaunching(_: Notification) {
@@ -19,11 +35,17 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
 
+        // Keep the menu bar process alive across idle periods.
+        keepAliveActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.automaticTerminationDisabled, .suddenTerminationDisabled],
+            reason: Self.automaticTerminationReason
+        )
+        ProcessInfo.processInfo.disableAutomaticTermination(Self.automaticTerminationReason)
+        ProcessInfo.processInfo.disableSuddenTermination()
+
         // Guard against accidental duplicate launches of the same bundle.
-        // Duplicate status items can cause unstable menu anchoring behavior.
-        if terminateIfDuplicateInstanceRunning() {
-            return
-        }
+        // Use a handoff grace window so update relaunches do not self-terminate.
+        scheduleDuplicateInstanceTerminationCheckIfNeeded()
 
         // Move to /Applications if running from Downloads or other location (Release only)
         #if !DEBUG
@@ -52,17 +74,57 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
 
-    @MainActor
-    private func terminateIfDuplicateInstanceRunning() -> Bool {
-        guard let bundleID = Bundle.main.bundleIdentifier else { return false }
-        let currentPID = ProcessInfo.processInfo.processIdentifier
-        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .filter { $0.processIdentifier != currentPID }
+    func applicationWillTerminate(_: Notification) {
+        if let keepAliveActivity {
+            ProcessInfo.processInfo.endActivity(keepAliveActivity)
+            self.keepAliveActivity = nil
+        }
+        ProcessInfo.processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
+        ProcessInfo.processInfo.enableSuddenTermination()
+    }
 
-        guard !others.isEmpty else { return false }
-        appLogger.error("Duplicate instance detected for bundle \(bundleID, privacy: .public). Terminating current launch.")
-        NSApp.terminate(nil)
-        return true
+    @MainActor
+    private func runningDuplicateInstances(bundleID: String, currentPID: pid_t) -> [NSRunningApplication] {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != currentPID }
+    }
+
+    @MainActor
+    private func scheduleDuplicateInstanceTerminationCheckIfNeeded() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let initialOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID)
+        let initialResolution = Self.duplicateLaunchResolution(
+            othersAtLaunch: initialOthers.count,
+            othersAfterGrace: nil
+        )
+
+        guard initialResolution == .waitForHandoff else { return }
+
+        appLogger.warning(
+            "Duplicate launch detected for bundle \(bundleID, privacy: .public). Waiting \(Self.duplicateLaunchGraceNanoseconds / 1_000_000_000)s for handoff before termination."
+        )
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.duplicateLaunchGraceNanoseconds)
+            let remainingOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID).count
+            let finalResolution = Self.duplicateLaunchResolution(
+                othersAtLaunch: initialOthers.count,
+                othersAfterGrace: remainingOthers
+            )
+
+            switch finalResolution {
+            case .noConflict:
+                appLogger.info("Duplicate launch handoff resolved; keeping current instance alive.")
+            case .waitForHandoff:
+                break
+            case .terminateCurrent:
+                appLogger.error(
+                    "Duplicate instance still running after grace period for bundle \(bundleID, privacy: .public). Terminating current launch."
+                )
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func application(_: NSApplication, open urls: [URL]) {

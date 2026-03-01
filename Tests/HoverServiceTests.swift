@@ -302,4 +302,32 @@ struct HoverServiceTests {
 
         #expect(result == false)
     }
+
+    @Test("Menu bar strip helper includes only top strip")
+    func testMenuBarStripHelperIncludesTopStrip() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let point = NSPoint(x: 100, y: 890)
+
+        let result = HoverService.isPointInMenuBarStrip(
+            point,
+            screenFrames: [screen],
+            detectionZoneHeight: 24
+        )
+
+        #expect(result == true)
+    }
+
+    @Test("Menu bar strip helper excludes dropdown zone below strip")
+    func testMenuBarStripHelperExcludesDropdownZone() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let point = NSPoint(x: 100, y: 760) // 140px below menu bar top
+
+        let result = HoverService.isPointInMenuBarStrip(
+            point,
+            screenFrames: [screen],
+            detectionZoneHeight: 24
+        )
+
+        #expect(result == false)
+    }
 }

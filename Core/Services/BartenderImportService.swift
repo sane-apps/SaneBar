@@ -91,6 +91,16 @@ enum BartenderImportService {
         }
     }
 
+    /// Prevent development/test builds from mutating persistent login-item state.
+    private static func canMutateLaunchAtLogin() -> Bool {
+        let bundlePath = Bundle.main.bundleURL.path
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+
+        if bundlePath.contains("/DerivedData/") { return false }
+        if bundleID.hasSuffix(".dev") { return false }
+        return bundlePath.hasPrefix("/Applications/")
+    }
+
     // MARK: - Import
 
     @MainActor
@@ -327,11 +337,16 @@ enum BartenderImportService {
 
         // launchAtLogin.isEnabled → SMAppService
         if let launchAtLogin = root["launchAtLogin.isEnabled"] as? Bool, launchAtLogin {
-            do {
-                try SMAppService.mainApp.register()
-                summary.behavioralSettings.append("Launch at login: on")
-            } catch {
-                logger.warning("Failed to set launch at login: \(error.localizedDescription)")
+            if canMutateLaunchAtLogin() {
+                do {
+                    try SMAppService.mainApp.register()
+                    summary.behavioralSettings.append("Launch at login: on")
+                } catch {
+                    logger.warning("Failed to set launch at login: \(error.localizedDescription)")
+                }
+            } else {
+                logger.warning("Skipping launch-at-login import for non-canonical app path: \(Bundle.main.bundleURL.path, privacy: .public)")
+                summary.behavioralSettings.append("Launch at login: skipped (non-canonical test build)")
             }
         }
 

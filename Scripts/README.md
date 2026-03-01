@@ -34,6 +34,19 @@ These were previously standalone bash scripts. Now unified in SaneMaster — sin
 ./scripts/SaneMaster.rb appstore_preflight  # App Store submission compliance
 ```
 
+Release preflight now enforces project QA guardrails:
+- 24h soak window between releases (override requires an interactive typed approval phrase)
+- reporter confirmation check for recently closed regression issues (override requires an interactive typed approval phrase)
+- dedicated stability suite focused on upgrade state + second-menu-bar behavior
+
+If a guard fails, stop and fix the root cause, verify, then rerun preflight before continuing release work.
+
+Run the dedicated stability suite directly:
+
+```bash
+SANEBAR_RUN_STABILITY_SUITE=1 ruby ./scripts/qa.rb
+```
+
 ## Sales & Revenue (via SaneMaster)
 
 ```bash
@@ -60,7 +73,7 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 | Script | Purpose |
 |--------|---------|
 | `SaneMaster.rb` | Thin wrapper (20L) delegating to SaneProcess |
-| `qa.rb` | Project QA checks (12 SaneBar-specific validations) |
+| `qa.rb` | Project QA checks (release guardrails, appcast blocks, migration guards, stability suite) |
 | `post_release.rb` | Post-release tasks (appcast update, GitHub release) |
 | `button_map.rb` | Map all UI controls and their handlers |
 | `trace_flow.rb` | Debug function call flow through the codebase |

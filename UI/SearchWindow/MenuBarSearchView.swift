@@ -43,7 +43,9 @@ struct MenuBarSearchView: View {
     @State private var hasAccessibility = false
     @State private var permissionMonitorTask: Task<Void, Never>?
     @State private var refreshTask: Task<Void, Never>?
+    @State private var postMoveRefreshTask: Task<Void, Never>?
     @State private var refreshGeneration = 0
+    @State private var postMoveRefreshGeneration = 0
 
     @State var hotkeyApp: RunningApp?
     @State var proUpsellFeature: ProFeature?
@@ -193,6 +195,7 @@ struct MenuBarSearchView: View {
             movingAppId = nil
             needsPostMoveRefresh = true
             refreshApps(force: true)
+            schedulePostMoveFollowupRefresh()
         }
         .onChange(of: storedMode) { _, _ in
             if needsPostMoveRefresh {
@@ -219,6 +222,7 @@ struct MenuBarSearchView: View {
         .onDisappear {
             permissionMonitorTask?.cancel()
             refreshTask?.cancel()
+            postMoveRefreshTask?.cancel()
         }
         .sheet(item: $hotkeyApp) { app in
             HotkeyAssignmentSheet(app: app, onDone: { hotkeyApp = nil })
@@ -299,11 +303,13 @@ struct MenuBarSearchView: View {
                 activateApp(app, isRightClick: isRightClick)
             },
             onRetry: {
-                _ = syncAccessibilityState()
+                _ = syncAccessibilityState(forceProbe: true, promptUser: true)
                 loadCachedApps()
                 refreshApps(force: true)
             },
-            onIconMoved: { loadCachedApps(); refreshApps(force: true) },
+            // Moves already emit .menuBarIconsDidChange after cache invalidation.
+            // Avoid a second forced refresh path here to reduce scan latency/races.
+            onIconMoved: nil,
             searchText: $searchText
         )
     }
@@ -356,15 +362,21 @@ struct MenuBarSearchView: View {
 
     @MainActor
     private func syncAccessibilityState() -> Bool {
-        // force a live trust check and keep published state in sync
-        let liveStatus = AccessibilityService.shared.requestAccessibility()
+        syncAccessibilityState(forceProbe: false, promptUser: false)
+    }
+
+    @MainActor
+    private func syncAccessibilityState(forceProbe: Bool, promptUser: Bool = false) -> Bool {
+        // Passive paths should use cached published state to avoid repeated TCC hits.
+        // Only explicit retry actions should force a live check.
+        let liveStatus = forceProbe ? AccessibilityService.shared.requestAccessibility(promptUser: promptUser) : AccessibilityService.shared.isGranted
         hasAccessibility = liveStatus
         return liveStatus
     }
 
     @MainActor
     private func loadCachedApps() {
-        let liveStatus = syncAccessibilityState()
+        _ = syncAccessibilityState()
 
         guard hasAccessibility else {
             menuBarApps = []
@@ -390,6 +402,22 @@ struct MenuBarSearchView: View {
                 menuBarApps = classified.alwaysHidden
             case .all:
                 menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
+            }
+        }
+    }
+
+    @MainActor
+    private func schedulePostMoveFollowupRefresh() {
+        // A single delayed refresh smooths out WindowServer/AX settle races after drag moves.
+        postMoveRefreshTask?.cancel()
+        postMoveRefreshGeneration += 1
+        let generation = postMoveRefreshGeneration
+
+        postMoveRefreshTask = Task {
+            try? await Task.sleep(for: .milliseconds(320))
+            await MainActor.run {
+                guard self.postMoveRefreshGeneration == generation else { return }
+                self.refreshApps(force: true)
             }
         }
     }
@@ -884,7 +912,7 @@ struct MenuBarSearchView: View {
                 .shadow(color: Color(red: 0.10, green: 0.28, blue: 0.48).opacity(0.35), radius: 8, x: 0, y: 3)
 
                 Button("Try Again") {
-                    _ = syncAccessibilityState()
+                    _ = syncAccessibilityState(forceProbe: true, promptUser: true)
                     loadCachedApps()
                     refreshApps(force: true)
                 }

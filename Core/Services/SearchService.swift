@@ -88,13 +88,19 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    private func separatorOriginXForClassification() -> CGFloat? {
-        MenuBarManager.shared.getSeparatorOriginX()
+    private func separatorBoundaryXForClassification() -> CGFloat? {
+        // Use the separator's right edge as the hidden/visible boundary.
+        // In collapsed mode, right-edge cache remains stable while live AX frames
+        // can lag, which avoids misclassifying hidden icons as visible.
+        if let rightEdge = MenuBarManager.shared.getSeparatorRightEdgeX() {
+            return rightEdge
+        }
+        return MenuBarManager.shared.getSeparatorOriginX()
     }
 
     @MainActor
     private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
-        guard let separatorX = separatorOriginXForClassification() else { return nil }
+        guard let separatorX = separatorBoundaryXForClassification() else { return nil }
 
         guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
             return (separatorX, nil)
@@ -114,7 +120,7 @@ final class SearchService: SearchServiceProtocol {
             }
 
             MenuBarManager.shared.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "classification")
-            let repairedSeparatorX = separatorOriginXForClassification() ?? separatorX
+            let repairedSeparatorX = separatorBoundaryXForClassification() ?? separatorX
             let repairedAlwaysHiddenX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
             if let repairedAlwaysHiddenX, repairedAlwaysHiddenX < repairedSeparatorX {
                 return (repairedSeparatorX, repairedAlwaysHiddenX)

@@ -207,11 +207,20 @@ final class AccessibilityService: ObservableObject {
         AXIsProcessTrusted()
     }
 
-    /// Check accessibility permission state without showing a system prompt.
-    /// Returns true if already trusted, false if user needs to grant permission in System Settings.
+    /// Check accessibility permission state.
+    /// - Parameter promptUser: When true, asks macOS to present the Accessibility grant prompt if needed.
+    /// - Returns: true if trusted, false if user still needs to grant permission.
     @discardableResult
-    func requestAccessibility() -> Bool {
-        let trusted = AXIsProcessTrusted()
+    func requestAccessibility(promptUser: Bool = false) -> Bool {
+        let trusted: Bool
+        if promptUser {
+            // Use the documented key string directly to avoid Swift 6
+            // concurrency diagnostics around the imported C global.
+            let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+            trusted = AXIsProcessTrustedWithOptions(options)
+        } else {
+            trusted = AXIsProcessTrusted()
+        }
         if !trusted {
             logger.info("Accessibility not trusted")
         } else {

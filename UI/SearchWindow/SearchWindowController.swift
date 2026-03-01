@@ -1,5 +1,8 @@
 import AppKit
+import os.log
 import SwiftUI
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchWindowController")
 
 // MARK: - SearchWindowMode
 
@@ -40,6 +43,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// The mode this window was created for (nil if no window exists)
     private var currentMode: SearchWindowMode?
 
+    /// Idle-close timer for browse panels (keeps panel interaction intentional).
+    private var panelIdleCloseTask: Task<Void, Never>?
+    private var panelIdleCloseGeneration: Int = 0
+
     /// Prevents explicit closes during icon moves (CGEvent can flip key status)
     private(set) var isMoveInProgress = false
 
@@ -77,6 +84,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func show(mode: SearchWindowMode? = nil, prefill searchText: String? = nil) {
         let desiredMode = mode ?? activeMode
         normalizeBrowseModeSettings(for: desiredMode)
+        let manager = MenuBarManager.shared
+        logger.info("show requested mode=\(String(describing: desiredMode), privacy: .public) currentMode=\(String(describing: self.currentMode), privacy: .public)")
 
         // If mode changed, recreate the window
         if currentMode != nil, currentMode != desiredMode {
@@ -100,11 +109,19 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
 
         // Suspend hover/click triggers while search is open
-        MenuBarManager.shared.hoverService.isSuspended = true
+        manager.hoverService.isSuspended = true
 
         if desiredMode == .secondMenuBar {
-            // Cancel rehide — panel mode replaces the expand/collapse paradigm
-            MenuBarManager.shared.hidingService.cancelRehide()
+            // Keep auto-rehide behavior active in second-menu-bar mode so
+            // expanded bars do not remain stuck open while the panel is visible.
+            if manager.hidingService.state == .expanded,
+               manager.settings.autoRehide,
+               !manager.shouldSkipHideForExternalMonitor {
+                manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)
+                logger.info("second-menu-bar show scheduled rehide after \(manager.settings.findIconRehideDelay, privacy: .public)s")
+            } else {
+                manager.hidingService.cancelRehide()
+            }
         }
 
         positionWindow(window, mode: desiredMode)
@@ -113,6 +130,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         // Notify the SwiftUI view to reload (window is reused, onAppear won't fire again)
         NotificationCenter.default.post(name: Self.windowDidShowNotification, object: nil)
+
+        // Keep panel sessions intentional: auto-close + quick rehide after idle.
+        schedulePanelIdleCloseIfNeeded(for: desiredMode)
     }
 
     private func normalizeBrowseModeSettings(for mode: SearchWindowMode) {
@@ -148,28 +168,96 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // simulation causes resignKey which would break the move.
         guard !isMoveInProgress else { return }
 
-        let manager = MenuBarManager.shared
         window?.orderOut(nil)
+        handleBrowseDismissal(reason: "close")
+    }
+
+    private func handleBrowseDismissal(reason: String) {
+        let manager = MenuBarManager.shared
+        panelIdleCloseTask?.cancel()
+        panelIdleCloseTask = nil
 
         // Resume hover/click triggers and refresh pointer state before scheduling rehide.
-        // Without this, isMouseInMenuBar can stay stale while monitoring was suspended,
-        // which can suppress rehide indefinitely until the next mouse-move event.
+        // Use strict menu-strip bounds on panel dismiss so the nearby panel area
+        // doesn't keep rehide blocked as "menu interaction."
         manager.hoverService.isSuspended = false
-        manager.hoverService.refreshMouseInMenuBarState()
+        manager.hoverService.refreshMouseInMenuBarStateForBrowseDismissal()
 
         if manager.hidingService.state == .expanded,
-           !manager.isRevealPinned,
            !manager.shouldSkipHideForExternalMonitor {
-            manager.scheduleRehideFromSearch(after: manager.settings.findIconRehideDelay)
+            manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)
+            logger.info("\(reason, privacy: .public) scheduled rehide after \(manager.settings.findIconRehideDelay, privacy: .public)s")
         }
+
         // Do NOT set window to nil, we reuse it for performance
+        logger.info("\(reason, privacy: .public) completed (window hidden, cache retained)")
+    }
+
+    private func schedulePanelIdleCloseIfNeeded(for mode: SearchWindowMode) {
+        panelIdleCloseTask?.cancel()
+        panelIdleCloseTask = nil
+
+        let manager = MenuBarManager.shared
+        guard manager.settings.autoRehide, !manager.shouldSkipHideForExternalMonitor else { return }
+
+        let idleDelaySeconds: TimeInterval = (mode == .findIcon) ? 10 : 20
+        panelIdleCloseGeneration += 1
+        let generation = panelIdleCloseGeneration
+
+        panelIdleCloseTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(idleDelaySeconds))
+            await MainActor.run {
+                guard let self else { return }
+                guard self.panelIdleCloseGeneration == generation else { return }
+                guard self.window?.isVisible == true, self.currentMode == mode, !self.isMoveInProgress else { return }
+
+                // If the pointer is still inside the panel when the timer fires,
+                // defer closure and give the user another full interaction window.
+                if let window = self.window, window.frame.contains(NSEvent.mouseLocation) {
+                    logger.debug("panel idle timeout deferred (\(idleDelaySeconds, privacy: .public)s): pointer still in panel")
+                    self.schedulePanelIdleCloseIfNeeded(for: mode)
+                    return
+                }
+
+                logger.info("panel idle timeout fired (\(idleDelaySeconds, privacy: .public)s): closing panel")
+                self.close()
+
+                // Idle close should feel immediate; override close() delay with a short rehide.
+                if manager.hidingService.state == .expanded,
+                   !manager.shouldSkipHideForExternalMonitor {
+                    manager.hidingService.scheduleRehide(after: 0.2)
+                    logger.info("panel idle timeout forced quick rehide")
+                }
+            }
+        }
     }
 
     /// Destroy the cached window so it's recreated with the correct mode next time
     func resetWindow() {
+        let wasVisible = window?.isVisible == true
         window?.orderOut(nil)
         window = nil
         currentMode = nil
+        logger.info("resetWindow invoked (wasVisible=\(wasVisible, privacy: .public))")
+
+        guard wasVisible else { return }
+
+        // Match close() teardown semantics when a visible panel is force-reset
+        // (for example, switching browse mode in Settings).
+        handleBrowseDismissal(reason: "resetWindow")
+    }
+
+    /// Transition between browse panel modes while preserving "panel stays open" UX.
+    /// Used when settings switch between Second Menu Bar and Icon Panel mid-session.
+    func transition(to mode: SearchWindowMode) {
+        let wasVisible = window?.isVisible == true
+        window?.orderOut(nil)
+        window = nil
+        currentMode = nil
+        logger.info("transition requested to mode=\(String(describing: mode), privacy: .public) fromVisible=\(wasVisible, privacy: .public)")
+
+        guard wasVisible else { return }
+        show(mode: mode)
     }
 
     // MARK: - Window Positioning
@@ -324,8 +412,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func windowDidBecomeKey(_: Notification) {}
 
     func windowWillClose(_: Notification) {
-        // If user explicitly closes, we can either keep it or nil it.
-        // Keeping it is better for performance.
+        guard !isMoveInProgress else { return }
+
+        // Ensure titlebar/command close paths apply the same teardown as close().
+        handleBrowseDismissal(reason: "windowWillClose")
     }
 
 }

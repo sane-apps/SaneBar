@@ -161,6 +161,18 @@ final class HoverService: HoverServiceProtocol {
         )
     }
 
+    /// Refresh cached mouse state after Browse Icons panel dismissal.
+    /// Uses strict menu-strip bounds (no dropdown zone) so panel-close events
+    /// don't leave auto-rehide blocked while the cursor is still near the top.
+    func refreshMouseInMenuBarStateForBrowseDismissal() {
+        let mouseLocation = NSEvent.mouseLocation
+        isMouseInMenuBar = Self.isPointInMenuBarStrip(
+            mouseLocation,
+            screens: NSScreen.screens,
+            detectionZoneHeight: detectionZoneHeight
+        )
+    }
+
     // MARK: - Private Methods
 
     /// Update monitoring state based on all relevant properties
@@ -377,6 +389,32 @@ final class HoverService: HoverServiceProtocol {
         // In the interaction zone directly below menu bar (for open menus/popovers).
         let distanceBelowMenuBar = menuBarTop - point.y
         return distanceBelowMenuBar > 0 && distanceBelowMenuBar <= leaveThreshold
+    }
+
+    static func isPointInMenuBarStrip(
+        _ point: NSPoint,
+        screens: [NSScreen],
+        detectionZoneHeight: CGFloat = 24
+    ) -> Bool {
+        isPointInMenuBarStrip(
+            point,
+            screenFrames: screens.map(\.frame),
+            detectionZoneHeight: detectionZoneHeight
+        )
+    }
+
+    static func isPointInMenuBarStrip(
+        _ point: NSPoint,
+        screenFrames: [CGRect],
+        detectionZoneHeight: CGFloat = 24
+    ) -> Bool {
+        guard let screenFrame = screenFrames.first(where: { NSMouseInRect(point, $0, false) }) else {
+            return false
+        }
+
+        let menuBarTop = screenFrame.maxY
+        let menuBarBottom = menuBarTop - detectionZoneHeight
+        return point.y >= menuBarBottom && point.y <= menuBarTop
     }
 
     private func distanceFromMenuBarTop(_ point: NSPoint) -> CGFloat {

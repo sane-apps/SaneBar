@@ -467,8 +467,8 @@ struct IconMovingScenarioTests {
 
         // Target calculation
         let moveOffset = max(30, iconFrame.size.width + 20) // 42
-        let targetX = min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 20)
-        // min(542, 880) = 542
+        let targetX = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+        // max(501, min(542, 898)) = 542
 
         // Grab point
         let fromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY) // (411, 16)
@@ -488,10 +488,10 @@ struct IconMovingScenarioTests {
         let iconFrame = CGRect(x: 750, y: 5, width: 22, height: 22)
 
         let moveOffset = max(30, iconFrame.size.width + 20) // 42
-        let targetX = min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 20)
-        // min(842, 800) = 800
+        let targetX = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+        // max(801, min(842, 818)) = 818
 
-        #expect(targetX == 800, "Tight layout: clamped to boundary - 20")
+        #expect(targetX == 818, "Tight layout: bounded by boundary - 2")
         #expect(targetX < mainIconLeftEdge)
     }
 
@@ -552,7 +552,9 @@ struct MoveToVisibleRegressionTests {
         // the old formula used `separatorX + moveOffset` = 1696 + 36 = 1732.
         // This placed the icon PAST the SaneBar icon → landed in system area → triggered Control Center.
         //
-        // FIX: Use `max(separatorX + 1, visibleBoundaryX - 2)` = max(1697, 1694) = 1697.
+        // FIX: Use `max(separatorX + 1, min(separatorX + moveOffset, visibleBoundaryX - 2))`.
+        // Flush case still resolves to 1697:
+        // max(1697, min(1732, 1694)) = 1697.
         // This places the icon at the boundary, and macOS auto-inserts it, pushing SaneBar right.
 
         let separatorRightEdgeX: CGFloat = 1696
@@ -565,41 +567,59 @@ struct MoveToVisibleRegressionTests {
         #expect(oldTarget == 1732, "Old formula would place icon at 1732")
         #expect(oldTarget > mainIconLeftEdge, "Old target OVERSHOOTS past SaneBar icon")
 
-        // NEW (CORRECT): max(separatorX + 1, boundaryX - 2) = max(1697, 1694) = 1697
-        let newTarget = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        // NEW (CORRECT): max(separatorX + 1, min(separatorX + moveOffset, boundaryX - 2))
+        let newTarget = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
         #expect(newTarget == 1697, "New formula places icon at 1697 (just right of separator)")
         #expect(newTarget > separatorRightEdgeX, "Target must be right of separator")
         #expect(newTarget <= mainIconLeftEdge + 1, "Target must stay at or just past boundary (macOS will auto-insert)")
     }
 
-    @Test("REGRESSION: Gap between separator and SaneBar — use boundary - 2")
+    @Test("REGRESSION: Gap between separator and SaneBar — prefer short hop near separator")
     func gapBetweenSeparatorAndMainIcon() {
-        // When there's space between separator and SaneBar icon,
-        // the boundary clamp activates: boundaryX - 2 wins
+        // When there is space, avoid dragging all the way to boundary.
+        // Use separator + moveOffset unless that would overshoot boundary - 2.
 
         let separatorRightEdgeX: CGFloat = 1500
         let mainIconLeftEdge: CGFloat = 1700 // 200px gap
         let iconWidth: CGFloat = 16
+        let moveOffset = max(30, iconWidth + 20) // 36
 
-        let target = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
 
-        // max(1501, 1698) = 1698
-        #expect(target == 1698, "Wide gap: boundary - 2 wins")
+        // max(1501, min(1536, 1698)) = 1536
+        #expect(target == 1536, "Gap case: separator + moveOffset wins")
         #expect(target > separatorRightEdgeX, "Target must be right of separator")
         #expect(target < mainIconLeftEdge, "Target must be left of SaneBar icon")
     }
 
-    @Test("REGRESSION: Wide gap — boundary clamp still prevents overshoot")
+    @Test("REGRESSION: Wide gap — target stays near separator (short drag)")
     func wideGapBoundaryClamp() {
         let separatorRightEdgeX: CGFloat = 1200
         let mainIconLeftEdge: CGFloat = 1800 // 600px gap!
         let iconWidth: CGFloat = 16
+        let moveOffset = max(30, iconWidth + 20) // 36
 
-        let target = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
 
-        // max(1201, 1798) = 1798
-        #expect(target == 1798, "Wide gap: boundary - 2 is used")
+        // max(1201, min(1236, 1798)) = 1236
+        #expect(target == 1236, "Wide gap: separator + moveOffset is used")
         #expect(target < mainIconLeftEdge, "Even with wide gap, target doesn't overshoot")
+    }
+
+    @Test("REGRESSION: #93-style geometry avoids boundary-hugging target")
+    func issue93StyleGeometryUsesBoundedTarget() {
+        // From issue #93 diagnostics (rounded):
+        // separator≈1208, mainIconLeft≈1386, iconWidth≈31.
+        let separatorRightEdgeX: CGFloat = 1208
+        let mainIconLeftEdge: CGFloat = 1386
+        let iconWidth: CGFloat = 31
+        let moveOffset = max(30, iconWidth + 20) // 51
+
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+
+        // max(1209, min(1259, 1384)) = 1259
+        #expect(target == 1259, "Target should stay near separator, not jump to boundary-2")
+        #expect(target < (mainIconLeftEdge - 50), "Target should avoid boundary-hugging long drags")
     }
 
     // MARK: - Target for Move-to-Hidden Unchanged
@@ -715,8 +735,10 @@ struct MoveToVisibleRegressionTests {
     func separatorAndBoundaryEqual() {
         let separatorRightEdgeX: CGFloat = 1696
         let mainIconLeftEdge: CGFloat = 1696
+        let iconWidth: CGFloat = 16
+        let moveOffset = max(30, iconWidth + 20) // 36
 
-        let target = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
 
         // max(1697, 1694) = 1697
         #expect(target == 1697, "When equal, separatorX + 1 wins (1697 > 1694)")
@@ -726,22 +748,26 @@ struct MoveToVisibleRegressionTests {
     func separatorJustLeftOfBoundary() {
         let separatorRightEdgeX: CGFloat = 1690
         let mainIconLeftEdge: CGFloat = 1700 // 10px gap
+        let iconWidth: CGFloat = 16
+        let moveOffset = max(30, iconWidth + 20) // 36
 
-        let target = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
 
-        // max(1691, 1698) = 1698
-        #expect(target == 1698, "10px gap: boundaryX - 2 wins")
+        // max(1691, min(1726, 1698)) = 1698
+        #expect(target == 1698, "10px gap: boundary clamp (boundary - 2) wins")
     }
 
     @Test("Very tight gap: still doesn't overshoot")
     func veryTightGapNoOvershoot() {
         let separatorRightEdgeX: CGFloat = 1695
         let mainIconLeftEdge: CGFloat = 1696 // 1px gap!
+        let iconWidth: CGFloat = 16
+        let moveOffset = max(30, iconWidth + 20) // 36
 
-        let target = max(separatorRightEdgeX + 1, mainIconLeftEdge - 2)
+        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
 
         // max(1696, 1694) = 1696
-        #expect(target == 1696, "1px gap: still uses separatorX + 1")
+        #expect(target == 1696, "1px gap: still resolves to separatorX + 1")
         #expect(target <= mainIconLeftEdge, "Doesn't overshoot even with 1px gap")
     }
 
@@ -763,8 +789,8 @@ struct MoveToVisibleRegressionTests {
             // OLD: min(separatorX + moveOffset, boundaryX - 20)
             let oldTarget = min(scenario.sep + moveOffset, scenario.boundary - 20)
 
-            // NEW: max(separatorX + 1, boundaryX - 2)
-            let newTarget = max(scenario.sep + 1, scenario.boundary - 2)
+            // NEW: max(separatorX + 1, min(separatorX + moveOffset, boundaryX - 2))
+            let newTarget = max(scenario.sep + 1, min(scenario.sep + moveOffset, scenario.boundary - 2))
 
             // When flush (sep == boundary), formula intentionally targets sep+1;
             // macOS auto-adjusts by pushing items apart
@@ -772,6 +798,7 @@ struct MoveToVisibleRegressionTests {
                 #expect(newTarget == scenario.boundary + 1, "Flush: targets 1px past boundary for macOS auto-adjust (\(scenario.name))")
             } else {
                 #expect(newTarget <= scenario.boundary, "New formula never overshoots boundary (\(scenario.name))")
+                #expect(newTarget <= oldTarget + 20, "New formula avoids oversized jumps in wide gaps (\(scenario.name))")
             }
             #expect(newTarget > scenario.sep, "New formula always right of separator (\(scenario.name))")
         }
