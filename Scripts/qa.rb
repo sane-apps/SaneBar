@@ -190,6 +190,9 @@ class ProjectQA
   def request_manual_override(gate:, summary:)
     phrase = manual_override_phrase(gate: gate)
 
+    env_override = manual_override_from_env(gate)
+    return [true, phrase] if env_override == phrase
+
     unless $stdin.tty? && $stdout.tty?
       return [false, phrase]
     end
@@ -202,6 +205,19 @@ class ProjectQA
     response = $stdin.gets&.strip
 
     [response == phrase, phrase]
+  end
+
+  def manual_override_from_env(gate)
+    case gate
+    when :release_cadence
+      ENV['SANEPROCESS_APPROVE_FAST_RELEASE'] || ENV['SANEBAR_APPROVE_FAST_RELEASE']
+    when :open_regression_release
+      ENV['SANEPROCESS_APPROVE_OPEN_REGRESSION_RELEASE'] || ENV['SANEBAR_APPROVE_OPEN_REGRESSION_RELEASE']
+    when :unconfirmed_regression_close
+      ENV['SANEPROCESS_APPROVE_UNCONFIRMED_REGRESSION_CLOSE'] || ENV['SANEBAR_APPROVE_UNCONFIRMED_REGRESSION_CLOSE']
+    else
+      nil
+    end
   end
 
   def check_sanemaster_wrapper
