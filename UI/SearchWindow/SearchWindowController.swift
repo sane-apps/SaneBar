@@ -111,18 +111,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         // Suspend hover/click triggers while search is open
         manager.hoverService.isSuspended = true
 
-        if desiredMode == .secondMenuBar {
-            // Keep auto-rehide behavior active in second-menu-bar mode so
-            // expanded bars do not remain stuck open while the panel is visible.
-            if manager.hidingService.state == .expanded,
-               manager.settings.autoRehide,
-               !manager.shouldSkipHideForExternalMonitor {
-                manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)
-                logger.info("second-menu-bar show scheduled rehide after \(manager.settings.findIconRehideDelay, privacy: .public)s")
-            } else {
-                manager.hidingService.cancelRehide()
-            }
-        }
+        // Unified browse-panel policy:
+        // While either panel is visible, suspend rehide timers so icon moves/clicks
+        // are not racing with background hide transitions.
+        manager.hidingService.cancelRehide()
+        logger.info("browse panel show (\(String(describing: desiredMode), privacy: .public)) suspended rehide while panel is visible")
 
         positionWindow(window, mode: desiredMode)
         window.makeKeyAndOrderFront(nil)
