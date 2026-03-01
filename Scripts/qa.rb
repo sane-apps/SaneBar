@@ -25,7 +25,26 @@ require 'time'
 
 class ProjectQA
   PROJECT_ROOT = File.expand_path('..', __dir__)
-  PROJECT_NAME = File.basename(PROJECT_ROOT)
+  SANEPROCESS_MANIFEST = File.join(PROJECT_ROOT, '.saneprocess')
+  MANIFEST_METADATA = begin
+    metadata = {}
+    if File.exist?(SANEPROCESS_MANIFEST)
+      File.foreach(SANEPROCESS_MANIFEST) do |line|
+        raw = line.chomp
+        stripped = raw.strip
+        next if stripped.empty? || stripped.start_with?('#')
+        next if raw.start_with?(' ', "\t")
+
+        if (match = raw.match(/\A(name|scheme|project):\s*(.+)\z/))
+          metadata[match[1]] = match[2].delete('"').strip
+        end
+      end
+    end
+    metadata
+  end
+  PROJECT_NAME = MANIFEST_METADATA['name'] || File.basename(PROJECT_ROOT)
+  PROJECT_SCHEME = MANIFEST_METADATA['scheme'] || PROJECT_NAME
+  PROJECT_XCODEPROJ = File.join(PROJECT_ROOT, MANIFEST_METADATA['project'] || "#{PROJECT_NAME}.xcodeproj")
 
   README = File.join(PROJECT_ROOT, 'README.md')
   DEVELOPMENT_MD = File.join(PROJECT_ROOT, 'DEVELOPMENT.md')
@@ -77,9 +96,12 @@ class ProjectQA
       'REGRESSION: Hidden→visible must use showAll(), not show()',
       'REGRESSION: Drag uses 16 steps, not 6',
     ],
+    'Tests/MenuBarSearchDropXCTests.swift' => [
+      'testAllTabBoundaryPrefersSeparatorRightEdge',
+      'testSourceResolutionUsesAllModeZoneClassifierOnFallback',
+    ],
     'Tests/RuntimeGuardXCTests.swift' => [
-      'testSearchServiceUsesSeparatorRightEdgeForClassificationBoundary',
-      'testStartupHideIsSuppressedWhenAccessibilityPermissionIsMissing',
+      'testStartupHideContinuesWhenAccessibilityPermissionIsMissing',
       'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers',
     ],
     'Tests/SecondMenuBarTests.swift' => [
@@ -730,9 +752,8 @@ class ProjectQA
       return
     end
 
-    xcodeproj = File.join(PROJECT_ROOT, "#{PROJECT_NAME}.xcodeproj")
-    unless File.exist?(xcodeproj)
-      @errors << "Stability suite: missing xcodeproj at #{xcodeproj}"
+    unless File.exist?(PROJECT_XCODEPROJ)
+      @errors << "Stability suite: missing xcodeproj at #{PROJECT_XCODEPROJ}"
       puts '❌ missing xcodeproj'
       return
     end
@@ -744,8 +765,8 @@ class ProjectQA
 
     cmd = [
       'xcodebuild',
-      '-project', xcodeproj,
-      '-scheme', PROJECT_NAME,
+      '-project', PROJECT_XCODEPROJ,
+      '-scheme', PROJECT_SCHEME,
       '-destination', 'platform=macOS,arch=arm64',
       'CODE_SIGNING_ALLOWED=NO',
       'test',
