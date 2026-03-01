@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.17] - 2026-03-01
+
+This update improves auto rehide behavior around Browse Icons and makes moving icons between Hidden and Visible more reliable.
+
+---
+
 ## [2.1.16] - 2026-02-28
 
 Improved auto-hide reliability when closing Icon Panel and switching browse views.
