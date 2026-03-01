@@ -425,17 +425,51 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testSecondMenuBarShowKeepsAutoRehideActiveWhenExpanded() throws {
+    func testBrowsePanelShowSuspendsRehideWhileVisible() throws {
         let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("second-menu-bar show scheduled rehide after"),
-            "Second Menu Bar show should keep expanded auto-rehide active instead of cancelling it indefinitely"
+            source.contains("browse panel show (\\(String(describing: desiredMode), privacy: .public)) suspended rehide while panel is visible"),
+            "Browse panel show should suspend rehide so panel interactions don't race against hide transitions"
         )
         XCTAssertTrue(
-            source.contains("manager.settings.autoRehide"),
-            "Second Menu Bar show should only schedule in auto-rehide mode"
+            source.contains("manager.hidingService.cancelRehide()"),
+            "Browse panel show should cancel active rehide timers while the panel remains open"
+        )
+    }
+
+    func testQAGateTreatsDoesNotFunctionAsRegressionLikeIssue() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Scripts/qa.rb")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("/does not function|doesn't function|doesnt function/"),
+            "Open regression guardrails should detect issue titles that say an interaction 'does not function'"
+        )
+        XCTAssertTrue(
+            source.contains("/nothing seems to happen|nothing happens/"),
+            "Open regression guardrails should detect issue titles that describe no-op interactions"
+        )
+    }
+
+    func testMoveAndPinFlowsUseLiveHidingServiceState() throws {
+        let movingURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let movingSource = try String(contentsOf: movingURL, encoding: .utf8)
+        XCTAssertTrue(
+            movingSource.contains("let wasHidden = hidingService.state == .hidden"),
+            "Icon move flows should use live hidingService.state to avoid stale hidingState races during fast transitions"
+        )
+        XCTAssertFalse(
+            movingSource.contains("let wasHidden = hidingState == .hidden"),
+            "Icon move flows should not rely on cached hidingState for hidden/expanded checks"
+        )
+
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+AlwaysHidden.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("let wasHidden = hidingService.state == .hidden"),
+            "Always-hidden pin enforcement should use live hidingService.state for restore/hide decisions"
         )
     }
 
