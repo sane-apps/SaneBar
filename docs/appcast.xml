@@ -3,7 +3,46 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-                    <item>
+                                    
+        <item>
+            <title>2.1.18</title>
+            <pubDate>Mon, 02 Mar 2026 11:15:02 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>This update fixes a download/install problem that could make macOS block SaneBar after some unzip methods. It also improves icon moving and click behavior in Browse Icons and the second menu bar.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.18.zip"
+                       sparkle:version="2118"
+                       sparkle:shortVersionString="2.1.18"
+                       length="7948865"
+                       type="application/octet-stream"
+                       sparkle:edSignature="w17vEfo8xEcSCQLH3fuVTK8F3o+wDF9ATjS8BFwUsYM9fR2d3OhaLC0k41wbSPyDJJBxBZ7Y2U3ILAn8hei9BA=="/>
+        </item>
+<item>
+            <title>2.1.17</title>
+            <pubDate>Sun, 01 Mar 2026 14:25:22 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>This update improves auto rehide behavior around Browse Icons and makes moving icons between Hidden and Visible more reliable.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.17.zip"
+                       sparkle:version="2117"
+                       sparkle:shortVersionString="2.1.17"
+                       length="8013495"
+                       type="application/octet-stream"
+                       sparkle:edSignature="/jvIMt2VseXt3T+rcp4fExYfSf8wkU/PumaiNHkSJaFasjsrt2+Q6i8UFKvkhDe9Pn4BQbK+EBKgfhPK//yaCw=="/>
+        </item>
+<item>
             <title>2.1.16</title>
             <pubDate>Sat, 28 Feb 2026 21:36:28 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
