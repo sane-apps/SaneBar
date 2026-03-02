@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.18] - 2026-03-02
+
+This update fixes a download/install problem that could make macOS block SaneBar after some unzip methods. It also improves icon moving and click behavior in Browse Icons and the second menu bar.
+
+---
+
 ## [2.1.17] - 2026-03-01
 
 This update improves auto rehide behavior around Browse Icons and makes moving icons between Hidden and Visible more reliable.
