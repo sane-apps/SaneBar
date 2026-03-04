@@ -5,6 +5,8 @@ import SaneUI
 import ServiceManagement
 import SwiftUI
 
+// swiftlint:disable file_length
+
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
 
 // MARK: - MenuBarManager
@@ -1016,3 +1018,5 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 }
+
+// swiftlint:enable file_length

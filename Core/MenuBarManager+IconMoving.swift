@@ -1,6 +1,8 @@
 import AppKit
 import os.log
 
+// swiftlint:disable file_length
+
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.IconMoving")
 
 extension MenuBarManager {
@@ -1252,3 +1254,5 @@ extension MenuBarManager {
         return started && success
     }
 }
+
+// swiftlint:enable file_length
