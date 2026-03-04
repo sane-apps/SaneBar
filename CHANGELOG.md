@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.20] - 2026-03-03
+
+Fix panel refresh sync, harden launch/runtime behavior, and improve menu handling stability.
+
+---
+
 ## [2.1.19] - 2026-03-03
 
 - Fix icon panel refresh latency after moving icons between zones. - Harden launch/test path to prevent duplicate installs and Accessibility permission loops. - Improve stability when switching between Second Menu Bar and Icon Panel.
