@@ -317,6 +317,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     // MARK: - Auto-Rehide
 
     private var rehideTask: Task<Void, Never>?
+    private var rehideGeneration: UInt64 = 0
 
     /// Fire-time safety check: called right before `hide()` executes after the timer expires.
     /// Returns true if it's safe to rehide, false to skip (e.g. user is interacting with a menu).
@@ -325,22 +326,30 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     /// Schedule auto-rehide after delay
     func scheduleRehide(after delay: TimeInterval) {
+        rehideGeneration &+= 1
+        let generation = rehideGeneration
+
         rehideTask?.cancel()
 
-        rehideTask = Task {
+        rehideTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                if !Task.isCancelled {
-                    // Fire-time guard: skip if user is interacting with any menu (#97)
-                    if let shouldRehide, !shouldRehide() {
-                        logger.debug("Rehide deferred — fire-time guard active")
-                        if state == .expanded {
-                            scheduleRehide(after: Self.rehideGuardRetryDelay)
-                        }
-                        return
+                guard !Task.isCancelled else { return }
+                guard generation == self.rehideGeneration else { return }
+
+                // Fire-time guard: skip if user is interacting with any menu (#97)
+                if let shouldRehide, !shouldRehide() {
+                    logger.debug("Rehide deferred — fire-time guard active")
+                    if self.state == .expanded, generation == self.rehideGeneration {
+                        self.scheduleRehide(after: Self.rehideGuardRetryDelay)
                     }
-                    await hide()
+                    return
                 }
+
+                guard !Task.isCancelled else { return }
+                guard generation == self.rehideGeneration else { return }
+                await self.hide()
             } catch {
                 // Task cancelled - ignore
             }
@@ -349,6 +358,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     /// Cancel pending auto-rehide
     func cancelRehide() {
+        rehideGeneration &+= 1
         rehideTask?.cancel()
         rehideTask = nil
     }

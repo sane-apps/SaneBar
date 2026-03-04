@@ -39,6 +39,7 @@ extension MenuBarManager {
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
         lastKnownAlwaysHiddenSeparatorX = nil
+        lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
         AccessibilityService.shared.invalidateMenuBarItemCache()
 
         // Validate after macOS settles the relayout. If still misordered, apply
@@ -61,6 +62,7 @@ extension MenuBarManager {
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
             self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
             self.lastKnownAlwaysHiddenSeparatorX = nil
+            self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
             AccessibilityService.shared.invalidateMenuBarItemCache()
         }
     }
@@ -98,6 +100,52 @@ extension MenuBarManager {
         guard newIds.count != settings.alwaysHiddenPinnedItemIds.count else { return }
         settings.alwaysHiddenPinnedItemIds = newIds
         AccessibilityService.shared.invalidateMenuBarItemCache()
+    }
+
+    /// Defensive unpin used before move-to-visible paths.
+    /// Removes any pin identity that could map to this app instance.
+    /// Returns true when at least one pin entry was removed.
+    @discardableResult
+    func unpinAlwaysHidden(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> Bool {
+        let cleanBundleID = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanBundleID.isEmpty else { return false }
+
+        let cleanMenuExtraId = menuExtraId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pinCountBefore = settings.alwaysHiddenPinnedItemIds.count
+
+        let filtered = settings.alwaysHiddenPinnedItemIds.filter { raw in
+            guard let pin = parseAlwaysHiddenPin(raw) else {
+                // Keep unknown pins untouched; parse cleanup happens in enforcement path.
+                return true
+            }
+            switch pin {
+            case let .bundleId(bundle):
+                return bundle != cleanBundleID
+
+            case let .axId(bundle, axId):
+                guard bundle == cleanBundleID else { return true }
+                if let cleanMenuExtraId, !cleanMenuExtraId.isEmpty {
+                    return axId != cleanMenuExtraId
+                }
+                return false
+
+            case let .statusItem(bundle, index):
+                guard bundle == cleanBundleID else { return true }
+                if let statusItemIndex {
+                    return index != statusItemIndex
+                }
+                return false
+
+            case let .menuExtra(identifier):
+                guard let cleanMenuExtraId, !cleanMenuExtraId.isEmpty else { return true }
+                return identifier != cleanMenuExtraId
+            }
+        }
+
+        guard filtered.count != pinCountBefore else { return false }
+        settings.alwaysHiddenPinnedItemIds = filtered
+        AccessibilityService.shared.invalidateMenuBarItemCache()
+        return true
     }
 
     // MARK: - Pin Parsing
@@ -217,6 +265,10 @@ extension MenuBarManager {
     }
 
     func enforceAlwaysHiddenPinnedItems(reason: String, filterBundleId: String? = nil) async {
+        if let activeMoveTask, !activeMoveTask.isCancelled {
+            logger.debug("Always-hidden pin enforcement skipped while icon move is in progress (\(reason, privacy: .public))")
+            return
+        }
         guard !shouldSkipHideForExternalMonitor else {
             logger.info(
                 "Always-hidden pin enforcement skipped by external monitor policy (\(reason, privacy: .public))"
@@ -257,16 +309,17 @@ extension MenuBarManager {
         await hidingService.showAll()
         try? await Task.sleep(for: .milliseconds(300))
 
-        guard let alwaysHiddenSeparatorX = getAlwaysHiddenSeparatorOriginX() else {
+        guard let alwaysHiddenSeparatorOriginX = getAlwaysHiddenSeparatorOriginX() else {
             logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): separator position unavailable")
             await hidingService.restoreFromShowAll()
             if wasHidden { await hidingService.hide() }
             return
         }
+        let alwaysHiddenBoundaryX = getAlwaysHiddenSeparatorBoundaryX() ?? alwaysHiddenSeparatorOriginX
 
         // Validate separator ordering: always-hidden separator must be LEFT of main separator
-        if let mainSeparatorX = getSeparatorOriginX(), alwaysHiddenSeparatorX >= mainSeparatorX {
-            logger.error("Always-hidden separator (\(alwaysHiddenSeparatorX)) is not left of main separator (\(mainSeparatorX)) — skipping enforcement")
+        if let mainSeparatorX = getSeparatorOriginX(), alwaysHiddenSeparatorOriginX >= mainSeparatorX {
+            logger.error("Always-hidden separator (\(alwaysHiddenSeparatorOriginX)) is not left of main separator (\(mainSeparatorX)) — skipping enforcement")
             repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "pinEnforcement")
             await hidingService.restoreFromShowAll()
             if wasHidden { await hidingService.hide() }
@@ -310,12 +363,12 @@ extension MenuBarManager {
 
             // Re-read separator position before each move — moving the previous
             // icon causes macOS to relayout the menu bar and shift positions.
-            let currentAHSepX = getAlwaysHiddenSeparatorOriginX() ?? alwaysHiddenSeparatorX
+            let currentAHBoundaryX = getAlwaysHiddenSeparatorBoundaryX() ?? alwaysHiddenBoundaryX
 
             let alreadyAlwaysHidden = isInAlwaysHiddenZone(
                 itemX: item.x,
                 itemWidth: item.app.width,
-                alwaysHiddenSeparatorX: currentAHSepX
+                alwaysHiddenSeparatorX: currentAHBoundaryX
             )
             guard !alreadyAlwaysHidden else { continue }
 
@@ -328,7 +381,7 @@ extension MenuBarManager {
                 menuExtraId: item.app.menuExtraIdentifier,
                 statusItemIndex: item.app.statusItemIndex,
                 toHidden: true,
-                separatorOverrideX: currentAHSepX
+                separatorOverrideX: currentAHBoundaryX
             )
 
             // Brief settle after each move to let macOS finish relayout
@@ -355,7 +408,7 @@ extension MenuBarManager {
         // Wait for macOS to finish relayout after drag
         try? await Task.sleep(for: .milliseconds(400))
 
-        guard let ahSeparatorX = getAlwaysHiddenSeparatorOriginX() else {
+        guard let ahSeparatorX = (getAlwaysHiddenSeparatorBoundaryX() ?? getAlwaysHiddenSeparatorOriginX()) else {
             logger.debug("reconcilePins: AH separator not found — skipping")
             return
         }

@@ -61,6 +61,12 @@ struct SecondMenuBarView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbarRow
+            if hasAccessibility {
+                rowStateControls
+                if let hint = hiddenOnlyHintText {
+                    hiddenOnlyHint(message: hint)
+                }
+            }
             if !hasAccessibility {
                 accessibilityPrompt
             } else if movableVisible.isEmpty, movableHidden.isEmpty, movableAlwaysHidden.isEmpty {
@@ -200,6 +206,123 @@ struct SecondMenuBarView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Row State Controls
+
+    private var hiddenOnlyHintText: String? {
+        SecondMenuBarLayout.hiddenOnlyGuidance(
+            includeVisibleIcons: menuBarManager.settings.secondMenuBarShowVisible,
+            isPro: licenseService.isPro
+        )
+    }
+
+    private var rowStateControls: some View {
+        HStack(spacing: 6) {
+            rowStateChip(
+                title: "Visible",
+                isOn: menuBarManager.settings.secondMenuBarShowVisible,
+                isLocked: !licenseService.isPro
+            ) {
+                guard licenseService.isPro else {
+                    proUpsellFeature = .zoneMoves
+                    return
+                }
+                menuBarManager.settings.secondMenuBarShowVisible.toggle()
+            }
+
+            rowStateChip(
+                title: "Hidden",
+                isOn: true,
+                isLocked: false,
+                isInteractive: false
+            ) { }
+
+            rowStateChip(
+                title: "Always Hidden",
+                isOn: menuBarManager.settings.alwaysHiddenSectionEnabled &&
+                    menuBarManager.settings.secondMenuBarShowAlwaysHidden,
+                isLocked: !licenseService.isPro
+            ) {
+                guard licenseService.isPro else {
+                    proUpsellFeature = .zoneMoves
+                    return
+                }
+
+                if !menuBarManager.settings.alwaysHiddenSectionEnabled {
+                    menuBarManager.settings.alwaysHiddenSectionEnabled = true
+                    menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+                } else {
+                    menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
+    }
+
+    private func rowStateChip(
+        title: String,
+        isOn: Bool,
+        isLocked: Bool,
+        isInteractive: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if isLocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(textSecondary)
+                }
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(textPrimary)
+                Text(isOn ? "On" : "Off")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(isOn ? Color.green.opacity(0.95) : textSecondary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(isOn ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isInteractive)
+        .opacity(isInteractive ? 1 : 0.95)
+    }
+
+    private func hiddenOnlyHint(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(textSecondary)
+
+            Text(message)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(textPrimary)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
+
+            if licenseService.isPro {
+                Button("Show Visible Row") {
+                    menuBarManager.settings.secondMenuBarShowVisible = true
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.mini)
+            } else {
+                Button("Unlock Pro") {
+                    proUpsellFeature = .zoneMoves
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.mini)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 6)
     }
 
     private func zoneRow(
@@ -559,6 +682,17 @@ enum SecondMenuBarLayout {
         includeAlwaysHiddenIcons: Bool
     ) -> Bool {
         alwaysHiddenZoneEnabled && includeAlwaysHiddenIcons
+    }
+
+    static func hiddenOnlyGuidance(
+        includeVisibleIcons: Bool,
+        isPro: Bool
+    ) -> String? {
+        guard !includeVisibleIcons else { return nil }
+        if isPro {
+            return "Hidden Only mode is on. To move icons to Visible, right-click an icon or turn on the Visible row."
+        }
+        return "Hidden Only mode is on. Move icons between Hidden and Visible with Pro."
     }
 }
 

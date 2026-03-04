@@ -35,6 +35,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// Posted when the search window is shown (so the SwiftUI view can reload on re-show)
     static let windowDidShowNotification = Notification.Name("SearchWindowController.windowDidShow")
+    /// Posted when an icon-move pipeline completes (setMoveInProgress false).
+    static let iconMoveDidFinishNotification = Notification.Name("SearchWindowController.iconMoveDidFinish")
 
     // MARK: - Window
 
@@ -46,9 +48,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// Idle-close timer for browse panels (keeps panel interaction intentional).
     private var panelIdleCloseTask: Task<Void, Never>?
     private var panelIdleCloseGeneration: Int = 0
+    private var postDismissForceHideTask: Task<Void, Never>?
 
     /// Prevents explicit closes during icon moves (CGEvent can flip key status)
     private(set) var isMoveInProgress = false
+    private(set) var isBrowseSessionActive = false
 
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
@@ -86,6 +90,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         normalizeBrowseModeSettings(for: desiredMode)
         let manager = MenuBarManager.shared
         logger.info("show requested mode=\(String(describing: desiredMode), privacy: .public) currentMode=\(String(describing: self.currentMode), privacy: .public)")
+        postDismissForceHideTask?.cancel()
+        postDismissForceHideTask = nil
+        isBrowseSessionActive = true
 
         // If mode changed, recreate the window
         if currentMode != nil, currentMode != desiredMode {
@@ -152,7 +159,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// Set move-in-progress flag to prevent auto-close during CGEvent Cmd+drag
     func setMoveInProgress(_ inProgress: Bool) {
+        let wasInProgress = isMoveInProgress
         isMoveInProgress = inProgress
+        if wasInProgress, !inProgress {
+            NotificationCenter.default.post(name: Self.iconMoveDidFinishNotification, object: nil)
+        }
     }
 
     /// Close the search window
@@ -169,21 +180,74 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let manager = MenuBarManager.shared
         panelIdleCloseTask?.cancel()
         panelIdleCloseTask = nil
+        postDismissForceHideTask?.cancel()
+        postDismissForceHideTask = nil
+        isBrowseSessionActive = false
 
         // Resume hover/click triggers and refresh pointer state before scheduling rehide.
         // Use strict menu-strip bounds on panel dismiss so the nearby panel area
         // doesn't keep rehide blocked as "menu interaction."
         manager.hoverService.isSuspended = false
         manager.hoverService.refreshMouseInMenuBarStateForBrowseDismissal()
+        Task { @MainActor [weak self] in
+            // Window teardown and AppKit focus transitions can lag one runloop.
+            // Re-sample once shortly after dismissal to avoid stale hover-blocked rehide.
+            try? await Task.sleep(for: .milliseconds(160))
+            guard let self else { return }
+            guard !self.isBrowseSessionActive else { return }
+            manager.hoverService.refreshMouseInMenuBarStateForBrowseDismissal()
+        }
 
         if manager.hidingService.state == .expanded,
            !manager.shouldSkipHideForExternalMonitor {
-            manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)
-            logger.info("\(reason, privacy: .public) scheduled rehide after \(manager.settings.findIconRehideDelay, privacy: .public)s")
+            let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)
+            manager.hidingService.scheduleRehide(after: dismissDelaySeconds)
+            logger.info("\(reason, privacy: .public) scheduled rehide after \(dismissDelaySeconds, privacy: .public)s")
+            scheduleForceRehideAfterBrowseDismissal(mode: currentMode, baseDelay: dismissDelaySeconds, reason: reason)
         }
 
         // Do NOT set window to nil, we reuse it for performance
         logger.info("\(reason, privacy: .public) completed (window hidden, cache retained)")
+    }
+
+    private func scheduleForceRehideAfterBrowseDismissal(
+        mode: SearchWindowMode?,
+        baseDelay: TimeInterval,
+        reason: String
+    ) {
+        let manager = MenuBarManager.shared
+        let fallbackDelaySeconds = fallbackRehideDelay(for: mode, baseDelay: baseDelay)
+
+        postDismissForceHideTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .seconds(fallbackDelaySeconds))
+            guard !Task.isCancelled else { return }
+            guard self.window?.isVisible != true else { return }
+            guard !self.isMoveInProgress else { return }
+            guard manager.hidingService.state == .expanded else { return }
+            guard !manager.shouldSkipHideForExternalMonitor else { return }
+            guard !manager.isMenuOpen else { return }
+
+            logger.info(
+                "\(reason, privacy: .public) forced rehide after \(fallbackDelaySeconds, privacy: .public)s fallback window"
+            )
+            await manager.hidingService.hide()
+        }
+    }
+
+    private func browseDismissRehideDelay(baseDelay: TimeInterval) -> TimeInterval {
+        max(1, baseDelay)
+    }
+
+    private func fallbackRehideDelay(for mode: SearchWindowMode?, baseDelay: TimeInterval) -> TimeInterval {
+        let normalizedBase = max(1, baseDelay)
+        switch mode {
+        case .secondMenuBar:
+            // Keep second menu bar more permissive while still bounded.
+            return min(20, max(12, normalizedBase + 4))
+        case .none, .findIcon:
+            return min(12, max(8, normalizedBase + 2))
+        }
     }
 
     private func schedulePanelIdleCloseIfNeeded(for mode: SearchWindowMode) {
@@ -233,7 +297,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         currentMode = nil
         logger.info("resetWindow invoked (wasVisible=\(wasVisible, privacy: .public))")
 
-        guard wasVisible else { return }
+        guard wasVisible else {
+            isBrowseSessionActive = false
+            return
+        }
 
         // Match close() teardown semantics when a visible panel is force-reset
         // (for example, switching browse mode in Settings).

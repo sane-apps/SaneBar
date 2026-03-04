@@ -98,6 +98,22 @@ final class SearchService: SearchServiceProtocol {
         return MenuBarManager.shared.getSeparatorOriginX()
     }
 
+    /// Normalize the always-hidden boundary against the main separator boundary.
+    /// Returns nil when the candidate is stale/inverted (on or to the right of main).
+    nonisolated static func normalizedAlwaysHiddenBoundary(
+        _ candidate: CGFloat?,
+        separatorX: CGFloat,
+        minimumGap: CGFloat = 8
+    ) -> CGFloat? {
+        guard let candidate, candidate.isFinite, candidate > 0 else { return nil }
+        guard separatorX.isFinite, separatorX > 0 else { return nil }
+
+        let maxAllowed = separatorX - max(1, minimumGap)
+        guard maxAllowed > 0 else { return nil }
+        guard candidate < maxAllowed else { return nil }
+        return candidate
+    }
+
     @MainActor
     private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
         guard let separatorX = separatorBoundaryXForClassification() else { return nil }
@@ -106,8 +122,29 @@ final class SearchService: SearchServiceProtocol {
             return (separatorX, nil)
         }
 
-        if let alwaysHiddenSeparatorX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX(),
-           alwaysHiddenSeparatorX >= separatorX {
+        let alwaysHiddenSeparatorOriginX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
+        let rawAlwaysHiddenBoundaryX = MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX()
+        var alwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
+            rawAlwaysHiddenBoundaryX,
+            separatorX: separatorX
+        )
+        if let rawAlwaysHiddenBoundaryX, alwaysHiddenBoundaryX == nil {
+            logger.warning(
+                "Dropping stale always-hidden boundary candidate (\(rawAlwaysHiddenBoundaryX, privacy: .public)) with separator=\(separatorX, privacy: .public)"
+            )
+        }
+
+        if alwaysHiddenBoundaryX == nil,
+           let alwaysHiddenSeparatorOriginX,
+           alwaysHiddenSeparatorOriginX > 0 {
+            alwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
+                alwaysHiddenSeparatorOriginX + 20,
+                separatorX: separatorX
+            )
+        }
+
+        if let alwaysHiddenSeparatorOriginX,
+           alwaysHiddenSeparatorOriginX >= separatorX {
             let now = Date()
             if let last = lastAlwaysHiddenOrderWarningAt {
                 if now.timeIntervalSince(last) >= 5 {
@@ -121,16 +158,36 @@ final class SearchService: SearchServiceProtocol {
 
             MenuBarManager.shared.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "classification")
             let repairedSeparatorX = separatorBoundaryXForClassification() ?? separatorX
-            let repairedAlwaysHiddenX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
-            if let repairedAlwaysHiddenX, repairedAlwaysHiddenX < repairedSeparatorX {
-                return (repairedSeparatorX, repairedAlwaysHiddenX)
+            let repairedAlwaysHiddenOriginX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
+            let rawRepairedAlwaysHiddenBoundaryX = MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX()
+            var repairedAlwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
+                rawRepairedAlwaysHiddenBoundaryX,
+                separatorX: repairedSeparatorX
+            )
+            if let rawRepairedAlwaysHiddenBoundaryX, repairedAlwaysHiddenBoundaryX == nil {
+                logger.warning(
+                    "Dropping stale repaired always-hidden boundary candidate (\(rawRepairedAlwaysHiddenBoundaryX, privacy: .public)) with separator=\(repairedSeparatorX, privacy: .public)"
+                )
+            }
+            if repairedAlwaysHiddenBoundaryX == nil,
+               let repairedAlwaysHiddenOriginX,
+               repairedAlwaysHiddenOriginX > 0 {
+                repairedAlwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
+                    repairedAlwaysHiddenOriginX + 20,
+                    separatorX: repairedSeparatorX
+                )
+            }
+            if let repairedAlwaysHiddenOriginX,
+               repairedAlwaysHiddenOriginX < repairedSeparatorX,
+               let repairedAlwaysHiddenBoundaryX {
+                return (repairedSeparatorX, repairedAlwaysHiddenBoundaryX)
             }
             return (repairedSeparatorX, nil)
         }
 
-        // If AH position is unavailable (blocking mode, never cached), return nil for AH.
-        // classifyItems will use pinned IDs as a post-pass instead of a fake boundary.
-        return (separatorX, MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX())
+        // If AH position is unavailable or stale/inverted, return nil for AH.
+        // classifyItems will use pinned IDs as a post-pass instead of trusting bad geometry.
+        return (separatorX, alwaysHiddenBoundaryX)
     }
 
     /// Match apps against persisted always-hidden pinned IDs.

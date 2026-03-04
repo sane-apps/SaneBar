@@ -112,4 +112,33 @@ final class SecondMenuBarDropXCTests: XCTestCase {
             )
         )
     }
+
+    func testHiddenOnlyGuidanceAbsentWhenVisibleRowIsOn() {
+        XCTAssertNil(
+            SecondMenuBarLayout.hiddenOnlyGuidance(
+                includeVisibleIcons: true,
+                isPro: true
+            )
+        )
+    }
+
+    func testHiddenOnlyGuidanceForPro() {
+        XCTAssertEqual(
+            SecondMenuBarLayout.hiddenOnlyGuidance(
+                includeVisibleIcons: false,
+                isPro: true
+            ),
+            "Hidden Only mode is on. To move icons to Visible, right-click an icon or turn on the Visible row."
+        )
+    }
+
+    func testHiddenOnlyGuidanceForFree() {
+        XCTAssertEqual(
+            SecondMenuBarLayout.hiddenOnlyGuidance(
+                includeVisibleIcons: false,
+                isPro: false
+            ),
+            "Hidden Only mode is on. Move icons between Hidden and Visible with Pro."
+        )
+    }
 }

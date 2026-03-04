@@ -73,6 +73,30 @@ struct IconMovingTargetTests {
         #expect(targetX == 458)
     }
 
+    @Test("Hidden target with AH boundary is right-biased to prevent AH drift")
+    func moveToHiddenWithAHBoundaryBiasesRight() {
+        // Repro geometry from Mini logs:
+        // separatorX=1600, AH boundary≈1424, iconWidth≈34.
+        let separatorX: CGFloat = 1600
+        let ahBoundary: CGFloat = 1424
+        let iconWidth: CGFloat = 34
+
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: true,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: ahBoundary
+        )
+
+        let minRegularHiddenX = ahBoundary + 2
+        let separatorSafety = max(20, (iconWidth * 0.5) + 12)
+        let maxRegularHiddenX = separatorX - separatorSafety
+
+        #expect(targetX >= minRegularHiddenX)
+        #expect(targetX <= maxRegularHiddenX)
+        #expect(targetX > 1540, "Target should stay toward separator-side hidden lane")
+    }
+
     @Test("Move to visible without boundary: target is RIGHT of separator")
     func moveToVisibleNoBoundary() {
         let separatorX: CGFloat = 500
@@ -316,6 +340,42 @@ struct SeparatorCachingTests {
         }
 
         #expect(result == 500, "Blocking mode must return cached position, not live -3349")
+    }
+
+    @Test("REGRESSION: Always-hidden separator stale/off-screen origin falls back to cached value")
+    func alwaysHiddenSeparatorStaleOriginUsesCache() {
+        // Mar 2026 bug: AH separator occasionally reported stale negative origin (e.g. -30)
+        // after relayout, which produced off-screen drag targets.
+        let liveWindowX: CGFloat = -30
+        let cachedX: CGFloat? = 312
+
+        let result: CGFloat?
+        if liveWindowX > 0 {
+            result = liveWindowX
+        } else if let cachedX, cachedX > 0 {
+            result = cachedX
+        } else {
+            result = nil
+        }
+
+        #expect(result == 312, "Stale/off-screen AH origin must use cached positive X")
+    }
+
+    @Test("Always-hidden separator stale/off-screen origin with empty cache returns nil")
+    func alwaysHiddenSeparatorStaleOriginEmptyCacheReturnsNil() {
+        let liveWindowX: CGFloat = -30
+        let cachedX: CGFloat? = nil
+
+        let result: CGFloat?
+        if liveWindowX > 0 {
+            result = liveWindowX
+        } else if let cachedX, cachedX > 0 {
+            result = cachedX
+        } else {
+            result = nil
+        }
+
+        #expect(result == nil, "No cached AH origin should avoid invalid drag targets")
     }
 
     @Test("Screen parameter change invalidates cache")

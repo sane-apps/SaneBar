@@ -137,6 +137,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Cached position of always-hidden separator when at visual size (not blocking).
     /// Used for classification when the separator is at 10,000 length (blocking mode).
     var lastKnownAlwaysHiddenSeparatorX: CGFloat?
+    /// Cached right edge of always-hidden separator when at visual size.
+    /// Used when AH boundary checks run while live frames are stale/off-screen.
+    var lastKnownAlwaysHiddenSeparatorRightEdgeX: CGFloat?
     var statusMenu: NSMenu?
     private var onboardingPopover: NSPopover?
     /// Flag to prevent setupStatusItem from overwriting externally-provided items
@@ -594,6 +597,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownSeparatorX = nil
                     self.lastKnownSeparatorRightEdgeX = nil
                     self.lastKnownAlwaysHiddenSeparatorX = nil
+                    self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                     await self.hidingService.show()
                     return
                 }
@@ -611,6 +615,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownSeparatorX = nil
                     self.lastKnownSeparatorRightEdgeX = nil
                     self.lastKnownAlwaysHiddenSeparatorX = nil
+                    self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                     await self.hidingService.show()
                     return
                 }
@@ -655,12 +660,31 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Validate status-item position after layout settles. If WindowServer has a
     /// corrupted position cache, recover by bumping autosave namespace and recreating.
     private func schedulePositionValidation() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self, !self.usingExternalItems else { return }
-            guard !StatusBarController.validateItemPosition(self.statusBarController.mainItem) else {
-                return
+
+            let initialDelay: Duration = .milliseconds(500)
+            let retryDelay: Duration = .milliseconds(250)
+            let maxAttempts = 4
+
+            try? await Task.sleep(for: initialDelay)
+
+            for attempt in 1 ... maxAttempts {
+                if StatusBarController.validateItemPosition(self.statusBarController.mainItem) {
+                    if attempt > 1 {
+                        logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
+                    }
+                    return
+                }
+
+                if attempt < maxAttempts {
+                    try? await Task.sleep(for: retryDelay)
+                }
             }
-            logger.error("Status item appears off-menu-bar — triggering autosave recovery")
+
+            logger.error(
+                "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
+            )
             let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
             self.statusBarController.onItemsRecreated?(newMain, newSep)
         }
@@ -727,6 +751,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.lastKnownSeparatorX = nil
                 self?.lastKnownSeparatorRightEdgeX = nil
                 self?.lastKnownAlwaysHiddenSeparatorX = nil
+                self?.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
             }

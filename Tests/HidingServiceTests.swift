@@ -138,6 +138,46 @@ struct HidingServiceTests {
                 "Delimiter should be collapsed after deferred rehide succeeds")
     }
 
+    @Test("Replacing a pending rehide timer invalidates stale timer fires")
+    @MainActor
+    func scheduleRehideInvalidatesStaleTimerFire() async throws {
+        let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        service.configure(delimiterItem: mainItem)
+        service.shouldRehide = { true }
+
+        service.scheduleRehide(after: 0.08)
+        service.scheduleRehide(after: 0.30)
+
+        try await Task.sleep(nanoseconds: 150_000_000)
+        #expect(service.state == .expanded,
+                "First timer fire should be ignored after being replaced")
+
+        try await Task.sleep(nanoseconds: 300_000_000)
+        #expect(service.state == .hidden,
+                "Latest timer should still fire and hide once its delay elapses")
+    }
+
+    @Test("Canceling rehide invalidates guard-deferred retries")
+    @MainActor
+    func cancelRehideInvalidatesDeferredRetry() async throws {
+        let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        service.configure(delimiterItem: mainItem)
+
+        var allowRehide = false
+        service.shouldRehide = { allowRehide }
+
+        service.scheduleRehide(after: 0.05)
+        try await Task.sleep(nanoseconds: 120_000_000)
+        service.cancelRehide()
+        allowRehide = true
+
+        try await Task.sleep(nanoseconds: 350_000_000)
+        #expect(service.state == .expanded,
+                "Cancel should invalidate any previously deferred guard retry timers")
+    }
+
     // MARK: - Nil Delimiter Tests (Crash Prevention)
 
     @Test("Toggle with nil delimiter does not crash")

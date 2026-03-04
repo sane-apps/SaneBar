@@ -86,6 +86,32 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testDirectionMismatchIgnoredWhenVisibleMoveStartsAlreadyVisible() {
+        let before = CGRect(x: 160, y: 0, width: 22, height: 22) // visible
+        let after = CGRect(x: 145, y: 0, width: 22, height: 22) // moved left but still visible
+        XCTAssertFalse(
+            AccessibilityService.hasDirectionMismatch(
+                beforeFrame: before,
+                afterFrame: after,
+                separatorX: 100,
+                toHidden: false
+            )
+        )
+    }
+
+    func testDirectionMismatchDetectedWhenVisibleMoveStartsHiddenAndStillMovesLeft() {
+        let before = CGRect(x: 60, y: 0, width: 22, height: 22) // hidden
+        let after = CGRect(x: 50, y: 0, width: 22, height: 22) // moved farther left
+        XCTAssertTrue(
+            AccessibilityService.hasDirectionMismatch(
+                beforeFrame: before,
+                afterFrame: after,
+                separatorX: 100,
+                toHidden: false
+            )
+        )
+    }
+
     func testHiddenMoveTargetFormulaPreservesSeparatorAndLaneSafety() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -107,8 +133,80 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden moves should enforce a separator-side safety margin for reliable midpoint verification"
         )
         XCTAssertTrue(
-            source.contains("return min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)"),
-            "Hidden move target should be clamped to the valid lane window"
+            source.contains("let rightBiasInset = max(6, min(20, iconWidth * 0.45))"),
+            "Hidden moves should bias toward the separator-side hidden lane to avoid AH drift after re-hide transitions"
+        )
+        XCTAssertTrue(
+            source.contains("return max(boundedPreferredX, min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX))"),
+            "Hidden move target should stay clamped to lane bounds while preserving far-hidden fallback for wide icons"
+        )
+    }
+
+    func testVisibleMoveTargetAvoidsBoundaryOvershootInFlushLayout() {
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: 16,
+            separatorX: 1663,
+            visibleBoundaryX: 1663
+        )
+        XCTAssertEqual(target, 1661, accuracy: 0.001)
+    }
+
+    func testMoveVerificationContainsDirectionGuard() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Move direction mismatch: expected rightward visible move"),
+            "Move verification should reject stale-boundary false positives when visible moves drift left"
+        )
+    }
+
+    func testVisibleAndAlwaysHiddenRetriesReResolveTargets() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Re-resolved visible move targets for retry"),
+            "Visible retry path should refresh separator targets before retrying"
+        )
+        XCTAssertTrue(
+            source.contains("Re-resolved always-hidden move targets for retry"),
+            "Always-hidden retry path should refresh separator targets before retrying"
+        )
+        XCTAssertTrue(
+            source.contains("Re-resolved AH-to-Hidden targets for retry"),
+            "AH-to-Hidden retry path should refresh separator targets before retrying"
+        )
+        XCTAssertTrue(
+            source.contains("Move accepted after classification verification"),
+            "Standard move path should reconcile verification failures with classified zones before returning false"
+        )
+        XCTAssertTrue(
+            source.contains("Always-hidden move accepted after classification verification"),
+            "Always-hidden move path should reconcile verification failures with classified zones before returning false"
+        )
+    }
+
+    func testAppleScriptAlwaysHiddenMovesHaveStandardMoveFallback() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Zone snapshots can lag; if this item is already in the regular"),
+            "AppleScript move routing should document stale zone snapshot fallback behavior"
+        )
+        XCTAssertTrue(
+            source.contains("let movedFromAlwaysHidden = manager.moveIconFromAlwaysHiddenToHidden("),
+            "Move-to-hidden from stale always-hidden classification should fall back to standard hidden move"
+        )
+        XCTAssertTrue(
+            source.contains("let movedFromAlwaysHidden = manager.moveIconFromAlwaysHidden("),
+            "Move-to-visible from stale always-hidden classification should fall back to standard visible move"
+        )
+        XCTAssertTrue(
+            source.contains("return manager.moveIcon("),
+            "Fallback path should invoke standard moveIcon routing when always-hidden path fails"
         )
     }
 
@@ -333,6 +431,122 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testAppleScriptMoveVerificationUsesForcedRefreshFallback() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5)"),
+            "AppleScript move checks should use a longer classified-app refresh window before fallback"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"),
+            "AppleScript move verification should invalidate AX cache before fallback refresh"
+        )
+        XCTAssertTrue(
+            source.contains("for _ in 0 ..< 3"),
+            "AppleScript move verification should run bounded forced-refresh retries before declaring failure"
+        )
+    }
+
+    func testAppleScriptAlwaysHiddenExitsUseRobustUnpinHelpers() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("manager.unpinAlwaysHidden("),
+            "AppleScript always-hidden exits should unpin through robust helper paths, not exact-ID only removal"
+        )
+        XCTAssertTrue(
+            source.contains("manager.unpinAlwaysHidden(bundleID: icon.bundleId)"),
+            "AppleScript always-hidden exits should include non-Control-Center bundle fallback unpin"
+        )
+    }
+
+    func testMoveIconClearsStaleAlwaysHiddenPinsForVisibleMovesAndAfterHiddenMoves() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if !toHidden {"),
+            "Pre-move stale-pin cleanup should run only for move-to-visible paths"
+        )
+        XCTAssertTrue(
+            source.contains("removedPin = unpinAlwaysHidden("),
+            "moveIcon should clear stale always-hidden pins through targeted unpin helpers"
+        )
+        XCTAssertTrue(
+            source.contains("Cleared stale always-hidden pin before move-to-visible"),
+            "Visible move pre-clear should emit an explicit log marker"
+        )
+        XCTAssertTrue(
+            source.contains("if success, toHidden {"),
+            "Hidden moves should defer stale-pin cleanup until after successful drag completion"
+        )
+        XCTAssertTrue(
+            source.contains("Cleared stale always-hidden pin after successful move-to-hidden"),
+            "Hidden move deferred cleanup should emit an explicit post-move log marker"
+        )
+    }
+
+    func testMoveIconUsesShieldFallbackWhenHiddenMoveFailsOutsideHiddenState() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if !success && toHidden && !usedShowAllShield"),
+            "Hidden moves that fail while state appears expanded should trigger a shield fallback retry"
+        )
+        XCTAssertTrue(
+            source.contains("await hidingService.showAll()"),
+            "Shield fallback should force showAll before recomputing move targets"
+        )
+        XCTAssertTrue(
+            source.contains("let restoreShieldIfNeeded = { () async in"),
+            "moveIcon should centralize shield restoration so fallback retries cannot leave geometry half-transitioned"
+        )
+    }
+
+    func testHiddenMoveTargetResolutionRepairsStaleSeparatorOriginFromRightEdge() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let derivedFromRightEdge: CGFloat? = {"),
+            "Hidden-target resolution should derive separator origin from right-edge cache for stale-frame recovery"
+        )
+        XCTAssertTrue(
+            source.contains("if origin + 40 < derivedFromRightEdge"),
+            "Hidden-target resolution should detect implausibly-left origin values after transitions"
+        )
+        XCTAssertTrue(
+            source.contains("Hidden move target corrected from stale origin"),
+            "Hidden-target repair should emit an explicit log marker for stale-origin corrections"
+        )
+        XCTAssertTrue(
+            source.contains("Hidden move target drifted too far left"),
+            "Hidden-target resolution should reject implausible separator drift and re-resolve under shield"
+        )
+        XCTAssertTrue(
+            source.contains("separatorOverrideX == nil"),
+            "Hidden-target drift guard must not run for always-hidden separator overrides"
+        )
+        XCTAssertTrue(
+            source.contains("getAlwaysHiddenSeparatorBoundaryX()"),
+            "Always-hidden move targeting should use AH right-edge boundary, not AH origin"
+        )
+    }
+
+    func testSearchClassificationUsesAlwaysHiddenBoundaryRightEdge() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("getAlwaysHiddenSeparatorBoundaryX()"),
+            "Search classification should use AH boundary/right-edge for zone splits near the AH divider"
+        )
+    }
+
     func testAccessibilityClickSkipsAXPressForOffscreenItems() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -402,12 +616,56 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)"),
+            source.contains("let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
+            "Closing Browse Icons should use standard auto-rehide timing when dismissing the panel"
+        )
+        XCTAssertTrue(
+            source.contains("manager.hidingService.scheduleRehide(after: dismissDelaySeconds)"),
             "Closing Browse Icons should arm rehide directly after panel dismissal"
         )
         XCTAssertTrue(
             source.contains("refreshMouseInMenuBarStateForBrowseDismissal()"),
             "Browse panel dismissal should refresh hover state using strict strip bounds so rehide does not get stuck near the menu bar"
+        )
+        XCTAssertTrue(
+            source.contains("scheduleForceRehideAfterBrowseDismissal(mode: currentMode, baseDelay: dismissDelaySeconds, reason: reason)"),
+            "Browse panel dismissal should arm a bounded fallback hide window so expanded bars cannot remain stuck open indefinitely"
+        )
+        XCTAssertTrue(
+            source.contains("let fallbackDelaySeconds = fallbackRehideDelay(for: mode, baseDelay: baseDelay)"),
+            "Fallback rehide timing should derive from a bounded helper so second menu bar closes do not feel stuck open"
+        )
+        XCTAssertTrue(
+            source.contains("private func browseDismissRehideDelay(baseDelay: TimeInterval) -> TimeInterval"),
+            "SearchWindowController should normalize panel-dismiss rehide timing in one helper"
+        )
+        XCTAssertTrue(
+            source.contains("private func fallbackRehideDelay(for mode: SearchWindowMode?, baseDelay: TimeInterval) -> TimeInterval"),
+            "SearchWindowController should centralize fallback rehide timing in a dedicated helper"
+        )
+        XCTAssertTrue(
+            source.contains("return min(20, max(12, normalizedBase + 4))"),
+            "Second menu bar fallback should stay permissive but bounded"
+        )
+        XCTAssertTrue(
+            source.contains("return min(12, max(8, normalizedBase + 2))"),
+            "Find Icon fallback should remain shorter and bounded"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.hidingService.hide()"),
+            "Fallback rehide should force-hide expanded bars once the bounded grace window expires"
+        )
+        XCTAssertTrue(
+            source.contains("private(set) var isBrowseSessionActive = false"),
+            "SearchWindowController should track browse session state explicitly for reliable fire-time rehide gating"
+        )
+        XCTAssertTrue(
+            source.contains("isBrowseSessionActive = true"),
+            "Showing a browse panel should mark the session active before interaction begins"
+        )
+        XCTAssertTrue(
+            source.contains("isBrowseSessionActive = false"),
+            "Browse dismissal/reset paths should clear session-active state"
         )
     }
 
@@ -425,6 +683,67 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testRehideTimerUsesGenerationGuardToPreventStaleHideFires() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/HidingService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private var rehideGeneration: UInt64 = 0"),
+            "HidingService should track rehide timer generations so stale tasks cannot fire after cancellation/replacement"
+        )
+        XCTAssertTrue(
+            source.contains("guard generation == self.rehideGeneration else { return }"),
+            "Rehide timer tasks should validate generation before executing guard/hide logic"
+        )
+        XCTAssertTrue(
+            source.contains("rehideGeneration &+= 1"),
+            "Scheduling/canceling rehide should invalidate prior generations"
+        )
+    }
+
+    func testFireTimeRehideGuardBlocksWhileBrowsePanelOrMoveIsActive() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if browseController.isVisible"),
+            "Fire-time rehide guard should block auto-hide whenever a browse panel is visible"
+        )
+        XCTAssertTrue(
+            source.contains("if browseController.isMoveInProgress"),
+            "Fire-time rehide guard should block auto-hide while icon drag move is in progress"
+        )
+    }
+
+    func testIconMovePipelinesCancelPendingRehideBeforeDragWork() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("cancelRehide()"),
+            "Move pipelines should cancel any pending rehide timer before drag simulation begins"
+        )
+
+        // Guard against formatting churn by validating the intent per pipeline:
+        // each detached move/reorder task should cancel rehide before drag work.
+        let pipelinePatterns = [
+            #"func\s+moveIcon\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
+            #"func\s+moveIconAlwaysHidden\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
+            #"func\s+moveIconFromAlwaysHiddenToHidden\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
+            #"func\s+reorderIcon\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
+        ]
+
+        for pattern in pipelinePatterns {
+            let regex = try NSRegularExpression(pattern: pattern)
+            let range = NSRange(source.startIndex ..< source.endIndex, in: source)
+            XCTAssertGreaterThan(
+                regex.numberOfMatches(in: source, range: range),
+                0,
+                "Detached move/reorder pipeline must cancel rehide before drag simulation"
+            )
+        }
+    }
+
     func testBrowsePanelShowSuspendsRehideWhileVisible() throws {
         let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -436,6 +755,28 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("manager.hidingService.cancelRehide()"),
             "Browse panel show should cancel active rehide timers while the panel remains open"
+        )
+    }
+
+    func testAutomationShowPathDoesNotPinRevealState() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let range = NSRange(source.startIndex ..< source.endIndex, in: source)
+
+        let automationPattern = #"func\s+showHiddenItems\(\)\s*\{[\s\S]*?showHiddenItemsNow\(trigger:\s*\.automation\)"#
+        let automationRegex = try NSRegularExpression(pattern: automationPattern)
+        XCTAssertGreaterThan(
+            automationRegex.numberOfMatches(in: source, range: range),
+            0,
+            "Automation/script reveal path should use non-pinned automation trigger so auto-rehide remains active"
+        )
+
+        let pinnedPattern = #"func\s+showHiddenItems\(\)\s*\{[\s\S]*?showHiddenItemsNow\(trigger:\s*\.settingsButton\)"#
+        let pinnedRegex = try NSRegularExpression(pattern: pinnedPattern)
+        XCTAssertEqual(
+            pinnedRegex.numberOfMatches(in: source, range: range),
+            0,
+            "Automation/script reveal path must not use pinned settings-button trigger"
         )
     }
 
@@ -470,6 +811,28 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             alwaysHiddenSource.contains("let wasHidden = hidingService.state == .hidden"),
             "Always-hidden pin enforcement should use live hidingService.state for restore/hide decisions"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("getAlwaysHiddenSeparatorBoundaryX() ?? getAlwaysHiddenSeparatorOriginX()"),
+            "Pin reconciliation should prefer AH boundary (right edge) so auto-pin/unpin decisions match zone classification"
+        )
+    }
+
+    func testHiddenOriginMovePathUsesDirectHideBeforeRestoreFallback() throws {
+        let movingURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: movingURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if wasHidden, !shouldSkipHide"),
+            "Hidden-origin move restore path should branch explicitly on wasHidden + external monitor policy"
+        )
+        XCTAssertTrue(
+            source.contains("Move complete - direct hide from showAll state"),
+            "Hidden-origin move restore path should return directly to hidden before restore fallback"
+        )
+        XCTAssertTrue(
+            source.contains("await self.hidingService.restoreFromShowAll()"),
+            "Restore fallback must remain for expanded-return paths and external-monitor skip-hide policy"
         )
     }
 
@@ -542,6 +905,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testStartupPositionValidationRetriesBeforeAutosaveRecovery() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let maxAttempts = 4"),
+            "Startup position validation should retry before escalating to autosave recovery"
+        )
+        XCTAssertTrue(
+            source.contains("Status item remained off-menu-bar after"),
+            "Autosave recovery should only run after repeated validation failures"
+        )
+        XCTAssertTrue(
+            source.contains("Status item position validation recovered after"),
+            "Startup validation should log successful transient recovery without bumping autosave version"
+        )
+    }
+
     func testStartupHideContinuesWhenAccessibilityPermissionIsMissing() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -610,6 +991,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("postMoveRefreshTask?.cancel()"),
             "Deferred post-move refresh must cancel previous scheduled work to avoid refresh pileups"
         )
+        XCTAssertTrue(
+            source.contains("SearchWindowController.iconMoveDidFinishNotification"),
+            "Search view should refresh once more when move-in-progress fully clears"
+        )
     }
 
     func testBrowseModeSwitchTransitionsVisiblePanelToNewMode() throws {
@@ -639,7 +1024,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             "resetWindow should detect visible-panel resets"
         )
         XCTAssertTrue(
-            source.contains("manager.hidingService.scheduleRehide(after: manager.settings.findIconRehideDelay)"),
+            source.contains("let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
+            "Visible reset should derive panel-dismiss rehide from standard auto-rehide timing"
+        )
+        XCTAssertTrue(
+            source.contains("manager.hidingService.scheduleRehide(after: dismissDelaySeconds)"),
             "Visible reset should re-arm rehide so hidden icons don't stay stuck open"
         )
         XCTAssertTrue(

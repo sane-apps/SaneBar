@@ -72,6 +72,10 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static let iconExpanded = "line.3.horizontal.decrease"
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let maxSpacerCount = 12
+    nonisolated private static let interactiveRemovalBehaviors: NSStatusItem.Behavior = [
+        .removalAllowed,
+        .terminationOnRemoval
+    ]
     private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
     private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
     private static let legacyMigrationKeys = [
@@ -115,6 +119,7 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // Create main item (rightmost, near Control Center)
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        Self.enforceNonRemovableBehavior(for: mainItem, role: "main")
         mainItem.autosaveName = Self.mainAutosaveName
         // Cmd-drag removal can persist hidden state per autosaveName.
         // Force visible on startup so users don't get "missing icon forever".
@@ -122,6 +127,7 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // Create separator item (to the LEFT of main)
         separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        Self.enforceNonRemovableBehavior(for: separatorItem, role: "separator")
         separatorItem.autosaveName = Self.separatorAutosaveName
         separatorItem.isVisible = true
 
@@ -188,10 +194,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated)")
         mainItem.autosaveName = Self.mainAutosaveName
         mainItem.isVisible = true
 
         separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        Self.enforceNonRemovableBehavior(for: separatorItem, role: "separator(recreated)")
         separatorItem.autosaveName = Self.separatorAutosaveName
         separatorItem.isVisible = true
 
@@ -232,6 +240,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
 
         let item = NSStatusBar.system.statusItem(withLength: 14)
+        Self.enforceNonRemovableBehavior(for: item, role: "always-hidden-separator")
         item.autosaveName = Self.alwaysHiddenSeparatorAutosaveName
         item.isVisible = true
 
@@ -857,6 +866,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Add missing spacers
         while spacerItems.count < desiredCount {
             let spacer = NSStatusBar.system.statusItem(withLength: spacerLength)
+            Self.enforceNonRemovableBehavior(for: spacer, role: "spacer")
             spacer.autosaveName = "SaneBar_spacer_\(spacerItems.count)"
             configureSpacer(spacer, style: style)
             spacerItems.append(spacer)
@@ -870,6 +880,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     private func configureSpacer(_ spacer: NSStatusItem, style: SaneBarSettings.SpacerStyle) {
+        Self.enforceNonRemovableBehavior(for: spacer, role: "spacer")
         guard let button = spacer.button else { return }
         button.image = nil
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
@@ -899,5 +910,16 @@ final class StatusBarController: StatusBarControllerProtocol {
         case leftClick
         case rightClick
         case optionClick
+    }
+
+    private static func enforceNonRemovableBehavior(for item: NSStatusItem, role: String) {
+        let original = item.behavior
+        let sanitized = original.subtracting(Self.interactiveRemovalBehaviors)
+        item.behavior = sanitized
+        if sanitized != original {
+            logger.info("Removed interactive removal behavior for \(role, privacy: .public)")
+        } else {
+            logger.debug("Interactive removal disabled for \(role, privacy: .public)")
+        }
     }
 }

@@ -42,7 +42,7 @@ struct GeneralSettingsView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .minimal: "Minimal"
+            case .minimal: "Hidden Only"
             case .balanced: "Balanced"
             case .power: "Power"
             }

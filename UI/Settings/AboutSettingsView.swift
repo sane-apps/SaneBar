@@ -75,7 +75,7 @@ struct AboutSettingsView: View {
                         Label("Report a Bug", systemImage: "ladybug")
                     }
 
-                    Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
+                    Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues/new?template=bug_report.md")!) {
                         Label("View Issues", systemImage: "arrow.up.right.square")
                     }
 

@@ -24,6 +24,18 @@
             <result type="text" description="Newline-separated list of icon identifiers and names"/>
         </command>
 
+        <!-- List Icon Zones Command -->
+        <command name="list icon zones" code="SBarlsiz" description="List detected menu bar icons with their current visibility zones">
+            <cocoa class="ListIconZonesCommand"/>
+            <result type="text" description="Newline-separated lines: zone, movable, bundleId, uniqueId, name"/>
+        </command>
+
+        <!-- Layout Snapshot Command -->
+        <command name="layout snapshot" code="SBarlyot" description="Return a JSON snapshot of menu bar launch/layout invariants">
+            <cocoa class="LayoutSnapshotCommand"/>
+            <result type="text" description="JSON with separator ordering and control-center proximity checks"/>
+        </command>
+
         <!-- Hide Icon Command -->
         <command name="hide icon" code="SBarhiic" description="Pin a specific icon to the always-hidden section">
             <cocoa class="HideIconCommand"/>
@@ -36,6 +48,25 @@
             <cocoa class="ShowIconCommand"/>
             <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icons)"/>
             <result type="boolean" description="True if the icon was found and unpinned"/>
+        </command>
+
+        <!-- Move Icon Commands -->
+        <command name="move icon to hidden" code="SBarmvhd" description="Move a specific icon into the hidden section">
+            <cocoa class="MoveIconToHiddenCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="boolean" description="True if the icon was moved to hidden"/>
+        </command>
+
+        <command name="move icon to visible" code="SBarmvvi" description="Move a specific icon into the visible section">
+            <cocoa class="MoveIconToVisibleCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="boolean" description="True if the icon was moved to visible"/>
+        </command>
+
+        <command name="move icon to always hidden" code="SBarmvah" description="Move a specific icon into the always-hidden section">
+            <cocoa class="MoveIconToAlwaysHiddenCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="boolean" description="True if the icon was moved to always-hidden"/>
         </command>
 
     </suite>

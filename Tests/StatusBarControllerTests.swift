@@ -128,6 +128,43 @@ struct StatusBarControllerTests {
         #expect(StatusBarController.mainAutosaveName == "SaneBar_Main_v11")
     }
 
+    @Test("Main and separator disable interactive removal behaviors on init")
+    @MainActor
+    func initDisablesInteractiveRemoval() {
+        let controller = StatusBarController()
+
+        #expect(!controller.mainItem.behavior.contains(.removalAllowed))
+        #expect(!controller.mainItem.behavior.contains(.terminationOnRemoval))
+        #expect(!controller.separatorItem.behavior.contains(.removalAllowed))
+        #expect(!controller.separatorItem.behavior.contains(.terminationOnRemoval))
+    }
+
+    @Test("Recreated items keep interactive removal disabled")
+    @MainActor
+    func recreateKeepsInteractiveRemovalDisabled() {
+        let controller = StatusBarController()
+
+        let (newMain, newSeparator) = controller.recreateItemsWithBumpedVersion()
+
+        #expect(!newMain.behavior.contains(.removalAllowed))
+        #expect(!newMain.behavior.contains(.terminationOnRemoval))
+        #expect(!newSeparator.behavior.contains(.removalAllowed))
+        #expect(!newSeparator.behavior.contains(.terminationOnRemoval))
+    }
+
+    @Test("Always-hidden separator disables interactive removal behaviors")
+    @MainActor
+    func alwaysHiddenSeparatorDisablesInteractiveRemoval() {
+        let controller = StatusBarController()
+
+        controller.ensureAlwaysHiddenSeparator(enabled: true)
+        let alwaysHiddenItem = controller.alwaysHiddenSeparatorItem
+
+        #expect(alwaysHiddenItem != nil)
+        #expect(!(alwaysHiddenItem?.behavior.contains(.removalAllowed) ?? true))
+        #expect(!(alwaysHiddenItem?.behavior.contains(.terminationOnRemoval) ?? true))
+    }
+
     @Test("Position seed runs when both app and ByHost values are missing")
     func shouldSeedWhenAllValuesMissing() {
         let shouldSeed = StatusBarController.shouldSeedPreferredPosition(

@@ -143,4 +143,57 @@ struct AlwaysHiddenTests {
         #expect(ids.contains("com.baz.qux"))
         #expect(!ids.contains("com.apple.menuextra.bluetooth")) // menuExtra has no bundleId
     }
+
+    @Test("unpinAlwaysHidden(bundleID:) removes all matching pin identities")
+    func unpinByBundleRemovesMatchingPins() {
+        let manager = MenuBarManager.shared
+        let original = manager.settings.alwaysHiddenPinnedItemIds
+        defer { manager.settings.alwaysHiddenPinnedItemIds = original }
+
+        manager.settings.alwaysHiddenPinnedItemIds = [
+            "com.spotify.client",
+            "com.spotify.client::axid:NowPlaying",
+            "com.spotify.client::statusItem:0",
+            "com.apple.menuextra.nowplaying",
+            "com.slack.Slack",
+        ]
+
+        let changed = manager.unpinAlwaysHidden(
+            bundleID: "com.spotify.client",
+            menuExtraId: "NowPlaying",
+            statusItemIndex: 0
+        )
+
+        #expect(changed == true)
+        #expect(!manager.settings.alwaysHiddenPinnedItemIds.contains("com.spotify.client"))
+        #expect(!manager.settings.alwaysHiddenPinnedItemIds.contains("com.spotify.client::axid:NowPlaying"))
+        #expect(!manager.settings.alwaysHiddenPinnedItemIds.contains("com.spotify.client::statusItem:0"))
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.contains("com.apple.menuextra.nowplaying"))
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.contains("com.slack.Slack"))
+    }
+
+    @Test("unpinAlwaysHidden(bundleID:) keeps unrelated pins")
+    func unpinByBundleKeepsUnrelatedPins() {
+        let manager = MenuBarManager.shared
+        let original = manager.settings.alwaysHiddenPinnedItemIds
+        defer { manager.settings.alwaysHiddenPinnedItemIds = original }
+
+        manager.settings.alwaysHiddenPinnedItemIds = [
+            "com.test.alpha",
+            "com.test.beta::statusItem:1",
+            "com.apple.menuextra.clock",
+        ]
+
+        let changed = manager.unpinAlwaysHidden(
+            bundleID: "com.other.app",
+            menuExtraId: "Nope",
+            statusItemIndex: 5
+        )
+
+        #expect(changed == false)
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.count == 3)
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.contains("com.test.alpha"))
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.contains("com.test.beta::statusItem:1"))
+        #expect(manager.settings.alwaysHiddenPinnedItemIds.contains("com.apple.menuextra.clock"))
+    }
 }

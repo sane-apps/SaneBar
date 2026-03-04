@@ -7,6 +7,20 @@ extension MenuBarManager {
     // MARK: - Visibility Control
 
     func canAutoRehideAtFireTime() -> Bool {
+        let browseController = SearchWindowController.shared
+
+        // Never auto-hide while Browse Icons / second menu bar is visible
+        // or while a drag move is actively running.
+        if browseController.isMoveInProgress {
+            return false
+        }
+        // Never auto-hide while a browse panel is actually visible.
+        // This must not depend on session flags: if visibility is true, user is
+        // actively in a panel and rehide should be suspended.
+        if browseController.isVisible {
+            return false
+        }
+
         if isMenuOpen {
             return false
         }
@@ -189,7 +203,9 @@ extension MenuBarManager {
     func showHiddenItems() {
         logger.info("showHiddenItems() requested")
         Task {
-            _ = await showHiddenItemsNow(trigger: .settingsButton)
+            // `showHiddenItems()` is used by automation/hotkey/script trigger paths.
+            // Keep this reveal temporary so auto-rehide remains functional.
+            _ = await showHiddenItemsNow(trigger: .automation)
         }
     }
 

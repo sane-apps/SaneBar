@@ -197,6 +197,13 @@ struct MenuBarSearchView: View {
             refreshApps(force: true)
             schedulePostMoveFollowupRefresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: SearchWindowController.iconMoveDidFinishNotification)) { _ in
+            // Some move pipelines finish after the first icon-change event has fired.
+            // Force one more converged refresh when move state fully clears.
+            movingAppId = nil
+            needsPostMoveRefresh = true
+            refreshApps(force: true)
+        }
         .onChange(of: storedMode) { _, _ in
             if needsPostMoveRefresh {
                 // After a move, tabs must do a fresh scan — cache has stale zone data

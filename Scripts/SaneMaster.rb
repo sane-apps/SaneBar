@@ -12,6 +12,27 @@ LOGIN_KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
 
 cd "${PROJECT_ROOT}"
 
+load_headless_secrets_env() {
+  local candidate
+  local secrets_files=(
+    "${SANEPROCESS_SECRETS_FILE:-}"
+    "${HOME}/.config/saneprocess/secrets.env"
+    "${HOME}/.saneprocess/secrets.env"
+  )
+
+  for candidate in "${secrets_files[@]}"; do
+    [ -n "${candidate}" ] || continue
+    [ -f "${candidate}" ] || continue
+    set -a
+    # shellcheck disable=SC1090
+    . "${candidate}"
+    set +a
+    return 0
+  done
+
+  return 1
+}
+
 hydrate_sanemaster_project_metadata() {
   local manifest name scheme
 
@@ -209,6 +230,8 @@ requires_codesign_prep() {
     ;;
   esac
 }
+
+load_headless_secrets_env || true
 
 if requires_codesign_prep "${1:-}"; then
   prepare_signing_keychain

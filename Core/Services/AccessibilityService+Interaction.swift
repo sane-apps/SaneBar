@@ -369,6 +369,35 @@ extension AccessibilityService {
         return toHidden ? midpointX < threshold : midpointX >= threshold
     }
 
+    /// Detect direction mismatches for post-drag verification without penalizing
+    /// idempotent moves where the icon already started on the target side.
+    /// This avoids false negatives when a visible->visible reorder shifts left
+    /// while still remaining in the visible zone.
+    nonisolated static func hasDirectionMismatch(
+        beforeFrame: CGRect,
+        afterFrame: CGRect,
+        separatorX: CGFloat,
+        toHidden: Bool,
+        margin: CGFloat = 6,
+        tolerance: CGFloat = 2
+    ) -> Bool {
+        let startedInTargetZone = frameIsInTargetZone(
+            afterFrame: beforeFrame,
+            separatorX: separatorX,
+            toHidden: toHidden,
+            margin: margin
+        )
+        if startedInTargetZone {
+            return false
+        }
+
+        let deltaX = afterFrame.midX - beforeFrame.midX
+        if toHidden {
+            return deltaX > tolerance
+        }
+        return deltaX < -tolerance
+    }
+
     /// Shared target X selection for Cmd+drag moves.
     /// Hidden moves enforce a safety offset left of the separator to prevent
     /// "looks moved but still visible" landings near the boundary.
@@ -395,16 +424,29 @@ extension AccessibilityService {
             guard minRegularHiddenX <= maxRegularHiddenX else {
                 return maxRegularHiddenX
             }
+            // Bias toward the main separator side of the hidden lane so a
+            // subsequent re-hide transition doesn't nudge the icon into the
+            // always-hidden section.
+            let rightBiasInset = max(6, min(20, iconWidth * 0.45))
+            let preferredRegularHiddenX = maxRegularHiddenX - rightBiasInset
+            let boundedPreferredX = min(max(preferredRegularHiddenX, minRegularHiddenX), maxRegularHiddenX)
 
-            return min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)
+            // Keep the old far-hidden fallback available for extremely wide
+            // icons where right-bias would under-move.
+            return max(boundedPreferredX, min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX))
         }
 
         if let boundary = visibleBoundaryX {
             // Bounded visible target:
-            // - prefer a short hop just right of separator (separator + moveOffset)
+            // - prefer a short hop right of separator (separator + moveOffset)
             // - never overshoot into/through SaneBar icon (boundary - 2)
-            // - still handle flush layouts by forcing at least separator + 1
-            return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))
+            // - if layout is flush/collapsed (boundary <= separator + 1), stay
+            //   just left of boundary instead of producing an out-of-range target.
+            let maxVisibleX = boundary - 2
+            if maxVisibleX <= separatorX + 1 {
+                return maxVisibleX
+            }
+            return min(max(separatorX + 1, separatorX + moveOffset), maxVisibleX)
         }
 
         return separatorX + 1
@@ -594,11 +636,29 @@ extension AccessibilityService {
         // Verify icon landed in the expected zone using midpoint-based logic.
         // This aligns with SearchService zone classification and prevents
         // false negatives when visible moves land close to the separator.
-        let movedToExpectedSide = Self.frameIsInTargetZone(
+        var movedToExpectedSide = Self.frameIsInTargetZone(
             afterFrame: afterFrame,
             separatorX: separatorX,
             toHidden: toHidden
         )
+
+        // Guard against stale-boundary false positives/negatives by ensuring motion
+        // direction matches intent before accepting the separator-side check.
+        let directionMismatch = Self.hasDirectionMismatch(
+            beforeFrame: iconFrame,
+            afterFrame: afterFrame,
+            separatorX: separatorX,
+            toHidden: toHidden
+        )
+        if directionMismatch, toHidden {
+            let deltaX = afterFrame.midX - iconFrame.midX
+            logger.warning("🔧 Move direction mismatch: expected leftward hidden move, deltaX=\(deltaX, privacy: .public)")
+            movedToExpectedSide = false
+        } else if directionMismatch, !toHidden {
+            let deltaX = afterFrame.midX - iconFrame.midX
+            logger.warning("🔧 Move direction mismatch: expected rightward visible move, deltaX=\(deltaX, privacy: .public)")
+            movedToExpectedSide = false
+        }
 
         if !movedToExpectedSide {
             logger.error("🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public)")

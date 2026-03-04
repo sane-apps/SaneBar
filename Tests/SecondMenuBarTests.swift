@@ -182,6 +182,26 @@ struct ZoneClassificationTests {
         #expect(zone2 == .alwaysHidden)
     }
 
+    @Test("Always-hidden boundary sanitizer keeps valid left-side boundary")
+    func alwaysHiddenBoundarySanitizerAcceptsValidBoundary() {
+        let normalized = SearchService.normalizedAlwaysHiddenBoundary(240, separatorX: 500)
+        #expect(normalized == 240)
+    }
+
+    @Test("Always-hidden boundary sanitizer rejects inverted boundary")
+    func alwaysHiddenBoundarySanitizerRejectsInvertedBoundary() {
+        // Candidate on the wrong side of the main separator must be dropped.
+        let normalized = SearchService.normalizedAlwaysHiddenBoundary(520, separatorX: 500)
+        #expect(normalized == nil)
+    }
+
+    @Test("Always-hidden boundary sanitizer enforces minimum gap from separator")
+    func alwaysHiddenBoundarySanitizerEnforcesMinimumGap() {
+        // 494 is within the default 8pt guard band of separatorX=500.
+        let normalized = SearchService.normalizedAlwaysHiddenBoundary(494, separatorX: 500)
+        #expect(normalized == nil)
+    }
+
     // MARK: - Zone Exclusivity
 
     @Test("Each item belongs to exactly one zone")
