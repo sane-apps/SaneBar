@@ -1,9 +1,41 @@
 import AppKit
 import Foundation
-import Sparkle
+@preconcurrency import Sparkle
+import UserNotifications
 import os.log
+import SaneUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "UpdateService")
+
+enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
+    case daily
+    case weekly
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .daily: "Daily"
+        case .weekly: "Weekly"
+        }
+    }
+
+    var interval: TimeInterval {
+        switch self {
+        case .daily: 60 * 60 * 24
+        case .weekly: 60 * 60 * 24 * 7
+        }
+    }
+
+    static func resolve(updateCheckInterval: TimeInterval) -> Self {
+        let threshold = (Self.daily.interval + Self.weekly.interval) / 2
+        return updateCheckInterval >= threshold ? .weekly : .daily
+    }
+
+    static func normalizedInterval(from updateCheckInterval: TimeInterval) -> TimeInterval {
+        resolve(updateCheckInterval: updateCheckInterval).interval
+    }
+}
 
 /// Wrapper around Sparkle's SPUStandardUpdaterController.
 /// Handles app updates securely and privately.
@@ -13,9 +45,11 @@ class UpdateService: NSObject, ObservableObject {
     // MARK: - Properties
 
     nonisolated static let releaseBundleIdentifier = "com.sanebar.app"
+    nonisolated static let scheduledUpdateReminderNotificationID = "com.sanebar.app.sparkle.scheduled-update"
 
     private var updaterController: SPUStandardUpdaterController?
     private let updateChannelEnabled: Bool
+    private var scheduledUpdateReminderActive = false
 
     // MARK: - Initialization
 
@@ -31,7 +65,8 @@ class UpdateService: NSObject, ObservableObject {
 
         // SPUStandardUpdaterController must be retained by the app.
         // startingUpdater: true starts the scheduled checks logic immediately.
-        self.updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        self.updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
+        normalizeUpdateCheckFrequency()
 
         logger.info("Sparkle updater initialized")
 
@@ -51,6 +86,7 @@ class UpdateService: NSObject, ObservableObject {
             NSSound.beep()
             return
         }
+        clearScheduledUpdateReminder(reason: "manual_check")
         logger.info("User triggered check for updates")
         updaterController?.checkForUpdates(nil)
     }
@@ -64,9 +100,92 @@ class UpdateService: NSObject, ObservableObject {
         }
     }
 
+    var updateCheckFrequency: UpdateCheckFrequency {
+        get {
+            let interval = updaterController?.updater.updateCheckInterval ?? UpdateCheckFrequency.daily.interval
+            return UpdateCheckFrequency.resolve(updateCheckInterval: interval)
+        }
+        set {
+            guard updateChannelEnabled else { return }
+            updaterController?.updater.updateCheckInterval = newValue.interval
+        }
+    }
+
     var isUpdateChannelEnabled: Bool { updateChannelEnabled }
 
     nonisolated static func supportsSparkleUpdates(bundleIdentifier: String?) -> Bool {
         bundleIdentifier == releaseBundleIdentifier
+    }
+
+    private func normalizeUpdateCheckFrequency() {
+        guard let updater = updaterController?.updater else { return }
+        updater.updateCheckInterval = UpdateCheckFrequency.normalizedInterval(from: updater.updateCheckInterval)
+    }
+
+    private func presentScheduledUpdateReminder(for update: SUAppcastItem) {
+        guard !scheduledUpdateReminderActive else { return }
+        scheduledUpdateReminderActive = true
+
+        if !MenuBarManager.shared.settings.showDockIcon {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.dockTile.badgeLabel = "1"
+
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let granted = try? await center.requestAuthorization(options: [.alert, .sound])
+            guard granted == true else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = "SaneBar update ready"
+            content.body = "Version \(update.displayVersionString) is ready to install."
+            content.sound = .default
+
+            let request = UNNotificationRequest(
+                identifier: Self.scheduledUpdateReminderNotificationID,
+                content: content,
+                trigger: nil
+            )
+            try? await center.add(request)
+        }
+    }
+
+    private func clearScheduledUpdateReminder(reason: StaticString) {
+        guard scheduledUpdateReminderActive else { return }
+        scheduledUpdateReminderActive = false
+        NSApp.dockTile.badgeLabel = nil
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.scheduledUpdateReminderNotificationID])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.scheduledUpdateReminderNotificationID])
+        SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
+        logger.info("Cleared scheduled update reminder: \(reason)")
+    }
+}
+
+extension UpdateService: @preconcurrency SPUStandardUserDriverDelegate {
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(_: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
+        immediateFocus
+    }
+
+    func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+        guard !state.userInitiated else {
+            clearScheduledUpdateReminder(reason: "user_initiated")
+            return
+        }
+
+        if handleShowingUpdate {
+            clearScheduledUpdateReminder(reason: "sparkle_showing")
+        } else {
+            presentScheduledUpdateReminder(for: update)
+        }
+    }
+
+    func standardUserDriverDidReceiveUserAttention(forUpdate _: SUAppcastItem) {
+        clearScheduledUpdateReminder(reason: "user_attention")
+    }
+
+    func standardUserDriverWillFinishUpdateSession() {
+        clearScheduledUpdateReminder(reason: "session_finished")
     }
 }
