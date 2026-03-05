@@ -34,11 +34,13 @@ excluded:
   - Pods
   - DerivedData
   - .build
+  - .worktrees
   - .swiftpm
   - SourcePackages
   - Tests
   - Scripts
   - scripts
   - build
+  - infra
   - vendor
   - node_modules
