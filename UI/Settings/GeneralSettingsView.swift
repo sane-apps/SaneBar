@@ -10,6 +10,8 @@ private let settingsLogger = Logger(subsystem: "com.sanebar.app", category: "Set
 struct GeneralSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @ObservedObject private var licenseService = LicenseService.shared
+    @State private var updateCheckFrequency: UpdateCheckFrequency = .daily
+    @State private var isCheckingForUpdates = false
     @State private var isAuthenticating = false // Prevent duplicate auth prompts
     @State private var proUpsellFeature: ProFeature?
 
@@ -328,10 +330,44 @@ struct GeneralSettingsView: View {
 
                 // 4. Updates
                 CompactSection("Software Updates") {
-                    SaneSparkleRow(
-                        automaticallyChecks: $menuBarManager.settings.checkForUpdatesAutomatically,
-                        onCheckNow: { menuBarManager.userDidClickCheckForUpdates() }
+                    CompactToggle(
+                        label: "Check for updates automatically",
+                        isOn: $menuBarManager.settings.checkForUpdatesAutomatically
                     )
+                    .help("Periodically check for new versions")
+
+                    CompactDivider()
+
+                    CompactRow("Check frequency") {
+                        Picker("", selection: $updateCheckFrequency) {
+                            ForEach(UpdateCheckFrequency.allCases) { frequency in
+                                Text(frequency.title).tag(frequency)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 170)
+                        .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
+                    }
+                    .help("Choose how often automatic update checks run")
+
+                    CompactDivider()
+
+                    CompactRow("Actions") {
+                        Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
+                            guard !isCheckingForUpdates else { return }
+                            isCheckingForUpdates = true
+                            menuBarManager.userDidClickCheckForUpdates()
+
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .seconds(5))
+                                isCheckingForUpdates = false
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(isCheckingForUpdates)
+                        .help("Check for updates right now")
+                    }
                 }
 
                 // 5. Profiles — Pro
@@ -534,9 +570,13 @@ struct GeneralSettingsView: View {
         .onAppear {
             normalizeBrowseModeSettingsForCurrentPlan()
             loadProfiles()
+            updateCheckFrequency = menuBarManager.updateService.updateCheckFrequency
             if licenseService.usesAppStorePurchase {
                 Task { await licenseService.preloadAppStoreProduct() }
             }
+        }
+        .onChange(of: updateCheckFrequency) { _, newValue in
+            menuBarManager.updateService.updateCheckFrequency = newValue
         }
         .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
             TextField("Name", text: $newProfileName)
