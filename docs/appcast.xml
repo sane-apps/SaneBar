@@ -4,7 +4,26 @@
         <title>SaneBar Changelog</title>
 
                                     
-        <item>
+                <item>
+            <title>2.1.22</title>
+            <pubDate>Thu, 05 Mar 2026 16:25:49 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Critical stability update: improves icon movement between Visible, Hidden, and Always Hidden, fixes second menu bar refresh and click behavior, and strengthens launch-time diagnostics and layout recovery.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.22.zip"
+                       sparkle:version="2122"
+                       sparkle:shortVersionString="2.1.22"
+                       length="7979999"
+                       type="application/octet-stream"
+                       sparkle:edSignature="o9ePzlU5R3Aj7GScBlK2KSbzsHHvjXHculAaWNvTACLSa4XmqJbXfIRTrmuTznxQn3fJz4EjMohNIe1ON365DQ=="/>
+        </item>
+<item>
             <title>2.1.20</title>
             <pubDate>Tue, 03 Mar 2026 20:53:10 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
