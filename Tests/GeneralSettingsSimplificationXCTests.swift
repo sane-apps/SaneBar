@@ -102,4 +102,8 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     func testSparkleUpdatesRejectedWhenBundleIdentifierMissing() {
         XCTAssertFalse(UpdateService.supportsSparkleUpdates(bundleIdentifier: nil))
     }
+
+    func testScheduledUpdateReminderNotificationIdentifierIsStable() {
+        XCTAssertEqual(UpdateService.scheduledUpdateReminderNotificationID, "com.sanebar.app.sparkle.scheduled-update")
+    }
 }
