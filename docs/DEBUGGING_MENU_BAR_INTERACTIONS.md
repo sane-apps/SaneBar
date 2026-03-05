@@ -75,6 +75,20 @@ macOS deletes position data when removing an NSStatusItem or setting `isVisible 
 When removing items (e.g. disabling AH separator), clear the stale position key so it
 re-seeds cleanly on re-enable. See `ensureAlwaysHiddenSeparator(enabled: false)` for the pattern.
 
+### Rule 5: Wide-Icon Hidden Lane Guardrail (Known Edge Case)
+
+Very wide status items (for example ticker-style extras) can be wider than the regular
+hidden lane when Always Hidden is enabled. In that geometry, a hidden drag can land in
+Always Hidden.
+
+SaneBar now blocks that specific hidden move path (wide icon + narrow hidden lane) and
+keeps the icon in its current zone instead of attempting a risky drag.
+
+Workarounds:
+- Keep the icon visible
+- Move it to Always Hidden
+- Disable Always Hidden (to widen hidden lane) before moving
+
 ---
 
 ## NSStatusItem Position System

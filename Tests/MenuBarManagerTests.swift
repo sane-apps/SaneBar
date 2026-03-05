@@ -212,4 +212,188 @@ struct MenuBarManagerTests {
         #expect(shouldAutoExpand,
                 "When hidden and position becomes invalid, MUST auto-expand to rescue main icon")
     }
+
+    @Test("App menu suppression triggers when leftmost item overlaps app menu edge")
+    func appMenuSuppressionTriggersOnOverlap() {
+        #expect(
+            MenuBarManager.shouldHideApplicationMenus(
+                leftmostVisibleItemX: 118,
+                appMenuMaxX: 120
+            )
+        )
+    }
+
+    @Test("App menu suppression does not trigger when leftmost item clears app menu edge")
+    func appMenuSuppressionSkipsWhenNoOverlap() {
+        #expect(
+            !MenuBarManager.shouldHideApplicationMenus(
+                leftmostVisibleItemX: 140,
+                appMenuMaxX: 120
+            )
+        )
+    }
+
+    @Test("App menu suppression honors collision padding for near-edge overlap")
+    func appMenuSuppressionHonorsPadding() {
+        #expect(
+            MenuBarManager.shouldHideApplicationMenus(
+                leftmostVisibleItemX: 123,
+                appMenuMaxX: 120,
+                collisionPadding: 3
+            )
+        )
+    }
+
+    @Test("App menu suppression threshold is inclusive at maxX + padding")
+    func appMenuSuppressionThresholdInclusive() {
+        #expect(
+            MenuBarManager.shouldHideApplicationMenus(
+                leftmostVisibleItemX: 122,
+                appMenuMaxX: 120,
+                collisionPadding: 2
+            )
+        )
+    }
+
+    @Test("App menu suppression threshold rejects one-pixel clear gap")
+    func appMenuSuppressionThresholdRejectsClearGap() {
+        #expect(
+            !MenuBarManager.shouldHideApplicationMenus(
+                leftmostVisibleItemX: 123,
+                appMenuMaxX: 120,
+                collisionPadding: 2
+            )
+        )
+    }
+
+    @Test("Second menu fallback opens only for fully-eligible hidden-state path")
+    func secondMenuFallbackDecisionMatrix() {
+        let baseline = MenuBarManager.shouldOpenSecondMenuBarFallback(
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: false,
+            requireAuthToShowHiddenIcons: false,
+            preToggleState: .hidden,
+            postToggleState: .hidden,
+            isBrowseVisible: false
+        )
+        #expect(baseline)
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: false,
+                leftClickOpensBrowseIcons: false,
+                requireAuthToShowHiddenIcons: false,
+                preToggleState: .hidden,
+                postToggleState: .hidden,
+                isBrowseVisible: false
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: true,
+                leftClickOpensBrowseIcons: true,
+                requireAuthToShowHiddenIcons: false,
+                preToggleState: .hidden,
+                postToggleState: .hidden,
+                isBrowseVisible: false
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: true,
+                leftClickOpensBrowseIcons: false,
+                requireAuthToShowHiddenIcons: true,
+                preToggleState: .hidden,
+                postToggleState: .hidden,
+                isBrowseVisible: false
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: true,
+                leftClickOpensBrowseIcons: false,
+                requireAuthToShowHiddenIcons: false,
+                preToggleState: .expanded,
+                postToggleState: .hidden,
+                isBrowseVisible: false
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: true,
+                leftClickOpensBrowseIcons: false,
+                requireAuthToShowHiddenIcons: false,
+                preToggleState: .hidden,
+                postToggleState: .expanded,
+                isBrowseVisible: false
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldOpenSecondMenuBarFallback(
+                useSecondMenuBar: true,
+                leftClickOpensBrowseIcons: false,
+                requireAuthToShowHiddenIcons: false,
+                preToggleState: .hidden,
+                postToggleState: .hidden,
+                isBrowseVisible: true
+            )
+        )
+    }
+
+    @Test("Startup recovery triggers when main icon drifts left of notch-safe boundary")
+    @MainActor
+    func startupRecoveryTriggersForNotchBoundaryDrift() {
+        #expect(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 930,
+                mainX: 1070,
+                mainRightGap: 220,
+                screenWidth: 1512,
+                notchRightSafeMinX: 1080
+            )
+        )
+    }
+
+    @Test("Startup recovery tolerates notch boundary within 8pt slack")
+    @MainActor
+    func startupRecoveryAllowsNotchBoundarySlack() {
+        #expect(
+            !MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 930,
+                mainX: 1073,
+                mainRightGap: 220,
+                screenWidth: 1512,
+                notchRightSafeMinX: 1080
+            )
+        )
+    }
+
+    @Test("Startup recovery right-gap boundary is strict-greater-than")
+    @MainActor
+    func startupRecoveryRightGapStrictBoundary() {
+        // maxAllowedRightGap = max(500, 1440*0.45) = 648
+        #expect(
+            !MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 910,
+                mainX: 1080,
+                mainRightGap: 648,
+                screenWidth: 1440,
+                notchRightSafeMinX: nil
+            )
+        )
+        #expect(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 910,
+                mainX: 1080,
+                mainRightGap: 649,
+                screenWidth: 1440,
+                notchRightSafeMinX: nil
+            )
+        )
+    }
 }

@@ -80,7 +80,7 @@ struct AboutSettingsView: View {
                     }
 
                     Link(destination: URL(string: "mailto:hi@saneapps.com")!) {
-                        Label("Email Me", systemImage: "envelope")
+                        Label("Questions", systemImage: "envelope")
                     }
                 }
             }

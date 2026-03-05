@@ -1,5 +1,8 @@
 import AppKit
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "com.sanebar.app", category: "AppleScriptCommands")
 
 // MARK: - AppleScript Commands
 
@@ -119,6 +122,37 @@ enum ScriptIconZone: String {
 private typealias ScriptClassifiedApps = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
 private typealias ScriptZonedIcon = (app: RunningApp, zone: ScriptIconZone)
 
+struct ScriptIconIdentity: Sendable {
+    let uniqueId: String
+    let bundleId: String
+    let menuExtraIdentifier: String?
+    let statusItemIndex: Int?
+
+    init(app: RunningApp) {
+        uniqueId = app.uniqueId
+        bundleId = app.bundleId
+        menuExtraIdentifier = app.menuExtraIdentifier
+        statusItemIndex = app.statusItemIndex
+    }
+
+    func matches(_ app: RunningApp) -> Bool {
+        if app.uniqueId == uniqueId {
+            return true
+        }
+        if let menuExtraIdentifier,
+           app.bundleId == bundleId,
+           app.menuExtraIdentifier == menuExtraIdentifier {
+            return true
+        }
+        if let statusItemIndex,
+           app.bundleId == bundleId,
+           app.statusItemIndex == statusItemIndex {
+            return true
+        }
+        return menuExtraIdentifier == nil && statusItemIndex == nil && app.bundleId == bundleId
+    }
+}
+
 @MainActor
 private func zones(from classified: ScriptClassifiedApps) -> [ScriptZonedIcon] {
     var icons: [ScriptZonedIcon] = []
@@ -140,6 +174,20 @@ private func currentIconZones() -> [ScriptZonedIcon] {
         classified = SearchService.shared.cachedClassifiedApps()
     }
     return zones(from: classified)
+}
+
+@MainActor
+private func runScriptMove(timeoutSeconds: TimeInterval = 6.5, operation: @escaping @MainActor () async -> Bool) -> Bool? {
+    let box = ScriptResultBox<Bool?>(nil)
+    Task { @MainActor in
+        box.value = await operation()
+    }
+
+    let deadline = Date().addingTimeInterval(timeoutSeconds)
+    while box.value == nil, Date() < deadline {
+        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+    }
+    return box.value
 }
 
 @MainActor
@@ -178,6 +226,17 @@ private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZo
     return currentIconZones()
 }
 
+@MainActor
+private func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
+    let cached = currentIconZones()
+    if resolveScriptIcon(identifier, from: cached) != nil {
+        return cached
+    }
+
+    AccessibilityService.shared.invalidateMenuBarItemCache()
+    return refreshedIconZones(timeoutSeconds: 1.2)
+}
+
 private func parseIconIdentifier(_ raw: Any?) -> String? {
     guard let iconId = raw as? String else { return nil }
     let trimmed = iconId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -204,12 +263,23 @@ private func scriptErrorMoveFailed(_ command: NSScriptCommand, iconId: String, t
     command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.rawValue)."
 }
 
+func scriptIdentifierMatches(_ identifier: String, app: RunningApp) -> Bool {
+    if app.uniqueId == identifier || app.bundleId == identifier {
+        return true
+    }
+    if app.menuExtraIdentifier == identifier {
+        return true
+    }
+    if let statusItemIndex = app.statusItemIndex,
+       identifier == "\(app.bundleId)::statusItem:\(statusItemIndex)" {
+        return true
+    }
+    return false
+}
+
 @MainActor
 private func resolveScriptIcon(_ identifier: String, from zones: [ScriptZonedIcon]) -> ScriptZonedIcon? {
-    if let exact = zones.first(where: { $0.app.uniqueId == identifier }) {
-        return exact
-    }
-    return zones.first(where: { $0.app.bundleId == identifier })
+    zones.first(where: { scriptIdentifierMatches(identifier, app: $0.app) })
 }
 
 @MainActor
@@ -287,7 +357,7 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
 
         let zones: [ScriptZonedIcon] = if Thread.isMainThread {
             MainActor.assumeIsolated {
-                currentIconZones().sorted { lhs, rhs in
+                refreshedIconZones(timeoutSeconds: 1.2).sorted { lhs, rhs in
                     if lhs.zone.rawValue == rhs.zone.rawValue {
                         return (lhs.app.xPosition ?? 0) < (rhs.app.xPosition ?? 0)
                     }
@@ -296,7 +366,7 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
             }
         } else {
             DispatchQueue.main.sync {
-                currentIconZones().sorted { lhs, rhs in
+                refreshedIconZones(timeoutSeconds: 1.2).sorted { lhs, rhs in
                     if lhs.zone.rawValue == rhs.zone.rawValue {
                         return (lhs.app.xPosition ?? 0) < (rhs.app.xPosition ?? 0)
                     }
@@ -341,6 +411,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         let separatorX = manager.getSeparatorOriginX()
         let separatorRightEdgeX = manager.getSeparatorRightEdgeX()
         let alwaysHiddenX = manager.getAlwaysHiddenSeparatorOriginX()
+        let alwaysHiddenBoundaryX = manager.getAlwaysHiddenSeparatorBoundaryX()
 
         let mainWindow = manager.mainStatusItem?.button?.window
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
@@ -387,7 +458,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "hoverSuspended": manager.hoverService.isSuspended,
             "hoverMouseInMenuBar": manager.hoverService.isMouseInMenuBar,
             "shouldSkipHideForExternalMonitor": manager.shouldSkipHideForExternalMonitor,
-            "isOnExternalMonitor": manager.isOnExternalMonitor,
+            "isOnExternalMonitor": manager.isOnExternalMonitor
         ]
 
         func setOptional(_ key: String, _ value: CGFloat?) {
@@ -398,6 +469,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         setOptional("separatorOriginX", separatorX)
         setOptional("separatorRightEdgeX", separatorRightEdgeX)
         setOptional("alwaysHiddenSeparatorOriginX", alwaysHiddenX)
+        setOptional("alwaysHiddenSeparatorBoundaryX", alwaysHiddenBoundaryX)
         setOptional("screenWidth", screenWidth)
         setOptional("notchRightSafeMinX", notchRightSafeMinX)
         setOptional("mainRightGap", rightGap)
@@ -587,24 +659,33 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         }
 
         let targetZone = self.targetZone
-        let reasonLabel = self.reasonLabel
-        var iconUniqueID: String?
         var errorCode: String?
+        var skipZoneWait = false
 
         let started: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
                 let manager = MenuBarManager.shared
-                let startZones = currentIconZones()
+                let startZones = zonesForScriptResolution(trimmedId)
                 guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
                     errorCode = "notFound"
                     return false
                 }
 
                 let icon = source.app
-                iconUniqueID = icon.uniqueId
                 let sourceZone = source.zone
+                logger.info(
+                    "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
+                )
 
                 if sourceZone == targetZone {
+                    if targetZone == .alwaysHidden {
+                        if !manager.settings.alwaysHiddenSectionEnabled {
+                            manager.settings.alwaysHiddenSectionEnabled = true
+                        }
+                        manager.pinAlwaysHidden(app: icon)
+                        manager.saveSettings()
+                    }
+                    skipZoneWait = true
                     return true
                 }
 
@@ -613,45 +694,63 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     if !manager.settings.alwaysHiddenSectionEnabled {
                         manager.settings.alwaysHiddenSectionEnabled = true
                     }
-                    manager.pinAlwaysHidden(app: icon)
-                    manager.saveSettings()
-                    Task { @MainActor in
-                        await manager.enforceAlwaysHiddenPinnedItems(reason: reasonLabel, filterBundleId: icon.bundleId)
+                    let moved = runScriptMove {
+                        await manager.moveIconAlwaysHiddenAndWait(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex,
+                            toAlwaysHidden: true
+                        )
                     }
-                    return true
+                    guard let moved else {
+                        errorCode = "timedOut"
+                        return false
+                    }
+                    if moved {
+                        manager.pinAlwaysHidden(app: icon)
+                        manager.saveSettings()
+                    }
+                    return moved
 
                 case .hidden:
                     switch sourceZone {
                     case .alwaysHidden:
-                        _ = manager.unpinAlwaysHidden(
+                        let removedPin = manager.unpinAlwaysHidden(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex
                         ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
                             manager.unpinAlwaysHidden(bundleID: icon.bundleId))
-                        let movedFromAlwaysHidden = manager.moveIconFromAlwaysHiddenToHidden(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex
-                        )
-                        if movedFromAlwaysHidden {
-                            return true
+                        if removedPin {
+                            manager.saveSettings()
                         }
-                        // Zone snapshots can lag; if this item is already in the regular
-                        // hidden/visible lane, fall back to the standard hidden move path.
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: true
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: true
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .visible:
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: true
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: true
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .hidden:
                         return true
                     }
@@ -659,35 +758,42 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                 case .visible:
                     switch sourceZone {
                     case .alwaysHidden:
-                        _ = manager.unpinAlwaysHidden(
+                        let removedPin = manager.unpinAlwaysHidden(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex
                         ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
                             manager.unpinAlwaysHidden(bundleID: icon.bundleId))
-                        let movedFromAlwaysHidden = manager.moveIconFromAlwaysHidden(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex
-                        )
-                        if movedFromAlwaysHidden {
-                            return true
+                        if removedPin {
+                            manager.saveSettings()
                         }
-                        // Fallback for stale zone snapshots that incorrectly report
-                        // always-hidden right after relayout.
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: false
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: false
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .hidden:
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: false
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: false
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .visible:
                         return true
                     }
@@ -696,17 +802,27 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         } else {
             DispatchQueue.main.sync {
                 let manager = MenuBarManager.shared
-                let startZones = currentIconZones()
+                let startZones = zonesForScriptResolution(trimmedId)
                 guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
                     errorCode = "notFound"
                     return false
                 }
 
                 let icon = source.app
-                iconUniqueID = icon.uniqueId
                 let sourceZone = source.zone
+                logger.info(
+                    "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
+                )
 
                 if sourceZone == targetZone {
+                    if targetZone == .alwaysHidden {
+                        if !manager.settings.alwaysHiddenSectionEnabled {
+                            manager.settings.alwaysHiddenSectionEnabled = true
+                        }
+                        manager.pinAlwaysHidden(app: icon)
+                        manager.saveSettings()
+                    }
+                    skipZoneWait = true
                     return true
                 }
 
@@ -715,43 +831,63 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     if !manager.settings.alwaysHiddenSectionEnabled {
                         manager.settings.alwaysHiddenSectionEnabled = true
                     }
-                    manager.pinAlwaysHidden(app: icon)
-                    manager.saveSettings()
-                    Task { @MainActor in
-                        await manager.enforceAlwaysHiddenPinnedItems(reason: reasonLabel, filterBundleId: icon.bundleId)
+                    let moved = runScriptMove {
+                        await manager.moveIconAlwaysHiddenAndWait(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex,
+                            toAlwaysHidden: true
+                        )
                     }
-                    return true
+                    guard let moved else {
+                        errorCode = "timedOut"
+                        return false
+                    }
+                    if moved {
+                        manager.pinAlwaysHidden(app: icon)
+                        manager.saveSettings()
+                    }
+                    return moved
 
                 case .hidden:
                     switch sourceZone {
                     case .alwaysHidden:
-                        _ = manager.unpinAlwaysHidden(
+                        let removedPin = manager.unpinAlwaysHidden(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex
                         ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
                             manager.unpinAlwaysHidden(bundleID: icon.bundleId))
-                        let movedFromAlwaysHidden = manager.moveIconFromAlwaysHiddenToHidden(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex
-                        )
-                        if movedFromAlwaysHidden {
-                            return true
+                        if removedPin {
+                            manager.saveSettings()
                         }
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: true
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: true
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .visible:
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: true
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: true
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .hidden:
                         return true
                     }
@@ -759,33 +895,42 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                 case .visible:
                     switch sourceZone {
                     case .alwaysHidden:
-                        _ = manager.unpinAlwaysHidden(
+                        let removedPin = manager.unpinAlwaysHidden(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex
                         ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
                             manager.unpinAlwaysHidden(bundleID: icon.bundleId))
-                        let movedFromAlwaysHidden = manager.moveIconFromAlwaysHidden(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex
-                        )
-                        if movedFromAlwaysHidden {
-                            return true
+                        if removedPin {
+                            manager.saveSettings()
                         }
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: false
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: false
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .hidden:
-                        return manager.moveIcon(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            toHidden: false
-                        )
+                        let moved = runScriptMove {
+                            await manager.moveIconAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                toHidden: false
+                            )
+                        }
+                        guard let moved else {
+                            errorCode = "timedOut"
+                            return false
+                        }
+                        return moved
                     case .visible:
                         return true
                     }
@@ -796,32 +941,18 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         guard started else {
             if errorCode == "notFound" {
                 scriptErrorIconNotFound(self, iconId: trimmedId)
+            } else if errorCode == "timedOut" {
+                scriptErrorOperationTimedOut(self)
             } else {
                 scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
             }
             return false
         }
 
-        guard let iconUniqueID else {
-            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
-            return false
+        if skipZoneWait {
+            return true
         }
-
-        let moved: Bool = if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                waitForScriptZone(iconUniqueID: iconUniqueID, expected: targetZone)
-            }
-        } else {
-            DispatchQueue.main.sync {
-                waitForScriptZone(iconUniqueID: iconUniqueID, expected: targetZone)
-            }
-        }
-
-        if !moved {
-            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
-        }
-
-        return moved
+        return true
     }
 }
 

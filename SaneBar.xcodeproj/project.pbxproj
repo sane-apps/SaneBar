@@ -1003,6 +1003,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
+				APP_STORE_PRODUCT_ID = com.sanebar.app.pro.unlock;
 				INFOPLIST_FILE = SaneBar/Info.plist;
 				INFOPLIST_KEY_AppStoreProductID = com.sanebar.app.pro.unlock;
 				LD_RUNPATH_SEARCH_PATHS = (

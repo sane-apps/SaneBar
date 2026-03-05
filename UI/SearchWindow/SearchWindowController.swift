@@ -49,10 +49,62 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     private var panelIdleCloseTask: Task<Void, Never>?
     private var panelIdleCloseGeneration: Int = 0
     private var postDismissForceHideTask: Task<Void, Never>?
+    private var secondMenuBarRelayoutTask: Task<Void, Never>?
+    private var lastSecondMenuBarDiagnostics = SecondMenuBarDiagnostics()
 
     /// Prevents explicit closes during icon moves (CGEvent can flip key status)
     private(set) var isMoveInProgress = false
     private(set) var isBrowseSessionActive = false
+
+    struct SecondMenuBarDiagnostics: Sendable {
+        var showRequestedAt: String = "never"
+        var currentMode: String = "nil"
+        var windowVisible: Bool = false
+        var windowFrame: String = "nil"
+        var refreshForced: Bool = false
+        var visibleCount: Int = 0
+        var hiddenCount: Int = 0
+        var alwaysHiddenCount: Int = 0
+        var relayoutPassCount: Int = 0
+        var lastRelayoutAt: String = "never"
+        var lastRelayoutReason: String = "none"
+
+        func formattedSummary() -> String {
+            """
+            secondMenuBar:
+              showRequestedAt: \(showRequestedAt)
+              currentMode: \(currentMode)
+              windowVisible: \(windowVisible)
+              windowFrame: \(windowFrame)
+              refreshForced: \(refreshForced)
+              visibleCount: \(visibleCount)
+              hiddenCount: \(hiddenCount)
+              alwaysHiddenCount: \(alwaysHiddenCount)
+              relayoutPassCount: \(relayoutPassCount)
+              lastRelayoutAt: \(lastRelayoutAt)
+              lastRelayoutReason: \(lastRelayoutReason)
+            """
+        }
+    }
+
+    func diagnosticsSnapshot() -> String {
+        lastSecondMenuBarDiagnostics.formattedSummary()
+    }
+
+    private static func diagnosticsTimestamp(_ date: Date) -> String {
+        date.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true))
+    }
+
+    private static func diagnosticsRect(_ rect: CGRect?) -> String {
+        guard let rect else { return "nil" }
+        return String(
+            format: "x=%.1f y=%.1f w=%.1f h=%.1f",
+            rect.origin.x,
+            rect.origin.y,
+            rect.size.width,
+            rect.size.height
+        )
+    }
 
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
@@ -92,6 +144,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         logger.info("show requested mode=\(String(describing: desiredMode), privacy: .public) currentMode=\(String(describing: self.currentMode), privacy: .public)")
         postDismissForceHideTask?.cancel()
         postDismissForceHideTask = nil
+        secondMenuBarRelayoutTask?.cancel()
+        secondMenuBarRelayoutTask = nil
         isBrowseSessionActive = true
 
         // If mode changed, recreate the window
@@ -127,6 +181,17 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         positionWindow(window, mode: desiredMode)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if desiredMode == .secondMenuBar {
+            lastSecondMenuBarDiagnostics.showRequestedAt = Self.diagnosticsTimestamp(Date())
+            lastSecondMenuBarDiagnostics.currentMode = String(describing: desiredMode)
+            lastSecondMenuBarDiagnostics.windowVisible = window.isVisible
+            lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window.frame)
+            lastSecondMenuBarDiagnostics.lastRelayoutReason = "show"
+            logger.info(
+                "secondMenuBar show frame=\(Self.diagnosticsRect(window.frame), privacy: .public) visible=\(window.isVisible, privacy: .public)"
+            )
+            scheduleDeferredSecondMenuBarRelayoutIfNeeded()
+        }
 
         // Notify the SwiftUI view to reload (window is reused, onAppear won't fire again)
         NotificationCenter.default.post(name: Self.windowDidShowNotification, object: nil)
@@ -182,6 +247,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panelIdleCloseTask = nil
         postDismissForceHideTask?.cancel()
         postDismissForceHideTask = nil
+        secondMenuBarRelayoutTask?.cancel()
+        secondMenuBarRelayoutTask = nil
         isBrowseSessionActive = false
 
         // Resume hover/click triggers and refresh pointer state before scheduling rehide.
@@ -318,6 +385,56 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         guard wasVisible else { return }
         show(mode: mode)
+    }
+
+    func refitSecondMenuBarWindowIfNeeded() {
+        guard currentMode == .secondMenuBar, let window else { return }
+        guard window.isVisible else { return }
+        positionWindow(window, mode: .secondMenuBar)
+        lastSecondMenuBarDiagnostics.windowVisible = window.isVisible
+        lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window.frame)
+        lastSecondMenuBarDiagnostics.lastRelayoutAt = Self.diagnosticsTimestamp(Date())
+        lastSecondMenuBarDiagnostics.lastRelayoutReason = "refit"
+        lastSecondMenuBarDiagnostics.relayoutPassCount += 1
+        logger.info(
+            "secondMenuBar relayout pass=\(self.lastSecondMenuBarDiagnostics.relayoutPassCount, privacy: .public) frame=\(Self.diagnosticsRect(window.frame), privacy: .public)"
+        )
+    }
+
+    private func scheduleDeferredSecondMenuBarRelayoutIfNeeded() {
+        guard currentMode == .secondMenuBar else { return }
+
+        secondMenuBarRelayoutTask?.cancel()
+        secondMenuBarRelayoutTask = Task { [weak self] in
+            for delay in [180, 520] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard let self else { return }
+                    self.refitSecondMenuBarWindowIfNeeded()
+                }
+            }
+        }
+    }
+
+    func recordSecondMenuBarClassifiedCounts(
+        visible: Int,
+        hidden: Int,
+        alwaysHidden: Int,
+        forcedRefresh: Bool
+    ) {
+        lastSecondMenuBarDiagnostics.currentMode = String(describing: currentMode)
+        lastSecondMenuBarDiagnostics.refreshForced = forcedRefresh
+        lastSecondMenuBarDiagnostics.visibleCount = visible
+        lastSecondMenuBarDiagnostics.hiddenCount = hidden
+        lastSecondMenuBarDiagnostics.alwaysHiddenCount = alwaysHidden
+        lastSecondMenuBarDiagnostics.windowVisible = window?.isVisible == true
+        lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window?.frame)
+        lastSecondMenuBarDiagnostics.lastRelayoutAt = Self.diagnosticsTimestamp(Date())
+        lastSecondMenuBarDiagnostics.lastRelayoutReason = "classified-refresh"
+        logger.info(
+            "secondMenuBar refresh forced=\(forcedRefresh, privacy: .public) visible=\(visible, privacy: .public) hidden=\(hidden, privacy: .public) alwaysHidden=\(alwaysHidden, privacy: .public)"
+        )
     }
 
     // MARK: - Window Positioning

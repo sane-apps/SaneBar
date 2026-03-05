@@ -48,6 +48,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Guards against duplicate auth prompts
     var isAuthenticating: Bool = false
 
+    /// Delayed overlap check task for temporarily hiding app menus while expanded.
+    var appMenuSuppressionTask: Task<Void, Never>?
+    /// Tracks whether SaneBar temporarily hid front app menus for overlap.
+    var isAppMenuSuppressed = false
+    /// Front app to reactivate after temporary menu suppression.
+    var appToReactivateAfterSuppression: NSRunningApplication?
+
     /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0
     var lastFailedAuthTime: Date?
@@ -721,6 +728,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateIconStyle()
                 self?.updateAlwaysHiddenSeparator()
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "settingsChanged")
+                if newSettings.showDockIcon {
+                    self?.restoreApplicationMenusIfNeeded(reason: "dockIconEnabled")
+                } else if self?.hidingState == .expanded {
+                    self?.scheduleAppMenuSuppressionEvaluation()
+                }
                 self?.saveSettings() // Auto-persist all settings changes
             }
             .store(in: &cancellables)
@@ -731,6 +743,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
+                if hidingState == .expanded {
+                    scheduleAppMenuSuppressionEvaluation()
+                }
                 // Only trigger if the setting is enabled and icons are currently visible.
                 // Note: fire-time guard in hidingService.shouldRehide handles menu
                 // interaction safety (#97) — no need to duplicate here.
@@ -741,6 +756,22 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     logger.debug("App changed - scheduling auto-hide")
                     hidingService.scheduleRehide(after: 0.5)
                 }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default
+            .publisher(for: .hiddenSectionShown)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.scheduleAppMenuSuppressionEvaluation()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default
+            .publisher(for: .hiddenSectionHidden)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.restoreApplicationMenusIfNeeded(reason: "sectionHidden")
             }
             .store(in: &cancellables)
 

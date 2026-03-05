@@ -83,6 +83,21 @@ extension MenuBarManager {
         return (false, false)
     }
 
+    nonisolated static func shouldOpenSecondMenuBarFallback(
+        useSecondMenuBar: Bool,
+        leftClickOpensBrowseIcons: Bool,
+        requireAuthToShowHiddenIcons: Bool,
+        preToggleState: HidingState,
+        postToggleState: HidingState,
+        isBrowseVisible: Bool
+    ) -> Bool {
+        guard useSecondMenuBar else { return false }
+        guard !leftClickOpensBrowseIcons else { return false }
+        guard !requireAuthToShowHiddenIcons else { return false }
+        guard preToggleState == .hidden, postToggleState == .hidden else { return false }
+        return !isBrowseVisible
+    }
+
     func normalizeLicenseDependentDefaults() {
         let isPro = LicenseService.shared.isPro
         let normalized = Self.normalizedLeftClickOpensBrowseIcons(
@@ -205,7 +220,30 @@ extension MenuBarManager {
                 SearchWindowController.shared.toggle()
             } else {
                 logger.info("Left-click: calling toggleHiddenItems()")
+                let preToggleState = self.hidingService.state
+                let fallbackShouldBeEvaluated = self.settings.useSecondMenuBar &&
+                    !self.settings.requireAuthToShowHiddenIcons &&
+                    preToggleState == .hidden
                 toggleHiddenItems()
+                if fallbackShouldBeEvaluated {
+                    Task { @MainActor [weak self] in
+                        // Let toggleHiddenItems() complete first.
+                        try? await Task.sleep(for: .milliseconds(350))
+                        guard let self else { return }
+
+                        if Self.shouldOpenSecondMenuBarFallback(
+                            useSecondMenuBar: self.settings.useSecondMenuBar,
+                            leftClickOpensBrowseIcons: self.settings.leftClickOpensBrowseIcons,
+                            requireAuthToShowHiddenIcons: self.settings.requireAuthToShowHiddenIcons,
+                            preToggleState: preToggleState,
+                            postToggleState: self.hidingService.state,
+                            isBrowseVisible: SearchWindowController.shared.isVisible
+                        ) {
+                            logger.info("Left-click fallback: reveal stayed hidden; opening Second Menu Bar")
+                            SearchWindowController.shared.toggle()
+                        }
+                    }
+                }
             }
         case .rightClick:
             showStatusMenu(anchorButton: clickedButton, triggeringEvent: event)

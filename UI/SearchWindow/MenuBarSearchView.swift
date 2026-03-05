@@ -163,7 +163,7 @@ struct MenuBarSearchView: View {
         .onAppear {
             _ = syncAccessibilityState()
             loadCachedApps()
-            refreshApps()
+            refreshApps(force: isSecondMenuBar)
             startPermissionMonitoring()
 
             // Focus search field on appear for instant searching (Find Icon only)
@@ -217,7 +217,7 @@ struct MenuBarSearchView: View {
             // Window reused (not destroyed on close) — reload when re-shown
             _ = syncAccessibilityState()
             loadCachedApps()
-            refreshApps()
+            refreshApps(force: isSecondMenuBar)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             let nowTrusted = syncAccessibilityState()
@@ -465,6 +465,13 @@ struct MenuBarSearchView: View {
                     visibleApps = classified.visible
                     menuBarApps = classified.hidden
                     alwaysHiddenApps = classified.alwaysHidden
+                    SearchWindowController.shared.recordSecondMenuBarClassifiedCounts(
+                        visible: classified.visible.count,
+                        hidden: classified.hidden.count,
+                        alwaysHidden: classified.alwaysHidden.count,
+                        forcedRefresh: force
+                    )
+                    SearchWindowController.shared.refitSecondMenuBarWindowIfNeeded()
                 } else {
                     switch effectiveMode {
                     case .hidden:

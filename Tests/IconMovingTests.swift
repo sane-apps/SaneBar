@@ -174,6 +174,33 @@ struct IconMovingTargetTests {
         #expect(targetX == 790, "Tight gap: must clamp aggressively")
         #expect(targetX < mainIconLeftEdge)
     }
+
+    @Test("Wide-icon hidden guard blocks when lane is narrower than icon width + padding")
+    func wideIconHiddenGuardBlocksNarrowLane() {
+        let shouldBlock = MenuBarManager.shouldBlockWideIconHiddenMove(
+            iconWidth: 220,
+            hiddenLaneWidth: 205
+        )
+        #expect(shouldBlock)
+    }
+
+    @Test("Wide-icon hidden guard allows wide item when lane is sufficient")
+    func wideIconHiddenGuardAllowsSufficientLane() {
+        let shouldBlock = MenuBarManager.shouldBlockWideIconHiddenMove(
+            iconWidth: 220,
+            hiddenLaneWidth: 260
+        )
+        #expect(!shouldBlock)
+    }
+
+    @Test("Wide-icon hidden guard ignores normal icon widths")
+    func wideIconHiddenGuardIgnoresNormalIcons() {
+        let shouldBlock = MenuBarManager.shouldBlockWideIconHiddenMove(
+            iconWidth: 32,
+            hiddenLaneWidth: 20
+        )
+        #expect(!shouldBlock)
+    }
 }
 
 // MARK: - Grab Point Tests
@@ -1003,5 +1030,36 @@ struct IconMovingSeparatorCacheCoherencyTests {
             mainLeftEdge: 1386
         )
         #expect(resolved == 1188)
+    }
+
+    @Test("Clamps live separator edge left of main icon boundary")
+    func clampsLiveSeparatorEdgeLeftOfMainIcon() {
+        let resolved = MenuBarManager.normalizedSeparatorRightEdge(
+            cachedRightEdge: 1699,
+            cachedOrigin: 1663,
+            estimatedRightEdge: nil,
+            mainLeftEdge: 1699
+        )
+        #expect(resolved == 1697)
+    }
+
+    @Test("Repairs always-hidden boundary from origin cache")
+    func repairsAlwaysHiddenBoundaryFromOrigin() {
+        let resolved = MenuBarManager.normalizedAlwaysHiddenBoundary(
+            cachedRightEdge: 1920,
+            cachedOrigin: 1357,
+            separatorX: 1662
+        )
+        #expect(resolved == 1377)
+    }
+
+    @Test("Rejects always-hidden boundary on or right of separator")
+    func rejectsInvalidAlwaysHiddenBoundary() {
+        let resolved = MenuBarManager.normalizedAlwaysHiddenBoundary(
+            cachedRightEdge: 1890,
+            cachedOrigin: nil,
+            separatorX: 1662
+        )
+        #expect(resolved == nil)
     }
 }

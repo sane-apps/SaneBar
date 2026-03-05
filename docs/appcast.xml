@@ -4,10 +4,11 @@
         <title>SaneBar Changelog</title>
 
                                     
-                <item>
+        <item>
             <title>2.1.20</title>
             <pubDate>Tue, 03 Mar 2026 20:53:10 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>
             <description>
                 <![CDATA[
                 <h2>What's New</h2>

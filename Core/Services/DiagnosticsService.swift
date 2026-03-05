@@ -46,6 +46,17 @@ private func collectSaneBarSettings() -> String {
         return String(format: "%.2f", value)
     }
 
+    func indent(_ block: String, spaces: Int = 2) -> String {
+        let prefix = String(repeating: " ", count: spaces)
+        return block
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { prefix + $0 }
+            .joined(separator: "\n")
+    }
+
+    let searchDiagnostics = SearchService.shared.diagnosticsSnapshot()
+    let secondMenuBarDiagnostics = SearchWindowController.shared.diagnosticsSnapshot()
+
     return """
     hidingState: \(manager.hidingService.state.rawValue)
     isAnimating: \(manager.hidingService.isAnimating)
@@ -111,5 +122,9 @@ private func collectSaneBarSettings() -> String {
       useSecondMenuBar: \(settings.useSecondMenuBar)
       alwaysHiddenSectionEnabled: \(settings.alwaysHiddenSectionEnabled)
       alwaysHiddenPinnedItemCount: \(settings.alwaysHiddenPinnedItemIds.count)
+
+    diagnostics:
+    \(indent(searchDiagnostics, spaces: 4))
+    \(indent(secondMenuBarDiagnostics, spaces: 4))
     """
 }

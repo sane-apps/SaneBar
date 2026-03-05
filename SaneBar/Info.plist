@@ -29,6 +29,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>AppStoreProductID</key>
+	<string>$(APP_STORE_PRODUCT_ID)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>NSAccessibilityUsageDescription</key>

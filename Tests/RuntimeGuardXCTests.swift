@@ -188,25 +188,59 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testAppleScriptAlwaysHiddenMovesHaveStandardMoveFallback() throws {
+    func testAppleScriptAlwaysHiddenMovesUseStandardMovePath() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("Zone snapshots can lag; if this item is already in the regular"),
-            "AppleScript move routing should document stale zone snapshot fallback behavior"
+            source.contains("var skipZoneWait = false"),
+            "AppleScript move routing should track no-op moves and skip zone wait when no move is needed"
         )
         XCTAssertTrue(
-            source.contains("let movedFromAlwaysHidden = manager.moveIconFromAlwaysHiddenToHidden("),
-            "Move-to-hidden from stale always-hidden classification should fall back to standard hidden move"
+            source.contains("if skipZoneWait {"),
+            "No-op move requests should return success without polling for zone convergence"
         )
         XCTAssertTrue(
-            source.contains("let movedFromAlwaysHidden = manager.moveIconFromAlwaysHidden("),
-            "Move-to-visible from stale always-hidden classification should fall back to standard visible move"
+            source.contains("sourceZone == targetZone"),
+            "AppleScript routing should detect when an icon is already in the requested zone"
         )
         XCTAssertTrue(
-            source.contains("return manager.moveIcon("),
-            "Fallback path should invoke standard moveIcon routing when always-hidden path fails"
+            source.contains("case .alwaysHidden:\n                        let removedPin = manager.unpinAlwaysHidden"),
+            "Always-hidden sources should be unpinned before routing to a standard move"
+        )
+        XCTAssertTrue(
+            source.contains("toHidden: true"),
+            "Move-to-hidden should route through standard moveIcon so targeting logic stays consistent"
+        )
+        XCTAssertTrue(
+            source.contains("toHidden: false"),
+            "Move-to-visible should route through standard moveIcon so targeting logic stays consistent"
+        )
+        XCTAssertFalse(
+            source.contains("manager.moveIconFromAlwaysHiddenToHidden("),
+            "AppleScript move routing should avoid async always-hidden helper starts that can mask failures"
+        )
+        XCTAssertFalse(
+            source.contains("manager.moveIconFromAlwaysHidden("),
+            "AppleScript move routing should avoid async always-hidden helper starts that can mask failures"
+        )
+    }
+
+    func testHiddenStateClassificationUsesPinnedFallbackForAlwaysHidden() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if MenuBarManager.shared.hidingService.state == .hidden {"),
+            "Hidden-state classification should not trust live always-hidden separator geometry"
+        )
+        XCTAssertTrue(
+            source.contains("return (separatorX, nil)"),
+            "Hidden-state classification should force two-zone split before pinned-ID post-pass"
+        )
+        XCTAssertTrue(
+            source.contains("post-pass moved"),
+            "When AH geometry is disabled, pinned IDs should still populate always-hidden classification"
         )
     }
 
@@ -449,6 +483,44 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testAppleScriptMoveResolutionRefreshesWhenCachedZonesMiss() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let startZones = zonesForScriptResolution(trimmedId)"),
+            "AppleScript moves should escalate from cached zones to a refreshed classification snapshot before declaring not-found"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"),
+            "AppleScript move resolution should invalidate the AX cache before the refreshed lookup"
+        )
+    }
+
+    func testAppleScriptMoveCommandsWaitOnMoveTasks() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let movingURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let movingSource = try String(contentsOf: movingURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let moved = runScriptMove {"),
+            "AppleScript move commands should block on the real move task instead of fire-and-forget polling"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.moveIconAndWait("),
+            "AppleScript visible/hidden moves should wait on the standard move task"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.moveIconAlwaysHiddenAndWait("),
+            "AppleScript always-hidden moves should wait on the dedicated always-hidden move task"
+        )
+        XCTAssertTrue(
+            movingSource.contains("func moveIconAlwaysHiddenAndWait("),
+            "MenuBarManager should expose an awaitable always-hidden move helper for AppleScript command reliability"
+        )
+    }
+
     func testAppleScriptAlwaysHiddenExitsUseRobustUnpinHelpers() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -534,6 +606,14 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("getAlwaysHiddenSeparatorBoundaryX()"),
             "Always-hidden move targeting should use AH right-edge boundary, not AH origin"
+        )
+        XCTAssertTrue(
+            source.contains("AH separator boundary for hidden target"),
+            "Hidden move target resolution should log AH boundary usage from the boundary helper"
+        )
+        XCTAssertTrue(
+            source.contains("Ignoring AH boundary >= separator during hidden move target resolution"),
+            "Hidden move target resolution should reject invalid AH boundaries that overlap the main separator"
         )
     }
 
@@ -680,6 +760,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("if hoverService.isSuspended"),
             "Rehide guard should explicitly allow auto-rehide while Browse Icons intentionally suspends hover monitoring"
+        )
+    }
+
+    func testAppMenuSuppressionUsesClassifiedVisibleAndHiddenLanes() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let classified = await SearchService.shared.refreshClassifiedApps()"),
+            "App menu suppression should evaluate overlap from the latest classified zones"
+        )
+        XCTAssertTrue(
+            source.contains("(classified.visible + classified.hidden)"),
+            "App menu suppression should consider visible + hidden lanes so overflowed hidden icons trigger overlap recovery"
+        )
+        XCTAssertTrue(
+            source.contains(".compactMap(\\.xPosition)"),
+            "App menu suppression should use RunningApp xPosition values from classification snapshots"
         )
     }
 
@@ -1066,6 +1164,54 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("manager.hidingService.scheduleRehide(after: 0.2)"),
             "Idle timeout close should force a short rehide delay so the menu bar does not stay expanded"
+        )
+    }
+
+    func testPostRevealClickPathAvoidsImmediateSpatialFallback() throws {
+        let searchServiceURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let searchSource = try String(contentsOf: searchServiceURL, encoding: .utf8)
+        let interactionURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Interaction.swift")
+        let interactionSource = try String(contentsOf: interactionURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            searchSource.contains("allowImmediateFallbackCenter: !didReveal"),
+            "Post-reveal click attempts should disable immediate spatial fallback so hardware clicks poll the live icon frame"
+        )
+        XCTAssertTrue(
+            searchSource.contains("allowImmediateFallbackCenter: false"),
+            "Forced-refresh click retries should continue to avoid immediate spatial fallback"
+        )
+        XCTAssertTrue(
+            interactionSource.contains("allowImmediateFallbackCenter: Bool = true"),
+            "Accessibility click path should expose an explicit immediate-fallback gate"
+        )
+        XCTAssertTrue(
+            interactionSource.contains("if allowImmediateFallbackCenter,"),
+            "Immediate spatial fallback should be gated so reveal-time clicks can require live frame polling"
+        )
+    }
+
+    func testSecondMenuBarShowForcesFreshScanAndRelayout() throws {
+        let searchViewURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
+        let searchViewSource = try String(contentsOf: searchViewURL, encoding: .utf8)
+        let controllerURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let controllerSource = try String(contentsOf: controllerURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            searchViewSource.contains("refreshApps(force: isSecondMenuBar)"),
+            "Second menu bar show/reopen should force a fresh AX scan instead of trusting cached app lists"
+        )
+        XCTAssertTrue(
+            searchViewSource.contains("SearchWindowController.shared.refitSecondMenuBarWindowIfNeeded()"),
+            "Second menu bar refreshes should refit the window after real data arrives so the panel doesn't stay undersized"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("func refitSecondMenuBarWindowIfNeeded()"),
+            "SearchWindowController should expose an explicit second-menu-bar refit hook"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("scheduleDeferredSecondMenuBarRelayoutIfNeeded()"),
+            "Second menu bar show should schedule deferred relayout passes while WindowServer geometry settles"
         )
     }
 

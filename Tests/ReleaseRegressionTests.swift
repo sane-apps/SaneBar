@@ -367,6 +367,48 @@ struct LeftClickRoutingTests {
         #expect(MenuBarManager.shared.settings.useSecondMenuBar == false)
     }
 
+    @Test("Second menu bar fallback opens only when reveal remains hidden")
+    func secondMenuBarFallbackWhenRevealStaysHidden() {
+        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: false,
+            requireAuthToShowHiddenIcons: false,
+            preToggleState: .hidden,
+            postToggleState: .hidden,
+            isBrowseVisible: false
+        )
+
+        #expect(shouldFallback)
+    }
+
+    @Test("Second menu bar fallback is blocked when auth is required")
+    func secondMenuBarFallbackBlockedByAuth() {
+        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: false,
+            requireAuthToShowHiddenIcons: true,
+            preToggleState: .hidden,
+            postToggleState: .hidden,
+            isBrowseVisible: false
+        )
+
+        #expect(!shouldFallback)
+    }
+
+    @Test("Second menu bar fallback is skipped when reveal succeeds")
+    func secondMenuBarFallbackSkippedWhenRevealSucceeds() {
+        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+            useSecondMenuBar: true,
+            leftClickOpensBrowseIcons: false,
+            requireAuthToShowHiddenIcons: false,
+            preToggleState: .hidden,
+            postToggleState: .expanded,
+            isBrowseVisible: false
+        )
+
+        #expect(!shouldFallback)
+    }
+
     @Test("openFindIcon uses mode-aware toggle (not forced .findIcon)")
     func openFindIconIsModeAware() {
         // Regression: openFindIcon() previously forced mode: .findIcon.

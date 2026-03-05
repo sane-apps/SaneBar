@@ -176,4 +176,66 @@ struct AppleScriptCommandsTests {
 
         #expect(expectedMappings.count == 3, "All commands have SDEF mappings")
     }
+
+    @Test("Script identifier matching accepts unique, bundle, and menu extra forms")
+    func scriptIdentifierMatchingAcceptsMenuExtraFallbacks() {
+        let app = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: 2,
+            xPosition: 100,
+            width: 24
+        )
+
+        #expect(scriptIdentifierMatches("com.example.Widget::axid:com.example.widget.extra", app: app))
+        #expect(scriptIdentifierMatches("com.example.Widget", app: app))
+        #expect(scriptIdentifierMatches("com.example.widget.extra", app: app))
+        #expect(!scriptIdentifierMatches("com.example.Other", app: app))
+    }
+
+    @Test("Script icon identity matches stable fallback identities after relayout")
+    func scriptIconIdentityMatchesMenuExtraAndStatusFallbacks() {
+        let menuExtraAnchor = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: nil,
+            xPosition: 100,
+            width: 24
+        )
+        let menuExtraRelayout = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: nil,
+            xPosition: 220,
+            width: 24
+        )
+        let statusAnchor = RunningApp(
+            id: "com.example.Status",
+            name: "Status",
+            icon: nil,
+            menuExtraIdentifier: nil,
+            statusItemIndex: 4,
+            xPosition: 300,
+            width: 22
+        )
+        let statusRelayout = RunningApp(
+            id: "com.example.Status",
+            name: "Status",
+            icon: nil,
+            menuExtraIdentifier: nil,
+            statusItemIndex: 4,
+            xPosition: 340,
+            width: 22
+        )
+
+        #expect(ScriptIconIdentity(app: menuExtraAnchor).matches(menuExtraRelayout))
+        #expect(ScriptIconIdentity(app: statusAnchor).matches(statusRelayout))
+        #expect(!ScriptIconIdentity(app: menuExtraAnchor).matches(statusRelayout))
+    }
 }

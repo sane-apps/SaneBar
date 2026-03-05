@@ -43,6 +43,37 @@ extension MenuBarManager {
         return resolved
     }
 
+    /// Normalize always-hidden separator boundary against its origin cache and the
+    /// main separator boundary. Returns nil when the candidate is stale/inverted.
+    nonisolated static func normalizedAlwaysHiddenBoundary(
+        cachedRightEdge: CGFloat?,
+        cachedOrigin: CGFloat?,
+        separatorX: CGFloat?,
+        minimumGap: CGFloat = 8
+    ) -> CGFloat? {
+        var candidate = cachedRightEdge
+
+        if let origin = cachedOrigin, origin > 0 {
+            if candidate == nil || (candidate ?? 0) <= origin || (candidate ?? 0) > (origin + 250) {
+                candidate = origin + separatorVisualWidth
+            }
+        }
+
+        guard let resolvedSeparatorX = separatorX,
+              resolvedSeparatorX.isFinite,
+              resolvedSeparatorX > 0,
+              let boundary = candidate,
+              boundary.isFinite,
+              boundary > 0 else {
+            return nil
+        }
+
+        let maxAllowed = resolvedSeparatorX - max(1, minimumGap)
+        guard maxAllowed > 0 else { return nil }
+        guard boundary < maxAllowed else { return nil }
+        return boundary
+    }
+
     private func resolvedSeparatorRightEdgeFromCaches() -> CGFloat? {
         let normalized = Self.normalizedSeparatorRightEdge(
             cachedRightEdge: lastKnownSeparatorRightEdgeX,
@@ -171,42 +202,59 @@ extension MenuBarManager {
     /// Unlike origin-X, this uses the separator's right edge, which matches where
     /// icons can realistically settle after Cmd+drag near the AH divider.
     func getAlwaysHiddenSeparatorBoundaryX() -> CGFloat? {
+        let separatorX = getSeparatorRightEdgeX() ?? getSeparatorOriginX()
+
         guard let item = alwaysHiddenSeparatorItem else {
-            if let cached = lastKnownAlwaysHiddenSeparatorRightEdgeX, cached > 0 {
-                return cached
+            let normalized = Self.normalizedAlwaysHiddenBoundary(
+                cachedRightEdge: lastKnownAlwaysHiddenSeparatorRightEdgeX,
+                cachedOrigin: lastKnownAlwaysHiddenSeparatorX,
+                separatorX: separatorX
+            )
+            if let normalized {
+                lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+                return normalized
             }
             return nil
         }
 
         if item.length > 1000 {
-            if let cached = lastKnownAlwaysHiddenSeparatorRightEdgeX, cached > 0 {
-                return cached
-            }
-            if let origin = getAlwaysHiddenSeparatorOriginX() {
-                // Fallback only when right-edge cache has not warmed yet.
-                return origin + 20
+            let normalized = Self.normalizedAlwaysHiddenBoundary(
+                cachedRightEdge: lastKnownAlwaysHiddenSeparatorRightEdgeX,
+                cachedOrigin: lastKnownAlwaysHiddenSeparatorX ?? getAlwaysHiddenSeparatorOriginX(),
+                separatorX: separatorX
+            )
+            if let normalized {
+                lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+                return normalized
             }
             return nil
         }
 
         if let button = item.button,
-           let window = button.window
-        {
+           let window = button.window {
             let frame = window.frame
             if frame.origin.x > 0, frame.width > 0, frame.width < 1000 {
-                let rightEdge = frame.origin.x + frame.width
+                let normalized = Self.normalizedAlwaysHiddenBoundary(
+                    cachedRightEdge: frame.origin.x + frame.width,
+                    cachedOrigin: frame.origin.x,
+                    separatorX: separatorX
+                )
                 lastKnownAlwaysHiddenSeparatorX = frame.origin.x
-                lastKnownAlwaysHiddenSeparatorRightEdgeX = rightEdge
-                return rightEdge
+                if let normalized {
+                    lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+                    return normalized
+                }
             }
         }
 
-        if let cached = lastKnownAlwaysHiddenSeparatorRightEdgeX, cached > 0 {
-            return cached
-        }
-
-        if let origin = getAlwaysHiddenSeparatorOriginX() {
-            return origin + 20
+        let normalized = Self.normalizedAlwaysHiddenBoundary(
+            cachedRightEdge: lastKnownAlwaysHiddenSeparatorRightEdgeX,
+            cachedOrigin: lastKnownAlwaysHiddenSeparatorX ?? getAlwaysHiddenSeparatorOriginX(),
+            separatorX: separatorX
+        )
+        if let normalized {
+            lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+            return normalized
         }
 
         return nil
@@ -263,9 +311,13 @@ extension MenuBarManager {
         // Cache both origin and right edge when separator is at visual size.
         // These caches are used during blocking mode or stale frame fallback.
         lastKnownSeparatorX = frame.origin.x
-        lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
-
-        let rightEdge = frame.origin.x + frame.width
+        let rightEdge = Self.normalizedSeparatorRightEdge(
+            cachedRightEdge: frame.origin.x + frame.width,
+            cachedOrigin: frame.origin.x,
+            estimatedRightEdge: nil,
+            mainLeftEdge: getMainStatusItemLeftEdgeX()
+        ) ?? (frame.origin.x + frame.width)
+        lastKnownSeparatorRightEdgeX = rightEdge
         logger.info("🔧 getSeparatorRightEdgeX: returning \(rightEdge)")
         return rightEdge
     }
@@ -362,16 +414,21 @@ extension MenuBarManager {
                 }
             }
 
-            var alwaysHiddenRightEdgeX: CGFloat?
+            var alwaysHiddenBoundaryX: CGFloat?
             if separatorOverrideX == nil,
-               let ahItem = alwaysHiddenSeparatorItem,
-               let ahButton = ahItem.button,
-               let ahWindow = ahButton.window,
-               ahWindow.frame.width > 0, ahWindow.frame.width < 1000 {
-                alwaysHiddenRightEdgeX = ahWindow.frame.origin.x + ahWindow.frame.width
-                logger.info("🔧 AH separator right edge: \(alwaysHiddenRightEdgeX!)")
+               let resolvedSeparatorX = separatorX,
+               let candidateBoundaryX = getAlwaysHiddenSeparatorBoundaryX(),
+               candidateBoundaryX > 0 {
+                if candidateBoundaryX < (resolvedSeparatorX - 4) {
+                    alwaysHiddenBoundaryX = candidateBoundaryX
+                    logger.info("🔧 AH separator boundary for hidden target: \(candidateBoundaryX)")
+                } else {
+                    logger.warning(
+                        "🔧 Ignoring AH boundary >= separator during hidden move target resolution (ah=\(candidateBoundaryX), sep=\(resolvedSeparatorX))"
+                    )
+                }
             }
-            return (separatorX, alwaysHiddenRightEdgeX)
+            return (separatorX, alwaysHiddenBoundaryX)
         }
 
         let separatorX = getSeparatorRightEdgeX()
@@ -405,6 +462,22 @@ extension MenuBarManager {
         }
 
         return lastTargets
+    }
+
+    nonisolated static func shouldBlockWideIconHiddenMove(
+        iconWidth: CGFloat,
+        hiddenLaneWidth: CGFloat
+    ) -> Bool {
+        guard iconWidth.isFinite, hiddenLaneWidth.isFinite else { return false }
+        guard iconWidth > 0, hiddenLaneWidth > 0 else { return false }
+
+        // Extremely wide status items can straddle AH + hidden boundaries and
+        // get misclassified after drag. Guard only that edge case.
+        let wideIconThreshold: CGFloat = 120
+        guard iconWidth >= wideIconThreshold else { return false }
+
+        let lanePadding: CGFloat = 18
+        return hiddenLaneWidth < (iconWidth + lanePadding)
     }
 
     private enum MoveExpectedZone {
@@ -578,11 +651,8 @@ extension MenuBarManager {
                     ? await MainActor.run { self.shouldSkipHideForExternalMonitor }
                     : false
 
-                // Hidden-origin moves should return directly to hidden when possible.
-                // The extra restoreFromShowAll -> hide transition can induce section
-                // drift where items land in always-hidden after a hidden move.
                 if wasHidden, !shouldSkipHide {
-                    logger.info("🔧 Move complete - direct hide from showAll state...")
+                    logger.info("🔧 Move complete - direct hide from showAll state")
                     await self.hidingService.hide()
                     return
                 }
@@ -626,8 +696,7 @@ extension MenuBarManager {
                separatorOverrideX == nil,
                !usedShowAllShield,
                let baselineRightEdge = preMoveSeparatorRightEdge,
-               let resolvedSeparatorX = separatorX
-            {
+               let resolvedSeparatorX = separatorX {
                 let resolvedRightEdge = resolvedSeparatorX + Self.separatorVisualWidth
                 if resolvedRightEdge + 140 < baselineRightEdge {
                     logger.warning(
@@ -660,6 +729,23 @@ extension MenuBarManager {
             logger.info("🔧 Separator for move: X=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
 
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+
+            if toHidden,
+               let hiddenLaneLeftBoundaryX = activeVisibleBoundaryX,
+               let iconWidth = accessibilityService.currentMenuBarIconWidth(
+                   bundleID: bundleID,
+                   menuExtraId: menuExtraId,
+                   statusItemIndex: statusItemIndex
+               ) {
+                let hiddenLaneWidth = activeSeparatorX - hiddenLaneLeftBoundaryX
+                if Self.shouldBlockWideIconHiddenMove(iconWidth: iconWidth, hiddenLaneWidth: hiddenLaneWidth) {
+                    logger.warning(
+                        "🔧 Hidden move blocked for wide icon edge case (iconWidth=\(iconWidth, privacy: .public), hiddenLaneWidth=\(hiddenLaneWidth, privacy: .public)); keeping current zone"
+                    )
+                    await restoreShieldIfNeeded()
+                    return false
+                }
+            }
 
             var success = accessibilityService.moveMenuBarIcon(
                 bundleID: bundleID,
@@ -1247,6 +1333,29 @@ extension MenuBarManager {
             statusItemIndex: statusItemIndex,
             toHidden: toHidden,
             separatorOverrideX: separatorOverrideX
+        )
+
+        guard let task = activeMoveTask else { return false }
+        let success = await task.value
+        return started && success
+    }
+
+    @MainActor
+    func moveIconAlwaysHiddenAndWait(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        toAlwaysHidden: Bool
+    ) async -> Bool {
+        if let task = activeMoveTask {
+            _ = await task.value
+        }
+
+        let started = moveIconAlwaysHidden(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            toAlwaysHidden: toAlwaysHidden
         )
 
         guard let task = activeMoveTask else { return false }

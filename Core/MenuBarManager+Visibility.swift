@@ -1,3 +1,5 @@
+import AppKit
+import ApplicationServices
 import LocalAuthentication
 import os.log
 
@@ -216,6 +218,182 @@ extension MenuBarManager {
             hidingService.cancelRehide()
             await hidingService.hide()
         }
+    }
+
+    // MARK: - App Menu Suppression (Ice-style overlap handling)
+
+    nonisolated static func shouldHideApplicationMenus(
+        leftmostVisibleItemX: CGFloat,
+        appMenuMaxX: CGFloat,
+        collisionPadding: CGFloat = 2
+    ) -> Bool {
+        leftmostVisibleItemX <= (appMenuMaxX + collisionPadding)
+    }
+
+    func scheduleAppMenuSuppressionEvaluation() {
+        appMenuSuppressionTask?.cancel()
+        appMenuSuppressionTask = nil
+
+        guard !settings.showDockIcon else {
+            restoreApplicationMenusIfNeeded(reason: "dockIconEnabled")
+            return
+        }
+
+        guard AccessibilityService.shared.isGranted else {
+            restoreApplicationMenusIfNeeded(reason: "axNotGranted")
+            return
+        }
+
+        guard hidingService.state == .expanded else {
+            restoreApplicationMenusIfNeeded(reason: "sectionHidden")
+            return
+        }
+
+        // Once we temporarily suppress menus, keep that state until we hide again.
+        guard !isAppMenuSuppressed else { return }
+
+        appMenuSuppressionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled else { return }
+            await evaluateAppMenuSuppressionNow()
+        }
+    }
+
+    func restoreApplicationMenusIfNeeded(reason: String) {
+        appMenuSuppressionTask?.cancel()
+        appMenuSuppressionTask = nil
+
+        guard isAppMenuSuppressed else { return }
+        isAppMenuSuppressed = false
+        let appToRestore = appToReactivateAfterSuppression
+        appToReactivateAfterSuppression = nil
+
+        if let appToRestore,
+           !appToRestore.isTerminated,
+           appToRestore.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            _ = appToRestore.activate(options: [])
+        } else {
+            NSApp.deactivate()
+        }
+
+        if !settings.showDockIcon {
+            NSApp.setActivationPolicy(.accessory)
+        }
+
+        logger.info("Restored application menus (\(reason, privacy: .public))")
+    }
+
+    private func evaluateAppMenuSuppressionNow() async {
+        guard hidingService.state == .expanded else {
+            restoreApplicationMenusIfNeeded(reason: "sectionHidden")
+            return
+        }
+
+        guard let appMenuFrame = currentFrontAppMenuFrame() else {
+            return
+        }
+
+        guard let leftmostVisibleItemX = await leftmostVisibleMenuItemX() else {
+            return
+        }
+
+        guard Self.shouldHideApplicationMenus(
+            leftmostVisibleItemX: leftmostVisibleItemX,
+            appMenuMaxX: appMenuFrame.maxX
+        ) else {
+            return
+        }
+
+        suppressApplicationMenusIfNeeded()
+    }
+
+    private func suppressApplicationMenusIfNeeded() {
+        guard !isAppMenuSuppressed else { return }
+        guard !settings.showDockIcon else { return }
+
+        appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        isAppMenuSuppressed = true
+        logger.info("Temporarily hid application menus due to overlap")
+    }
+
+    private func leftmostVisibleMenuItemX() async -> CGFloat? {
+        let classified = await SearchService.shared.refreshClassifiedApps()
+        return (classified.visible + classified.hidden)
+            .filter { ($0.width ?? 0) > 0 }
+            .compactMap(\.xPosition)
+            .min()
+    }
+
+    private func currentFrontAppMenuFrame() -> CGRect? {
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
+        guard frontApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+
+        let appElement = AXUIElementCreateApplication(frontApp.processIdentifier)
+
+        var menuBarValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXMenuBarAttribute as CFString, &menuBarValue) == .success,
+              let menuBarValue,
+              let menuBarElement = safeAXUIElement(menuBarValue) else {
+            return nil
+        }
+
+        var childrenValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(menuBarElement, kAXChildrenAttribute as CFString, &childrenValue) == .success,
+              let menuBarItems = childrenValue as? [AXUIElement],
+              !menuBarItems.isEmpty else {
+            return nil
+        }
+
+        var frameUnion: CGRect?
+        for item in menuBarItems {
+            guard axElementIsEnabled(item) else { continue }
+            guard let frame = axFrame(of: item), frame.width > 0, frame.height > 0 else { continue }
+            frameUnion = frameUnion.map { $0.union(frame) } ?? frame
+        }
+
+        return frameUnion
+    }
+
+    private func axElementIsEnabled(_ element: AXUIElement) -> Bool {
+        var enabledValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXEnabledAttribute as CFString, &enabledValue) == .success else {
+            return true
+        }
+
+        if let enabled = enabledValue as? Bool {
+            return enabled
+        }
+        if let enabled = enabledValue as? NSNumber {
+            return enabled.boolValue
+        }
+        return true
+    }
+
+    private func axFrame(of element: AXUIElement) -> CGRect? {
+        var positionValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
+              let positionValue,
+              let axPosition = safeAXValue(positionValue) else {
+            return nil
+        }
+
+        var origin = CGPoint.zero
+        guard AXValueGetValue(axPosition, .cgPoint, &origin) else { return nil }
+
+        var sizeValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+              let sizeValue,
+              let axSize = safeAXValue(sizeValue) else {
+            return nil
+        }
+
+        var size = CGSize.zero
+        guard AXValueGetValue(axSize, .cgSize, &size) else { return nil }
+
+        return CGRect(origin: origin, size: size)
     }
 
     // MARK: - Privacy Auth

@@ -233,6 +233,14 @@ requires_codesign_prep() {
 
 load_headless_secrets_env || true
 
+if [[ "${SANEBAR_PREFER_USER_APP:-0}" == "1" ]] && [[ -z "${SANEMASTER_CANONICAL_APP_PATH:-}" ]]; then
+  case "${1:-}" in
+  launch | test_mode | tm)
+    export SANEMASTER_CANONICAL_APP_PATH="${HOME}/Applications/SaneBar.app"
+    ;;
+  esac
+fi
+
 if requires_codesign_prep "${1:-}"; then
   prepare_signing_keychain
 fi

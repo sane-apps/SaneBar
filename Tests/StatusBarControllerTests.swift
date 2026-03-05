@@ -1116,4 +1116,27 @@ struct StatusBarControllerTests {
         )
         #expect(!shouldReset)
     }
+
+    @Test("Display backup width buckets are stable")
+    func displayBackupWidthBuckets() {
+        #expect(StatusBarController.displayWidthBucket(2559.6) == 2560)
+        #expect(StatusBarController.displayWidthBucket(1439.2) == 1439)
+    }
+
+    @Test("Display backup keys are width-bucketed")
+    func displayBackupKeyUsesBucket() {
+        let keyA = StatusBarController.displayPositionBackupKey(for: 2559.6, slot: "main")
+        let keyB = StatusBarController.displayPositionBackupKey(for: 2560.2, slot: "main")
+        let separatorKey = StatusBarController.displayPositionBackupKey(for: 2559.6, slot: "separator")
+
+        #expect(keyA == keyB)
+        #expect(keyA != separatorKey)
+    }
+
+    @Test("Display backup restore requires pixel-like values for both separators")
+    func displayBackupRestoreRequiresPixelValues() {
+        #expect(StatusBarController.hasRestorableDisplayBackup(mainBackup: 420, separatorBackup: 840))
+        #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 1, separatorBackup: 840))
+        #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 420, separatorBackup: nil))
+    }
 }

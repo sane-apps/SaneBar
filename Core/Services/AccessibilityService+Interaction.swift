@@ -12,7 +12,7 @@ extension AccessibilityService {
     }
 
     /// Perform a "Virtual Click" on a specific menu bar item.
-    nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false) -> Bool {
+    nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false, allowImmediateFallbackCenter: Bool = true) -> Bool {
         let menuExtraIdString = menuExtraId ?? "nil"
         let statusItemIndexString = statusItemIndex.map(String.init) ?? "nil"
         logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString), rightClick: \(isRightClick))")
@@ -39,11 +39,12 @@ extension AccessibilityService {
             statusItemIndex: statusItemIndex,
             fallbackCenter: fallbackCenter,
             isRightClick: isRightClick,
-            preferHardwareFirst: preferHardwareFirst
+            preferHardwareFirst: preferHardwareFirst,
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter
         )
     }
 
-    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool) -> Bool {
+    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool, allowImmediateFallbackCenter: Bool) -> Bool {
         if preferHardwareFirst {
             logger.info("Using hardware-first click path for \(bundleID)")
             if hardwareClickAsFallback(
@@ -51,7 +52,8 @@ extension AccessibilityService {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick
+                isRightClick: isRightClick,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter
             ) {
                 return true
             }
@@ -92,7 +94,8 @@ extension AccessibilityService {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick
+                isRightClick: isRightClick,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter
             )
         }
 
@@ -123,7 +126,8 @@ extension AccessibilityService {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick
+                isRightClick: isRightClick,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter
             )
         }
 
@@ -140,7 +144,8 @@ extension AccessibilityService {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick
+                isRightClick: isRightClick,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter
             )
         }
 
@@ -155,15 +160,17 @@ extension AccessibilityService {
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
             fallbackCenter: fallbackCenter,
-            isRightClick: isRightClick
+            isRightClick: isRightClick,
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter
         )
     }
 
-    private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool) -> Bool {
+    private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, allowImmediateFallbackCenter: Bool) -> Bool {
         logger.info("Performing hardware click fallback for \(bundleID)")
         // Fast path: if caller already provided an on-screen target center,
         // click there immediately instead of AX frame polling.
-        if let fallbackCenter,
+        if allowImmediateFallbackCenter,
+           let fallbackCenter,
            isAccessibilityPointOnAnyScreen(fallbackCenter) {
             logger.info("Hardware click fallback: using immediate spatial center for \(bundleID)")
             let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
@@ -779,6 +786,23 @@ extension AccessibilityService {
             Thread.sleep(forTimeInterval: interval)
         }
         return nil
+    }
+
+    /// Returns current AX width for a specific menu bar item, if available.
+    /// Used by move guardrails to avoid unsafe drags for unusually wide items.
+    nonisolated func currentMenuBarIconWidth(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil
+    ) -> CGFloat? {
+        guard let frame = getMenuBarIconFrame(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex
+        ) else {
+            return nil
+        }
+        return frame.width
     }
 
     /// Thread-safe box for cross-thread value passing (semaphore provides synchronization)

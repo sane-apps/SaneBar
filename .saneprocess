@@ -59,7 +59,23 @@ appstore:
   age_rating: "4+"
   privacy_policy_url: "https://sanebar.com/privacy"
   support_url: "https://sanebar.com/support"
+  marketing_url: "https://sanebar.com"
+  metadata:
+    macos:
+      subtitle: "Hide Menu Bar Clutter"
+      promotional_text: "Hide noisy menu bar icons, keep essentials visible, and reveal hidden apps instantly with hotkeys, hover, or click."
+      description: >-
+        SaneBar keeps your menu bar clean without losing access to the apps you rely on.
+        Hide rarely used icons, keep critical icons visible, and reveal everything instantly when you need it.
+        Works with notch Macs, supports keyboard-first control, and keeps all processing on-device.
+      keywords: "menu bar,hide icons,status bar,productivity,notch,mac utility,focus,desktop"
+      whats_new: "Improved icon move reliability, faster refresh, and stronger stability around launch and permissions."
+      marketing_url: "https://sanebar.com"
   review_notes: "SaneBar manages menu bar icon visibility and positioning. The feature uses Accessibility APIs (AXIsProcessTrusted, AXUIElement) and CGEvent-based interactions to inspect and move status items exactly where users place them. The app also supports optional AppleScript automation for user-triggered workflows. These capabilities cannot work without Accessibility/automation permissions because macOS does not provide a lower-privilege API to read or reposition third-party menu bar items."
+  accessibility_declarations:
+    publish: true
+    mac:
+      supports_dark_interface: true
   screenshots:
     macos: marketing/appstore-images/*.png
   entitlements: SaneBar/SaneBar-AppStore.entitlements

@@ -150,6 +150,7 @@ targets:
           CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
           ENABLE_APP_SANDBOX: YES
           OTHER_SWIFT_FLAGS: "$(inherited) -D APP_STORE"
+          APP_STORE_PRODUCT_ID: com.sanebar.app.pro.unlock
           INFOPLIST_KEY_AppStoreProductID: com.sanebar.app.pro.unlock
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar-AppStore.entitlements
     postCompileScripts:

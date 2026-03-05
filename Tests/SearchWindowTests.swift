@@ -66,6 +66,63 @@ struct SearchWindowTests {
         #expect(true)
     }
 
+    @Test("Search activation diagnostics keep resolution and retry details")
+    func testSearchActivationDiagnosticsSummary() {
+        let diagnostics = SearchService.ActivationDiagnostics(
+            startedAt: "2026-03-05T12:34:56.789Z",
+            requestedApp: "id=req bundle=com.test.app menuExtra=nil statusItemIndex=1 x=100.0 width=24.0",
+            didReveal: true,
+            preferHardwareFirst: false,
+            initialResolution: "forceRefresh=false items=12 method=uniqueId",
+            initialTarget: "id=resolved bundle=com.test.app menuExtra=foo statusItemIndex=1 x=101.0 width=24.0",
+            waitOutcome: "stable after 150ms at x=101.0",
+            firstAttempt: "success=false timedOut=false durationMs=280 fallbackCenter=x=113.0 y=15.0 allowImmediateFallbackCenter=false",
+            retryAttempt: "success=true timedOut=false durationMs=140 resolution=forceRefresh=true items=12 method=bundle+statusItemIndex target=id=resolved bundle=com.test.app menuExtra=foo statusItemIndex=1 x=101.0 width=24.0 fallbackCenter=x=113.0 y=15.0",
+            finalOutcome: "click succeeded"
+        )
+
+        let summary = diagnostics.formattedSummary()
+
+        #expect(summary.contains("initialResolution: forceRefresh=false items=12 method=uniqueId"))
+        #expect(summary.contains("retryAttempt: success=true"))
+        #expect(summary.contains("finalOutcome: click succeeded"))
+    }
+
+    @Test("Second menu bar diagnostics keep counts and relayout state")
+    func testSecondMenuBarDiagnosticsSummary() {
+        let diagnostics = SearchWindowController.SecondMenuBarDiagnostics(
+            showRequestedAt: "2026-03-05T12:34:56.789Z",
+            currentMode: "Optional(SaneBar.SearchWindowMode.secondMenuBar)",
+            windowVisible: true,
+            windowFrame: "x=10.0 y=20.0 w=300.0 h=120.0",
+            refreshForced: true,
+            visibleCount: 4,
+            hiddenCount: 12,
+            alwaysHiddenCount: 2,
+            relayoutPassCount: 2,
+            lastRelayoutAt: "2026-03-05T12:34:57.100Z",
+            lastRelayoutReason: "classified-refresh"
+        )
+
+        let summary = diagnostics.formattedSummary()
+
+        #expect(summary.contains("windowFrame: x=10.0 y=20.0 w=300.0 h=120.0"))
+        #expect(summary.contains("hiddenCount: 12"))
+        #expect(summary.contains("relayoutPassCount: 2"))
+    }
+
+    @Test("SaneBar diagnostics collector includes search and panel snapshots")
+    func testDiagnosticsCollectorIncludesRuntimeSnapshots() throws {
+        let diagnosticsFile = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Core/Services/DiagnosticsService.swift")
+        let source = try String(contentsOf: diagnosticsFile, encoding: .utf8)
+
+        #expect(source.contains("SearchService.shared.diagnosticsSnapshot()"))
+        #expect(source.contains("SearchWindowController.shared.diagnosticsSnapshot()"))
+    }
+
     // MARK: - Icon Groups Tests
 
     @Test("IconGroup filtering matches bundle IDs correctly")

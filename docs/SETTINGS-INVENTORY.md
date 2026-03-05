@@ -143,7 +143,7 @@ Code: `UI/Settings/ShortcutsSettingsView.swift`
 - Donate
 - Report a Bug
 - View Issues
-- Email Me
+- Questions
 
 ### Popovers
 - Third-party license text

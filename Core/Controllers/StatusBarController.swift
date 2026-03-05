@@ -77,6 +77,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         .terminationOnRemoval
     ]
     private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+    nonisolated private static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
     private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
     private static let legacyMigrationKeys = [
         "SaneBar_PositionMigration_v4",
@@ -392,6 +393,50 @@ final class StatusBarController: StatusBarControllerProtocol {
         return true
     }
 
+    nonisolated static func displayWidthBucket(_ width: Double) -> Int {
+        Int(width.rounded())
+    }
+
+    nonisolated static func displayPositionBackupKey(for width: Double, slot: String) -> String {
+        "\(positionBackupKeyPrefix)_\(displayWidthBucket(width))_\(slot)"
+    }
+
+    nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
+        isPixelLikePosition(mainBackup) && isPixelLikePosition(separatorBackup)
+    }
+
+    private static func saveDisplayPositionBackupIfNeeded(
+        for width: Double,
+        mainPosition: Double?,
+        separatorPosition: Double?
+    ) {
+        guard let mainPosition,
+              let separatorPosition,
+              isPixelLikePosition(mainPosition),
+              isPixelLikePosition(separatorPosition)
+        else { return }
+
+        let defaults = UserDefaults.standard
+        defaults.set(mainPosition, forKey: displayPositionBackupKey(for: width, slot: "main"))
+        defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: width, slot: "separator"))
+    }
+
+    private static func restoreDisplayPositionBackupIfAvailable(for width: Double) -> Bool {
+        let defaults = UserDefaults.standard
+        let mainBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: width, slot: "main")))
+        let separatorBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: width, slot: "separator")))
+
+        guard hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup),
+              let mainBackup,
+              let separatorBackup
+        else { return false }
+
+        setPreferredPosition(mainBackup, forAutosaveName: mainAutosaveName)
+        setPreferredPosition(separatorBackup, forAutosaveName: separatorAutosaveName)
+        logger.info("Display validation: restored backup positions for width \(width)")
+        return true
+    }
+
     /// Check if positions need a display reset due to a screen width change.
     /// - First launch after update (no stored width): stamps current width, returns false.
     /// - Same screen (width matches within 10%): returns false.
@@ -403,24 +448,35 @@ final class StatusBarController: StatusBarControllerProtocol {
         guard let currentWidth = NSScreen.main?.frame.width else { return false }
         let screenCount = max(1, NSScreen.screens.count)
 
+        let mainKey = preferredPositionKey(for: mainAutosaveName)
+        let sepKey = preferredPositionKey(for: separatorAutosaveName)
+        let mainPos = numericPositionValue(defaults.object(forKey: mainKey))
+        let sepPos = numericPositionValue(defaults.object(forKey: sepKey))
+        let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
+
         if storedWidth == 0 {
             // First launch after update — stamp current width, accept positions as-is
             defaults.set(currentWidth, forKey: screenWidthKey)
+            saveDisplayPositionBackupIfNeeded(for: currentWidth, mainPosition: mainPos, separatorPosition: sepPos)
             logger.info("Display validation: first run, stamping screen width \(currentWidth)")
             return false
         }
 
         guard isSignificantWidthChange(stored: storedWidth, current: currentWidth) else {
+            saveDisplayPositionBackupIfNeeded(for: currentWidth, mainPosition: mainPos, separatorPosition: sepPos)
             return false
         }
 
-        // Screen changed significantly — check if positions are pixel values
-        let mainKey = preferredPositionKey(for: mainAutosaveName)
-        let sepKey = preferredPositionKey(for: separatorAutosaveName)
-        let mainPos = defaults.object(forKey: mainKey) as? Double
-        let sepPos = defaults.object(forKey: sepKey) as? Double
+        // Preserve the last known-good layout for the previous display width
+        // before we evaluate whether the current width should reset.
+        saveDisplayPositionBackupIfNeeded(for: storedWidth, mainPosition: mainPos, separatorPosition: sepPos)
 
-        let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
+        // If we have a known-good layout for this display width, restore it and skip reset.
+        if restoreDisplayPositionBackupIfAvailable(for: currentWidth) {
+            defaults.set(currentWidth, forKey: screenWidthKey)
+            return false
+        }
+
         let shouldReset = shouldResetForDisplayChange(
             storedWidth: storedWidth,
             currentWidth: currentWidth,
@@ -441,6 +497,13 @@ final class StatusBarController: StatusBarControllerProtocol {
         if hasPixelPositions, screenCount > 1 {
             logger.info(
                 "Display validation: width changed (\(storedWidth) → \(currentWidth)) on multi-display setup (\(screenCount) screens) — preserving layout"
+            )
+            defaults.set(currentWidth, forKey: screenWidthKey)
+        }
+
+        if !hasPixelPositions {
+            logger.info(
+                "Display validation: width changed (\(storedWidth) → \(currentWidth)) with ordinal positions — preserving layout"
             )
             defaults.set(currentWidth, forKey: screenWidthKey)
         }
