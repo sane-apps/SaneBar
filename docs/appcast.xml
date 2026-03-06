@@ -4,7 +4,26 @@
         <title>SaneBar Changelog</title>
 
                                     
-                <item>
+                        <item>
+            <title>2.1.23</title>
+            <pubDate>Fri, 06 Mar 2026 14:15:33 -0500</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Critical update: fixed Second Menu Bar clicks, browse panel and icon panel reliability, icon movement between Visible Hidden and Always Hidden, launch positioning next to Control Center, and stale menu bar state recovery.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.23.zip"
+                       sparkle:version="2123"
+                       sparkle:shortVersionString="2.1.23"
+                       length="8042368"
+                       type="application/octet-stream"
+                       sparkle:edSignature="NroHVfB6ikzlNh8zNhOKGWZiTLZF8B5erekY4VyMKSTeri+rPW0of39kIUN6xK87MtRZug4BtM9CF/4Mo/9eCg=="/>
+        </item>
+<item>
             <title>2.1.22</title>
             <pubDate>Thu, 05 Mar 2026 16:25:49 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
