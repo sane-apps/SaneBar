@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.23] - 2026-03-06
+
+Critical update: fixed Second Menu Bar clicks, browse panel and icon panel reliability, icon movement between Visible Hidden and Always Hidden, launch positioning next to Control Center, and stale menu bar state recovery.
+
+---
+
 ## [2.1.22] - 2026-03-05
 
 Critical stability update: improves icon movement between Visible, Hidden, and Always Hidden, fixes second menu bar refresh and click behavior, and strengthens launch-time diagnostics and layout recovery.
