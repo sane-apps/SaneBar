@@ -106,6 +106,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
     }
 
+    private static func diagnosticsMode(_ mode: SearchWindowMode?) -> String {
+        guard let mode else { return "nil" }
+        return String(describing: mode)
+    }
+
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
         MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
@@ -181,12 +186,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         positionWindow(window, mode: desiredMode)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        lastSecondMenuBarDiagnostics.showRequestedAt = Self.diagnosticsTimestamp(Date())
+        lastSecondMenuBarDiagnostics.currentMode = Self.diagnosticsMode(desiredMode)
+        lastSecondMenuBarDiagnostics.windowVisible = window.isVisible
+        lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window.frame)
+        lastSecondMenuBarDiagnostics.lastRelayoutReason = "show"
         if desiredMode == .secondMenuBar {
-            lastSecondMenuBarDiagnostics.showRequestedAt = Self.diagnosticsTimestamp(Date())
-            lastSecondMenuBarDiagnostics.currentMode = String(describing: desiredMode)
-            lastSecondMenuBarDiagnostics.windowVisible = window.isVisible
-            lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window.frame)
-            lastSecondMenuBarDiagnostics.lastRelayoutReason = "show"
             logger.info(
                 "secondMenuBar show frame=\(Self.diagnosticsRect(window.frame), privacy: .public) visible=\(window.isVisible, privacy: .public)"
             )
@@ -250,6 +255,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         secondMenuBarRelayoutTask?.cancel()
         secondMenuBarRelayoutTask = nil
         isBrowseSessionActive = false
+        lastSecondMenuBarDiagnostics.currentMode = Self.diagnosticsMode(currentMode)
+        lastSecondMenuBarDiagnostics.windowVisible = false
+        lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window?.frame)
+        lastSecondMenuBarDiagnostics.lastRelayoutAt = Self.diagnosticsTimestamp(Date())
+        lastSecondMenuBarDiagnostics.lastRelayoutReason = reason
 
         // Resume hover/click triggers and refresh pointer state before scheduling rehide.
         // Use strict menu-strip bounds on panel dismiss so the nearby panel area
@@ -423,7 +433,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         alwaysHidden: Int,
         forcedRefresh: Bool
     ) {
-        lastSecondMenuBarDiagnostics.currentMode = String(describing: currentMode)
+        lastSecondMenuBarDiagnostics.currentMode = Self.diagnosticsMode(currentMode)
         lastSecondMenuBarDiagnostics.refreshForced = forcedRefresh
         lastSecondMenuBarDiagnostics.visibleCount = visible
         lastSecondMenuBarDiagnostics.hiddenCount = hidden

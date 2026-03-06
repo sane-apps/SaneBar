@@ -1,6 +1,32 @@
 # SaneBar End-to-End Testing Checklist
 
+Start here for active menu bar regressions:
+- `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+
 > **MANDATORY**: Run this checklist before every release. Use tracing tools to verify flows.
+
+Canonical scripted runtime path:
+- Use `/Applications/SaneBar.app`.
+- Do not launch DerivedData builds, archive exports, or legacy `~/Applications/SaneBar.app` copies directly.
+- Before any release-style smoke, dedupe installed/build copies:
+
+```bash
+~/SaneApps/infra/SaneProcess/scripts/SaneMaster.rb dedupe_apps --host mini --apps SaneBar
+```
+
+- For smoke runs, pin the target explicitly:
+
+```bash
+SANEBAR_SMOKE_APP_ID=com.sanebar.app \
+SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app \
+SANEBAR_SMOKE_PROCESS_PATH=/Applications/SaneBar.app/Contents/MacOS/SaneBar \
+./Scripts/live_zone_smoke.rb
+```
+
+If the Mini falls back to an unsigned `~/Applications/SaneBar.app` build because headless signing is blocked:
+- keep that copy only for current-tree debug checks
+- preserve `/Applications/SaneBar.app` as the signed/trusted release baseline
+- use the signed `/Applications` app for release-style smoke unless you have a freshly trusted signed current build
 
 ## Pre-Test Setup
 

@@ -86,13 +86,15 @@ extension MenuBarSearchView {
                 _ = self.menuBarManager.moveIconFromAlwaysHidden(
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX
                 )
             } else {
                 _ = self.menuBarManager.moveIcon(
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX,
                     toHidden: toHidden
                 )
             }
@@ -113,7 +115,8 @@ extension MenuBarSearchView {
             _ = self.menuBarManager.moveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
         }
     }
@@ -133,14 +136,15 @@ extension MenuBarSearchView {
             _ = self.menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
         }
     }
 
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
         Task {
-            await service.activate(app: app, isRightClick: isRightClick)
+            await service.activate(app: app, isRightClick: isRightClick, origin: .browsePanel)
         }
     }
 
@@ -207,13 +211,15 @@ extension MenuBarSearchView {
                 started = menuBarManager.moveIconFromAlwaysHidden(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: sourceApp.preferredCenterX
                 )
             } else {
                 started = menuBarManager.moveIcon(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: sourceApp.preferredCenterX,
                     toHidden: false
                 )
             }
@@ -225,13 +231,15 @@ extension MenuBarSearchView {
                 started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: sourceApp.preferredCenterX
                 )
             } else {
                 started = menuBarManager.moveIcon(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: sourceApp.preferredCenterX,
                     toHidden: true
                 )
             }
@@ -243,7 +251,8 @@ extension MenuBarSearchView {
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraID,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: sourceApp.preferredCenterX
             )
 
         case .all:

@@ -22,14 +22,31 @@ extension SaneDiagnosticsService {
 private func collectSaneBarSettings() -> String {
     let manager = MenuBarManager.shared
     let settings = manager.settings
+    let defaults = UserDefaults.standard
 
     let mainButton = manager.mainStatusItem?.button
     let separatorButton = manager.separatorItem?.button
     let alwaysHiddenButton = manager.alwaysHiddenSeparatorItem?.button
 
-    let mainPreferred = UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)")
-    let separatorPreferred = UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)")
-    let alwaysHiddenPreferred = UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)")
+    let mainPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)")
+    let separatorPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)")
+    let alwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)")
+    let legacyAlwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator")
+    let currentScreenWidth = NSScreen.main?.frame.width
+    let currentScreenCount = NSScreen.screens.count
+    let calibratedScreenWidth = (defaults.object(forKey: "SaneBar_CalibratedScreenWidth") as? NSNumber)?.doubleValue
+    let currentWidthBucket = currentScreenWidth.map { StatusBarController.displayWidthBucket(Double($0)) }
+    let storedWidthBucket = calibratedScreenWidth.map { StatusBarController.displayWidthBucket($0) }
+
+    func backupValue(for width: Double?, slot: String) -> Any? {
+        guard let width, width > 0 else { return nil }
+        return defaults.object(forKey: StatusBarController.displayPositionBackupKey(for: width, slot: slot))
+    }
+
+    let currentMainBackup = backupValue(for: currentScreenWidth.map(Double.init), slot: "main")
+    let currentSeparatorBackup = backupValue(for: currentScreenWidth.map(Double.init), slot: "separator")
+    let storedMainBackup = backupValue(for: calibratedScreenWidth, slot: "main")
+    let storedSeparatorBackup = backupValue(for: calibratedScreenWidth, slot: "separator")
 
     func formatSelector(_ action: Selector?) -> String {
         guard let action else { return "nil" }
@@ -46,6 +63,16 @@ private func collectSaneBarSettings() -> String {
         return String(format: "%.2f", value)
     }
 
+    func formatDouble(_ value: Double?) -> String {
+        guard let value else { return "nil" }
+        return String(format: "%.2f", value)
+    }
+
+    func formatAny(_ value: Any?) -> String {
+        guard let value else { return "nil" }
+        return String(describing: value)
+    }
+
     func indent(_ block: String, spaces: Int = 2) -> String {
         let prefix = String(repeating: " ", count: spaces)
         return block
@@ -54,6 +81,7 @@ private func collectSaneBarSettings() -> String {
             .joined(separator: "\n")
     }
 
+    let accessibilityDiagnostics = AccessibilityService.shared.diagnosticsSnapshot()
     let searchDiagnostics = SearchService.shared.diagnosticsSnapshot()
     let secondMenuBarDiagnostics = SearchWindowController.shared.diagnosticsSnapshot()
 
@@ -95,6 +123,20 @@ private func collectSaneBarSettings() -> String {
       hasTarget: \(alwaysHiddenButton?.target != nil)
       windowFrame: \(formatRect(alwaysHiddenButton?.window?.frame))
 
+    prefsForensics:
+      bundleIdentifier: \(Bundle.main.bundleIdentifier ?? "nil")
+      autosaveVersion: \(StatusBarController.autosaveVersion)
+      currentScreenWidth: \(formatCGFloat(currentScreenWidth))
+      currentScreenCount: \(currentScreenCount)
+      calibratedScreenWidth: \(formatDouble(calibratedScreenWidth))
+      currentWidthBucket: \(currentWidthBucket.map(String.init) ?? "nil")
+      storedWidthBucket: \(storedWidthBucket.map(String.init) ?? "nil")
+      legacyAlwaysHiddenSeparator: \(formatAny(legacyAlwaysHiddenPreferred))
+      displayBackupCurrentMain: \(formatAny(currentMainBackup))
+      displayBackupCurrentSeparator: \(formatAny(currentSeparatorBackup))
+      displayBackupStoredMain: \(formatAny(storedMainBackup))
+      displayBackupStoredSeparator: \(formatAny(storedSeparatorBackup))
+
     nsStatusItemPreferredPositions:
       main: \(mainPreferred.map { String(describing: $0) } ?? "nil")
       separator: \(separatorPreferred.map { String(describing: $0) } ?? "nil")
@@ -111,6 +153,7 @@ private func collectSaneBarSettings() -> String {
       showOnLowBattery: \(settings.showOnLowBattery)
       showOnAppLaunch: \(settings.showOnAppLaunch)
       showOnNetworkChange: \(settings.showOnNetworkChange)
+      rehideOnAppChange: \(settings.rehideOnAppChange)
       requireAuthToShowHiddenIcons: \(settings.requireAuthToShowHiddenIcons)
       showDockIcon: \(settings.showDockIcon)
       hideMainIcon: \(settings.hideMainIcon)
@@ -124,6 +167,7 @@ private func collectSaneBarSettings() -> String {
       alwaysHiddenPinnedItemCount: \(settings.alwaysHiddenPinnedItemIds.count)
 
     diagnostics:
+    \(indent(accessibilityDiagnostics, spaces: 4))
     \(indent(searchDiagnostics, spaces: 4))
     \(indent(secondMenuBarDiagnostics, spaces: 4))
     """

@@ -48,6 +48,42 @@ struct MenuExtraIdentifierNormalizationTests {
         #expect(id == "com.vendor.menuagent.status")
     }
 
+    @Test("Builds synthetic third-party identifier from label when explicitly allowed")
+    func buildsSyntheticThirdPartyIdentifierFromLabel() {
+        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+            ownerBundleId: "at.obdev.littlesnitch.agent",
+            rawIdentifier: nil,
+            rawLabel: "Little Snitch",
+            width: 18,
+            allowThirdPartyLabelFallback: true
+        )
+        #expect(id == "at.obdev.littlesnitch.agent.menuextra.little-snitch")
+    }
+
+    @Test("Scanned Spotlight item normalizes to canonical menu extra identifier")
+    func scannedSpotlightItemUsesCanonicalIdentifier() {
+        let id = AccessibilityService.resolvedScannedMenuExtraIdentifier(
+            ownerBundleId: "com.apple.Spotlight",
+            axIdentifier: nil,
+            rawTitle: "Spotlight",
+            rawDescription: "Search",
+            width: 32
+        )
+        #expect(id == "com.apple.menuextra.spotlight")
+    }
+
+    @Test("Scanned third-party item keeps nil when no identifier is exposed")
+    func scannedThirdPartyItemDoesNotInventIdentifierWithoutFallback() {
+        let id = AccessibilityService.resolvedScannedMenuExtraIdentifier(
+            ownerBundleId: "eu.exelban.Stats",
+            axIdentifier: nil,
+            rawTitle: "Stats",
+            rawDescription: nil,
+            width: 24
+        )
+        #expect(id == nil)
+    }
+
     @Test("Extracts bundle identifier from Item suffix")
     func extractsBundleIdentifierFromItemSuffix() {
         let bundle = AccessibilityService.bundleIdentifierFallback(
@@ -108,6 +144,14 @@ struct MenuExtraIdentifierNormalizationTests {
                 expected: "com.obdev.LittleSnitchUIAgent-Item-0",
                 name: "Little Snitch third-party identifier preserved"
             ),
+            Case(
+                ownerBundleId: "at.obdev.littlesnitch.agent",
+                rawIdentifier: nil,
+                rawLabel: "Little Snitch",
+                width: 18,
+                expected: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
+                name: "Little Snitch current helper can synthesize identifier from label"
+            ),
         ]
 
         for item in cases {
@@ -115,7 +159,8 @@ struct MenuExtraIdentifierNormalizationTests {
                 ownerBundleId: item.ownerBundleId,
                 rawIdentifier: item.rawIdentifier,
                 rawLabel: item.rawLabel,
-                width: item.width
+                width: item.width,
+                allowThirdPartyLabelFallback: item.ownerBundleId == "at.obdev.littlesnitch.agent"
             )
             #expect(actual == item.expected, "\(item.name): expected \(item.expected ?? "nil"), got \(actual ?? "nil")")
         }
@@ -126,6 +171,8 @@ struct MenuExtraIdentifierNormalizationTests {
         let cases: [(raw: String?, expected: String?, name: String)] = [
             ("com.obdev.LittleSnitchUIAgent-Item-0", "com.obdev.LittleSnitchUIAgent", "Little Snitch AX item"),
             ("com.obdev.LittleSnitchUIAgent", "com.obdev.LittleSnitchUIAgent", "Little Snitch direct bundle"),
+            ("at.obdev.littlesnitch.agent-Item-0", "at.obdev.littlesnitch.agent", "Little Snitch current AX item"),
+            ("at.obdev.littlesnitch.agent", "at.obdev.littlesnitch.agent", "Little Snitch current direct bundle"),
             ("com.apple.menuextra.clock", nil, "Apple menu extra should not map to app bundle"),
             ("invalid identifier with spaces", nil, "Invalid identifier rejected"),
         ]

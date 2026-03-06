@@ -1139,4 +1139,54 @@ struct StatusBarControllerTests {
         #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 1, separatorBackup: 840))
         #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 420, separatorBackup: nil))
     }
+
+    @Test("Init restores matching display backup instead of resetting to ordinals")
+    @MainActor
+    func initRestoresMatchingDisplayBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for display backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        defaults.set(currentWidth * 1.6, forKey: screenWidthKey)
+        defaults.set(2200.0, forKey: mainKey)
+        defaults.set(2100.0, forKey: separatorKey)
+        defaults.set(480.0, forKey: backupMainKey)
+        defaults.set(430.0, forKey: backupSeparatorKey)
+
+        _ = StatusBarController()
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+        let storedWidth = defaults.double(forKey: screenWidthKey)
+        let expectedWidth = Double(currentWidth)
+
+        #expect(restoredMain == 480.0, "Matching display backup should restore the main position")
+        #expect(restoredSeparator == 430.0, "Matching display backup should restore the separator position")
+        #expect(
+            abs(storedWidth - expectedWidth) < 0.001,
+            "Restoring a matching backup should stamp the current display width"
+        )
+    }
 }

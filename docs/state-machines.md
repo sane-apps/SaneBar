@@ -1,5 +1,11 @@
 # SaneBar State Machine Diagrams
 
+Start here first for the current debugging workflow:
+- `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+
+This file remains the broader diagram reference. The playbook above is the
+practical entry point for active regressions.
+
 > Generated: 2026-01-11
 > Purpose: Visualize all state transitions to catch edge cases and verify correctness
 
@@ -106,6 +112,44 @@ stateDiagram-v2
 
 Permission monitoring + cache management.
 
+### Menu Extra Discovery Pipeline
+
+```mermaid
+stateDiagram-v2
+    [*] --> owner_scan
+
+    owner_scan --> positioned_scan: running apps collected
+    positioned_scan --> app_root_ax: try AXExtrasMenuBar / AXMenuBar children
+    app_root_ax --> windowserver_fallback: no positioned items
+    windowserver_fallback --> top_bar_host_fallback: no compact menu-extra windows
+    top_bar_host_fallback --> systemwide_hit_test: helper-hosted or full-width top-bar owner
+    systemwide_hit_test --> positioned_items: AX element segments resolved
+    systemwide_hit_test --> owner_only: no hittable AX menu extra
+    positioned_items --> merged_discovery
+    owner_only --> merged_discovery
+    merged_discovery --> [*]
+
+    note right of owner_only
+        App can appear in All/discovery lists
+        even when macOS exposes no usable coordinates.
+        Little Snitch on Mini currently lands here.
+        Direct March 6 probe:
+        no AXExtrasMenuBar, no AXMenuBar,
+        and no system-wide AX hits.
+    end note
+
+    note left of positioned_items
+        One bundle can legitimately surface
+        multiple status items.
+        Stats on Mini currently yields four.
+    end note
+```
+
+Practical rule:
+- treat owner-only discovery as a valid partial success, not as proof that click/move will work
+- if `systemwide_hit_test` and `windowserver_fallback` both fail, the remaining gap is host modeling or OS exposure, not simple stale cache
+- if one app appears multiple times in Hidden, confirm whether it is a true multi-item host before treating it as duplication
+
 ### Permission State Machine
 
 ```mermaid
@@ -132,6 +176,11 @@ stateDiagram-v2
         Streams yield false
     end note
 ```
+
+Practical note:
+- On Mini, the decisive Accessibility state was observed in `/Library/Application Support/com.apple.TCC/TCC.db`, not the per-user TCC database.
+- A visible System Settings row is not enough; if the system row for `com.sanebar.app` or `com.sanebar.dev` has `auth_value=0`, `AXIsProcessTrusted()` still returns false.
+- When this happens, System Settings can show a password-gated `Modify Settings` sheet even after the checkbox appears checked.
 
 ### Permission Monitoring Flow
 

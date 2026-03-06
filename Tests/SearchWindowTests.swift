@@ -38,10 +38,11 @@ struct SearchWindowTests {
         let mockService = SearchServiceProtocolMock()
         let app = RunningApp(id: "com.test", name: "Test", icon: nil)
         
-        await mockService.activate(app: app, isRightClick: false)
-        
+        await mockService.activate(app: app, isRightClick: false, origin: .direct)
+
         #expect(mockService.activateCallCount == 1)
         #expect(mockService.activateArgValues.first?.0.id == "com.test")
+        #expect(mockService.activateArgValues.first?.2 == .direct)
     }
     
     // MARK: - Model Tests
@@ -76,8 +77,8 @@ struct SearchWindowTests {
             initialResolution: "forceRefresh=false items=12 method=uniqueId",
             initialTarget: "id=resolved bundle=com.test.app menuExtra=foo statusItemIndex=1 x=101.0 width=24.0",
             waitOutcome: "stable after 150ms at x=101.0",
-            firstAttempt: "success=false timedOut=false durationMs=280 fallbackCenter=x=113.0 y=15.0 allowImmediateFallbackCenter=false",
-            retryAttempt: "success=true timedOut=false durationMs=140 resolution=forceRefresh=true items=12 method=bundle+statusItemIndex target=id=resolved bundle=com.test.app menuExtra=foo statusItemIndex=1 x=101.0 width=24.0 fallbackCenter=x=113.0 y=15.0",
+            firstAttempt: "success=false accepted=false timedOut=false durationMs=280 fallbackCenter=x=113.0 y=15.0 allowImmediateFallbackCenter=false requireObservableReaction=true verification=failed (no observable menu/panel reaction)",
+            retryAttempt: "success=true accepted=true timedOut=false durationMs=140 resolution=forceRefresh=true items=12 method=bundle+statusItemIndex target=id=resolved bundle=com.test.app menuExtra=foo statusItemIndex=1 x=101.0 width=24.0 fallbackCenter=x=113.0 y=15.0 requireObservableReaction=true verification=verified (shownMenu)",
             finalOutcome: "click succeeded"
         )
 
@@ -85,7 +86,146 @@ struct SearchWindowTests {
 
         #expect(summary.contains("initialResolution: forceRefresh=false items=12 method=uniqueId"))
         #expect(summary.contains("retryAttempt: success=true"))
+        #expect(summary.contains("verification=verified (shownMenu)"))
         #expect(summary.contains("finalOutcome: click succeeded"))
+    }
+
+    @Test("Search activation rejects unverified clicks for revealed or browse-session flows")
+    func testSearchActivationRequiresObservableReactionForBrowseFlows() {
+        #expect(
+            SearchService.requiresObservableReactionVerification(
+                origin: .browsePanel,
+                didReveal: true,
+                isBrowseSessionActive: false
+            )
+        )
+        #expect(
+            SearchService.requiresObservableReactionVerification(
+                origin: .browsePanel,
+                didReveal: false,
+                isBrowseSessionActive: true
+            )
+        )
+        #expect(
+            !SearchService.requiresObservableReactionVerification(
+                origin: .direct,
+                didReveal: false,
+                isBrowseSessionActive: false
+            )
+        )
+        #expect(
+            SearchService.requiresObservableReactionVerification(
+                origin: .browsePanel,
+                didReveal: false,
+                isBrowseSessionActive: false
+            )
+        )
+
+        #expect(
+            !SearchService.acceptsClickResult(
+                success: true,
+                verification: "unavailable (no comparable AX reaction signals)",
+                requireObservableReaction: true
+            )
+        )
+        #expect(
+            SearchService.acceptsClickResult(
+                success: true,
+                verification: "verified (shownMenu)",
+                requireObservableReaction: true
+            )
+        )
+        #expect(
+            SearchService.acceptsClickResult(
+                success: true,
+                verification: "unavailable (no comparable AX reaction signals)",
+                requireObservableReaction: false
+            )
+        )
+        #expect(
+            SearchService.shouldForceFreshTargetResolution(
+                origin: .browsePanel,
+                didReveal: false,
+                isBrowseSessionActive: true
+            )
+        )
+        #expect(
+            !SearchService.shouldAllowImmediateFallbackCenter(
+                origin: .browsePanel,
+                didReveal: false,
+                isBrowseSessionActive: true
+            )
+        )
+        #expect(
+            !SearchService.shouldAllowImmediateFallbackCenter(
+                origin: .browsePanel,
+                didReveal: false,
+                isBrowseSessionActive: false
+            )
+        )
+        #expect(
+            SearchService.shouldUsePinnedAlwaysHiddenFallback(
+                hidingState: .hidden,
+                isBrowseSessionActive: false
+            )
+        )
+        #expect(
+            SearchService.shouldUsePinnedAlwaysHiddenFallback(
+                hidingState: .expanded,
+                isBrowseSessionActive: true
+            )
+        )
+    }
+
+    @Test("Spatial fallback center is suppressed when the cached X is off the hosting menu bar screen")
+    func testSpatialFallbackCenterRejectsOffscreenX() {
+        let center = SearchService.spatialFallbackCenter(
+            xPosition: -1721,
+            width: 24,
+            menuBarScreenFrame: CGRect(x: 3440, y: 0, width: 1720, height: 1440)
+        )
+
+        #expect(center == nil)
+    }
+
+    @Test("Spatial fallback center is kept when the cached X is still on the hosting menu bar screen")
+    func testSpatialFallbackCenterKeepsOnScreenX() {
+        let center = SearchService.spatialFallbackCenter(
+            xPosition: 4748,
+            width: 24,
+            menuBarScreenFrame: CGRect(x: 3440, y: 0, width: 1720, height: 1440)
+        )
+
+        #expect(center == CGPoint(x: 4760, y: 15))
+    }
+
+    @Test("Browse and reveal flows get a larger click timeout budget for observable reaction verification")
+    func testClickAttemptTimeoutBudgetExpandsForObservableReaction() {
+        #expect(
+            SearchService.clickAttemptTimeoutMs(
+                baseMs: 900,
+                requireObservableReaction: false
+            ) == 900
+        )
+        #expect(
+            SearchService.clickAttemptTimeoutMs(
+                baseMs: 900,
+                requireObservableReaction: true
+            ) == 1800
+        )
+    }
+
+    @Test("Preferred spatial fallback keeps the last on-screen center when refreshed coordinates drift off-screen")
+    func testPreferredSpatialFallbackCenterUsesOriginalOnScreenXWhenRefreshRegresses() {
+        let center = SearchService.preferredSpatialFallbackCenter(
+            primaryXPosition: -3628,
+            primaryWidth: 33,
+            fallbackXPosition: 1390,
+            fallbackWidth: 33,
+            menuBarScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        )
+
+        #expect(center == CGPoint(x: 1406.5, y: 15))
     }
 
     @Test("Second menu bar diagnostics keep counts and relayout state")
@@ -111,6 +251,73 @@ struct SearchWindowTests {
         #expect(summary.contains("relayoutPassCount: 2"))
     }
 
+    @Test("Merged discoverable apps append owner-only fallbacks without duplicating precise matches")
+    @MainActor
+    func testMergedDiscoverableAppsPrefersPreciseItems() {
+        let positioned = [
+            RunningApp(
+                id: "com.example.precise",
+                name: "Precise",
+                icon: nil,
+                menuExtraIdentifier: "com.example.precise.status",
+                xPosition: 400,
+                width: 20
+            )
+        ]
+        let owners = [
+            RunningApp(id: "com.example.precise", name: "Precise", icon: nil),
+            RunningApp(id: "at.obdev.littlesnitch.networkmonitor", name: "Little Snitch", icon: nil)
+        ]
+
+        let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: owners)
+
+        #expect(merged.count == 2)
+        #expect(merged[0].uniqueId == "com.example.precise::axid:com.example.precise.status")
+        #expect(merged[1].uniqueId == "at.obdev.littlesnitch.networkmonitor")
+    }
+
+    @Test("Pinned hidden apps promote to always-hidden classification")
+    func testPinnedHiddenAppsPromoteToAlwaysHidden() {
+        let weather = RunningApp(
+            id: "com.apple.weather.menu",
+            name: "WeatherMenu",
+            icon: nil,
+            menuExtraIdentifier: "com.apple.weather.menu",
+            xPosition: 865,
+            width: 70.5
+        )
+
+        let promoted = SearchService.promotePinnedHiddenAppsToAlwaysHidden(
+            hidden: [weather],
+            alwaysHidden: [],
+            pinnedIds: [weather.uniqueId]
+        )
+
+        #expect(promoted.hidden.isEmpty)
+        #expect(promoted.alwaysHidden.map(\.uniqueId) == [weather.uniqueId])
+    }
+
+    @Test("Pinned hidden promotion honors bundle-level fallback for precise extras")
+    func testPinnedHiddenAppsPromoteViaBundleFallback() {
+        let helperHosted = RunningApp(
+            id: "com.example.helper",
+            name: "HelperHosted",
+            icon: nil,
+            menuExtraIdentifier: "com.example.status.item",
+            xPosition: 900,
+            width: 32
+        )
+
+        let promoted = SearchService.promotePinnedHiddenAppsToAlwaysHidden(
+            hidden: [helperHosted],
+            alwaysHidden: [],
+            pinnedIds: [helperHosted.bundleId]
+        )
+
+        #expect(promoted.hidden.isEmpty)
+        #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
+    }
+
     @Test("SaneBar diagnostics collector includes search and panel snapshots")
     func testDiagnosticsCollectorIncludesRuntimeSnapshots() throws {
         let diagnosticsFile = URL(fileURLWithPath: #filePath)
@@ -119,8 +326,26 @@ struct SearchWindowTests {
             .appendingPathComponent("Core/Services/DiagnosticsService.swift")
         let source = try String(contentsOf: diagnosticsFile, encoding: .utf8)
 
+        #expect(source.contains("AccessibilityService.shared.diagnosticsSnapshot()"))
         #expect(source.contains("SearchService.shared.diagnosticsSnapshot()"))
         #expect(source.contains("SearchWindowController.shared.diagnosticsSnapshot()"))
+        #expect(source.contains("prefsForensics:"))
+        #expect(source.contains("StatusBarController.autosaveVersion"))
+        #expect(source.contains("StatusBarController.displayPositionBackupKey"))
+        #expect(source.contains("SaneBar_CalibratedScreenWidth"))
+    }
+
+    @Test("All mode discovery uses the broader menu bar app list")
+    func testAllModeDiscoveryUsesMergedMenuBarApps() throws {
+        let viewFile = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
+        let source = try String(contentsOf: viewFile, encoding: .utf8)
+
+        #expect(source.contains("menuBarApps = service.cachedMenuBarApps()"))
+        #expect(source.contains("let allModeApps = effectiveMode == .all && !isSecondMenuBar ? await service.refreshMenuBarApps() : []"))
+        #expect(source.contains("menuBarApps = allModeApps"))
     }
 
     // MARK: - Icon Groups Tests

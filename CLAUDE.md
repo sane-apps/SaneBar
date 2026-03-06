@@ -126,9 +126,10 @@ ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI AVAILABLE" || e
 
 ## ⚠️ NSStatusItem Positioning - POSITION PRE-SEEDING
 
-**SaneBar uses position pre-seeding for NSStatusItem ordering. Do NOT reinvent the wheel.**
+**SaneBar uses position pre-seeding for NSStatusItem ordering, but that is only the first layer.**
 
-→ **Full docs: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`**
+→ Start with `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+→ Lower-level positioning notes: `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md`
 
 ### The Pattern (10 lines, battle-tested)
 
@@ -158,9 +159,9 @@ init() {
 | Rule | Why |
 |------|-----|
 | Seed BEFORE create | macOS reads position on item creation |
-| Use ordinal (0,1,2), not pixels | macOS interprets as ordering hints |
-| Trust macOS | No recovery/validation/nudge logic needed |
-| Trust macOS positioning | It handles the rest after initial seed |
+| Use ordinal (0,1,2) for first seed | Pixel-like values show up later as runtime/restored positions, not initial hints |
+| Treat `autosaveName` as identity only | Apple documents save/restore identity, not pixel semantics or corruption recovery |
+| Do not stop at pre-seeding | Current SaneBar also relies on display-width backups, geometry reliability checks, and startup recovery |
 
 ### Reference
 
@@ -173,6 +174,7 @@ init() {
 - **Accessibility API**: All menu bar scanning uses `AXUIElement` APIs
 - **Verify APIs**: Always run `verify_api` before using Apple Accessibility APIs
 - **Permission Flow**: `UI/Onboarding/WelcomeView.swift` handles AX permission
+- **Mini runtime proof**: use `docs/MENU_BAR_RUNTIME_PLAYBOOK.md` first, including the Mini repro pack and system-TCC Accessibility checks
 - **Services**: Located in `Core/Services/` (AccessibilityService, DiagnosticsService, etc.)
 - **State**: `@Observable` classes for UI state, actors for concurrent services
 

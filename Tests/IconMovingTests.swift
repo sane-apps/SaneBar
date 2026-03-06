@@ -596,6 +596,31 @@ struct IconMovingScenarioTests {
         #expect(targetX < ahSeparatorOriginX, "Must move LEFT of AH separator")
     }
 
+    @Test("Always-hidden move keeps standard target for normal-width icons")
+    func alwaysHiddenMoveNormalWidthTarget() {
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: true,
+            iconWidth: 22,
+            separatorX: 828,
+            visibleBoundaryX: nil
+        )
+
+        #expect(targetX == 746, "Normal-width extras keep the standard always-hidden offset")
+    }
+
+    @Test("Always-hidden move uses deeper insertion target for wide Weather-style icons")
+    func alwaysHiddenMoveWideIconUsesDeeperTarget() {
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: true,
+            iconWidth: 70.5,
+            separatorX: 828,
+            visibleBoundaryX: nil
+        )
+
+        #expect(targetX == 586.5, "Wide text-style extras need a deeper always-hidden drag target")
+        #expect(targetX < 697.5, "Wide always-hidden target should be farther left than the old fallback")
+    }
+
     @Test("Post-move verification with successful move")
     func verificationAfterSuccessfulMove() {
         let separatorX: CGFloat = 500
@@ -724,19 +749,19 @@ struct MoveToVisibleRegressionTests {
         #expect(targetX < separatorOriginX, "Target must be LEFT of separator")
     }
 
-    // MARK: - Drag Timing (16 steps, not 6)
+    // MARK: - Drag Timing (20 steps, not 6)
 
-    @Test("REGRESSION: Drag uses 16 steps, not 6")
+    @Test("REGRESSION: Drag uses 20 steps, not 6")
     func dragStepCount() {
         // The fix changed from 6 steps × 5ms (too fast, unreliable)
-        // to 16 steps × 15ms (human-like, more reliable)
+        // to 20 steps × 18ms (human-like, more reliable)
 
-        let steps = 16
-        let msPerStep = 15
+        let steps = 20
+        let msPerStep = 18
         let totalDragTime = steps * msPerStep
 
-        #expect(steps == 16, "Drag must use 16 interpolation steps")
-        #expect(totalDragTime == 240, "Total drag time: ~240ms (not 30ms)")
+        #expect(steps == 20, "Drag must use 20 interpolation steps")
+        #expect(totalDragTime == 360, "Total drag time: ~360ms (not 30ms)")
     }
 
     @Test("OLD drag timing was too fast")
@@ -943,9 +968,9 @@ struct MoveToVisibleRegressionTests {
     func dragStartsWithPrePosition() {
         // The code moves the cursor to the icon position BEFORE clicking
         // (human-like behavior: position cursor, then click)
-        let prePositionDelayMs = 50
+        let prePositionDelayMs = 80
 
-        #expect(prePositionDelayMs == 50, "50ms settle time after pre-positioning cursor")
+        #expect(prePositionDelayMs == 80, "80ms settle time after pre-positioning cursor")
     }
 
     @Test("Cursor hidden during drag (Ice-style)")
@@ -959,30 +984,30 @@ struct MoveToVisibleRegressionTests {
 
     @Test("Drag includes mouseDown hold delay")
     func dragIncludesHoldDelay() {
-        let mouseDownHoldMs = 50
+        let mouseDownHoldMs = 90
 
-        #expect(mouseDownHoldMs == 50, "50ms hold after mouseDown before starting drag")
+        #expect(mouseDownHoldMs == 90, "90ms hold after mouseDown before starting drag")
     }
 
     @Test("Drag ends with mouseUp settle delay")
     func dragEndsWithSettleDelay() {
-        let mouseUpSettleMs = 150
+        let mouseUpSettleMs = 180
 
-        #expect(mouseUpSettleMs == 150, "150ms settle after mouseUp for drop to complete")
+        #expect(mouseUpSettleMs == 180, "180ms settle after mouseUp for drop to complete")
     }
 
     @Test("Total drag timeline: pre-position + hold + drag + settle")
     func totalDragTimeline() {
-        let prePosition = 50
-        let mouseDownHold = 50
-        let dragSteps = 16
-        let msPerStep = 15
-        let dragTime = dragSteps * msPerStep // 240
-        let mouseUpSettle = 150
+        let prePosition = 80
+        let mouseDownHold = 90
+        let dragSteps = 20
+        let msPerStep = 18
+        let dragTime = dragSteps * msPerStep // 360
+        let mouseUpSettle = 180
 
         let totalTime = prePosition + mouseDownHold + dragTime + mouseUpSettle
 
-        #expect(totalTime == 490, "Total drag operation: ~490ms")
+        #expect(totalTime == 710, "Total drag operation: ~710ms")
     }
 }
 
