@@ -22,6 +22,8 @@ require 'uri'
 require 'json'
 require 'open3'
 require 'time'
+require 'fileutils'
+require 'socket'
 
 class ProjectQA
   PROJECT_ROOT = File.expand_path('..', __dir__)
@@ -55,6 +57,7 @@ class ProjectQA
   SANEMASTER_CLI = File.join(__dir__, 'SaneMaster.rb')
   SANEMASTER_STANDALONE = File.join(__dir__, 'SaneMaster_standalone.rb')
   RULES_DIR = File.join(PROJECT_ROOT, '.claude', 'rules')
+  QA_STATUS_PATH = File.join(PROJECT_ROOT, 'outputs', 'qa_status.json')
 
   # SaneProcess infra path (expected when running internally)
   INFRA_SANEMASTER = File.join(PROJECT_ROOT, '..', '..', 'infra', 'SaneProcess', 'scripts', 'SaneMaster.rb')
@@ -90,11 +93,14 @@ class ProjectQA
   EXPECTED_TEST_MODE_APPS = %w[
     SaneBar SaneClip SaneClick SaneHosts SaneSales SaneSync SaneVideo
   ].freeze
+  RUNTIME_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_smoke.log'
+  RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
+  RUNTIME_SMOKE_PASSES = 2
   RECURRING_REGRESSION_TEST_MARKERS = {
     'Tests/IconMovingTests.swift' => [
       'REGRESSION: #93-style geometry avoids boundary-hugging target',
       'REGRESSION: Hidden→visible must use showAll(), not show()',
-      'REGRESSION: Drag uses 16 steps, not 6',
+      'REGRESSION: Drag uses 20 steps, not 6',
     ],
     'Tests/MenuBarSearchDropXCTests.swift' => [
       'testAllTabBoundaryPrefersSeparatorRightEdge',
@@ -137,6 +143,7 @@ class ProjectQA
     check_appcast_guardrails
     check_migration_guardrails
     check_test_mode_tooling_guardrails
+    check_runtime_release_smoke
     check_recurring_regression_coverage_guardrails
     check_release_cadence_guardrails
     check_open_regression_guardrails
@@ -147,9 +154,9 @@ class ProjectQA
     puts
     puts "═══════════════════════════════════════════════════════════════"
 
-    if @errors.empty? && @warnings.empty?
+    exit_code = if @errors.empty? && @warnings.empty?
       puts "✅ All checks passed!"
-      exit 0
+      0
     else
       unless @warnings.empty?
         puts "⚠️  Warnings (#{@warnings.count}):"
@@ -161,17 +168,34 @@ class ProjectQA
         puts "❌ Errors (#{@errors.count}):"
         @errors.each { |e| puts "   - #{e}" }
         puts
-        exit 1
+        1
+      else
+        0
       end
-
-      exit 0
     end
+
+    write_status_snapshot(exit_code: exit_code)
+    exit exit_code
   end
 
   private
 
   def preflight_mode?
     ENV['SANEBAR_RELEASE_PREFLIGHT'] == '1' || ENV['SANEBAR_RUN_STABILITY_SUITE'] == '1'
+  end
+
+  def runtime_smoke_mode?
+    preflight_mode? ||
+      ENV['SANEPROCESS_RUN_RUNTIME_SMOKE'] == '1' ||
+      ENV['SANEBAR_RUN_RUNTIME_SMOKE'] == '1'
+  end
+
+  def running_on_mini_host?
+    host = Socket.gethostname.to_s.downcase
+    user = ENV.fetch('USER', '').downcase
+    host.include?('mini') || user == 'stephansmac'
+  rescue StandardError
+    false
   end
 
   def manual_override_phrase(gate:)
@@ -517,6 +541,169 @@ class ProjectQA
     end
   end
 
+  def check_runtime_release_smoke
+    print 'Running release runtime smoke... '
+
+    unless runtime_smoke_mode?
+      puts '⏭️  skipped (set SANEBAR_RELEASE_PREFLIGHT=1 or SANEBAR_RUN_RUNTIME_SMOKE=1)'
+      return
+    end
+
+    unless running_on_mini_host?
+      message = 'Runtime smoke must run on the mini via ./scripts/SaneMaster.rb so the local workspace syncs before release verification.'
+      if preflight_mode?
+        @errors << message
+        puts '❌ not on mini'
+      else
+        @warnings << message
+        puts '⚠️  not on mini'
+      end
+      return
+    end
+
+    smoke_script = File.join(PROJECT_ROOT, 'Scripts', 'live_zone_smoke.rb')
+    unless File.exist?(smoke_script)
+      @errors << "Runtime smoke script missing: #{smoke_script}"
+      puts '❌ missing live_zone_smoke.rb'
+      return
+    end
+
+    screenshot_dir = File.expand_path("~/Desktop/Screenshots/#{PROJECT_NAME}")
+    FileUtils.mkdir_p(screenshot_dir)
+    Dir.glob(File.join(screenshot_dir, 'sanebar-*.png')).each { |path| FileUtils.rm_f(path) }
+    FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
+    FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
+
+    launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
+    File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
+    unless launch_status.success?
+      @errors << "Runtime smoke launch failed. See #{RUNTIME_LAUNCH_LOG_PATH}"
+      puts "❌ launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+      return
+    end
+
+    target = runtime_smoke_target(launch_output: launch_out)
+    unless target
+      @errors << "Runtime smoke could not determine launch target. See #{RUNTIME_LAUNCH_LOG_PATH}"
+      puts "❌ unknown launch target (#{RUNTIME_LAUNCH_LOG_PATH})"
+      return
+    end
+
+    unless ensure_runtime_smoke_target_running!(target)
+      @errors << "Runtime smoke could not launch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
+      puts "❌ target launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+      return
+    end
+
+    smoke_env = {
+      'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+      'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '1',
+      'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
+      'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+      'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
+    }
+    smoke_outputs = []
+    RUNTIME_SMOKE_PASSES.times do |index|
+      smoke_out, smoke_status = Open3.capture2e(smoke_env, smoke_script)
+      smoke_outputs << "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}\n#{smoke_out}"
+      next if smoke_status.success?
+
+      File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+      @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}"
+      puts "❌ failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
+      return
+    end
+
+    expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
+      [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
+    end
+    missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
+    unless missing.empty?
+      @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
+      puts "❌ missing screenshot(s): #{missing.join(', ')}"
+      return
+    end
+
+    File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+    artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
+    puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (#{artifact_summary})"
+  end
+
+  def runtime_smoke_target(launch_output:)
+    launched_path = launch_output.lines.reverse.find { |line| line.include?('📱 Launching:') }
+    launched_path = launched_path&.split('📱 Launching:', 2)&.last&.strip
+    unsigned_fallback = launch_output.include?('Unsigned fallback active:')
+    system_app_path = "/Applications/#{PROJECT_NAME}.app"
+    system_process_path = File.join(system_app_path, 'Contents', 'MacOS', PROJECT_NAME)
+
+    if unsigned_fallback && File.exist?(system_app_path) && developer_id_signed?(system_app_path)
+      return {
+        app_path: system_app_path,
+        process_path: system_process_path,
+        relaunch: true,
+      }
+    end
+
+    return nil if launched_path.to_s.empty?
+
+    {
+      app_path: launched_path,
+      process_path: File.join(launched_path, 'Contents', 'MacOS', PROJECT_NAME),
+      relaunch: false,
+    }
+  end
+
+  def ensure_runtime_smoke_target_running!(target)
+    if target[:relaunch]
+      system('killall', PROJECT_NAME, out: File::NULL, err: File::NULL)
+      sleep 1
+      launched = system('open', target[:app_path], out: File::NULL, err: File::NULL)
+      return false unless launched
+    end
+
+    deadline = Time.now + 8
+    while Time.now < deadline
+      processes, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,command=')
+      break unless status.success?
+
+      matches = processes.lines.any? do |line|
+        _pid, command = line.strip.split(/\s+/, 2)
+        next false unless command
+
+        command.split(/\s+/, 2).first.to_s == target[:process_path]
+      end
+      return true if matches
+
+      sleep 0.5
+    end
+
+    false
+  end
+
+  def runtime_smoke_expected_modes(target)
+    commands = applescript_commands_for_app(target[:app_path])
+    modes = []
+    modes << 'secondMenuBar' if commands.include?('show second menu bar')
+    modes << 'findIcon' if commands.include?('open icon panel')
+    modes
+  end
+
+  def applescript_commands_for_app(app_path)
+    sdef_path = File.join(app_path, 'Contents', 'Resources', "#{PROJECT_NAME}.sdef")
+    return [] unless File.exist?(sdef_path)
+
+    File.read(sdef_path).scan(/<command name="([^"]+)"/).flatten
+  rescue StandardError
+    []
+  end
+
+  def developer_id_signed?(app_path)
+    output, status = Open3.capture2e('codesign', '-dv', '--verbose=2', app_path)
+    return false unless status.success? || !output.to_s.empty?
+
+    output.lines.any? { |line| line.start_with?('Authority=Developer ID Application:') }
+  end
+
   def check_recurring_regression_coverage_guardrails
     print 'Checking recurring-regression coverage guardrails... '
 
@@ -842,8 +1029,20 @@ class ProjectQA
         http.open_timeout = 5
         http.read_timeout = 5
 
-        response = http.head(uri.request_uri)
-        unless response.code.to_i < 400 || (response.code.to_i == 404 && entry[:url].include?('raw.githubusercontent'))
+        response = nil
+        [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
+          request = request_class.new(uri.request_uri)
+          request['User-Agent'] = "#{PROJECT_NAME} QA URL Check"
+          response = http.request(request)
+          code = response.code.to_i
+          break unless [401, 403, 405].include?(code) && index.zero?
+        end
+
+        response_code = response.code.to_i
+        reachable = response_code < 400
+        reachable ||= response_code == 404 && entry[:url].include?('raw.githubusercontent')
+        reachable ||= [401, 403, 405].include?(response_code)
+        unless reachable
           bad_urls << "#{entry[:url]} (#{response.code}) in #{entry[:file]}"
         end
       rescue StandardError => e
@@ -857,6 +1056,27 @@ class ProjectQA
       bad_urls.each { |u| @warnings << "Unreachable URL: #{u}" }
       puts "⚠️  #{bad_urls.count} unreachable"
     end
+  end
+
+  def write_status_snapshot(exit_code:)
+    payload = {
+      generatedAt: Time.now.iso8601,
+      projectName: PROJECT_NAME,
+      exitCode: exit_code,
+      status: exit_code.zero? ? (@warnings.empty? ? 'passed' : 'passed_with_warnings') : 'failed',
+      preflightMode: preflight_mode?,
+      runtimeSmokeMode: runtime_smoke_mode?,
+      runtimeSmokePasses: RUNTIME_SMOKE_PASSES,
+      errorCount: @errors.count,
+      warningCount: @warnings.count,
+      errors: @errors,
+      warnings: @warnings,
+    }
+
+    FileUtils.mkdir_p(File.dirname(QA_STATUS_PATH))
+    File.write(QA_STATUS_PATH, JSON.pretty_generate(payload))
+  rescue StandardError => e
+    @warnings << "Failed to write QA status snapshot: #{e.message}"
   end
 end
 

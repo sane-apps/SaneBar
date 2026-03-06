@@ -1,9 +1,12 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'fileutils'
 require 'json'
 require 'open3'
+require 'shellwords'
 require 'time'
+require 'tmpdir'
 
 class LiveZoneSmoke
   APP_NAME = 'SaneBar'
@@ -15,19 +18,39 @@ class LiveZoneSmoke
   ZONE_API_READY_POLL_SECONDS = 0.5
   APPLESCRIPT_TIMEOUT_SECONDS = 8
   APPLESCRIPT_RETRIES = 2
+  BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
+  BROWSE_PANEL_READY_POLL_SECONDS = 0.25
+  SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 8
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
     com.apple.systemuiserver
     com.apple.Spotlight
   ].freeze
+  BROWSE_PANEL_COMMANDS = {
+    'secondMenuBar' => 'show second menu bar',
+    'findIcon' => 'open icon panel',
+  }.freeze
+  PREFERRED_BROWSE_ACTIVATION_IDS = %w[
+    com.apple.menuextra.wifi
+    com.apple.menuextra.spotlight
+    com.apple.SSMenuAgent
+    com.apple.controlcenter
+  ].freeze
 
   def initialize
+    @app_name = env_string('SANEBAR_SMOKE_APP_NAME') || APP_NAME
+    @app_id = env_string('SANEBAR_SMOKE_APP_ID')
+    @app_path = expand_env_path('SANEBAR_SMOKE_APP_PATH')
+    @process_path = expand_env_path('SANEBAR_SMOKE_PROCESS_PATH')
     @require_always_hidden = ENV['SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
+    @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
+    @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
     @required_candidate_ids = ENV.fetch('SANEBAR_SMOKE_REQUIRED_IDS', '')
       .split(',')
       .map(&:strip)
       .reject(&:empty?)
+    @supported_applescript_commands = detect_supported_applescript_commands
   end
 
   def run
@@ -40,6 +63,7 @@ class LiveZoneSmoke
     wait_for_zone_api_ready
 
     zones = list_icon_zones
+    exercise_browse_modes(zones)
     candidates = selected_candidates(zones)
     raise "No movable candidate icon found (need at least one hidden/visible icon)." if candidates.empty?
 
@@ -91,11 +115,22 @@ class LiveZoneSmoke
   private
 
   def verify_single_process
-    out, status = sh('pgrep -x SaneBar')
-    raise 'SaneBar is not running.' unless status.success? && !out.strip.empty?
+    out, status = sh('ps ax -o pid=,command=')
+    raise "#{@app_name} process list could not be read." unless status.success?
 
-    count = out.lines.map(&:strip).reject(&:empty?).count
-    raise "Expected 1 SaneBar process, found #{count}." unless count == 1
+    matches = out.lines.map(&:strip).reject(&:empty?).each_with_object([]) do |line, result|
+      pid, command = line.split(/\s+/, 2)
+      next unless pid && command
+      next unless matching_app_process?(command)
+
+      result << "#{pid} #{command}"
+    end
+
+    raise "#{@app_name} is not running at #{expected_process_path || @app_name}." if matches.empty?
+    return if matches.length == 1
+
+    details = matches.join(' | ')
+    raise "Expected 1 #{@app_name} process, found #{matches.length}: #{details}"
   end
 
   def layout_snapshot
@@ -131,8 +166,7 @@ class LiveZoneSmoke
   def layout_invariants_satisfied?(snapshot)
     return false unless truthy?(snapshot['separatorBeforeMain'])
 
-    ah_x = snapshot['alwaysHiddenSeparatorOriginX']
-    if ah_x.is_a?(Numeric) && ah_x.positive?
+    if truthy?(snapshot['alwaysHiddenGeometryReliable'])
       return false unless truthy?(snapshot['alwaysHiddenBeforeSeparator'])
     end
 
@@ -208,7 +242,7 @@ class LiveZoneSmoke
     return ordered if @required_candidate_ids.empty?
 
     selected = @required_candidate_ids.map do |required_id|
-      ordered.find { |candidate| candidate[:unique_id] == required_id }
+      resolve_required_candidate(required_id, ordered)
     end
 
     missing_ids = @required_candidate_ids.zip(selected).map do |required_id, candidate|
@@ -217,6 +251,243 @@ class LiveZoneSmoke
     raise "Required icon(s) missing from list icon zones: #{missing_ids.join(', ')}" unless missing_ids.empty?
 
     selected
+  end
+
+  def resolve_required_candidate(required_id, ordered)
+    exact = ordered.find { |candidate| candidate[:unique_id] == required_id }
+    return exact if exact
+
+    bundle_id = required_id.split('::', 2).first
+    return nil if bundle_id.nil? || bundle_id.empty?
+
+    bundle_matches = ordered.select { |candidate| candidate[:bundle] == bundle_id }
+    return bundle_matches.first if bundle_matches.length == 1
+
+    nil
+  end
+
+  def exercise_browse_modes(zones)
+    BROWSE_PANEL_COMMANDS.each do |expected_mode, command|
+      unless supports_applescript_command?(command)
+        puts "ℹ️ Skipping #{expected_mode}: running app does not expose '#{command}'"
+        next
+      end
+
+      if full_browse_activation_supported?
+        activation_candidates = browse_activation_candidates(zones)
+        raise 'No browse activation candidate icon found.' if activation_candidates.empty?
+        exercise_browse_mode(expected_mode: expected_mode, command: command, candidates: activation_candidates)
+      else
+        puts "ℹ️ Compatibility browse check for #{expected_mode}: activation diagnostics unavailable in running app"
+        exercise_compatibility_browse_mode(expected_mode: expected_mode, command: command)
+      end
+    end
+  end
+
+  def full_browse_activation_supported?
+    [
+      'browse panel diagnostics',
+      'activate browse icon',
+      'right click browse icon',
+    ].all? { |command| supports_applescript_command?(command) }
+  end
+
+  def browse_activation_candidates(zones)
+    preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
+      zones.find { |item| browse_candidate_matches?(item, preferred_id) }
+    end.compact.uniq { |item| item[:unique_id] }
+
+    fallback = candidate_pool(zones).sort_by do |item|
+      [
+        browse_zone_priority(item[:zone]),
+        coarse_bundle_fallback?(item) ? 1 : 0,
+      ]
+    end
+    (preferred + fallback).uniq { |item| item[:unique_id] }.take(3)
+  end
+
+  def browse_zone_priority(zone)
+    case zone
+    when 'visible' then 0
+    when 'hidden' then 1
+    else 2
+    end
+  end
+
+  def coarse_bundle_fallback?(item)
+    item[:unique_id].to_s == item[:bundle].to_s
+  end
+
+  def browse_candidate_matches?(item, preferred_id)
+    values = [item[:unique_id], item[:bundle], item[:name]].compact.map(&:downcase)
+    target = preferred_id.downcase
+    values.any? { |value| value == target || value.include?(target) }
+  end
+
+  def exercise_browse_mode(expected_mode:, command:, candidates:)
+    result = app_script(command).strip.downcase
+    unless %w[true 1].include?(result)
+      raise "#{command} returned '#{result}'"
+    end
+
+    wait_for_browse_panel(expected_mode)
+    live_candidates = browse_activation_candidates(list_icon_zones)
+    raise "No browse activation candidate icon found in #{expected_mode} after panel open." if live_candidates.empty?
+    screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
+    puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
+
+    exercise_browse_activation('activate browse icon', expected_mode, live_candidates)
+    exercise_browse_activation('right click browse icon', expected_mode, live_candidates)
+    close_browse_panel
+    puts "✅ Browse mode #{expected_mode} activation ok"
+  ensure
+    close_browse_panel_safely
+  end
+
+  def exercise_compatibility_browse_mode(expected_mode:, command:)
+    result = app_script(command).strip.downcase
+    unless %w[true 1].include?(result)
+      raise "#{command} returned '#{result}'"
+    end
+
+    sleep 1.0
+    screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
+    puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
+    close_browse_panel
+    puts "✅ Browse mode #{expected_mode} open/close ok"
+  ensure
+    close_browse_panel_safely
+  end
+
+  def exercise_browse_activation(command, expected_mode, candidates)
+    failures = []
+
+    candidates.each do |candidate|
+      live_identifier = resolve_live_icon_identifier(candidate)
+      diagnostics = app_script(%(#{command} "#{escape_quotes(live_identifier)}"))
+      return if browse_activation_succeeded?(diagnostics, expected_mode)
+
+      failures << "#{candidate[:unique_id]} => #{browse_activation_failure_summary(diagnostics)}"
+    rescue StandardError => e
+      failures << "#{candidate[:unique_id]} => #{e.message}"
+    end
+
+    raise "#{command} failed in #{expected_mode}: #{failures.join(' | ')}"
+  end
+
+  def browse_activation_succeeded?(diagnostics, expected_mode)
+    diagnostics.include?("origin: browsePanel") &&
+      diagnostics.include?("finalOutcome: click succeeded") &&
+      diagnostics.include?("currentMode: #{expected_mode}") &&
+      (
+        diagnostics.include?('windowVisible: true') ||
+        diagnostics.include?('windowVisible: false')
+      )
+  end
+
+  def browse_activation_failure_summary(diagnostics)
+    interesting = diagnostics.lines.map(&:strip).select do |line|
+      line.start_with?('requestedApp:', 'firstAttempt:', 'retryAttempt:', 'finalOutcome:', 'currentMode:', 'windowVisible:', 'lastRelayoutReason:')
+    end
+    return interesting.join(' || ') unless interesting.empty?
+
+    diagnostics.lines.last.to_s.strip
+  end
+
+  def wait_for_browse_panel(expected_mode)
+    deadline = Time.now + BROWSE_PANEL_READY_TIMEOUT_SECONDS
+    last_diagnostics = nil
+
+    while Time.now < deadline
+      last_diagnostics = browse_panel_diagnostics
+      return if last_diagnostics.include?("currentMode: #{expected_mode}") &&
+                last_diagnostics.include?('windowVisible: true')
+
+      sleep BROWSE_PANEL_READY_POLL_SECONDS
+    end
+
+    raise "Browse panel did not become ready for #{expected_mode}: #{last_diagnostics}"
+  end
+
+  def close_browse_panel
+    result = app_script('close browse panel').strip.downcase
+    unless %w[true 1].include?(result)
+      raise "close browse panel returned '#{result}'"
+    end
+
+    unless supports_applescript_command?('browse panel diagnostics')
+      sleep 0.5
+      return
+    end
+
+    wait_for_browse_panel_close
+  end
+
+  def close_browse_panel_safely
+    close_browse_panel
+  rescue StandardError
+    nil
+  end
+
+  def wait_for_browse_panel_close
+    deadline = Time.now + BROWSE_PANEL_READY_TIMEOUT_SECONDS
+    last_diagnostics = nil
+
+    while Time.now < deadline
+      last_diagnostics = browse_panel_diagnostics
+      return if last_diagnostics.include?('windowVisible: false')
+
+      sleep BROWSE_PANEL_READY_POLL_SECONDS
+    end
+
+    raise "Browse panel did not close cleanly: #{last_diagnostics}"
+  end
+
+  def browse_panel_diagnostics
+    app_script('browse panel diagnostics')
+  end
+
+  def detect_supported_applescript_commands
+    sdef_path = @app_path && File.join(@app_path, 'Contents', 'Resources', 'SaneBar.sdef')
+    return [] unless sdef_path && File.exist?(sdef_path)
+
+    File.read(sdef_path).scan(/<command name="([^"]+)"/).flatten
+  rescue StandardError
+    []
+  end
+
+  def supports_applescript_command?(command_name)
+    return true if @supported_applescript_commands.empty?
+
+    @supported_applescript_commands.include?(command_name)
+  end
+
+  def capture_browse_screenshot(expected_mode)
+    FileUtils.mkdir_p(@screenshot_dir)
+    path = File.join(
+      @screenshot_dir,
+      "sanebar-#{expected_mode}-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
+    )
+    command = "screencapture -x #{Shellwords.escape(path)}"
+    script = <<~APPLESCRIPT
+      tell application "Terminal"
+          if not running then
+              activate
+          end if
+          do script #{command.inspect}
+      end tell
+    APPLESCRIPT
+
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS)
+    raise "Screenshot capture failed: #{out.strip}" unless code.success?
+
+    deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
+    until File.exist?(path) && File.size?(path)
+      raise "Screenshot missing at #{path}" if Time.now >= deadline
+      sleep 0.2
+    end
+
+    path
   end
 
   def exercise_hidden_visible_moves(candidate)
@@ -301,7 +572,7 @@ class LiveZoneSmoke
   end
 
   def app_script(statement)
-    script = %(tell application "#{APP_NAME}" to #{statement})
+    script = %(tell #{apple_script_target} to #{statement})
     attempts = 0
     begin
       attempts += 1
@@ -383,6 +654,41 @@ class LiveZoneSmoke
 
   def escape_quotes(value)
     value.to_s.gsub('\\', '\\\\').gsub('"', '\"')
+  end
+
+  def env_string(name)
+    value = ENV[name].to_s.strip
+    value.empty? ? nil : value
+  end
+
+  def expand_env_path(name)
+    value = env_string(name)
+    return nil unless value
+
+    File.expand_path(value)
+  end
+
+  def expected_process_path
+    return @process_path if @process_path
+    return nil unless @app_path
+
+    File.join(@app_path, 'Contents', 'MacOS', @app_name)
+  end
+
+  def matching_app_process?(command)
+    binary = command.split(/\s+/, 2).first.to_s
+    return false if binary.empty?
+
+    expected = expected_process_path
+    return File.expand_path(binary) == expected if expected
+
+    binary.end_with?("/Contents/MacOS/#{@app_name}") || File.basename(binary) == @app_name
+  end
+
+  def apple_script_target
+    return %(application id "#{escape_quotes(@app_id)}") if @app_id
+
+    %(application "#{escape_quotes(@app_name)}")
   end
 end
 

@@ -4,6 +4,11 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Scanning")
 
 extension AccessibilityService {
+    private nonisolated static let knownThirdPartyTopBarFallbackBundles: [String] = [
+        "com.obdev.LittleSnitchUIAgent",
+        "at.obdev.littlesnitch.agent",
+        "at.obdev.littlesnitch.networkmonitor"
+    ]
 
     internal struct ScannedStatusItem {
         let pid: pid_t
@@ -11,6 +16,13 @@ extension AccessibilityService {
         let x: CGFloat
         let width: CGFloat
         let axIdentifier: String?
+        let rawTitle: String?
+        let rawDescription: String?
+    }
+
+    internal struct WindowBackedStatusItem: Equatable, Sendable {
+        let pid: pid_t
+        let frame: CGRect
     }
 
     internal nonisolated static func resolvedBundleIdentifier(for app: NSRunningApplication) -> String? {
@@ -62,6 +74,21 @@ extension AccessibilityService {
         return nil
     }
 
+    internal nonisolated static func resolvedScannedMenuExtraIdentifier(
+        ownerBundleId: String,
+        axIdentifier: String?,
+        rawTitle: String?,
+        rawDescription: String?,
+        width: CGFloat
+    ) -> String? {
+        canonicalMenuExtraIdentifier(
+            ownerBundleId: ownerBundleId,
+            rawIdentifier: axIdentifier,
+            rawLabel: rawTitle ?? rawDescription,
+            width: width
+        )
+    }
+
     private nonisolated static func isLikelyBundleIdentifier(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -98,7 +125,7 @@ extension AccessibilityService {
         logger.debug("Scanning \(candidateApps.count) apps for menu bar owners")
 
         // Scan candidate apps for their menu bar extras in parallel
-        let discoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
+        let axDiscoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for runningApp in candidateApps {
                 group.addTask {
                     let pid = runningApp.processIdentifier
@@ -123,6 +150,17 @@ extension AccessibilityService {
             return pidsSet
         }
 
+        let windowBackedItems = Self.windowBackedMenuBarItems(
+            candidatePIDs: Set(candidateApps.map(\.processIdentifier))
+        )
+        let windowBackedPIDs = Set(windowBackedItems.map(\.pid))
+        let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: Set(candidateApps.map(\.processIdentifier)))
+        let discoveredPIDs = axDiscoveredPIDs.union(windowBackedPIDs)
+        let windowFramesByPID = Dictionary(uniqueKeysWithValues: windowBackedItems.map { ($0.pid, $0.frame) })
+        if !windowBackedPIDs.isEmpty || !topBarHostPIDs.isEmpty {
+            logger.debug("WindowServer fallback found \(windowBackedPIDs.count) compact owner candidate(s), \(topBarHostPIDs.count) top-bar host candidate(s)")
+        }
+
         // Map to RunningApp (unique by bundle ID or menuExtraIdentifier)
         var seenIds = Set<String>()
         var apps: [RunningApp] = []
@@ -132,6 +170,13 @@ extension AccessibilityService {
         for pid in discoveredPIDs {
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
+
+            let windowOnly = windowBackedPIDs.contains(pid) && !axDiscoveredPIDs.contains(pid)
+            if windowOnly {
+                markExtrasMenuBarUnavailable(bundleID: bundleID)
+            }
+
+            let fallbackFrame = windowFramesByPID[pid]
 
             // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
@@ -145,6 +190,24 @@ extension AccessibilityService {
                 continue  // Don't add the collapsed entry
             }
 
+            guard !seenIds.contains(bundleID) else { continue }
+            seenIds.insert(bundleID)
+            apps.append(
+                RunningApp(
+                    app: app,
+                    resolvedBundleId: bundleID,
+                    xPosition: fallbackFrame?.origin.x,
+                    width: fallbackFrame?.width
+                )
+            )
+        }
+
+        for pid in topBarHostPIDs.subtracting(discoveredPIDs) {
+            guard let app = NSRunningApplication(processIdentifier: pid),
+                  let bundleID = Self.resolvedBundleIdentifier(for: app),
+                  Self.shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else { continue }
+
+            logger.info("Top-bar host owner fallback candidate bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public)")
             guard !seenIds.contains(bundleID) else { continue }
             seenIds.insert(bundleID)
             apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
@@ -275,6 +338,14 @@ extension AccessibilityService {
                     }
 
                     for (index, item) in items.enumerated() {
+                        var titleValue: CFTypeRef?
+                        AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
+                        let rawTitle = axString(titleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        var descValue: CFTypeRef?
+                        AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
+                        let rawDescription = axString(descValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
                         // Get Position
                         var positionValue: CFTypeRef?
                         let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
@@ -309,7 +380,9 @@ extension AccessibilityService {
                                 itemIndex: itemIndex,
                                 x: xPos,
                                 width: width,
-                                axIdentifier: identifiersByIndex[index]
+                                axIdentifier: identifiersByIndex[index],
+                                rawTitle: rawTitle,
+                                rawDescription: rawDescription
                             )
                         )
                     }
@@ -323,6 +396,15 @@ extension AccessibilityService {
             }
             return allResults
         }
+
+        let axResolvedPIDs = Set(results.map(\.pid))
+        let windowBackedItems = Self.windowBackedMenuBarItems(
+            candidatePIDs: Set(candidateApps.map(\.processIdentifier))
+        )
+        let systemWideItems = Self.systemWideVisibleMenuBarItems(
+            candidatePIDs: Set(candidateApps.map(\.processIdentifier))
+        )
+        let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: Set(candidateApps.map(\.processIdentifier)))
 
         logger.debug("Scanned candidate apps in parallel, found \(results.count) menu bar items")
 
@@ -358,7 +440,13 @@ extension AccessibilityService {
                 app: app,
                 resolvedBundleId: bundleID,
                 statusItemIndex: itemIndex,
-                menuExtraIdentifier: axIdentifier,
+                menuExtraIdentifier: Self.resolvedScannedMenuExtraIdentifier(
+                    ownerBundleId: bundleID,
+                    axIdentifier: axIdentifier,
+                    rawTitle: scanned.rawTitle,
+                    rawDescription: scanned.rawDescription,
+                    width: width
+                ),
                 xPosition: x,
                 width: width
             )
@@ -374,7 +462,13 @@ extension AccessibilityService {
                     app: app,
                     resolvedBundleId: bundleID,
                     statusItemIndex: itemIndex,
-                    menuExtraIdentifier: axIdentifier,
+                    menuExtraIdentifier: Self.resolvedScannedMenuExtraIdentifier(
+                        ownerBundleId: bundleID,
+                        axIdentifier: axIdentifier,
+                        rawTitle: scanned.rawTitle,
+                        rawDescription: scanned.rawDescription,
+                        width: newWidth
+                    ),
                     xPosition: newX,
                     width: newWidth
                 )
@@ -382,6 +476,68 @@ extension AccessibilityService {
             } else {
                 appPositions[key] = MenuBarItemPosition(app: appModel, x: x, width: width)
             }
+        }
+
+        for pid in topBarHostPIDs.subtracting(axResolvedPIDs) {
+            guard let app = NSRunningApplication(processIdentifier: pid),
+                  let bundleID = Self.resolvedBundleIdentifier(for: app),
+                  Self.shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else { continue }
+
+            if bundleID == "com.apple.controlcenter" {
+                controlCenterPID = pid
+                continue
+            }
+
+            if bundleID == "com.apple.systemuiserver" {
+                systemUIServerPID = pid
+                continue
+            }
+
+            let fallbackItems = Self.enumerateMenuExtraItems(
+                pid: pid,
+                ownerBundleId: bundleID,
+                allowThirdPartyMenuBarFallback: true
+            )
+            logger.info("Top-bar host AXMenuBar fallback bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public) items=\(fallbackItems.count, privacy: .public)")
+            if fallbackItems.isEmpty {
+                markExtrasMenuBarUnavailable(bundleID: bundleID)
+            }
+            for item in fallbackItems {
+                appPositions[item.app.uniqueId] = item
+            }
+        }
+
+        for windowBacked in windowBackedItems where !axResolvedPIDs.contains(windowBacked.pid) {
+            guard let app = NSRunningApplication(processIdentifier: windowBacked.pid),
+                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
+
+            if bundleID == "com.apple.controlcenter" {
+                controlCenterPID = windowBacked.pid
+                continue
+            }
+
+            if bundleID == "com.apple.systemuiserver" {
+                systemUIServerPID = windowBacked.pid
+                continue
+            }
+
+            markExtrasMenuBarUnavailable(bundleID: bundleID)
+
+            let appModel = RunningApp(
+                app: app,
+                resolvedBundleId: bundleID,
+                xPosition: windowBacked.frame.origin.x,
+                width: windowBacked.frame.width
+            )
+            appPositions[appModel.uniqueId] = MenuBarItemPosition(
+                app: appModel,
+                x: windowBacked.frame.origin.x,
+                width: windowBacked.frame.width
+            )
+        }
+
+        for item in systemWideItems {
+            Self.mergeSystemWideMenuBarItem(item, into: &appPositions)
         }
 
         // Some macOS builds expose system extras through AXMenuBar instead of AXExtrasMenuBar.
@@ -458,8 +614,176 @@ extension AccessibilityService {
 
     // MARK: - Scanning Helpers
 
+    internal nonisolated static func windowBackedMenuBarItems(candidatePIDs: Set<pid_t>) -> [WindowBackedStatusItem] {
+        guard !candidatePIDs.isEmpty,
+              let infos = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else {
+            return []
+        }
+
+        return windowBackedMenuBarItems(fromWindowInfos: infos, candidatePIDs: candidatePIDs)
+    }
+
+    internal nonisolated static func topBarHostPIDs(candidatePIDs: Set<pid_t>) -> Set<pid_t> {
+        guard !candidatePIDs.isEmpty,
+              let infos = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else {
+            return []
+        }
+
+        let minimumWidth = (NSScreen.screens.map(\.frame.width).max() ?? 0) * 0.7
+        return topBarHostPIDs(
+            fromWindowInfos: infos,
+            candidatePIDs: candidatePIDs,
+            minimumWidth: minimumWidth
+        )
+    }
+
+    internal nonisolated static func mergeSystemWideMenuBarItem(
+        _ item: MenuBarItemPosition,
+        into appPositions: inout [String: MenuBarItemPosition]
+    ) {
+        let key = item.app.uniqueId
+        if appPositions[key] != nil {
+            return
+        }
+
+        if item.app.menuExtraIdentifier == nil {
+            // Bundle-level fallback items are discovery-only. If the same bundle
+            // already has a more precise AX or WindowServer match, prefer that.
+            if appPositions.values.contains(where: { $0.app.bundleId == item.app.bundleId }) {
+                return
+            }
+
+            appPositions[key] = item
+            return
+        }
+
+        // Precise menu-extra identities should replace coarse owner-only fallbacks
+        // for the same bundle so we do not render duplicate entries.
+        let coarseKeys = appPositions.compactMap { candidate -> String? in
+            guard candidate.value.app.bundleId == item.app.bundleId,
+                  candidate.value.app.menuExtraIdentifier == nil else {
+                return nil
+            }
+            return candidate.key
+        }
+        for coarseKey in coarseKeys {
+            appPositions.removeValue(forKey: coarseKey)
+        }
+
+        appPositions[key] = item
+    }
+
+    internal nonisolated static func windowBackedMenuBarItems(
+        fromWindowInfos infos: [[String: Any]],
+        candidatePIDs: Set<pid_t>
+    ) -> [WindowBackedStatusItem] {
+        guard !candidatePIDs.isEmpty else { return [] }
+
+        func number(_ value: Any?) -> CGFloat? {
+            switch value {
+            case let number as NSNumber:
+                return CGFloat(truncating: number)
+            case let value as CGFloat:
+                return value
+            case let value as Double:
+                return value
+            case let value as Int:
+                return CGFloat(value)
+            default:
+                return nil
+            }
+        }
+
+        var bestFrameByPID: [pid_t: CGRect] = [:]
+
+        for info in infos {
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
+            let ownerPID = pid_t(ownerPIDValue.intValue)
+            guard candidatePIDs.contains(ownerPID) else { continue }
+
+            guard let layerValue = info[kCGWindowLayer as String] as? NSNumber else { continue }
+            let layer = layerValue.intValue
+            guard layer == 24 || layer == 25 else { continue }
+
+            if let alphaValue = info[kCGWindowAlpha as String] as? NSNumber,
+               alphaValue.doubleValue <= 0 {
+                continue
+            }
+
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let x = number(bounds["X"]),
+                  let y = number(bounds["Y"]),
+                  let width = number(bounds["Width"]),
+                  let height = number(bounds["Height"]) else {
+                continue
+            }
+
+            guard width > 0, height > 0 else { continue }
+            guard height <= 60 else { continue }
+            guard width <= 500 else { continue }
+
+            let frame = CGRect(x: x, y: y, width: width, height: height)
+            if let existing = bestFrameByPID[ownerPID] {
+                if frame.midX > existing.midX {
+                    bestFrameByPID[ownerPID] = frame
+                }
+            } else {
+                bestFrameByPID[ownerPID] = frame
+            }
+        }
+
+        return bestFrameByPID.map { WindowBackedStatusItem(pid: $0.key, frame: $0.value) }
+    }
+
+    internal nonisolated static func topBarHostPIDs(
+        fromWindowInfos infos: [[String: Any]],
+        candidatePIDs: Set<pid_t>,
+        minimumWidth: CGFloat
+    ) -> Set<pid_t> {
+        guard !candidatePIDs.isEmpty else { return [] }
+
+        func number(_ value: Any?) -> CGFloat? {
+            switch value {
+            case let number as NSNumber:
+                return CGFloat(truncating: number)
+            case let value as CGFloat:
+                return value
+            case let value as Double:
+                return value
+            case let value as Int:
+                return CGFloat(value)
+            default:
+                return nil
+            }
+        }
+
+        var matches = Set<pid_t>()
+
+        for info in infos {
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
+            let ownerPID = pid_t(ownerPIDValue.intValue)
+            guard candidatePIDs.contains(ownerPID) else { continue }
+
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let y = number(bounds["Y"]),
+                  let width = number(bounds["Width"]),
+                  let height = number(bounds["Height"]) else {
+                continue
+            }
+
+            guard y <= 1 else { continue }
+            guard height >= 20, height <= 40 else { continue }
+            guard width >= minimumWidth else { continue }
+            matches.insert(ownerPID)
+        }
+
+        return matches
+    }
+
     internal nonisolated static func scanMenuBarOwnerPIDs(candidatePIDs: [pid_t]) async -> [pid_t] {
-        await withTaskGroup(of: pid_t?.self) { group in
+        let axPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for pid in candidatePIDs {
                 group.addTask {
                     let appElement = AXUIElementCreateApplication(pid)
@@ -481,6 +805,23 @@ extension AccessibilityService {
             }
             return pids
         }
+
+        let windowBackedPIDs = Set(windowBackedMenuBarItems(candidatePIDs: Set(candidatePIDs)).map(\.pid))
+        let topBarPIDs = Set(
+            topBarHostPIDs(candidatePIDs: Set(candidatePIDs)).compactMap { pid -> pid_t? in
+                guard let app = NSRunningApplication(processIdentifier: pid),
+                      let bundleID = resolvedBundleIdentifier(for: app),
+                      shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else {
+                    return nil
+                }
+                return pid
+            }
+        )
+        return Array(Set(axPIDs).union(windowBackedPIDs).union(topBarPIDs))
+    }
+
+    internal nonisolated static func shouldAllowThirdPartyTopBarFallback(bundleID: String) -> Bool {
+        knownThirdPartyTopBarFallbackBundles.contains { bundleID == $0 || bundleID.hasPrefix($0 + ".") }
     }
 
     internal nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) async -> [(pid: pid_t, x: CGFloat)] {

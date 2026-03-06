@@ -741,20 +741,39 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.didActivateApplicationNotification)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] notification in
                 guard let self else { return }
                 if hidingState == .expanded {
                     scheduleAppMenuSuppressionEvaluation()
                 }
-                // Only trigger if the setting is enabled and icons are currently visible.
-                // Note: fire-time guard in hidingService.shouldRehide handles menu
-                // interaction safety (#97) — no need to duplicate here.
-                if settings.rehideOnAppChange,
-                   hidingState == .expanded,
-                   !isRevealPinned,
-                   !shouldSkipHideForExternalMonitor {
-                    logger.debug("App changed - scheduling auto-hide")
+
+                let activatedBundleID =
+                    (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?
+                        .bundleIdentifier
+                let browseSessionActive = SearchWindowController.shared.isBrowseSessionActive
+                let ownBundleID = Bundle.main.bundleIdentifier
+
+                if Self.shouldScheduleRehideOnAppChange(
+                    rehideOnAppChange: settings.rehideOnAppChange,
+                    hidingState: hidingState,
+                    isRevealPinned: isRevealPinned,
+                    shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
+                    isBrowseSessionActive: browseSessionActive,
+                    activatedBundleID: activatedBundleID,
+                    ownBundleID: ownBundleID
+                ) {
+                    logger.debug(
+                        "App changed - scheduling auto-hide for \(activatedBundleID ?? "unknown", privacy: .public)"
+                    )
                     hidingService.scheduleRehide(after: 0.5)
+                } else if settings.rehideOnAppChange, hidingState == .expanded {
+                    if browseSessionActive {
+                        logger.debug("App changed - skipping auto-hide while Browse Icons is active")
+                    } else if let activatedBundleID,
+                              let ownBundleID,
+                              activatedBundleID == ownBundleID {
+                        logger.debug("App changed - ignoring SaneBar self-activation")
+                    }
                 }
             }
             .store(in: &cancellables)

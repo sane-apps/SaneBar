@@ -2,10 +2,9 @@ import AppKit
 import Foundation
 import os.log
 
+// swiftlint:disable file_length
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AppleScriptCommands")
-
 // MARK: - AppleScript Commands
-
 /// Base class for SaneBar AppleScript commands
 class SaneBarScriptCommand: NSScriptCommand {
     /// Set AppleScript error when auth blocks the command
@@ -13,18 +12,15 @@ class SaneBarScriptCommand: NSScriptCommand {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Touch ID protection is enabled. Use the SaneBar menu bar icon to authenticate first."
     }
-
     /// Set AppleScript error when Accessibility permission is missing
     func setAccessibilityError() {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Accessibility permission is required. Grant SaneBar access in System Settings > Privacy & Security > Accessibility."
     }
-
     /// Check if Accessibility permission is granted (safe to call from any thread)
     func checkAccessibilityTrusted() -> Bool {
         AXIsProcessTrusted()
     }
-
     /// Check if auth is required (main-thread safe without capturing self)
     func checkAuthRequired() -> Bool {
         if Thread.isMainThread {
@@ -37,7 +33,6 @@ class SaneBarScriptCommand: NSScriptCommand {
             }
         }
     }
-
     /// Check if hidden items are currently hidden (main-thread safe)
     func checkIsHidden() -> Bool {
         if Thread.isMainThread {
@@ -50,12 +45,8 @@ class SaneBarScriptCommand: NSScriptCommand {
             }
         }
     }
-
 }
-
 // MARK: - Toggle Command
-
-/// AppleScript command: tell application "SaneBar" to toggle
 @objc(ToggleCommand)
 final class ToggleCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -71,10 +62,7 @@ final class ToggleCommand: SaneBarScriptCommand {
         return nil
     }
 }
-
 // MARK: - Show Command
-
-/// AppleScript command: tell application "SaneBar" to show hidden
 @objc(ShowCommand)
 final class ShowCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -90,10 +78,7 @@ final class ShowCommand: SaneBarScriptCommand {
         return nil
     }
 }
-
 // MARK: - Hide Command
-
-/// AppleScript command: tell application "SaneBar" to hide
 @objc(HideCommand)
 final class HideCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -103,12 +88,50 @@ final class HideCommand: SaneBarScriptCommand {
         return true
     }
 }
-
+// MARK: - Browse Panel Commands
+@objc(ShowIconPanelCommand)
+final class ShowIconPanelCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        if checkAuthRequired(), checkIsHidden() {
+            setAuthBlockedError()
+            return nil
+        }
+        Task { @MainActor in
+            let manager = MenuBarManager.shared
+            _ = await manager.showHiddenItemsNow(trigger: .search)
+            SearchWindowController.shared.show(mode: .findIcon)
+        }
+        return true
+    }
+}
+@objc(ShowSecondMenuBarCommand)
+final class ShowSecondMenuBarCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        if checkAuthRequired(), checkIsHidden() {
+            setAuthBlockedError()
+            return nil
+        }
+        Task { @MainActor in
+            let manager = MenuBarManager.shared
+            _ = await manager.showHiddenItemsNow(trigger: .search)
+            SearchWindowController.shared.show(mode: .secondMenuBar)
+        }
+        return true
+    }
+}
+@objc(CloseBrowsePanelCommand)
+final class CloseBrowsePanelCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        Task { @MainActor in
+            SearchWindowController.shared.close()
+        }
+        return true
+    }
+}
 // MARK: - Thread-Safe Box
-
 /// Thread-safe box for passing values between Task closures and synchronous code.
 /// The semaphore provides the synchronization guarantee.
-private final class ScriptResultBox<T>: @unchecked Sendable {
+final class ScriptResultBox<T>: @unchecked Sendable {
     var value: T
     init(_ initial: T) { value = initial }
 }
@@ -119,9 +142,8 @@ enum ScriptIconZone: String {
     case alwaysHidden
 }
 
-private typealias ScriptClassifiedApps = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
-private typealias ScriptZonedIcon = (app: RunningApp, zone: ScriptIconZone)
-
+typealias ScriptClassifiedApps = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+typealias ScriptZonedIcon = (app: RunningApp, zone: ScriptIconZone)
 struct ScriptIconIdentity: Sendable {
     let uniqueId: String
     let bundleId: String
@@ -152,7 +174,6 @@ struct ScriptIconIdentity: Sendable {
         return menuExtraIdentifier == nil && statusItemIndex == nil && app.bundleId == bundleId
     }
 }
-
 @MainActor
 private func zones(from classified: ScriptClassifiedApps) -> [ScriptZonedIcon] {
     var icons: [ScriptZonedIcon] = []
@@ -162,7 +183,6 @@ private func zones(from classified: ScriptClassifiedApps) -> [ScriptZonedIcon] {
     icons += classified.alwaysHidden.map { ($0, .alwaysHidden) }
     return icons
 }
-
 @MainActor
 private func currentIconZones() -> [ScriptZonedIcon] {
     var classified: ScriptClassifiedApps = SearchService.shared.cachedClassifiedApps()
@@ -175,7 +195,6 @@ private func currentIconZones() -> [ScriptZonedIcon] {
     }
     return zones(from: classified)
 }
-
 @MainActor
 private func runScriptMove(timeoutSeconds: TimeInterval = 6.5, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
@@ -227,7 +246,7 @@ private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZo
 }
 
 @MainActor
-private func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
+func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
     let cached = currentIconZones()
     if resolveScriptIcon(identifier, from: cached) != nil {
         return cached
@@ -237,23 +256,23 @@ private func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon]
     return refreshedIconZones(timeoutSeconds: 1.2)
 }
 
-private func parseIconIdentifier(_ raw: Any?) -> String? {
+func parseIconIdentifier(_ raw: Any?) -> String? {
     guard let iconId = raw as? String else { return nil }
     let trimmed = iconId.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
 }
 
-private func scriptErrorIconIdMissing(_ command: NSScriptCommand) {
+func scriptErrorIconIdMissing(_ command: NSScriptCommand) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Expected an icon identifier string."
 }
 
-private func scriptErrorIconNotFound(_ command: NSScriptCommand, iconId: String) {
+func scriptErrorIconNotFound(_ command: NSScriptCommand, iconId: String) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Icon '\(iconId)' not found. Use 'list icon zones' to see available identifiers."
 }
 
-private func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
+func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
 }
@@ -278,7 +297,7 @@ func scriptIdentifierMatches(_ identifier: String, app: RunningApp) -> Bool {
 }
 
 @MainActor
-private func resolveScriptIcon(_ identifier: String, from zones: [ScriptZonedIcon]) -> ScriptZonedIcon? {
+func resolveScriptIcon(_ identifier: String, from zones: [ScriptZonedIcon]) -> ScriptZonedIcon? {
     zones.first(where: { scriptIdentifierMatches(identifier, app: $0.app) })
 }
 
@@ -316,8 +335,6 @@ private func waitForScriptZone(
 
 // MARK: - List Icons Command
 
-/// AppleScript command: tell application "SaneBar" to list icons
-/// Returns a newline-separated list of "uniqueId\tname" for each detected menu bar icon.
 @objc(ListIconsCommand)
 final class ListIconsCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -330,9 +347,9 @@ final class ListIconsCommand: SaneBarScriptCommand {
         let box = ScriptResultBox("")
 
         Task { @MainActor in
-            let items = await AccessibilityService.shared.listMenuBarItemsWithPositions()
-            let lines = items.map { item in
-                "\(item.app.uniqueId)\t\(item.app.name)"
+            let apps = await SearchService.shared.refreshMenuBarApps()
+            let lines = apps.map { app in
+                "\(app.uniqueId)\t\(app.name)"
             }
             box.value = lines.joined(separator: "\n")
             semaphore.signal()
@@ -345,8 +362,6 @@ final class ListIconsCommand: SaneBarScriptCommand {
 
 // MARK: - List Icon Zones Command
 
-/// AppleScript command: tell application "SaneBar" to list icon zones
-/// Returns newline-separated lines: "zone\tmovable\tbundleId\tuniqueId\tname"
 @objc(ListIconZonesCommand)
 final class ListIconZonesCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -385,8 +400,6 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
 
 // MARK: - Layout Snapshot Command
 
-/// AppleScript command: tell application "SaneBar" to layout snapshot
-/// Returns JSON describing launch geometry invariants and current separator ordering.
 @objc(LayoutSnapshotCommand)
 final class LayoutSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -410,8 +423,14 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         let mainX = manager.getMainStatusItemLeftEdgeX()
         let separatorX = manager.getSeparatorOriginX()
         let separatorRightEdgeX = manager.getSeparatorRightEdgeX()
-        let alwaysHiddenX = manager.getAlwaysHiddenSeparatorOriginX()
-        let alwaysHiddenBoundaryX = manager.getAlwaysHiddenSeparatorBoundaryX()
+        let rawAlwaysHiddenX = manager.getAlwaysHiddenSeparatorOriginX()
+        let rawAlwaysHiddenBoundaryX = manager.getAlwaysHiddenSeparatorBoundaryX()
+        let alwaysHiddenGeometry = normalizedSnapshotAlwaysHiddenGeometry(
+            hidingState: manager.hidingService.state,
+            separatorX: separatorX,
+            alwaysHiddenOriginX: rawAlwaysHiddenX,
+            alwaysHiddenBoundaryX: rawAlwaysHiddenBoundaryX
+        )
 
         let mainWindow = manager.mainStatusItem?.button?.window
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
@@ -429,7 +448,8 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         }()
 
         let alwaysHiddenBeforeSeparator: Bool = {
-            guard let alwaysHiddenX, let separatorX else { return false }
+            guard alwaysHiddenGeometry.isReliable else { return false }
+            guard let alwaysHiddenX = alwaysHiddenGeometry.originX, let separatorX else { return false }
             return alwaysHiddenX < separatorX
         }()
 
@@ -445,9 +465,11 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "hidingState": manager.hidingService.state.rawValue,
             "separatorBeforeMain": separatorBeforeMain,
             "alwaysHiddenBeforeSeparator": alwaysHiddenBeforeSeparator,
+            "alwaysHiddenGeometryReliable": alwaysHiddenGeometry.isReliable,
             "mainNearControlCenter": mainNearControlCenter,
             // Rehide/debug state to diagnose "stuck expanded" reports quickly.
             "autoRehideEnabled": manager.settings.autoRehide,
+            "rehideOnAppChange": manager.settings.rehideOnAppChange,
             "rehideDelay": manager.settings.rehideDelay,
             "findIconRehideDelay": manager.settings.findIconRehideDelay,
             "isRevealPinned": manager.isRevealPinned,
@@ -468,8 +490,10 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         setOptional("mainIconLeftEdgeX", mainX)
         setOptional("separatorOriginX", separatorX)
         setOptional("separatorRightEdgeX", separatorRightEdgeX)
-        setOptional("alwaysHiddenSeparatorOriginX", alwaysHiddenX)
-        setOptional("alwaysHiddenSeparatorBoundaryX", alwaysHiddenBoundaryX)
+        setOptional("alwaysHiddenSeparatorOriginX", alwaysHiddenGeometry.originX)
+        setOptional("alwaysHiddenSeparatorBoundaryX", alwaysHiddenGeometry.boundaryX)
+        setOptional("rawAlwaysHiddenSeparatorOriginX", rawAlwaysHiddenX)
+        setOptional("rawAlwaysHiddenSeparatorBoundaryX", rawAlwaysHiddenBoundaryX)
         setOptional("screenWidth", screenWidth)
         setOptional("notchRightSafeMinX", notchRightSafeMinX)
         setOptional("mainRightGap", rightGap)
@@ -506,8 +530,6 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
 
 // MARK: - Hide Icon Command
 
-/// AppleScript command: tell application "SaneBar" to hide icon "com.example.app"
-/// Pins the icon to the always-hidden section. Requires always-hidden section to be enabled.
 @objc(HideIconCommand)
 final class HideIconCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -573,8 +595,6 @@ final class HideIconCommand: SaneBarScriptCommand {
 
 // MARK: - Show Icon Command
 
-/// AppleScript command: tell application "SaneBar" to show icon "com.example.app"
-/// Unpins the icon from always-hidden so it returns to the normal hidden/visible section.
 @objc(ShowIconCommand)
 final class ShowIconCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -620,6 +640,7 @@ final class ShowIconCommand: SaneBarScriptCommand {
                         bundleID: match.app.bundleId,
                         menuExtraId: match.app.menuExtraIdentifier,
                         statusItemIndex: match.app.statusItemIndex,
+                        preferredCenterX: match.app.preferredCenterX,
                         toHidden: false
                     )
                 }
@@ -657,11 +678,9 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             setAccessibilityError()
             return false
         }
-
         let targetZone = self.targetZone
         var errorCode: String?
         var skipZoneWait = false
-
         let started: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
                 let manager = MenuBarManager.shared
@@ -670,13 +689,11 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     errorCode = "notFound"
                     return false
                 }
-
                 let icon = source.app
                 let sourceZone = source.zone
                 logger.info(
                     "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
                 )
-
                 if sourceZone == targetZone {
                     if targetZone == .alwaysHidden {
                         if !manager.settings.alwaysHiddenSectionEnabled {
@@ -694,20 +711,35 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     if !manager.settings.alwaysHiddenSectionEnabled {
                         manager.settings.alwaysHiddenSectionEnabled = true
                     }
+                    manager.pinAlwaysHidden(app: icon)
+                    manager.saveSettings()
                     let moved = runScriptMove {
                         await manager.moveIconAlwaysHiddenAndWait(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex,
+                            preferredCenterX: icon.preferredCenterX,
                             toAlwaysHidden: true
                         )
                     }
                     guard let moved else {
+                        _ = manager.unpinAlwaysHidden(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex
+                        ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
+                            manager.unpinAlwaysHidden(bundleID: icon.bundleId))
+                        manager.saveSettings()
                         errorCode = "timedOut"
                         return false
                     }
-                    if moved {
-                        manager.pinAlwaysHidden(app: icon)
+                    if !moved {
+                        _ = manager.unpinAlwaysHidden(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex
+                        ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
+                            manager.unpinAlwaysHidden(bundleID: icon.bundleId))
                         manager.saveSettings()
                     }
                     return moved
@@ -725,11 +757,11 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                             manager.saveSettings()
                         }
                         let moved = runScriptMove {
-                            await manager.moveIconAndWait(
+                            await manager.moveIconFromAlwaysHiddenToHiddenAndWait(
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
-                                toHidden: true
+                                preferredCenterX: icon.preferredCenterX
                             )
                         }
                         guard let moved else {
@@ -743,6 +775,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
+                                preferredCenterX: icon.preferredCenterX,
                                 toHidden: true
                             )
                         }
@@ -768,11 +801,12 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                             manager.saveSettings()
                         }
                         let moved = runScriptMove {
-                            await manager.moveIconAndWait(
+                            await manager.moveIconAlwaysHiddenAndWait(
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
-                                toHidden: false
+                                preferredCenterX: icon.preferredCenterX,
+                                toAlwaysHidden: false
                             )
                         }
                         guard let moved else {
@@ -786,6 +820,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
+                                preferredCenterX: icon.preferredCenterX,
                                 toHidden: false
                             )
                         }
@@ -831,20 +866,35 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     if !manager.settings.alwaysHiddenSectionEnabled {
                         manager.settings.alwaysHiddenSectionEnabled = true
                     }
+                    manager.pinAlwaysHidden(app: icon)
+                    manager.saveSettings()
                     let moved = runScriptMove {
                         await manager.moveIconAlwaysHiddenAndWait(
                             bundleID: icon.bundleId,
                             menuExtraId: icon.menuExtraIdentifier,
                             statusItemIndex: icon.statusItemIndex,
+                            preferredCenterX: icon.preferredCenterX,
                             toAlwaysHidden: true
                         )
                     }
                     guard let moved else {
+                        _ = manager.unpinAlwaysHidden(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex
+                        ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
+                            manager.unpinAlwaysHidden(bundleID: icon.bundleId))
+                        manager.saveSettings()
                         errorCode = "timedOut"
                         return false
                     }
-                    if moved {
-                        manager.pinAlwaysHidden(app: icon)
+                    if !moved {
+                        _ = manager.unpinAlwaysHidden(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex
+                        ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
+                            manager.unpinAlwaysHidden(bundleID: icon.bundleId))
                         manager.saveSettings()
                     }
                     return moved
@@ -862,11 +912,11 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                             manager.saveSettings()
                         }
                         let moved = runScriptMove {
-                            await manager.moveIconAndWait(
+                            await manager.moveIconFromAlwaysHiddenToHiddenAndWait(
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
-                                toHidden: true
+                                preferredCenterX: icon.preferredCenterX
                             )
                         }
                         guard let moved else {
@@ -880,6 +930,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
+                                preferredCenterX: icon.preferredCenterX,
                                 toHidden: true
                             )
                         }
@@ -905,11 +956,12 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                             manager.saveSettings()
                         }
                         let moved = runScriptMove {
-                            await manager.moveIconAndWait(
+                            await manager.moveIconAlwaysHiddenAndWait(
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
-                                toHidden: false
+                                preferredCenterX: icon.preferredCenterX,
+                                toAlwaysHidden: false
                             )
                         }
                         guard let moved else {
@@ -923,6 +975,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                                 bundleID: icon.bundleId,
                                 menuExtraId: icon.menuExtraIdentifier,
                                 statusItemIndex: icon.statusItemIndex,
+                                preferredCenterX: icon.preferredCenterX,
                                 toHidden: false
                             )
                         }
@@ -956,23 +1009,22 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
     }
 }
 
-/// AppleScript command: tell application "SaneBar" to move icon to hidden "iconId"
 @objc(MoveIconToHiddenCommand)
 final class MoveIconToHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .hidden }
     override var reasonLabel: String { "AppleScript move icon to hidden" }
 }
 
-/// AppleScript command: tell application "SaneBar" to move icon to visible "iconId"
 @objc(MoveIconToVisibleCommand)
 final class MoveIconToVisibleCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .visible }
     override var reasonLabel: String { "AppleScript move icon to visible" }
 }
 
-/// AppleScript command: tell application "SaneBar" to move icon to always hidden "iconId"
 @objc(MoveIconToAlwaysHiddenCommand)
 final class MoveIconToAlwaysHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .alwaysHidden }
     override var reasonLabel: String { "AppleScript move icon to always hidden" }
 }
+
+// swiftlint:enable file_length

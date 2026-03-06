@@ -547,6 +547,7 @@ extension MenuBarManager {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
         separatorOverrideX: CGFloat? = nil
     ) -> Bool {
@@ -751,6 +752,7 @@ extension MenuBarManager {
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
                 toHidden: toHidden,
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
@@ -780,6 +782,7 @@ extension MenuBarManager {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
                     toHidden: toHidden,
                     separatorX: activeSeparatorX,
                     visibleBoundaryX: activeVisibleBoundaryX,
@@ -805,6 +808,7 @@ extension MenuBarManager {
                         bundleID: bundleID,
                         menuExtraId: menuExtraId,
                         statusItemIndex: statusItemIndex,
+                        preferredCenterX: preferredCenterX,
                         toHidden: toHidden,
                         separatorX: fallbackSeparatorX,
                         visibleBoundaryX: fallbackVisibleBoundaryX,
@@ -882,6 +886,7 @@ extension MenuBarManager {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
         toAlwaysHidden: Bool
     ) -> Bool {
         // Block moves during hide/show or shield transitions
@@ -960,6 +965,7 @@ extension MenuBarManager {
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
                 toHidden: toAlwaysHidden,
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
@@ -985,6 +991,7 @@ extension MenuBarManager {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
                     toHidden: toAlwaysHidden,
                     separatorX: activeSeparatorX,
                     visibleBoundaryX: activeVisibleBoundaryX,
@@ -1037,12 +1044,14 @@ extension MenuBarManager {
     func moveIconToAlwaysHidden(
         bundleID: String,
         menuExtraId: String? = nil,
-        statusItemIndex: Int? = nil
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
     ) -> Bool {
         moveIconAlwaysHidden(
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX,
             toAlwaysHidden: true
         )
     }
@@ -1051,12 +1060,14 @@ extension MenuBarManager {
     func moveIconFromAlwaysHidden(
         bundleID: String,
         menuExtraId: String? = nil,
-        statusItemIndex: Int? = nil
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
     ) -> Bool {
         moveIconAlwaysHidden(
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX,
             toAlwaysHidden: false
         )
     }
@@ -1067,7 +1078,8 @@ extension MenuBarManager {
     func moveIconFromAlwaysHiddenToHidden(
         bundleID: String,
         menuExtraId: String? = nil,
-        statusItemIndex: Int? = nil
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
     ) -> Bool {
         guard !hidingService.isAnimating, !hidingService.isTransitioning else {
             logger.warning("🔧 moveIconFromAlwaysHiddenToHidden skipped — hiding service busy")
@@ -1137,6 +1149,7 @@ extension MenuBarManager {
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
                 toHidden: false, // Move RIGHT of the AH separator (into hidden zone)
                 separatorX: activeAHSepRightEdge,
                 visibleBoundaryX: activeMainSepOriginX, // Clamp: stay LEFT of main separator
@@ -1166,6 +1179,7 @@ extension MenuBarManager {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
                     toHidden: false,
                     separatorX: activeAHSepRightEdge,
                     visibleBoundaryX: activeMainSepOriginX,
@@ -1320,6 +1334,7 @@ extension MenuBarManager {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
         separatorOverrideX: CGFloat? = nil
     ) async -> Bool {
@@ -1331,6 +1346,7 @@ extension MenuBarManager {
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX,
             toHidden: toHidden,
             separatorOverrideX: separatorOverrideX
         )
@@ -1345,6 +1361,7 @@ extension MenuBarManager {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
         toAlwaysHidden: Bool
     ) async -> Bool {
         if let task = activeMoveTask {
@@ -1355,7 +1372,31 @@ extension MenuBarManager {
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX,
             toAlwaysHidden: toAlwaysHidden
+        )
+
+        guard let task = activeMoveTask else { return false }
+        let success = await task.value
+        return started && success
+    }
+
+    @MainActor
+    func moveIconFromAlwaysHiddenToHiddenAndWait(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
+    ) async -> Bool {
+        if let task = activeMoveTask {
+            _ = await task.value
+        }
+
+        let started = moveIconFromAlwaysHiddenToHidden(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
         )
 
         guard let task = activeMoveTask else { return false }

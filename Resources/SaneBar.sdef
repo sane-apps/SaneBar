@@ -18,6 +18,22 @@
             <cocoa class="HideCommand"/>
         </command>
 
+        <!-- Browse Panel Commands -->
+        <command name="open icon panel" code="SBaricpn" description="Reveal hidden items and open the icon panel browse window">
+            <cocoa class="ShowIconPanelCommand"/>
+            <result type="boolean" description="True if the icon-panel open request was accepted"/>
+        </command>
+
+        <command name="show second menu bar" code="SBar2ndm" description="Reveal hidden items and open the second menu bar browse panel">
+            <cocoa class="ShowSecondMenuBarCommand"/>
+            <result type="boolean" description="True if the browse-panel open request was accepted"/>
+        </command>
+
+        <command name="close browse panel" code="SBarclbp" description="Close the active browse panel if one is open">
+            <cocoa class="CloseBrowsePanelCommand"/>
+            <result type="boolean" description="True if the close request was accepted"/>
+        </command>
+
         <!-- List Icons Command -->
         <command name="list icons" code="SBarlsic" description="List detected menu bar icons with their identifiers">
             <cocoa class="ListIconsCommand"/>
@@ -34,6 +50,42 @@
         <command name="layout snapshot" code="SBarlyot" description="Return a JSON snapshot of menu bar launch/layout invariants">
             <cocoa class="LayoutSnapshotCommand"/>
             <result type="text" description="JSON with separator ordering and control-center proximity checks"/>
+        </command>
+
+        <!-- Diagnostics Commands -->
+        <command name="activation diagnostics" code="SBaracdg" description="Return the latest activation diagnostics captured by SearchService">
+            <cocoa class="ActivationDiagnosticsCommand"/>
+            <result type="text" description="Formatted activation diagnostics"/>
+        </command>
+
+        <command name="browse panel diagnostics" code="SBarbrdg" description="Return the latest browse-panel diagnostics">
+            <cocoa class="BrowsePanelDiagnosticsCommand"/>
+            <result type="text" description="Formatted browse-panel diagnostics"/>
+        </command>
+
+        <!-- Activation Commands -->
+        <command name="activate icon" code="SBaracic" description="Activate a specific icon using the same backend path as Browse Icons">
+            <cocoa class="ActivateIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="text" description="Formatted activation + browse-panel diagnostics after the attempt"/>
+        </command>
+
+        <command name="right click icon" code="SBarrcic" description="Right-click a specific icon using the same backend path as Browse Icons">
+            <cocoa class="RightClickIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="text" description="Formatted activation + browse-panel diagnostics after the attempt"/>
+        </command>
+
+        <command name="activate browse icon" code="SBarabic" description="Activate a specific icon using the Browse Icons backend path">
+            <cocoa class="ActivateBrowseIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="text" description="Formatted activation + browse-panel diagnostics after the attempt"/>
+        </command>
+
+        <command name="right click browse icon" code="SBarrbic" description="Right-click a specific icon using the Browse Icons backend path">
+            <cocoa class="RightClickBrowseIconCommand"/>
+            <direct-parameter type="text" description="The icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="text" description="Formatted activation + browse-panel diagnostics after the attempt"/>
         </command>
 
         <!-- Hide Icon Command -->

@@ -92,6 +92,14 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let xPosition: CGFloat?
     let width: CGFloat?
 
+    /// Best-effort center hint used when AX identifiers drift after a move/reveal.
+    /// Falls back to the raw xPosition when width is unavailable.
+    var preferredCenterX: CGFloat? {
+        guard let xPosition else { return nil }
+        guard let width, width > 0 else { return xPosition }
+        return xPosition + (width / 2)
+    }
+
     /// For system-owned menu extras (Control Center/SystemUIServer): the specific menu extra identifier
     /// e.g., "com.apple.menuextra.battery", "com.apple.menuextra.wifi"
     ///

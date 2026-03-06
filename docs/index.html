@@ -1560,6 +1560,20 @@
             margin-bottom: 16px;
         }
 
+        .app-card-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--success);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
         .app-card-cta {
             color: var(--accent);
             font-weight: 500;
@@ -2922,13 +2936,14 @@
                     <p class="app-card-tagline">Run scripts, convert files, and automate your Mac directly from the right-click menu. 50+ actions, 100% On-Device.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
-                <a href="https://sanesales.com" class="app-card">
+                <a href="https://sanesales.com?ref=sanebar-more-apps" class="app-card" data-cta="cross_sell_sanesales">
                     <div class="app-card-header">
                         <img src="images/sanesales-icon.png" alt="SaneSales" class="app-card-icon">
                         <div class="app-card-name">SaneSales</div>
                     </div>
-                    <p class="app-card-tagline">Track your indie sales from LemonSqueezy, Gumroad, and Stripe in one beautiful, native app. Revenue charts, CSV export, 100% On-Device.</p>
-                    <span class="app-card-cta">Learn more &rarr;</span>
+                    <div class="app-card-kicker">Today is free</div>
+                    <p class="app-card-tagline">Track today's revenue and orders for free. Unlock trends, full history, CSV export, and multi-provider tracking when you need them.</p>
+                    <span class="app-card-cta">Track sales free &rarr;</span>
                 </a>
             </div>
             <div class="more-apps-hub">
