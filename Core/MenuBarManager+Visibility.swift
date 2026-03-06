@@ -11,14 +11,18 @@ extension MenuBarManager {
     func canAutoRehideAtFireTime() -> Bool {
         let browseController = SearchWindowController.shared
 
-        // Never auto-hide while Browse Icons / second menu bar is visible
+        // Never auto-hide while Browse Icons / second menu bar is active
         // or while a drag move is actively running.
         if browseController.isMoveInProgress {
             return false
         }
+        // AppKit visibility can lag while the panel is being created, focused,
+        // or dismissed. Respect the explicit browse-session flag as the source
+        // of truth for "panel interaction is in progress."
+        if browseController.isBrowseSessionActive {
+            return false
+        }
         // Never auto-hide while a browse panel is actually visible.
-        // This must not depend on session flags: if visibility is true, user is
-        // actively in a panel and rehide should be suspended.
         if browseController.isVisible {
             return false
         }
@@ -70,6 +74,30 @@ extension MenuBarManager {
         disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
     }
 
+    nonisolated static func shouldScheduleRehideOnAppChange(
+        rehideOnAppChange: Bool,
+        hidingState: HidingState,
+        isRevealPinned: Bool,
+        shouldSkipHideForExternalMonitor: Bool,
+        isBrowseSessionActive: Bool,
+        activatedBundleID: String?,
+        ownBundleID: String?
+    ) -> Bool {
+        guard rehideOnAppChange else { return false }
+        guard hidingState == .expanded else { return false }
+        guard !isRevealPinned else { return false }
+        guard !shouldSkipHideForExternalMonitor else { return false }
+        guard !isBrowseSessionActive else { return false }
+
+        if let activatedBundleID,
+           let ownBundleID,
+           activatedBundleID == ownBundleID {
+            return false
+        }
+
+        return true
+    }
+
     static func shouldRecoverStartupPositions(
         separatorX: CGFloat?,
         mainX: CGFloat?,
@@ -94,12 +122,16 @@ extension MenuBarManager {
         }
 
         // Machine-specific corruption can preserve an apparently "ordered"
-        // separator/main pair that still lands far from the Control Center side.
-        // Recover when the main icon drifts too far from the right edge.
+        // separator/main pair that still lands one or more app slots away from
+        // the Control Center side. `mainRightGap` measures from the left edge of
+        // the SaneBar icon to the screen's right edge, so a single extra app
+        // wedged between SaneBar and Control Center inflates this quickly.
+        // Keep the allowed window narrow and capped instead of scaling with the
+        // full display width.
         guard let mainRightGap, let screenWidth else { return false }
         guard mainRightGap > 0, screenWidth > 0 else { return false }
 
-        let maxAllowedRightGap = max(500, screenWidth * 0.45)
+        let maxAllowedRightGap = min(320, max(240, screenWidth * 0.14))
         return mainRightGap > maxAllowedRightGap
     }
 
@@ -195,7 +227,8 @@ extension MenuBarManager {
     @MainActor
     func scheduleRehideFromSearch(after delay: TimeInterval) {
         guard !shouldSkipHideForExternalMonitor else { return }
-        if SearchWindowController.shared.isVisible {
+        let browseController = SearchWindowController.shared
+        if browseController.isBrowseSessionActive || browseController.isVisible {
             logger.debug("Search rehide deferred while Browse Icons is visible")
             return
         }

@@ -2,6 +2,8 @@ import AppKit
 import Foundation
 import os.log
 
+// swiftlint:disable file_length
+
 private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchService")
 
 // MARK: - SearchServiceProtocol
@@ -10,55 +12,48 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchServi
 protocol SearchServiceProtocol: Sendable {
     /// Fetch all running apps suitable for menu bar interaction
     func getRunningApps() async -> [RunningApp]
-
     /// Fetch apps that currently own a menu bar icon (requires Accessibility permission)
     func getMenuBarApps() async -> [RunningApp]
-
     /// Fetch ONLY the menu bar apps that are currently HIDDEN by SaneBar
     func getHiddenMenuBarApps() async -> [RunningApp]
-
     /// Fetch ONLY the menu bar apps that are always hidden (if enabled)
     func getAlwaysHiddenMenuBarApps() async -> [RunningApp]
-
     /// Cached menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedMenuBarApps() -> [RunningApp]
-
     /// Cached hidden menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedHiddenMenuBarApps() -> [RunningApp]
-
     /// Cached always hidden menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedAlwaysHiddenMenuBarApps() -> [RunningApp]
-
     /// Cached shown (visible) menu bar apps (may be stale). Returns immediately.
     @MainActor
     func cachedVisibleMenuBarApps() -> [RunningApp]
-
     /// Refresh menu bar apps in the background (may take time).
     func refreshMenuBarApps() async -> [RunningApp]
-
     /// Refresh hidden menu bar apps in the background (may take time).
     func refreshHiddenMenuBarApps() async -> [RunningApp]
-
     /// Refresh always hidden menu bar apps in the background (may take time).
     func refreshAlwaysHiddenMenuBarApps() async -> [RunningApp]
-
     /// Refresh shown (visible) menu bar apps in the background (may take time).
     func refreshVisibleMenuBarApps() async -> [RunningApp]
-
     /// Classify all cached menu bar items into zones in a single pass.
     /// Guarantees each item appears in exactly one zone.
     @MainActor
     func cachedClassifiedApps() -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
-
     /// Refresh and classify all menu bar items into zones in a single pass.
     func refreshClassifiedApps() async -> (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
-
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
-    func activate(app: RunningApp, isRightClick: Bool) async
+    func activate(app: RunningApp, isRightClick: Bool, origin: SearchService.ActivationOrigin) async
+}
+
+extension SearchServiceProtocol {
+    @MainActor
+    func activate(app: RunningApp, isRightClick: Bool) async {
+        await activate(app: app, isRightClick: isRightClick, origin: .direct)
+    }
 }
 
 // MARK: - SearchService
@@ -79,56 +74,9 @@ final class SearchService: SearchServiceProtocol {
         case alwaysHidden
     }
 
-    struct ActivationDiagnostics: Sendable {
-        var startedAt: String = "never"
-        var requestedApp: String = "none"
-        var didReveal: Bool = false
-        var preferHardwareFirst: Bool = false
-        var initialResolution: String = "not-run"
-        var initialTarget: String = "none"
-        var waitOutcome: String = "not-run"
-        var firstAttempt: String = "not-run"
-        var retryAttempt: String = "not-run"
-        var finalOutcome: String = "not-run"
-
-        func formattedSummary() -> String {
-            """
-            lastActivation:
-              startedAt: \(startedAt)
-              requestedApp: \(requestedApp)
-              didReveal: \(didReveal)
-              preferHardwareFirst: \(preferHardwareFirst)
-              initialResolution: \(initialResolution)
-              initialTarget: \(initialTarget)
-              waitOutcome: \(waitOutcome)
-              firstAttempt: \(firstAttempt)
-              retryAttempt: \(retryAttempt)
-              finalOutcome: \(finalOutcome)
-            """
-        }
-    }
-
     @MainActor
     func diagnosticsSnapshot() -> String {
         lastActivationDiagnostics.formattedSummary()
-    }
-
-    nonisolated private static func diagnosticsTimestamp(_ date: Date) -> String {
-        date.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true))
-    }
-
-    nonisolated private static func diagnosticsNumber(_ value: CGFloat?) -> String {
-        guard let value else { return "nil" }
-        return String(format: "%.1f", value)
-    }
-
-    nonisolated private static func diagnosticsPoint(_ point: CGPoint?) -> String {
-        guard let point else { return "nil" }
-        return "x=\(diagnosticsNumber(point.x)) y=\(diagnosticsNumber(point.y))"
-    }
-
-    nonisolated private static func diagnosticsApp(_ app: RunningApp) -> String {
-        "id=\(app.uniqueId) bundle=\(app.bundleId) menuExtra=\(app.menuExtraIdentifier ?? "nil") statusItemIndex=\(app.statusItemIndex.map(String.init) ?? "nil") x=\(diagnosticsNumber(app.xPosition)) width=\(diagnosticsNumber(app.width))"
     }
 
     @MainActor
@@ -175,11 +123,13 @@ final class SearchService: SearchServiceProtocol {
             return (separatorX, nil)
         }
 
-        // In collapsed hidden mode, WindowServer can compress hidden-lane geometry
-        // such that regular hidden items temporarily sit left of the AH separator.
-        // Use pinned IDs (post-pass) for always-hidden in this state instead of
-        // trusting AH boundary coordinates for zone classification.
-        if MenuBarManager.shared.hidingService.state == .hidden {
+        // During collapsed hidden mode and active browse sessions, WindowServer
+        // geometry can temporarily place regular hidden items left of the AH
+        // separator. Use pinned IDs instead of trusting live AH coordinates.
+        if Self.shouldUsePinnedAlwaysHiddenFallback(
+            hidingState: MenuBarManager.shared.hidingService.state,
+            isBrowseSessionActive: SearchWindowController.shared.isBrowseSessionActive
+        ) {
             return (separatorX, nil)
         }
 
@@ -264,6 +214,28 @@ final class SearchService: SearchServiceProtocol {
         return matched
     }
 
+    nonisolated static func promotePinnedHiddenAppsToAlwaysHidden(
+        hidden: [RunningApp],
+        alwaysHidden: [RunningApp],
+        pinnedIds: Set<String>
+    ) -> (hidden: [RunningApp], alwaysHidden: [RunningApp]) {
+        guard !pinnedIds.isEmpty else { return (hidden, alwaysHidden) }
+
+        let promoted = hidden.filter { app in
+            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+        }
+        guard !promoted.isEmpty else { return (hidden, alwaysHidden) }
+
+        let promotedIds = Set(promoted.map(\.uniqueId))
+        let existingAlwaysHiddenIds = Set(alwaysHidden.map(\.uniqueId))
+        let appended = promoted.filter { !existingAlwaysHiddenIds.contains($0.uniqueId) }
+
+        return (
+            hidden.filter { !promotedIds.contains($0.uniqueId) },
+            alwaysHidden + appended
+        )
+    }
+
     private func isOffscreen(x: CGFloat, in screenFrame: CGRect) -> Bool {
         // Small margin to avoid flapping due to tiny coordinate jitter.
         let margin: CGFloat = 6
@@ -325,9 +297,9 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func cachedMenuBarApps() -> [RunningApp] {
-        // Use position-aware cache for 'All' so we can sort spatially
-        let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
-        return items.map(\.app)
+        let positioned = AccessibilityService.shared.cachedMenuBarItemsWithPositions().map(\.app)
+        let owners = AccessibilityService.shared.cachedMenuBarItemOwners()
+        return Self.mergedDiscoverableApps(positioned: positioned, owners: owners)
     }
 
     @MainActor
@@ -420,9 +392,11 @@ final class SearchService: SearchServiceProtocol {
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
-        // Refresh positions to ensure 'All' is sorted spatially
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        return items.map(\.app)
+        let owners = await AccessibilityService.shared.refreshMenuBarItemOwners()
+        return await MainActor.run {
+            Self.mergedDiscoverableApps(positioned: items.map(\.app), owners: owners)
+        }
     }
 
     func refreshHiddenMenuBarApps() async -> [RunningApp] {
@@ -604,19 +578,21 @@ final class SearchService: SearchServiceProtocol {
                 }
             }
 
-            // Post-pass: if AH separator exists but its position was unavailable,
-            // classifyZone used two-zone split (no AH zone). Use pinned IDs to
-            // pull always-hidden items out of the hidden bucket.
-            if positions.alwaysHiddenSeparatorX == nil,
-               MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
-                let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
-                if !pinnedIds.isEmpty {
-                    let isPinned: (RunningApp) -> Bool = { app in
-                        pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
-                    }
-                    alwaysHidden = hidden.filter(isPinned)
-                    hidden = hidden.filter { !isPinned($0) }
-                    logger.debug("classifyItems: post-pass moved \(alwaysHidden.count, privacy: .public) pinned apps to alwaysHidden")
+            let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+            let promoted = Self.promotePinnedHiddenAppsToAlwaysHidden(
+                hidden: hidden,
+                alwaysHidden: alwaysHidden,
+                pinnedIds: pinnedIds
+            )
+            let promotedCount = hidden.count - promoted.hidden.count
+            hidden = promoted.hidden
+            alwaysHidden = promoted.alwaysHidden
+            if promotedCount > 0 {
+                if positions.alwaysHiddenSeparatorX == nil,
+                   MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
+                    logger.debug("classifyItems: post-pass moved \(promotedCount, privacy: .public) pinned apps to alwaysHidden (fallback)")
+                } else {
+                    logger.debug("classifyItems: post-pass kept \(promotedCount, privacy: .public) pinned hidden apps in alwaysHidden")
                 }
             }
 
@@ -653,10 +629,15 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    func activate(app: RunningApp, isRightClick: Bool = false) async {
+    func activate(
+        app: RunningApp,
+        isRightClick: Bool = false,
+        origin: ActivationOrigin = .direct
+    ) async {
         var diagnostics = ActivationDiagnostics(
             startedAt: Self.diagnosticsTimestamp(Date()),
-            requestedApp: Self.diagnosticsApp(app)
+            requestedApp: Self.diagnosticsApp(app),
+            origin: origin.rawValue
         )
         if !beginActivationIfAllowed(for: app.uniqueId, nameForLog: app.name) {
             diagnostics.finalOutcome = "skipped (activation already in flight or debounced)"
@@ -665,12 +646,32 @@ final class SearchService: SearchServiceProtocol {
         }
         defer { finishActivation(for: app.uniqueId) }
 
-        let preferHardwareFirst = shouldPreferHardwareFirst(for: app)
+        let preferHardwareFirst = Self.shouldPreferHardwareFirst(
+            origin: origin,
+            isRightClick: isRightClick,
+            app: app
+        )
         diagnostics.preferHardwareFirst = preferHardwareFirst
 
         // 1. Show hidden menu bar items first
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
         diagnostics.didReveal = didReveal
+        let browseSessionActive = SearchWindowController.shared.isBrowseSessionActive
+        let requireObservableReaction = Self.requiresObservableReactionVerification(
+            origin: origin,
+            didReveal: didReveal,
+            isBrowseSessionActive: browseSessionActive
+        )
+        let forceFreshTargetResolution = Self.shouldForceFreshTargetResolution(
+            origin: origin,
+            didReveal: didReveal,
+            isBrowseSessionActive: browseSessionActive
+        )
+        let allowImmediateFallbackCenter = Self.shouldAllowImmediateFallbackCenter(
+            origin: origin,
+            didReveal: didReveal,
+            isBrowseSessionActive: browseSessionActive
+        )
         logger.info(
             "Activation start requested=\(Self.diagnosticsApp(app), privacy: .private) didReveal=\(didReveal, privacy: .public) preferHardwareFirst=\(preferHardwareFirst, privacy: .public)"
         )
@@ -681,9 +682,12 @@ final class SearchService: SearchServiceProtocol {
         // target icon reaches a stable on-screen position (up to 2s).
         if didReveal {
             try? await Task.sleep(nanoseconds: 80_000_000) // keep this short; polling handles settling
-            // Hardware-first paths poll frame visibility during fallback click,
-            // so skip extra AX position polling for faster response.
-            if !preferHardwareFirst {
+            // Hardware-first visible items can skip the extra settle wait, but
+            // hidden/off-screen targets still need time to re-enter the bar.
+            if Self.shouldWaitForRevealSettle(
+                preferHardwareFirst: preferHardwareFirst,
+                xPosition: app.xPosition
+            ) {
                 diagnostics.waitOutcome = await waitForIconOnScreen(app: app)
             } else {
                 diagnostics.waitOutcome = "skipped (preferHardwareFirst)"
@@ -696,11 +700,14 @@ final class SearchService: SearchServiceProtocol {
         // AX child ordering changes when hidden icons become visible — stale
         // cached data causes AXPress to target the wrong (off-screen) element,
         // which returns .success without opening any menu (#69, #77, #102).
-        let initialResolution = await resolveLatestClickTarget(for: app, forceRefresh: didReveal)
+        let initialResolution = await resolveLatestClickTarget(
+            for: app,
+            forceRefresh: forceFreshTargetResolution
+        )
         let initialTarget = initialResolution.app
         diagnostics.initialResolution = initialResolution.strategy
         diagnostics.initialTarget = Self.diagnosticsApp(initialTarget)
-        let initialFallbackCenter = fallbackCenter(for: initialTarget)
+        let initialFallbackCenter = fallbackCenter(for: initialTarget, fallbackSource: app)
         let axService = AccessibilityService.shared
 
         // 4. Perform click off-main-thread to avoid UI stalls when AX APIs block.
@@ -711,12 +718,20 @@ final class SearchService: SearchServiceProtocol {
             fallbackCenter: initialFallbackCenter,
             isRightClick: isRightClick,
             preferHardwareFirst: preferHardwareFirst,
-            allowImmediateFallbackCenter: !didReveal
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter,
+            requireObservableReaction: requireObservableReaction
         )
-        var clickSuccess = firstAttempt.success
+        var clickSuccess = Self.acceptsClickResult(
+            success: firstAttempt.success,
+            verification: firstAttempt.verification,
+            requireObservableReaction: requireObservableReaction
+        )
         let firstAttemptDuration = Date().timeIntervalSince(firstAttemptStart)
         diagnostics.firstAttempt =
-            "success=\(firstAttempt.success) timedOut=\(firstAttempt.timedOut) durationMs=\(Int(firstAttemptDuration * 1000)) fallbackCenter=\(Self.diagnosticsPoint(initialFallbackCenter)) allowImmediateFallbackCenter=\(!didReveal)"
+            "success=\(firstAttempt.success) accepted=\(clickSuccess) timedOut=\(firstAttempt.timedOut) durationMs=\(Int(firstAttemptDuration * 1000)) fallbackCenter=\(Self.diagnosticsPoint(initialFallbackCenter)) allowImmediateFallbackCenter=\(allowImmediateFallbackCenter) requireObservableReaction=\(requireObservableReaction) verification=\(firstAttempt.verification)"
+        if firstAttempt.success, !clickSuccess {
+            logger.info("Rejecting unverified click success for revealed/browse-session activation")
+        }
         if firstAttemptDuration > 1.2 {
             logger.info("Click attempt took \(firstAttemptDuration, privacy: .public)s")
         }
@@ -741,20 +756,32 @@ final class SearchService: SearchServiceProtocol {
                 logger.info("Click failed, retrying after forced menu bar refresh")
                 let refreshedResolution = await resolveLatestClickTarget(for: app, forceRefresh: true)
                 let refreshedTarget = refreshedResolution.app
-                let refreshedFallbackCenter = fallbackCenter(for: refreshedTarget)
+                let refreshedFallbackCenter = fallbackCenter(for: refreshedTarget, fallbackSource: app)
                 let refreshedAttemptStart = Date()
                 let refreshedAttempt = await performClickAttempt(
                     axService: axService,
                     target: refreshedTarget,
                     fallbackCenter: refreshedFallbackCenter,
                     isRightClick: isRightClick,
-                    preferHardwareFirst: shouldPreferHardwareFirst(for: refreshedTarget),
-                    allowImmediateFallbackCenter: false
+                    preferHardwareFirst: Self.shouldPreferHardwareFirst(
+                        origin: origin,
+                        isRightClick: isRightClick,
+                        app: refreshedTarget
+                    ),
+                    allowImmediateFallbackCenter: false,
+                    requireObservableReaction: requireObservableReaction
                 )
-                clickSuccess = refreshedAttempt.success
+                clickSuccess = Self.acceptsClickResult(
+                    success: refreshedAttempt.success,
+                    verification: refreshedAttempt.verification,
+                    requireObservableReaction: requireObservableReaction
+                )
                 let refreshedAttemptDuration = Date().timeIntervalSince(refreshedAttemptStart)
                 diagnostics.retryAttempt =
-                    "success=\(refreshedAttempt.success) timedOut=\(refreshedAttempt.timedOut) durationMs=\(Int(refreshedAttemptDuration * 1000)) resolution=\(refreshedResolution.strategy) target=\(Self.diagnosticsApp(refreshedTarget)) fallbackCenter=\(Self.diagnosticsPoint(refreshedFallbackCenter))"
+                    "success=\(refreshedAttempt.success) accepted=\(clickSuccess) timedOut=\(refreshedAttempt.timedOut) durationMs=\(Int(refreshedAttemptDuration * 1000)) resolution=\(refreshedResolution.strategy) target=\(Self.diagnosticsApp(refreshedTarget)) fallbackCenter=\(Self.diagnosticsPoint(refreshedFallbackCenter)) requireObservableReaction=\(requireObservableReaction) verification=\(refreshedAttempt.verification)"
+                if refreshedAttempt.success, !clickSuccess {
+                    logger.info("Rejecting unverified retry click success for revealed/browse-session activation")
+                }
             }
         } else {
             diagnostics.retryAttempt = "not-needed"
@@ -786,25 +813,10 @@ final class SearchService: SearchServiceProtocol {
         )
     }
 
-    @MainActor
-    private func shouldPreferHardwareFirst(for app: RunningApp) -> Bool {
-        if app.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {
-            return true
-        }
-        // Items without a stable per-item AX identifier are typically less
-        // reliable via AXPress and benefit from direct click semantics.
-        if app.menuExtraIdentifier == nil {
-            return true
-        }
-        // Apple-owned menu extras (e.g. Spotlight) can report AXPress success
-        // while behaving inconsistently across macOS builds. Prefer hardware
-        // click first for com.apple.* owners to match real user interaction.
-        return app.bundleId.hasPrefix("com.apple.")
-    }
-
     private struct ClickAttemptResult: Sendable {
         let success: Bool
         let timedOut: Bool
+        let verification: String
     }
 
     @MainActor
@@ -814,12 +826,16 @@ final class SearchService: SearchServiceProtocol {
         fallbackCenter: CGPoint?,
         isRightClick: Bool,
         preferHardwareFirst: Bool,
-        allowImmediateFallbackCenter: Bool
+        allowImmediateFallbackCenter: Bool,
+        requireObservableReaction: Bool
     ) async -> ClickAttemptResult {
-        let timeoutMs = clickAttemptTimeoutMs
+        let timeoutMs = Self.clickAttemptTimeoutMs(
+            baseMs: clickAttemptTimeoutMs,
+            requireObservableReaction: requireObservableReaction
+        )
         return await withTaskGroup(of: ClickAttemptResult.self) { group in
             group.addTask(priority: .userInitiated) {
-                let success = axService.clickMenuBarItem(
+                let result = axService.clickMenuBarItemResult(
                     bundleID: target.bundleId,
                     menuExtraId: target.menuExtraIdentifier,
                     statusItemIndex: target.statusItemIndex,
@@ -828,15 +844,19 @@ final class SearchService: SearchServiceProtocol {
                     preferHardwareFirst: preferHardwareFirst,
                     allowImmediateFallbackCenter: allowImmediateFallbackCenter
                 )
-                return ClickAttemptResult(success: success, timedOut: false)
+                return ClickAttemptResult(
+                    success: result.success,
+                    timedOut: false,
+                    verification: result.verification
+                )
             }
 
             group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(timeoutMs) * 1_000_000)
-                return ClickAttemptResult(success: false, timedOut: true)
+                return ClickAttemptResult(success: false, timedOut: true, verification: "failed (timed out)")
             }
 
-            let result = await group.next() ?? ClickAttemptResult(success: false, timedOut: true)
+            let result = await group.next() ?? ClickAttemptResult(success: false, timedOut: true, verification: "failed (timed out)")
             group.cancelAll()
             return result
         }
@@ -920,10 +940,18 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    private func fallbackCenter(for app: RunningApp) -> CGPoint? {
-        guard let x = app.xPosition else { return nil }
-        let width = max(1, app.width ?? 22)
-        return CGPoint(x: x + (width / 2), y: 15)
+    private func fallbackCenter(for app: RunningApp, fallbackSource: RunningApp? = nil) -> CGPoint? {
+        let center = Self.preferredSpatialFallbackCenter(
+            primaryXPosition: app.xPosition,
+            primaryWidth: app.width,
+            fallbackXPosition: fallbackSource?.xPosition,
+            fallbackWidth: fallbackSource?.width,
+            menuBarScreenFrame: menuBarScreenFrame()
+        )
+        if center == nil, app.xPosition != nil || fallbackSource?.xPosition != nil {
+            logger.info("Skipping spatial fallback for \(app.bundleId, privacy: .private): no on-screen fallback center survived target refresh")
+        }
+        return center
     }
 
     /// Poll until the target icon reaches a stable on-screen position.
@@ -987,3 +1015,5 @@ final class SearchService: SearchServiceProtocol {
         return "timed out after \(maxWaitMs)ms"
     }
 }
+
+// swiftlint:enable file_length

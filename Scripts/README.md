@@ -11,6 +11,11 @@
 ./scripts/SaneMaster.rb launch --proddebug # Explicit signed local launch
 ```
 
+Important:
+- run these from the local workspace root, not with raw `ssh mini ...`
+- `SaneMaster` syncs the current workspace snapshot to Mini before routed commands like `verify`, `test_mode`, and `release_preflight`
+- bypassing that sync path is how stale-code verification slips back in
+
 Note: SaneBar defaults to `ProdDebug` launch mode because some machines can fail to render
 the menu bar item reliably in unsigned `Debug` launches from DerivedData, while installer-like
 signed launches work consistently.
@@ -38,6 +43,9 @@ Release preflight now enforces project QA guardrails:
 - 24h soak window between releases (override requires an interactive typed approval phrase)
 - reporter confirmation check for recently closed regression issues (override requires an interactive typed approval phrase)
 - dedicated stability suite focused on upgrade state + second-menu-bar behavior
+- staged `Release` runtime smoke on Mini, including dual browse-mode screenshots
+- two runtime smoke passes: cold launch and immediate repeat, so warm-state browse regressions fail preflight instead of slipping through a one-pass check
+- `/tmp/sanebar_runtime_smoke.log` now keeps the actual browse activation diagnostics when a pass fails
 
 If a guard fails, stop and fix the root cause, verify, then rerun preflight before continuing release work.
 
@@ -73,6 +81,7 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 | Script | Purpose |
 |--------|---------|
 | `SaneMaster.rb` | Thin wrapper (20L) delegating to SaneProcess |
+| `live_zone_smoke.rb` | Live browse + move smoke. Opens both the icon panel and second menu bar, captures screenshots, verifies browse left/right-click, then runs move checks. |
 | `qa.rb` | Project QA checks (release guardrails, appcast blocks, migration guards, stability suite) |
 | `post_release.rb` | Post-release tasks (appcast update, GitHub release) |
 | `button_map.rb` | Map all UI controls and their handlers |
@@ -86,3 +95,22 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 | `stress_test_menubar.swift` | Stress test with many menu bar items |
 | `overflow_test_menubar.swift` | Test menu bar overflow edge cases |
 | `check_outreach_opportunities.rb` | Scan for marketing opportunities |
+
+Run the live browse smoke directly:
+
+```bash
+SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN=1 ./Scripts/live_zone_smoke.rb
+SANEBAR_SMOKE_SCREENSHOT_DIR=~/Desktop/Screenshots/SaneBar ./Scripts/live_zone_smoke.rb
+```
+
+The smoke now covers both browse layouts:
+- opens `show second menu bar` and `open icon panel`
+- captures a screenshot for each open panel
+- verifies `activate browse icon` and `right click browse icon`
+- verifies hidden/visible and always-hidden moves
+
+When browse activation fails, the smoke now reports:
+- requested icon identity
+- first attempt / retry verification result
+- final outcome
+- browse panel mode + visibility + last relayout reason

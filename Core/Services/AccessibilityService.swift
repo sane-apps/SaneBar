@@ -94,6 +94,10 @@ final class AccessibilityService: ObservableObject {
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
     private var bundlesWithoutExtrasMenuBar: Set<String> = []
 
+    func bundlesWithoutExtrasMenuBarSnapshot() -> [String] {
+        bundlesWithoutExtrasMenuBar.sorted()
+    }
+
     // MARK: - Initialization
 
     private init() {
