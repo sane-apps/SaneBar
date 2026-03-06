@@ -23,11 +23,11 @@ Analyzed 200+ customer emails and 20 GitHub issues from Jan 23 - Feb 10, 2026. F
 **Total Downtime:** ~18 hours
 
 **Affected Issues/Emails:**
-- GitHub #45: "Disappearing icons" (glenn.crawford@outlook.com.au)
+- GitHub #45: "Disappearing icons" (customer-email-redacted-1)
 - GitHub #47: "undesired move all hidden to always hidden"
 - GitHub #48: "all hidden items are permanently hidden"
 - Email #29: Bernard Le Du (VVMac editor) — "quite a few icons have disappeared"
-- Email #28: saasphil@gmail.com — "all my icons are gone"
+- Email #28: customer-email-redacted-2 — "all my icons are gone"
 
 **Root Cause (from commit da44b09):**
 ```
@@ -93,9 +93,9 @@ storage, but the next launch saw "no shortcut" and filled in the default again.
 
 **Affected:**
 - GitHub #40: "lemosqueezy link is not working"
-- Email #21: cameronmelvin@gmail.com — "Download - $5 link goes to error 404"
-- Email #18: margot.m.olson19@gmail.com — "Unable to purchase SaneClick?"
-- Email #2: bycs@linux.do — "SaneClick purchase link prompts 404"
+- Email #21: customer-email-redacted-3 — "Download - $5 link goes to error 404"
+- Email #18: customer-email-redacted-4 — "Unable to purchase SaneClick?"
+- Email #2: customer-email-redacted-5 — "SaneClick purchase link prompts 404"
 
 **Root Cause:**
 Store slug changed from `sanebar` to `saneapps`, breaking 26 checkout URLs across 4 websites.
@@ -120,7 +120,7 @@ Store slug changed from `sanebar` to `saneapps`, breaking 26 checkout URLs acros
 **Status:** Under investigation
 
 **Affected:**
-- Email #31: glenn.crawford@outlook.com.au — "won't list Little Snitch or Time Machine"
+- Email #31: customer-email-redacted-1 — "won't list Little Snitch or Time Machine"
 
 **What Broke:**
 App not detecting certain system/security apps in menu bar scan.

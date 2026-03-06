@@ -3,45 +3,24 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-                    <item>
-            <title>2.1.16</title>
-            <pubDate>Sat, 28 Feb 2026 21:36:28 -0500</pubDate>
+                            <item>
+            <title>2.1.17</title>
+            <pubDate>Sun, 01 Mar 2026 14:43:23 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
                 <h2>What's New</h2>
                 <ul>
-                <li>Improved auto-hide reliability when closing Icon Panel and switching browse views.</li>
-                <li>Made icon movement refresh faster and more consistent across Hidden, Visible, and Always Hidden tabs.</li>
-                <li>Improved launch stability to avoid duplicate-instance and permission confusion during testing and daily use.</li>
+                <li>This update improves auto rehide behavior around Browse Icons and makes moving icons between Hidden and Visible more reliable.</li>
                 </ul>
                 ]]>
             </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.16.zip"
-                       sparkle:version="2116"
-                       sparkle:shortVersionString="2.1.16"
-                       length="7948664"
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.17.zip"
+                       sparkle:version="2117"
+                       sparkle:shortVersionString="2.1.17"
+                       length="8013492"
                        type="application/octet-stream"
-                       sparkle:edSignature="jkJZfVh0dNc13hSNrJ02GnhRCvQoP663uc3VXPrHIU67nRH8kJ1mbyLEjjRNO4w4ZynvR6RqkEkAysbx9SEIBA=="/>
-        </item>
-<item>
-            <title>2.1.14</title>
-            <pubDate>Sat, 28 Feb 2026 07:54:37 -0500</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <sparkle:criticalUpdate/>            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Critical hotfix: recovers from corrupted WindowServer status-item position cache that could cause menu bar icons to disappear or fail to restore. Automatically self-heals autosave namespace and rebuilds status items.</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.14.zip"
-                       sparkle:version="2114"
-                       sparkle:shortVersionString="2.1.14"
-                       length="8004305"
-                       type="application/octet-stream"
-                       sparkle:edSignature="2E2KC1JFY8aiHuXcN+KLtRAaw3zs8GQBehK9FK9lXLg3a3J06glTSNbzIUX+INEUV1LetUtCHQu1ChJeAnapDQ=="/>
+                       sparkle:edSignature="252236C/CGKSXLjVlZIaF4WOmtmWfXhAVt9qGv2aliMWgM+OhY2VYjUX4u139jtiNiRKg4lt4dyNjg6QzvCLBA=="/>
         </item>
   </channel>
 </rss>

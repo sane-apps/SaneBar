@@ -135,6 +135,7 @@ class ProjectQA
     check_code_rules
     check_version_consistency
     check_appcast_guardrails
+    check_appcast_enclosure_urls
     check_migration_guardrails
     check_test_mode_tooling_guardrails
     check_recurring_regression_coverage_guardrails
@@ -856,6 +857,49 @@ class ProjectQA
     else
       bad_urls.each { |u| @warnings << "Unreachable URL: #{u}" }
       puts "⚠️  #{bad_urls.count} unreachable"
+    end
+  end
+
+  def check_appcast_enclosure_urls
+    print 'Checking appcast enclosure URLs... '
+
+    unless File.exist?(APPCAST_XML)
+      @errors << "appcast.xml missing at #{APPCAST_XML}"
+      puts '❌ missing appcast'
+      return
+    end
+
+    xml = File.read(APPCAST_XML)
+    urls = xml.scan(/<enclosure\s+url="([^"]+)"/).flatten.uniq
+
+    if urls.empty?
+      @errors << 'No <enclosure url="..."> entries found in appcast.xml'
+      puts '❌ no enclosure URLs'
+      return
+    end
+
+    unreachable = []
+    urls.each do |url|
+      begin
+        uri = URI.parse(url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        http.open_timeout = 8
+        http.read_timeout = 10
+
+        response = http.head(uri.request_uri)
+        code = response.code.to_i
+        unreachable << "#{url} (#{code})" if code >= 400
+      rescue StandardError => e
+        unreachable << "#{url} (#{e.class.name})"
+      end
+    end
+
+    if unreachable.empty?
+      puts "✅ #{urls.count} reachable"
+    else
+      unreachable.each { |entry| @errors << "Appcast enclosure unreachable: #{entry}" }
+      puts "❌ #{unreachable.count} unreachable"
     end
   end
 end

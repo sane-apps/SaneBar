@@ -1,6 +1,6 @@
 # MacNerd Feature Suggestions Email
 
-**From:** Mac Nerd <macnerd1@proton.me>
+**From:** Mac Nerd <redacted-macnerd@example.com>
 **Date:** Mon, Jan 19, 2026, 10:02 PM
 **Subject:** SaneBar Feature Roadmap Suggestions
 

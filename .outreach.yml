@@ -1,6 +1,8 @@
 # Outreach Configuration for SaneBar
 # Used by: ~/.claude/skills/outreach/SKILL.md
 # KEEP THIS UPDATED — it's the source of truth for launches, outreach, and competitor responses.
+# IMPORTANT: Keep real contact emails in .outreach.local.yml (gitignored).
+# This tracked file must only contain redacted placeholders.
 
 project:
   name: "SaneBar"
@@ -129,26 +131,26 @@ competitor_responses:
 influencer_outreach:
   sent:
     - name: "MacVince"
-      email: "hello.macvince@gmail.com"
+      email: "redacted-macvince@example.com"
       date: "2026-01-24"
       followup: "2026-01-25"
       reply: null
       template: "aesthetic"
 
     - name: "ThisIsE"
-      email: "thisise@toptechtubers.com"
+      email: "redacted-thisise@example.com"
       date: "2026-01-24"
       reply: null
       template: "productivity"
 
     - name: "Brandon Butch"
-      email: "hello@brandonbutch.com"
+      email: "redacted-brandon@example.com"
       date: "2026-01-24"
       reply: null
       template: "productivity"
 
     - name: "Patrick Rambles"
-      email: "info@patrickrambles.com"
+      email: "redacted-patrick@example.com"
       date: "2026-01-26"
       reply: null
       template: "productivity"
@@ -156,7 +158,7 @@ influencer_outreach:
       bullets_lead: "Smart Triggers"
 
     - name: "Francesco D'Alessio (Keep Productive)"
-      email: "francesco@keepproductive.com"
+      email: "redacted-francesco@example.com"
       date: "2026-01-26"
       reply: null
       template: "productivity"
@@ -164,7 +166,7 @@ influencer_outreach:
       hook: "I love that you focus on tools that...help maintain focus! I got one for you:"
 
     - name: "SpawnPoiint (Chris)"
-      email: "collab@spawnpoiint.com"
+      email: "redacted-spawnpoiint@example.com"
       date: "2026-01-26"
       reply: null
       template: "aesthetic"
@@ -180,7 +182,7 @@ influencer_outreach:
 # --- CUSTOMER CONVERSATIONS ---
 customer_conversations:
   - name: "James Turnbull"
-    email: "james@ltl.so"
+    email: "redacted-jamesturnbull@example.com"
     thread: "Thanks for downloading SaneBar"
     status: "sent"
     date: "2026-01-26"
@@ -188,7 +190,7 @@ customer_conversations:
     type: "vip_customer"
 
   - name: "Mac Nerd"
-    email: "macnerd1@proton.me"
+    email: "redacted-macnerd@example.com"
     thread: "SaneBar roadmap - we implemented most of it!"
     status: "active"
     last_reply: "2026-01-25"

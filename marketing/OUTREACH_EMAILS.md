@@ -6,7 +6,7 @@ Ready-to-send pitches. Copy, paste, send.
 
 ## 1. 9to5Mac Indie App Spotlight
 
-**To:** michaelb@9to5mac.com
+**To:** redacted-9to5mac@example.com
 **Subject:** SaneBar - Privacy-first menu bar manager (100% Transparent Code, macOS 15+)
 
 Hi Michael,
@@ -29,7 +29,7 @@ It's free, works on macOS 15 Sequoia and the upcoming Tahoe with Liquid Glass su
 Happy to provide screenshots, promo codes, or answer any questions.
 
 Best,
-Stephan
+Mr. Sane
 
 ---
 
@@ -117,7 +117,7 @@ I'm an indie developer who built SaneBar, a macOS menu bar manager, entirely thr
 SaneBar has [X] GitHub stars and has been featured on [MacMenuBar / wherever]. Happy to share more or answer questions about the AI development angle.
 
 Best,
-Stephan
+Mr. Sane
 https://github.com/sane-apps/SaneBar
 
 ---
@@ -140,7 +140,7 @@ The twist: I built the entire thing pair-programming with Claude. 241 unit tests
 
 Would love to share more if you're interested in the indie/privacy angle or the AI development story.
 
-Stephan
+Mr. Sane
 https://sanebar.com/
 
 ---

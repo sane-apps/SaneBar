@@ -11,7 +11,7 @@ Focus on **free channels first**, then spend the $200 strategically. The highest
 1. **MacMenuBar.com** (FREE) — The definitive directory for menu bar apps
 2. **Product Hunt** (FREE) — Weekend launch for less competition
 3. **Reddit r/macapps** (FREE) — Self-promotion explicitly allowed
-4. **9to5Mac Indie App Spotlight** (FREE) — Email pitch to michaelb@9to5mac.com
+4. **9to5Mac Indie App Spotlight** (FREE) — Email pitch (contact redacted)
 5. **Hacker News Show HN** (FREE) — Technical audience, brutal but valuable feedback
 
 ---
@@ -37,7 +37,7 @@ Focus on **free channels first**, then spend the $200 strategically. The highest
 - **Status**: Submitted January 2025
 
 ### 2. 9to5Mac Indie App Spotlight
-- **Contact**: michaelb@9to5mac.com
+- **Contact**: redacted-9to5mac@example.com
 - **Why**: Weekly editorial feature for indie apps
 - **Cost**: FREE
 
@@ -159,10 +159,10 @@ GitHub: [link]
 
 | Contact | Email/URL | Purpose |
 |---------|-----------|---------|
-| Michael Burkhardt (9to5Mac) | michaelb@9to5mac.com | Indie App Spotlight |
+| Michael Burkhardt (9to5Mac) | redacted-9to5mac@example.com | Indie App Spotlight |
 | MacMenuBar.com | Submit page | Directory listing |
-| Francesco D'Alessio (Keep Productive) | francesco@keepproductive.com | YouTube review |
-| Indie App Santa | contact@appcraftconsulting.com | Holiday promo (Dec) |
+| Francesco D'Alessio (Keep Productive) | redacted-francesco@example.com | YouTube review |
+| Indie App Santa | redacted-indieappsanta@example.com | Holiday promo (Dec) |
 
 ---
 
@@ -226,7 +226,7 @@ The **Bartender acquisition controversy (2024)** created an opening:
 | **Social media posts** | Twitter/X threads for build-in-public |
 | **Press kit materials** | One-pagers, feature summaries, boilerplate |
 
-### 🤝 Together (Claude + Stephan)
+### 🤝 Together (Claude + Mr. Sane)
 
 | Task | How We Work Together |
 |------|---------------------|
@@ -236,7 +236,7 @@ The **Bartender acquisition controversy (2024)** created an opening:
 | **Podcast outreach** | I draft pitches, you send from your email |
 | **YouTube reviewer outreach** | I research contacts & draft emails, you send |
 
-### 👤 Stephan Only (Requires Your Account/Identity)
+### 👤 Mr. Sane Only (Requires Your Account/Identity)
 
 | Task | Why You Need To Do It |
 |------|----------------------|

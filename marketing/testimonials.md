@@ -92,7 +92,7 @@ Use these for website, App Store descriptions, and marketing materials.
 | "Reddit user quotes praise it — **people switching from Ice** enjoying its simplicity." | User feedback |
 | "**Best free pick**" | Verdict summary |
 
-**Source**: Email from Mac Nerd (`macnerd1@proton.me`) — January 2026
+**Source**: Customer email (address redacted) — January 2026
 
 ---
 

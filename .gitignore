@@ -93,11 +93,14 @@ releases/
 .claude/bypass_mode.txt
 .claude/saneloop-archive/
 .claude/research/
+.claude/research_email_patterns.local.md
 .claude/rule_tracking.jsonl
 .claude/bugs.md
 .claude/hook_*.md
 .claude/SOP*.md
 .claude/PROJECT*.md
+.outreach.local.yml
+marketing/emails/private/
 
 # IDE - Keep shared settings, ignore user-specific files
 .cursor/settings.json

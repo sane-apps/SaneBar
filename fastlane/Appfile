@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 app_identifier("com.sanebar.app")
-apple_id("stephanjoseph2007@gmail.com")
+apple_id(ENV["APP_STORE_CONNECT_APPLE_ID"] || ENV["FASTLANE_APPLE_ID"] || "hi@saneapps.com")
 team_id("M78L6FXD48")

@@ -70,6 +70,7 @@ appstore:
   strip_frameworks:
     - Sparkle.framework
   contact:
-    name: "Stephan Joseph"
-    phone: "+17277589785"
+    name: "Mr. Sane"
+    # Set APPSTORE_CONTACT_PHONE locally before App Store submission.
+    phone: ""
     email: "hi@saneapps.com"
