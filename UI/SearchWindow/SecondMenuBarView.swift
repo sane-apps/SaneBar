@@ -444,21 +444,25 @@ struct SecondMenuBarView: View {
             menuBarManager.unpinAlwaysHidden(app: app)
             started = menuBarManager.moveIconFromAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
 
         case (.alwaysHidden, .hidden):
             menuBarManager.unpinAlwaysHidden(app: app)
             started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
 
         // From Hidden
         case (.hidden, .visible):
             started = menuBarManager.moveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex, toHidden: false
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX,
+                toHidden: false
             )
 
         case (.hidden, .alwaysHidden):
@@ -466,14 +470,17 @@ struct SecondMenuBarView: View {
             menuBarManager.pinAlwaysHidden(app: app)
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
 
         // From Visible
         case (.visible, .hidden):
             started = menuBarManager.moveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex, toHidden: true
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX,
+                toHidden: true
             )
 
         case (.visible, .alwaysHidden):
@@ -481,7 +488,8 @@ struct SecondMenuBarView: View {
             menuBarManager.pinAlwaysHidden(app: app)
             started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: app.preferredCenterX
             )
 
         // No-op (same zone)

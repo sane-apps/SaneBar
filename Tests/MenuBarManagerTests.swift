@@ -345,6 +345,59 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("App-change auto-hide ignores browse sessions and SaneBar self-activation")
+    func appChangeRehideDecisionMatrix() {
+        let ownBundleID = "com.sanebar.app"
+
+        #expect(
+            MenuBarManager.shouldScheduleRehideOnAppChange(
+                rehideOnAppChange: true,
+                hidingState: .expanded,
+                isRevealPinned: false,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.finder",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldScheduleRehideOnAppChange(
+                rehideOnAppChange: true,
+                hidingState: .expanded,
+                isRevealPinned: false,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: true,
+                activatedBundleID: "com.apple.finder",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldScheduleRehideOnAppChange(
+                rehideOnAppChange: true,
+                hidingState: .expanded,
+                isRevealPinned: false,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: ownBundleID,
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldScheduleRehideOnAppChange(
+                rehideOnAppChange: false,
+                hidingState: .expanded,
+                isRevealPinned: false,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.finder",
+                ownBundleID: ownBundleID
+            )
+        )
+    }
+
     @Test("Startup recovery triggers when main icon drifts left of notch-safe boundary")
     @MainActor
     func startupRecoveryTriggersForNotchBoundaryDrift() {
@@ -376,12 +429,12 @@ struct MenuBarManagerTests {
     @Test("Startup recovery right-gap boundary is strict-greater-than")
     @MainActor
     func startupRecoveryRightGapStrictBoundary() {
-        // maxAllowedRightGap = max(500, 1440*0.45) = 648
+        // maxAllowedRightGap = min(320, max(240, 1440*0.14)) = 240
         #expect(
             !MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 910,
                 mainX: 1080,
-                mainRightGap: 648,
+                mainRightGap: 240,
                 screenWidth: 1440,
                 notchRightSafeMinX: nil
             )
@@ -390,8 +443,36 @@ struct MenuBarManagerTests {
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 910,
                 mainX: 1080,
-                mainRightGap: 649,
+                mainRightGap: 241,
                 screenWidth: 1440,
+                notchRightSafeMinX: nil
+            )
+        )
+    }
+
+    @Test("Startup recovery catches one-extra-app drift near Control Center")
+    @MainActor
+    func startupRecoveryTriggersForAirGapDrift() {
+        #expect(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 1050,
+                mainX: 1219,
+                mainRightGap: 251,
+                screenWidth: 1470,
+                notchRightSafeMinX: 825
+            )
+        )
+    }
+
+    @Test("Startup recovery tolerates healthy wide-screen right-edge gap")
+    @MainActor
+    func startupRecoveryAllowsHealthyWideScreenGap() {
+        #expect(
+            !MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 1500,
+                mainX: 1698,
+                mainRightGap: 222,
+                screenWidth: 1920,
                 notchRightSafeMinX: nil
             )
         )

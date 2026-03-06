@@ -1,5 +1,11 @@
 # Menu Bar Interactions & Positioning
 
+Start here first for persistent regressions:
+- `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+
+This file is now the lower-level companion for positioning details, recovery rules,
+and persistence edge cases.
+
 ## Quick Reference
 
 ### Click Behavior

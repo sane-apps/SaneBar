@@ -2,34 +2,110 @@ import AppKit
 import ApplicationServices
 import os.log
 
+// swiftlint:disable file_length
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Interaction")
-
 extension AccessibilityService {
-    // MARK: - Actions
+    struct ClickMenuBarItemResult: Sendable {
+        let success: Bool
+        let verification: String
+    }
 
+    nonisolated static func shouldFallbackToAXAfterHardwareAttempt(
+        success: Bool,
+        verificationSummary: String,
+        isItemOnScreen: Bool
+    ) -> Bool {
+        guard isItemOnScreen else { return false }
+        if success, verificationSummary.hasPrefix("verified") {
+            return false
+        }
+        return true
+    }
+
+    struct StatusItemReactionSnapshot: Equatable, Sendable {
+        let shownMenuPresent: Bool?
+        let focusedWindowPresent: Bool?
+        let windowCount: Int?
+        let windowServerWindowCount: Int?
+        let expanded: Bool?
+        let selected: Bool?
+    }
+    private enum StatusItemReactionVerification: Sendable {
+        case verified(String)
+        case unavailable(String)
+        case failed(String)
+
+        var success: Bool {
+            switch self {
+            case .failed:
+                false
+            case .verified, .unavailable:
+                true
+            }
+        }
+
+        var summary: String {
+            switch self {
+            case .verified(let detail):
+                "verified (\(detail))"
+            case .unavailable(let detail):
+                "unavailable (\(detail))"
+            case .failed(let detail):
+                "failed (\(detail))"
+            }
+        }
+    }
+    // MARK: - Actions
     nonisolated func clickMenuBarItem(for bundleID: String) -> Bool {
         clickMenuBarItem(bundleID: bundleID, menuExtraId: nil, fallbackCenter: nil)
     }
-
     /// Perform a "Virtual Click" on a specific menu bar item.
     nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false, allowImmediateFallbackCenter: Bool = true) -> Bool {
+        clickMenuBarItemResult(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            fallbackCenter: fallbackCenter,
+            isRightClick: isRightClick,
+            preferHardwareFirst: preferHardwareFirst,
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter
+        ).success
+    }
+
+    nonisolated func clickMenuBarItemResult(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int? = nil,
+        fallbackCenter: CGPoint? = nil,
+        isRightClick: Bool = false,
+        preferHardwareFirst: Bool = false,
+        allowImmediateFallbackCenter: Bool = true
+    ) -> ClickMenuBarItemResult {
         let menuExtraIdString = menuExtraId ?? "nil"
         let statusItemIndexString = statusItemIndex.map(String.init) ?? "nil"
         logger.info("Attempting to click menu bar item for: \(bundleID) (menuExtraId: \(menuExtraIdString), statusItemIndex: \(statusItemIndexString), rightClick: \(isRightClick))")
 
         guard isTrusted else {
             logger.error("Accessibility permission not granted")
-            return false
+            return ClickMenuBarItemResult(success: false, verification: "not-run (accessibility permission missing)")
         }
 
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
             logger.warning("App not running: \(bundleID)")
-            if let fallbackCenter {
+            if let fallbackCenter = validatedRawSpatialFallbackCenter(
+                bundleID: bundleID,
+                fallbackCenter: fallbackCenter,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter,
+                context: "app not running"
+            ) {
                 logger.info("App missing; using spatial fallback click for \(bundleID)")
                 let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
-                return simulateHardwareClick(at: point, isRightClick: isRightClick)
+                return ClickMenuBarItemResult(
+                    success: simulateHardwareClick(at: point, isRightClick: isRightClick),
+                    verification: "unavailable (app not running; spatial fallback)"
+                )
             }
-            return false
+            return ClickMenuBarItemResult(success: false, verification: "not-run (app not running)")
         }
 
         return clickSystemWideItem(
@@ -44,22 +120,7 @@ extension AccessibilityService {
         )
     }
 
-    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool, allowImmediateFallbackCenter: Bool) -> Bool {
-        if preferHardwareFirst {
-            logger.info("Using hardware-first click path for \(bundleID)")
-            if hardwareClickAsFallback(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick,
-                allowImmediateFallbackCenter: allowImmediateFallbackCenter
-            ) {
-                return true
-            }
-            logger.info("Hardware-first click did not resolve target; falling back to AX actions")
-        }
-
+    private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool, allowImmediateFallbackCenter: Bool) -> ClickMenuBarItemResult {
         let appElement = AXUIElementCreateApplication(targetPID)
 
         var extrasBar: CFTypeRef?
@@ -72,63 +133,103 @@ extension AccessibilityService {
             }
             // If AX bar is unavailable, frame-based fallback usually fails too.
             // Use spatial fallback (from scanner coordinates) when available.
-            if let fallbackCenter {
+            if let fallbackCenter = validatedRawSpatialFallbackCenter(
+                bundleID: bundleID,
+                fallbackCenter: fallbackCenter,
+                allowImmediateFallbackCenter: allowImmediateFallbackCenter,
+                context: "AXExtrasMenuBar unavailable"
+            ) {
                 let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
-                return simulateHardwareClick(at: point, isRightClick: isRightClick)
+                return ClickMenuBarItemResult(
+                    success: simulateHardwareClick(at: point, isRightClick: isRightClick),
+                    verification: "unavailable (AXExtrasMenuBar unavailable; spatial fallback)"
+                )
             }
-            return false
+            return ClickMenuBarItemResult(success: false, verification: "not-run (AXExtrasMenuBar unavailable)")
         }
         Task { @MainActor in
             AccessibilityService.shared.markExtrasMenuBarAvailable(bundleID: bundleID)
         }
 
-        guard let barElement = safeAXUIElement(bar) else { return false }
+        guard let barElement = safeAXUIElement(bar) else {
+            return ClickMenuBarItemResult(success: false, verification: "not-run (invalid AXExtrasMenuBar element)")
+        }
 
         var children: CFTypeRef?
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
 
         guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
             logger.debug("No items in app's Extras Menu Bar")
-            return hardwareClickAsFallback(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick,
-                allowImmediateFallbackCenter: allowImmediateFallbackCenter
+            return ClickMenuBarItemResult(
+                success: hardwareClickAsFallback(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    allowImmediateFallbackCenter: allowImmediateFallbackCenter
+                ),
+                verification: "unavailable (no AXExtrasMenuBar children)"
             )
         }
 
         logger.info("Found \(items.count) status item(s) for PID \(targetPID)")
 
-        let targetItem: AXUIElement?
-        if let extraId = menuExtraId {
-            var match: AXUIElement?
-            for item in items {
-                var identifierValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                if let identifier = identifierValue as? String, identifier == extraId {
-                    match = item
-                    break
-                }
-            }
-            targetItem = match
-        } else if let statusItemIndex, items.indices.contains(statusItemIndex) {
-            targetItem = items[statusItemIndex]
-        } else {
-            targetItem = items[0]
-        }
+        let targetItem = resolvedTargetStatusItem(
+            from: items,
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: fallbackCenter?.x
+        )
 
         guard let item = targetItem else {
             logger.warning("Could not find target status item for click")
-            return hardwareClickAsFallback(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                fallbackCenter: fallbackCenter,
-                isRightClick: isRightClick,
-                allowImmediateFallbackCenter: allowImmediateFallbackCenter
+            return ClickMenuBarItemResult(
+                success: hardwareClickAsFallback(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    allowImmediateFallbackCenter: allowImmediateFallbackCenter
+                ),
+                verification: "unavailable (target status item unresolved)"
             )
+        }
+
+        let reactionBaseline = captureStatusItemReactionSnapshot(item: item, appElement: appElement)
+        let itemOnScreen = isElementOnScreen(item)
+
+        if preferHardwareFirst {
+            logger.info("Using hardware-first click path for \(bundleID)")
+            let hardwareResult = verifiedClickResult(
+                dispatched: hardwareClickAsFallback(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    allowImmediateFallbackCenter: allowImmediateFallbackCenter
+                ),
+                item: item,
+                appElement: appElement,
+                baseline: reactionBaseline
+            )
+            if !Self.shouldFallbackToAXAfterHardwareAttempt(
+                success: hardwareResult.success,
+                verificationSummary: hardwareResult.verification,
+                isItemOnScreen: itemOnScreen
+            ) {
+                return hardwareResult
+            }
+            logger.info(
+                "Hardware-first click path verification=\(hardwareResult.verification, privacy: .public); falling back to AX actions"
+            )
+            if !itemOnScreen {
+                return hardwareResult
+            }
+            logger.info("Hardware-first click did not resolve target; falling back to AX actions")
         }
 
         // Verify item is on-screen before AXPress. After SaneBar reveals hidden
@@ -137,31 +238,67 @@ extension AccessibilityService {
         // (AXPress path) fails while right-click (hardware path) works (#102).
         // Hardware click already has its own on-screen polling via
         // getMenuBarIconFrameOnScreen(); AXPress was missing this gate.
-        if !isElementOnScreen(item) {
+        if !itemOnScreen {
             logger.info("Target item off-screen; skipping AXPress, using hardware click")
-            return hardwareClickAsFallback(
+            return verifiedClickResult(
+                dispatched: hardwareClickAsFallback(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    allowImmediateFallbackCenter: allowImmediateFallbackCenter
+                ),
+                item: item,
+                appElement: appElement,
+                baseline: reactionBaseline
+            )
+        }
+
+        // Try AX first
+        if performSmartPress(on: item, isRightClick: isRightClick) {
+            return verifiedClickResult(
+                dispatched: true,
+                item: item,
+                appElement: appElement,
+                baseline: reactionBaseline
+            )
+        }
+
+        // Fallback to hardware event
+        return verifiedClickResult(
+            dispatched: hardwareClickAsFallback(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 fallbackCenter: fallbackCenter,
                 isRightClick: isRightClick,
                 allowImmediateFallbackCenter: allowImmediateFallbackCenter
-            )
+            ),
+            item: item,
+            appElement: appElement,
+            baseline: reactionBaseline
+        )
+    }
+
+    private nonisolated func verifiedClickResult(
+        dispatched: Bool,
+        item: AXUIElement,
+        appElement: AXUIElement,
+        baseline: StatusItemReactionSnapshot
+    ) -> ClickMenuBarItemResult {
+        guard dispatched else {
+            return ClickMenuBarItemResult(success: false, verification: "failed (dispatch failed)")
         }
 
-        // Try AX first
-        if performSmartPress(on: item, isRightClick: isRightClick) {
-            return true
-        }
-
-        // Fallback to hardware event
-        return hardwareClickAsFallback(
-            bundleID: bundleID,
-            menuExtraId: menuExtraId,
-            statusItemIndex: statusItemIndex,
-            fallbackCenter: fallbackCenter,
-            isRightClick: isRightClick,
-            allowImmediateFallbackCenter: allowImmediateFallbackCenter
+        let verification = verifyStatusItemReaction(
+            item: item,
+            appElement: appElement,
+            baseline: baseline
+        )
+        return ClickMenuBarItemResult(
+            success: verification.success,
+            verification: verification.summary
         )
     }
 
@@ -181,6 +318,7 @@ extension AccessibilityService {
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
+            preferredCenterX: fallbackCenter?.x,
             attempts: 10,
             interval: 0.03
         ) {
@@ -188,7 +326,12 @@ extension AccessibilityService {
             return simulateHardwareClick(at: center, isRightClick: isRightClick)
         }
 
-        if let fallbackCenter {
+        if let fallbackCenter = validatedRawSpatialFallbackCenter(
+            bundleID: bundleID,
+            fallbackCenter: fallbackCenter,
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter,
+            context: "frame polling failed"
+        ) {
             logger.info("Hardware click fallback: using spatial center fallback for \(bundleID)")
             let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
             return simulateHardwareClick(at: point, isRightClick: isRightClick)
@@ -198,8 +341,57 @@ extension AccessibilityService {
         return false
     }
 
+    private nonisolated func validatedRawSpatialFallbackCenter(
+        bundleID: String,
+        fallbackCenter: CGPoint?,
+        allowImmediateFallbackCenter: Bool,
+        context: StaticString
+    ) -> CGPoint? {
+        guard let fallbackCenter else { return nil }
+        let isOnScreen = isAccessibilityPointOnAnyScreen(fallbackCenter)
+
+        guard SearchService.shouldUseRawSpatialFallback(
+            allowImmediateFallbackCenter: allowImmediateFallbackCenter,
+            isPointOnScreen: isOnScreen
+        ) else {
+            if !isOnScreen {
+                logger.warning("Skipping raw spatial fallback for \(bundleID): point is off-screen (\(context))")
+            } else {
+                logger.info("Skipping stale raw spatial fallback for \(bundleID) during reveal/browse flow (\(context))")
+            }
+            return nil
+        }
+
+        return fallbackCenter
+    }
+
     private nonisolated func isAccessibilityPointOnAnyScreen(_ point: CGPoint) -> Bool {
         NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(point) }
+    }
+
+    private nonisolated func verifyStatusItemReaction(
+        item: AXUIElement,
+        appElement: AXUIElement,
+        baseline: StatusItemReactionSnapshot,
+        attempts: Int = 14,
+        interval: TimeInterval = 0.08
+    ) -> StatusItemReactionVerification {
+        var lastSnapshot = baseline
+
+        for _ in 0 ..< attempts {
+            Thread.sleep(forTimeInterval: interval)
+            let currentSnapshot = captureStatusItemReactionSnapshot(item: item, appElement: appElement)
+            lastSnapshot = currentSnapshot
+            if let reaction = Self.observableReactionDescription(before: baseline, after: currentSnapshot) {
+                return .verified(reaction)
+            }
+        }
+
+        if Self.hasComparableReactionSignals(before: baseline, after: lastSnapshot) {
+            return .failed("no observable menu/panel reaction")
+        }
+
+        return .unavailable("no comparable AX reaction signals")
     }
 
     // MARK: - On-Screen Verification
@@ -419,7 +611,16 @@ extension AccessibilityService {
         if toHidden {
             // No clamp = direct hidden move.
             let farHiddenX = separatorX - max(80, iconWidth + 60)
-            guard let ahBoundary = visibleBoundaryX else { return farHiddenX }
+            guard let ahBoundary = visibleBoundaryX else {
+                // Wide text-style extras can stop in the regular hidden lane unless we
+                // drag much deeper into the always-hidden section.
+                let wideAlwaysHiddenThreshold: CGFloat = 56
+                if iconWidth >= wideAlwaysHiddenThreshold {
+                    let wideAlwaysHiddenOffset = max(180, (iconWidth * 3) + 30)
+                    return separatorX - wideAlwaysHiddenOffset
+                }
+                return farHiddenX
+            }
 
             // Hidden lane is between AH separator right edge and main separator left edge.
             // Keep enough room from separator so midpoint verification is reliable.
@@ -444,16 +645,20 @@ extension AccessibilityService {
         }
 
         if let boundary = visibleBoundaryX {
-            // Bounded visible target:
-            // - prefer a short hop right of separator (separator + moveOffset)
-            // - never overshoot into/through SaneBar icon (boundary - 2)
-            // - if layout is flush/collapsed (boundary <= separator + 1), stay
-            //   just left of boundary instead of producing an out-of-range target.
-            let maxVisibleX = boundary - 2
-            if maxVisibleX <= separatorX + 1 {
-                return maxVisibleX
+            // Visible moves usually want a short hop right of the separator.
+            // On tight notch layouts there may be no room between the separator
+            // and the SaneBar icon, so hugging `boundary - 2` leaves wide icons
+            // with their midpoint still hidden. In that case intentionally
+            // overlap a little into the SaneBar icon so macOS inserts the icon
+            // into the visible zone and pushes SaneBar right.
+            let preferredVisibleX = max(separatorX + 1, separatorX + moveOffset)
+            let inlineVisibleLimit = boundary - 2
+            if preferredVisibleX <= inlineVisibleLimit {
+                return preferredVisibleX
             }
-            return min(max(separatorX + 1, separatorX + moveOffset), maxVisibleX)
+
+            let insertionOverlap = max(6, min(18, iconWidth * 0.35))
+            return max(separatorX + 1, boundary + insertionOverlap)
         }
 
         return separatorX + 1
@@ -542,6 +747,7 @@ extension AccessibilityService {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
@@ -562,7 +768,12 @@ extension AccessibilityService {
         // for the icon to reach a valid on-screen position before attempting the drag.
         var iconFrame: CGRect?
         for attempt in 1 ... 30 { // 30 × 100ms = 3s max
-            guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
+            guard let frame = getMenuBarIconFrame(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            ) else {
                 break // icon not found at all
             }
             if frame.origin.x >= 0 {
@@ -623,7 +834,12 @@ extension AccessibilityService {
         let maxAttempts = 20 // 20 × 50ms = 1s max
         for attempt in 1 ... maxAttempts {
             Thread.sleep(forTimeInterval: 0.05)
-            let currentFrame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)
+            let currentFrame = getMenuBarIconFrame(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
             if let current = currentFrame, let previous = previousFrame, current.origin.x == previous.origin.x {
                 afterFrame = current
                 logger.info("🔧 AX position stabilized after \(attempt * 50)ms")
@@ -672,120 +888,6 @@ extension AccessibilityService {
         }
 
         return movedToExpectedSide
-    }
-
-    /// Lightweight position query for polling loops (e.g. `waitForIconOnScreen`).
-    /// Returns the center point of the icon's AX frame, or nil if unavailable.
-    nonisolated func menuBarItemPosition(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGPoint? {
-        guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
-            return nil
-        }
-        return CGPoint(x: frame.midX, y: frame.midY)
-    }
-
-    private nonisolated func getMenuBarIconFrame(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGRect? {
-        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
-            logger.error("🔧 getMenuBarIconFrame: App not found for bundleID: \(bundleID, privacy: .private)")
-            return nil
-        }
-
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-
-        var extrasBar: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-        guard result == .success, let bar = extrasBar else {
-            logger.error("🔧 getMenuBarIconFrame: App \(bundleID, privacy: .private) has no AXExtrasMenuBar (Error: \(result.rawValue))")
-            return nil
-        }
-        guard let barElement = safeAXUIElement(bar) else { return nil }
-
-        var children: CFTypeRef?
-        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
-            logger.error("🔧 getMenuBarIconFrame: No items found in AXExtrasMenuBar for \(bundleID, privacy: .private)")
-            return nil
-        }
-
-        let targetItem: AXUIElement?
-        if let extraId = menuExtraId {
-            var match: AXUIElement?
-            for item in items {
-                var identifierValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                if let identifier = identifierValue as? String, identifier == extraId {
-                    match = item
-                    break
-                }
-            }
-            targetItem = match
-            if targetItem == nil {
-                logger.error("🔧 Could not find status item with identifier: \(extraId, privacy: .private)")
-                return nil
-            }
-        } else if let statusItemIndex, items.indices.contains(statusItemIndex) {
-            targetItem = items[statusItemIndex]
-        } else {
-            if items.count > 1 {
-                logger.warning("🔧 getMenuBarIconFrame: App has \(items.count) status items but no menuExtraId/statusItemIndex — using first item (may be wrong)")
-            }
-            targetItem = items[0]
-        }
-
-        guard let item = targetItem else { return nil }
-
-        var positionValue: CFTypeRef?
-        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
-        guard posResult == .success, let posValue = positionValue else { return nil }
-        guard CFGetTypeID(posValue) == AXValueGetTypeID() else { return nil }
-
-        var origin = CGPoint.zero
-        guard let axPosValue = safeAXValue(posValue),
-              AXValueGetValue(axPosValue, .cgPoint, &origin) else { return nil }
-
-        var sizeValue: CFTypeRef?
-        let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
-        var size = CGSize(width: 22, height: 22)
-        if sizeResult == .success, let sizeVal = sizeValue, let axSizeVal = safeAXValue(sizeVal) {
-            var s = CGSize.zero
-            if AXValueGetValue(axSizeVal, .cgSize, &s) {
-                // Clamp to prevent 0-width (AX can return 0 for some Control Center items)
-                size = CGSize(width: max(1, s.width), height: max(1, s.height))
-            }
-        }
-
-        return CGRect(origin: origin, size: size)
-    }
-
-    private nonisolated func getMenuBarIconFrameOnScreen(
-        bundleID: String,
-        menuExtraId: String?,
-        statusItemIndex: Int?,
-        attempts: Int = 20,
-        interval: TimeInterval = 0.05
-    ) -> CGRect? {
-        for attempt in 1 ... attempts {
-            guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
-                return nil
-            }
-
-            let center = CGPoint(x: frame.midX, y: frame.midY)
-            let isOnScreen = NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
-
-            if isOnScreen {
-                // Verify position is stable (icon may be on-screen but still sliding)
-                Thread.sleep(forTimeInterval: 0.08)
-                if let recheck = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex),
-                   abs(recheck.origin.x - frame.origin.x) < 2 {
-                    return recheck
-                }
-                logger.debug("getMenuBarIconFrameOnScreen: position unstable (attempt \(attempt))")
-                continue
-            }
-
-            logger.debug("getMenuBarIconFrameOnScreen: frame off-screen (attempt \(attempt), x=\(frame.origin.x, privacy: .public), y=\(frame.origin.y, privacy: .public))")
-            Thread.sleep(forTimeInterval: interval)
-        }
-        return nil
     }
 
     /// Returns current AX width for a specific menu bar item, if available.
@@ -852,7 +954,7 @@ extension AccessibilityService {
                 mouseButton: .left
             ) {
                 moveToStart.post(tap: eventTap)
-                Thread.sleep(forTimeInterval: 0.05) // Let cursor settle
+                Thread.sleep(forTimeInterval: 0.08) // Let cursor settle
             }
 
             // 2. Hide cursor during drag (Ice-style: prevents visual glitches
@@ -873,11 +975,11 @@ extension AccessibilityService {
             }
             mouseDown.flags = .maskCommand
             mouseDown.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.05) // Hold before dragging (human-like)
+            Thread.sleep(forTimeInterval: 0.09) // Hold before dragging (human-like)
 
             // 4. Multi-step drag with human-like timing
-            //    16 steps × 15ms = ~240ms total drag (vs old: 6 × 5ms = 30ms)
-            let steps = 16
+            //    20 steps × 18ms = ~360ms total drag (vs old: 6 × 5ms = 30ms)
+            let steps = 20
             for i in 1 ... steps {
                 let t = CGFloat(i) / CGFloat(steps)
                 let x = from.x + (to.x - from.x) * t
@@ -892,7 +994,7 @@ extension AccessibilityService {
                 ) {
                     drag.flags = .maskCommand
                     drag.post(tap: eventTap)
-                    Thread.sleep(forTimeInterval: 0.015)
+                    Thread.sleep(forTimeInterval: 0.018)
                 }
             }
 
@@ -909,7 +1011,7 @@ extension AccessibilityService {
             }
             mouseUp.flags = .maskCommand
             mouseUp.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.15) // Let the 'drop' settle
+            Thread.sleep(forTimeInterval: 0.18) // Let the 'drop' settle
 
             // 6. Restore cursor position
             if let restoreEvent = CGEvent(
@@ -946,3 +1048,5 @@ extension AccessibilityService {
         return result.value
     }
 }
+
+// swiftlint:enable file_length

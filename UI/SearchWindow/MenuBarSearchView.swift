@@ -408,7 +408,7 @@ struct MenuBarSearchView: View {
             case .alwaysHidden:
                 menuBarApps = classified.alwaysHidden
             case .all:
-                menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
+                menuBarApps = service.cachedMenuBarApps()
             }
         }
     }
@@ -455,6 +455,7 @@ struct MenuBarSearchView: View {
 
             // Single-pass refresh for all modes — same backend, consistent results.
             let classified = await service.refreshClassifiedApps()
+            let allModeApps = effectiveMode == .all && !isSecondMenuBar ? await service.refreshMenuBarApps() : []
 
             await MainActor.run {
                 guard self.refreshGeneration == generation else { return }
@@ -481,7 +482,7 @@ struct MenuBarSearchView: View {
                     case .alwaysHidden:
                         menuBarApps = classified.alwaysHidden
                     case .all:
-                        menuBarApps = classified.visible + classified.hidden + classified.alwaysHidden
+                        menuBarApps = allModeApps
                     }
                 }
             }

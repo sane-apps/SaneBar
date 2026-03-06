@@ -4,7 +4,31 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Cache")
 
 extension AccessibilityService {
-    
+    @MainActor
+    func diagnosticsSnapshot() -> String {
+        func ageString(since date: Date) -> String {
+            guard date != .distantPast else { return "stale" }
+            return String(format: "%.1fs", Date().timeIntervalSince(date))
+        }
+
+        let noExtrasBundles = bundlesWithoutExtrasMenuBarSnapshot()
+        let bundleSummary = noExtrasBundles.prefix(6).joined(separator: ", ")
+        let bundleSuffix = noExtrasBundles.count > 6 ? ", …" : ""
+
+        return """
+        accessibility:
+          granted: \(isGranted)
+          ownersCacheCount: \(menuBarOwnersCache.count)
+          ownersCacheAge: \(ageString(since: menuBarOwnersCacheTime))
+          itemsCacheCount: \(menuBarItemCache.count)
+          itemsCacheAge: \(ageString(since: menuBarItemCacheTime))
+          ownersRefreshInFlight: \(menuBarOwnersRefreshTask != nil)
+          itemsRefreshInFlight: \(menuBarItemsRefreshTask != nil)
+          bundlesWithoutExtrasMenuBarCount: \(noExtrasBundles.count)
+          bundlesWithoutExtrasMenuBar: \(bundleSummary.isEmpty ? "none" : bundleSummary + bundleSuffix)
+        """
+    }
+
     // MARK: - Cached Results (Fast)
 
     func cachedMenuBarItemOwners() -> [RunningApp] {
@@ -30,54 +54,7 @@ extension AccessibilityService {
         }
 
         let task = Task<[RunningApp], Never> {
-            // Candidate apps list must be gathered on the main thread.
-            let selfPID = ProcessInfo.processInfo.processIdentifier
-            let candidatePIDs: [pid_t] = NSWorkspace.shared.runningApplications.compactMap { app in
-                guard app.processIdentifier != selfPID else { return nil }
-                if let bundleID = app.bundleIdentifier,
-                   bundleID == Bundle.main.bundleIdentifier {
-                    return nil
-                }
-                return app.processIdentifier
-            }
-
-            let pidsWithExtras = await Self.scanMenuBarOwnerPIDs(candidatePIDs: candidatePIDs)
-
-            var seenIds = Set<String>()
-            var apps: [RunningApp] = []
-            apps.reserveCapacity(pidsWithExtras.count)
-            var controlCenterPID: pid_t?
-
-            for pid in pidsWithExtras {
-                guard let app = NSRunningApplication(processIdentifier: pid),
-                      let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
-
-                // Special case: Control Center - remember its PID for later expansion
-                if bundleID == "com.apple.controlcenter" {
-                    controlCenterPID = pid
-                    continue  // Don't add the collapsed entry
-                }
-
-                guard !seenIds.contains(bundleID) else { continue }
-                seenIds.insert(bundleID)
-                apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
-            }
-
-            // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
-            if let ccPID = controlCenterPID {
-                let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
-                for item in ccItems {
-                    let key = item.app.uniqueId
-                    guard !seenIds.contains(key) else { continue }
-                    seenIds.insert(key)
-                    apps.append(item.app)
-                }
-            }
-
-            let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
-            self.menuBarOwnersCache = sortedApps
-            self.menuBarOwnersCacheTime = Date()
-            return sortedApps
+            await self.listMenuBarItemOwners()
         }
 
         menuBarOwnersRefreshTask = task
