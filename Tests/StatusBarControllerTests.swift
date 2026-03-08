@@ -829,15 +829,13 @@ struct StatusBarControllerTests {
             @objc func checkForUpdates() {}
             @objc func quit() {}
         }
-        let target = DummyTarget()
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
-            quitAction: #selector(DummyTarget.quit),
-            target: target
+            quitAction: #selector(DummyTarget.quit)
         ))
 
         // Should have: Browse Icons, separator, Settings, Check for Updates, separator, Quit
@@ -862,9 +860,9 @@ struct StatusBarControllerTests {
         #expect(quitItem?.keyEquivalent == "q")
     }
 
-    @Test("createMenu sets correct target on all items")
+    @Test("createMenu leaves item targets unset")
     @MainActor
-    func createMenuSetsTarget() {
+    func createMenuLeavesTargetsUnset() {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
@@ -874,20 +872,18 @@ struct StatusBarControllerTests {
             @objc func checkForUpdates() {}
             @objc func quit() {}
         }
-        let target = DummyTarget()
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
-            quitAction: #selector(DummyTarget.quit),
-            target: target
+            quitAction: #selector(DummyTarget.quit)
         ))
 
-        // Non-separator items should have target set
+        // MenuBarManager wires the live target after creation.
         for item in menu.items where !item.isSeparatorItem {
-            #expect(item.target === target, "Menu item should have correct target")
+            #expect(item.target == nil, "Menu item target should be unset in the raw menu")
         }
     }
 
@@ -911,15 +907,13 @@ struct StatusBarControllerTests {
             @objc func checkForUpdates() { checkForUpdatesCalled = true }
             @objc func quit() { quitCalled = true }
         }
-        let target = DummyTarget()
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
-            quitAction: #selector(DummyTarget.quit),
-            target: target
+            quitAction: #selector(DummyTarget.quit)
         ))
 
         // Verify each menu item has an action (using named lookups)
@@ -954,8 +948,7 @@ struct StatusBarControllerTests {
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
-            quitAction: #selector(DummyTarget.quit),
-            target: target
+            quitAction: #selector(DummyTarget.quit)
         ))
 
         // Get settings item by name and verify it can be invoked
@@ -964,6 +957,7 @@ struct StatusBarControllerTests {
             return
         }
 
+        settingsItem.target = target
         #expect(settingsItem.target != nil, "Settings item must have a target")
         #expect(settingsItem.action != nil, "Settings item must have an action")
 

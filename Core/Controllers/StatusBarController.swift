@@ -12,7 +12,6 @@ struct MenuConfiguration {
     let settingsAction: Selector
     let checkForUpdatesAction: Selector
     let quitAction: Selector
-    let target: AnyObject
 }
 // swiftlint:enable file_length
 
@@ -897,24 +896,20 @@ final class StatusBarController: StatusBarControllerProtocol {
         let menu = NSMenu()
 
         let findItem = NSMenuItem(title: "Browse Icons...", action: configuration.findIconAction, keyEquivalent: "")
-        findItem.target = configuration.target
         findItem.setShortcut(for: .searchMenuBar)
         menu.addItem(findItem)
 
         menu.addItem(NSMenuItem.separator())
 
         let settingsItem = NSMenuItem(title: "Settings...", action: configuration.settingsAction, keyEquivalent: ",")
-        settingsItem.target = configuration.target
         menu.addItem(settingsItem)
 
         let updateItem = NSMenuItem(title: "Check for Updates...", action: configuration.checkForUpdatesAction, keyEquivalent: "")
-        updateItem.target = configuration.target
         menu.addItem(updateItem)
 
         menu.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(title: "Quit SaneBar", action: configuration.quitAction, keyEquivalent: "q")
-        quitItem.target = configuration.target
         menu.addItem(quitItem)
 
         return menu
