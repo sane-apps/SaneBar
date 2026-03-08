@@ -342,7 +342,7 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return [RunningApp]()
     }
 
-    typealias ClassifiedResult = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+    typealias ClassifiedResult = SearchClassifiedApps
 
     var cachedClassifiedAppsHandler: (@Sendable () -> ClassifiedResult)?
 
@@ -350,7 +350,7 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         if let cachedClassifiedAppsHandler {
             return cachedClassifiedAppsHandler()
         }
-        return ([], [], [])
+        return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
     }
 
     var refreshClassifiedAppsHandler: (@Sendable () async -> ClassifiedResult)?
@@ -359,7 +359,7 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         if let refreshClassifiedAppsHandler {
             return await refreshClassifiedAppsHandler()
         }
-        return ([], [], [])
+        return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
     }
 
     private let activateState = MockoloMutex(

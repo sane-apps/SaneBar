@@ -83,6 +83,7 @@ extension MenuBarManager {
         return (false, false)
     }
 
+    // swiftlint:disable:next function_parameter_count
     nonisolated static func shouldOpenSecondMenuBarFallback(
         useSecondMenuBar: Bool,
         leftClickOpensBrowseIcons: Bool,

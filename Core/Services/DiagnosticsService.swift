@@ -149,6 +149,7 @@ private func collectSaneBarSettings() -> String {
       showOnHover: \(settings.showOnHover)
       showOnScroll: \(settings.showOnScroll)
       showOnClick: \(settings.showOnClick)
+      hideApplicationMenusOnInlineReveal: \(settings.hideApplicationMenusOnInlineReveal)
       showOnUserDrag: \(settings.showOnUserDrag)
       showOnLowBattery: \(settings.showOnLowBattery)
       showOnAppLaunch: \(settings.showOnAppLaunch)

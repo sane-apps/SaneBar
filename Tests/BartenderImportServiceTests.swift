@@ -116,3 +116,43 @@ struct BartenderImportServiceTests {
         #expect(result == nil)
     }
 }
+
+@Suite("Ice Import Settings Tests")
+struct IceImportServiceTests {
+    @Test("Ice import maps HideApplicationMenus into inline reveal setting")
+    func hideApplicationMenusSettingImports() {
+        let parsed = IceImportService._test_parseSettings(from: [
+            "HideApplicationMenus": false,
+            "ShowOnScroll": true,
+        ])
+
+        var settings = SaneBarSettings()
+        let summary = IceImportService._test_applySettings(&settings, parsed: parsed)
+
+        #expect(settings.hideApplicationMenusOnInlineReveal == false)
+        #expect(settings.showOnScroll == true)
+        #expect(summary.applied.contains("Hide application menus on inline reveal: off"))
+    }
+
+    @Test("Ice import no longer skips HideApplicationMenus when supported")
+    func hideApplicationMenusNoLongerSkipped() {
+        let parsed = IceImportService._test_parseSettings(from: [
+            "HideApplicationMenus": true,
+            "Hotkeys": [:],
+        ])
+
+        var settings = SaneBarSettings()
+        let summary = IceImportService._test_applySettings(
+            &settings,
+            parsed: parsed,
+            iceRoot: [
+                "HideApplicationMenus": true,
+                "Hotkeys": [:],
+            ]
+        )
+
+        #expect(settings.hideApplicationMenusOnInlineReveal == true)
+        #expect(!summary.skipped.contains("Hide application menus"))
+        #expect(summary.skipped.contains("Hotkeys (incompatible format)"))
+    }
+}

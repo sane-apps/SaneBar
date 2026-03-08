@@ -352,19 +352,27 @@ struct SeparatorCachingTests {
         // because the live window position was -3349 (off-screen) and there was no cache
         // Fix: Cache valid positions and return cached value in blocking mode
 
-        var lastKnownSeparatorX: CGFloat? = 500 // Previously cached
-        let separatorLength: CGFloat = 10000
-        let liveWindowX: CGFloat = -3349
-
-        let result: CGFloat?
-        if separatorLength > 1000 {
-            result = lastKnownSeparatorX // Use cache in blocking mode
-        } else if liveWindowX > 0 {
-            lastKnownSeparatorX = liveWindowX
-            result = liveWindowX
-        } else {
-            result = lastKnownSeparatorX
+        func resolvedSeparatorX(
+            lastKnownSeparatorX: CGFloat?,
+            separatorLength: CGFloat,
+            liveWindowX: CGFloat
+        ) -> CGFloat? {
+            var cachedSeparatorX = lastKnownSeparatorX
+            if separatorLength > 1000 {
+                return cachedSeparatorX
+            }
+            if liveWindowX > 0 {
+                cachedSeparatorX = liveWindowX
+                return liveWindowX
+            }
+            return cachedSeparatorX
         }
+
+        let result = resolvedSeparatorX(
+            lastKnownSeparatorX: 500,
+            separatorLength: 10000,
+            liveWindowX: -3349
+        )
 
         #expect(result == 500, "Blocking mode must return cached position, not live -3349")
     }
@@ -373,34 +381,34 @@ struct SeparatorCachingTests {
     func alwaysHiddenSeparatorStaleOriginUsesCache() {
         // Mar 2026 bug: AH separator occasionally reported stale negative origin (e.g. -30)
         // after relayout, which produced off-screen drag targets.
-        let liveWindowX: CGFloat = -30
-        let cachedX: CGFloat? = 312
-
-        let result: CGFloat?
-        if liveWindowX > 0 {
-            result = liveWindowX
-        } else if let cachedX, cachedX > 0 {
-            result = cachedX
-        } else {
-            result = nil
+        func resolvedAlwaysHiddenOrigin(liveWindowX: CGFloat, cachedX: CGFloat?) -> CGFloat? {
+            if liveWindowX > 0 {
+                return liveWindowX
+            }
+            if let cachedX, cachedX > 0 {
+                return cachedX
+            }
+            return nil
         }
+
+        let result = resolvedAlwaysHiddenOrigin(liveWindowX: -30, cachedX: 312)
 
         #expect(result == 312, "Stale/off-screen AH origin must use cached positive X")
     }
 
     @Test("Always-hidden separator stale/off-screen origin with empty cache returns nil")
     func alwaysHiddenSeparatorStaleOriginEmptyCacheReturnsNil() {
-        let liveWindowX: CGFloat = -30
-        let cachedX: CGFloat? = nil
-
-        let result: CGFloat?
-        if liveWindowX > 0 {
-            result = liveWindowX
-        } else if let cachedX, cachedX > 0 {
-            result = cachedX
-        } else {
-            result = nil
+        func resolvedAlwaysHiddenOrigin(liveWindowX: CGFloat, cachedX: CGFloat?) -> CGFloat? {
+            if liveWindowX > 0 {
+                return liveWindowX
+            }
+            if let cachedX, cachedX > 0 {
+                return cachedX
+            }
+            return nil
         }
+
+        let result = resolvedAlwaysHiddenOrigin(liveWindowX: -30, cachedX: nil)
 
         #expect(result == nil, "No cached AH origin should avoid invalid drag targets")
     }
@@ -624,7 +632,6 @@ struct IconMovingScenarioTests {
     @Test("Post-move verification with successful move")
     func verificationAfterSuccessfulMove() {
         let separatorX: CGFloat = 500
-        let toHidden = true
 
         // Icon moved from 550 to 440
         let afterFrame = CGRect(x: 440, y: 5, width: 22, height: 22)
@@ -638,7 +645,6 @@ struct IconMovingScenarioTests {
     @Test("Post-move verification with failed move (icon didn't budge)")
     func verificationAfterFailedMove() {
         let separatorX: CGFloat = 500
-        let toHidden = true
 
         // Icon stayed at original position
         let afterFrame = CGRect(x: 550, y: 5, width: 22, height: 22)

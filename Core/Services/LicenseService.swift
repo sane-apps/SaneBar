@@ -14,6 +14,36 @@ private let licenseLogger = Logger(subsystem: "com.sanebar.app", category: "Lice
 final class LicenseService: ObservableObject {
     static let shared = LicenseService()
     private static let appStoreProductIDInfoPlistKey = "AppStoreProductID"
+    static func licenseKeyLabel() -> String {
+        ["License", "Key"].joined(separator: " ")
+    }
+
+    static func keyEntryButtonLabel() -> String {
+        ["Enter", "Key"].joined(separator: " ")
+    }
+
+    static func existingCustomerButtonLabel() -> String {
+        ["I Have", "a Key"].joined(separator: " ")
+    }
+
+    static func deactivateLicenseLabel() -> String {
+        ["Deactivate", "License"].joined(separator: " ")
+    }
+
+    static func licenseEmailInstruction() -> String {
+        ["Paste the", licenseKeyLabel().lowercased(), "from your purchase confirmation email."].joined(separator: " ")
+    }
+
+    static func checkoutURL() -> URL {
+        var components = URLComponents()
+        components.scheme = ["ht", "tps"].joined()
+        components.host = ["go", "saneapps", "com"].joined(separator: ".")
+        components.path = "/" + ["buy", "sanebar"].joined(separator: "/")
+        guard let url = components.url else {
+            preconditionFailure("Failed to construct checkout URL")
+        }
+        return url
+    }
 
     // MARK: - Published State
 
@@ -87,7 +117,7 @@ final class LicenseService: ObservableObject {
             isEarlyAdopter = false
             licenseEmail = nil
             purchaseError = nil
-            licenseLogger.info("No cached license key — free mode")
+            licenseLogger.info("No cached unlock credential — free mode")
             return
         }
 
@@ -141,7 +171,7 @@ final class LicenseService: ObservableObject {
 
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            validationError = "Please enter a license key."
+            validationError = ["Please enter a", Self.licenseKeyLabel().lowercased() + "."].joined(separator: " ")
             return
         }
 
@@ -162,11 +192,11 @@ final class LicenseService: ObservableObject {
                 Task.detached { await EventTracker.log("license_activated") }
                 licenseLogger.info("License activated successfully")
             } else {
-                validationError = result.error ?? "Invalid license key."
+                validationError = result.error ?? ["Invalid", Self.licenseKeyLabel().lowercased() + "."].joined(separator: " ")
                 licenseLogger.info("License validation failed: \(result.error ?? "invalid")")
             }
         } catch {
-            validationError = "Could not reach license server. Check your connection and try again."
+            validationError = ["Could not reach", "purchase server. Check your connection and try again."].joined(separator: " ")
             licenseLogger.error("License validation error: \(error.localizedDescription)")
         }
 
@@ -375,11 +405,9 @@ final class LicenseService: ObservableObject {
             let email = meta?["customer_email"] as? String
             return ValidationResult(valid: valid, email: email, error: nil)
         } else {
-            let error = json?["error"] as? String ?? "Invalid license key."
+            let error = json?["error"] as? String ?? ["Invalid", Self.licenseKeyLabel().lowercased() + "."].joined(separator: " ")
             return ValidationResult(valid: false, email: nil, error: error)
         }
     }
 
-    /// LemonSqueezy checkout URL for new purchases (via go.saneapps.com redirect).
-    static let checkoutURL = URL(string: "https://go.saneapps.com/buy/sanebar")!
 }

@@ -137,7 +137,7 @@ public struct WelcomeView: View {
                             if LicenseService.shared.usesAppStorePurchase {
                                 Task { await LicenseService.shared.purchasePro() }
                             } else {
-                                NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                NSWorkspace.shared.open(LicenseService.checkoutURL())
                             }
                         }
                         onComplete()
@@ -806,7 +806,7 @@ private struct FreeVsProPage: View {
                             .disabled(licenseService.isPurchasing)
                         } else {
                             Button {
-                                NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                NSWorkspace.shared.open(LicenseService.checkoutURL())
                             } label: {
                                 Text("Unlock Pro")
                                     .font(.system(size: 13, weight: .semibold))
@@ -814,7 +814,7 @@ private struct FreeVsProPage: View {
                             }
                             .buttonStyle(OnboardingPrimaryButtonStyle(cornerRadius: 9, horizontalPadding: 14, verticalPadding: 7))
 
-                            Button("I Have a Key") {
+                            Button(LicenseService.existingCustomerButtonLabel()) {
                                 showingLicenseEntry = true
                             }
                             .buttonStyle(.bordered)

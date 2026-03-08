@@ -22,16 +22,17 @@ struct HidingServiceStressTests {
         let mockItem = MockStatusItem()
         service.configure(delimiterItem: mockItem)
         
-        // Hostile behavior: 50 rapid toggles
-        // using TaskGroup to simulate concurrency
-        await withTaskGroup(of: Void.self) { group in
-            for i in 0..<50 {
-                group.addTask { @MainActor in
-                    // Add random jitter to simulate real-world chaos
-                    try? await Task.sleep(nanoseconds: UInt64.random(in: 1_000_000...10_000_000))
-                    await service.toggle()
-                }
+        // Hostile behavior: 50 rapid toggles.
+        // Use child tasks directly here to avoid Swift 6's current
+        // region-based-isolation false positives around TaskGroup + MainActor.
+        let tasks = (0..<50).map { _ in
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64.random(in: 1_000_000...10_000_000))
+                await service.toggle()
             }
+        }
+        for task in tasks {
+            await task.value
         }
         
         // Allow dust to settle
@@ -56,19 +57,18 @@ struct HidingServiceStressTests {
         let mockItem = MockStatusItem()
         service.configure(delimiterItem: mockItem)
         
-        await withTaskGroup(of: Void.self) { group in
-            // 25 threads trying to SHOW
-            for _ in 0..<25 {
-                group.addTask { @MainActor in
-                    await service.show()
-                }
+        let showTasks = (0..<25).map { _ in
+            Task { @MainActor in
+                await service.show()
             }
-            // 25 threads trying to HIDE
-            for _ in 0..<25 {
-                group.addTask { @MainActor in
-                    await service.hide()
-                }
+        }
+        let hideTasks = (0..<25).map { _ in
+            Task { @MainActor in
+                await service.hide()
             }
+        }
+        for task in showTasks + hideTasks {
+            await task.value
         }
         
         // Verification: Service should not be stuck in animating state

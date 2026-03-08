@@ -68,6 +68,7 @@ final class ScheduleTriggerService {
         wasInScheduleWindow = isInWindow
     }
 
+    // swiftlint:disable:next function_parameter_count
     nonisolated static func isWithinSchedule(
         date: Date,
         weekdays: [Int],

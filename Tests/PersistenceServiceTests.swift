@@ -633,7 +633,7 @@ final class PersistenceServiceTests: XCTestCase {
     func testIconGroupsCanBeMutated() throws {
         // Given: settings with a group
         var settings = SaneBarSettings()
-        var group = SaneBarSettings.IconGroup(name: "Mutable")
+        let group = SaneBarSettings.IconGroup(name: "Mutable")
         settings.iconGroups = [group]
 
         // When: add app to group
@@ -877,6 +877,34 @@ final class PersistenceServiceTests: XCTestCase {
         let object = try JSONSerialization.jsonObject(with: savedData, options: [])
         let dict = try XCTUnwrap(object as? [String: Any])
         XCTAssertEqual(dict["requireAuthToShowHiddenIcons"] as? Bool, false)
+    }
+
+    func testHideApplicationMenusOnInlineRevealDefaultsToTrue() throws {
+        let settings = SaneBarSettings()
+        XCTAssertTrue(settings.hideApplicationMenusOnInlineReveal)
+    }
+
+    func testHideApplicationMenusOnInlineRevealPersistsInSettingsJSON() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        var settings = SaneBarSettings()
+        settings.hideApplicationMenusOnInlineReveal = false
+        try persistence.saveSettings(settings)
+
+        let savedData = try Data(contentsOf: tempDir.appendingPathComponent("settings.json"))
+        let object = try JSONSerialization.jsonObject(with: savedData, options: [])
+        let dict = try XCTUnwrap(object as? [String: Any])
+        XCTAssertEqual(dict["hideApplicationMenusOnInlineReveal"] as? Bool, false)
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertFalse(loaded.hideApplicationMenusOnInlineReveal)
     }
 
     func testLegacySettingsWithoutOnboardingKeyMigrateToCompleted() throws {

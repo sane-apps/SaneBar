@@ -118,7 +118,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     let hidingService: HidingService
     let persistenceService: PersistenceServiceProtocol
     let settingsController: SettingsController
-    let statusBarController: StatusBarController
     let triggerService: TriggerService
     let iconHotkeysService: IconHotkeysService
     let appearanceService: MenuBarAppearanceService
@@ -128,6 +127,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     let scriptTriggerService: ScriptTriggerService
     let hoverService: HoverService
     let updateService: UpdateService
+    private let injectedStatusBarController: StatusBarController?
+    private var statusBarControllerStorage: StatusBarController?
 
     // MARK: - Status Items
 
@@ -160,6 +161,42 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Initialization
 
+    var statusBarController: StatusBarController {
+        guard let controller = statusBarControllerStorage else {
+            preconditionFailure("StatusBarController accessed before deferred UI setup")
+        }
+        return controller
+    }
+
+    @discardableResult
+    private func ensureStatusBarController() -> StatusBarController {
+        if let controller = statusBarControllerStorage {
+            return controller
+        }
+
+        let controller = injectedStatusBarController ?? StatusBarController()
+        statusBarControllerStorage = controller
+        return controller
+    }
+
+    nonisolated static func statusItemCreationDelaySeconds(
+        environmentOverrideMs: String?,
+        majorOSVersion: Int
+    ) -> TimeInterval {
+        if let environmentOverrideMs,
+           let delayValue = Double(environmentOverrideMs) {
+            return max(0.0, delayValue / 1000.0)
+        }
+
+        return majorOSVersion >= 26 ? 0.35 : 0.1
+    }
+
+    nonisolated static let maxStatusItemRecoveryCount = 2
+
+    nonisolated static func statusItemValidationInitialDelaySeconds(recoveryCount: Int) -> TimeInterval {
+        recoveryCount == 0 ? 0.5 : 1.0
+    }
+
     init(
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
@@ -178,7 +215,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.hidingService = hidingService ?? HidingService()
         self.persistenceService = persistenceService
         self.settingsController = settingsController ?? SettingsController(persistence: persistenceService)
-        self.statusBarController = statusBarController ?? StatusBarController()
         self.triggerService = triggerService ?? TriggerService()
         self.iconHotkeysService = iconHotkeysService ?? IconHotkeysService.shared
         self.appearanceService = appearanceService ?? MenuBarAppearanceService()
@@ -188,6 +224,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         self.scriptTriggerService = scriptTriggerService ?? ScriptTriggerService()
         self.hoverService = hoverService ?? HoverService()
         self.updateService = updateService ?? UpdateService()
+        injectedStatusBarController = statusBarController
 
         super.init()
 
@@ -335,15 +372,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// with pre-set position values appear on the RIGHT side correctly.
     func useExistingItems(main: NSStatusItem, separator: NSStatusItem) {
         logger.info("Using externally-created status items")
+        let statusBarController = ensureStatusBarController()
 
         // Set flag FIRST to prevent setupStatusItem from overwriting these items
         usingExternalItems = true
 
-        // IMPORTANT: Remove the items that StatusBarController created in its init()
-        // because we want to use the externally-created ones with correct positioning
+        // Remove any locally-created items before swapping in the externally
+        // positioned ones so the menu bar only keeps one SaneBar runtime.
         NSStatusBar.system.removeStatusItem(statusBarController.mainItem)
         NSStatusBar.system.removeStatusItem(statusBarController.separatorItem)
-        logger.info("Removed StatusBarController's auto-created items")
+        logger.info("Removed locally-created status items before using external ones")
 
         // Store the external items
         mainStatusItem = main
@@ -435,13 +473,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // - Login Items that launch before GUI is ready
         // - Fast boot systems (M4 Macs)
         // - Remote desktop sessions
-        let initialDelay: TimeInterval = {
-            if let delayMs = ProcessInfo.processInfo.environment["SANEBAR_STATUSITEM_DELAY_MS"],
-               let delayValue = Double(delayMs) {
-                return max(0.0, delayValue / 1000.0)
-            }
-            return 0.1
-        }()
+        let initialDelay = Self.statusItemCreationDelaySeconds(
+            environmentOverrideMs: ProcessInfo.processInfo.environment["SANEBAR_STATUSITEM_DELAY_MS"],
+            majorOSVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        )
 
         DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) { [weak self] in
             guard let self else { return }
@@ -506,7 +541,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             return
         }
 
-        // Configure status items (already created as property initializers)
+        let statusBarController = ensureStatusBarController()
+
+        // Create and configure status items only after the deferred startup
+        // delay so Tahoe-class systems have time to attach the status-bar scene.
         statusBarController.configureStatusItems(
             clickAction: #selector(statusItemClicked),
             target: self
@@ -668,18 +706,23 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Validate status-item position after layout settles. If WindowServer has a
     /// corrupted position cache, recover by bumping autosave namespace and recreating.
-    private func schedulePositionValidation() {
+    private func schedulePositionValidation(recoveryCount: Int = 0) {
         Task { @MainActor [weak self] in
             guard let self, !self.usingExternalItems else { return }
 
-            let initialDelay: Duration = .milliseconds(500)
+            let initialDelay = Self.statusItemValidationInitialDelaySeconds(recoveryCount: recoveryCount)
+            let initialDelayDuration: Duration = .milliseconds(Int(initialDelay * 1000))
             let retryDelay: Duration = .milliseconds(250)
             let maxAttempts = 4
 
-            try? await Task.sleep(for: initialDelay)
+            try? await Task.sleep(for: initialDelayDuration)
 
             for attempt in 1 ... maxAttempts {
-                if StatusBarController.validateItemPosition(self.statusBarController.mainItem) {
+                let controller = self.statusBarController
+                if StatusBarController.validateStartupItems(
+                    main: controller.mainItem,
+                    separator: controller.separatorItem
+                ) {
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
@@ -694,8 +737,15 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error(
                 "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
             )
+            if recoveryCount >= Self.maxStatusItemRecoveryCount {
+                logger.error(
+                    "Status item recovery already attempted \(recoveryCount, privacy: .public) times this launch; leaving current autosave version in place"
+                )
+                return
+            }
             let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
             self.statusBarController.onItemsRecreated?(newMain, newSep)
+            self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
         }
     }
 

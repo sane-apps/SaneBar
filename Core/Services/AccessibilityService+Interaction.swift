@@ -120,6 +120,7 @@ extension AccessibilityService {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool, allowImmediateFallbackCenter: Bool) -> ClickMenuBarItemResult {
         let appElement = AXUIElementCreateApplication(targetPID)
 
@@ -302,6 +303,7 @@ extension AccessibilityService {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, allowImmediateFallbackCenter: Bool) -> Bool {
         logger.info("Performing hardware click fallback for \(bundleID)")
         // Fast path: if caller already provided an on-screen target center,

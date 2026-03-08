@@ -19,7 +19,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             xPosition: 800
         )
 
-        let classified = (
+        let classified = SearchClassifiedApps(
             visible: [visibleApp],
             hidden: [hiddenApp],
             alwaysHidden: [RunningApp]()
@@ -39,7 +39,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testSourceResolutionReturnsNilForUnknownPayload() {
-        let classified = (
+        let classified = SearchClassifiedApps(
             visible: [RunningApp(id: "com.example.one", name: "One", icon: nil)],
             hidden: [RunningApp(id: "com.example.two", name: "Two", icon: nil)],
             alwaysHidden: [RunningApp]()
@@ -56,7 +56,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             icon: nil,
             statusItemIndex: 3
         )
-        let classified = (
+        let classified = SearchClassifiedApps(
             visible: [RunningApp](),
             hidden: [RunningApp](),
             alwaysHidden: [RunningApp]()
@@ -88,7 +88,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             icon: nil,
             statusItemIndex: 2
         )
-        let classified = (
+        let classified = SearchClassifiedApps(
             visible: [RunningApp](),
             hidden: [RunningApp](),
             alwaysHidden: [RunningApp]()

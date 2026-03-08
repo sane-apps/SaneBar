@@ -222,8 +222,15 @@ struct GeneralSettingsView: View {
                         CompactDivider()
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 10) {
-                                Text("Visible rows")
-                                    .foregroundStyle(.white.opacity(0.94))
+                                HStack(spacing: 5) {
+                                    Text("Visible rows")
+                                        .foregroundStyle(.white.opacity(0.94))
+
+                                    Image(systemName: "questionmark.circle.fill")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.68))
+                                        .help(secondMenuBarRowsSummary)
+                                }
 
                                 Spacer(minLength: 0)
 
@@ -240,13 +247,6 @@ struct GeneralSettingsView: View {
                                 }
                                 .frame(width: 260)
                             }
-
-                            Text(secondMenuBarRowsSummary)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.white.opacity(0.86))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .help(secondMenuBarRowsSummary)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
@@ -286,7 +286,13 @@ struct GeneralSettingsView: View {
                     CompactDivider()
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Left-click SaneBar icon")
+                            HStack(spacing: 5) {
+                                Text("Left-click SaneBar icon")
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.68))
+                                    .help("Right-click the SaneBar icon to open the app menu.")
+                            }
                             Spacer()
                         }
                         .foregroundStyle(.white.opacity(0.94))
@@ -302,10 +308,6 @@ struct GeneralSettingsView: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-
-                        Text("Tip: Right-click the SaneBar icon to open the app menu.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.86))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -490,7 +492,7 @@ struct GeneralSettingsView: View {
                                     .disabled(licenseService.isPurchasing)
                                 }
                             } else {
-                                Button("Deactivate License") {
+                                Button(LicenseService.deactivateLicenseLabel()) {
                                     licenseService.deactivate()
                                 }
                                 .buttonStyle(.bordered)
@@ -535,13 +537,13 @@ struct GeneralSettingsView: View {
                             } else {
                                 HStack(spacing: 8) {
                                     Button("Unlock Pro — $6.99") {
-                                        NSWorkspace.shared.open(LicenseService.checkoutURL)
+                                        NSWorkspace.shared.open(LicenseService.checkoutURL())
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .tint(Color.saneAccent)
                                     .controlSize(.small)
 
-                                    Button("Enter Key") {
+                                    Button(LicenseService.keyEntryButtonLabel()) {
                                         showingLicenseEntry = true
                                     }
                                     .buttonStyle(.bordered)
@@ -929,6 +931,7 @@ struct GeneralSettingsView: View {
         alert.runModal()
     }
 }
+// swiftlint:enable file_length
 
 extension GeneralSettingsView.SecondMenuBarPreset {
     static func resolve(showVisible: Bool, showAlwaysHidden: Bool) -> Self {

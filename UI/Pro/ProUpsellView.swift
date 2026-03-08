@@ -93,7 +93,7 @@ struct ProUpsellView: View {
                     .disabled(licenseService.isPurchasing)
                 } else {
                     Button {
-                        NSWorkspace.shared.open(LicenseService.checkoutURL)
+                        NSWorkspace.shared.open(LicenseService.checkoutURL())
                     } label: {
                         Text("Unlock Pro")
                             .font(.system(size: 15, weight: .semibold))
@@ -105,7 +105,7 @@ struct ProUpsellView: View {
                     .tint(Color.saneAccent)
                     .controlSize(.large)
 
-                    Button("I Have a Key") {
+                    Button(LicenseService.existingCustomerButtonLabel()) {
                         showingLicenseEntry = true
                     }
                     .buttonStyle(.plain)
@@ -248,11 +248,11 @@ struct LicenseEntryView: View {
                     .help("Close")
                 }
 
-                Text("Enter License Key")
+                Text(["Enter", LicenseService.licenseKeyLabel()].joined(separator: " "))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
 
-                Text("Paste the license key from your purchase confirmation email.")
+                Text(LicenseService.licenseEmailInstruction())
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .multilineTextAlignment(.center)

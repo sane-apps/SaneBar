@@ -74,6 +74,7 @@ extension MenuBarManager {
         disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
     }
 
+    // swiftlint:disable:next function_parameter_count
     nonisolated static func shouldScheduleRehideOnAppChange(
         rehideOnAppChange: Bool,
         hidingState: HidingState,
@@ -263,22 +264,37 @@ extension MenuBarManager {
         leftmostVisibleItemX <= (appMenuMaxX + collisionPadding)
     }
 
+    nonisolated static func shouldManageApplicationMenus(
+        hideApplicationMenusOnInlineReveal: Bool,
+        showDockIcon: Bool,
+        accessibilityGranted: Bool,
+        hidingState: HidingState
+    ) -> Bool {
+        hideApplicationMenusOnInlineReveal &&
+            !showDockIcon &&
+            accessibilityGranted &&
+            hidingState == .expanded
+    }
+
     func scheduleAppMenuSuppressionEvaluation() {
         appMenuSuppressionTask?.cancel()
         appMenuSuppressionTask = nil
 
-        guard !settings.showDockIcon else {
-            restoreApplicationMenusIfNeeded(reason: "dockIconEnabled")
-            return
-        }
-
-        guard AccessibilityService.shared.isGranted else {
-            restoreApplicationMenusIfNeeded(reason: "axNotGranted")
-            return
-        }
-
-        guard hidingService.state == .expanded else {
-            restoreApplicationMenusIfNeeded(reason: "sectionHidden")
+        guard Self.shouldManageApplicationMenus(
+            hideApplicationMenusOnInlineReveal: settings.hideApplicationMenusOnInlineReveal,
+            showDockIcon: settings.showDockIcon,
+            accessibilityGranted: AccessibilityService.shared.isGranted,
+            hidingState: hidingService.state
+        ) else {
+            if !settings.hideApplicationMenusOnInlineReveal {
+                restoreApplicationMenusIfNeeded(reason: "settingDisabled")
+            } else if settings.showDockIcon {
+                restoreApplicationMenusIfNeeded(reason: "dockIconEnabled")
+            } else if !AccessibilityService.shared.isGranted {
+                restoreApplicationMenusIfNeeded(reason: "axNotGranted")
+            } else {
+                restoreApplicationMenusIfNeeded(reason: "sectionHidden")
+            }
             return
         }
 
