@@ -49,7 +49,9 @@ website: true
 website_domain: sanebar.com
 
 appstore:
-  enabled: true
+  enabled: false
+  # Current strategy: direct-download + possible future Setapp build.
+  # Do not route the current full-featured build through App Store release automation.
   # Create/register SaneBar in App Store Connect, then set its numeric app_id.
   app_id: "6759464256"
   product_id: "com.sanebar.app.pro.unlock"
