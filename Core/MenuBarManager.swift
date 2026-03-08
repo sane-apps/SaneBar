@@ -402,9 +402,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
             checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
-            quitAction: #selector(quitApp),
-            target: self
+            quitAction: #selector(quitApp)
         ))
+        wireStatusMenuTargets()
         updateUpdateMenuAvailability()
         statusMenu?.delegate = self
         separator.menu = nil
@@ -562,9 +562,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
             checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
-            quitAction: #selector(quitApp),
-            target: self
+            quitAction: #selector(quitApp)
         ))
+        wireStatusMenuTargets()
         updateUpdateMenuAvailability()
         statusMenu?.delegate = self
         clearStatusItemMenus()
@@ -701,6 +701,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
             }
+        }
+    }
+
+    private func wireStatusMenuTargets() {
+        for item in statusMenu?.items ?? [] where item.action != nil {
+            item.target = self
         }
     }
 
