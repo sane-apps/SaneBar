@@ -81,6 +81,7 @@ Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **A
 - **Find Icon search** — Search any menu bar app by name, even behind the Notch
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
+- **Crowded menu bar handling** — Inline reveal can temporarily hide app menus to make room when your menu bar is full
 - **100% on-device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: zero connections.
 
 ![Privacy Settings](docs/images/settings-general.png)
@@ -132,6 +133,13 @@ Search for any menu bar app by name and activate it — even if it's behind the 
 2. Type an app name and press **Return**
 3. SaneBar will **virtually click** the app's menu bar item
 4. Works even if the icon is physically hidden behind the Notch or off-screen
+
+### Crowded Menu Bars
+If your menu bar is completely full, inline reveal can temporarily hide the front app's File/Edit/View menus to make room for hidden icons.
+- The toggle lives in **Settings → Rules → Revealing**
+- It is on by default
+- It only affects inline reveal in the main menu bar
+- It does not affect **Icon Panel** or **Second Menu Bar**
 
 ### Per-Icon Hotkeys *(Pro)*
 Assign a global hotkey to any menu bar app — press it and SaneBar instantly opens that app's menu.

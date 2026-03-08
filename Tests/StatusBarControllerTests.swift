@@ -1140,6 +1140,22 @@ struct StatusBarControllerTests {
         #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 420, separatorBackup: nil))
     }
 
+    @Test("Status item position validation fails when no window is attached")
+    func statusItemWindowValidationRequiresWindow() {
+        #expect(
+            !StatusBarController.isStatusItemWindowFrameValid(
+                windowFrame: nil,
+                screenFrame: nil
+            )
+        )
+        #expect(
+            StatusBarController.isStatusItemWindowFrameValid(
+                windowFrame: CGRect(x: 1200, y: 923, width: 30, height: 33),
+                screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 956)
+            )
+        )
+    }
+
     @Test("Init restores matching display backup instead of resetting to ordinals")
     @MainActor
     func initRestoresMatchingDisplayBackup() {

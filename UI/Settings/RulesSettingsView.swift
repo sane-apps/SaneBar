@@ -81,6 +81,10 @@ struct RulesSettingsView: View {
         }
     }
 
+    private var hideApplicationMenusHelp: String {
+        "Temporarily hides File/Edit/View if needed to make room in the menu bar. Only affects inline reveal, not Icon Panel or Second Menu Bar."
+    }
+
     private func segmentedChoiceButton(
         _ title: String,
         isSelected: Bool,
@@ -224,6 +228,21 @@ struct RulesSettingsView: View {
                         isOn: $menuBarManager.settings.showOnUserDrag
                     )
                     .help("Reveal all icons while ⌘+dragging to rearrange")
+
+                    CompactDivider()
+                    CompactToggle(
+                        label: "Hide app menus during inline reveal",
+                        isOn: $menuBarManager.settings.hideApplicationMenusOnInlineReveal
+                    )
+                    .help(hideApplicationMenusHelp)
+
+                    Text(hideApplicationMenusHelp)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
                 }
 
                 // 3. Triggers (Automation) — Pro

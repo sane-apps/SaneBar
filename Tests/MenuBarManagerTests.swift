@@ -45,6 +45,46 @@ struct MenuBarManagerTests {
         }
     }
 
+    @Test("Tahoe defaults to a longer deferred status-item creation delay")
+    func statusItemCreationDelayDefaultsForTahoe() {
+        #expect(
+            MenuBarManager.statusItemCreationDelaySeconds(
+                environmentOverrideMs: nil,
+                majorOSVersion: 26
+            ) == 0.35
+        )
+        #expect(
+            MenuBarManager.statusItemCreationDelaySeconds(
+                environmentOverrideMs: nil,
+                majorOSVersion: 15
+            ) == 0.1
+        )
+    }
+
+    @Test("Deferred status-item creation delay respects environment override")
+    func statusItemCreationDelayRespectsOverride() {
+        #expect(
+            MenuBarManager.statusItemCreationDelaySeconds(
+                environmentOverrideMs: "900",
+                majorOSVersion: 26
+            ) == 0.9
+        )
+        #expect(
+            MenuBarManager.statusItemCreationDelaySeconds(
+                environmentOverrideMs: "-100",
+                majorOSVersion: 26
+            ) == 0.0
+        )
+    }
+
+    @Test("Status-item validation waits longer after a failed startup recovery")
+    func statusItemValidationDelayBackoff() {
+        #expect(MenuBarManager.maxStatusItemRecoveryCount == 2)
+        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 0) == 0.5)
+        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 1) == 1.0)
+        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 2) == 1.0)
+    }
+
     // MARK: - Position Validation Tests (BUG: separator eating main icon)
 
     @Test("Position validation: separator LEFT of main is valid")
@@ -262,6 +302,57 @@ struct MenuBarManagerTests {
                 leftmostVisibleItemX: 123,
                 appMenuMaxX: 120,
                 collisionPadding: 2
+            )
+        )
+    }
+
+    @Test("App menu suppression is disabled when the setting is off")
+    func appMenuSuppressionDisabledBySetting() {
+        #expect(
+            !MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: false,
+                showDockIcon: false,
+                accessibilityGranted: true,
+                hidingState: .expanded
+            )
+        )
+    }
+
+    @Test("App menu suppression only applies to expanded inline reveal")
+    func appMenuSuppressionRequiresExpandedInlineReveal() {
+        #expect(
+            MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: true,
+                showDockIcon: false,
+                accessibilityGranted: true,
+                hidingState: .expanded
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: true,
+                showDockIcon: true,
+                accessibilityGranted: true,
+                hidingState: .expanded
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: true,
+                showDockIcon: false,
+                accessibilityGranted: false,
+                hidingState: .expanded
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: true,
+                showDockIcon: false,
+                accessibilityGranted: true,
+                hidingState: .hidden
             )
         )
     }

@@ -96,6 +96,7 @@ class ProjectQA
   RUNTIME_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_smoke.log'
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_SMOKE_PASSES = 2
+  RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
   RECURRING_REGRESSION_TEST_MARKERS = {
     'Tests/IconMovingTests.swift' => [
       'REGRESSION: #93-style geometry avoids boundary-hugging target',
@@ -561,7 +562,7 @@ class ProjectQA
       return
     end
 
-    smoke_script = File.join(PROJECT_ROOT, 'Scripts', 'live_zone_smoke.rb')
+    smoke_script = File.join(__dir__, 'live_zone_smoke.rb')
     unless File.exist?(smoke_script)
       @errors << "Runtime smoke script missing: #{smoke_script}"
       puts '❌ missing live_zone_smoke.rb'
@@ -595,6 +596,10 @@ class ProjectQA
       return
     end
 
+    puts
+    puts "   ↳ smoke target: #{target[:app_path]}"
+    puts "   ↳ #{target[:note]}" if target[:note]
+
     smoke_env = {
       'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
       'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '1',
@@ -604,7 +609,12 @@ class ProjectQA
     }
     smoke_outputs = []
     RUNTIME_SMOKE_PASSES.times do |index|
-      smoke_out, smoke_status = Open3.capture2e(smoke_env, smoke_script)
+      puts "   ↳ smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
+      smoke_out, smoke_status = capture2e_with_progress(
+        smoke_env,
+        smoke_script,
+        heartbeat_label: "runtime smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
+      )
       smoke_outputs << "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}\n#{smoke_out}"
       next if smoke_status.success?
 
@@ -635,22 +645,46 @@ class ProjectQA
     unsigned_fallback = launch_output.include?('Unsigned fallback active:')
     system_app_path = "/Applications/#{PROJECT_NAME}.app"
     system_process_path = File.join(system_app_path, 'Contents', 'MacOS', PROJECT_NAME)
+    launched_target = nil
+
+    unless launched_path.to_s.empty?
+      launched_target = {
+        app_path: launched_path,
+        process_path: File.join(launched_path, 'Contents', 'MacOS', PROJECT_NAME),
+        relaunch: false,
+        note: 'using the app that test_mode just launched',
+      }
+    end
 
     if unsigned_fallback && File.exist?(system_app_path) && developer_id_signed?(system_app_path)
+      if launched_target
+        launched_meta = app_bundle_metadata(launched_target[:app_path])
+        system_meta = app_bundle_metadata(system_app_path)
+
+        if same_release_build?(launched_meta, system_meta)
+          return {
+            app_path: system_app_path,
+            process_path: system_process_path,
+            relaunch: true,
+            note: "using installed signed app for smoke because unsigned fallback build #{format_bundle_metadata(launched_meta)} matches /Applications/#{PROJECT_NAME}.app",
+          }
+        end
+
+        launched_target[:note] = "keeping the launched fallback app because /Applications/#{PROJECT_NAME}.app is #{format_bundle_metadata(system_meta)} and the launched build is #{format_bundle_metadata(launched_meta)}"
+        return launched_target
+      end
+
       return {
         app_path: system_app_path,
         process_path: system_process_path,
         relaunch: true,
+        note: 'using installed signed app for smoke because test_mode did not report a launched app path',
       }
     end
 
-    return nil if launched_path.to_s.empty?
+    return launched_target if launched_target
 
-    {
-      app_path: launched_path,
-      process_path: File.join(launched_path, 'Contents', 'MacOS', PROJECT_NAME),
-      relaunch: false,
-    }
+    nil
   end
 
   def ensure_runtime_smoke_target_running!(target)
@@ -702,6 +736,110 @@ class ProjectQA
     return false unless status.success? || !output.to_s.empty?
 
     output.lines.any? { |line| line.start_with?('Authority=Developer ID Application:') }
+  end
+
+  def app_bundle_metadata(app_path)
+    info_plist = File.join(app_path, 'Contents', 'Info.plist')
+    return {} unless File.exist?(info_plist)
+
+    {
+      short_version: plist_value(info_plist, 'CFBundleShortVersionString'),
+      build_version: plist_value(info_plist, 'CFBundleVersion'),
+      bundle_id: plist_value(info_plist, 'CFBundleIdentifier'),
+    }
+  end
+
+  def plist_value(info_plist, key)
+    output, status = Open3.capture2e('/usr/libexec/PlistBuddy', '-c', "Print :#{key}", info_plist)
+    return nil unless status.success?
+
+    output.lines.last&.strip
+  rescue StandardError
+    nil
+  end
+
+  def same_release_build?(left, right)
+    left_short = left[:short_version].to_s
+    left_build = left[:build_version].to_s
+    right_short = right[:short_version].to_s
+    right_build = right[:build_version].to_s
+
+    return false if left_short.empty? || left_build.empty? || right_short.empty? || right_build.empty?
+
+    left_short == right_short && left_build == right_build
+  end
+
+  def format_bundle_metadata(metadata)
+    short = metadata[:short_version].to_s
+    build = metadata[:build_version].to_s
+    bundle = metadata[:bundle_id].to_s
+    parts = []
+    parts << (short.empty? ? 'unknown version' : "v#{short}")
+    parts << (build.empty? ? 'unknown build' : "build #{build}")
+    parts << (bundle.empty? ? 'unknown bundle id' : bundle)
+    parts.join(', ')
+  end
+
+  def capture2e_with_progress(env, *cmd, heartbeat_label:)
+    output = +''
+    status = nil
+    started_at = Time.now
+    last_output_at = Time.now
+    last_heartbeat_at = Time.at(0)
+
+    Open3.popen2e(env, *cmd) do |_stdin, stdout_err, wait_thr|
+      loop do
+        ready = IO.select([stdout_err], nil, nil, 1)
+        if ready
+          begin
+            chunk = normalize_output_chunk(stdout_err.read_nonblock(4096))
+            output << chunk
+            print chunk
+            $stdout.flush
+            last_output_at = Time.now unless chunk.empty?
+          rescue IO::WaitReadable
+            nil
+          rescue EOFError
+            nil
+          end
+        end
+
+        if wait_thr.join(0)
+          status = wait_thr.value
+          break
+        end
+
+        next unless (Time.now - last_output_at) >= RUNTIME_SMOKE_HEARTBEAT_SECONDS
+        next unless (Time.now - last_heartbeat_at) >= RUNTIME_SMOKE_HEARTBEAT_SECONDS
+
+        elapsed = (Time.now - started_at).round(1)
+        puts "   … #{heartbeat_label} still running (#{elapsed}s)"
+        last_heartbeat_at = Time.now
+      end
+
+      loop do
+        chunk = normalize_output_chunk(stdout_err.read_nonblock(4096))
+        output << chunk
+        print chunk
+        $stdout.flush
+      rescue IO::WaitReadable
+        break
+      rescue EOFError
+        break
+      end
+    end
+
+    [output, status]
+  end
+
+  def normalize_output_chunk(chunk)
+    normalized = chunk.dup
+    normalized.force_encoding(Encoding::UTF_8)
+    return normalized if normalized.valid_encoding?
+
+    chunk.encode(Encoding::UTF_8, Encoding::BINARY, invalid: :replace, undef: :replace, replace: '?')
+  rescue StandardError
+    chunk.to_s.encode(Encoding::UTF_8, Encoding::BINARY, invalid: :replace, undef: :replace, replace: '?')
   end
 
   def check_recurring_regression_coverage_guardrails

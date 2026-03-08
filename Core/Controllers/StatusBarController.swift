@@ -14,6 +14,7 @@ struct MenuConfiguration {
     let quitAction: Selector
     let target: AnyObject
 }
+// swiftlint:enable file_length
 
 // MARK: - StatusBarControllerProtocol
 
@@ -151,16 +152,27 @@ final class StatusBarController: StatusBarControllerProtocol {
     var onItemsRecreated: ((_ main: NSStatusItem, _ separator: NSStatusItem) -> Void)?
 
     /// Checks whether a status item window appears in the menu bar area.
-    /// Returns true when position looks healthy, or when the window isn't available yet.
-    static func validateItemPosition(_ item: NSStatusItem) -> Bool {
-        guard let window = item.button?.window else {
-            return true
-        }
-        guard let screen = window.screen ?? NSScreen.main else {
-            return true
+    /// A missing window is treated as invalid so startup recovery can catch
+    /// disconnected status-bar scenes where the item never renders at all.
+    nonisolated static func isStatusItemWindowFrameValid(windowFrame: CGRect?, screenFrame: CGRect?) -> Bool {
+        guard let windowFrame, let screenFrame else {
+            return false
         }
         let tolerance: CGFloat = 50
-        return abs(screen.frame.maxY - window.frame.maxY) <= tolerance
+        return abs(screenFrame.maxY - windowFrame.maxY) <= tolerance
+    }
+
+    /// Checks whether a status item window appears in the menu bar area.
+    static func validateItemPosition(_ item: NSStatusItem) -> Bool {
+        let window = item.button?.window
+        let screenFrame = window?.screen?.frame ?? NSScreen.main?.frame
+        return isStatusItemWindowFrameValid(windowFrame: window?.frame, screenFrame: screenFrame)
+    }
+
+    /// Startup is only healthy when both visible SaneBar status items are attached
+    /// to real menu bar windows.
+    static func validateStartupItems(main: NSStatusItem, separator: NSStatusItem) -> Bool {
+        validateItemPosition(main) && validateItemPosition(separator)
     }
 
     /// Bumps autosave namespace and recreates status items to escape WindowServer

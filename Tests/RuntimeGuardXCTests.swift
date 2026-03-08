@@ -60,6 +60,28 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testMenuBarManagerDefersStatusBarControllerCreationUntilDeferredUISetup() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private var statusBarControllerStorage: StatusBarController?"),
+            "MenuBarManager should keep the default StatusBarController lazy until deferred UI setup"
+        )
+        XCTAssertTrue(
+            source.contains("let statusBarController = ensureStatusBarController()"),
+            "MenuBarManager should only create the default StatusBarController inside setupStatusItem"
+        )
+        XCTAssertTrue(
+            source.contains("StatusBarController.validateStartupItems("),
+            "Startup validation should require both the main icon and separator to attach to real status-item windows"
+        )
+        XCTAssertFalse(
+            source.contains("self.statusBarController = statusBarController ?? StatusBarController()"),
+            "MenuBarManager should not eagerly create status items during init before the deferred startup delay"
+        )
+    }
+
     func testNormalizedEventYFlipsUnflippedMenuBarY() {
         let y = AccessibilityService.normalizedEventY(rawY: 1425, globalMaxY: 1440, anchorY: 15)
         XCTAssertEqual(y, 15, accuracy: 0.001)
@@ -445,6 +467,10 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("forceRefresh: forceFreshTargetResolution"),
             "SearchService.activate should force-refresh click target identity after reveal or browse-session activation (#102/#105)"
+        )
+        XCTAssertTrue(
+            source.contains("app: initialTarget"),
+            "SearchService.activate should derive hardware-vs-AX click strategy from the resolved target identity so second-menu-bar clicks do not reuse stale off-screen requested coordinates (#101)"
         )
     }
 
@@ -1337,6 +1363,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should verify browse right-click activation"
         )
         XCTAssertTrue(
+            source.contains("sleep BROWSE_ACTIVATION_COOLDOWN_SECONDS"),
+            "Live smoke should wait out activation debounce before retrying the same browse tile via right-click"
+        )
+        XCTAssertTrue(
             source.contains("'browse panel diagnostics'") &&
             source.contains("'activate browse icon'") &&
             source.contains("'right click browse icon'"),
@@ -1512,6 +1542,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testRulesSettingsExposeInlineRevealAppMenuToggle() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/Settings/RulesSettingsView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Hide app menus during inline reveal"),
+            "Rules settings should expose the inline reveal app-menu toggle label"
+        )
+        XCTAssertTrue(
+            source.contains("Only affects inline reveal, not Icon Panel or Second Menu Bar."),
+            "Rules settings should explain that the toggle only applies to inline reveal"
+        )
+        XCTAssertTrue(
+            source.contains("$menuBarManager.settings.hideApplicationMenusOnInlineReveal"),
+            "Rules settings should bind the toggle to the persisted inline reveal app-menu setting"
+        )
+    }
+
     func testSearchWindowWindowWillCloseRestoresRehide() throws {
         let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -1559,8 +1607,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Browse-session clicks should pass the computed fallback policy into click attempts"
         )
         XCTAssertTrue(
-            searchSource.contains("allowImmediateFallbackCenter: false"),
-            "Forced-refresh click retries should continue to avoid immediate spatial fallback"
+            searchSource.contains("resolvedAllowImmediateFallbackCenter(") &&
+                searchSource.contains("likelyNoExtrasMenuBar: refreshedLikelyNoExtras"),
+            "Forced-refresh click retries should only re-enable immediate spatial fallback through the narrowed no-AX target policy"
         )
         XCTAssertTrue(
             interactionSource.contains("allowImmediateFallbackCenter: Bool = true"),

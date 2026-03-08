@@ -78,7 +78,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     // MARK: - Configuration
 
-    /// The delimiter status item whose length we toggle
+    // The delimiter status item whose length we toggle.
     // Strong reference avoids intermittent nil during long-running sessions
     // (weak delimiter could drop and break auto-rehide scheduling/hide paths).
     private var delimiterItem: StatusItemProtocol?

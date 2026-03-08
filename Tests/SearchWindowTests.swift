@@ -164,6 +164,34 @@ struct SearchWindowTests {
             )
         )
         #expect(
+            SearchService.resolvedAllowImmediateFallbackCenter(
+                baseAllowImmediateFallbackCenter: false,
+                likelyNoExtrasMenuBar: true,
+                fallbackCenterOnScreen: true
+            )
+        )
+        #expect(
+            !SearchService.resolvedAllowImmediateFallbackCenter(
+                baseAllowImmediateFallbackCenter: false,
+                likelyNoExtrasMenuBar: true,
+                fallbackCenterOnScreen: false
+            )
+        )
+        #expect(
+            SearchService.shouldPreferHardwareFirst(
+                origin: .browsePanel,
+                isRightClick: false,
+                app: RunningApp(id: "offscreen.app", name: "Offscreen", icon: nil, xPosition: -4300, width: 24)
+            )
+        )
+        #expect(
+            !SearchService.shouldPreferHardwareFirst(
+                origin: .browsePanel,
+                isRightClick: false,
+                app: RunningApp(id: "visible.app", name: "Visible", icon: nil, xPosition: 631, width: 24)
+            )
+        )
+        #expect(
             SearchService.shouldUsePinnedAlwaysHiddenFallback(
                 hidingState: .hidden,
                 isBrowseSessionActive: false
@@ -316,6 +344,53 @@ struct SearchWindowTests {
 
         #expect(promoted.hidden.isEmpty)
         #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
+    }
+
+    @Test("Zoned menu bar views exclude coarse fallback entries")
+    func testZonedMenuBarItemsExcludeCoarseFallbacks() {
+        let preciseAX = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "com.example.precise",
+                name: "Precise",
+                icon: nil,
+                menuExtraIdentifier: "com.example.precise.status",
+                xPosition: 100,
+                width: 20
+            ),
+            x: 100,
+            width: 20
+        )
+        let preciseIndexed = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "com.example.indexed",
+                name: "Indexed",
+                icon: nil,
+                statusItemIndex: 0,
+                xPosition: 130,
+                width: 22
+            ),
+            x: 130,
+            width: 22
+        )
+        let coarse = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "com.example.coarse",
+                name: "Coarse",
+                icon: nil,
+                xPosition: 160,
+                width: 24
+            ),
+            x: 160,
+            width: 24
+        )
+
+        let filtered = SearchService.zonedMenuBarItems(from: [preciseAX, preciseIndexed, coarse])
+
+        #expect(filtered.map(\.app.uniqueId) == [
+            preciseAX.app.uniqueId,
+            preciseIndexed.app.uniqueId
+        ])
+        #expect(filtered.allSatisfy { $0.app.hasPreciseMenuBarIdentity })
     }
 
     @Test("SaneBar diagnostics collector includes search and panel snapshots")

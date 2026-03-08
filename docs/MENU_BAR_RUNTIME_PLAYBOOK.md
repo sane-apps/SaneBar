@@ -115,9 +115,82 @@ Known examples:
 - Time Machine
 - older “disappearing icons / not in Find Icons” reports where the app had no standard AX extras bar
 
+### R6. Startup scene / status-item bootstrap failure
+
+Symptoms:
+- process is alive but no SaneBar icon or separator ever appears
+- launch preferences exist, but the status items never render
+- shortcuts or other startup interaction surfaces appear dead
+- Console shows disconnected status-bar scene errors on Tahoe-class systems
+
+Primary code:
+- `Core/MenuBarManager.swift`
+- `Core/Controllers/StatusBarController.swift`
+
+Key rule:
+- a missing status-item window is not a healthy startup state; it must trigger recovery instead of being treated as “not ready yet”
+
+Current root cause note:
+- if `MenuBarManager` eagerly constructs the default `StatusBarController` during init, the `NSStatusItem`s are created before the deferred startup delay and before the headless guard actually matters
+- the runtime-safe path is: defer default `StatusBarController` creation until `setupStatusItem()`, validate both main + separator window attachment, and allow a bounded second recovery pass for Tahoe-class disconnected scenes
+
+## Live GitHub Issue Map
+
+Use this table before replying, closing, or opening another issue. Keep one primary bucket per issue even if the logs show secondary symptoms.
+
+| Issue | State | Primary bucket | Why it belongs there | Notes |
+|------|------|------|------|------|
+| `#106` | open | `R1` | Browse Icons move path fails; logs show unresolved on-screen frame and bad hardware-fallback coordinates on an external monitor | Treat as current canonical browse-move issue for external-monitor style repros |
+| `#105` | open | `R2` | Second Menu Bar opens, then click path reports success with no observed effect | Current canonical notch-display second-menu-bar activation issue |
+| `#102` | open | `R4` | Report is mostly screenshots plus configuration confusion; no fresh diagnostics yet | Keep open until reporter confirms on a current build or gives fresh logs |
+| `#101` | open | `R2` | Reporter supplied fresh 2.1.22 diagnostics showing second-menu-bar activation mismatch and unstable relayout | Historical evidence for the same family as `#105` |
+| `#95` | open | `R1` | Click/move and ghost-cursor family; older but still same move/activation cluster | Keep linked to `#94` / `#93` until current-build confirmation exists |
+| `#94` | open | `R5` | Latest 2.1.23 feedback says generic app opening/movement is mainly fixed, but specific apps (Little Snitch, Solver 3, Carrot Weather) still fail | Treat current `#94` as the residual host-model / no-AX activation thread, not the whole-system move bug anymore |
+| `#93` | open | `R1` | Original ghost-cursor move-to-visible issue | Historical evidence thread; do not lose its reporter comments even if later superseded |
+| `#107` | open | `R6` | Tahoe 26.3.1 report: process alive, no icon/separator render, disconnected scene console errors | New startup bucket; not a move, browse, or persistence regression |
+| `#103` | closed | `R4` | Crowded-menu-bar feature request / expectation mismatch | Behavior exists; explicit toggle is implemented on main and queued for next release |
+| `#92` | closed | `R3` | Update reset / persistence drift | Same family as `#79` |
+| `#79` | closed | `R3` | Visible layout reset after update | Same family as `#92` |
+| `#73` | closed | `R3` | Visible icons no longer persist | Earlier persistence-reset thread |
+| `#72` | closed | `R3` | Layout does not survive quit/logout/reboot | Earlier persistence-reset thread |
+| `#71` | closed | `R5` | Little Snitch never appears in discovery/import | Keep as the original public R5 reporter thread |
+
+Practical rule:
+- `#105` and `#106` are the current live open reference threads.
+- `#94` and `#93` no longer mean the same thing: `#93` remains historical move/click evidence, while current `#94` is now the best public thread for app-specific host-model fallout after the broader move fixes.
+- `#71` remains the public reference for the no-AX-host detection class.
+- `#107` is the public reference for startup scene/bootstrap failures on Tahoe-class systems.
+- Do not tell users to open a brand-new issue if the symptom clearly matches one of these buckets.
+
+## Live Email Thread Map
+
+This is the same cross-reference for inbox threads. These are problem threads only, not receipts, license questions, or DMCA mail.
+
+| Email thread | IDs | Primary bucket | Why it belongs there |
+|------|------|------|------|
+| `Sanebar installer problem v2.1.11` | `#121 #128 #167 #168 #187 #190 #207 #212 #223` | `R1` | Michael Sydenham thread; repeated reports of drag/drop and hidden/visible failures, with reset-on-update spillover |
+| `Issue with Sanebar` | `#131 #135 #145` | `R3` | Restart causes previously visible apps to hide again |
+| `Adding items to visible fails` | `#164` | `R1` | Ghost-cursor move failure into Visible |
+| `Browse Icons Second Menu Bar Extremely Buggy` | `#102 #114` | `R2` | Judson second-menu-bar browse/activation thread before the later follow-up |
+| `More bugs - second menu bar unusable` | `#199 #200` | `R2` | Same Judson second-menu-bar family with fresh logs/video |
+| `[Issue #94] ... move them to visible` | `#216` | `R1` | Email mirror of the live GitHub `#94` move/click thread |
+| `SaneBar after 2.1.11` | `#133` | `R2` | Hidden apps still do not open from the second menu bar |
+| `SaneBar after 2.1.16` | `#171` | `R2` | Follow-up with video showing apps still not opening |
+| `SaneBar after 2.1.17` | `#179 #193` | `R2` | Same follow-up family after another release |
+| `SaneBar - Possible issue` | `#31 #39` | `R5` | Little Snitch and Time Machine missing from discovery lists |
+| `SaneBar 1.0.20 and 1.0.22` | `#29 #36 #38` | `R4` | Early second-menu-bar option/configuration mismatch thread |
+| `Problems in sanebar 1.0.23 (following)` | `#40 #53 #54 #56` | `R2` | Second menu bar shows visible and hidden items together / duplicate rendering |
+| `SaneBar suggestion after starting using it` | `#63` | `R1` | No drag/drop between hidden and visible plus second-line problems |
+| `SaneBar suggestion after 2.1.7` | `#77` | `R5` | Mixed thread, but Little Snitch and undiscoverable icons are the clearest lead |
+
+Practical rule:
+- If an email thread clearly mirrors a live GitHub thread, add that relation to the knowledge graph instead of treating it as a new problem.
+- If the email is a new symptom string but matches one of these rows, reply in-thread and map it to the existing bucket first.
+- Only create a new bucket if the report does not fit `R1-R6`.
+
 ## The Actual Runtime Model
 
-The persistent bugs were not one bug. They came from 5 state machines drifting out of sync.
+The persistent bugs were not one bug. They came from 6 state machines drifting out of sync.
 
 ### 1. Visibility state
 
@@ -201,6 +274,22 @@ stateDiagram-v2
 
 Key rule:
 - move verification must escalate from cached zones to a refreshed classification snapshot before declaring failure
+
+### 6. Startup scene readiness state
+
+```mermaid
+stateDiagram-v2
+    [*] --> deferred_setup
+    deferred_setup --> items_created: status items instantiated
+    items_created --> window_ready: button windows attach to the menu bar scene
+    items_created --> scene_disconnected: button window stays nil / disconnected scene logs
+    scene_disconnected --> autosave_recovery: recreate items with bumped autosave namespace
+    autosave_recovery --> window_ready: recovered same launch
+    autosave_recovery --> failed_launch: still no window after bounded retry
+```
+
+Key rule:
+- startup validation must treat a missing status-item window as broken state, not just “not ready yet”
 
 ## Official Apple API Ground Truth
 
@@ -309,10 +398,14 @@ Separate live detection lead on March 6, 2026:
   - no system-wide AX hit-test samples for any `littlesnitch` bundle at the menu-bar y-coordinate
 - `at.obdev.littlesnitch.networkmonitor` does own multiple full-width top-bar windows, so the remaining gap is host modeling / OS exposure, not app launch state
 - latest mitigation is owner-only fallback in `SearchService.refreshMenuBarApps()`, which keeps this class visible in broad discovery even when macOS will not provide coordinates
+- as of March 7, 2026, zoned views now filter out coarse bundle-only fallback entries and only render precise menu-extra identities
+- that means second-menu-bar rows and Hidden/Visible/Always Hidden flows no longer present owner/window fallback entries as if they were safely movable/openable
+- broad discovery still keeps those apps visible in Find Icon `All`, where app-level activation remains possible even when menu-extra coordinates are unavailable
 
 What that means:
 - owner-list coverage and item-position coverage are different problems
 - do not close Little Snitch/Time Machine style reports as “same as second menu bar click bug”
+- if a report says the app is visible in `Find Icon > All` but not in second-menu-bar rows anymore, that is the intentional capability split, not a regression
 - if logs show `Top-bar host AXMenuBar fallback ... items=0`, the remaining problem is deeper than stale targets or rehide timing
 - if system-wide hit-testing still finds nothing with SaneBar quit, the remaining problem is outside SaneBar's hide/show state machine
 
@@ -648,26 +741,32 @@ Also note:
 When a new report comes in:
 
 1. Put it in one of `R1-R5`.
-2. Capture `layout snapshot` and `list icon zones` first.
-3. Do not close it until the original reporter confirms on their machine.
-4. If the bug mentions:
+2. Apply the matching GitHub root label if the issue is in GitHub:
+   - `root:R1 move-classification`
+   - `root:R2 browse-rehide`
+   - `root:R3 persistence-reset`
+   - `root:R4 settings-expectation`
+   - `root:R5 detection-host-model`
+3. Capture `layout snapshot` and `list icon zones` first.
+4. Do not close it until the original reporter confirms on their machine.
+5. If the bug mentions:
    - monitor change
    - update
    - restart
    - restore
    start in `StatusBarController.swift`
-5. If the bug mentions:
+6. If the bug mentions:
    - browse
    - second menu bar
    - ghost cursor
    - panel opens then closes
    start in `SearchWindowController.swift` and `MenuBarManager+Visibility.swift`
-6. If the bug mentions:
+7. If the bug mentions:
    - moved but landed wrong
    - always hidden drift
    - move succeeded but zone is wrong
    start in `MenuBarManager+IconMoving.swift` and `SearchService.swift`
-7. If the bug mentions:
+8. If the bug mentions:
    - never appears in Find Icons
    - helper-hosted menu extra
    - Little Snitch

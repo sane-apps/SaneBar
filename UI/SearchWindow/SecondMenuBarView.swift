@@ -63,9 +63,6 @@ struct SecondMenuBarView: View {
             toolbarRow
             if hasAccessibility {
                 rowStateControls
-                if let hint = hiddenOnlyHintText {
-                    hiddenOnlyHint(message: hint)
-                }
             }
             if !hasAccessibility {
                 accessibilityPrompt
@@ -256,6 +253,14 @@ struct SecondMenuBarView: View {
                     menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
                 }
             }
+
+            if let hint = hiddenOnlyHintText {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(textSecondary)
+                    .help(hint)
+                    .accessibilityLabel("Hidden-only guidance")
+            }
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
@@ -292,37 +297,6 @@ struct SecondMenuBarView: View {
         .buttonStyle(.plain)
         .disabled(!isInteractive)
         .opacity(isInteractive ? 1 : 0.95)
-    }
-
-    private func hiddenOnlyHint(message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "info.circle.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(textSecondary)
-
-            Text(message)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(textPrimary)
-                .lineLimit(2)
-
-            Spacer(minLength: 0)
-
-            if licenseService.isPro {
-                Button("Show Visible Row") {
-                    menuBarManager.settings.secondMenuBarShowVisible = true
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
-            } else {
-                Button("Unlock Pro") {
-                    proUpsellFeature = .zoneMoves
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 6)
     }
 
     private func zoneRow(
@@ -651,6 +625,7 @@ struct SecondMenuBarView: View {
         .padding(10)
     }
 }
+// swiftlint:enable file_length
 
 // MARK: - Icon Zone
 

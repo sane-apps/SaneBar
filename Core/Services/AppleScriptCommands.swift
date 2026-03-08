@@ -142,7 +142,7 @@ enum ScriptIconZone: String {
     case alwaysHidden
 }
 
-typealias ScriptClassifiedApps = (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp])
+typealias ScriptClassifiedApps = SearchClassifiedApps
 typealias ScriptZonedIcon = (app: RunningApp, zone: ScriptIconZone)
 struct ScriptIconIdentity: Sendable {
     let uniqueId: String

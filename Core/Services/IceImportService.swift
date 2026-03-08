@@ -17,6 +17,7 @@ enum IceImportService {
     struct ImportedSettings {
         var showOnHover: Bool?
         var showOnScroll: Bool?
+        var hideApplicationMenusOnInlineReveal: Bool?
         var autoRehide: Bool?
         var rehideDelay: TimeInterval?
         var hoverDelay: TimeInterval?
@@ -98,6 +99,7 @@ enum IceImportService {
         ImportedSettings(
             showOnHover: root["ShowOnHover"] as? Bool,
             showOnScroll: root["ShowOnScroll"] as? Bool,
+            hideApplicationMenusOnInlineReveal: root["HideApplicationMenus"] as? Bool,
             autoRehide: root["AutoRehide"] as? Bool,
             rehideDelay: root["RehideInterval"] as? TimeInterval,
             hoverDelay: root["ShowOnHoverDelay"] as? TimeInterval,
@@ -116,8 +118,21 @@ enum IceImportService {
         to menuBarManager: MenuBarManager,
         iceRoot: [String: Any]
     ) -> ImportSummary {
-        var summary = ImportSummary()
         var settings = menuBarManager.settings
+        let summary = applySettings(&settings, parsed: parsed, iceRoot: iceRoot)
+
+        menuBarManager.settings = settings
+        menuBarManager.saveSettings()
+
+        return summary
+    }
+
+    private static func applySettings(
+        _ settings: inout SaneBarSettings,
+        parsed: ImportedSettings,
+        iceRoot: [String: Any]
+    ) -> ImportSummary {
+        var summary = ImportSummary()
 
         if let value = parsed.showOnHover {
             settings.showOnHover = value
@@ -127,6 +142,11 @@ enum IceImportService {
         if let value = parsed.showOnScroll {
             settings.showOnScroll = value
             summary.applied.append("Show on scroll: \(value ? "on" : "off")")
+        }
+
+        if let value = parsed.hideApplicationMenusOnInlineReveal {
+            settings.hideApplicationMenusOnInlineReveal = value
+            summary.applied.append("Hide application menus on inline reveal: \(value ? "on" : "off")")
         }
 
         if let value = parsed.autoRehide {
@@ -165,9 +185,6 @@ enum IceImportService {
         }
 
         // Track settings we recognized but can't import
-        if iceRoot["HideApplicationMenus"] is Bool {
-            summary.skipped.append("Hide application menus")
-        }
         if iceRoot["Hotkeys"] != nil {
             summary.skipped.append("Hotkeys (incompatible format)")
         }
@@ -178,9 +195,18 @@ enum IceImportService {
             summary.skipped.append("Ice Bar panel mode")
         }
 
-        menuBarManager.settings = settings
-        menuBarManager.saveSettings()
-
         return summary
+    }
+
+    static func _test_parseSettings(from root: [String: Any]) -> ImportedSettings {
+        parseSettings(from: root)
+    }
+
+    static func _test_applySettings(
+        _ settings: inout SaneBarSettings,
+        parsed: ImportedSettings,
+        iceRoot: [String: Any] = [:]
+    ) -> ImportSummary {
+        applySettings(&settings, parsed: parsed, iceRoot: iceRoot)
     }
 }

@@ -20,6 +20,7 @@ class LiveZoneSmoke
   APPLESCRIPT_RETRIES = 2
   BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
   BROWSE_PANEL_READY_POLL_SECONDS = 0.25
+  BROWSE_ACTIVATION_COOLDOWN_SECONDS = 0.6
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 8
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
@@ -337,6 +338,9 @@ class LiveZoneSmoke
     puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
 
     exercise_browse_activation('activate browse icon', expected_mode, live_candidates)
+    # SearchService debounces duplicate activation of the same icon for 450ms.
+    # Leave enough headroom before immediately retrying that tile with right-click.
+    sleep BROWSE_ACTIVATION_COOLDOWN_SECONDS
     exercise_browse_activation('right click browse icon', expected_mode, live_candidates)
     close_browse_panel
     puts "✅ Browse mode #{expected_mode} activation ok"

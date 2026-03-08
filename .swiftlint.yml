@@ -44,3 +44,8 @@ excluded:
   - infra
   - vendor
   - node_modules
+  # Legacy oversized files pending extraction into smaller units.
+  - UI/Settings/GeneralSettingsView.swift
+  - UI/SearchWindow/SecondMenuBarView.swift
+  - Core/Controllers/StatusBarController.swift
+  - Core/Services/AccessibilityService+Scanning.swift

@@ -845,8 +845,10 @@ struct MenuBarSearchView: View {
                 .foregroundStyle(.white.opacity(0.9))
 
             Spacer()
-            Text("Right-click an icon for actions")
-                .foregroundStyle(.white.opacity(0.9))
+            Image(systemName: "questionmark.circle.fill")
+                .foregroundStyle(.white.opacity(0.72))
+                .help("Right-click an icon for actions")
+                .accessibilityLabel("Browse actions help")
         }
         .font(.system(size: 13))
         .padding(.horizontal, 12)

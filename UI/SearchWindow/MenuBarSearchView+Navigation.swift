@@ -267,7 +267,7 @@ extension MenuBarSearchView {
 
     static func sourceForDropPayload(
         _ sourceID: String,
-        classified: (visible: [RunningApp], hidden: [RunningApp], alwaysHidden: [RunningApp]),
+        classified: SearchClassifiedApps,
         filteredApps: [RunningApp] = [],
         mode: Mode? = nil,
         zoneForAllMode: ((RunningApp) -> AppZone)? = nil

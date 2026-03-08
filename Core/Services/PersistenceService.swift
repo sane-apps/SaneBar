@@ -176,6 +176,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when clicking in the menu bar
     var showOnClick: Bool = false
 
+    /// Temporarily hide the front app's menu items if needed to make room for inline reveal.
+    /// Applies only when hidden icons are shown directly in the menu bar.
+    var hideApplicationMenusOnInlineReveal: Bool = true
+
     /// When true, scroll/click gestures toggle visibility (hide if visible, show if hidden)
     /// When false, gestures only reveal (default behavior)
     var gestureToggles: Bool = false
@@ -320,6 +324,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         // Force to false for existing users; decode to discard old value silently.
         _ = try container.decodeIfPresent(Bool.self, forKey: .showOnClick)
         showOnClick = false
+        hideApplicationMenusOnInlineReveal = try container.decodeIfPresent(Bool.self, forKey: .hideApplicationMenusOnInlineReveal) ?? true
         gestureToggles = try container.decodeIfPresent(Bool.self, forKey: .gestureToggles) ?? false
         useDirectionalScroll = try container.decodeIfPresent(Bool.self, forKey: .useDirectionalScroll) ?? false
         showOnUserDrag = try container.decodeIfPresent(Bool.self, forKey: .showOnUserDrag) ?? true
@@ -354,7 +359,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case showOnFocusModeChange, triggerFocusModes
         case showOnSchedule, scheduleWeekdays, scheduleStartHour, scheduleStartMinute, scheduleEndHour, scheduleEndMinute
         case requireAuthToShowHiddenIcons
-        case showOnHover, hoverDelay, showOnScroll, showOnClick, gestureToggles
+        case showOnHover, hoverDelay, showOnScroll, showOnClick, hideApplicationMenusOnInlineReveal, gestureToggles
         case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck

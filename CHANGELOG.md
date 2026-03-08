@@ -6,6 +6,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [Unreleased]
+
+- Added a new **Rules → Revealing** toggle: **Hide app menus during inline reveal**
+- Defaulted the new toggle to on for crowded menu bars
+- Import from Ice now preserves that preference instead of dropping it
+
+---
+
 ## [2.1.23] - 2026-03-06
 
 Critical update: fixed Second Menu Bar clicks, browse panel and icon panel reliability, icon movement between Visible Hidden and Always Hidden, launch positioning next to Control Center, and stale menu bar state recovery.
@@ -322,7 +330,7 @@ Fixes second-menu-bar regression where visible icons could collapse into hidden 
 - Enabled Sparkle auto-update framework
 - Updated appcast for automatic updates
 
-> **Note:** Homebrew distribution discontinued as of Jan 2026. See GitHub #26.
+> **Note:** Homebrew distribution was restored in March 2026. Use `brew install --cask sane-apps/tap/sanebar`.
 
 ---
 

@@ -117,6 +117,21 @@ extension SearchService {
         !(didReveal || isBrowseSessionActive || origin == .browsePanel)
     }
 
+    nonisolated static func isFallbackCenterOnScreen(_ fallbackCenter: CGPoint?) -> Bool {
+        guard let fallbackCenter else { return false }
+        return NSScreen.screens.contains { screen in
+            screen.frame.insetBy(dx: -2, dy: -2).contains(fallbackCenter)
+        }
+    }
+
+    nonisolated static func resolvedAllowImmediateFallbackCenter(
+        baseAllowImmediateFallbackCenter: Bool,
+        likelyNoExtrasMenuBar: Bool,
+        fallbackCenterOnScreen: Bool
+    ) -> Bool {
+        baseAllowImmediateFallbackCenter || (likelyNoExtrasMenuBar && fallbackCenterOnScreen)
+    }
+
     nonisolated static func shouldUsePinnedAlwaysHiddenFallback(
         hidingState: HidingState,
         isBrowseSessionActive: Bool

@@ -881,3 +881,4 @@ extension AccessibilityService {
         }
     }
 }
+// swiftlint:enable file_length

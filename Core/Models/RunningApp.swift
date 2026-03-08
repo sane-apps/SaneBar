@@ -115,6 +115,13 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         (bundleId == "com.apple.controlcenter" || bundleId == "com.apple.systemuiserver") && (menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") ?? false)
     }
 
+    /// Zone-based surfaces (Hidden/Visible/Always Hidden, second menu bar, move flows)
+    /// need a precise identity. Bundle-only fallbacks are fine for broad discovery but
+    /// too coarse for reliable move/open behavior.
+    var hasPreciseMenuBarIdentity: Bool {
+        menuExtraIdentifier != nil || statusItemIndex != nil
+    }
+
     /// SF Symbol name for known system menu extras (Bluetooth, Wi-Fi, Battery, etc.).
     /// Used as a view-layer fallback when `icon` is a generic gear from the owning process.
     var preferredSFSymbol: String? {
