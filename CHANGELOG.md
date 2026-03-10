@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.25] - 2026-03-10
+
+Critical stability update for Browse Icons, Second Menu Bar, startup positioning, and inline reveal reliability.
+
+---
+
 ## [2.1.24] - 2026-03-07
 
 Improved Tahoe startup reliability, filtered non-operable ghost entries from zoned menu views, and hardened browse activation stability.

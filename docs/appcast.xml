@@ -3,8 +3,26 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-                                    
-                                <item>
+        <item>
+            <title>2.1.25</title>
+            <pubDate>Tue, 10 Mar 2026 12:28:21 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Critical stability update for Browse Icons, Second Menu Bar, startup positioning, and inline reveal reliability.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.25.zip"
+                       sparkle:version="2125"
+                       sparkle:shortVersionString="2.1.25"
+                       length="8075919"
+                       type="application/octet-stream"
+                       sparkle:edSignature="mok8a1HOaEBFLytbjjo6s+El82ss54hoVOqZoQMGS0ZgFB9jAem9uobqbml5Drpm1cKTY8xSB+ZTu4bYkjsxAQ=="/>
+        </item>
+        <item>
             <title>2.1.24</title>
             <pubDate>Sat, 07 Mar 2026 19:41:43 -0500</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
