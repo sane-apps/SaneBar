@@ -488,17 +488,22 @@ private struct ZoneGuidePage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("• Icon Panel: drag an icon onto the zone tab: Visible, Hidden, or Always Hidden.")
+                Text("• Icon Panel: browse and click icons. Pro lets you drag an icon onto the Visible, Hidden, or Always Hidden tab.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("• Second Menu Bar: drag an icon into the destination row: Visible, Hidden, or Always Hidden.")
+                Text("• Second Menu Bar: browse and click icons in the Hidden and Visible rows. Pro lets you move icons between Visible, Hidden, and Always Hidden.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text("• In the macOS menu bar itself, rearranging uses ⌘ + drag.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("• Basic includes browsing and clicking. Pro adds icon moves, reordering, and the Always Hidden zone.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)

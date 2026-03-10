@@ -60,14 +60,18 @@ extension MenuBarManager {
     }
 
     nonisolated static func normalizedLeftClickOpensBrowseIcons(
-        isPro: Bool,
-        useSecondMenuBar: Bool,
+        isPro _: Bool,
+        useSecondMenuBar _: Bool,
         leftClickOpensBrowseIcons: Bool
     ) -> Bool {
-        guard !isPro, useSecondMenuBar, leftClickOpensBrowseIcons else {
-            return leftClickOpensBrowseIcons
-        }
-        return false
+        leftClickOpensBrowseIcons
+    }
+
+    nonisolated static func effectiveAlwaysHiddenSectionEnabled(
+        isPro: Bool,
+        alwaysHiddenSectionEnabled: Bool
+    ) -> Bool {
+        isPro && alwaysHiddenSectionEnabled
     }
 
     nonisolated static func normalizedSecondMenuBarRows(
@@ -75,12 +79,12 @@ extension MenuBarManager {
         showVisible: Bool,
         showAlwaysHidden: Bool
     ) -> (showVisible: Bool, showAlwaysHidden: Bool) {
-        // Keep free mode coherent and predictable: Second Menu Bar defaults to
-        // Minimal (Hidden only), regardless of stale persisted Pro settings.
+        // Keep free mode coherent and predictable: Second Menu Bar always shows
+        // the Visible and Hidden rows, while keeping Always Hidden off.
         guard !isPro else {
             return (showVisible, showAlwaysHidden)
         }
-        return (false, false)
+        return (true, false)
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -116,7 +120,6 @@ extension MenuBarManager {
         if normalized != settings.leftClickOpensBrowseIcons {
             settings.leftClickOpensBrowseIcons = normalized
             changed = true
-            logger.info("Normalized free-mode left click behavior to Toggle Hidden")
         }
 
         if normalizedRows.showVisible != settings.secondMenuBarShowVisible {
@@ -129,7 +132,15 @@ extension MenuBarManager {
         }
 
         if changed, !isPro {
-            logger.info("Normalized free-mode Second Menu Bar rows to Minimal")
+            logger.info("Normalized free-mode Second Menu Bar rows to Visible + Hidden")
+        }
+
+        updateAlwaysHiddenSeparatorIfReady()
+
+        // Launch-time normalization can run before the settings observers are
+        // installed, so persist directly instead of relying on the autosave sink.
+        if changed {
+            saveSettings()
         }
     }
 
@@ -206,17 +217,7 @@ extension MenuBarManager {
             logger.info("Option-click: opening Browse Icons")
             SearchWindowController.shared.toggle()
         case .leftClick:
-            let normalizedOpenBrowse = Self.normalizedLeftClickOpensBrowseIcons(
-                isPro: LicenseService.shared.isPro,
-                useSecondMenuBar: settings.useSecondMenuBar,
-                leftClickOpensBrowseIcons: settings.leftClickOpensBrowseIcons
-            )
-            if normalizedOpenBrowse != settings.leftClickOpensBrowseIcons {
-                settings.leftClickOpensBrowseIcons = normalizedOpenBrowse
-                logger.info("Left-click setting normalized for free mode")
-            }
-
-            if normalizedOpenBrowse {
+            if settings.leftClickOpensBrowseIcons {
                 logger.info("Left-click: opening Browse Icons (leftClickOpensBrowseIcons)")
                 SearchWindowController.shared.toggle()
             } else {

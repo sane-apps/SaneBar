@@ -10,6 +10,10 @@ extension MenuBarManager {
 
     nonisolated static let separatorVisualWidth: CGFloat = 20
 
+    nonisolated static func separatorFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
+        originX > 0 && width > 0 && width < 1000
+    }
+
     /// Normalize stale/misaligned separator right-edge cache using origin cache,
     /// main-icon estimate, and visible boundary guardrails.
     nonisolated static func normalizedSeparatorRightEdge(
@@ -102,6 +106,20 @@ extension MenuBarManager {
         return (originX, rightEdgeX)
     }
 
+    private func currentLiveSeparatorFrame() -> CGRect? {
+        guard let separatorItem, separatorItem.length <= 1000,
+              let separatorButton = separatorItem.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+
+        let frame = separatorWindow.frame
+        guard Self.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) else {
+            return nil
+        }
+        return frame
+    }
+
     /// Get the separator's LEFT edge X position (for hidden/visible icon classification)
     /// Icons to the LEFT of this position (lower X) are HIDDEN
     /// Icons to the RIGHT of this position (higher X) are VISIBLE
@@ -134,13 +152,12 @@ extension MenuBarManager {
         else {
             return lastKnownSeparatorX
         }
-        let x = separatorWindow.frame.origin.x
+        let frame = separatorWindow.frame
+        let x = frame.origin.x
         // Cache valid on-screen positions for use during blocking mode
-        if x > 0 {
+        if Self.separatorFrameLooksLive(originX: x, width: frame.width) {
             lastKnownSeparatorX = x
-            if separatorWindow.frame.width > 0, separatorWindow.frame.width < 1000 {
-                lastKnownSeparatorRightEdgeX = separatorWindow.frame.origin.x + separatorWindow.frame.width
-            }
+            lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
             return x
         }
 
@@ -293,7 +310,7 @@ extension MenuBarManager {
         // If window frame looks stale (width > 1000 or origin off-screen),
         // WindowServer hasn't finished relayout after showAll() — use cache.
         // showAll() sets length=20 immediately but the window frame lags behind.
-        if frame.width > 1000 || frame.origin.x < 0 {
+        if !Self.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) {
             if let cachedX = resolvedSeparatorRightEdgeFromCaches() {
                 logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
                 return cachedX
@@ -339,18 +356,14 @@ extension MenuBarManager {
     @MainActor
     func warmSeparatorPositionCache(maxAttempts: Int = 12) async {
         for attempt in 1 ... maxAttempts {
-            if let separatorButton = separatorItem?.button,
-               let separatorWindow = separatorButton.window {
-                let frame = separatorWindow.frame
-                if frame.origin.x > 0, frame.width > 0, frame.width < 1000 {
-                    lastKnownSeparatorX = frame.origin.x
-                    lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
-                    _ = getAlwaysHiddenSeparatorOriginX()
-                    if attempt > 1 {
-                        logger.info("🔧 Warmed separator cache after \(attempt) attempts")
-                    }
-                    return
+            if let frame = currentLiveSeparatorFrame() {
+                lastKnownSeparatorX = frame.origin.x
+                lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
+                _ = getAlwaysHiddenSeparatorOriginX()
+                if attempt > 1 {
+                    logger.info("🔧 Warmed separator cache after \(attempt) attempts")
                 }
+                return
             }
 
             _ = getAlwaysHiddenSeparatorOriginX()
@@ -444,17 +457,26 @@ extension MenuBarManager {
         var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
 
         for attempt in 1 ... maxAttempts {
-            let targets = await MainActor.run {
-                self.computeMoveTargets(toHidden: toHidden, separatorOverrideX: separatorOverrideX)
+            let (targets, liveSeparatorReady) = await MainActor.run {
+                let targets = self.computeMoveTargets(toHidden: toHidden, separatorOverrideX: separatorOverrideX)
+                let liveSeparatorReady = separatorOverrideX != nil || self.currentLiveSeparatorFrame() != nil
+                return (targets, liveSeparatorReady)
             }
             lastTargets = targets
 
             if let separatorX = targets.separatorX, separatorX > 0 {
                 if toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0) {
-                    if attempt > 1 {
-                        logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                    if liveSeparatorReady || attempt == maxAttempts {
+                        if attempt > 1 {
+                            logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                        }
+                        return targets
                     }
-                    return targets
+
+                    if attempt == 1 || attempt % 5 == 0 {
+                        logger.debug("🔧 Cached separator target available after \(attempt * 50)ms but live frame is still stale")
+                        logger.debug("🔧 Waiting for live separator frame before accepting cached move target")
+                    }
                 }
             }
 
@@ -766,16 +788,15 @@ extension MenuBarManager {
                 logger.info("🔧 Retrying move once with session tap...")
                 try? await Task.sleep(for: .milliseconds(200))
 
-                if !toHidden {
-                    let retryTargets = await self.resolveMoveTargetsWithRetries(
-                        toHidden: toHidden,
-                        separatorOverrideX: separatorOverrideX
-                    )
-                    if let retrySeparatorX = retryTargets.separatorX {
-                        activeSeparatorX = retrySeparatorX
-                        activeVisibleBoundaryX = retryTargets.visibleBoundaryX
-                        logger.info("🔧 Re-resolved visible move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
-                    }
+                let retryTargets = await self.resolveMoveTargetsWithRetries(
+                    toHidden: toHidden,
+                    separatorOverrideX: separatorOverrideX
+                )
+                if let retrySeparatorX = retryTargets.separatorX {
+                    activeSeparatorX = retrySeparatorX
+                    activeVisibleBoundaryX = retryTargets.visibleBoundaryX
+                    let retryLabel = toHidden ? "hidden" : "visible"
+                    logger.info("🔧 Re-resolved \(retryLabel) move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
                 }
 
                 success = accessibilityService.moveMenuBarIcon(

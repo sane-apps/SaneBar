@@ -375,6 +375,16 @@ struct AccessibilityServiceTests {
         #expect(items.first?.frame.width == 18)
     }
 
+    @Test("Third-party top-bar fallback allowlist recognizes current Little Snitch app bundle")
+    func testShouldAllowThirdPartyTopBarFallbackRecognizesLittleSnitchAppBundle() {
+        #expect(AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "at.obdev.littlesnitch"))
+    }
+
+    @Test("Third-party top-bar fallback allowlist recognizes current Little Snitch daemon bundle")
+    func testShouldAllowThirdPartyTopBarFallbackRecognizesLittleSnitchDaemonBundle() {
+        #expect(AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "at.obdev.littlesnitch.daemon"))
+    }
+
     @Test("WindowServer fallback ignores non-menu-bar windows")
     func testWindowBackedMenuBarItemsIgnoresNonMenuBarWindows() {
         let pid: pid_t = 4242
@@ -397,8 +407,8 @@ struct AccessibilityServiceTests {
         #expect(items.isEmpty)
     }
 
-    @Test("WindowServer fallback prefers the right-most frame per app")
-    func testWindowBackedMenuBarItemsPrefersRightMostFrame() {
+    @Test("WindowServer fallback preserves multiple compact windows per app")
+    func testWindowBackedMenuBarItemsPreservesMultipleFramesPerPID() {
         let pid: pid_t = 4242
         let infos: [[String: Any]] = [
             [
@@ -430,9 +440,35 @@ struct AccessibilityServiceTests {
             candidatePIDs: Set([pid])
         )
 
-        #expect(items.count == 1)
-        #expect(items.first?.frame.origin.x == 220)
-        #expect(items.first?.frame.width == 24)
+        #expect(items.count == 2)
+        #expect(items[0].frame.origin.x == -500)
+        #expect(items[0].fallbackIndex == 0)
+        #expect(items[1].frame.origin.x == 220)
+        #expect(items[1].frame.width == 24)
+        #expect(items[1].fallbackIndex == 1)
+    }
+
+    @Test("Representative WindowServer fallback frame still prefers the right-most frame per app")
+    func testRepresentativeWindowBackedFramesByPIDPrefersRightMostFrame() {
+        let pid: pid_t = 4242
+        let items = [
+            AccessibilityService.WindowBackedStatusItem(
+                pid: pid,
+                frame: CGRect(x: -500, y: 0, width: 22, height: 30),
+                fallbackIndex: 0
+            ),
+            AccessibilityService.WindowBackedStatusItem(
+                pid: pid,
+                frame: CGRect(x: 220, y: 0, width: 24, height: 30),
+                fallbackIndex: 1
+            )
+        ]
+
+        let framesByPID = AccessibilityService.representativeWindowBackedFramesByPID(items)
+
+        #expect(framesByPID.count == 1)
+        #expect(framesByPID[pid]?.origin.x == 220)
+        #expect(framesByPID[pid]?.width == 24)
     }
 
     @Test("Top-bar host detection catches full-width menu bar overlays")
@@ -488,6 +524,32 @@ struct AccessibilityServiceTests {
         #expect(AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "com.obdev.LittleSnitchUIAgent"))
         #expect(!AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "com.brave.Browser"))
         #expect(!AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "com.openai.codex"))
+    }
+
+    @Test("Third-party top-bar owner inclusion accepts precise fallback items outside allowlist")
+    func testShouldIncludeThirdPartyTopBarOwnerWhenPreciseFallbackItemsExist() {
+        #expect(
+            AccessibilityService.shouldIncludeThirdPartyTopBarOwner(
+                bundleID: "com.example.overlay",
+                fallbackItemsCount: 2
+            )
+        )
+    }
+
+    @Test("Third-party top-bar owner inclusion still rejects unknown bundles without precise fallback items")
+    func testShouldIncludeThirdPartyTopBarOwnerRejectsUnknownBundleWithoutItems() {
+        #expect(
+            !AccessibilityService.shouldIncludeThirdPartyTopBarOwner(
+                bundleID: "com.example.overlay",
+                fallbackItemsCount: 0
+            )
+        )
+        #expect(
+            AccessibilityService.shouldIncludeThirdPartyTopBarOwner(
+                bundleID: "at.obdev.littlesnitch.agent",
+                fallbackItemsCount: 0
+            )
+        )
     }
 
     @Test("Observable reaction detects shown menu appearance")

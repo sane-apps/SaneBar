@@ -222,8 +222,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("Re-resolved visible move targets for retry"),
-            "Visible retry path should refresh separator targets before retrying"
+            source.contains("let retryTargets = await self.resolveMoveTargetsWithRetries("),
+            "Standard retry path should refresh move targets before retrying"
+        )
+        XCTAssertTrue(
+            source.contains("let retryLabel = toHidden ? \"hidden\" : \"visible\""),
+            "Standard retry path should label hidden and visible re-resolution distinctly in logs"
+        )
+        XCTAssertTrue(
+            source.contains("Re-resolved \\(retryLabel) move targets for retry"),
+            "Standard retry path should log the re-resolved target set for both hidden and visible retries"
+        )
+        XCTAssertFalse(
+            source.contains("if !toHidden {\n                    let retryTargets"),
+            "Standard retry path should not special-case visible moves when refreshing targets"
         )
         XCTAssertTrue(
             source.contains("Re-resolved always-hidden move targets for retry"),
@@ -240,6 +252,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Always-hidden move accepted after classification verification"),
             "Always-hidden move path should reconcile verification failures with classified zones before returning false"
+        )
+    }
+
+    func testMoveTargetResolutionWaitsForLiveSeparatorFrame() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let liveSeparatorReady = separatorOverrideX != nil || self.currentLiveSeparatorFrame() != nil"),
+            "Move target resolution should wait for a live separator window when the main separator should already be visible"
+        )
+        XCTAssertTrue(
+            source.contains("Waiting for live separator frame before accepting cached move target"),
+            "Move target resolution should log when it is still polling for live separator geometry"
         )
     }
 
@@ -1027,6 +1053,29 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testQARegressionCloseGuardExemptsHistoricalDuplicateAndSupersededClosures() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Scripts/qa.rb")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("def closed_regression_confirmation_exemption_reason"),
+            "Closed-regression confirmation guardrails should classify historical closure reasons before demanding reporter confirmation"
+        )
+        XCTAssertTrue(
+            source.contains(#"/duplicate of #\d+/i"#),
+            "Closed-regression confirmation guardrails should exempt duplicate closures from reporter-confirmation requirements"
+        )
+        XCTAssertTrue(
+            source.contains("/superseded by/i"),
+            "Closed-regression confirmation guardrails should exempt superseded closures from reporter-confirmation requirements"
+        )
+        XCTAssertTrue(
+            source.contains("/settings mismatch/i") &&
+            source.contains("never got the requested diagnostics"),
+            "Closed-regression confirmation guardrails should exempt stale settings-mismatch closures that never produced current diagnostics"
+        )
+    }
+
     func testQARuntimeSmokeStagesReleaseAndRequiresMini() throws {
         let fileURL = projectRootURL().appendingPathComponent("Scripts/qa.rb")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -1044,12 +1093,22 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA should stage the release app before runtime smoke"
         )
         XCTAssertTrue(
-            source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '1'"),
-            "Project QA runtime smoke should require screenshot artifacts"
+            source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
+                source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => screenshot_capture_available ? '1' : '0'"),
+            "Project QA runtime smoke should probe screenshot capability before requiring capture"
+        )
+        XCTAssertTrue(
+            source.contains("def runtime_screenshot_capture_available?") &&
+                source.contains("/usr/sbin/screencapture"),
+            "Project QA runtime smoke should verify screenshot capability with the native screencapture tool"
+        )
+        XCTAssertTrue(
+            source.contains("screenshots skipped on this host"),
+            "Project QA runtime smoke should explicitly report when host screenshot capture is unavailable"
         )
         XCTAssertTrue(
             source.contains("expected_screenshots = runtime_smoke_expected_modes(target).to_h"),
-            "Project QA runtime smoke should require screenshot artifacts for every browse layout supported by the staged app"
+            "Project QA runtime smoke should still resolve screenshot artifacts for every browse layout when capture is available"
         )
         XCTAssertTrue(
             source.contains(#"Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png"))"#),
@@ -1372,6 +1431,44 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("'right click browse icon'"),
             "Live smoke should check support using full multi-word AppleScript command names"
         )
+        XCTAssertTrue(
+            source.contains("current_browse_activation_diagnostics") &&
+            source.contains("salvage_timed_out_browse_activation"),
+            "Live smoke should salvage SSH AppleScript reply timeouts using fresh in-app diagnostics"
+        )
+        XCTAssertTrue(
+            source.contains("browse_activation_observably_verified?") &&
+            source.contains("accepted=true") &&
+            source.contains("verification=verified"),
+            "Live smoke should require an accepted, observably verified browse activation before treating the panel click path as healthy"
+        )
+        XCTAssertTrue(
+            source.contains("STANDARD_APP_MENU_TITLES") &&
+            source.contains("likely_standard_app_menu_candidate?") &&
+            source.contains("app_menu_bundle_ids(raw_candidates)") &&
+            source.contains("coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])"),
+            "Live smoke should ignore standard app-menu titles when choosing move candidates so all-candidate sweeps stay focused on real menu extras"
+        )
+        XCTAssertTrue(
+            source.contains("!non_idempotent_app_script?(statement)") &&
+            source.contains("statement.start_with?('activate browse icon ')"),
+            "Live smoke should not blindly retry side-effectful browse activation AppleScript commands after a timeout"
+        )
+        XCTAssertTrue(
+            source.contains("APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20") &&
+            source.contains("statement == 'list icon zones' || statement == 'list icons'"),
+            "Live smoke should allow longer timeouts for heavy read-only AppleScript commands during cold-start smoke"
+        )
+        XCTAssertTrue(
+            source.contains("Salvaging timed-out move command via zone verification") &&
+            source.contains("timed_out_move_command?"),
+            "Live smoke should verify the final zone before failing a move command whose AppleScript reply timed out"
+        )
+        XCTAssertTrue(
+            source.contains("retryable_zone_poll_error?") &&
+            source.contains("after transient poll failures"),
+            "Live smoke should keep polling through transient list-icon-zones timeouts while the menu bar is relayouting"
+        )
     }
 
     func testRightClickPathAttemptsAXShowMenuBeforeHardwareFallback() throws {
@@ -1689,6 +1786,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Search activation should gate browse/revealed clicks behind observable verification policy"
         )
         XCTAssertTrue(
+            try diagnosticsSource().contains("verification.hasPrefix(\"verified\")"),
+            "Observable-reaction click acceptance should require verified feedback, not merely non-unavailable diagnostics"
+        )
+        XCTAssertTrue(
             searchSource.contains("SearchWindowController.shared.isBrowseSessionActive"),
             "Second menu bar activation should use active browse-session state when deciding whether to trust a click"
         )
@@ -1696,6 +1797,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             searchSource.contains("Rejecting unverified click success for revealed/browse-session activation"),
             "Unverified hardware click dispatch must not be treated as success for second-menu-bar/revealed flows"
         )
+    }
+
+    private func diagnosticsSource() throws -> String {
+        let diagnosticsURL = projectRootURL().appendingPathComponent("Core/Services/SearchService+Diagnostics.swift")
+        return try String(contentsOf: diagnosticsURL, encoding: .utf8)
     }
 
     func testAppleScriptActivationCommandsUseRunLoopWaitInsteadOfSemaphore() throws {

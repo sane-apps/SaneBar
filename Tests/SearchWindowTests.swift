@@ -67,6 +67,74 @@ struct SearchWindowTests {
         #expect(true)
     }
 
+    @Test("Duplicate badges number repeated menu extras by bundle and name in x-order")
+    func duplicateBadgesNumberRepeatedMenuExtrasInXOrder() {
+        let stats2 = RunningApp(
+            id: "eu.exelban.Stats",
+            name: "Stats",
+            icon: nil,
+            statusItemIndex: 2,
+            xPosition: 140
+        )
+        let stats0 = RunningApp(
+            id: "eu.exelban.Stats",
+            name: "Stats",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 20
+        )
+        let stats3 = RunningApp(
+            id: "eu.exelban.Stats",
+            name: "Stats",
+            icon: nil,
+            statusItemIndex: 3,
+            xPosition: 200
+        )
+        let stats1 = RunningApp(
+            id: "eu.exelban.Stats",
+            name: "Stats",
+            icon: nil,
+            statusItemIndex: 1,
+            xPosition: 80
+        )
+        let wifi = RunningApp.controlCenterItem(
+            name: "Wi-Fi",
+            identifier: "com.apple.menuextra.wifi",
+            xPosition: 260
+        )
+
+        let markers = BrowseDuplicateMarker.markers(for: [stats2, stats0, wifi, stats3, stats1])
+
+        #expect(markers[stats0.uniqueId] == BrowseDuplicateMarker(ordinal: 1, total: 4))
+        #expect(markers[stats1.uniqueId] == BrowseDuplicateMarker(ordinal: 2, total: 4))
+        #expect(markers[stats2.uniqueId] == BrowseDuplicateMarker(ordinal: 3, total: 4))
+        #expect(markers[stats3.uniqueId] == BrowseDuplicateMarker(ordinal: 4, total: 4))
+        #expect(markers[wifi.uniqueId] == nil)
+    }
+
+    @Test("Duplicate badges do not merge same-bundle items with different names")
+    func duplicateBadgesRespectDistinctNamesWithinSameBundle() {
+        let wifi = RunningApp.controlCenterItem(
+            name: "Wi-Fi",
+            identifier: "com.apple.menuextra.wifi",
+            xPosition: 100
+        )
+        let display = RunningApp.controlCenterItem(
+            name: "Display",
+            identifier: "com.apple.menuextra.display",
+            xPosition: 130
+        )
+        let focus = RunningApp.controlCenterItem(
+            name: "Focus",
+            identifier: "com.apple.menuextra.focusmode",
+            xPosition: 160
+        )
+
+        let markers = BrowseDuplicateMarker.markers(for: [wifi, display, focus])
+
+        #expect(markers.isEmpty)
+    }
+
     @Test("Search activation diagnostics keep resolution and retry details")
     func testSearchActivationDiagnosticsSummary() {
         let diagnostics = SearchService.ActivationDiagnostics(
@@ -125,6 +193,13 @@ struct SearchWindowTests {
             !SearchService.acceptsClickResult(
                 success: true,
                 verification: "unavailable (no comparable AX reaction signals)",
+                requireObservableReaction: true
+            )
+        )
+        #expect(
+            !SearchService.acceptsClickResult(
+                success: true,
+                verification: "failed (no observable menu/panel reaction)",
                 requireObservableReaction: true
             )
         )
@@ -346,8 +421,8 @@ struct SearchWindowTests {
         #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
     }
 
-    @Test("Zoned menu bar views exclude coarse fallback entries")
-    func testZonedMenuBarItemsExcludeCoarseFallbacks() {
+    @Test("Zoned menu bar views keep fallback-only entries but drop coarse duplicates")
+    func testZonedMenuBarItemsPreferPreciseIdentityPerBundle() {
         let preciseAX = AccessibilityService.MenuBarItemPosition(
             app: RunningApp(
                 id: "com.example.precise",
@@ -374,8 +449,8 @@ struct SearchWindowTests {
         )
         let coarse = AccessibilityService.MenuBarItemPosition(
             app: RunningApp(
-                id: "com.example.coarse",
-                name: "Coarse",
+                id: "com.example.precise",
+                name: "CoarseDuplicate",
                 icon: nil,
                 xPosition: 160,
                 width: 24
@@ -383,14 +458,26 @@ struct SearchWindowTests {
             x: 160,
             width: 24
         )
+        let coarseOnly = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "com.example.fallback",
+                name: "FallbackOnly",
+                icon: nil,
+                xPosition: 190,
+                width: 24
+            ),
+            x: 190,
+            width: 24
+        )
 
-        let filtered = SearchService.zonedMenuBarItems(from: [preciseAX, preciseIndexed, coarse])
+        let filtered = SearchService.zonedMenuBarItems(from: [preciseAX, preciseIndexed, coarse, coarseOnly])
 
         #expect(filtered.map(\.app.uniqueId) == [
             preciseAX.app.uniqueId,
-            preciseIndexed.app.uniqueId
+            preciseIndexed.app.uniqueId,
+            coarseOnly.app.uniqueId
         ])
-        #expect(filtered.allSatisfy { $0.app.hasPreciseMenuBarIdentity })
+        #expect(filtered.contains { $0.app.uniqueId == coarseOnly.app.uniqueId && !$0.app.hasPreciseMenuBarIdentity })
     }
 
     @Test("SaneBar diagnostics collector includes search and panel snapshots")

@@ -49,6 +49,7 @@ struct MenuBarSearchView: View {
 
     @State var hotkeyApp: RunningApp?
     @State var proUpsellFeature: ProFeature?
+    @State private var showingBrowseHelp = false
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
@@ -77,7 +78,7 @@ struct MenuBarSearchView: View {
     }
 
     var isAlwaysHiddenEnabled: Bool {
-        menuBarManager.alwaysHiddenSeparatorItem != nil
+        LicenseService.shared.isPro && menuBarManager.alwaysHiddenSeparatorItem != nil
     }
 
     var mode: Mode {
@@ -96,10 +97,7 @@ struct MenuBarSearchView: View {
     }
 
     private var availableModes: [Mode] {
-        if isAlwaysHiddenEnabled {
-            return Mode.allCases
-        }
-        return Mode.allCases.filter { $0 != .alwaysHidden }
+        Mode.allCases
     }
 
     /// Categories that have at least one app (for smart group tabs)
@@ -338,6 +336,10 @@ struct MenuBarSearchView: View {
         filteredApps
     }
 
+    private var duplicateMarkers: [String: BrowseDuplicateMarker] {
+        BrowseDuplicateMarker.markers(for: filteredApps)
+    }
+
     /// Monitor for permission changes - auto-reload when user grants permission
     @MainActor
     private func startPermissionMonitoring() {
@@ -555,8 +557,16 @@ struct MenuBarSearchView: View {
 
     private func modeSegment(_ segmentMode: Mode) -> some View {
         let selected = mode == segmentMode
-        return Text(segmentMode.title)
-            .font(.system(size: 12, weight: selected ? .semibold : .medium))
+        let isLockedAlwaysHidden = segmentMode == .alwaysHidden && !isAlwaysHiddenEnabled
+
+        return HStack(spacing: 5) {
+            Text(segmentMode.title)
+                .font(.system(size: 12, weight: selected ? .semibold : .medium))
+            if isLockedAlwaysHidden {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9, weight: .bold))
+            }
+        }
             .foregroundStyle(selected ? .white : .white.opacity(0.92))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -571,6 +581,14 @@ struct MenuBarSearchView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
+                            : isLockedAlwaysHidden
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [accentStart.opacity(0.24), accentEnd.opacity(0.18)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                             : AnyShapeStyle(
                                 LinearGradient(
                                     colors: [Color.white.opacity(0.11), Color.white.opacity(0.05)],
@@ -585,6 +603,8 @@ struct MenuBarSearchView: View {
                     .stroke(
                         selected
                             ? Color.white.opacity(0.26)
+                            : isLockedAlwaysHidden
+                                ? Color.white.opacity(0.22)
                             : Color.white.opacity(0.18),
                         lineWidth: 1
                     )
@@ -592,11 +612,20 @@ struct MenuBarSearchView: View {
             .shadow(color: selected ? Color.black.opacity(0.2) : .clear, radius: 6, y: 1)
             .contentShape(RoundedRectangle(cornerRadius: 8))
             .onTapGesture {
-                storedMode = segmentMode.rawValue
+                if isLockedAlwaysHidden {
+                    proUpsellFeature = .alwaysHidden
+                } else {
+                    storedMode = segmentMode.rawValue
+                }
             }
             .dropDestination(for: String.self) { payloads, _ in
                 handleZoneDrop(payloads, targetMode: segmentMode)
             }
+            .help(
+                isLockedAlwaysHidden
+                    ? "Pro unlocks the Always Hidden zone, a third tab for icons you never want to see."
+                    : segmentMode.title
+            )
     }
 
     private var groupTabs: some View {
@@ -845,15 +874,42 @@ struct MenuBarSearchView: View {
                 .foregroundStyle(.white.opacity(0.9))
 
             Spacer()
-            Image(systemName: "questionmark.circle.fill")
-                .foregroundStyle(.white.opacity(0.72))
-                .help("Right-click an icon for actions")
-                .accessibilityLabel("Browse actions help")
+            Button {
+                showingBrowseHelp.toggle()
+            } label: {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+            .buttonStyle(.plain)
+            .help("How Browse Icons works")
+            .accessibilityLabel("Browse actions help")
+            .popover(isPresented: $showingBrowseHelp, arrowEdge: .bottom) {
+                browseHelpPopover
+            }
         }
         .font(.system(size: 13))
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(.white.opacity(0.05))
+    }
+
+    private var browseHelpPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How Browse Icons works")
+                .font(.system(size: 13, weight: .semibold))
+            if LicenseService.shared.isPro {
+                Text("Use the Hidden, Visible, and Always Hidden tabs to browse each zone.")
+                Text("Drag an icon onto one of those tabs to move it there.")
+                Text("Right-click an icon for Move actions.")
+            } else {
+                Text("Use the Hidden and Visible tabs to browse each zone.")
+                Text("Click an icon to open it from the panel.")
+                Text("The teal Always Hidden tab is locked in Basic. Upgrade to unlock that third zone.")
+            }
+        }
+        .font(.system(size: 12))
+        .padding(12)
+        .frame(width: 260, alignment: .leading)
     }
 
     private var accessibilityPrompt: some View {
@@ -1030,7 +1086,12 @@ struct MenuBarSearchView: View {
                     spacing: grid.spacing
                 ) {
                     ForEach(Array(filteredApps.enumerated()), id: \.element.id) { index, app in
-                        makeTile(app: app, index: index, grid: grid)
+                        makeTile(
+                            app: app,
+                            index: index,
+                            grid: grid,
+                            duplicateMarker: duplicateMarkers[app.uniqueId]
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading) // Push to top-left
@@ -1046,7 +1107,12 @@ struct MenuBarSearchView: View {
     /// Extracted to a helper to keep the type checker happy — the tile has many
     /// optional closures and inline ternaries that blow up `appGrid` otherwise.
     @ViewBuilder
-    private func makeTile(app: RunningApp, index: Int, grid: SearchGridSizing) -> some View {
+    private func makeTile(
+        app: RunningApp,
+        index: Int,
+        grid: SearchGridSizing,
+        duplicateMarker: BrowseDuplicateMarker?
+    ) -> some View {
         let isPro = LicenseService.shared.isPro
         MenuBarAppTile(
             app: app,
@@ -1075,7 +1141,8 @@ struct MenuBarSearchView: View {
             onMoveToHidden: isPro ? makeMoveToHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
             isMoving: movingAppId == app.uniqueId,
             isSelected: selectedAppIndex == index,
-            isPro: isPro
+            isPro: isPro,
+            duplicateMarker: duplicateMarker
         )
         .dropDestination(for: String.self) { payloads, _ in
             handleGridReorderDrop(payloads, targetApp: app)

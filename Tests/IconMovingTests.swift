@@ -1019,6 +1019,17 @@ struct MoveToVisibleRegressionTests {
 
 @Suite("Icon Moving — Separator Cache Coherency")
 struct IconMovingSeparatorCacheCoherencyTests {
+    @Test("Accepts live separator frame when origin is on-screen and width is visual size")
+    func acceptsLiveSeparatorFrame() {
+        #expect(MenuBarManager.separatorFrameLooksLive(originX: 1537, width: 83))
+    }
+
+    @Test("Rejects stale separator frame when off-screen or blocking sized")
+    func rejectsStaleSeparatorFrame() {
+        #expect(MenuBarManager.separatorFrameLooksLive(originX: -3527, width: 36) == false)
+        #expect(MenuBarManager.separatorFrameLooksLive(originX: 1537, width: 5002) == false)
+    }
+
     @Test("Repairs stale right-edge cache from origin cache")
     func repairsStaleRightEdgeFromOrigin() {
         let resolved = MenuBarManager.normalizedSeparatorRightEdge(

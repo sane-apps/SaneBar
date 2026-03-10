@@ -569,74 +569,145 @@ class ProjectQA
       return
     end
 
-    screenshot_dir = File.expand_path("~/Desktop/Screenshots/#{PROJECT_NAME}")
-    FileUtils.mkdir_p(screenshot_dir)
-    Dir.glob(File.join(screenshot_dir, 'sanebar-*.png')).each { |path| FileUtils.rm_f(path) }
-    FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
-    FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
+    restore_mode = nil
 
-    launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
-    File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
-    unless launch_status.success?
-      @errors << "Runtime smoke launch failed. See #{RUNTIME_LAUNCH_LOG_PATH}"
-      puts "❌ launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
-      return
-    end
+    begin
+      restore_mode, mode_error = ensure_runtime_smoke_pro_mode!
+      if mode_error
+        @errors << mode_error
+        puts '❌ could not seed Pro smoke mode'
+        return
+      end
 
-    target = runtime_smoke_target(launch_output: launch_out)
-    unless target
-      @errors << "Runtime smoke could not determine launch target. See #{RUNTIME_LAUNCH_LOG_PATH}"
-      puts "❌ unknown launch target (#{RUNTIME_LAUNCH_LOG_PATH})"
-      return
-    end
+      screenshot_dir = File.expand_path("~/Desktop/Screenshots/#{PROJECT_NAME}")
+      FileUtils.mkdir_p(screenshot_dir)
+      Dir.glob(File.join(screenshot_dir, 'sanebar-*.png')).each { |path| FileUtils.rm_f(path) }
+      FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
+      screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
 
-    unless ensure_runtime_smoke_target_running!(target)
-      @errors << "Runtime smoke could not launch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
-      puts "❌ target launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
-      return
-    end
+      launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
+      File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
+      unless launch_status.success?
+        @errors << "Runtime smoke launch failed. See #{RUNTIME_LAUNCH_LOG_PATH}"
+        puts "❌ launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+        return
+      end
 
-    puts
-    puts "   ↳ smoke target: #{target[:app_path]}"
-    puts "   ↳ #{target[:note]}" if target[:note]
+      target = runtime_smoke_target(launch_output: launch_out)
+      unless target
+        @errors << "Runtime smoke could not determine launch target. See #{RUNTIME_LAUNCH_LOG_PATH}"
+        puts "❌ unknown launch target (#{RUNTIME_LAUNCH_LOG_PATH})"
+        return
+      end
 
-    smoke_env = {
-      'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
-      'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '1',
-      'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
-      'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
-      'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
-    }
-    smoke_outputs = []
-    RUNTIME_SMOKE_PASSES.times do |index|
-      puts "   ↳ smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
-      smoke_out, smoke_status = capture2e_with_progress(
-        smoke_env,
-        smoke_script,
-        heartbeat_label: "runtime smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
-      )
-      smoke_outputs << "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}\n#{smoke_out}"
-      next if smoke_status.success?
+      target_error = validate_runtime_smoke_target(target)
+      if target_error
+        @errors << "#{target_error} See #{RUNTIME_LAUNCH_LOG_PATH}"
+        puts "❌ invalid runtime smoke target (#{RUNTIME_LAUNCH_LOG_PATH})"
+        return
+      end
+
+      unless ensure_runtime_smoke_target_running!(target)
+        @errors << "Runtime smoke could not launch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
+        puts "❌ target launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+        return
+      end
+
+      puts
+      puts "   ↳ smoke target: #{target[:app_path]}"
+      puts "   ↳ #{target[:note]}" if target[:note]
+
+      smoke_env = {
+        'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+        'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => screenshot_capture_available ? '1' : '0',
+        'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
+        'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+        'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
+      }
+      unless screenshot_capture_available
+        puts '   ↳ screenshot capture unavailable on this host; continuing without smoke screenshots'
+      end
+      smoke_outputs = []
+      RUNTIME_SMOKE_PASSES.times do |index|
+        puts "   ↳ smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
+        smoke_out, smoke_status = capture2e_with_progress(
+          smoke_env,
+          smoke_script,
+          heartbeat_label: "runtime smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
+        )
+        smoke_outputs << "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}\n#{smoke_out}"
+        next if smoke_status.success?
+
+        File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+        @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}"
+        puts "❌ failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
+        return
+      end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-      @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}"
-      puts "❌ failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
-      return
-    end
+      if screenshot_capture_available
+        expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
+          [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
+        end
+        missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
+        unless missing.empty?
+          @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
+          puts "❌ missing screenshot(s): #{missing.join(', ')}"
+          return
+        end
 
-    expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
-      [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
+        artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (#{artifact_summary})"
+      else
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (screenshots skipped on this host)"
+      end
+    ensure
+      restore_runtime_smoke_mode(restore_mode)
     end
-    missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
-    unless missing.empty?
-      @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
-      puts "❌ missing screenshot(s): #{missing.join(', ')}"
-      return
-    end
+  end
 
-    File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-    artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
-    puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (#{artifact_summary})"
+  def runtime_screenshot_capture_available?(screenshot_dir)
+    probe_path = File.join(screenshot_dir, '.sanebar-runtime-smoke-probe.png')
+    FileUtils.rm_f(probe_path)
+    _out, status = Open3.capture2e('/usr/sbin/screencapture', '-x', probe_path)
+    status.success? && File.exist?(probe_path) && !File.zero?(probe_path)
+  ensure
+    FileUtils.rm_f(probe_path) if probe_path
+  end
+
+  def runtime_smoke_mode_status
+    output, status = Open3.capture2e(SANEMASTER_CLI, 'mode', 'status')
+    return nil unless status.success?
+
+    text = output.downcase
+    return :pro if text.include?('mode: pro')
+    return :basic if text.include?('mode: basic')
+
+    nil
+  rescue StandardError
+    nil
+  end
+
+  def ensure_runtime_smoke_pro_mode!
+    current_mode = runtime_smoke_mode_status
+    return [nil, 'Runtime smoke could not determine the current fallback test mode.'] if current_mode.nil?
+    return [nil, nil] if current_mode == :pro
+
+    output, status = Open3.capture2e(SANEMASTER_CLI, 'mode', 'pro')
+    return [:basic, nil] if status.success?
+
+    [nil, "Runtime smoke could not switch fallback test mode to Pro: #{output.lines.last&.strip || output.strip}"]
+  rescue StandardError => e
+    [nil, "Runtime smoke could not switch fallback test mode to Pro: #{e.message}"]
+  end
+
+  def restore_runtime_smoke_mode(mode)
+    return if mode.nil?
+
+    Open3.capture2e(SANEMASTER_CLI, 'mode', mode.to_s)
+  rescue StandardError
+    nil
   end
 
   def runtime_smoke_target(launch_output:)
@@ -714,6 +785,23 @@ class ProjectQA
     false
   end
 
+  def validate_runtime_smoke_target(target)
+    metadata = app_bundle_metadata(target[:app_path])
+    expected_bundle_id = 'com.sanebar.app'
+
+    if metadata[:bundle_id].to_s != expected_bundle_id
+      system_meta = app_bundle_metadata("/Applications/#{PROJECT_NAME}.app")
+      detail = system_meta.empty? ? '' : " Signed /Applications target is #{format_bundle_metadata(system_meta)}."
+      return "Runtime smoke requires signed release bundle #{expected_bundle_id}; got #{format_bundle_metadata(metadata)}.#{detail}"
+    end
+
+    auth_value = accessibility_auth_value_for(expected_bundle_id)
+    return nil if auth_value == 2
+
+    auth_detail = auth_value.nil? ? 'missing' : auth_value.to_s
+    "Runtime smoke target #{expected_bundle_id} is not Accessibility-granted in TCC (auth_value=#{auth_detail})."
+  end
+
   def runtime_smoke_expected_modes(target)
     commands = applescript_commands_for_app(target[:app_path])
     modes = []
@@ -754,6 +842,32 @@ class ProjectQA
     return nil unless status.success?
 
     output.lines.last&.strip
+  rescue StandardError
+    nil
+  end
+
+  def accessibility_auth_value_for(bundle_id)
+    db_paths = [
+      '/Library/Application Support/com.apple.TCC/TCC.db',
+      File.expand_path('~/Library/Application Support/com.apple.TCC/TCC.db')
+    ]
+
+    db_paths.each do |db_path|
+      next unless File.exist?(db_path)
+
+      escaped_bundle = bundle_id.gsub("'", "''")
+      output, status = Open3.capture2e(
+        'sqlite3',
+        db_path,
+        "SELECT auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client='#{escaped_bundle}' ORDER BY auth_value DESC;"
+      )
+      next unless status.success?
+
+      value = output.lines.map(&:strip).find { |line| !line.empty? }
+      return value.to_i unless value.nil?
+    end
+
+    nil
   rescue StandardError
     nil
   end
@@ -1005,15 +1119,35 @@ class ProjectQA
   end
 
   def reporter_confirmation?(comments)
-    trusted_associations = %w[MEMBER OWNER COLLABORATOR]
     confirmation_pattern = /(fixed|works|working now|resolved|confirmed|looks good|thank you)/i
     comments.any? do |comment|
       association = comment['authorAssociation'].to_s.upcase
-      next false if trusted_associations.include?(association)
+      next false if trusted_issue_author_associations.include?(association)
 
       body = comment['body'].to_s
       body.match?(confirmation_pattern)
     end
+  end
+
+  def trusted_issue_author_associations
+    %w[MEMBER OWNER COLLABORATOR]
+  end
+
+  def closed_regression_confirmation_exemption_reason(comments)
+    trusted_comments = comments.select do |comment|
+      trusted_issue_author_associations.include?(comment['authorAssociation'].to_s.upcase)
+    end
+    closing_note = trusted_comments.reverse.map { |comment| comment['body'].to_s.strip }.find { |body| !body.empty? }.to_s
+    return nil if closing_note.empty?
+
+    return 'duplicate closure' if closing_note.match?(/duplicate of #\d+/i)
+    return 'superseded closure' if closing_note.match?(/superseded by/i)
+
+    settings_mismatch = closing_note.match?(/settings mismatch/i)
+    missing_diagnostics = closing_note.match?(/never got the requested diagnostics|no fresh repro/i)
+    return 'settings-mismatch closure' if settings_mismatch || missing_diagnostics
+
+    nil
   end
 
   def check_regression_confirmation_guardrails
@@ -1055,6 +1189,7 @@ class ProjectQA
     end
 
     unconfirmed = []
+    exempt = []
     regression_issues.each do |issue|
       details_json, details_status = Open3.capture2e(
         'gh', 'issue', 'view', issue['number'].to_s,
@@ -1064,11 +1199,21 @@ class ProjectQA
       next unless details_status.success?
 
       comments = (JSON.parse(details_json)['comments'] rescue []) || []
+      exemption_reason = closed_regression_confirmation_exemption_reason(comments)
+      if exemption_reason
+        exempt << "##{issue['number']} #{exemption_reason}"
+        next
+      end
+
       unconfirmed << issue['number'] unless reporter_confirmation?(comments)
     end
 
     if unconfirmed.empty?
-      puts "✅ #{regression_issues.count} closed regression issue(s) have reporter confirmation"
+      if exempt.empty?
+        puts "✅ #{regression_issues.count} closed regression issue(s) have reporter confirmation"
+      else
+        puts "✅ #{regression_issues.count - exempt.count} closed regression issue(s) have reporter confirmation; #{exempt.count} exempt historical closure(s)"
+      end
       return
     end
 

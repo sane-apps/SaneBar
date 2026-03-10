@@ -20,6 +20,12 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         XCTAssertEqual(preset, .minimal)
     }
 
+    func testSecondMenuBarPresetTitlesUsePlainLanguage() {
+        XCTAssertEqual(GeneralSettingsView.SecondMenuBarPreset.minimal.title, "Hidden Row")
+        XCTAssertEqual(GeneralSettingsView.SecondMenuBarPreset.balanced.title, "Hidden + Visible")
+        XCTAssertEqual(GeneralSettingsView.SecondMenuBarPreset.power.title, "All Rows")
+    }
+
     func testSecondMenuBarPresetResolveBalanced() {
         let preset = GeneralSettingsView.SecondMenuBarPreset.resolve(
             showVisible: true,
@@ -44,13 +50,13 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         XCTAssertEqual(preset, .power)
     }
 
-    func testFreeSecondMenuBarForcesLeftClickToggleHidden() {
+    func testFreeSecondMenuBarCanKeepLeftClickOpenBrowse() {
         let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
             isPro: false,
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: true
         )
-        XCTAssertFalse(normalized)
+        XCTAssertTrue(normalized)
     }
 
     func testProSecondMenuBarKeepsLeftClickOpenBrowse() {
@@ -71,13 +77,13 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         XCTAssertTrue(normalized)
     }
 
-    func testFreeModeNormalizesSecondMenuBarRowsToMinimal() {
+    func testFreeModeNormalizesSecondMenuBarRowsToVisibleAndHidden() {
         let normalized = MenuBarManager.normalizedSecondMenuBarRows(
             isPro: false,
-            showVisible: true,
+            showVisible: false,
             showAlwaysHidden: true
         )
-        XCTAssertFalse(normalized.showVisible)
+        XCTAssertTrue(normalized.showVisible)
         XCTAssertFalse(normalized.showAlwaysHidden)
     }
 
@@ -89,6 +95,49 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         )
         XCTAssertTrue(normalized.showVisible)
         XCTAssertFalse(normalized.showAlwaysHidden)
+    }
+
+    func testFreeModeDisablesAlwaysHiddenSectionEffectively() {
+        XCTAssertFalse(
+            MenuBarManager.effectiveAlwaysHiddenSectionEnabled(
+                isPro: false,
+                alwaysHiddenSectionEnabled: true
+            )
+        )
+    }
+
+    func testProModeKeepsAlwaysHiddenSectionWhenEnabled() {
+        XCTAssertTrue(
+            MenuBarManager.effectiveAlwaysHiddenSectionEnabled(
+                isPro: true,
+                alwaysHiddenSectionEnabled: true
+            )
+        )
+    }
+
+    @MainActor
+    func testLaunchTimeFreeModeNormalizationPersistsRowsBeforeObserversExist() {
+        LicenseService.shared.deactivate()
+
+        let persistence = PersistenceServiceProtocolMock()
+        let manager = MenuBarManager(
+            persistenceService: persistence,
+            settingsController: SettingsController(persistence: persistence)
+        )
+        manager.settings.useSecondMenuBar = true
+        manager.settings.secondMenuBarShowVisible = false
+        manager.settings.secondMenuBarShowAlwaysHidden = true
+        manager.settings.leftClickOpensBrowseIcons = true
+
+        manager.normalizeLicenseDependentDefaults()
+
+        XCTAssertTrue(manager.settings.secondMenuBarShowVisible)
+        XCTAssertFalse(manager.settings.secondMenuBarShowAlwaysHidden)
+        XCTAssertTrue(manager.settings.leftClickOpensBrowseIcons)
+        XCTAssertEqual(persistence.saveSettingsCallCount, 1)
+        XCTAssertTrue(persistence.saveSettingsArgValues.last?.secondMenuBarShowVisible ?? false)
+        XCTAssertFalse(persistence.saveSettingsArgValues.last?.secondMenuBarShowAlwaysHidden ?? true)
+        XCTAssertTrue(persistence.saveSettingsArgValues.last?.leftClickOpensBrowseIcons ?? false)
     }
 
     func testSparkleUpdatesAllowedForReleaseBundleIdentifier() {

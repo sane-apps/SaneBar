@@ -141,12 +141,14 @@ Use this table before replying, closing, or opening another issue. Keep one prim
 | Issue | State | Primary bucket | Why it belongs there | Notes |
 |------|------|------|------|------|
 | `#106` | open | `R1` | Browse Icons move path fails; logs show unresolved on-screen frame and bad hardware-fallback coordinates on an external monitor | Treat as current canonical browse-move issue for external-monitor style repros |
-| `#105` | open | `R2` | Second Menu Bar opens, then click path reports success with no observed effect | Current canonical notch-display second-menu-bar activation issue |
-| `#102` | open | `R4` | Report is mostly screenshots plus configuration confusion; no fresh diagnostics yet | Keep open until reporter confirms on a current build or gives fresh logs |
+| `#109` | open | `R1` | Fresh 2.1.24 reporter diagnostics show repeated move-to-visible verification failures; same report also exposed browse undercount | Mixed thread: primary bucket stays `R1`, but it also carries `R5` evidence |
+| `#108` | open | `R5` | Screenshot plus diagnostics prove Browse undercount: SaneBar found 32 menu bar items while the Second Menu Bar rendered only visible=4 hidden=7 | Real detection/data-pipeline bug, not just customer confusion |
+| `#105` | closed | `R2` | Duplicate of `#101` from the same reporter/machine after the later second-menu-bar follow-up landed | Historical duplicate; keep `#101` as the canonical public thread |
+| `#102` | closed | `R4` | Report is mostly screenshots plus configuration confusion; no fresh diagnostics ever arrived on a current build | Closed as settings-mismatch / stale-diagnostics, not as a verified runtime regression |
 | `#101` | open | `R2` | Reporter supplied fresh 2.1.22 diagnostics showing second-menu-bar activation mismatch and unstable relayout | Historical evidence for the same family as `#105` |
-| `#95` | open | `R1` | Click/move and ghost-cursor family; older but still same move/activation cluster | Keep linked to `#94` / `#93` until current-build confirmation exists |
+| `#95` | closed | `R1` | Click/move and ghost-cursor family; later reports in `#94` / `#106` have the fresher builds and follow-up | Historical superseded thread; do not use as the current public reference |
 | `#94` | open | `R5` | Latest 2.1.23 feedback says generic app opening/movement is mainly fixed, but specific apps (Little Snitch, Solver 3, Carrot Weather) still fail | Treat current `#94` as the residual host-model / no-AX activation thread, not the whole-system move bug anymore |
-| `#93` | open | `R1` | Original ghost-cursor move-to-visible issue | Historical evidence thread; do not lose its reporter comments even if later superseded |
+| `#93` | closed | `R1` | Original ghost-cursor move-to-visible issue | Historical superseded thread; keep for evidence, not as a live blocker |
 | `#107` | open | `R6` | Tahoe 26.3.1 report: process alive, no icon/separator render, disconnected scene console errors | New startup bucket; not a move, browse, or persistence regression |
 | `#103` | closed | `R4` | Crowded-menu-bar feature request / expectation mismatch | Behavior exists; explicit toggle is implemented on main and queued for next release |
 | `#92` | closed | `R3` | Update reset / persistence drift | Same family as `#79` |
@@ -156,7 +158,9 @@ Use this table before replying, closing, or opening another issue. Keep one prim
 | `#71` | closed | `R5` | Little Snitch never appears in discovery/import | Keep as the original public R5 reporter thread |
 
 Practical rule:
-- `#105` and `#106` are the current live open reference threads.
+- `#101` and `#106` are the current live open reference threads for second-menu-bar and browse-move regressions.
+- `#108` is the live public reference for the Browse undercount / detection mismatch class.
+- `#109` is currently the best public mixed thread when a report combines browse mismatch with move failure on the same machine.
 - `#94` and `#93` no longer mean the same thing: `#93` remains historical move/click evidence, while current `#94` is now the best public thread for app-specific host-model fallout after the broader move fixes.
 - `#71` remains the public reference for the no-AX-host detection class.
 - `#107` is the public reference for startup scene/bootstrap failures on Tahoe-class systems.
@@ -172,6 +176,8 @@ This is the same cross-reference for inbox threads. These are problem threads on
 | `Issue with Sanebar` | `#131 #135 #145` | `R3` | Restart causes previously visible apps to hide again |
 | `Adding items to visible fails` | `#164` | `R1` | Ghost-cursor move failure into Visible |
 | `Browse Icons Second Menu Bar Extremely Buggy` | `#102 #114` | `R2` | [customer] second-menu-bar browse/activation thread before the later follow-up |
+| `bug?` | `#274` | `R4` | [customer] screenshot thread; Browse Icons was set to Second Menu Bar while left-click was still configured as Toggle Hidden |
+| `(no subject)` | `#279` | `unknown severe` | [customer] thread; Activity Monitor screenshot proves 100% CPU, ~14 GB memory, and crashes, but no logs or repro steps arrived |
 | `More bugs - second menu bar unusable` | `#199 #200` | `R2` | Same [customer] second-menu-bar family with fresh logs/video |
 | `[Issue #94] ... move them to visible` | `#216` | `R1` | Email mirror of the live GitHub `#94` move/click thread |
 | `SaneBar after 2.1.11` | `#133` | `R2` | Hidden apps still do not open from the second menu bar |
@@ -382,7 +388,7 @@ Mini proof after the fix:
   - `Spotlight`
 
 What is still open:
-- external confirmation is still needed from the GitHub `#101` / `#105` class of reporter machines
+- external confirmation is still needed from the GitHub `#101` class of reporter machines
 - R5 detection/host-model gaps remain open for apps that never expose a usable AX menu-extra item at all
 
 Separate live detection lead on March 6, 2026:

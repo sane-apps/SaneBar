@@ -6,7 +6,9 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "Accessibili
 extension AccessibilityService {
     private nonisolated static let knownThirdPartyTopBarFallbackBundles: [String] = [
         "com.obdev.LittleSnitchUIAgent",
+        "at.obdev.littlesnitch",
         "at.obdev.littlesnitch.agent",
+        "at.obdev.littlesnitch.daemon",
         "at.obdev.littlesnitch.networkmonitor"
     ]
 
@@ -23,6 +25,7 @@ extension AccessibilityService {
     internal struct WindowBackedStatusItem: Equatable, Sendable {
         let pid: pid_t
         let frame: CGRect
+        let fallbackIndex: Int?
     }
 
     internal nonisolated static func resolvedBundleIdentifier(for app: NSRunningApplication) -> String? {
@@ -156,7 +159,7 @@ extension AccessibilityService {
         let windowBackedPIDs = Set(windowBackedItems.map(\.pid))
         let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: Set(candidateApps.map(\.processIdentifier)))
         let discoveredPIDs = axDiscoveredPIDs.union(windowBackedPIDs)
-        let windowFramesByPID = Dictionary(uniqueKeysWithValues: windowBackedItems.map { ($0.pid, $0.frame) })
+        let windowFramesByPID = Self.representativeWindowBackedFramesByPID(windowBackedItems)
         if !windowBackedPIDs.isEmpty || !topBarHostPIDs.isEmpty {
             logger.debug("WindowServer fallback found \(windowBackedPIDs.count) compact owner candidate(s), \(topBarHostPIDs.count) top-bar host candidate(s)")
         }
@@ -204,8 +207,28 @@ extension AccessibilityService {
 
         for pid in topBarHostPIDs.subtracting(discoveredPIDs) {
             guard let app = NSRunningApplication(processIdentifier: pid),
-                  let bundleID = Self.resolvedBundleIdentifier(for: app),
-                  Self.shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else { continue }
+                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
+
+            let fallbackItems = Self.enumerateMenuExtraItems(
+                pid: pid,
+                ownerBundleId: bundleID,
+                allowThirdPartyMenuBarFallback: true
+            )
+            guard Self.shouldIncludeThirdPartyTopBarOwner(
+                bundleID: bundleID,
+                fallbackItemsCount: fallbackItems.count
+            ) else { continue }
+
+            if !fallbackItems.isEmpty {
+                logger.info(
+                    "Top-bar host owner fallback accepted precise items bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public) items=\(fallbackItems.count, privacy: .public)"
+                )
+                for item in fallbackItems where !seenIds.contains(item.app.uniqueId) {
+                    seenIds.insert(item.app.uniqueId)
+                    apps.append(item.app)
+                }
+                continue
+            }
 
             logger.info("Top-bar host owner fallback candidate bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public)")
             guard !seenIds.contains(bundleID) else { continue }
@@ -480,8 +503,7 @@ extension AccessibilityService {
 
         for pid in topBarHostPIDs.subtracting(axResolvedPIDs) {
             guard let app = NSRunningApplication(processIdentifier: pid),
-                  let bundleID = Self.resolvedBundleIdentifier(for: app),
-                  Self.shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else { continue }
+                  let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
             if bundleID == "com.apple.controlcenter" {
                 controlCenterPID = pid
@@ -499,8 +521,14 @@ extension AccessibilityService {
                 allowThirdPartyMenuBarFallback: true
             )
             logger.info("Top-bar host AXMenuBar fallback bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public) items=\(fallbackItems.count, privacy: .public)")
+            guard Self.shouldIncludeThirdPartyTopBarOwner(
+                bundleID: bundleID,
+                fallbackItemsCount: fallbackItems.count
+            ) else { continue }
+
             if fallbackItems.isEmpty {
                 markExtrasMenuBarUnavailable(bundleID: bundleID)
+                continue
             }
             for item in fallbackItems {
                 appPositions[item.app.uniqueId] = item
@@ -526,6 +554,7 @@ extension AccessibilityService {
             let appModel = RunningApp(
                 app: app,
                 resolvedBundleId: bundleID,
+                statusItemIndex: windowBacked.fallbackIndex,
                 xPosition: windowBacked.frame.origin.x,
                 width: windowBacked.frame.width
             )
@@ -696,7 +725,7 @@ extension AccessibilityService {
             }
         }
 
-        var bestFrameByPID: [pid_t: CGRect] = [:]
+        var framesByPID: [pid_t: [CGRect]] = [:]
 
         for info in infos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
@@ -725,16 +754,41 @@ extension AccessibilityService {
             guard width <= 500 else { continue }
 
             let frame = CGRect(x: x, y: y, width: width, height: height)
-            if let existing = bestFrameByPID[ownerPID] {
-                if frame.midX > existing.midX {
-                    bestFrameByPID[ownerPID] = frame
-                }
-            } else {
-                bestFrameByPID[ownerPID] = frame
-            }
+            framesByPID[ownerPID, default: []].append(frame)
         }
 
-        return bestFrameByPID.map { WindowBackedStatusItem(pid: $0.key, frame: $0.value) }
+        return framesByPID
+            .sorted { $0.key < $1.key }
+            .flatMap { pid, frames in
+                let orderedFrames = frames.sorted {
+                    if $0.midX == $1.midX {
+                        return $0.width < $1.width
+                    }
+                    return $0.midX < $1.midX
+                }
+                let shouldAssignFallbackIndex = orderedFrames.count > 1
+                return orderedFrames.enumerated().map { index, frame in
+                    WindowBackedStatusItem(
+                        pid: pid,
+                        frame: frame,
+                        fallbackIndex: shouldAssignFallbackIndex ? index : nil
+                    )
+                }
+            }
+    }
+
+    internal nonisolated static func representativeWindowBackedFramesByPID(
+        _ items: [WindowBackedStatusItem]
+    ) -> [pid_t: CGRect] {
+        items.reduce(into: [pid_t: CGRect]()) { partial, item in
+            if let existing = partial[item.pid] {
+                if item.frame.midX > existing.midX {
+                    partial[item.pid] = item.frame
+                }
+            } else {
+                partial[item.pid] = item.frame
+            }
+        }
     }
 
     internal nonisolated static func topBarHostPIDs(
@@ -810,8 +864,19 @@ extension AccessibilityService {
         let topBarPIDs = Set(
             topBarHostPIDs(candidatePIDs: Set(candidatePIDs)).compactMap { pid -> pid_t? in
                 guard let app = NSRunningApplication(processIdentifier: pid),
-                      let bundleID = resolvedBundleIdentifier(for: app),
-                      shouldAllowThirdPartyTopBarFallback(bundleID: bundleID) else {
+                      let bundleID = resolvedBundleIdentifier(for: app) else {
+                    return nil
+                }
+
+                let fallbackItems = enumerateMenuExtraItems(
+                    pid: pid,
+                    ownerBundleId: bundleID,
+                    allowThirdPartyMenuBarFallback: true
+                )
+                guard shouldIncludeThirdPartyTopBarOwner(
+                    bundleID: bundleID,
+                    fallbackItemsCount: fallbackItems.count
+                ) else {
                     return nil
                 }
                 return pid
@@ -822,6 +887,13 @@ extension AccessibilityService {
 
     internal nonisolated static func shouldAllowThirdPartyTopBarFallback(bundleID: String) -> Bool {
         knownThirdPartyTopBarFallbackBundles.contains { bundleID == $0 || bundleID.hasPrefix($0 + ".") }
+    }
+
+    internal nonisolated static func shouldIncludeThirdPartyTopBarOwner(
+        bundleID: String,
+        fallbackItemsCount: Int
+    ) -> Bool {
+        fallbackItemsCount > 0 || shouldAllowThirdPartyTopBarFallback(bundleID: bundleID)
     }
 
     internal nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) async -> [(pid: pid_t, x: CGFloat)] {

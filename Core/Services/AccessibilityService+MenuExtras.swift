@@ -56,7 +56,11 @@ extension AccessibilityService {
             var descValue: CFTypeRef?
             AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
 
+            var subroleValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXSubroleAttribute as CFString, &subroleValue)
+
             let rawLabel = axString(titleValue) ?? axString(descValue) ?? rawIdentifier?.components(separatedBy: ".").last ?? "Unknown"
+            let rawSubrole = axString(subroleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
             // Get position
             var positionValue: CFTypeRef?
@@ -82,6 +86,15 @@ extension AccessibilityService {
                 }
             }
 
+            if allowThirdPartyMenuBarFallback,
+               !ownerBundleId.hasPrefix("com.apple."),
+               !shouldAcceptThirdPartyTopBarFallbackItem(
+                   rawIdentifier: rawIdentifier,
+                   rawSubrole: rawSubrole
+               ) {
+                continue
+            }
+
             guard let identifier = canonicalMenuExtraIdentifier(
                 ownerBundleId: ownerBundleId,
                 rawIdentifier: rawIdentifier,
@@ -97,6 +110,39 @@ extension AccessibilityService {
         }
 
         return results
+    }
+
+    internal nonisolated static func shouldAcceptThirdPartyTopBarFallbackItem(
+        rawIdentifier: String?,
+        rawSubrole: String?
+    ) -> Bool {
+        let normalizedSubrole = rawSubrole?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalizedSubrole == "AXMenuExtra" {
+            return true
+        }
+
+        guard let normalizedIdentifier = rawIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !normalizedIdentifier.isEmpty else {
+            return false
+        }
+
+        if normalizedIdentifier.hasPrefix("_NS:") {
+            return false
+        }
+
+        if bundleIdentifierFallback(fromAXIdentifier: normalizedIdentifier) != nil {
+            return true
+        }
+
+        guard !normalizedIdentifier.contains(" "),
+              normalizedIdentifier.contains(".") else {
+            return false
+        }
+
+        return normalizedIdentifier.range(
+            of: "^[A-Za-z0-9._:-]+$",
+            options: .regularExpression
+        ) != nil
     }
 
     /// Resolve candidate menu bar roots. Prefer AXExtrasMenuBar; allow AXMenuBar fallback

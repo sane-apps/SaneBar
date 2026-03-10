@@ -146,7 +146,7 @@ extension SearchService {
     ) -> Bool {
         guard success else { return false }
         guard requireObservableReaction else { return true }
-        return !verification.hasPrefix("unavailable")
+        return verification.hasPrefix("verified")
     }
 
     nonisolated static func shouldUseRawSpatialFallback(

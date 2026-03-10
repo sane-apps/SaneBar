@@ -44,9 +44,9 @@ struct GeneralSettingsView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .minimal: "Hidden Only"
-            case .balanced: "Balanced"
-            case .power: "Power"
+            case .minimal: "Hidden Row"
+            case .balanced: "Hidden + Visible"
+            case .power: "All Rows"
             }
         }
     }
@@ -95,6 +95,10 @@ struct GeneralSettingsView: View {
         menuBarManager.settings.useSecondMenuBar ? "Second Menu Bar" : "Icon Panel"
     }
 
+    private var isBasicSecondMenuBar: Bool {
+        !licenseService.isPro && menuBarManager.settings.useSecondMenuBar
+    }
+
     private var browseOpenActionLabel: String {
         menuBarManager.settings.useSecondMenuBar ? "Open Second Menu Bar" : "Open Icon Panel"
     }
@@ -120,28 +124,39 @@ struct GeneralSettingsView: View {
     }
 
     private func browseIconsViewOptionHelp(useSecondMenuBar: Bool) -> String {
-        useSecondMenuBar
-            ? "Open the Second Menu Bar strip under the menu bar."
-            : "Open the Icon Panel window with search and actions."
+        if useSecondMenuBar {
+            if licenseService.isPro {
+                return "Open the Second Menu Bar strip under the menu bar."
+            }
+            return "Open the Second Menu Bar strip under the menu bar. Basic includes browsing and clicking there. Pro adds moving icons and the Always Hidden row."
+        }
+
+        if licenseService.isPro {
+            return "Open the Icon Panel window with search and actions."
+        }
+        return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and the Always Hidden zone."
     }
 
     private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
         switch preset {
         case .minimal:
-            "Show only the Hidden row."
+            "Show only the Hidden row in the Second Menu Bar."
         case .balanced:
-            "Show Hidden and Visible rows."
+            "Show Hidden and Visible rows in the Second Menu Bar."
         case .power:
-            "Show Hidden, Visible, and Always Hidden rows."
+            "Show Hidden, Visible, and Always Hidden rows in the Second Menu Bar."
         }
     }
 
     private func leftClickModeHelp(_ mode: BrowseLeftClickMode) -> String {
         switch mode {
         case .toggleHidden:
-            "Left-click the SaneBar icon to show or hide icons."
+            return "Left-click the SaneBar icon to show or hide icons."
         case .openBrowseIcons:
-            "Left-click the SaneBar icon to open \(browseDestinationLabel)."
+            if licenseService.isPro {
+                return "Left-click the SaneBar icon to open \(browseDestinationLabel)."
+            }
+            return "Left-click the SaneBar icon to open \(browseDestinationLabel) for browsing and clicking icons."
         }
     }
 
@@ -221,38 +236,37 @@ struct GeneralSettingsView: View {
                     if licenseService.isPro, menuBarManager.settings.useSecondMenuBar {
                         CompactDivider()
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 10) {
-                                HStack(spacing: 5) {
-                                    Text("Visible rows")
-                                        .foregroundStyle(.white.opacity(0.94))
+                            HStack(spacing: 5) {
+                                Text("Rows shown in Second Menu Bar")
+                                    .foregroundStyle(.white.opacity(0.94))
 
-                                    Image(systemName: "questionmark.circle.fill")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(.white.opacity(0.68))
-                                        .help(secondMenuBarRowsSummary)
-                                }
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.68))
+                                    .help(secondMenuBarRowsSummary)
+                            }
 
-                                Spacer(minLength: 0)
-
-                                HStack(spacing: 6) {
-                                    ForEach(SecondMenuBarPreset.allCases) { preset in
-                                        segmentedChoiceButton(
-                                            preset.title,
-                                            isSelected: secondMenuBarPresetBinding.wrappedValue == preset
-                                        ) {
-                                            secondMenuBarPresetBinding.wrappedValue = preset
-                                        }
-                                        .help(secondMenuBarPresetHelp(preset))
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: 112), spacing: 6, alignment: .leading)],
+                                alignment: .leading,
+                                spacing: 6
+                            ) {
+                                ForEach(SecondMenuBarPreset.allCases) { preset in
+                                    segmentedChoiceButton(
+                                        preset.title,
+                                        isSelected: secondMenuBarPresetBinding.wrappedValue == preset
+                                    ) {
+                                        secondMenuBarPresetBinding.wrappedValue = preset
                                     }
+                                    .help(secondMenuBarPresetHelp(preset))
                                 }
-                                .frame(width: 260)
                             }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                         if secondMenuBarPresetBinding.wrappedValue == .power {
                             CompactDivider()
-                            CompactRow("Customize rows") {
+                            CompactRow("Custom rows") {
                                 Button(showBrowseRowCustomization ? "Hide" : "Show") {
                                     withAnimation(.easeInOut(duration: 0.18)) {
                                         showBrowseRowCustomization.toggle()
@@ -266,22 +280,31 @@ struct GeneralSettingsView: View {
                             if showBrowseRowCustomization {
                                 CompactDivider()
                                 CompactToggle(
-                                    label: "Include visible icons",
+                                    label: "Show Visible row",
                                     isOn: $menuBarManager.settings.secondMenuBarShowVisible
                                 )
-                                .help("Show visible (non-hidden) icons in the Second Menu Bar.")
+                                .help("Show the Visible destination row in the Second Menu Bar.")
 
                                 CompactDivider()
                                 CompactToggle(
-                                    label: "Include always-hidden icons",
+                                    label: "Show Always Hidden row",
                                     isOn: $menuBarManager.settings.secondMenuBarShowAlwaysHidden
                                 )
-                                .help("Show always-hidden icons in the Second Menu Bar.")
+                                .help("Show the Always Hidden destination row in the Second Menu Bar.")
                             }
                         }
+                    } else if isBasicSecondMenuBar {
+                        CompactDivider()
+                        CompactRow("Rows shown in Second Menu Bar") {
+                            Text("Hidden + Visible")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.94))
+                        }
+                        CompactDivider()
+                        proGatedRow(feature: .alwaysHidden, label: "Always Hidden row")
                     } else if !licenseService.isPro {
                         CompactDivider()
-                        proGatedRow(feature: .alwaysHidden, label: "Second Menu Bar zone controls")
+                        proGatedRow(feature: .zoneMoves, label: "Move icons between zones")
                     }
                     CompactDivider()
                     VStack(alignment: .leading, spacing: 8) {

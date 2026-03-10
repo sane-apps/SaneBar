@@ -393,7 +393,6 @@ These live in `SaneProcess/scripts/` and serve all SaneApps projects.
 |--------|---------|-------------|
 | `release.sh` | Full release pipeline: build + sign + notarize + DMG + Sparkle + R2 + appcast | `release.sh --project $(pwd) --full --version X.Y.Z` |
 | `sane_test.rb` | Unified test launch: kill → build → deploy → launch → logs | `sane_test.rb SaneBar` (uses Mac Mini by default) |
-| `license_gen.rb` | Generate customer license keys | `ruby license_gen.rb <email>` |
 | `version_bump.rb` | Bump version strings across project files | `ruby version_bump.rb 2.2.0` |
 | `contamination_check.rb` | Detect cross-project reference leaks | `ruby contamination_check.rb --all` |
 | `link_monitor.rb` | Monitor critical URLs (checkout, download, website) | Runs as LaunchAgent daemon |
@@ -423,7 +422,7 @@ Automation scripts (`SaneProcess/scripts/automation/`): `nv-audit.sh`, `nv-relno
 
 ### SOPs
 
-**License key generation:** `ruby SaneProcess/scripts/license_gen.rb <email>`. Keys use HMAC-SHA256 with a salt stored in the script. Format: `SANE-XXXX-XXXX-XXXX-XXXX`. See Serena memory `license-key-prefreemium-sop` for full procedure.
+**License issuance:** Real customer license keys come from LemonSqueezy-backed orders and license-key records only. SaneBar validates against LemonSqueezy, so local key generators are not part of the supported workflow.
 
 **Release process:** See `SaneProcess/templates/RELEASE_SOP.md`. Summary: bump version → `release_preflight` → `release.sh --full --deploy` → verify appcast → monitor.
 

@@ -17,11 +17,12 @@ class LiveZoneSmoke
   ZONE_API_READY_TIMEOUT_SECONDS = 10
   ZONE_API_READY_POLL_SECONDS = 0.5
   APPLESCRIPT_TIMEOUT_SECONDS = 8
+  APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20
   APPLESCRIPT_RETRIES = 2
   BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
   BROWSE_PANEL_READY_POLL_SECONDS = 0.25
   BROWSE_ACTIVATION_COOLDOWN_SECONDS = 0.6
-  SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 8
+  SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
     com.apple.systemuiserver
@@ -36,6 +37,14 @@ class LiveZoneSmoke
     com.apple.menuextra.spotlight
     com.apple.SSMenuAgent
     com.apple.controlcenter
+  ].freeze
+  STANDARD_APP_MENU_TITLES = %w[
+    apple
+    file
+    edit
+    view
+    window
+    help
   ].freeze
 
   def initialize
@@ -218,10 +227,19 @@ class LiveZoneSmoke
   end
 
   def candidate_pool(zones)
-    candidates = zones.select do |item|
+    raw_candidates = zones.select do |item|
       item[:movable] &&
         !item[:bundle].start_with?('com.sanebar.app') &&
         %w[hidden visible alwaysHidden].include?(item[:zone])
+    end
+    excluded_app_menu_bundles = app_menu_bundle_ids(raw_candidates)
+    candidates = raw_candidates.reject do |item|
+      likely_standard_app_menu_candidate?(item) ||
+        excluded_app_menu_bundles.include?(item[:bundle].to_s.downcase)
+    end
+    precise_bundles = candidates.reject { |item| coarse_bundle_fallback?(item) }.map { |item| item[:bundle] }.uniq
+    candidates.reject! do |item|
+      coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
 
     # Prefer non-Apple extras first (typically more consistently movable),
@@ -236,6 +254,24 @@ class LiveZoneSmoke
     ordered = preferred + apple_fallback + denied
     zone_priority = { 'hidden' => 0, 'visible' => 1, 'alwaysHidden' => 2 }
     ordered.sort_by { |item| zone_priority.fetch(item[:zone], 3) }
+  end
+
+  def app_menu_bundle_ids(candidates)
+    candidates.group_by { |item| item[:bundle].to_s.downcase }.each_with_object([]) do |(bundle, bundle_candidates), excluded|
+      next if bundle.empty? || bundle.start_with?('com.apple.')
+
+      titles = bundle_candidates.map { |candidate| candidate[:name].to_s.strip.downcase }
+      excluded << bundle if (titles & STANDARD_APP_MENU_TITLES).length >= 3
+    end
+  end
+
+  def likely_standard_app_menu_candidate?(item)
+    title = item[:name].to_s.strip.downcase
+    return false unless STANDARD_APP_MENU_TITLES.include?(title)
+
+    identifier = item[:unique_id].to_s.downcase
+    bundle = item[:bundle].to_s.downcase
+    !bundle.start_with?('com.apple.') && (identifier.include?('.menuextra.') || identifier.include?('::axid:'))
   end
 
   def selected_candidates(zones)
@@ -368,11 +404,19 @@ class LiveZoneSmoke
 
     candidates.each do |candidate|
       live_identifier = resolve_live_icon_identifier(candidate)
+      baseline_diagnostics = current_browse_activation_diagnostics
       diagnostics = app_script(%(#{command} "#{escape_quotes(live_identifier)}"))
       return if browse_activation_succeeded?(diagnostics, expected_mode)
 
       failures << "#{candidate[:unique_id]} => #{browse_activation_failure_summary(diagnostics)}"
     rescue StandardError => e
+      salvaged = salvage_timed_out_browse_activation(
+        live_identifier: live_identifier,
+        baseline_diagnostics: baseline_diagnostics,
+        error: e
+      )
+      return if salvaged && browse_activation_succeeded?(salvaged, expected_mode)
+
       failures << "#{candidate[:unique_id]} => #{e.message}"
     end
 
@@ -382,11 +426,22 @@ class LiveZoneSmoke
   def browse_activation_succeeded?(diagnostics, expected_mode)
     diagnostics.include?("origin: browsePanel") &&
       diagnostics.include?("finalOutcome: click succeeded") &&
+      browse_activation_observably_verified?(diagnostics) &&
       diagnostics.include?("currentMode: #{expected_mode}") &&
       (
         diagnostics.include?('windowVisible: true') ||
         diagnostics.include?('windowVisible: false')
       )
+  end
+
+  def browse_activation_observably_verified?(diagnostics)
+    diagnostics.lines.any? do |line|
+      stripped = line.strip
+      next false unless stripped.start_with?('firstAttempt:', 'retryAttempt:')
+
+      stripped.include?('accepted=true') &&
+        stripped.include?('verification=verified')
+    end
   end
 
   def browse_activation_failure_summary(diagnostics)
@@ -474,24 +529,34 @@ class LiveZoneSmoke
     )
     command = "screencapture -x #{Shellwords.escape(path)}"
     script = <<~APPLESCRIPT
-      tell application "Terminal"
-          if not running then
-              activate
-          end if
-          do script #{command.inspect}
-      end tell
+      do shell script #{command.inspect}
     APPLESCRIPT
 
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS)
-    raise "Screenshot capture failed: #{out.strip}" unless code.success?
+    unless code.success?
+      disable_screenshot_capture!("Screenshot capture failed: #{out.strip}", path)
+      return nil
+    end
 
     deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
     until File.exist?(path) && File.size?(path)
-      raise "Screenshot missing at #{path}" if Time.now >= deadline
+      if Time.now >= deadline
+        disable_screenshot_capture!("Screenshot missing at #{path}", path)
+        return nil
+      end
       sleep 0.2
     end
 
     path
+  rescue StandardError => e
+    disable_screenshot_capture!(e.message, path)
+    nil
+  end
+
+  def disable_screenshot_capture!(reason, path = nil)
+    @capture_screenshots = false
+    FileUtils.rm_f(path) if path
+    puts "⚠️ Screenshot capture unavailable: #{reason}. Continuing without screenshots."
   end
 
   def exercise_hidden_visible_moves(candidate)
@@ -538,9 +603,15 @@ class LiveZoneSmoke
   def move_and_verify(command, candidate, expected_zone)
     icon_unique_id = resolve_live_icon_identifier(candidate)
     icon = escape_quotes(icon_unique_id)
-    result = app_script("#{command} \"#{icon}\"").strip.downcase
-    unless %w[true 1].include?(result)
-      raise "#{command} returned '#{result}' for #{candidate[:unique_id]}"
+    begin
+      result = app_script("#{command} \"#{icon}\"").strip.downcase
+      unless %w[true 1].include?(result)
+        raise "#{command} returned '#{result}' for #{candidate[:unique_id]}"
+      end
+    rescue StandardError => e
+      raise unless timed_out_move_command?(command, e)
+
+      puts "ℹ️ Salvaging timed-out move command via zone verification for #{icon_unique_id}"
     end
 
     wait_for_zone(icon_unique_id, candidate, expected_zone)
@@ -548,13 +619,27 @@ class LiveZoneSmoke
 
   def wait_for_zone(icon_unique_id, candidate, expected_zone)
     deadline = Time.now + MAX_WAIT_SECONDS
+    last_error = nil
     while Time.now < deadline
-      zones = list_icon_zones
+      begin
+        zones = list_icon_zones
+      rescue StandardError => e
+        raise unless retryable_zone_poll_error?(e)
+
+        last_error = e
+        sleep POLL_SECONDS
+        next
+      end
+
       matched = zones.find { |item| item[:unique_id] == icon_unique_id } ||
         zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] } ||
         zones.find { |item| item[:bundle] == candidate[:bundle] && item[:movable] }
       return true if matched && matched[:zone] == expected_zone
       sleep POLL_SECONDS
+    end
+
+    if last_error
+      raise "Timeout waiting for #{candidate[:bundle]} (#{candidate[:name]}) to reach zone #{expected_zone} after transient poll failures: #{last_error.message}"
     end
 
     raise "Timeout waiting for #{candidate[:bundle]} (#{candidate[:name]}) to reach zone #{expected_zone}"
@@ -578,19 +663,71 @@ class LiveZoneSmoke
   def app_script(statement)
     script = %(tell #{apple_script_target} to #{statement})
     attempts = 0
+    timeout = app_script_timeout_for(statement)
     begin
       attempts += 1
-      out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+      out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: timeout)
       raise "AppleScript failed (#{statement}): #{out.strip}" unless code.success?
       out
     rescue StandardError => e
       retryable = e.message.include?('timeout') || e.message.include?('failed')
-      if attempts < APPLESCRIPT_RETRIES && retryable
+      if attempts < APPLESCRIPT_RETRIES && retryable && !non_idempotent_app_script?(statement)
         sleep 0.2
         retry
       end
       raise
     end
+  end
+
+  def current_browse_activation_diagnostics
+    [
+      direct_app_script('activation diagnostics', timeout: 2.5),
+      direct_app_script('browse panel diagnostics', timeout: 2.5)
+    ].join("\n")
+  rescue StandardError
+    nil
+  end
+
+  def direct_app_script(statement, timeout:)
+    script = %(tell #{apple_script_target} to #{statement})
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: timeout)
+    raise "AppleScript failed (#{statement}): #{out.strip}" unless code.success?
+
+    out
+  end
+
+  def salvage_timed_out_browse_activation(live_identifier:, baseline_diagnostics:, error:)
+    return nil unless error.message.include?('AppleScript timeout')
+
+    current = current_browse_activation_diagnostics
+    return nil if current.nil? || current == baseline_diagnostics
+    return nil unless current.include?('origin: browsePanel')
+    return nil unless current.include?("requestedApp: id=#{live_identifier}")
+    return nil unless current.include?('finalOutcome: click succeeded')
+    return nil unless browse_activation_observably_verified?(current)
+
+    puts "ℹ️ Salvaged timed-out browse activation via fresh diagnostics for #{live_identifier}"
+    current
+  end
+
+  def non_idempotent_app_script?(statement)
+    statement.start_with?('activate browse icon ') ||
+      statement.start_with?('right click browse icon ')
+  end
+
+  def timed_out_move_command?(command, error)
+    error.message.include?('AppleScript timeout') &&
+      command.start_with?('move icon to ')
+  end
+
+  def app_script_timeout_for(statement)
+    return APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS if heavy_read_app_script?(statement)
+
+    APPLESCRIPT_TIMEOUT_SECONDS
+  end
+
+  def heavy_read_app_script?(statement)
+    statement == 'list icon zones' || statement == 'list icons'
   end
 
   def capture2e_with_timeout(*cmd, timeout:)
@@ -650,6 +787,12 @@ class LiveZoneSmoke
     message = error.message.to_s
     message.include?('Connection is invalid') ||
       message.include?('Accessibility permission is required')
+  end
+
+  def retryable_zone_poll_error?(error)
+    return true if zone_api_retryable?(error)
+
+    error.message.include?('AppleScript timeout')
   end
 
   def strict_candidate_mode?

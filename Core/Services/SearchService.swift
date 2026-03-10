@@ -651,7 +651,15 @@ final class SearchService: SearchServiceProtocol {
     nonisolated static func zonedMenuBarItems(
         from items: [AccessibilityService.MenuBarItemPosition]
     ) -> [AccessibilityService.MenuBarItemPosition] {
-        items.filter { $0.app.hasPreciseMenuBarIdentity }
+        let preciseBundleIds = Set(
+            items
+                .filter { $0.app.hasPreciseMenuBarIdentity }
+                .map(\.app.bundleId)
+        )
+
+        return items.filter { item in
+            item.app.hasPreciseMenuBarIdentity || !preciseBundleIds.contains(item.app.bundleId)
+        }
     }
 
     @MainActor

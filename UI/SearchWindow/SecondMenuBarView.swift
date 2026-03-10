@@ -24,6 +24,7 @@ struct SecondMenuBarView: View {
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isSearchFocused: Bool
     @State private var proUpsellFeature: ProFeature?
+    @State private var showingUsageHelp = false
 
     // Second-menu-bar readability: force high-contrast white text on glass background.
     private let textPrimary = Color.white
@@ -42,6 +43,7 @@ struct SecondMenuBarView: View {
     private var movableHidden: [RunningApp] { apps.filter { !$0.isUnmovableSystemItem } }
     private var allMovableAlwaysHidden: [RunningApp] { alwaysHiddenApps.filter { !$0.isUnmovableSystemItem } }
     private var movableAlwaysHidden: [RunningApp] {
+        guard licenseService.isPro else { return [] }
         guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return [] }
         guard menuBarManager.settings.secondMenuBarShowAlwaysHidden else { return [] }
         return allMovableAlwaysHidden
@@ -52,10 +54,14 @@ struct SecondMenuBarView: View {
         )
     }
     private var shouldShowAlwaysHiddenDropZone: Bool {
-        SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
+        guard licenseService.isPro else { return false }
+        return SecondMenuBarLayout.shouldShowAlwaysHiddenZone(
             alwaysHiddenZoneEnabled: menuBarManager.settings.alwaysHiddenSectionEnabled,
             includeAlwaysHiddenIcons: menuBarManager.settings.secondMenuBarShowAlwaysHidden
         )
+    }
+    private var duplicateMarkers: [String: BrowseDuplicateMarker] {
+        BrowseDuplicateMarker.markers(for: visibleApps + apps + alwaysHiddenApps)
     }
 
     var body: some View {
@@ -143,6 +149,19 @@ struct SecondMenuBarView: View {
             .buttonStyle(.plain)
             .help("Settings")
 
+            Button {
+                showingUsageHelp.toggle()
+            } label: {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("How Browse Icons works")
+            .popover(isPresented: $showingUsageHelp, arrowEdge: .top) {
+                usageHelpPopover
+            }
+
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12))
@@ -215,52 +234,58 @@ struct SecondMenuBarView: View {
     }
 
     private var rowStateControls: some View {
-        HStack(spacing: 6) {
-            rowStateChip(
-                title: "Visible",
-                isOn: menuBarManager.settings.secondMenuBarShowVisible,
-                isLocked: !licenseService.isPro
-            ) {
-                guard licenseService.isPro else {
-                    proUpsellFeature = .zoneMoves
-                    return
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Rows shown")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(textMuted)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    rowStateChip(
+                        title: "Visible",
+                        isOn: menuBarManager.settings.secondMenuBarShowVisible,
+                        isLocked: false,
+                        isInteractive: licenseService.isPro
+                    ) {
+                        menuBarManager.settings.secondMenuBarShowVisible.toggle()
+                    }
+
+                    rowStateChip(
+                        title: "Hidden",
+                        isOn: true,
+                        isLocked: false,
+                        isInteractive: false
+                    ) { }
+
+                    rowStateChip(
+                        title: "Always Hidden",
+                        isOn: menuBarManager.settings.alwaysHiddenSectionEnabled &&
+                            menuBarManager.settings.secondMenuBarShowAlwaysHidden,
+                        isLocked: !licenseService.isPro,
+                        statusLabel: licenseService.isPro
+                            ? ((menuBarManager.settings.alwaysHiddenSectionEnabled &&
+                                menuBarManager.settings.secondMenuBarShowAlwaysHidden) ? "Shown" : "Hidden")
+                            : nil,
+                        accentLocked: !licenseService.isPro,
+                        showsHelpAffordance: !licenseService.isPro,
+                        helpText: "Pro unlocks the Always Hidden row, a third zone for icons you never want to see."
+                    ) {
+                        guard licenseService.isPro else {
+                            proUpsellFeature = .alwaysHidden
+                            return
+                        }
+
+                        if !menuBarManager.settings.alwaysHiddenSectionEnabled {
+                            menuBarManager.settings.alwaysHiddenSectionEnabled = true
+                            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+                        } else {
+                            menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
+                        }
+                    }
                 }
-                menuBarManager.settings.secondMenuBarShowVisible.toggle()
             }
 
-            rowStateChip(
-                title: "Hidden",
-                isOn: true,
-                isLocked: false,
-                isInteractive: false
-            ) { }
-
-            rowStateChip(
-                title: "Always Hidden",
-                isOn: menuBarManager.settings.alwaysHiddenSectionEnabled &&
-                    menuBarManager.settings.secondMenuBarShowAlwaysHidden,
-                isLocked: !licenseService.isPro
-            ) {
-                guard licenseService.isPro else {
-                    proUpsellFeature = .zoneMoves
-                    return
-                }
-
-                if !menuBarManager.settings.alwaysHiddenSectionEnabled {
-                    menuBarManager.settings.alwaysHiddenSectionEnabled = true
-                    menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
-                } else {
-                    menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
-                }
-            }
-
-            if let hint = hiddenOnlyHintText {
-                Image(systemName: "questionmark.circle.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(textSecondary)
-                    .help(hint)
-                    .accessibilityLabel("Hidden-only guidance")
-            }
+            usageHintBanner
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
@@ -271,6 +296,10 @@ struct SecondMenuBarView: View {
         isOn: Bool,
         isLocked: Bool,
         isInteractive: Bool = true,
+        statusLabel: String? = nil,
+        accentLocked: Bool = false,
+        showsHelpAffordance: Bool = false,
+        helpText: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -278,25 +307,43 @@ struct SecondMenuBarView: View {
                 if isLocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 8))
-                        .foregroundStyle(textSecondary)
+                        .foregroundStyle(accentLocked ? Color.white.opacity(0.92) : textSecondary)
                 }
                 Text(title)
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(textPrimary)
-                Text(isOn ? "On" : "Off")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(isOn ? Color.green.opacity(0.95) : textSecondary)
+                if let statusLabel {
+                    Text(statusLabel)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(isOn ? Color.green.opacity(0.95) : textSecondary)
+                }
+                if showsHelpAffordance {
+                    Image(systemName: "questionmark.circle.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(Color.white.opacity(0.82))
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(isOn ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
+                    .fill(
+                        accentLocked
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [accentStart.opacity(0.42), accentEnd.opacity(0.30)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            : AnyShapeStyle(isOn ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
+                    )
             )
         }
         .buttonStyle(.plain)
         .disabled(!isInteractive)
         .opacity(isInteractive ? 1 : 0.95)
+        .help(helpText ?? title)
     }
 
     private func zoneRow(
@@ -353,6 +400,47 @@ struct SecondMenuBarView: View {
         }
     }
 
+    @ViewBuilder
+    private var usageHintBanner: some View {
+        if let hint = hiddenOnlyHintText {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(hint, systemImage: "exclamationmark.circle.fill")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.yellow.opacity(0.92))
+                    .accessibilityLabel("Hidden-only guidance")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.08))
+            )
+        }
+    }
+
+    private var usageHelpPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How Browse Icons works")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            if licenseService.isPro {
+                Text("1. Open Browse Icons from the SaneBar icon.")
+                Text("2. Drag an icon into the Visible, Hidden, or Always Hidden row.")
+                Text("3. Right-click an icon for Move actions if dragging feels awkward.")
+                Text("4. The row controls only decide which rows are shown in this panel.")
+            } else {
+                Text("1. Open Browse Icons from the SaneBar icon.")
+                Text("2. Click any icon here to open it.")
+                Text("3. Hidden and Visible stay on in Basic so this panel stays predictable.")
+                Text("4. The teal Always Hidden chip is locked in Basic. Upgrade to unlock that third row.")
+            }
+        }
+        .font(.system(size: 12))
+        .padding(12)
+        .frame(width: 280, alignment: .leading)
+    }
+
     private var zoneDivider: some View {
         Rectangle()
             .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.blue.opacity(0.12))
@@ -369,6 +457,7 @@ struct SecondMenuBarView: View {
             zone: zone,
             colorScheme: colorScheme,
             isPro: licenseService.isPro,
+            duplicateMarker: duplicateMarkers[app.uniqueId],
             onActivate: { isRightClick in
                 if isRightClick, !licenseService.isPro {
                     proUpsellFeature = .rightClickFromPanels
@@ -673,9 +762,9 @@ enum SecondMenuBarLayout {
     ) -> String? {
         guard !includeVisibleIcons else { return nil }
         if isPro {
-            return "Hidden Only mode is on. To move icons to Visible, right-click an icon or turn on the Visible row."
+            return "The Visible row is hidden right now. Turn on the Visible row above, or right-click an icon and choose Move to Visible."
         }
-        return "Hidden Only mode is on. Move icons between Hidden and Visible with Pro."
+        return "Only the Hidden row is shown right now. Upgrade to Pro to move icons between Hidden and Visible."
     }
 }
 
@@ -687,6 +776,7 @@ private struct PanelIconTile: View {
     let zone: IconZone
     let colorScheme: ColorScheme
     var isPro: Bool = true
+    var duplicateMarker: BrowseDuplicateMarker?
     let onActivate: (Bool) -> Void
     var onMoveToVisible: (() -> Void)?
     var onMoveToHidden: (() -> Void)?
@@ -722,6 +812,13 @@ private struct PanelIconTile: View {
         }
         .buttonStyle(.plain)
         .padding(1)
+        .overlay(alignment: .topTrailing) {
+            if let duplicateMarker {
+                BrowseDuplicateBadge(marker: duplicateMarker, compact: true)
+                    .padding(.top, 1)
+                    .padding(.trailing, 1)
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             if !isPro {
                 Image(systemName: "lock.fill")
@@ -739,9 +836,24 @@ private struct PanelIconTile: View {
             }
         }
         .onHover { isHovering = $0 }
-        .help(isPro ? app.name : "\(app.name) — Pro unlocks right-click and move actions")
+        .help(helpText)
         .contextMenu { contextMenuItems }
-        .accessibilityLabel(Text(app.name))
+        .accessibilityLabel(Text(accessibilityLabel))
+    }
+
+    private var duplicateBaseName: String {
+        if let duplicateMarker {
+            return duplicateMarker.helpLabel(baseName: app.name)
+        }
+        return app.name
+    }
+
+    private var helpText: String {
+        isPro ? duplicateBaseName : "\(duplicateBaseName) — Pro unlocks right-click and move actions"
+    }
+
+    private var accessibilityLabel: String {
+        duplicateBaseName
     }
 
     private var tileBackground: some ShapeStyle {

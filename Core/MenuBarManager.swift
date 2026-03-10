@@ -920,10 +920,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func updateAlwaysHiddenSeparator() {
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+    func updateAlwaysHiddenSeparator() {
+        let effectiveAlwaysHiddenEnabled = Self.effectiveAlwaysHiddenSectionEnabled(
+            isPro: LicenseService.shared.isPro,
+            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
+        )
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: effectiveAlwaysHiddenEnabled)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+    }
+
+    func updateAlwaysHiddenSeparatorIfReady() {
+        guard statusBarControllerStorage != nil else { return }
+        updateAlwaysHiddenSeparator()
     }
 
     func enforceExternalMonitorVisibilityPolicy(reason: String) {

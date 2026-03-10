@@ -255,12 +255,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     var useSecondMenuBar: Bool = false
 
     /// Include visible (non-hidden) icons in the Second Menu Bar panel.
-    /// Off by default — users can already see visible icons in the menu bar.
-    var secondMenuBarShowVisible: Bool = false
+    /// On by default so the Visible destination is obvious the first time users browse icons.
+    var secondMenuBarShowVisible: Bool = true
 
     /// Include always-hidden icons in the Second Menu Bar panel.
-    /// On by default to keep the third zone discoverable.
-    var secondMenuBarShowAlwaysHidden: Bool = true
+    /// Off by default to keep first-use Browse Icons simpler.
+    var secondMenuBarShowAlwaysHidden: Bool = false
 
     /// When true, left-clicking the SaneBar icon opens Browse Icons instead of expanding in the menu bar.
     var leftClickOpensBrowseIcons: Bool = false
@@ -347,8 +347,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         useSecondMenuBar = try container.decodeIfPresent(Bool.self, forKey: .useSecondMenuBar)
             ?? legacyDropdownPanel
             ?? false
-        secondMenuBarShowVisible = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowVisible) ?? false
-        secondMenuBarShowAlwaysHidden = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowAlwaysHidden) ?? true
+        secondMenuBarShowVisible = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowVisible) ?? true
+        secondMenuBarShowAlwaysHidden = try container.decodeIfPresent(Bool.self, forKey: .secondMenuBarShowAlwaysHidden) ?? false
         leftClickOpensBrowseIcons = try container.decodeIfPresent(Bool.self, forKey: .leftClickOpensBrowseIcons) ?? false
     }
 

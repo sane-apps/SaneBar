@@ -60,6 +60,38 @@ struct MenuExtraIdentifierNormalizationTests {
         #expect(id == "at.obdev.littlesnitch.agent.menuextra.little-snitch")
     }
 
+    @Test("Third-party top-bar fallback rejects ordinary app menu rows")
+    func thirdPartyTopBarFallbackRejectsStandardAppMenuRows() {
+        #expect(
+            !AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+                rawIdentifier: "_NS:1118",
+                rawSubrole: nil
+            )
+        )
+        #expect(
+            !AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+                rawIdentifier: nil,
+                rawSubrole: nil
+            )
+        )
+    }
+
+    @Test("Third-party top-bar fallback keeps real helper-host identifiers")
+    func thirdPartyTopBarFallbackKeepsRealHelperIdentifiers() {
+        #expect(
+            AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+                rawIdentifier: "com.obdev.LittleSnitchUIAgent-Item-0",
+                rawSubrole: nil
+            )
+        )
+        #expect(
+            AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+                rawIdentifier: nil,
+                rawSubrole: "AXMenuExtra"
+            )
+        )
+    }
+
     @Test("Scanned Spotlight item normalizes to canonical menu extra identifier")
     func scannedSpotlightItemUsesCanonicalIdentifier() {
         let id = AccessibilityService.resolvedScannedMenuExtraIdentifier(

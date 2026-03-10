@@ -128,7 +128,7 @@ final class SecondMenuBarDropXCTests: XCTestCase {
                 includeVisibleIcons: false,
                 isPro: true
             ),
-            "Hidden Only mode is on. To move icons to Visible, right-click an icon or turn on the Visible row."
+            "The Visible row is hidden right now. Turn on the Visible row above, or right-click an icon and choose Move to Visible."
         )
     }
 
@@ -138,7 +138,7 @@ final class SecondMenuBarDropXCTests: XCTestCase {
                 includeVisibleIcons: false,
                 isPro: false
             ),
-            "Hidden Only mode is on. Move icons between Hidden and Visible with Pro."
+            "Only the Hidden row is shown right now. Upgrade to Pro to move icons between Hidden and Visible."
         )
     }
 }
