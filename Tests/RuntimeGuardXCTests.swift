@@ -1269,8 +1269,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         let saneMasterURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/SaneMaster.rb")
         let saneMasterSource = try String(contentsOf: saneMasterURL, encoding: .utf8)
         XCTAssertTrue(
-            saneMasterSource.contains("sync_outputs_from_mini!(Dir.pwd, remote_repo)"),
-            "Mini-first routing should sync output artifacts back so local reporting sees the same QA truth"
+            saneMasterSource.contains("sync_outputs_from_mini!(Dir.pwd, execution_repo)"),
+            "Mini-first routing should sync output artifacts back from the actual routed workspace so local reporting sees the same QA truth"
         )
 
         let releaseURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/release.rb")
