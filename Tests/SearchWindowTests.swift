@@ -158,6 +158,54 @@ struct SearchWindowTests {
         #expect(summary.contains("finalOutcome: click succeeded"))
     }
 
+    @Test("Second menu bar idle close defers for in-flight and recent browse activation")
+    @MainActor
+    func testSecondMenuBarIdleCloseDeferral() {
+        #expect(
+            SearchWindowController.panelIdleCloseActivationGracePeriod(for: .secondMenuBar) == 4
+        )
+        #expect(
+            SearchWindowController.shouldDeferPanelIdleClose(
+                mode: .secondMenuBar,
+                pointerInsidePanel: false,
+                activationInFlight: true,
+                secondsSinceLastActivation: nil
+            )
+        )
+        #expect(
+            SearchWindowController.shouldDeferPanelIdleClose(
+                mode: .secondMenuBar,
+                pointerInsidePanel: false,
+                activationInFlight: false,
+                secondsSinceLastActivation: 1.5
+            )
+        )
+        #expect(
+            !SearchWindowController.shouldDeferPanelIdleClose(
+                mode: .secondMenuBar,
+                pointerInsidePanel: false,
+                activationInFlight: false,
+                secondsSinceLastActivation: 4.5
+            )
+        )
+        #expect(
+            SearchWindowController.shouldDeferPanelIdleClose(
+                mode: .findIcon,
+                pointerInsidePanel: true,
+                activationInFlight: false,
+                secondsSinceLastActivation: nil
+            )
+        )
+        #expect(
+            !SearchWindowController.shouldDeferPanelIdleClose(
+                mode: .findIcon,
+                pointerInsidePanel: false,
+                activationInFlight: true,
+                secondsSinceLastActivation: 0.2
+            )
+        )
+    }
+
     @Test("Search activation rejects unverified clicks for revealed or browse-session flows")
     func testSearchActivationRequiresObservableReactionForBrowseFlows() {
         #expect(

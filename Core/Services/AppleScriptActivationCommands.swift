@@ -8,6 +8,29 @@ func scriptCombinedDiagnosticsSnapshot() -> String {
     return "\(activation)\n\(browse)"
 }
 
+@MainActor
+private func performScriptActivation(
+    app: RunningApp,
+    isRightClick: Bool,
+    activationOrigin: SearchService.ActivationOrigin
+) async {
+    let browseController = SearchWindowController.shared
+    if activationOrigin == .browsePanel {
+        browseController.noteBrowseActivationStarted()
+    }
+    defer {
+        if activationOrigin == .browsePanel {
+            browseController.noteBrowseActivationFinished()
+        }
+    }
+
+    await SearchService.shared.activate(
+        app: app,
+        isRightClick: isRightClick,
+        origin: activationOrigin
+    )
+}
+
 private enum ScriptActivationOutcome: Sendable {
     case success(String)
     case notFound
@@ -93,10 +116,10 @@ class ActivateIconScriptCommand: SaneBarScriptCommand {
                             return .notFound
                         }
 
-                        await SearchService.shared.activate(
+                        await performScriptActivation(
                             app: match.app,
                             isRightClick: isRightClick,
-                            origin: activationOrigin
+                            activationOrigin: activationOrigin
                         )
                         return .success(scriptCombinedDiagnosticsSnapshot())
                     }
@@ -105,20 +128,20 @@ class ActivateIconScriptCommand: SaneBarScriptCommand {
                 DispatchQueue.main.sync {
                     MainActor.assumeIsolated {
                         runScriptActivation {
-                            let zones = zonesForScriptResolution(trimmedId)
-                            guard let match = resolveScriptIcon(trimmedId, from: zones) else {
-                                return .notFound
-                            }
-
-                            await SearchService.shared.activate(
-                                app: match.app,
-                                isRightClick: isRightClick,
-                                origin: activationOrigin
-                            )
-                            return .success(scriptCombinedDiagnosticsSnapshot())
+                        let zones = zonesForScriptResolution(trimmedId)
+                        guard let match = resolveScriptIcon(trimmedId, from: zones) else {
+                            return .notFound
                         }
+
+                        await performScriptActivation(
+                            app: match.app,
+                            isRightClick: isRightClick,
+                            activationOrigin: activationOrigin
+                        )
+                        return .success(scriptCombinedDiagnosticsSnapshot())
                     }
                 }
+            }
             }
 
         guard let result else {

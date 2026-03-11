@@ -23,6 +23,17 @@ SANEBAR_SMOKE_PROCESS_PATH=/Applications/SaneBar.app/Contents/MacOS/SaneBar \
 ./Scripts/live_zone_smoke.rb
 ```
 
+The live smoke now includes a resource watchdog:
+- sustained CPU over `120%` fails
+- sustained RSS over `1024 MB` fails
+- emergency CPU/RSS spikes fail immediately
+- a native macOS process sample is written to `/tmp/sanebar_runtime_resource_sample.txt` when the watchdog trips
+- launch idle budget: average CPU must settle under `5%`, peak CPU under `15%`, RSS under `128 MB`
+- post-smoke idle budget: after an `8s` settle window, average CPU must settle back under `5%`, peak CPU under `20%`, RSS under `128 MB`
+- whole-pass stress budget: average CPU must stay under `15%`, average RSS under `192 MB`
+- second-menu-bar activation must stay open for both left-click and right-click browse flows
+- the script-based browse activation lane must use the same idle-close protection as the real panel UI lane
+
 If the Mini falls back to an unsigned `~/Applications/SaneBar.app` build because headless signing is blocked:
 - keep that copy only for current-tree debug checks
 - preserve `/Applications/SaneBar.app` as the signed/trusted release baseline

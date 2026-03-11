@@ -50,6 +50,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Delayed overlap check task for temporarily hiding app menus while expanded.
     var appMenuSuppressionTask: Task<Void, Never>?
+    /// Keeps reasserting accessory activation policy while app menus are temporarily suppressed.
+    var appMenuDockPolicyTask: Task<Void, Never>?
     /// Tracks whether SaneBar temporarily hid front app menus for overlap.
     var isAppMenuSuppressed = false
     /// Front app to reactivate after temporary menu suppression.
@@ -724,11 +726,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             try? await Task.sleep(for: initialDelayDuration)
 
             for attempt in 1 ... maxAttempts {
-                let controller = self.statusBarController
-                if StatusBarController.validateStartupItems(
-                    main: controller.mainItem,
-                    separator: controller.separatorItem
-                ) {
+                if !self.statusItemsNeedRecovery() {
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
@@ -753,6 +751,44 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.statusBarController.onItemsRecreated?(newMain, newSep)
             self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
         }
+    }
+
+    @MainActor
+    private func statusItemsNeedRecovery() -> Bool {
+        let controller = statusBarController
+        let startupItemsValid = StatusBarController.validateStartupItems(
+            main: controller.mainItem,
+            separator: controller.separatorItem
+        )
+        guard startupItemsValid else {
+            return true
+        }
+
+        let separatorX = getSeparatorOriginX()
+        let mainX = getMainStatusItemLeftEdgeX()
+        let mainWindow = mainStatusItem?.button?.window ?? controller.mainItem.button?.window
+        let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
+        let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
+            ?? NSScreen.main?.auxiliaryTopRightArea?.minX
+        let mainRightGap: CGFloat? = {
+            guard let mainWindow else { return nil }
+            guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
+            return rightEdge - mainWindow.frame.origin.x
+        }()
+
+        let needsRecovery = Self.shouldRecoverStartupPositions(
+            separatorX: separatorX,
+            mainX: mainX,
+            mainRightGap: mainRightGap,
+            screenWidth: screenWidth,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
+        if needsRecovery {
+            logger.error(
+                "Status item geometry drift detected (separator=\(separatorX ?? -1, privacy: .public), main=\(mainX ?? -1, privacy: .public), rightGap=\(mainRightGap ?? -1, privacy: .public), width=\(screenWidth ?? -1, privacy: .public))"
+            )
+        }
+        return needsRecovery
     }
 
     private func setupObservers() {
@@ -862,6 +898,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
+                self?.schedulePositionValidation()
             }
             .store(in: &cancellables)
 

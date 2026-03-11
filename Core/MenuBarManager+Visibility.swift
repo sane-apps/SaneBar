@@ -6,6 +6,13 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.Visibility")
 
 extension MenuBarManager {
+    nonisolated static let appMenuDockPolicyReassertionIntervalsNanoseconds: [UInt64] = [
+        150_000_000,
+        850_000_000,
+        2_000_000_000,
+        3_000_000_000
+    ]
+
     // MARK: - Visibility Control
 
     func canAutoRehideAtFireTime() -> Bool {
@@ -312,6 +319,8 @@ extension MenuBarManager {
     func restoreApplicationMenusIfNeeded(reason: String) {
         appMenuSuppressionTask?.cancel()
         appMenuSuppressionTask = nil
+        appMenuDockPolicyTask?.cancel()
+        appMenuDockPolicyTask = nil
 
         guard isAppMenuSuppressed else { return }
         isAppMenuSuppressed = false
@@ -362,10 +371,51 @@ extension MenuBarManager {
         guard !settings.showDockIcon else { return }
 
         appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
         isAppMenuSuppressed = true
+        NSApp.activate(ignoringOtherApps: true)
+        scheduleAppMenuDockPolicyReassertionIfNeeded()
         logger.info("Temporarily hid application menus due to overlap")
+    }
+
+    private func scheduleAppMenuDockPolicyReassertionIfNeeded() {
+        appMenuDockPolicyTask?.cancel()
+        appMenuDockPolicyTask = nil
+
+        guard isAppMenuSuppressed else { return }
+        guard !settings.showDockIcon else { return }
+
+        reassertAccessoryPolicyDuringAppMenuSuppression(reason: "suppressionStarted")
+
+        appMenuDockPolicyTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for delay in Self.appMenuDockPolicyReassertionIntervalsNanoseconds {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+                guard self.isAppMenuSuppressed else { return }
+                guard !self.settings.showDockIcon else { return }
+
+                self.reassertAccessoryPolicyDuringAppMenuSuppression(reason: "suppressionHold")
+            }
+        }
+    }
+
+    private func reassertAccessoryPolicyDuringAppMenuSuppression(reason: String) {
+        guard isAppMenuSuppressed else { return }
+        guard !settings.showDockIcon else { return }
+
+        let currentPolicy = NSApp.activationPolicy()
+        let hasDockBadge = NSApp.dockTile.badgeLabel != nil
+        if currentPolicy != .accessory || hasDockBadge {
+            logger.warning(
+                "Reasserting accessory policy during app-menu suppression (\(reason, privacy: .public), policy=\(String(describing: currentPolicy), privacy: .public), badge=\(hasDockBadge, privacy: .public))"
+            )
+        }
+
+        NSApp.dockTile.badgeLabel = nil
+        if currentPolicy != .accessory {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     private func leftmostVisibleMenuItemX() async -> CGFloat? {

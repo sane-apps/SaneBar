@@ -12,6 +12,28 @@ class LiveZoneSmoke
   APP_NAME = 'SaneBar'
   MAX_WAIT_SECONDS = 12
   POLL_SECONDS = 0.4
+  RESOURCE_POLL_SECONDS = 1.0
+  DEFAULT_MAX_CPU_PERCENT = 120.0
+  DEFAULT_MAX_CPU_BREACH_SAMPLES = 4
+  DEFAULT_EMERGENCY_CPU_PERCENT = 200.0
+  DEFAULT_MAX_RSS_MB = 1024.0
+  DEFAULT_MAX_RSS_BREACH_SAMPLES = 2
+  DEFAULT_EMERGENCY_RSS_MB = 2048.0
+  RESOURCE_SAMPLE_DURATION_SECONDS = 1
+  RESOURCE_SAMPLE_INTERVAL_MS = 10
+  DEFAULT_IDLE_SAMPLE_INTERVAL_SECONDS = 0.5
+  DEFAULT_LAUNCH_IDLE_SETTLE_SECONDS = 2.0
+  DEFAULT_LAUNCH_IDLE_SAMPLE_SECONDS = 3.0
+  DEFAULT_LAUNCH_IDLE_CPU_AVG_MAX = 5.0
+  DEFAULT_LAUNCH_IDLE_CPU_PEAK_MAX = 15.0
+  DEFAULT_LAUNCH_IDLE_RSS_MB_MAX = 128.0
+  DEFAULT_POST_SMOKE_IDLE_SETTLE_SECONDS = 8.0
+  DEFAULT_POST_SMOKE_IDLE_SAMPLE_SECONDS = 4.0
+  DEFAULT_POST_SMOKE_IDLE_CPU_AVG_MAX = 5.0
+  DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX = 20.0
+  DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
+  DEFAULT_ACTIVE_AVG_CPU_MAX = 15.0
+  DEFAULT_ACTIVE_AVG_RSS_MB_MAX = 192.0
   LAYOUT_STABILIZE_TIMEOUT_SECONDS = 10
   LAYOUT_STABILIZE_POLL_SECONDS = 0.25
   ZONE_API_READY_TIMEOUT_SECONDS = 10
@@ -22,6 +44,7 @@ class LiveZoneSmoke
   BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
   BROWSE_PANEL_READY_POLL_SECONDS = 0.25
   BROWSE_ACTIVATION_COOLDOWN_SECONDS = 0.6
+  SECOND_MENU_BAR_POST_ACTIVATION_VISIBILITY_SECONDS = 1.2
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
@@ -52,6 +75,28 @@ class LiveZoneSmoke
     @app_id = env_string('SANEBAR_SMOKE_APP_ID')
     @app_path = expand_env_path('SANEBAR_SMOKE_APP_PATH')
     @process_path = expand_env_path('SANEBAR_SMOKE_PROCESS_PATH')
+    @watch_resources = ENV.fetch('SANEBAR_SMOKE_WATCH_RESOURCES', '1') != '0'
+    @resource_poll_seconds = float_env('SANEBAR_SMOKE_RESOURCE_POLL_SECONDS') || RESOURCE_POLL_SECONDS
+    @max_cpu_percent = float_env('SANEBAR_SMOKE_MAX_CPU_PERCENT') || DEFAULT_MAX_CPU_PERCENT
+    @max_cpu_breach_samples = integer_env('SANEBAR_SMOKE_MAX_CPU_BREACH_SAMPLES') || DEFAULT_MAX_CPU_BREACH_SAMPLES
+    @emergency_cpu_percent = float_env('SANEBAR_SMOKE_EMERGENCY_CPU_PERCENT') || DEFAULT_EMERGENCY_CPU_PERCENT
+    @max_rss_mb = float_env('SANEBAR_SMOKE_MAX_RSS_MB') || DEFAULT_MAX_RSS_MB
+    @max_rss_breach_samples = integer_env('SANEBAR_SMOKE_MAX_RSS_BREACH_SAMPLES') || DEFAULT_MAX_RSS_BREACH_SAMPLES
+    @emergency_rss_mb = float_env('SANEBAR_SMOKE_EMERGENCY_RSS_MB') || DEFAULT_EMERGENCY_RSS_MB
+    @idle_sample_interval_seconds = float_env('SANEBAR_SMOKE_IDLE_SAMPLE_INTERVAL_SECONDS') || DEFAULT_IDLE_SAMPLE_INTERVAL_SECONDS
+    @launch_idle_settle_seconds = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_SETTLE_SECONDS') || DEFAULT_LAUNCH_IDLE_SETTLE_SECONDS
+    @launch_idle_sample_seconds = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_SAMPLE_SECONDS') || DEFAULT_LAUNCH_IDLE_SAMPLE_SECONDS
+    @launch_idle_cpu_avg_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX') || DEFAULT_LAUNCH_IDLE_CPU_AVG_MAX
+    @launch_idle_cpu_peak_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX') || DEFAULT_LAUNCH_IDLE_CPU_PEAK_MAX
+    @launch_idle_rss_mb_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_RSS_MB_MAX') || DEFAULT_LAUNCH_IDLE_RSS_MB_MAX
+    @post_smoke_idle_settle_seconds = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS') || DEFAULT_POST_SMOKE_IDLE_SETTLE_SECONDS
+    @post_smoke_idle_sample_seconds = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS') || DEFAULT_POST_SMOKE_IDLE_SAMPLE_SECONDS
+    @post_smoke_idle_cpu_avg_max = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX') || DEFAULT_POST_SMOKE_IDLE_CPU_AVG_MAX
+    @post_smoke_idle_cpu_peak_max = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX') || DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX
+    @post_smoke_idle_rss_mb_max = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX') || DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX
+    @active_avg_cpu_max = float_env('SANEBAR_SMOKE_ACTIVE_AVG_CPU_MAX') || DEFAULT_ACTIVE_AVG_CPU_MAX
+    @active_avg_rss_mb_max = float_env('SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX') || DEFAULT_ACTIVE_AVG_RSS_MB_MAX
+    @resource_sample_path = expand_env_path('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH') || File.join(Dir.tmpdir, 'sanebar_runtime_resource_sample.txt')
     @require_always_hidden = ENV['SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
@@ -61,6 +106,7 @@ class LiveZoneSmoke
       .map(&:strip)
       .reject(&:empty?)
     @supported_applescript_commands = detect_supported_applescript_commands
+    reset_resource_watchdog_state
   end
 
   def run
@@ -68,9 +114,18 @@ class LiveZoneSmoke
     puts "🔎 --- [ LIVE ZONE SMOKE ] ---"
 
     verify_single_process
+    start_resource_watchdog
     snapshot = wait_for_stable_layout_snapshot
     check_layout_invariants(snapshot)
     wait_for_zone_api_ready
+    assert_idle_budget!(
+      label: 'launch',
+      settle_seconds: @launch_idle_settle_seconds,
+      sample_seconds: @launch_idle_sample_seconds,
+      cpu_avg_max: @launch_idle_cpu_avg_max,
+      cpu_peak_max: @launch_idle_cpu_peak_max,
+      rss_mb_max: @launch_idle_rss_mb_max
+    )
 
     zones = list_icon_zones
     exercise_browse_modes(zones)
@@ -115,11 +170,26 @@ class LiveZoneSmoke
     end
 
     duration = (Time.now.utc - started_at).round(2)
+    assert_idle_budget!(
+      label: 'post-smoke',
+      settle_seconds: @post_smoke_idle_settle_seconds,
+      sample_seconds: @post_smoke_idle_sample_seconds,
+      cpu_avg_max: @post_smoke_idle_cpu_avg_max,
+      cpu_peak_max: @post_smoke_idle_cpu_peak_max,
+      rss_mb_max: @post_smoke_idle_rss_mb_max
+    )
+    assert_active_average_budget!
+    stop_resource_watchdog
+    puts resource_watchdog_report if @watch_resources
     puts "✅ Live zone smoke passed (#{duration}s)"
     true
   rescue StandardError => e
+    stop_resource_watchdog
+    puts resource_watchdog_report if @watch_resources
     puts "❌ Live zone smoke failed: #{e.message}"
     false
+  ensure
+    stop_resource_watchdog
   end
 
   private
@@ -137,7 +207,10 @@ class LiveZoneSmoke
     end
 
     raise "#{@app_name} is not running at #{expected_process_path || @app_name}." if matches.empty?
-    return if matches.length == 1
+    if matches.length == 1
+      @app_pid = matches.first.split(/\s+/, 2).first.to_i
+      return
+    end
 
     details = matches.join(' | ')
     raise "Expected 1 #{@app_name} process, found #{matches.length}: #{details}"
@@ -157,9 +230,10 @@ class LiveZoneSmoke
 
     while Time.now < deadline
       attempts += 1
+      check_resource_watchdog!
       last_snapshot = layout_snapshot
       return last_snapshot if layout_invariants_satisfied?(last_snapshot)
-      sleep LAYOUT_STABILIZE_POLL_SECONDS
+      sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
     end
 
     raise "Layout did not stabilize in #{LAYOUT_STABILIZE_TIMEOUT_SECONDS}s (attempts=#{attempts}, snapshot=#{last_snapshot})"
@@ -213,6 +287,7 @@ class LiveZoneSmoke
 
     while Time.now < deadline
       begin
+        check_resource_watchdog!
         zones = list_icon_zones
         return zones unless zones.empty?
       rescue StandardError => e
@@ -220,7 +295,7 @@ class LiveZoneSmoke
         raise unless zone_api_retryable?(e)
       end
 
-      sleep ZONE_API_READY_POLL_SECONDS
+      sleep_with_watchdog(ZONE_API_READY_POLL_SECONDS)
     end
 
     raise "Zone API did not become ready in #{ZONE_API_READY_TIMEOUT_SECONDS}s#{last_error ? " (last error: #{last_error.message})" : ''}"
@@ -376,7 +451,7 @@ class LiveZoneSmoke
     exercise_browse_activation('activate browse icon', expected_mode, live_candidates)
     # SearchService debounces duplicate activation of the same icon for 450ms.
     # Leave enough headroom before immediately retrying that tile with right-click.
-    sleep BROWSE_ACTIVATION_COOLDOWN_SECONDS
+    sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)
     exercise_browse_activation('right click browse icon', expected_mode, live_candidates)
     close_browse_panel
     puts "✅ Browse mode #{expected_mode} activation ok"
@@ -390,7 +465,7 @@ class LiveZoneSmoke
       raise "#{command} returned '#{result}'"
     end
 
-    sleep 1.0
+    sleep_with_watchdog(1.0)
     screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
     puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
     close_browse_panel
@@ -406,7 +481,10 @@ class LiveZoneSmoke
       live_identifier = resolve_live_icon_identifier(candidate)
       baseline_diagnostics = current_browse_activation_diagnostics
       diagnostics = app_script(%(#{command} "#{escape_quotes(live_identifier)}"))
-      return if browse_activation_succeeded?(diagnostics, expected_mode)
+      if browse_activation_succeeded?(diagnostics, expected_mode)
+        verify_post_activation_browse_state!(expected_mode)
+        return
+      end
 
       failures << "#{candidate[:unique_id]} => #{browse_activation_failure_summary(diagnostics)}"
     rescue StandardError => e
@@ -424,14 +502,24 @@ class LiveZoneSmoke
   end
 
   def browse_activation_succeeded?(diagnostics, expected_mode)
+    expected_visible = expected_mode == 'secondMenuBar' ? 'windowVisible: true' : nil
+
     diagnostics.include?("origin: browsePanel") &&
       diagnostics.include?("finalOutcome: click succeeded") &&
       browse_activation_observably_verified?(diagnostics) &&
       diagnostics.include?("currentMode: #{expected_mode}") &&
-      (
-        diagnostics.include?('windowVisible: true') ||
-        diagnostics.include?('windowVisible: false')
-      )
+      (expected_visible.nil? || diagnostics.include?(expected_visible))
+  end
+
+  def verify_post_activation_browse_state!(expected_mode)
+    return unless expected_mode == 'secondMenuBar'
+
+    sleep_with_watchdog(SECOND_MENU_BAR_POST_ACTIVATION_VISIBILITY_SECONDS)
+    diagnostics = browse_panel_diagnostics
+    return if diagnostics.include?('currentMode: secondMenuBar') &&
+              diagnostics.include?('windowVisible: true')
+
+    raise "second menu bar collapsed after activation: #{browse_activation_failure_summary(diagnostics)}"
   end
 
   def browse_activation_observably_verified?(diagnostics)
@@ -458,11 +546,12 @@ class LiveZoneSmoke
     last_diagnostics = nil
 
     while Time.now < deadline
+      check_resource_watchdog!
       last_diagnostics = browse_panel_diagnostics
       return if last_diagnostics.include?("currentMode: #{expected_mode}") &&
                 last_diagnostics.include?('windowVisible: true')
 
-      sleep BROWSE_PANEL_READY_POLL_SECONDS
+      sleep_with_watchdog(BROWSE_PANEL_READY_POLL_SECONDS)
     end
 
     raise "Browse panel did not become ready for #{expected_mode}: #{last_diagnostics}"
@@ -475,7 +564,7 @@ class LiveZoneSmoke
     end
 
     unless supports_applescript_command?('browse panel diagnostics')
-      sleep 0.5
+      sleep_with_watchdog(0.5)
       return
     end
 
@@ -493,10 +582,11 @@ class LiveZoneSmoke
     last_diagnostics = nil
 
     while Time.now < deadline
+      check_resource_watchdog!
       last_diagnostics = browse_panel_diagnostics
       return if last_diagnostics.include?('windowVisible: false')
 
-      sleep BROWSE_PANEL_READY_POLL_SECONDS
+      sleep_with_watchdog(BROWSE_PANEL_READY_POLL_SECONDS)
     end
 
     raise "Browse panel did not close cleanly: #{last_diagnostics}"
@@ -540,11 +630,12 @@ class LiveZoneSmoke
 
     deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
     until File.exist?(path) && File.size?(path)
+      check_resource_watchdog!
       if Time.now >= deadline
         disable_screenshot_capture!("Screenshot missing at #{path}", path)
         return nil
       end
-      sleep 0.2
+      sleep_with_watchdog(0.2)
     end
 
     path
@@ -627,7 +718,7 @@ class LiveZoneSmoke
         raise unless retryable_zone_poll_error?(e)
 
         last_error = e
-        sleep POLL_SECONDS
+        sleep_with_watchdog(POLL_SECONDS)
         next
       end
 
@@ -635,7 +726,7 @@ class LiveZoneSmoke
         zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] } ||
         zones.find { |item| item[:bundle] == candidate[:bundle] && item[:movable] }
       return true if matched && matched[:zone] == expected_zone
-      sleep POLL_SECONDS
+      sleep_with_watchdog(POLL_SECONDS)
     end
 
     if last_error
@@ -672,7 +763,7 @@ class LiveZoneSmoke
     rescue StandardError => e
       retryable = e.message.include?('timeout') || e.message.include?('failed')
       if attempts < APPLESCRIPT_RETRIES && retryable && !non_idempotent_app_script?(statement)
-        sleep 0.2
+        sleep_with_watchdog(0.2)
         retry
       end
       raise
@@ -738,31 +829,26 @@ class LiveZoneSmoke
       stdin.close
       reader = Thread.new { stdout.read.to_s }
 
-      if wait_thr.join(timeout)
-        status = wait_thr.value
-        output = reader.value
-      else
-        begin
-          Process.kill('TERM', wait_thr.pid)
-        rescue StandardError
-          nil
-        end
-        unless wait_thr.join(1)
-          begin
-            Process.kill('KILL', wait_thr.pid)
-          rescue StandardError
-            nil
+      begin
+        deadline = Time.now + timeout
+        loop do
+          check_resource_watchdog!
+          if wait_thr.join(0.2)
+            status = wait_thr.value
+            output = reader.value
+            break
           end
-          wait_thr.join
-        end
 
+          raise "AppleScript timeout after #{timeout}s (#{cmd.join(' ')})" if Time.now >= deadline
+        end
+      rescue StandardError
+        terminate_child_process(wait_thr)
         begin
           output = reader.value
         rescue StandardError
           output = ''
         end
-
-        raise "AppleScript timeout after #{timeout}s (#{cmd.join(' ')})"
+        raise
       end
     end
 
@@ -771,6 +857,279 @@ class LiveZoneSmoke
 
   def sh(command)
     Open3.capture2e(command)
+  end
+
+  def start_resource_watchdog
+    return unless @watch_resources
+    return if @app_pid.to_i <= 0
+
+    reset_resource_watchdog_state
+    FileUtils.rm_f(@resource_sample_path)
+    puts format(
+      "🫀 Resource watchdog armed: cpu<=%.1f%% for %d sample(s), rss<=%.1fMB for %d sample(s)",
+      @max_cpu_percent, @max_cpu_breach_samples, @max_rss_mb, @max_rss_breach_samples
+    )
+    @resource_watchdog_thread = Thread.new do
+      loop do
+        break if @resource_watchdog_stop
+
+        sample = read_process_resource_sample
+        record_resource_sample(sample)
+        break if resource_watchdog_failure
+
+        sleep @resource_poll_seconds
+      rescue StandardError => e
+        record_resource_watchdog_failure("resource_watchdog process_monitor_failed reason=#{e.message}")
+        break
+      end
+    end
+  end
+
+  def stop_resource_watchdog
+    @resource_watchdog_stop = true
+    return unless @resource_watchdog_thread
+
+    @resource_watchdog_thread.join(2)
+    @resource_watchdog_thread = nil
+  end
+
+  def reset_resource_watchdog_state
+    @resource_watchdog_stop = false
+    @resource_watchdog_mutex = Mutex.new
+    @resource_watchdog_state = {
+      sample_count: 0,
+      peak_cpu: 0.0,
+      peak_rss_mb: 0.0,
+      total_cpu: 0.0,
+      total_rss_mb: 0.0,
+      last_sample: nil,
+      cpu_breach_samples: 0,
+      rss_breach_samples: 0,
+      failure: nil,
+      sample_path: @resource_sample_path
+    }
+  end
+
+  def record_resource_sample(sample)
+    failure = nil
+
+    @resource_watchdog_mutex.synchronize do
+      state = @resource_watchdog_state
+      state[:sample_count] += 1
+      state[:last_sample] = sample
+      state[:peak_cpu] = [state[:peak_cpu], sample[:cpu]].max
+      state[:peak_rss_mb] = [state[:peak_rss_mb], sample[:rss_mb]].max
+      state[:total_cpu] += sample[:cpu]
+      state[:total_rss_mb] += sample[:rss_mb]
+      state[:cpu_breach_samples] = sample[:cpu] >= @max_cpu_percent ? state[:cpu_breach_samples] + 1 : 0
+      state[:rss_breach_samples] = sample[:rss_mb] >= @max_rss_mb ? state[:rss_breach_samples] + 1 : 0
+      failure = resource_limit_failure(sample, state)
+    end
+
+    return unless failure
+
+    sample_path = capture_resource_sample
+    record_resource_watchdog_failure(format_resource_watchdog_failure(failure, sample, sample_path))
+  end
+
+  def resource_limit_failure(sample, state)
+    if sample[:rss_mb] >= @emergency_rss_mb
+      { key: 'peak_rss_exceeded', mode: 'emergency', limit: @emergency_rss_mb, samples: state[:rss_breach_samples] }
+    elsif sample[:cpu] >= @emergency_cpu_percent
+      { key: 'peak_cpu_exceeded', mode: 'emergency', limit: @emergency_cpu_percent, samples: state[:cpu_breach_samples] }
+    elsif state[:rss_breach_samples] >= @max_rss_breach_samples
+      { key: 'peak_rss_exceeded', mode: 'sustained', limit: @max_rss_mb, samples: state[:rss_breach_samples] }
+    elsif state[:cpu_breach_samples] >= @max_cpu_breach_samples
+      { key: 'peak_cpu_exceeded', mode: 'sustained', limit: @max_cpu_percent, samples: state[:cpu_breach_samples] }
+    end
+  end
+
+  def format_resource_watchdog_failure(failure, sample, sample_path)
+    current_value = failure[:key] == 'peak_cpu_exceeded' ? format('%.1f%%', sample[:cpu]) : format('%.1fMB', sample[:rss_mb])
+    limit_value = failure[:key] == 'peak_cpu_exceeded' ? format('%.1f%%', failure[:limit]) : format('%.1fMB', failure[:limit])
+    sample_label = sample_path && File.exist?(sample_path) ? sample_path : 'unavailable'
+    "#{failure[:key]} mode=#{failure[:mode]} current=#{current_value} limit=#{limit_value} "\
+      "sustainedSamples=#{failure[:samples]} pid=#{sample[:pid]} elapsed=#{sample[:elapsed]} sample=#{sample_label}"
+  end
+
+  def capture_resource_sample
+    FileUtils.mkdir_p(File.dirname(@resource_sample_path))
+    FileUtils.rm_f(@resource_sample_path)
+    _out, status = Open3.capture2e(
+      '/usr/bin/sample',
+      @app_pid.to_s,
+      RESOURCE_SAMPLE_DURATION_SECONDS.to_s,
+      RESOURCE_SAMPLE_INTERVAL_MS.to_s,
+      '-mayDie',
+      '-file', @resource_sample_path
+    )
+    return @resource_sample_path if status.success? && File.exist?(@resource_sample_path) && !File.zero?(@resource_sample_path)
+
+    nil
+  rescue StandardError
+    nil
+  end
+
+  def read_process_resource_sample
+    output, status = Open3.capture2e(
+      'ps',
+      '-o', 'pid=,%cpu=,rss=,etime=,command=',
+      '-p', @app_pid.to_s
+    )
+    raise 'process_missing' unless status.success?
+
+    line = output.lines.map(&:strip).reject(&:empty?).last
+    raise 'process_missing' if line.nil?
+
+    pid, cpu, rss, elapsed, command = line.split(/\s+/, 5)
+    raise "process_changed command=#{command}" unless matching_app_process?(command.to_s)
+
+    {
+      pid: pid.to_i,
+      cpu: cpu.to_f,
+      rss_kb: rss.to_i,
+      rss_mb: rss.to_f / 1024.0,
+      elapsed: elapsed.to_s,
+      command: command.to_s
+    }
+  end
+
+  def record_resource_watchdog_failure(message)
+    @resource_watchdog_mutex.synchronize do
+      @resource_watchdog_state[:failure] ||= message
+    end
+  end
+
+  def resource_watchdog_failure
+    return nil unless @watch_resources
+
+    @resource_watchdog_mutex.synchronize { @resource_watchdog_state[:failure] }
+  end
+
+  def check_resource_watchdog!
+    failure = resource_watchdog_failure
+    raise failure if failure
+  end
+
+  def resource_watchdog_report
+    state = @resource_watchdog_mutex.synchronize { @resource_watchdog_state.dup }
+    return nil if state[:sample_count].zero? && state[:failure].nil?
+
+    averages = resource_watchdog_averages(state)
+
+    base = format(
+      "🫀 Resource watchdog: samples=%d avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB",
+      state[:sample_count],
+      averages[:avg_cpu],
+      state[:peak_cpu],
+      averages[:avg_rss_mb],
+      state[:peak_rss_mb]
+    )
+    return "#{base} failure=#{state[:failure]}" if state[:failure]
+
+    base
+  end
+
+  def resource_watchdog_averages(state)
+    sample_count = state[:sample_count].to_i
+    return { avg_cpu: 0.0, avg_rss_mb: 0.0 } if sample_count <= 0
+
+    {
+      avg_cpu: state[:total_cpu].to_f / sample_count,
+      avg_rss_mb: state[:total_rss_mb].to_f / sample_count
+    }
+  end
+
+  def assert_active_average_budget!
+    state = @resource_watchdog_mutex.synchronize { @resource_watchdog_state.dup }
+    return if state[:sample_count].zero?
+
+    averages = resource_watchdog_averages(state)
+    failures = []
+    if averages[:avg_cpu] > @active_avg_cpu_max
+      failures << format('avgCpu=%.1f%% > %.1f%%', averages[:avg_cpu], @active_avg_cpu_max)
+    end
+    if averages[:avg_rss_mb] > @active_avg_rss_mb_max
+      failures << format('avgRss=%.1fMB > %.1fMB', averages[:avg_rss_mb], @active_avg_rss_mb_max)
+    end
+    return if failures.empty?
+
+    raise "active_budget_exceeded #{failures.join(' ')}"
+  end
+
+  def assert_idle_budget!(label:, settle_seconds:, sample_seconds:, cpu_avg_max:, cpu_peak_max:, rss_mb_max:)
+    sleep_with_watchdog(settle_seconds) if settle_seconds.positive?
+    report = capture_resource_window(sample_seconds: sample_seconds, interval_seconds: @idle_sample_interval_seconds)
+    puts format(
+      "📉 Idle budget %s: avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB",
+      label,
+      report[:avg_cpu],
+      report[:peak_cpu],
+      report[:avg_rss_mb],
+      report[:peak_rss_mb]
+    )
+
+    failures = []
+    if report[:avg_cpu] > cpu_avg_max
+      failures << format('avgCpu=%.1f%% > %.1f%%', report[:avg_cpu], cpu_avg_max)
+    end
+    if report[:peak_cpu] > cpu_peak_max
+      failures << format('peakCpu=%.1f%% > %.1f%%', report[:peak_cpu], cpu_peak_max)
+    end
+    if report[:peak_rss_mb] > rss_mb_max
+      failures << format('peakRss=%.1fMB > %.1fMB', report[:peak_rss_mb], rss_mb_max)
+    end
+    return if failures.empty?
+
+    raise "#{label}_idle_budget_exceeded #{failures.join(' ')}"
+  end
+
+  def capture_resource_window(sample_seconds:, interval_seconds:)
+    started_at = Time.now
+    samples = []
+    while (Time.now - started_at) < sample_seconds
+      check_resource_watchdog!
+      samples << read_process_resource_sample
+      sleep_with_watchdog(interval_seconds)
+    end
+
+    avg_cpu = samples.sum { |sample| sample[:cpu] } / samples.length
+    avg_rss_mb = samples.sum { |sample| sample[:rss_mb] } / samples.length
+    {
+      sample_count: samples.length,
+      avg_cpu: avg_cpu,
+      peak_cpu: samples.map { |sample| sample[:cpu] }.max || 0.0,
+      avg_rss_mb: avg_rss_mb,
+      peak_rss_mb: samples.map { |sample| sample[:rss_mb] }.max || 0.0
+    }
+  end
+
+  def sleep_with_watchdog(duration)
+    deadline = Time.now + duration
+    while Time.now < deadline
+      check_resource_watchdog!
+      remaining = deadline - Time.now
+      break if remaining <= 0
+
+      sleep([remaining, 0.1].min)
+    end
+    check_resource_watchdog!
+  end
+
+  def terminate_child_process(wait_thr)
+    begin
+      Process.kill('TERM', wait_thr.pid)
+    rescue StandardError
+      nil
+    end
+    return if wait_thr.join(1)
+
+    begin
+      Process.kill('KILL', wait_thr.pid)
+    rescue StandardError
+      nil
+    end
+    wait_thr.join
   end
 
   def truthy?(value)
@@ -806,6 +1165,24 @@ class LiveZoneSmoke
   def env_string(name)
     value = ENV[name].to_s.strip
     value.empty? ? nil : value
+  end
+
+  def integer_env(name)
+    value = env_string(name)
+    return nil unless value
+
+    Integer(value, 10)
+  rescue ArgumentError
+    nil
+  end
+
+  def float_env(name)
+    value = env_string(name)
+    return nil unless value
+
+    Float(value)
+  rescue ArgumentError
+    nil
   end
 
   def expand_env_path(name)
