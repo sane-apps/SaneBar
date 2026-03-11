@@ -97,6 +97,22 @@ class ProjectQA
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
+  RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
+  RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
+  RUNTIME_SMOKE_EMERGENCY_CPU_PERCENT = 200.0
+  RUNTIME_SMOKE_MAX_RSS_MB = 1024.0
+  RUNTIME_SMOKE_MAX_RSS_BREACH_SAMPLES = 2
+  RUNTIME_SMOKE_EMERGENCY_RSS_MB = 2048.0
+  RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX = 5.0
+  RUNTIME_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX = 15.0
+  RUNTIME_SMOKE_LAUNCH_IDLE_RSS_MB_MAX = 128.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS = 8.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS = 4.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX = 5.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX = 20.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
+  RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX = 15.0
+  RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX = 192.0
   RECURRING_REGRESSION_TEST_MARKERS = {
     'Tests/IconMovingTests.swift' => [
       'REGRESSION: #93-style geometry avoids boundary-hugging target',
@@ -620,6 +636,23 @@ class ProjectQA
 
       smoke_env = {
         'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+        'SANEBAR_SMOKE_WATCH_RESOURCES' => '1',
+        'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s,
+        'SANEBAR_SMOKE_MAX_CPU_BREACH_SAMPLES' => RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES.to_s,
+        'SANEBAR_SMOKE_EMERGENCY_CPU_PERCENT' => RUNTIME_SMOKE_EMERGENCY_CPU_PERCENT.to_s,
+        'SANEBAR_SMOKE_MAX_RSS_MB' => RUNTIME_SMOKE_MAX_RSS_MB.to_s,
+        'SANEBAR_SMOKE_MAX_RSS_BREACH_SAMPLES' => RUNTIME_SMOKE_MAX_RSS_BREACH_SAMPLES.to_s,
+        'SANEBAR_SMOKE_EMERGENCY_RSS_MB' => RUNTIME_SMOKE_EMERGENCY_RSS_MB.to_s,
+        'SANEBAR_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX' => RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX.to_s,
+        'SANEBAR_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX' => RUNTIME_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX.to_s,
+        'SANEBAR_SMOKE_LAUNCH_IDLE_RSS_MB_MAX' => RUNTIME_SMOKE_LAUNCH_IDLE_RSS_MB_MAX.to_s,
+        'SANEBAR_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS' => RUNTIME_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS.to_s,
+        'SANEBAR_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS' => RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS.to_s,
+        'SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX' => RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX.to_s,
+        'SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX' => RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX.to_s,
+        'SANEBAR_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX' => RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX.to_s,
+        'SANEBAR_SMOKE_ACTIVE_AVG_CPU_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX.to_s,
+        'SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX.to_s,
         'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => screenshot_capture_available ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
@@ -630,17 +663,25 @@ class ProjectQA
       end
       smoke_outputs = []
       RUNTIME_SMOKE_PASSES.times do |index|
+        resource_sample_path = "/tmp/sanebar_runtime_resource_sample-pass#{index + 1}.txt"
+        FileUtils.rm_f(resource_sample_path)
+        pass_env = smoke_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => resource_sample_path)
         puts "   ↳ smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
         smoke_out, smoke_status = capture2e_with_progress(
-          smoke_env,
+          pass_env,
           smoke_script,
           heartbeat_label: "runtime smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
         )
-        smoke_outputs << "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}\n#{smoke_out}"
+        smoke_outputs << [
+          "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}",
+          "resource_sample=#{resource_sample_path}",
+          smoke_out
+        ].join("\n")
         next if smoke_status.success?
 
         File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-        @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}"
+        sample_suffix = File.exist?(resource_sample_path) ? " Resource sample: #{resource_sample_path}" : ''
+        @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}.#{sample_suffix}"
         puts "❌ failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
         return
       end
@@ -1350,6 +1391,26 @@ class ProjectQA
       preflightMode: preflight_mode?,
       runtimeSmokeMode: runtime_smoke_mode?,
       runtimeSmokePasses: RUNTIME_SMOKE_PASSES,
+      runtimeSmokeResourceWatchdog: {
+        maxCpuPercent: RUNTIME_SMOKE_MAX_CPU_PERCENT,
+        maxCpuBreachSamples: RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES,
+        emergencyCpuPercent: RUNTIME_SMOKE_EMERGENCY_CPU_PERCENT,
+        maxRssMB: RUNTIME_SMOKE_MAX_RSS_MB,
+        maxRssBreachSamples: RUNTIME_SMOKE_MAX_RSS_BREACH_SAMPLES,
+        emergencyRssMB: RUNTIME_SMOKE_EMERGENCY_RSS_MB,
+      },
+      runtimeSmokePerformanceBudget: {
+        launchIdleCpuAvgMax: RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX,
+        launchIdleCpuPeakMax: RUNTIME_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX,
+        launchIdleRssMBMax: RUNTIME_SMOKE_LAUNCH_IDLE_RSS_MB_MAX,
+        postSmokeIdleSettleSeconds: RUNTIME_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS,
+        postSmokeIdleSampleSeconds: RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS,
+        postSmokeIdleCpuAvgMax: RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX,
+        postSmokeIdleCpuPeakMax: RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX,
+        postSmokeIdleRssMBMax: RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX,
+        activeAvgCpuMax: RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX,
+        activeAvgRssMBMax: RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX,
+      },
       errorCount: @errors.count,
       warningCount: @warnings.count,
       errors: @errors,

@@ -14,6 +14,11 @@ Use this together with:
 - `docs/state-machines.md` for the older full-system diagrams
 - `docs/E2E_TESTING_CHECKLIST.md` for broader release coverage
 
+Current Mini performance guardrails for runtime smoke:
+- fresh launch idle should settle near `0-2%` CPU and about `55-60 MB` RSS
+- post-smoke idle is measured only after an `8s` settle window, because scripted browse/move cleanup can stay busy for a couple of seconds without indicating a real loop
+- whole-pass stress average is allowed up to `15%` CPU during the aggressive smoke, but the app must still return to near-zero CPU afterward
+
 ## Canonical Runtime Path
 
 For scripted launches and live smoke on development machines and on Mini:
@@ -134,6 +139,20 @@ Current root cause note:
 - if `MenuBarManager` eagerly constructs the default `StatusBarController` during init, the `NSStatusItem`s are created before the deferred startup delay and before the headless guard actually matters
 - the runtime-safe path is: defer default `StatusBarController` creation until `setupStatusItem()`, validate both main + separator window attachment, and allow a bounded second recovery pass for Tahoe-class disconnected scenes
 
+### R7. Dock policy drift / activation churn
+
+Symptoms:
+- Dock icon appears even though `showDockIcon` is off
+- issue often follows inline reveal or temporary app-menu suppression
+- Console can show `NSApplication._react(to:) dock`
+
+Primary code:
+- `Core/MenuBarManager+Visibility.swift`
+- `Core/Services/UpdateService.swift`
+
+Key rule:
+- when `showDockIcon` is off, activation side effects must not be allowed to leave SaneBar visible in the Dock
+
 ## Live GitHub Issue Map
 
 Use this table before replying, closing, or opening another issue. Keep one primary bucket per issue even if the logs show secondary symptoms.
@@ -141,6 +160,7 @@ Use this table before replying, closing, or opening another issue. Keep one prim
 | Issue | State | Primary bucket | Why it belongs there | Notes |
 |------|------|------|------|------|
 | `#106` | open | `R1` | Browse Icons move path fails; logs show unresolved on-screen frame and bad hardware-fallback coordinates on an external monitor | Treat as current canonical browse-move issue for external-monitor style repros |
+| `#110` | open | `R7` | `showDockIcon=false`, yet Console shows `NSApplication._react(to:) dock` shortly after inline app-menu suppression fires | Treat as a Dock-policy drift regression in the inline reveal / app-menu suppression path |
 | `#109` | open | `R1` | Fresh 2.1.24 reporter diagnostics show repeated move-to-visible verification failures; same report also exposed browse undercount | Mixed thread: primary bucket stays `R1`, but it also carries `R5` evidence |
 | `#108` | open | `R5` | Screenshot plus diagnostics prove Browse undercount: SaneBar found 32 menu bar items while the Second Menu Bar rendered only visible=4 hidden=7 | Real detection/data-pipeline bug, not just customer confusion |
 | `#105` | closed | `R2` | Duplicate of `#101` from the same reporter/machine after the later second-menu-bar follow-up landed | Historical duplicate; keep `#101` as the canonical public thread |
@@ -159,6 +179,7 @@ Use this table before replying, closing, or opening another issue. Keep one prim
 
 Practical rule:
 - `#101` and `#106` are the current live open reference threads for second-menu-bar and browse-move regressions.
+- `#110` is the current live public reference for Dock icon drift while `showDockIcon=false`.
 - `#108` is the live public reference for the Browse undercount / detection mismatch class.
 - `#109` is currently the best public mixed thread when a report combines browse mismatch with move failure on the same machine.
 - `#94` and `#93` no longer mean the same thing: `#93` remains historical move/click evidence, while current `#94` is now the best public thread for app-specific host-model fallout after the broader move fixes.
@@ -647,13 +668,31 @@ What it now proves before release:
 - when Mini can sign, a staged `Release` app is launched on Mini
 - when Mini cannot sign, QA falls back to the signed `/Applications/SaneBar.app` install for release-style smoke
 - `live_zone_smoke.rb` runs against the chosen release-style target, not whichever bundle happened to launch last
+- second-menu-bar browse activation now has to stay alive across both left-click and right-click smoke paths, including the AppleScript browse activation lane
+- the live smoke watchdog samples the actual SaneBar process and fails on runaway CPU or memory instead of silently passing functional checks
+- the live smoke now also enforces lightweight budgets: the app must settle to a low idle CPU/RSS budget after launch and again after the browse/move pass
 - screenshot artifacts are required only for the browse modes that target bundle actually exposes
 - the smoke passes twice in one QA run: cold launch, then immediate repeat
 - `/tmp/sanebar_runtime_smoke.log` keeps the actual browse activation diagnostics when a pass fails
+- `/tmp/sanebar_runtime_resource_sample-passN.txt` is captured automatically if the watchdog sees a CPU or RSS runaway
 
 Why the repeat pass matters:
 - a single pass can succeed while pass 2 still exposes second-menu-bar browse activation drift
 - the current failure shape is `finalOutcome: workspace activation fallback` plus `verification=failed (no observable menu/panel reaction)` while the browse panel still reports `currentMode: secondMenuBar`, `windowVisible: true`, and `lastRelayoutReason: refit`
+- another real failure shape we already hit: the UI path was fixed, but the AppleScript browse path still bypassed `noteBrowseActivationStarted()/Finished()`, so right-click smoke closed the second-menu-bar panel mid-activation until script/UI parity was restored on 2026-03-10
+
+Why the watchdog matters:
+- Ivan `#279` proved SaneBar can go pathological with `100%` CPU and about `14 GB` RSS without crashing cleanly
+- functional smoke alone would miss that if click/move flows still happened to work
+- the watchdog turns that into a release-blocking runtime failure with a native process sample attached
+
+What the performance budgets mean:
+- peak CPU during an interaction pass is treated as a clue, not the whole story
+- the hard gate is that SaneBar must settle down quickly after launch and after the full smoke run
+- current release smoke budgets are:
+  - launch idle: avg CPU `<= 5%`, peak CPU `<= 15%`, RSS `<= 128 MB`
+  - post-smoke idle: avg CPU `<= 5%`, peak CPU `<= 20%`, RSS `<= 128 MB`
+  - whole-pass average: avg CPU `<= 10%`, avg RSS `<= 192 MB`
 
 ### 3. Trusted app direct move round-trip
 

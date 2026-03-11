@@ -117,6 +117,10 @@ class UpdateService: NSObject, ObservableObject {
         bundleIdentifier == releaseBundleIdentifier
     }
 
+    nonisolated static func shouldShowScheduledUpdateDockBadge(showDockIcon: Bool) -> Bool {
+        showDockIcon
+    }
+
     private func normalizeUpdateCheckFrequency() {
         guard let updater = updaterController?.updater else { return }
         updater.updateCheckInterval = UpdateCheckFrequency.normalizedInterval(from: updater.updateCheckInterval)
@@ -126,10 +130,12 @@ class UpdateService: NSObject, ObservableObject {
         guard !scheduledUpdateReminderActive else { return }
         scheduledUpdateReminderActive = true
 
-        if !MenuBarManager.shared.settings.showDockIcon {
+        if Self.shouldShowScheduledUpdateDockBadge(showDockIcon: MenuBarManager.shared.settings.showDockIcon) {
             NSApp.setActivationPolicy(.regular)
+            NSApp.dockTile.badgeLabel = "1"
+        } else {
+            NSApp.dockTile.badgeLabel = nil
         }
-        NSApp.dockTile.badgeLabel = "1"
 
         Task {
             let center = UNUserNotificationCenter.current()

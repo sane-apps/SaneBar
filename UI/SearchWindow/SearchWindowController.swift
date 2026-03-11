@@ -50,6 +50,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     private var panelIdleCloseGeneration: Int = 0
     private var postDismissForceHideTask: Task<Void, Never>?
     private var secondMenuBarRelayoutTask: Task<Void, Never>?
+    private var browseActivationInFlightCount: Int = 0
+    private var lastBrowseActivationFinishedAt: Date?
     private var lastSecondMenuBarDiagnostics = SecondMenuBarDiagnostics()
 
     /// Prevents explicit closes during icon moves (CGEvent can flip key status)
@@ -277,7 +279,10 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         if manager.hidingService.state == .expanded,
            !manager.shouldSkipHideForExternalMonitor {
-            let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)
+            let dismissDelaySeconds = max(
+                browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay),
+                remainingActivationGracePeriod(for: currentMode)
+            )
             manager.hidingService.scheduleRehide(after: dismissDelaySeconds)
             logger.info("\(reason, privacy: .public) scheduled rehide after \(dismissDelaySeconds, privacy: .public)s")
             scheduleForceRehideAfterBrowseDismissal(mode: currentMode, baseDelay: dismissDelaySeconds, reason: reason)
@@ -327,6 +332,64 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    static func panelIdleCloseActivationGracePeriod(for mode: SearchWindowMode) -> TimeInterval {
+        switch mode {
+        case .secondMenuBar:
+            return 4
+        case .findIcon:
+            return 1.5
+        }
+    }
+
+    static func shouldDeferPanelIdleClose(
+        mode: SearchWindowMode,
+        pointerInsidePanel: Bool,
+        activationInFlight: Bool,
+        secondsSinceLastActivation: TimeInterval?
+    ) -> Bool {
+        if pointerInsidePanel {
+            return true
+        }
+        if mode != .secondMenuBar {
+            return false
+        }
+        if activationInFlight {
+            return true
+        }
+        guard let secondsSinceLastActivation else { return false }
+        return secondsSinceLastActivation < panelIdleCloseActivationGracePeriod(for: mode)
+    }
+
+    private func remainingActivationGracePeriod(for mode: SearchWindowMode?, now: Date = Date()) -> TimeInterval {
+        guard mode == .secondMenuBar else { return 0 }
+        let grace = Self.panelIdleCloseActivationGracePeriod(for: .secondMenuBar)
+        if browseActivationInFlightCount > 0 {
+            return grace
+        }
+        guard let lastBrowseActivationFinishedAt else { return 0 }
+        let elapsed = now.timeIntervalSince(lastBrowseActivationFinishedAt)
+        return max(0, grace - elapsed)
+    }
+
+    func noteBrowseActivationStarted() {
+        guard currentMode == .secondMenuBar else { return }
+        browseActivationInFlightCount += 1
+        if window?.isVisible == true {
+            schedulePanelIdleCloseIfNeeded(for: .secondMenuBar)
+        }
+    }
+
+    func noteBrowseActivationFinished() {
+        guard currentMode == .secondMenuBar || browseActivationInFlightCount > 0 else { return }
+        if browseActivationInFlightCount > 0 {
+            browseActivationInFlightCount -= 1
+        }
+        lastBrowseActivationFinishedAt = Date()
+        if window?.isVisible == true, currentMode == .secondMenuBar {
+            schedulePanelIdleCloseIfNeeded(for: .secondMenuBar)
+        }
+    }
+
     private func schedulePanelIdleCloseIfNeeded(for mode: SearchWindowMode) {
         panelIdleCloseTask?.cancel()
         panelIdleCloseTask = nil
@@ -344,11 +407,24 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 guard let self else { return }
                 guard self.panelIdleCloseGeneration == generation else { return }
                 guard self.window?.isVisible == true, self.currentMode == mode, !self.isMoveInProgress else { return }
+                let pointerInsidePanel = self.window?.frame.contains(NSEvent.mouseLocation) == true
+                let secondsSinceLastActivation = self.lastBrowseActivationFinishedAt.map { Date().timeIntervalSince($0) }
 
-                // If the pointer is still inside the panel when the timer fires,
-                // defer closure and give the user another full interaction window.
-                if let window = self.window, window.frame.contains(NSEvent.mouseLocation) {
-                    logger.debug("panel idle timeout deferred (\(idleDelaySeconds, privacy: .public)s): pointer still in panel")
+                if Self.shouldDeferPanelIdleClose(
+                    mode: mode,
+                    pointerInsidePanel: pointerInsidePanel,
+                    activationInFlight: self.browseActivationInFlightCount > 0,
+                    secondsSinceLastActivation: secondsSinceLastActivation
+                ) {
+                    let deferReason: String
+                    if pointerInsidePanel {
+                        deferReason = "pointer still in panel"
+                    } else if self.browseActivationInFlightCount > 0 {
+                        deferReason = "browse activation still in flight"
+                    } else {
+                        deferReason = "recent second menu bar activation"
+                    }
+                    logger.debug("panel idle timeout deferred (\(idleDelaySeconds, privacy: .public)s): \(deferReason, privacy: .public)")
                     self.schedulePanelIdleCloseIfNeeded(for: mode)
                     return
                 }

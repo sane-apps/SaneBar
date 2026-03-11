@@ -80,6 +80,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("self.statusBarController = statusBarController ?? StatusBarController()"),
             "MenuBarManager should not eagerly create status items during init before the deferred startup delay"
         )
+        XCTAssertTrue(
+            source.contains("statusItemsNeedRecovery()"),
+            "Runtime position validation should reuse geometry-aware recovery checks instead of only verifying menu-bar attachment"
+        )
     }
 
     func testNormalizedEventYFlipsUnflippedMenuBarY() {
@@ -853,8 +857,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
-            "Closing Browse Icons should use standard auto-rehide timing when dismissing the panel"
+            source.contains("remainingActivationGracePeriod(for: currentMode)") &&
+                source.contains("browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
+            "Closing Browse Icons should preserve standard rehide timing while protecting recent second-menu-bar activations"
         )
         XCTAssertTrue(
             source.contains("manager.hidingService.scheduleRehide(after: dismissDelaySeconds)"),
@@ -1123,6 +1128,25 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should require a repeat pass to catch warm-state regressions"
         )
         XCTAssertTrue(
+            source.contains("'SANEBAR_SMOKE_WATCH_RESOURCES' => '1'") &&
+                source.contains("'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s") &&
+                source.contains("'SANEBAR_SMOKE_MAX_RSS_MB' => RUNTIME_SMOKE_MAX_RSS_MB.to_s"),
+            "Project QA runtime smoke should force the resource watchdog on with explicit CPU and RSS thresholds"
+        )
+        XCTAssertTrue(
+            source.contains("'SANEBAR_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX' => RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX.to_s") &&
+                source.contains("'SANEBAR_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS' => RUNTIME_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS.to_s") &&
+                source.contains("'SANEBAR_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS' => RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS.to_s") &&
+                source.contains("'SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX' => RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX.to_s") &&
+                source.contains("'SANEBAR_SMOKE_ACTIVE_AVG_CPU_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX.to_s"),
+            "Project QA runtime smoke should also force explicit settle windows plus launch-idle, post-smoke idle, and active-average performance budgets"
+        )
+        XCTAssertTrue(
+            source.contains("resource_sample_path = \"/tmp/sanebar_runtime_resource_sample-pass#{index + 1}.txt\"") &&
+                source.contains("resource_sample=#{resource_sample_path}"),
+            "Project QA runtime smoke should record a per-pass process sample path alongside the smoke transcript"
+        )
+        XCTAssertTrue(
             source.contains("Runtime smoke failed on pass"),
             "Project QA runtime smoke should report which pass exposed the failure"
         )
@@ -1138,6 +1162,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join(\"\\n\\n\"))"),
             "Project QA runtime smoke should persist the latest smoke transcript on success so the artifact always matches the current run"
+        )
+        XCTAssertTrue(
+            source.contains("runtimeSmokeResourceWatchdog: {") &&
+                source.contains("maxCpuPercent: RUNTIME_SMOKE_MAX_CPU_PERCENT") &&
+                source.contains("maxRssMB: RUNTIME_SMOKE_MAX_RSS_MB"),
+            "Project QA status snapshots should record the runtime smoke watchdog thresholds"
+        )
+        XCTAssertTrue(
+            source.contains("runtimeSmokePerformanceBudget: {") &&
+                source.contains("launchIdleCpuAvgMax: RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX") &&
+                source.contains("postSmokeIdleSettleSeconds: RUNTIME_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS") &&
+                source.contains("postSmokeIdleSampleSeconds: RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS") &&
+                source.contains("activeAvgCpuMax: RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX"),
+            "Project QA status snapshots should record the runtime smoke performance budget"
         )
     }
 
@@ -1422,7 +1460,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should verify browse right-click activation"
         )
         XCTAssertTrue(
-            source.contains("sleep BROWSE_ACTIVATION_COOLDOWN_SECONDS"),
+            source.contains("sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)"),
             "Live smoke should wait out activation debounce before retrying the same browse tile via right-click"
         )
         XCTAssertTrue(
@@ -1468,6 +1506,40 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("retryable_zone_poll_error?") &&
             source.contains("after transient poll failures"),
             "Live smoke should keep polling through transient list-icon-zones timeouts while the menu bar is relayouting"
+        )
+        XCTAssertTrue(
+            source.contains("start_resource_watchdog") &&
+                source.contains("check_resource_watchdog!") &&
+                source.contains("sleep_with_watchdog"),
+            "Live smoke should run a background resource watchdog and check it during waits instead of sleeping blindly"
+        )
+        XCTAssertTrue(
+            source.contains("peak_cpu_exceeded") &&
+                source.contains("peak_rss_exceeded") &&
+                source.contains("capture_resource_sample"),
+            "Live smoke should fail loudly on runaway CPU/RSS and capture a process sample for follow-up"
+        )
+        XCTAssertTrue(
+            source.contains("assert_idle_budget!(") &&
+                source.contains("label: 'launch'") &&
+                source.contains("label: 'post-smoke'"),
+            "Live smoke should verify that launch settles down and that the app returns to an idle budget after the full browse/move pass"
+        )
+        XCTAssertTrue(
+            source.contains("assert_active_average_budget!") &&
+                source.contains("active_budget_exceeded"),
+            "Live smoke should reject heavy average CPU/RSS behavior across the full interaction pass, not just absurd spikes"
+        )
+        XCTAssertTrue(
+            source.contains("📉 Idle budget %s: avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB") &&
+                source.contains("🫀 Resource watchdog: samples=%d avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB"),
+            "Live smoke should print both idle-budget and whole-pass performance summaries so the numbers are reviewable in smoke logs"
+        )
+        XCTAssertTrue(
+            source.contains("'/usr/bin/sample'") &&
+                source.contains("ps',") &&
+                source.contains("'pid=,%cpu=,rss=,etime=,command='"),
+            "Live smoke should monitor the staged process with native macOS tooling and sample it when thresholds are breached"
         )
     }
 
@@ -1522,6 +1594,51 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Status item position validation recovered after"),
             "Startup validation should log successful transient recovery without bumping autosave version"
+        )
+        XCTAssertTrue(
+            source.contains("Status item geometry drift detected"),
+            "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
+        )
+    }
+
+    func testScreenParameterChangesReschedulePositionValidation() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Screen parameters changed — invalidated cached separator positions") &&
+                source.contains("self?.schedulePositionValidation()"),
+            "Screen/menu-bar topology changes should trigger another position validation pass so attached-but-drifted items self-heal"
+        )
+    }
+
+    func testInlineAppMenuSuppressionDoesNotForceDockIconVisible() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func suppressApplicationMenusIfNeeded()"),
+            "Inline reveal path should still have an explicit app-menu suppression handler"
+        )
+        XCTAssertFalse(
+            source.contains("private func suppressApplicationMenusIfNeeded() {\n        guard !isAppMenuSuppressed else { return }\n        guard !settings.showDockIcon else { return }\n\n        appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication\n        NSApp.setActivationPolicy(.regular)"),
+            "Inline app-menu suppression must not force regular activation when the user has hidden the Dock icon"
+        )
+        XCTAssertTrue(
+            source.contains("appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication") &&
+                source.contains("NSApp.activate(ignoringOtherApps: true)") &&
+                source.contains("scheduleAppMenuDockPolicyReassertionIfNeeded()"),
+            "Inline app-menu suppression should still activate SaneBar while reasserting accessory policy during the suppression window"
+        )
+        XCTAssertTrue(
+            source.contains("appMenuDockPolicyTask?.cancel()") &&
+                source.contains("appMenuDockPolicyTask = Task"),
+            "Inline app-menu suppression should cancel prior Dock-policy reassertion work and keep a delayed reassertion window alive until suppression ends"
+        )
+        XCTAssertTrue(
+            source.contains("appMenuDockPolicyReassertionIntervalsNanoseconds") &&
+                source.contains("reassertAccessoryPolicyDuringAppMenuSuppression(reason: \"suppressionHold\")"),
+            "Inline app-menu suppression should keep checking for delayed Dock-policy drift instead of only restoring accessory mode once"
         )
     }
 
@@ -1626,8 +1743,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "resetWindow should detect visible-panel resets"
         )
         XCTAssertTrue(
-            source.contains("let dismissDelaySeconds = browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
-            "Visible reset should derive panel-dismiss rehide from standard auto-rehide timing"
+            source.contains("remainingActivationGracePeriod(for: currentMode)") &&
+                source.contains("browseDismissRehideDelay(baseDelay: manager.settings.rehideDelay)"),
+            "Visible reset should derive panel-dismiss rehide from standard timing while respecting activation grace"
         )
         XCTAssertTrue(
             source.contains("manager.hidingService.scheduleRehide(after: dismissDelaySeconds)"),
@@ -1672,20 +1790,49 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testSearchWindowPanelIdleTimeoutClosesAndQuickRehides() throws {
-        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
-        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let controllerURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
+        let controllerSource = try String(contentsOf: controllerURL, encoding: .utf8)
+        let smokeURL = projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb")
+        let smokeSource = try String(contentsOf: smokeURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let idleDelaySeconds: TimeInterval = (mode == .findIcon) ? 10 : 20"),
+            controllerSource.contains("let idleDelaySeconds: TimeInterval = (mode == .findIcon) ? 10 : 20"),
             "Browse panel idle timeout should use mode-specific defaults (10s icon panel, 20s second menu bar)"
         )
         XCTAssertTrue(
-            source.contains("window.frame.contains(NSEvent.mouseLocation)"),
+            controllerSource.contains("let pointerInsidePanel = self.window?.frame.contains(NSEvent.mouseLocation) == true"),
             "Idle timeout should defer when the pointer is still inside the panel"
         )
         XCTAssertTrue(
-            source.contains("manager.hidingService.scheduleRehide(after: 0.2)"),
+            controllerSource.contains("manager.hidingService.scheduleRehide(after: 0.2)"),
             "Idle timeout close should force a short rehide delay so the menu bar does not stay expanded"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("noteBrowseActivationStarted()") &&
+                controllerSource.contains("noteBrowseActivationFinished()"),
+            "Browse activation should refresh second-menu-bar idle protection around panel clicks"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("recent second menu bar activation"),
+            "Idle timeout should explicitly defer for a short post-activation grace window"
+        )
+        XCTAssertTrue(
+            smokeSource.contains("verify_post_activation_browse_state!") &&
+                smokeSource.contains("second menu bar collapsed after activation") &&
+                smokeSource.contains("expected_mode == 'secondMenuBar' ? 'windowVisible: true' : nil"),
+            "Runtime smoke should reject second-menu-bar activations that immediately collapse the panel after a click"
+        )
+    }
+
+    func testBrowseAppleScriptActivationUsesSameIdleProtectionAsUI() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptActivationCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if activationOrigin == .browsePanel") &&
+                source.contains("browseController.noteBrowseActivationStarted()") &&
+                source.contains("browseController.noteBrowseActivationFinished()"),
+            "Browse AppleScript activations should opt into the same second-menu-bar idle-close protection as the panel UI path"
         )
     }
 

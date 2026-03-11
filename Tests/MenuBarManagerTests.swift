@@ -357,6 +357,15 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("App menu dock policy reassertion covers delayed Dock surfacing window")
+    func appMenuDockPolicyReassertionCoversDelayedDockSurfacing() {
+        let totalCoverageNanoseconds = MenuBarManager.appMenuDockPolicyReassertionIntervalsNanoseconds.reduce(0, +)
+        #expect(
+            totalCoverageNanoseconds >= 5_000_000_000,
+            "Dock policy reassertion should stay active long enough to catch the delayed Dock surfacing seen in #110"
+        )
+    }
+
     @Test("Second menu fallback opens only for fully-eligible hidden-state path")
     func secondMenuFallbackDecisionMatrix() {
         let baseline = MenuBarManager.shouldOpenSecondMenuBarFallback(
@@ -563,6 +572,20 @@ struct MenuBarManagerTests {
                 separatorX: 1500,
                 mainX: 1698,
                 mainRightGap: 222,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil
+            )
+        )
+    }
+
+    @Test("Startup recovery triggers for Mini external-monitor far-left drift")
+    @MainActor
+    func startupRecoveryTriggersForMiniFarLeftDrift() {
+        #expect(
+            MenuBarManager.shouldRecoverStartupPositions(
+                separatorX: 956,
+                mainX: 976,
+                mainRightGap: 944,
                 screenWidth: 1920,
                 notchRightSafeMinX: nil
             )

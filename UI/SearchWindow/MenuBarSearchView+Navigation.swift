@@ -142,8 +142,11 @@ extension MenuBarSearchView {
         }
     }
 
+    @MainActor
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
-        Task {
+        SearchWindowController.shared.noteBrowseActivationStarted()
+        Task { @MainActor in
+            defer { SearchWindowController.shared.noteBrowseActivationFinished() }
             await service.activate(app: app, isRightClick: isRightClick, origin: .browsePanel)
         }
     }

@@ -155,4 +155,9 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     func testScheduledUpdateReminderNotificationIdentifierIsStable() {
         XCTAssertEqual(UpdateService.scheduledUpdateReminderNotificationID, "com.sanebar.app.sparkle.scheduled-update")
     }
+
+    func testScheduledUpdateReminderDockBadgeFollowsDockSetting() {
+        XCTAssertTrue(UpdateService.shouldShowScheduledUpdateDockBadge(showDockIcon: true))
+        XCTAssertFalse(UpdateService.shouldShowScheduledUpdateDockBadge(showDockIcon: false))
+    }
 }
