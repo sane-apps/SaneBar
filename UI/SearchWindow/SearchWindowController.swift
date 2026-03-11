@@ -390,6 +390,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    func noteSecondMenuBarInteraction() {
+        guard currentMode == .secondMenuBar, window?.isVisible == true else { return }
+        schedulePanelIdleCloseIfNeeded(for: .secondMenuBar)
+    }
+
     private func schedulePanelIdleCloseIfNeeded(for mode: SearchWindowMode) {
         panelIdleCloseTask?.cancel()
         panelIdleCloseTask = nil

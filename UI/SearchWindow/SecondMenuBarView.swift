@@ -95,6 +95,9 @@ struct SecondMenuBarView: View {
                 proUpsellFeature = nil
             }
         }
+        .onChange(of: searchText) { (_: String, _: String) in
+            notePanelInteraction()
+        }
     }
 
     // MARK: - Background
@@ -302,7 +305,10 @@ struct SecondMenuBarView: View {
         helpText: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            notePanelInteraction()
+            action()
+        } label: {
             HStack(spacing: 4) {
                 if isLocked {
                     Image(systemName: "lock.fill")
@@ -386,6 +392,11 @@ struct SecondMenuBarView: View {
                 }
             }
             .scrollIndicators(.visible)
+            .onHover { inside in
+                if inside {
+                    notePanelInteraction()
+                }
+            }
 
             if apps.count > 14 {
                 Text("Scroll sideways to see all icons")
@@ -458,6 +469,7 @@ struct SecondMenuBarView: View {
             colorScheme: colorScheme,
             isPro: licenseService.isPro,
             duplicateMarker: duplicateMarkers[app.uniqueId],
+            onInteraction: notePanelInteraction,
             onActivate: { isRightClick in
                 if isRightClick, !licenseService.isPro {
                     proUpsellFeature = .rightClickFromPanels
@@ -496,6 +508,7 @@ struct SecondMenuBarView: View {
     // MARK: - Icon Movement
 
     private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
+        notePanelInteraction()
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
@@ -590,6 +603,7 @@ struct SecondMenuBarView: View {
     }
 
     private func handleZoneDrop(_ payloads: [String], targetZone: IconZone) -> Bool {
+        notePanelInteraction()
         guard licenseService.isPro else {
             proUpsellFeature = .zoneMoves
             return false
@@ -606,6 +620,7 @@ struct SecondMenuBarView: View {
     }
 
     private func handleTileDrop(_ payloads: [String], targetApp: RunningApp, targetZone: IconZone) -> Bool {
+        notePanelInteraction()
         guard licenseService.isPro else {
             proUpsellFeature = .zoneMoves
             return false
@@ -626,6 +641,7 @@ struct SecondMenuBarView: View {
     }
 
     private func handleReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
+        notePanelInteraction()
         guard licenseService.isPro else {
             proUpsellFeature = .zoneMoves
             return false
@@ -713,6 +729,10 @@ struct SecondMenuBarView: View {
         }
         .padding(10)
     }
+
+    private func notePanelInteraction() {
+        SearchWindowController.shared.noteSecondMenuBarInteraction()
+    }
 }
 // swiftlint:enable file_length
 
@@ -777,6 +797,7 @@ private struct PanelIconTile: View {
     let colorScheme: ColorScheme
     var isPro: Bool = true
     var duplicateMarker: BrowseDuplicateMarker?
+    var onInteraction: (() -> Void)?
     let onActivate: (Bool) -> Void
     var onMoveToVisible: (() -> Void)?
     var onMoveToHidden: (() -> Void)?
@@ -799,7 +820,10 @@ private struct PanelIconTile: View {
     }
 
     var body: some View {
-        Button { onActivate(false) } label: {
+        Button {
+            onInteraction?()
+            onActivate(false)
+        } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(tileBackground)
@@ -835,7 +859,12 @@ private struct PanelIconTile: View {
                     .offset(x: 2, y: 2)
             }
         }
-        .onHover { isHovering = $0 }
+        .onHover {
+            isHovering = $0
+            if $0 {
+                onInteraction?()
+            }
+        }
         .help(helpText)
         .contextMenu { contextMenuItems }
         .accessibilityLabel(Text(accessibilityLabel))
@@ -893,12 +922,19 @@ private struct PanelIconTile: View {
 
     @ViewBuilder
     private var contextMenuItems: some View {
-        Button("Left-Click (Open)") { onActivate(false) }
-        Button("Right-Click") { onActivate(true) }
+        Button("Left-Click (Open)") {
+            onInteraction?()
+            onActivate(false)
+        }
+        Button("Right-Click") {
+            onInteraction?()
+            onActivate(true)
+        }
 
         Divider()
 
         Button("Copy Icon ID") {
+            onInteraction?()
             copyIconID(app.uniqueId)
         }
 
@@ -921,6 +957,7 @@ private struct PanelIconTile: View {
 
         if let moveToVisible = onMoveToVisible {
             Button {
+                onInteraction?()
                 moveToVisible()
             } label: {
                 SwiftUI.Label("Move to Visible", systemImage: "eye")
@@ -929,6 +966,7 @@ private struct PanelIconTile: View {
 
         if let moveToHidden = onMoveToHidden {
             Button {
+                onInteraction?()
                 moveToHidden()
             } label: {
                 SwiftUI.Label("Move to Hidden", systemImage: "eye.slash")
@@ -937,6 +975,7 @@ private struct PanelIconTile: View {
 
         if let moveToAH = onMoveToAlwaysHidden {
             Button {
+                onInteraction?()
                 moveToAH()
             } label: {
                 SwiftUI.Label("Move to Always Hidden", systemImage: "lock")

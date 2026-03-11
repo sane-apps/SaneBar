@@ -1792,6 +1792,8 @@ final class RuntimeGuardXCTests: XCTestCase {
     func testSearchWindowPanelIdleTimeoutClosesAndQuickRehides() throws {
         let controllerURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let controllerSource = try String(contentsOf: controllerURL, encoding: .utf8)
+        let secondMenuBarURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift")
+        let secondMenuBarSource = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
         let smokeURL = projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb")
         let smokeSource = try String(contentsOf: smokeURL, encoding: .utf8)
 
@@ -1811,6 +1813,15 @@ final class RuntimeGuardXCTests: XCTestCase {
             controllerSource.contains("noteBrowseActivationStarted()") &&
                 controllerSource.contains("noteBrowseActivationFinished()"),
             "Browse activation should refresh second-menu-bar idle protection around panel clicks"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("func noteSecondMenuBarInteraction()"),
+            "SearchWindowController should expose an explicit second-menu-bar interaction hook so idle-close protection can refresh before the panel ages out"
+        )
+        XCTAssertTrue(
+            secondMenuBarSource.contains("SearchWindowController.shared.noteSecondMenuBarInteraction()") &&
+                secondMenuBarSource.contains("onInteraction: notePanelInteraction"),
+            "Second Menu Bar interactions should refresh the idle-close budget while the user hovers, types, clicks, or moves icons (#101)"
         )
         XCTAssertTrue(
             controllerSource.contains("recent second menu bar activation"),

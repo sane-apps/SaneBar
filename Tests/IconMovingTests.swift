@@ -319,6 +319,49 @@ struct IconMovingVerificationTests {
     }
 }
 
+// MARK: - Coordinate Space Tests
+
+@Suite("Icon Moving — Coordinate Space")
+struct IconMovingCoordinateSpaceTests {
+    @Test("CGEvent screen frames flip vertically for stacked displays")
+    func cgEventScreenFrameFlipsStackedDisplays() {
+        let lowerDisplay = CGRect(x: 0, y: 0, width: 3440, height: 1440)
+        let upperDisplay = CGRect(x: 3440, y: 900, width: 1512, height: 982)
+        let globalMaxY = max(lowerDisplay.maxY, upperDisplay.maxY)
+
+        let cgFrame = AccessibilityService.cgEventScreenFrame(
+            fromAppKitScreenFrame: upperDisplay,
+            globalMaxY: globalMaxY
+        )
+
+        #expect(cgFrame.origin.x == 3438)
+        #expect(cgFrame.origin.y == -2, "Upper display should map back to the top edge in CGEvent space")
+        #expect(cgFrame.width == 1516)
+        #expect(cgFrame.height == 986)
+    }
+
+    @Test("REGRESSION: CGEvent drag points stay on-screen for vertically offset displays")
+    func cgEventPointValidationUsesCGSpace() {
+        let lowerDisplay = CGRect(x: 0, y: 0, width: 3440, height: 1440)
+        let upperDisplay = CGRect(x: 3440, y: 900, width: 1512, height: 982)
+        let screenFrames = [lowerDisplay, upperDisplay]
+        let globalMaxY = max(lowerDisplay.maxY, upperDisplay.maxY)
+        let dragPoint = CGPoint(x: 3655, y: 1)
+
+        let appKitContainsPoint = screenFrames.contains { $0.insetBy(dx: -2, dy: -2).contains(dragPoint) }
+
+        #expect(!appKitContainsPoint, "Raw AppKit frames would wrongly reject the drag point")
+        #expect(
+            AccessibilityService.isCGEventPointOnAnyScreen(
+                dragPoint,
+                screenFrames: screenFrames,
+                globalMaxY: globalMaxY
+            ),
+            "CGEvent-space validation should accept the same point on the upper display"
+        )
+    }
+}
+
 // MARK: - Separator Caching Tests
 
 @Suite("Icon Moving — Separator Caching")

@@ -549,6 +549,32 @@ extension AccessibilityService {
         return CGPoint(x: point.x, y: clampedY)
     }
 
+    nonisolated static func cgEventScreenFrame(
+        fromAppKitScreenFrame screenFrame: CGRect,
+        globalMaxY: CGFloat,
+        inset: CGFloat = 2
+    ) -> CGRect {
+        let cgMinY = globalMaxY - screenFrame.maxY
+        return CGRect(
+            x: screenFrame.minX,
+            y: cgMinY,
+            width: screenFrame.width,
+            height: screenFrame.height
+        ).insetBy(dx: -inset, dy: -inset)
+    }
+
+    nonisolated static func isCGEventPointOnAnyScreen(
+        _ point: CGPoint,
+        screenFrames: [CGRect],
+        globalMaxY: CGFloat,
+        inset: CGFloat = 2
+    ) -> Bool {
+        screenFrames.contains {
+            cgEventScreenFrame(fromAppKitScreenFrame: $0, globalMaxY: globalMaxY, inset: inset)
+                .contains(point)
+        }
+    }
+
     nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
         let flippedY = globalMaxY - rawY
 
@@ -935,8 +961,18 @@ extension AccessibilityService {
                 semaphore.signal()
                 return
             }
-            let fromOnScreen = screens.contains { $0.frame.contains(from) }
-            let targetOnScreen = screens.contains { $0.frame.contains(to) }
+            let globalMaxY = screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 0
+            let screenFrames = screens.map(\.frame)
+            let fromOnScreen = Self.isCGEventPointOnAnyScreen(
+                from,
+                screenFrames: screenFrames,
+                globalMaxY: globalMaxY
+            )
+            let targetOnScreen = Self.isCGEventPointOnAnyScreen(
+                to,
+                screenFrames: screenFrames,
+                globalMaxY: globalMaxY
+            )
             if !fromOnScreen {
                 logger.warning("🔧 performCmdDrag(\(tapName, privacy: .public)): from point (\(from.x), \(from.y)) is off-screen — aborting")
                 semaphore.signal()
