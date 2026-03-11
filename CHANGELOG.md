@@ -6,6 +6,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.26] - 2026-03-11
+
+- Fix unexpected Dock icon surfacing when the Dock icon setting is off
+- Fix Browse Icons drag failures on multi-display setups
+- Improve Second Menu Bar interaction stability and reduce premature close behavior
+
+---
+
 ## [2.1.25] - 2026-03-10
 
 Critical stability update for Browse Icons, Second Menu Bar, startup positioning, and inline reveal reliability.
