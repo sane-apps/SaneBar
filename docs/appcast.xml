@@ -3,9 +3,10 @@
     <channel>
         <title>SaneBar Changelog</title>
 
-                                <item>
+                                
+        <item>
             <title>2.1.28</title>
-            <pubDate>Fri, 13 Mar 2026 17:05:40 -0400</pubDate>
+            <pubDate>Fri, 13 Mar 2026 17:19:28 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
@@ -18,9 +19,9 @@
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.28.zip"
                        sparkle:version="2128"
                        sparkle:shortVersionString="2.1.28"
-                       length="8135446"
+                       length="8135479"
                        type="application/octet-stream"
-                       sparkle:edSignature="7Q98hZsFy6OnvaMhV+2nXllMdTyRGLd5DxDmhbOIHQVL95rugZq7Pr+YP3cVGUkCichsC/gZF7aqG1TuYag4Bw=="/>
+                       sparkle:edSignature="3BgiEWUIew2B3htaXHXHWaxcWT7nX9HUaFeeO6Blyju99iZQSLZPgd1z6NEkh17b7m1o5hZ33G26H6mKKQ2PCg=="/>
         </item>
 <item>
             <title>2.1.27</title>
