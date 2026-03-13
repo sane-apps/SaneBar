@@ -214,7 +214,21 @@ final class PersistenceServiceTests: XCTestCase {
         settings.autoRehide = false
         settings.spacerCount = 2
 
-        let profile = SaneBarProfile(name: "Test Profile", settings: settings)
+        let profile = SaneBarProfile(
+            name: "Test Profile",
+            settings: settings,
+            layoutSnapshot: SaneBarLayoutSnapshot(
+                mainPosition: 420,
+                separatorPosition: 390,
+                alwaysHiddenSeparatorPosition: 10000,
+                spacerPositions: [0: 360],
+                calibratedScreenWidth: 1512,
+                displayBackups: [
+                    .init(widthBucket: 1512, mainPosition: 420, separatorPosition: 390)
+                ]
+            ),
+            customIconSnapshot: SaneBarCustomIconSnapshot(pngData: Data([0x89, 0x50, 0x4E, 0x47]))
+        )
 
         // When: encode and decode
         let encoder = JSONEncoder()
@@ -227,6 +241,9 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(decoded.settings.autoRehide, false)
         XCTAssertEqual(decoded.settings.spacerCount, 2)
         XCTAssertEqual(decoded.id, profile.id)
+        XCTAssertEqual(decoded.layoutSnapshot?.mainPosition, 420)
+        XCTAssertEqual(decoded.layoutSnapshot?.spacerPositions[0], 360)
+        XCTAssertEqual(decoded.customIconSnapshot?.pngData, Data([0x89, 0x50, 0x4E, 0x47]))
     }
 
     func testProfileGenerateNameAvoidsConflicts() throws {
@@ -238,6 +255,76 @@ final class PersistenceServiceTests: XCTestCase {
 
         // Then: name doesn't conflict
         XCTAssertEqual(newName, "Profile 4")
+    }
+
+    func testSettingsArchiveDecodesLegacyWrappedSettingsWithoutSnapshots() throws {
+        let legacyJSON = """
+        {
+          "version": 1,
+          "exportedAt": "2026-03-12T15:00:00Z",
+          "settings": {
+            "autoRehide": false,
+            "spacerCount": 1
+          }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let archive = try decoder.decode(SaneBarSettingsArchive.self, from: Data(legacyJSON.utf8))
+
+        XCTAssertEqual(archive.version, 1)
+        XCTAssertFalse(archive.settings.autoRehide)
+        XCTAssertEqual(archive.settings.spacerCount, 1)
+        XCTAssertNil(archive.layoutSnapshot)
+        XCTAssertNil(archive.customIconSnapshot)
+        XCTAssertTrue(archive.savedProfiles.isEmpty)
+    }
+
+    func testApplyCustomIconSnapshotWritesAndRemovesFile() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        let payload = Data([0x89, 0x50, 0x4E, 0x47, 0x01])
+        try persistence.applyCustomIconSnapshot(SaneBarCustomIconSnapshot(pngData: payload))
+        XCTAssertEqual(persistence.loadCustomIconData(), payload)
+
+        try persistence.applyCustomIconSnapshot(SaneBarCustomIconSnapshot(pngData: nil))
+        XCTAssertNil(persistence.loadCustomIconData())
+    }
+
+    func testUpsertProfilesMergesImportedProfilesByIdentifier() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir
+        )
+
+        let sharedID = UUID()
+        let original = SaneBarProfile(id: sharedID, name: "Work", settings: SaneBarSettings())
+        let untouched = SaneBarProfile(id: UUID(), name: "Home", settings: SaneBarSettings())
+        try persistence.saveProfile(original)
+        try persistence.saveProfile(untouched)
+
+        var updatedSettings = SaneBarSettings()
+        updatedSettings.autoRehide = false
+        let imported = SaneBarProfile(id: sharedID, name: "Work Updated", settings: updatedSettings)
+
+        try persistence.upsertProfiles([imported])
+
+        let profiles = try persistence.listProfiles()
+        XCTAssertEqual(profiles.count, 2)
+        XCTAssertTrue(profiles.contains { $0.name == "Home" })
+        XCTAssertTrue(profiles.contains { $0.id == sharedID && $0.name == "Work Updated" && $0.settings.autoRehide == false })
     }
 
     // MARK: - Hover Settings

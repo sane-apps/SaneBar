@@ -28,7 +28,7 @@ struct ExperimentalSettingsView: View {
             HStack(spacing: 10) {
                 Image(systemName: "flask")
                     .font(.system(size: 24))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(SaneBarChrome.accentHighlight)
 
                 Text("Advanced Features")
                     .font(.title3)
@@ -47,8 +47,7 @@ struct ExperimentalSettingsView: View {
                 } label: {
                     Label("Report a Bug", systemImage: "ladybug")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
+                .buttonStyle(ChromeActionButtonStyle(prominent: true))
 
                 Text("·")
                     .foregroundStyle(.white.opacity(0.92))
@@ -59,11 +58,11 @@ struct ExperimentalSettingsView: View {
             }
         }
         .padding(16)
-        .background(Color.orange.opacity(0.08))
+        .background(SaneBarChrome.softSurfaceFill)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                .stroke(SaneBarChrome.rowStroke, lineWidth: 1)
         )
     }
 }

@@ -26,6 +26,15 @@ struct MenuBarSearchView: View {
             case .all: "All"
             }
         }
+
+        var symbolName: String {
+            switch self {
+            case .hidden: "eye.slash"
+            case .visible: "eye"
+            case .alwaysHidden: "lock"
+            case .all: "square.grid.2x2"
+            }
+        }
     }
 
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
@@ -50,6 +59,11 @@ struct MenuBarSearchView: View {
     @State var hotkeyApp: RunningApp?
     @State var proUpsellFeature: ProFeature?
     @State private var showingBrowseHelp = false
+    @State private var targetedModeDrop: Mode?
+    @State private var isModeStripDropActive = false
+    @State private var activeModeStripSourceZone: AppZone?
+    @State private var localModeStripDragEndMonitor: Any?
+    @State private var globalModeStripDragEndMonitor: Any?
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
@@ -100,6 +114,90 @@ struct MenuBarSearchView: View {
         Mode.allCases
     }
 
+    private func modeSupportsZoneDrop(_ mode: Mode) -> Bool {
+        switch mode {
+        case .hidden, .visible:
+            true
+        case .alwaysHidden:
+            isAlwaysHiddenEnabled
+        case .all:
+            false
+        }
+    }
+
+    private func modeForZone(_ zone: AppZone) -> Mode {
+        switch zone {
+        case .visible:
+            .visible
+        case .hidden:
+            .hidden
+        case .alwaysHidden:
+            .alwaysHidden
+        }
+    }
+
+    private func modeAcceptsCurrentDrag(_ mode: Mode) -> Bool {
+        guard modeSupportsZoneDrop(mode) else { return false }
+        guard isModeStripDropActive, let activeModeStripSourceZone else { return true }
+        let originMode = modeForZone(activeModeStripSourceZone)
+        return originMode != mode
+    }
+
+    @MainActor
+    func noteModeStripDragStarted(sourceZone: AppZone) {
+        guard LicenseService.shared.isPro else { return }
+        activeModeStripSourceZone = sourceZone
+        isModeStripDropActive = true
+        if targetedModeDrop == modeForZone(sourceZone) {
+            targetedModeDrop = nil
+        }
+    }
+
+    @MainActor
+    func clearModeStripDragState() {
+        isModeStripDropActive = false
+        activeModeStripSourceZone = nil
+        targetedModeDrop = nil
+    }
+
+    @MainActor
+    private func installModeStripDragEndMonitors() {
+        guard localModeStripDragEndMonitor == nil else { return }
+
+        localModeStripDragEndMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseUp, .rightMouseUp, .keyDown]
+        ) { event in
+            if event.type == .leftMouseUp
+                || event.type == .rightMouseUp
+                || (event.type == .keyDown && event.keyCode == 53) {
+                Task { @MainActor in
+                    clearModeStripDragState()
+                }
+            }
+            return event
+        }
+
+        globalModeStripDragEndMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseUp, .rightMouseUp]
+        ) { _ in
+            Task { @MainActor in
+                clearModeStripDragState()
+            }
+        }
+    }
+
+    @MainActor
+    private func removeModeStripDragEndMonitors() {
+        if let monitor = localModeStripDragEndMonitor {
+            NSEvent.removeMonitor(monitor)
+            localModeStripDragEndMonitor = nil
+        }
+        if let monitor = globalModeStripDragEndMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalModeStripDragEndMonitor = nil
+        }
+    }
+
     /// Categories that have at least one app (for smart group tabs)
     private var availableCategories: [AppCategory] {
         let categories = Set(menuBarApps.map(\.category))
@@ -107,20 +205,18 @@ struct MenuBarSearchView: View {
         return AppCategory.allCases.filter { categories.contains($0) }
     }
 
-    private var accentStart: Color {
-        Color(red: 0.11, green: 0.32, blue: 0.50)
+    private var accentStart: Color { SaneBarChrome.accentStart }
+
+    private var accentEnd: Color { SaneBarChrome.accentEnd }
+
+    private var accentHighlight: Color { SaneBarChrome.accentHighlight }
+
+    private var shouldShowMoveHint: Bool {
+        LicenseService.shared.isPro && isModeStripDropActive && !moveHintModes.isEmpty
     }
 
-    private var accentEnd: Color {
-        Color(red: 0.11, green: 0.23, blue: 0.39)
-    }
-
-    private var accentGradient: LinearGradient {
-        LinearGradient(
-            colors: [accentStart, accentEnd],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var moveHintModes: [Mode] {
+        availableModes.filter(modeAcceptsCurrentDrag)
     }
 
     var filteredApps: [RunningApp] {
@@ -163,6 +259,7 @@ struct MenuBarSearchView: View {
             loadCachedApps()
             refreshApps(force: isSecondMenuBar)
             startPermissionMonitoring()
+            installModeStripDragEndMonitors()
 
             // Focus search field on appear for instant searching (Find Icon only)
             if !isSecondMenuBar {
@@ -225,6 +322,8 @@ struct MenuBarSearchView: View {
             }
         }
         .onDisappear {
+            clearModeStripDragState()
+            removeModeStripDragEndMonitors()
             permissionMonitorTask?.cancel()
             refreshTask?.cancel()
             postMoveRefreshTask?.cancel()
@@ -495,11 +594,22 @@ struct MenuBarSearchView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                ForEach(availableModes) { segmentMode in
-                    modeSegment(segmentMode)
+            HStack(spacing: 8) {
+                if shouldShowMoveHint {
+                    Text("Move to")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accentHighlight.opacity(0.78))
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                }
+
+                HStack(spacing: 6) {
+                    ForEach(availableModes) { segmentMode in
+                        modeSegment(segmentMode)
+                    }
                 }
             }
+
+            Spacer(minLength: 0)
 
             Button {
                 withAnimation(.easeInOut(duration: 0.12)) {
@@ -514,18 +624,15 @@ struct MenuBarSearchView: View {
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(width: 26, height: 26)
                     .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        ChromeGlassCircleBackground(
+                            tint: SaneBarChrome.controlNavyDeep,
+                            edgeTint: SaneBarChrome.accentTeal,
+                            tintStrength: 0.12,
+                            glowOpacity: 0.08
+                        )
                     )
-                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ChromePressablePlainStyle())
             .help(isSearchVisible ? "Hide filter" : "Filter")
 
             Button {
@@ -536,18 +643,15 @@ struct MenuBarSearchView: View {
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(width: 26, height: 26)
                     .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        ChromeGlassCircleBackground(
+                            tint: SaneBarChrome.controlNavyDeep,
+                            edgeTint: SaneBarChrome.accentTeal,
+                            tintStrength: 0.12,
+                            glowOpacity: 0.08
+                        )
                     )
-                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ChromePressablePlainStyle())
             .help("Refresh")
         }
         .padding(.horizontal)
@@ -555,77 +659,90 @@ struct MenuBarSearchView: View {
         .padding(.bottom, isSearchVisible ? 6 : 10)
     }
 
+    @ViewBuilder
     private func modeSegment(_ segmentMode: Mode) -> some View {
         let selected = mode == segmentMode
         let isLockedAlwaysHidden = segmentMode == .alwaysHidden && !isAlwaysHiddenEnabled
-
-        return HStack(spacing: 5) {
-            Text(segmentMode.title)
-                .font(.system(size: 12, weight: selected ? .semibold : .medium))
+        let isValidMoveTarget = shouldShowMoveHint && moveHintModes.contains(segmentMode)
+        let isTargeted = targetedModeDrop == segmentMode
+        let chip = Button {
             if isLockedAlwaysHidden {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 9, weight: .bold))
+                proUpsellFeature = .alwaysHidden
+            } else {
+                storedMode = segmentMode.rawValue
             }
-        }
-            .foregroundStyle(selected ? .white : .white.opacity(0.92))
+        } label: {
+            HStack(spacing: 5) {
+                Text(segmentMode.title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .medium))
+                if isLockedAlwaysHidden {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(accentHighlight)
+                }
+            }
+            .foregroundStyle(selected ? .white : .white.opacity(0.90))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        selected
-                            ? AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [accentStart.opacity(0.30), accentEnd.opacity(0.22)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            : isLockedAlwaysHidden
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [accentStart.opacity(0.24), accentEnd.opacity(0.18)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            : AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.11), Color.white.opacity(0.05)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
+                ChromeGlassRoundedBackground(
+                    cornerRadius: 8,
+                    tint: selected ? SaneBarChrome.accentTeal : SaneBarChrome.controlNavyDeep,
+                    edgeTint: selected ? SaneBarChrome.accentHighlight : SaneBarChrome.accentTeal,
+                    tintStrength: selected ? 0.66 : 0.10,
+                    glowOpacity: selected ? 0.24 : 0.06,
+                    interactive: true,
+                    shadowOpacity: selected ? 0.18 : 0.12,
+                    shadowRadius: selected ? 8 : 6,
+                    shadowY: 3
+                )
             )
-            .overlay(
+            .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        selected
-                            ? Color.white.opacity(0.26)
-                            : isLockedAlwaysHidden
-                                ? Color.white.opacity(0.22)
-                            : Color.white.opacity(0.18),
-                        lineWidth: 1
+                        isValidMoveTarget
+                            ? accentHighlight.opacity(isTargeted ? 0.78 : 0.42)
+                            : Color.clear,
+                        lineWidth: isTargeted ? 1.6 : 1.2
                     )
+                    .shadow(
+                        color: isValidMoveTarget
+                            ? accentHighlight.opacity(isTargeted ? 0.22 : 0.10)
+                            : .clear,
+                        radius: isTargeted ? 8 : 6
+                    )
+            }
+            .shadow(
+                color: isValidMoveTarget
+                    ? accentHighlight.opacity(isTargeted ? 0.16 : 0.08)
+                    : (selected ? SaneBarChrome.controlShadow.opacity(0.16) : .clear),
+                radius: isValidMoveTarget ? 8 : 4,
+                y: 1
             )
-            .shadow(color: selected ? Color.black.opacity(0.2) : .clear, radius: 6, y: 1)
+            .scaleEffect(isTargeted ? 1.015 : 1)
+            .animation(.easeOut(duration: 0.12), value: isTargeted)
+            .animation(.easeOut(duration: 0.12), value: isValidMoveTarget)
             .contentShape(RoundedRectangle(cornerRadius: 8))
-            .onTapGesture {
-                if isLockedAlwaysHidden {
-                    proUpsellFeature = .alwaysHidden
-                } else {
-                    storedMode = segmentMode.rawValue
+        }
+        .buttonStyle(ChromePressablePlainStyle())
+        .help(isValidMoveTarget ? (isTargeted ? "Drop to \(segmentMode.title)" : "Move to \(segmentMode.title)") : segmentMode.title)
+
+        if isValidMoveTarget {
+            chip
+                .dropDestination(for: String.self) { payloads, _ in
+                    let didHandle = handleZoneDrop(payloads, targetMode: segmentMode)
+                    clearModeStripDragState()
+                    return didHandle
+                } isTargeted: { isNowTargeted in
+                    if isNowTargeted {
+                        targetedModeDrop = segmentMode
+                    } else if targetedModeDrop == segmentMode {
+                        targetedModeDrop = nil
+                    }
                 }
-            }
-            .dropDestination(for: String.self) { payloads, _ in
-                handleZoneDrop(payloads, targetMode: segmentMode)
-            }
-            .help(
-                isLockedAlwaysHidden
-                    ? "Pro unlocks the Always Hidden zone, a third tab for icons you never want to see."
-                    : segmentMode.title
-            )
+        } else {
+            chip
+        }
     }
 
     private var groupTabs: some View {
@@ -701,7 +818,11 @@ struct MenuBarSearchView: View {
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                                .fill(SaneBarChrome.utilityFill)
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(SaneBarChrome.controlStroke, lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -722,12 +843,14 @@ struct MenuBarSearchView: View {
                                 newGroupName = ""
                                 isCreatingGroup = false
                             }
+                            .buttonStyle(ChromeActionButtonStyle())
                             .keyboardShortcut(.cancelAction)
                             Button("Create") {
                                 createGroup(named: newGroupName)
                                 newGroupName = ""
                                 isCreatingGroup = false
                             }
+                            .buttonStyle(ChromeActionButtonStyle(prominent: true))
                             .keyboardShortcut(.defaultAction)
                             .disabled(newGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
@@ -827,7 +950,10 @@ struct MenuBarSearchView: View {
             }
         }
         .padding(10)
-        .background(.white.opacity(0.08))
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(SaneBarChrome.utilityFill)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
         .padding(.bottom, 10)
@@ -897,15 +1023,10 @@ struct MenuBarSearchView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("How Browse Icons works")
                 .font(.system(size: 13, weight: .semibold))
-            if LicenseService.shared.isPro {
-                Text("Use the Hidden, Visible, and Always Hidden tabs to browse each zone.")
-                Text("Drag an icon onto one of those tabs to move it there.")
-                Text("Right-click an icon for Move actions.")
-            } else {
-                Text("Use the Hidden and Visible tabs to browse each zone.")
-                Text("Click an icon to open it from the panel.")
-                Text("The teal Always Hidden tab is locked in Basic. Upgrade to unlock that third zone.")
-            }
+            Text("1. Use the tabs to browse each row.")
+            Text("2. Click an icon to open it.")
+            Text("3. Drag an icon and drop it on a glowing tab to move it.")
+            Text("4. Right-click an icon for more actions.")
         }
         .font(.system(size: 12))
         .padding(12)
@@ -919,8 +1040,8 @@ struct MenuBarSearchView: View {
                 .foregroundStyle(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.62, green: 0.97, blue: 0.95),
-                            Color(red: 0.35, green: 0.83, blue: 0.90)
+                            SaneBarChrome.accentHighlight,
+                            SaneBarChrome.accentStart.opacity(0.92)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -934,21 +1055,21 @@ struct MenuBarSearchView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "video.slash.fill")
-                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
+                        .foregroundStyle(accentHighlight)
                         .frame(width: 20)
                     Text("No screen recording.")
                         .foregroundStyle(.white.opacity(0.92))
                 }
                 HStack(spacing: 10) {
                     Image(systemName: "eye.slash.fill")
-                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
+                        .foregroundStyle(accentHighlight)
                         .frame(width: 20)
                     Text("No screenshots.")
                         .foregroundStyle(.white.opacity(0.92))
                 }
                 HStack(spacing: 10) {
                     Image(systemName: "icloud.slash")
-                        .foregroundStyle(Color(red: 0.55, green: 0.96, blue: 0.93))
+                        .foregroundStyle(accentHighlight)
                         .frame(width: 20)
                     Text("No data collected.")
                         .foregroundStyle(.white.opacity(0.92))
@@ -961,56 +1082,30 @@ struct MenuBarSearchView: View {
                 Button("Open Accessibility Settings") {
                     _ = AccessibilityService.shared.openAccessibilitySettings()
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.23, green: 0.66, blue: 0.88),
-                                    Color(red: 0.16, green: 0.47, blue: 0.74)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.white.opacity(0.18), lineWidth: 0.9)
-                )
-                .shadow(color: Color(red: 0.10, green: 0.28, blue: 0.48).opacity(0.35), radius: 8, x: 0, y: 3)
+                .buttonStyle(ChromeActionButtonStyle(prominent: true))
 
                 Button("Try Again") {
                     _ = syncAccessibilityState(forceProbe: true, promptUser: true)
                     loadCachedApps()
                     refreshApps(force: true)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white.opacity(0.95))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.white.opacity(0.14))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.white.opacity(0.22), lineWidth: 0.9)
-                )
+                .buttonStyle(ChromeActionButtonStyle())
             }
         }
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.16))
+            ChromeGlassRoundedBackground(
+                cornerRadius: 14,
+                tint: SaneBarChrome.panelTint,
+                tintStrength: 0.14,
+                shadowOpacity: 0.14,
+                shadowRadius: 8,
+                shadowY: 3
+            )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                .stroke(SaneBarChrome.rowStroke, lineWidth: 0.8)
         )
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1020,7 +1115,7 @@ struct MenuBarSearchView: View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 40))
-                .foregroundStyle(.green)
+                .foregroundStyle(accentHighlight)
 
             Text(emptyStateTitle)
                 .font(.headline)
@@ -1051,7 +1146,7 @@ struct MenuBarSearchView: View {
         case .visible:
             "All your menu bar icons are hidden.\nUse ⌘-drag to show icons right of the separator."
         case .alwaysHidden:
-            "Nothing is in the always-hidden zone.\nUse the context menu to move icons there."
+            "Nothing is in the always-hidden zone.\nDrag an icon onto the glowing Always Hidden tab or use the context menu."
         case .all:
             "Try Refresh, or grant Accessibility permission."
         }
@@ -1142,10 +1237,15 @@ struct MenuBarSearchView: View {
             isMoving: movingAppId == app.uniqueId,
             isSelected: selectedAppIndex == index,
             isPro: isPro,
-            duplicateMarker: duplicateMarker
+            duplicateMarker: duplicateMarker,
+            onDragStart: {
+                noteModeStripDragStarted(sourceZone: appZone(for: app))
+            }
         )
         .dropDestination(for: String.self) { payloads, _ in
-            handleGridReorderDrop(payloads, targetApp: app)
+            let didHandle = handleGridReorderDrop(payloads, targetApp: app)
+            clearModeStripDragState()
+            return didHandle
         }
     }
 }

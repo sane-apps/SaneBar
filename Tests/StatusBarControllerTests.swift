@@ -219,6 +219,14 @@ struct StatusBarControllerTests {
         #expect(shouldSeed == true)
     }
 
+    @Test("Ordinal-seed pair detection only flags tiny seed values")
+    func ordinalSeedPairDetection() {
+        #expect(StatusBarController.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 1))
+        #expect(StatusBarController.hasOrdinalSeedPair(mainPosition: 2, separatorPosition: 3))
+        #expect(!StatusBarController.hasOrdinalSeedPair(mainPosition: 233, separatorPosition: 314))
+        #expect(!StatusBarController.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 314))
+    }
+
     @Test("Init forces anchor seeding when launch override is enabled")
     @MainActor
     func initForcesAnchorWhenOverrideEnabled() {
@@ -1134,6 +1142,96 @@ struct StatusBarControllerTests {
         #expect(!StatusBarController.hasRestorableDisplayBackup(mainBackup: 420, separatorBackup: nil))
     }
 
+    @Test("Layout snapshot captures current preferred positions and display backups")
+    func captureLayoutSnapshotReadsPersistedState() {
+        let defaults = UserDefaults.standard
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let spacerKey = "NSStatusItem Preferred Position \(StatusBarController.spacerAutosaveName(index: 0))"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "separator")
+        let keys = [screenWidthKey, mainKey, separatorKey, spacerKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(1512.0, forKey: screenWidthKey)
+        defaults.set(420.0, forKey: mainKey)
+        defaults.set(390.0, forKey: separatorKey)
+        defaults.set(360.0, forKey: spacerKey)
+        defaults.set(480.0, forKey: backupMainKey)
+        defaults.set(430.0, forKey: backupSeparatorKey)
+
+        let snapshot = StatusBarController.captureLayoutSnapshot()
+
+        #expect(snapshot.calibratedScreenWidth == 1512.0)
+        #expect(snapshot.mainPosition == 420.0)
+        #expect(snapshot.separatorPosition == 390.0)
+        #expect(snapshot.spacerPositions[0] == 360.0)
+        #expect(snapshot.displayBackups.contains {
+            $0.widthBucket == 1512 && $0.mainPosition == 480.0 && $0.separatorPosition == 430.0
+        })
+    }
+
+    @Test("Applying a layout snapshot restores positions and replaces display backups")
+    func applyLayoutSnapshotWritesPersistedState() {
+        let defaults = UserDefaults.standard
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let spacerKey = "NSStatusItem Preferred Position \(StatusBarController.spacerAutosaveName(index: 0))"
+        let staleBackupMainKey = StatusBarController.displayPositionBackupKey(for: 1440, slot: "main")
+        let staleBackupSeparatorKey = StatusBarController.displayPositionBackupKey(for: 1440, slot: "separator")
+        let freshBackupMainKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "main")
+        let freshBackupSeparatorKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "separator")
+        let keys = [screenWidthKey, mainKey, separatorKey, spacerKey, staleBackupMainKey, staleBackupSeparatorKey, freshBackupMainKey, freshBackupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(111.0, forKey: staleBackupMainKey)
+        defaults.set(112.0, forKey: staleBackupSeparatorKey)
+
+        StatusBarController.applyLayoutSnapshot(
+            SaneBarLayoutSnapshot(
+                mainPosition: 420.0,
+                separatorPosition: 390.0,
+                alwaysHiddenSeparatorPosition: 10000.0,
+                spacerPositions: [0: 360.0],
+                calibratedScreenWidth: 1512.0,
+                displayBackups: [
+                    .init(widthBucket: 1512, mainPosition: 480.0, separatorPosition: 430.0)
+                ]
+            )
+        )
+
+        #expect((defaults.object(forKey: screenWidthKey) as? NSNumber)?.doubleValue == 1512.0)
+        #expect((defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue == 420.0)
+        #expect((defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue == 390.0)
+        #expect((defaults.object(forKey: spacerKey) as? NSNumber)?.doubleValue == 360.0)
+        #expect(defaults.object(forKey: staleBackupMainKey) == nil)
+        #expect(defaults.object(forKey: staleBackupSeparatorKey) == nil)
+        #expect((defaults.object(forKey: freshBackupMainKey) as? NSNumber)?.doubleValue == 480.0)
+        #expect((defaults.object(forKey: freshBackupSeparatorKey) as? NSNumber)?.doubleValue == 430.0)
+    }
+
     @Test("Status item position validation fails when no window is attached")
     func statusItemWindowValidationRequiresWindow() {
         #expect(
@@ -1198,5 +1296,143 @@ struct StatusBarControllerTests {
             abs(storedWidth - expectedWidth) < 0.001,
             "Restoring a matching backup should stamp the current display width"
         )
+    }
+
+    @Test("Init restores current-width backup when persisted positions are ordinal seeds")
+    @MainActor
+    func initRestoresCurrentWidthBackupOverOrdinalSeeds() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for ordinal-seed backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.set(0.0, forKey: mainKey)
+        defaults.set(1.0, forKey: separatorKey)
+        defaults.set(480.0, forKey: backupMainKey)
+        defaults.set(430.0, forKey: backupSeparatorKey)
+
+        _ = StatusBarController()
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == 480.0, "Ordinal seed main position should be replaced with current-width backup")
+        #expect(restoredSeparator == 430.0, "Ordinal seed separator position should be replaced with current-width backup")
+    }
+
+    @Test("Startup recovery restores current-width backup when available")
+    @MainActor
+    func startupRecoveryRestoresCurrentWidthBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for startup recovery backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [screenWidthKey, mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.set(0.0, forKey: mainKey)
+        defaults.set(1.0, forKey: separatorKey)
+        defaults.set(520.0, forKey: backupMainKey)
+        defaults.set(470.0, forKey: backupSeparatorKey)
+
+        StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: false)
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == 520.0, "Startup recovery should prefer the current-width backup over ordinal reseeds")
+        #expect(restoredSeparator == 470.0, "Startup recovery should restore the separator from the current-width backup")
+    }
+
+    @Test("Autosave namespace recovery restores current-width backup into new version")
+    @MainActor
+    func recreateItemsWithBumpedVersionRestoresCurrentWidthBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for autosave recovery backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let originalVersion = defaults.object(forKey: versionKey)
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
+        let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
+        let newMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
+        let newSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v11"
+        let keys = [versionKey, backupMainKey, backupSeparatorKey, oldMainKey, oldSeparatorKey, newMainKey, newSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalVersion {
+                defaults.set(originalVersion, forKey: versionKey)
+            } else {
+                defaults.removeObject(forKey: versionKey)
+            }
+        }
+
+        defaults.set(10, forKey: versionKey)
+        defaults.set(0.0, forKey: oldMainKey)
+        defaults.set(1.0, forKey: oldSeparatorKey)
+        defaults.set(610.0, forKey: backupMainKey)
+        defaults.set(560.0, forKey: backupSeparatorKey)
+
+        let controller = StatusBarController()
+        _ = controller.recreateItemsWithBumpedVersion()
+
+        let restoredMain = (defaults.object(forKey: newMainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: newSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(defaults.integer(forKey: versionKey) == 11)
+        #expect(restoredMain == 610.0, "Autosave recovery should hydrate the new namespace from the current-width backup")
+        #expect(restoredSeparator == 560.0, "Autosave recovery should restore separator ordering into the new namespace")
     }
 }

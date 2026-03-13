@@ -93,6 +93,45 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         lastSecondMenuBarDiagnostics.formattedSummary()
     }
 
+    func captureBrowsePanelSnapshotPNG(to path: String) -> Bool {
+        guard let window, window.isVisible, let contentView = window.contentView else { return false }
+
+        contentView.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+
+        let bounds = contentView.bounds.integral
+        guard bounds.width > 0, bounds.height > 0,
+              let bitmap = contentView.bitmapImageRepForCachingDisplay(in: bounds),
+              let outputURL = snapshotOutputURL(for: path) else {
+            return false
+        }
+
+        bitmap.size = bounds.size
+        contentView.cacheDisplay(in: bounds, to: bitmap)
+
+        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: outputURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try pngData.write(to: outputURL, options: .atomic)
+            return true
+        } catch {
+            logger.error("browse panel snapshot write failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    private func snapshotOutputURL(for path: String) -> URL? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed).standardizedFileURL
+    }
+
     private static func diagnosticsTimestamp(_ date: Date) -> String {
         date.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true))
     }

@@ -90,28 +90,7 @@ struct RulesSettingsView: View {
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
-                .lineLimit(1)
-                .minimumScaleFactor(0.9)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(
-                            isSelected
-                                ? AnyShapeStyle(LinearGradient(
-                                    colors: [.saneAccentDeep.opacity(0.96), .saneAccent.opacity(0.96)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-                                : AnyShapeStyle(Color.white.opacity(0.08))
-                        )
-                )
-        }
-        .buttonStyle(.plain)
+        ChromeSegmentedChoiceButton(title: title, isSelected: isSelected, action: action)
     }
 
     var body: some View {
@@ -368,7 +347,7 @@ struct RulesSettingsView: View {
                                             Text("Add current: \(ssid)")
                                         }
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(ChromeActionButtonStyle())
                                     .controlSize(.small)
                                 }
 
@@ -412,7 +391,7 @@ struct RulesSettingsView: View {
                                             Text("Add current: \(currentMode)")
                                         }
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(ChromeActionButtonStyle())
                                     .controlSize(.small)
                                 }
 
@@ -425,7 +404,7 @@ struct RulesSettingsView: View {
                                             Text("Add: (Focus Off)")
                                         }
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(ChromeActionButtonStyle())
                                     .controlSize(.small)
                                 }
 
@@ -486,16 +465,7 @@ struct RulesSettingsView: View {
             Button {
                 proUpsellFeature = feature
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                    Text("Pro")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Color.saneAccentSoft)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
         }

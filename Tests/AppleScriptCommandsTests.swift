@@ -233,6 +233,8 @@ struct AppleScriptCommandsTests {
             "ShowIconPanelCommand": "open icon panel",
             "ShowSecondMenuBarCommand": "show second menu bar",
             "CloseBrowsePanelCommand": "close browse panel",
+            "CaptureBrowsePanelSnapshotCommand": "capture browse panel snapshot",
+            "QueueBrowsePanelSnapshotCommand": "queue browse panel snapshot",
             "ActivateIconCommand": "activate icon",
             "RightClickIconCommand": "right click icon",
             "ActivateBrowseIconCommand": "activate browse icon",
@@ -248,6 +250,8 @@ struct AppleScriptCommandsTests {
         let showIconPanelName = NSStringFromClass(ShowIconPanelCommand.self)
         let showSecondMenuBarName = NSStringFromClass(ShowSecondMenuBarCommand.self)
         let closeBrowsePanelName = NSStringFromClass(CloseBrowsePanelCommand.self)
+        let captureBrowsePanelSnapshotName = NSStringFromClass(CaptureBrowsePanelSnapshotCommand.self)
+        let queueBrowsePanelSnapshotName = NSStringFromClass(QueueBrowsePanelSnapshotCommand.self)
         let activateName = NSStringFromClass(ActivateIconCommand.self)
         let rightClickName = NSStringFromClass(RightClickIconCommand.self)
         let activateBrowseName = NSStringFromClass(ActivateBrowseIconCommand.self)
@@ -261,6 +265,8 @@ struct AppleScriptCommandsTests {
         #expect(!showIconPanelName.isEmpty, "ShowIconPanelCommand class should exist")
         #expect(!showSecondMenuBarName.isEmpty, "ShowSecondMenuBarCommand class should exist")
         #expect(!closeBrowsePanelName.isEmpty, "CloseBrowsePanelCommand class should exist")
+        #expect(!captureBrowsePanelSnapshotName.isEmpty, "CaptureBrowsePanelSnapshotCommand class should exist")
+        #expect(!queueBrowsePanelSnapshotName.isEmpty, "QueueBrowsePanelSnapshotCommand class should exist")
         #expect(!activateName.isEmpty, "ActivateIconCommand class should exist")
         #expect(!rightClickName.isEmpty, "RightClickIconCommand class should exist")
         #expect(!activateBrowseName.isEmpty, "ActivateBrowseIconCommand class should exist")
@@ -268,7 +274,7 @@ struct AppleScriptCommandsTests {
         #expect(!activationDiagnosticsName.isEmpty, "ActivationDiagnosticsCommand class should exist")
         #expect(!browseDiagnosticsName.isEmpty, "BrowsePanelDiagnosticsCommand class should exist")
 
-        #expect(expectedMappings.count == 12, "All commands have SDEF mappings")
+        #expect(expectedMappings.count == 14, "All commands have SDEF mappings")
     }
 
     @Test("Diagnostics AppleScript commands expose activation and browse summaries")

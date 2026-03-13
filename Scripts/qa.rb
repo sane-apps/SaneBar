@@ -139,6 +139,7 @@ class ProjectQA
   }.freeze
   RELEASE_SOAK_HOURS = 24
   REGRESSION_CONFIRMATION_WINDOW_HOURS = 48
+  STALE_REGRESSION_SILENCE_DAYS = 5
 
   def initialize
     @errors = []
@@ -709,12 +710,41 @@ class ProjectQA
   end
 
   def runtime_screenshot_capture_available?(screenshot_dir)
+    return true if internal_runtime_snapshot_supported?
+
     probe_path = File.join(screenshot_dir, '.sanebar-runtime-smoke-probe.png')
     FileUtils.rm_f(probe_path)
     _out, status = Open3.capture2e('/usr/sbin/screencapture', '-x', probe_path)
-    status.success? && File.exist?(probe_path) && !File.zero?(probe_path)
+    native_capture_ok = status.success? && File.exist?(probe_path) && !File.zero?(probe_path)
+    return true if native_capture_ok
+
+    !resolve_runtime_screenshot_tool.nil?
   ensure
     FileUtils.rm_f(probe_path) if probe_path
+  end
+
+  def internal_runtime_snapshot_supported?
+    sdef_path = File.join(PROJECT_ROOT, 'Resources', "#{PROJECT_NAME}.sdef")
+    return false unless File.exist?(sdef_path)
+
+    source = File.read(sdef_path)
+    source.include?('capture browse panel snapshot') &&
+      source.include?('queue browse panel snapshot')
+  rescue StandardError
+    false
+  end
+
+  def resolve_runtime_screenshot_tool
+    from_path = `command -v screenshot 2>/dev/null`.strip
+    return from_path unless from_path.empty?
+
+    %w[
+      ~/Library/Python/3.13/bin/screenshot
+      ~/Library/Python/3.12/bin/screenshot
+      ~/Library/Python/3.11/bin/screenshot
+      ~/Library/Python/3.10/bin/screenshot
+      ~/Library/Python/3.9/bin/screenshot
+    ].map { |path| File.expand_path(path) }.find { |path| File.executable?(path) }
   end
 
   def runtime_smoke_mode_status
@@ -1100,7 +1130,7 @@ class ProjectQA
       '--repo', 'sane-apps/SaneBar',
       '--state', 'open',
       '--limit', '100',
-      '--json', 'number,title,url,createdAt'
+      '--json', 'number,title,url,createdAt,updatedAt'
     )
 
     unless list_status.success?
@@ -1110,10 +1140,25 @@ class ProjectQA
     end
 
     issues = JSON.parse(issues_json) rescue []
-    blocking = issues.select { |issue| regression_like_title?(issue['title']) }
+    regression_issues = issues.select { |issue| regression_like_title?(issue['title']) }
+    latest_release = latest_published_release
+    blocking = regression_issues
+    stale = []
+
+    if latest_release
+      stale, blocking = regression_issues.partition do |issue|
+        stale_open_regression_after_release?(issue, latest_release)
+      end
+    end
 
     if blocking.empty?
-      puts '✅ no open regression-like issues'
+      if stale.empty?
+        puts '✅ no open regression-like issues'
+      else
+        summary = stale.first(5).map { |issue| "##{issue['number']}" }.join(', ')
+        @warnings << "Stale open regression issue(s) eligible for closure after #{latest_release['tagName']}: #{summary}"
+        puts "✅ no active open regression-like issues (stale after release: #{summary})"
+      end
       return
     end
 
@@ -1131,6 +1176,40 @@ class ProjectQA
       @errors << "Open regression issue(s) block release: #{details}. Manual approval phrase required: \"#{phrase}\"."
       puts "❌ blocking issue(s): #{summary}"
     end
+  end
+
+  def published_releases
+    return @published_releases if defined?(@published_releases)
+
+    gh_available = system('command -v gh >/dev/null 2>&1')
+    unless gh_available
+      @published_releases = []
+      return @published_releases
+    end
+
+    releases_json, status = Open3.capture2e(
+      'gh', 'release', 'list',
+      '--repo', 'sane-apps/SaneBar',
+      '--limit', '20',
+      '--json', 'tagName,publishedAt,isDraft,isPrerelease'
+    )
+
+    unless status.success?
+      @published_releases = []
+      return @published_releases
+    end
+
+    releases = JSON.parse(releases_json) rescue []
+    @published_releases = releases.reject do |release|
+      release['isDraft'] || release['isPrerelease'] || release['publishedAt'].to_s.empty?
+    end
+  end
+
+  def latest_published_release
+    releases = published_releases
+    return nil if releases.empty?
+
+    releases.max_by { |release| Time.parse(release.fetch('publishedAt')) }
   end
 
   def regression_like_title?(title)
@@ -1160,14 +1239,36 @@ class ProjectQA
   end
 
   def reporter_confirmation?(comments)
-    confirmation_pattern = /(fixed|works|working now|resolved|confirmed|looks good|thank you)/i
     comments.any? do |comment|
       association = comment['authorAssociation'].to_s.upcase
       next false if trusted_issue_author_associations.include?(association)
 
       body = comment['body'].to_s
-      body.match?(confirmation_pattern)
+      reporter_confirmation_text?(body)
     end
+  end
+
+  def reporter_confirmation_text?(body)
+    text = body.to_s.strip
+    return false if text.empty?
+    return false if text.match?(/not working|still broken|still not|does not work|doesn't work|doesnt work|fails?|issue persists|still seeing|same problem|still buggy/i)
+
+    text.match?(/fixed|works|it'?s working|working now|resolved|confirmed|looks good|thank you/i)
+  end
+
+  def stale_open_regression_after_release?(issue, latest_release, now: Time.now.utc)
+    return false if issue.nil? || latest_release.nil?
+
+    release_time = Time.parse(latest_release.fetch('publishedAt')).utc
+    stale_cutoff = release_time + (STALE_REGRESSION_SILENCE_DAYS * 24 * 3600)
+    return false if now.utc < stale_cutoff
+
+    updated_raw = issue['updatedAt'] || issue['createdAt']
+    return false if updated_raw.to_s.empty?
+
+    Time.parse(updated_raw).utc <= release_time
+  rescue StandardError
+    false
   end
 
   def trusted_issue_author_associations

@@ -606,6 +606,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateDividerStyle()
             self.updateIconStyle()
             self.updateAlwaysHiddenSeparator()
+            self.updateSpacers()
 
             logger.info("Re-wired status items after autosave recovery")
         }
@@ -1130,6 +1131,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             style: settings.spacerStyle,
             width: settings.spacerWidth
         )
+    }
+
+    func restoreStatusItemLayoutIfNeeded() {
+        guard statusBarControllerStorage != nil else { return }
+        let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions()
+        statusBarController.onItemsRecreated?(newMain, newSeparator)
+        schedulePositionValidation()
     }
 
     // MARK: - Onboarding

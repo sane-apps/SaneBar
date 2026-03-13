@@ -67,6 +67,10 @@ final class StatusBarController: StatusBarControllerProtocol {
         "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)"
     }
 
+    nonisolated static func spacerAutosaveName(index: Int) -> String {
+        "SaneBar_spacer_\(index)"
+    }
+
     // MARK: - Icon Names
 
     nonisolated static let iconExpanded = "line.3.horizontal.decrease"
@@ -76,7 +80,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         .removalAllowed,
         .terminationOnRemoval
     ]
-    private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+    nonisolated private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
     nonisolated private static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
     private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
     private static let legacyMigrationKeys = [
@@ -195,12 +199,16 @@ final class StatusBarController: StatusBarControllerProtocol {
             NSStatusBar.system.removeStatusItem(ah)
             alwaysHiddenSeparatorItem = nil
         }
+        removeSpacerItems()
 
         Self.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
         Self.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
         Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
 
-        Self.seedPositionsIfNeeded()
+        let restoredCurrentDisplayBackup = Self.restoreCurrentDisplayPositionBackupIfAvailable()
+        if !restoredCurrentDisplayBackup {
+            Self.seedPositionsIfNeeded()
+        }
         if hadAlwaysHiddenSeparator {
             Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
         }
@@ -227,7 +235,42 @@ final class StatusBarController: StatusBarControllerProtocol {
             ensureAlwaysHiddenSeparator(enabled: true)
         }
 
-        logger.info("Recreated status items with autosave version \(nextVersion)")
+        if restoredCurrentDisplayBackup {
+            logger.info("Recreated status items with autosave version \(nextVersion) using current-width display backup")
+        } else {
+            logger.info("Recreated status items with autosave version \(nextVersion)")
+        }
+        return (mainItem, separatorItem)
+    }
+
+    func recreateItemsFromPersistedPositions() -> (main: NSStatusItem, separator: NSStatusItem) {
+        NSStatusBar.system.removeStatusItem(mainItem)
+        NSStatusBar.system.removeStatusItem(separatorItem)
+        if let ah = alwaysHiddenSeparatorItem {
+            NSStatusBar.system.removeStatusItem(ah)
+            alwaysHiddenSeparatorItem = nil
+        }
+        removeSpacerItems()
+
+        mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated-layout)")
+        mainItem.autosaveName = Self.mainAutosaveName
+        mainItem.isVisible = true
+
+        separatorItem = NSStatusBar.system.statusItem(withLength: 20)
+        Self.enforceNonRemovableBehavior(for: separatorItem, role: "separator(recreated-layout)")
+        separatorItem.autosaveName = Self.separatorAutosaveName
+        separatorItem.isVisible = true
+
+        if let button = separatorItem.button {
+            configureSeparatorButton(button)
+        }
+        if let button = mainItem.button {
+            button.title = ""
+            button.image = makeMainSymbolImage(name: Self.iconHidden)
+        }
+
+        logger.info("Recreated status items from persisted layout snapshot")
         return (mainItem, separatorItem)
     }
 
@@ -359,6 +402,13 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// separator layout. This keeps the current session usable and seeds safe
     /// positions for the next status-item relayout/restart.
     static func recoverStartupPositions(alwaysHiddenEnabled: Bool) {
+        if restoreCurrentDisplayPositionBackupIfAvailable() {
+            if alwaysHiddenEnabled {
+                seedAlwaysHiddenSeparatorPositionIfNeeded()
+            }
+            logger.info("Recovered startup positions from current-width display backup")
+            return
+        }
         resetPositionsToOrdinals()
         seedPositionsIfNeeded()
         if alwaysHiddenEnabled {
@@ -375,6 +425,15 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool {
         guard let v = value else { return false }
         return v > 10 && v < 9000
+    }
+
+    nonisolated static func isOrdinalSeedLikePosition(_ value: Double?) -> Bool {
+        guard let v = value else { return false }
+        return v >= 0 && v <= 10
+    }
+
+    nonisolated static func hasOrdinalSeedPair(mainPosition: Double?, separatorPosition: Double?) -> Bool {
+        isOrdinalSeedLikePosition(mainPosition) && isOrdinalSeedLikePosition(separatorPosition)
     }
 
     /// Returns true if the stored and current screen widths differ by more than 10%.
@@ -410,6 +469,10 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     nonisolated static func displayPositionBackupKey(for width: Double, slot: String) -> String {
         "\(positionBackupKeyPrefix)_\(displayWidthBucket(width))_\(slot)"
+    }
+
+    private nonisolated static func displayPositionBackupKey(for widthBucket: Int, slot: String) -> String {
+        "\(positionBackupKeyPrefix)_\(widthBucket)_\(slot)"
     }
 
     nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
@@ -448,6 +511,13 @@ final class StatusBarController: StatusBarControllerProtocol {
         return true
     }
 
+    private static func restoreCurrentDisplayPositionBackupIfAvailable() -> Bool {
+        guard let currentWidth = NSScreen.main?.frame.width else { return false }
+        guard restoreDisplayPositionBackupIfAvailable(for: currentWidth) else { return false }
+        UserDefaults.standard.set(currentWidth, forKey: screenWidthKey)
+        return true
+    }
+
     /// Check if positions need a display reset due to a screen width change.
     /// - First launch after update (no stored width): stamps current width, returns false.
     /// - Same screen (width matches within 10%): returns false.
@@ -464,12 +534,19 @@ final class StatusBarController: StatusBarControllerProtocol {
         let mainPos = numericPositionValue(defaults.object(forKey: mainKey))
         let sepPos = numericPositionValue(defaults.object(forKey: sepKey))
         let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
+        let hasOrdinalSeedPositions = hasOrdinalSeedPair(mainPosition: mainPos, separatorPosition: sepPos)
 
         if storedWidth == 0 {
             // First launch after update — stamp current width, accept positions as-is
             defaults.set(currentWidth, forKey: screenWidthKey)
             saveDisplayPositionBackupIfNeeded(for: currentWidth, mainPosition: mainPos, separatorPosition: sepPos)
             logger.info("Display validation: first run, stamping screen width \(currentWidth)")
+            return false
+        }
+
+        if hasOrdinalSeedPositions, restoreDisplayPositionBackupIfAvailable(for: currentWidth) {
+            defaults.set(currentWidth, forKey: screenWidthKey)
+            logger.info("Display validation: restored current-width backup over ordinal startup seeds")
             return false
         }
 
@@ -595,6 +672,52 @@ final class StatusBarController: StatusBarControllerProtocol {
         return false
     }
 
+    nonisolated static func captureLayoutSnapshot() -> SaneBarLayoutSnapshot {
+        let defaults = UserDefaults.standard
+        var spacerPositions: [Int: Double] = [:]
+        for index in 0 ..< maxSpacerCount {
+            if let position = resolvedPreferredPosition(forAutosaveName: spacerAutosaveName(index: index)) {
+                spacerPositions[index] = position
+            }
+        }
+
+        return SaneBarLayoutSnapshot(
+            mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
+            separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
+            alwaysHiddenSeparatorPosition: resolvedPreferredPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName),
+            spacerPositions: spacerPositions,
+            calibratedScreenWidth: numericPositionValue(defaults.object(forKey: screenWidthKey)),
+            displayBackups: displayBackupSnapshots()
+        )
+    }
+
+    nonisolated static func applyLayoutSnapshot(_ snapshot: SaneBarLayoutSnapshot) {
+        applyPreferredPosition(snapshot.mainPosition, forAutosaveName: mainAutosaveName)
+        applyPreferredPosition(snapshot.separatorPosition, forAutosaveName: separatorAutosaveName)
+        applyPreferredPosition(snapshot.alwaysHiddenSeparatorPosition, forAutosaveName: alwaysHiddenSeparatorAutosaveName)
+
+        for index in 0 ..< maxSpacerCount {
+            applyPreferredPosition(snapshot.spacerPositions[index], forAutosaveName: spacerAutosaveName(index: index))
+        }
+
+        let defaults = UserDefaults.standard
+        if let calibratedScreenWidth = snapshot.calibratedScreenWidth {
+            defaults.set(calibratedScreenWidth, forKey: screenWidthKey)
+        } else {
+            defaults.removeObject(forKey: screenWidthKey)
+        }
+
+        clearDisplayPositionBackups()
+        for backup in snapshot.displayBackups {
+            if let mainPosition = backup.mainPosition {
+                defaults.set(mainPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "main"))
+            }
+            if let separatorPosition = backup.separatorPosition {
+                defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "separator"))
+            }
+        }
+    }
+
     private static func hasInvalidPositionValue(forAutosaveName autosaveName: String) -> Bool {
         let values = preferredPositionValues(forAutosaveName: autosaveName)
         return isInvalidPosition(values.appValue) || isInvalidPosition(values.byHostValue)
@@ -603,6 +726,12 @@ final class StatusBarController: StatusBarControllerProtocol {
     private static func hasTooSmallAlwaysHiddenPosition(forAutosaveName autosaveName: String) -> Bool {
         let values = preferredPositionValues(forAutosaveName: autosaveName)
         return isTooSmallAlwaysHiddenPosition(values.appValue) || isTooSmallAlwaysHiddenPosition(values.byHostValue)
+    }
+
+    private func removeSpacerItems() {
+        while let item = spacerItems.popLast() {
+            NSStatusBar.system.removeStatusItem(item)
+        }
     }
 
     private static func isInvalidPosition(_ value: Any?) -> Bool {
@@ -617,11 +746,11 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     // MARK: - Preferred Position Storage
 
-    private static func preferredPositionKey(for autosaveName: String) -> String {
+    private nonisolated static func preferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(autosaveName)"
     }
 
-    private static func byHostAutosaveName(for autosaveName: String) -> String {
+    private nonisolated static func byHostAutosaveName(for autosaveName: String) -> String {
         // macOS stores autosave keys in ByHost global prefs using a suffixed
         // v6 token (e.g. SaneBar_Main -> SaneBar_main_v6).
         guard let underscore = autosaveName.firstIndex(of: "_") else {
@@ -635,7 +764,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         return "\(prefix)_\(suffix)_v6"
     }
 
-    private static func byHostPreferredPositionKey(for autosaveName: String) -> String {
+    private nonisolated static func byHostPreferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
     }
 
@@ -665,7 +794,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         return nil
     }
 
-    private static func preferredPositionValues(forAutosaveName autosaveName: String) -> (appValue: Any?, byHostValue: Any?) {
+    private nonisolated static func preferredPositionValues(forAutosaveName autosaveName: String) -> (appValue: Any?, byHostValue: Any?) {
         let appKey = preferredPositionKey(for: autosaveName)
         let byHostKey = byHostPreferredPositionKey(for: autosaveName) as CFString
         let globalDomain = ".GlobalPreferences" as CFString
@@ -679,19 +808,70 @@ final class StatusBarController: StatusBarControllerProtocol {
         return (appValue, byHostValue)
     }
 
-    private static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
+    private nonisolated static func resolvedPreferredPosition(forAutosaveName autosaveName: String) -> Double? {
+        let values = preferredPositionValues(forAutosaveName: autosaveName)
+        return numericPositionValue(values.appValue) ?? numericPositionValue(values.byHostValue)
+    }
+
+    private nonisolated static func applyPreferredPosition(_ value: Double?, forAutosaveName autosaveName: String) {
+        if let value {
+            setPreferredPosition(value, forAutosaveName: autosaveName)
+        } else {
+            removePreferredPosition(forAutosaveName: autosaveName)
+        }
+    }
+
+    private nonisolated static func displayBackupSnapshots() -> [SaneBarLayoutSnapshot.DisplayBackup] {
+        let defaults = UserDefaults.standard
+        let prefix = "\(positionBackupKeyPrefix)_"
+        let backupKeys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(prefix) }
+
+        let bucketPattern = /SaneBar_Position_Backup_(\d+)_(main|separator)/
+        var backups: [Int: SaneBarLayoutSnapshot.DisplayBackup] = [:]
+
+        for key in backupKeys {
+            guard let match = key.wholeMatch(of: bucketPattern),
+                  let widthBucket = Int(match.1)
+            else { continue }
+
+            var backup = backups[widthBucket] ?? SaneBarLayoutSnapshot.DisplayBackup(
+                widthBucket: widthBucket,
+                mainPosition: nil,
+                separatorPosition: nil
+            )
+            let position = numericPositionValue(defaults.object(forKey: key))
+            if match.2 == "main" {
+                backup.mainPosition = position
+            } else {
+                backup.separatorPosition = position
+            }
+            backups[widthBucket] = backup
+        }
+
+        return backups.values.sorted { $0.widthBucket < $1.widthBucket }
+    }
+
+    private nonisolated static func clearDisplayPositionBackups() {
+        let defaults = UserDefaults.standard
+        let prefix = "\(positionBackupKeyPrefix)_"
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    private nonisolated static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
         let appKey = preferredPositionKey(for: autosaveName)
         UserDefaults.standard.set(value, forKey: appKey)
         setByHostPreferredPosition(value, forAutosaveName: autosaveName)
     }
 
-    private static func removePreferredPosition(forAutosaveName autosaveName: String) {
+    private nonisolated static func removePreferredPosition(forAutosaveName autosaveName: String) {
         let appKey = preferredPositionKey(for: autosaveName)
         UserDefaults.standard.removeObject(forKey: appKey)
         removeByHostPreferredPosition(forAutosaveName: autosaveName)
     }
 
-    private static func setByHostPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
+    private nonisolated static func setByHostPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
         let key = byHostPreferredPositionKey(for: autosaveName) as CFString
         let globalDomain = ".GlobalPreferences" as CFString
         CFPreferencesSetValue(
@@ -708,7 +888,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
     }
 
-    private static func removeByHostPreferredPosition(forAutosaveName autosaveName: String) {
+    private nonisolated static func removeByHostPreferredPosition(forAutosaveName autosaveName: String) {
         let key = byHostPreferredPositionKey(for: autosaveName) as CFString
         let globalDomain = ".GlobalPreferences" as CFString
         CFPreferencesSetValue(
@@ -937,7 +1117,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         while spacerItems.count < desiredCount {
             let spacer = NSStatusBar.system.statusItem(withLength: spacerLength)
             Self.enforceNonRemovableBehavior(for: spacer, role: "spacer")
-            spacer.autosaveName = "SaneBar_spacer_\(spacerItems.count)"
+            spacer.autosaveName = Self.spacerAutosaveName(index: spacerItems.count)
             configureSpacer(spacer, style: style)
             spacerItems.append(spacer)
         }

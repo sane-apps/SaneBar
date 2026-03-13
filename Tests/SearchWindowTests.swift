@@ -427,6 +427,34 @@ struct SearchWindowTests {
         #expect(merged[1].uniqueId == "at.obdev.littlesnitch.networkmonitor")
     }
 
+    @Test("Merged discoverable apps collapse Little Snitch helper-family duplicates without hiding the live item")
+    @MainActor
+    func testMergedDiscoverableAppsCollapseLittleSnitchFamilyDuplicates() {
+        let positioned = [
+            RunningApp(
+                id: "at.obdev.littlesnitch.networkmonitor",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.networkmonitor.menuextra.little-snitch",
+                xPosition: 320,
+                width: 22
+            ),
+            RunningApp(
+                id: "at.obdev.littlesnitch.agent",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
+                xPosition: -3400,
+                width: 22
+            )
+        ]
+
+        let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: [])
+
+        #expect(merged.count == 1)
+        #expect(merged[0].bundleId == "at.obdev.littlesnitch.networkmonitor")
+    }
+
     @Test("Pinned hidden apps promote to always-hidden classification")
     func testPinnedHiddenAppsPromoteToAlwaysHidden() {
         let weather = RunningApp(
@@ -526,6 +554,104 @@ struct SearchWindowTests {
             coarseOnly.app.uniqueId
         ])
         #expect(filtered.contains { $0.app.uniqueId == coarseOnly.app.uniqueId && !$0.app.hasPreciseMenuBarIdentity })
+    }
+
+    @Test("Zoned menu bar views collapse Little Snitch helper-family duplicates without hiding the visible item")
+    func testZonedMenuBarItemsCollapseLittleSnitchFamilyDuplicates() {
+        let visibleNetworkMonitor = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "at.obdev.littlesnitch.networkmonitor",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.networkmonitor.menuextra.little-snitch",
+                xPosition: 1180,
+                width: 22
+            ),
+            x: 1180,
+            width: 22
+        )
+        let hiddenAgent = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "at.obdev.littlesnitch.agent",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
+                xPosition: -3520,
+                width: 22
+            ),
+            x: -3520,
+            width: 22
+        )
+
+        let filtered = SearchService.zonedMenuBarItems(from: [visibleNetworkMonitor, hiddenAgent])
+
+        #expect(filtered.count == 1)
+        #expect(filtered[0].app.bundleId == "at.obdev.littlesnitch.networkmonitor")
+    }
+
+    @Test("Helper-family fallback resolution prefers current Little Snitch helper")
+    func testHelperHostedAliasResolutionPrefersCurrentLittleSnitchHelper() {
+        let original = RunningApp(
+            id: "at.obdev.littlesnitch.networkmonitor",
+            name: "Little Snitch",
+            icon: nil,
+            menuExtraIdentifier: "at.obdev.littlesnitch.networkmonitor.menuextra.little-snitch",
+            xPosition: 1180,
+            width: 22
+        )
+        let candidates = [
+            RunningApp(
+                id: "at.obdev.littlesnitch.agent",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
+                xPosition: -3520,
+                width: 22
+            ),
+            RunningApp(
+                id: "com.obdev.LittleSnitchUIAgent",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "com.obdev.LittleSnitchUIAgent-Item-0",
+                xPosition: -3440,
+                width: 22
+            )
+        ]
+
+        let resolved = SearchService.bestHelperHostedAliasResolutionCandidate(
+            for: original,
+            candidates: candidates
+        )
+
+        #expect(resolved?.bundleId == "at.obdev.littlesnitch.agent")
+    }
+
+    @Test("Collapsed helper-family duplicates still prefer the current helper when all candidates are hidden")
+    @MainActor
+    func testMergedDiscoverableAppsCollapseLittleSnitchFamilyHiddenDuplicates() {
+        let positioned = [
+            RunningApp(
+                id: "at.obdev.littlesnitch.networkmonitor",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.networkmonitor.menuextra.little-snitch",
+                xPosition: -3440,
+                width: 22
+            ),
+            RunningApp(
+                id: "at.obdev.littlesnitch.agent",
+                name: "Little Snitch",
+                icon: nil,
+                menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
+                xPosition: -3520,
+                width: 22
+            )
+        ]
+
+        let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: [])
+
+        #expect(merged.count == 1)
+        #expect(merged[0].bundleId == "at.obdev.littlesnitch.agent")
     }
 
     @Test("SaneBar diagnostics collector includes search and panel snapshots")

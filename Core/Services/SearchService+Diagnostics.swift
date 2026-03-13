@@ -198,6 +198,133 @@ extension SearchService {
         return max(baseMs, 1_800)
     }
 
+    nonisolated static func helperHostedAliasFamilyKey(for app: RunningApp) -> String? {
+        switch app.bundleId.lowercased() {
+        case "at.obdev.littlesnitch",
+             "at.obdev.littlesnitch.agent",
+             "at.obdev.littlesnitch.daemon",
+             "at.obdev.littlesnitch.networkmonitor",
+             "com.obdev.littlesnitchuiagent":
+            return "little-snitch"
+        default:
+            return nil
+        }
+    }
+
+    nonisolated static func helperHostedAliasDisplayKey(for app: RunningApp) -> String? {
+        guard let familyKey = helperHostedAliasFamilyKey(for: app) else { return nil }
+        let normalizedName = app.name
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        guard !normalizedName.isEmpty else { return nil }
+        return "\(familyKey)::\(normalizedName)"
+    }
+
+    nonisolated static func isSyntheticThirdPartyMenuExtraIdentity(_ app: RunningApp) -> Bool {
+        guard let menuExtraIdentifier = app.menuExtraIdentifier?.lowercased() else { return false }
+        guard !menuExtraIdentifier.hasPrefix("com.apple.menuextra.") else { return false }
+        return menuExtraIdentifier.contains(".menuextra.")
+    }
+
+    nonisolated static func helperHostedAliasBundlePriority(_ bundleID: String) -> Int {
+        switch bundleID.lowercased() {
+        case "at.obdev.littlesnitch.agent":
+            return 0
+        case "at.obdev.littlesnitch.networkmonitor":
+            return 1
+        case "at.obdev.littlesnitch.daemon":
+            return 2
+        case "at.obdev.littlesnitch":
+            return 3
+        case "com.obdev.littlesnitchuiagent":
+            return 4
+        default:
+            return 10
+        }
+    }
+
+    nonisolated static func isLikelyDeepHiddenX(_ xPosition: CGFloat?) -> Bool {
+        guard let xPosition else { return false }
+        return abs(xPosition) >= 2_000
+    }
+
+    nonisolated static func bestHelperHostedAliasRepresentative(
+        from candidates: [RunningApp]
+    ) -> RunningApp? {
+        candidates.min { lhs, rhs in
+            let lhsDeepHidden = isLikelyDeepHiddenX(lhs.xPosition)
+            let rhsDeepHidden = isLikelyDeepHiddenX(rhs.xPosition)
+            if lhsDeepHidden != rhsDeepHidden { return !lhsDeepHidden && rhsDeepHidden }
+
+            let lhsPriority = helperHostedAliasBundlePriority(lhs.bundleId)
+            let rhsPriority = helperHostedAliasBundlePriority(rhs.bundleId)
+            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+
+            let lhsSynthetic = isSyntheticThirdPartyMenuExtraIdentity(lhs)
+            let rhsSynthetic = isSyntheticThirdPartyMenuExtraIdentity(rhs)
+            if lhsSynthetic != rhsSynthetic { return !lhsSynthetic && rhsSynthetic }
+
+            let lhsX = lhs.xPosition ?? -.greatestFiniteMagnitude
+            let rhsX = rhs.xPosition ?? -.greatestFiniteMagnitude
+            if lhsX != rhsX { return lhsX > rhsX }
+
+            return lhs.uniqueId.localizedCompare(rhs.uniqueId) == .orderedAscending
+        }
+    }
+
+    nonisolated static func collapseHelperHostedAliasDuplicates(
+        _ apps: [RunningApp]
+    ) -> [RunningApp] {
+        var kept: [RunningApp] = []
+        var aliasBuckets: [String: [RunningApp]] = [:]
+
+        for app in apps {
+            if let aliasKey = helperHostedAliasDisplayKey(for: app) {
+                aliasBuckets[aliasKey, default: []].append(app)
+            } else {
+                kept.append(app)
+            }
+        }
+
+        for bucket in aliasBuckets.values {
+            if let best = bestHelperHostedAliasRepresentative(from: bucket) {
+                kept.append(best)
+            }
+        }
+
+        return kept
+    }
+
+    nonisolated static func bestHelperHostedAliasResolutionCandidate(
+        for original: RunningApp,
+        candidates: [RunningApp]
+    ) -> RunningApp? {
+        guard let aliasKey = helperHostedAliasDisplayKey(for: original) else { return nil }
+
+        let familyMatches = candidates.filter { helperHostedAliasDisplayKey(for: $0) == aliasKey }
+        guard !familyMatches.isEmpty else { return nil }
+
+        let originalX = original.xPosition
+        return familyMatches.min { lhs, rhs in
+            let lhsPriority = helperHostedAliasBundlePriority(lhs.bundleId)
+            let rhsPriority = helperHostedAliasBundlePriority(rhs.bundleId)
+            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+
+            let lhsSynthetic = isSyntheticThirdPartyMenuExtraIdentity(lhs)
+            let rhsSynthetic = isSyntheticThirdPartyMenuExtraIdentity(rhs)
+            if lhsSynthetic != rhsSynthetic { return !lhsSynthetic && rhsSynthetic }
+
+            if let originalX {
+                let lhsDistance = abs((lhs.xPosition ?? originalX) - originalX)
+                let rhsDistance = abs((rhs.xPosition ?? originalX) - originalX)
+                if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+            }
+
+            return lhs.uniqueId.localizedCompare(rhs.uniqueId) == .orderedAscending
+        }
+    }
+
     @MainActor
     static func mergedDiscoverableApps(positioned: [RunningApp], owners: [RunningApp]) -> [RunningApp] {
         var merged = positioned
@@ -215,6 +342,8 @@ extension SearchService {
             seenIDs.insert(owner.uniqueId)
             merged.append(owner)
         }
+
+        merged = collapseHelperHostedAliasDuplicates(merged)
 
         return merged.sorted { lhs, rhs in
             let lhsX = lhs.xPosition ?? .greatestFiniteMagnitude

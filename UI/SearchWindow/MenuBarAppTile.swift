@@ -103,6 +103,9 @@ struct MenuBarAppTile: View {
     /// Optional disambiguator for apps that expose multiple menu extras
     var duplicateMarker: BrowseDuplicateMarker?
 
+    /// Optional callback so parents can advertise valid drop targets while dragging.
+    var onDragStart: (() -> Void)?
+
     var body: some View {
         Button(action: { onActivate(false) }, label: {
             VStack(spacing: 4) {
@@ -133,25 +136,19 @@ struct MenuBarAppTile: View {
             }
             .frame(width: tileSize, height: showName ? tileSize + 16 : tileSize)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        isSelected
-                            ? AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.11, green: 0.32, blue: 0.50).opacity(0.16),
-                                        Color(red: 0.11, green: 0.23, blue: 0.39).opacity(0.11)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            : AnyShapeStyle(Color.clear)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.white.opacity(0.28) : Color.clear, lineWidth: 1.5)
+                Group {
+                    if isSelected {
+                        ChromeGlassRoundedBackground(
+                            cornerRadius: 8,
+                            tint: SaneBarChrome.accentStart,
+                            tintStrength: 0.34,
+                            interactive: true,
+                            shadowOpacity: 0.18,
+                            shadowRadius: 7,
+                            shadowY: 3
+                        )
+                    }
+                }
             )
         })
         .buttonStyle(.plain)
@@ -169,8 +166,8 @@ struct MenuBarAppTile: View {
                     .foregroundStyle(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.11, green: 0.32, blue: 0.50),
-                                Color(red: 0.11, green: 0.23, blue: 0.39)
+                                SaneBarChrome.accentStart,
+                                SaneBarChrome.accentEnd
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -181,7 +178,10 @@ struct MenuBarAppTile: View {
                     .offset(x: 3, y: 3)
             }
         }
-        .draggable(app.uniqueId) // Unique payload avoids collisions for multi-item bundles
+        .onDrag {
+            onDragStart?()
+            return NSItemProvider(object: NSString(string: app.uniqueId))
+        }
         .help(helpText)
         .contextMenu {
             Button("Left-Click (Open)") {
@@ -234,7 +234,7 @@ struct MenuBarAppTile: View {
     }
 
     private var helpText: String {
-        isPro ? duplicateBaseName : "\(duplicateBaseName) — Pro unlocks right-click and move actions"
+        duplicateBaseName
     }
 
     private var accessibilityLabel: String {

@@ -536,6 +536,31 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return image
     }
 
+    /// Load the raw custom icon PNG data, if one has been saved.
+    func loadCustomIconData() -> Data? {
+        guard fileManager.fileExists(atPath: customIconURL.path) else {
+            return nil
+        }
+        return try? Data(contentsOf: customIconURL)
+    }
+
+    /// Save a raw PNG payload as the current custom icon asset.
+    func saveCustomIconData(_ data: Data) throws {
+        try data.write(to: customIconURL, options: .atomic)
+    }
+
+    func applyCustomIconSnapshot(_ snapshot: SaneBarCustomIconSnapshot) throws {
+        if let pngData = snapshot.pngData {
+            try saveCustomIconData(pngData)
+        } else {
+            removeCustomIcon()
+        }
+    }
+
+    func makeCustomIconSnapshot() -> SaneBarCustomIconSnapshot {
+        SaneBarCustomIconSnapshot(pngData: loadCustomIconData())
+    }
+
     /// Remove the custom icon file
     func removeCustomIcon() {
         try? fileManager.removeItem(at: customIconURL)
@@ -595,6 +620,25 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
             return try? decoder.decode(SaneBarProfile.self, from: data)
         }
         .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    /// Merge imported profiles into the local profile store without deleting unrelated profiles.
+    func upsertProfiles(_ profiles: [SaneBarProfile]) throws {
+        guard !profiles.isEmpty else { return }
+
+        let existingProfiles = try listProfiles()
+        var profilesByID = Dictionary(uniqueKeysWithValues: existingProfiles.map { ($0.id, $0) })
+        for profile in profiles {
+            profilesByID[profile.id] = profile
+        }
+
+        guard profilesByID.count <= 50 else {
+            throw PersistenceError.limitReached
+        }
+
+        for profile in profiles {
+            try saveProfile(profile)
+        }
     }
 
     /// Delete a profile

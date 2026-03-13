@@ -128,6 +128,68 @@ final class CloseBrowsePanelCommand: SaneBarScriptCommand {
         return true
     }
 }
+
+@objc(CaptureBrowsePanelSnapshotCommand)
+final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let didCapture: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                SearchWindowController.shared.captureBrowsePanelSnapshotPNG(to: path)
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    SearchWindowController.shared.captureBrowsePanelSnapshotPNG(to: path)
+                }
+            }
+        }
+
+        guard didCapture else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Browse panel snapshot failed. Make sure the panel is visible first."
+            return nil
+        }
+
+        return true
+    }
+}
+
+@objc(QueueBrowsePanelSnapshotCommand)
+final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            _ = SearchWindowController.shared.captureBrowsePanelSnapshotPNG(to: path)
+        }
+        return true
+    }
+}
 // MARK: - Thread-Safe Box
 /// Thread-safe box for passing values between Task closures and synchronous code.
 /// The semaphore provides the synchronization guarantee.

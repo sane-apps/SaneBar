@@ -12,6 +12,7 @@ struct ShortcutsSettingsView: View {
 
     @ObservedObject private var licenseService = LicenseService.shared
     @State private var proUpsellFeature: ProFeature?
+    @State private var copiedAutomationCommandID: String?
     private let automationCommands: [AutomationCommand] = [
         .init(
             id: "toggle",
@@ -113,12 +114,22 @@ struct ShortcutsSettingsView: View {
                                         Spacer()
 
                                         Button {
-                                            copyToClipboard(item.command)
+                                            copyToClipboard(item)
                                         } label: {
-                                            Text("Copy")
-                                                .font(.system(size: 11, weight: .semibold))
+                                            Label {
+                                                Text(copiedAutomationCommandID == item.id ? "Copied" : "Copy")
+                                                    .font(.system(size: 11, weight: .semibold))
+                                            } icon: {
+                                                Image(systemName: copiedAutomationCommandID == item.id ? "checkmark" : "doc.on.doc")
+                                                    .font(.system(size: 10, weight: .semibold))
+                                            }
                                         }
-                                        .buttonStyle(.borderless)
+                                        .buttonStyle(
+                                            ChromeActionButtonStyle(
+                                                prominent: copiedAutomationCommandID == item.id,
+                                                compact: true
+                                            )
+                                        )
                                         .help("Copy command to clipboard")
                                     }
                                 }
@@ -148,23 +159,22 @@ struct ShortcutsSettingsView: View {
             Button {
                 proUpsellFeature = feature
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                    Text("Pro")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Color.saneAccentSoft)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
         }
     }
 
-    private func copyToClipboard(_ command: String) {
+    private func copyToClipboard(_ command: AutomationCommand) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
+        NSPasteboard.general.setString(command.command, forType: .string)
+        copiedAutomationCommandID = command.id
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            if copiedAutomationCommandID == command.id {
+                copiedAutomationCommandID = nil
+            }
+        }
     }
 }

@@ -55,6 +55,10 @@ class LiveZoneSmoke
     'secondMenuBar' => 'show second menu bar',
     'findIcon' => 'open icon panel',
   }.freeze
+  WINDOW_SCREENSHOT_TITLES = {
+    'findIcon' => 'Icon Panel',
+    'secondMenuBar' => nil,
+  }.freeze
   PREFERRED_BROWSE_ACTIVATION_IDS = %w[
     com.apple.menuextra.wifi
     com.apple.menuextra.spotlight
@@ -101,6 +105,7 @@ class LiveZoneSmoke
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
+    @window_screenshot_tool = resolve_window_screenshot_tool
     @required_candidate_ids = ENV.fetch('SANEBAR_SMOKE_REQUIRED_IDS', '')
       .split(',')
       .map(&:strip)
@@ -617,17 +622,82 @@ class LiveZoneSmoke
       @screenshot_dir,
       "sanebar-#{expected_mode}-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
     )
+    internal_error = capture_internal_browse_screenshot(path)
+    return await_screenshot_file(path) if internal_error.nil?
+
+    display_error = capture_display_screenshot(path)
+    return await_screenshot_file(path) if display_error.nil?
+
+    window_error = capture_window_screenshot(expected_mode, path)
+    return await_screenshot_file(path) if window_error.nil?
+
+    disable_screenshot_capture!(
+      [
+        ("internal capture failed: #{internal_error}" unless internal_error.nil? || internal_error.empty?),
+        ("display capture failed: #{display_error}" unless display_error.nil? || display_error.empty?),
+        ("window capture failed: #{window_error}" unless window_error.nil? || window_error.empty?)
+      ].compact.join(' | '),
+      path
+    )
+    nil
+  rescue StandardError => e
+    disable_screenshot_capture!(e.message, path)
+    nil
+  end
+
+  def capture_internal_browse_screenshot(path)
+    escaped_path = escape_quotes(path)
+    direct_result = app_script(%(capture browse panel snapshot "#{escaped_path}")).strip.downcase
+    return nil if %w[true 1].include?(direct_result)
+
+    queued_result = app_script(%(queue browse panel snapshot "#{escaped_path}")).strip.downcase
+    return nil if %w[true 1].include?(queued_result)
+
+    "capture command returned #{direct_result.inspect}; queue command returned #{queued_result.inspect}"
+  rescue StandardError => e
+    e.message
+  end
+
+  def resolve_window_screenshot_tool
+    from_path = `command -v screenshot 2>/dev/null`.strip
+    return from_path unless from_path.empty?
+
+    %w[
+      ~/Library/Python/3.13/bin/screenshot
+      ~/Library/Python/3.12/bin/screenshot
+      ~/Library/Python/3.11/bin/screenshot
+      ~/Library/Python/3.10/bin/screenshot
+      ~/Library/Python/3.9/bin/screenshot
+    ].map { |candidate| File.expand_path(candidate) }.find { |candidate| File.executable?(candidate) }
+  end
+
+  def capture_display_screenshot(path)
     command = "screencapture -x #{Shellwords.escape(path)}"
     script = <<~APPLESCRIPT
       do shell script #{command.inspect}
     APPLESCRIPT
 
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS)
-    unless code.success?
-      disable_screenshot_capture!("Screenshot capture failed: #{out.strip}", path)
-      return nil
-    end
+    return nil if code.success?
 
+    FileUtils.rm_f(path)
+    out.strip
+  end
+
+  def capture_window_screenshot(expected_mode, path)
+    return 'window screenshot tool unavailable' unless @window_screenshot_tool && File.executable?(@window_screenshot_tool)
+
+    title = WINDOW_SCREENSHOT_TITLES.fetch(expected_mode, nil)
+    command = [@window_screenshot_tool, @app_name, '-s', '-f', path]
+    command += ['-t', title] if title
+    out, code = capture2e_with_timeout(*command, timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS)
+    return nil if code.success?
+
+    FileUtils.rm_f(path)
+    out.strip
+  end
+
+  def await_screenshot_file(path)
     deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
     until File.exist?(path) && File.size?(path)
       check_resource_watchdog!
@@ -639,9 +709,6 @@ class LiveZoneSmoke
     end
 
     path
-  rescue StandardError => e
-    disable_screenshot_capture!(e.message, path)
-    nil
   end
 
   def disable_screenshot_capture!(reason, path = nil)

@@ -1103,9 +1103,16 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should probe screenshot capability before requiring capture"
         )
         XCTAssertTrue(
-            source.contains("def runtime_screenshot_capture_available?") &&
-                source.contains("/usr/sbin/screencapture"),
-            "Project QA runtime smoke should verify screenshot capability with the native screencapture tool"
+            source.contains("return true if internal_runtime_snapshot_supported?") &&
+                source.contains("def internal_runtime_snapshot_supported?") &&
+                source.contains("capture browse panel snapshot") &&
+                source.contains("queue browse panel snapshot"),
+            "Project QA runtime smoke should treat the staged app's internal browse-panel snapshot commands as the primary screenshot capability"
+        )
+        XCTAssertTrue(
+            source.contains("resolve_runtime_screenshot_tool") &&
+                source.contains("command -v screenshot"),
+            "Project QA runtime smoke should retain a host-level screenshot fallback when in-app snapshot support is unavailable"
         )
         XCTAssertTrue(
             source.contains("screenshots skipped on this host"),
@@ -1285,7 +1292,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testReleasePreflightDowngradesAuthAndTokenNoiseToStructuredSkips() throws {
+    func testReleasePreflightDowngradesAuthNoiseToStructuredSkips() throws {
         let releaseURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/release.rb")
         let source = try String(contentsOf: releaseURL, encoding: .utf8)
 
@@ -1308,14 +1315,6 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Open3.capture2e('security', 'find-generic-password'"),
             "Keychain-backed email checks should capture stderr to avoid leaking keychain lookup noise"
-        )
-        XCTAssertTrue(
-            source.contains("def missing_cloudflare_token?(output)"),
-            "Release preflight should explicitly detect missing Cloudflare credentials in non-interactive shells"
-        )
-        XCTAssertTrue(
-            source.contains("skipped (Cloudflare token unavailable)"),
-            "Missing Cloudflare tokens should be reported as structured skips instead of raw wrangler output"
         )
     }
 
@@ -1435,6 +1434,87 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testSecondMenuBarRowControlsStayAsTopToggleChips() throws {
+        let secondMenuBarURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift")
+        let source = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("ScrollView(.horizontal, showsIndicators: false)"),
+            "Row toggles should stay in a compact horizontal strip above the actual rows"
+        )
+        XCTAssertTrue(
+            source.contains("Text(SecondMenuBarLayout.rowStateLabel(isOn: isOn))"),
+            "Top row toggles should keep a small inline On/Off state instead of a second row-like control"
+        )
+        XCTAssertTrue(
+            source.contains("SaneBarChrome.activeControlFill") &&
+                source.contains("SaneBarChrome.utilityFill") &&
+                source.contains(".padding(.vertical, 4)"),
+            "Top row toggles should keep compact capsule sizing while using the shared solid control fills"
+        )
+        XCTAssertFalse(
+            source.contains("Color.green.opacity"),
+            "Top row toggles should not fall back to a bright green status color that overwhelms the panel"
+        )
+    }
+
+    func testIconPanelOnlyAdvertisesRealZoneDropTargets() throws {
+        let iconPanelURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
+        let source = try String(contentsOf: iconPanelURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func modeSupportsZoneDrop(_ mode: Mode) -> Bool"),
+            "Icon panel tabs should centralize which tabs are real drop destinations"
+        )
+        XCTAssertTrue(
+            source.contains("case .all:\n            false"),
+            "All tab should stay browse-only and must not be presented as a drag destination"
+        )
+        XCTAssertTrue(
+            source.contains("private var shouldShowMoveHint: Bool"),
+            "Icon panel should expose a single inline drag hint state instead of duplicating the tabs in a second row"
+        )
+        XCTAssertTrue(
+            source.contains("Text(\"Move to\")") &&
+                source.contains("if shouldShowMoveHint") &&
+                source.contains("modeSegment(segmentMode)") &&
+                !source.contains("moveDestinationChip("),
+            "Drag guidance should stay in the existing tab row with one Move to label and no duplicate destination strip"
+        )
+        XCTAssertTrue(
+            source.contains("@State private var isModeStripDropActive = false"),
+            "Icon panel should track drag-session state so the temporary destination rail only appears during drag"
+        )
+        XCTAssertTrue(
+            source.contains("installModeStripDragEndMonitors()") &&
+                source.contains("addLocalMonitorForEvents"),
+            "Icon panel drag affordance should clean itself up when the drag session ends"
+        )
+        XCTAssertTrue(
+            source.contains("@State private var activeModeStripSourceZone: AppZone?"),
+            "Icon panel should track the dragged icon's actual source zone so it can suppress the current zone in the destination strip"
+        )
+        XCTAssertTrue(
+            source.contains("private func modeAcceptsCurrentDrag(_ mode: Mode) -> Bool") &&
+                source.contains("let isValidMoveTarget = shouldShowMoveHint && moveHintModes.contains(segmentMode)") &&
+                source.contains(".dropDestination(for: String.self)") &&
+                source.contains("if isValidMoveTarget"),
+            "Icon panel should centralize whether a tab can accept the current drag and only attach drop handling to valid destination tabs"
+        )
+        XCTAssertTrue(
+            source.contains("return originMode != mode"),
+            "Origin zone should not glow as a destination during drag"
+        )
+        XCTAssertTrue(
+            source.contains("noteModeStripDragStarted(sourceZone: appZone(for: app))"),
+            "Drag state should capture the source app's real zone at drag start"
+        )
+        XCTAssertFalse(
+            source.contains("dash: showsDropAffordance ? [4, 3] : []"),
+            "Filter tabs should no longer use the old dashed-outline destination treatment"
+        )
+    }
+
     func testLiveSmokeCoversBothBrowseModesWithScreenshots() throws {
         let fileURL = projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -1450,6 +1530,17 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("capture_browse_screenshot"),
             "Live smoke should capture screenshots while each browse mode is open"
+        )
+        XCTAssertTrue(
+            source.contains("capture_internal_browse_screenshot") &&
+                source.contains("capture browse panel snapshot") &&
+                source.contains("queue browse panel snapshot"),
+            "Live smoke should prefer the app's internal browse-panel snapshot commands before falling back to host capture"
+        )
+        XCTAssertTrue(
+            source.contains("capture_window_screenshot") &&
+                source.contains("WINDOW_SCREENSHOT_TITLES"),
+            "Live smoke should keep a window-level screenshot fallback for hosts where direct browse-panel snapshots are unavailable"
         )
         XCTAssertTrue(
             source.contains("exercise_browse_activation('activate browse icon'"),

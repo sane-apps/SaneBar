@@ -3,10 +3,10 @@ import SwiftUI
 
 // MARK: - Second Menu Bar View
 
-/// Compact horizontal strip showing all menu bar icons organized by zone.
+/// Compact horizontal strip showing all menu bar icons organized by row.
 ///
 /// Visible → Hidden → Always Hidden, separated by thin vertical dividers.
-/// Right-click any icon to move it between zones.
+/// Right-click any icon to move it between rows.
 struct SecondMenuBarView: View {
     let visibleApps: [RunningApp]
     let apps: [RunningApp]
@@ -25,13 +25,15 @@ struct SecondMenuBarView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var proUpsellFeature: ProFeature?
     @State private var showingUsageHelp = false
+    @State private var targetedEmptyZone: IconZone?
 
     // Second-menu-bar readability: force high-contrast white text on glass background.
     private let textPrimary = Color.white
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
-    private let accentStart = Color(red: 0.11, green: 0.32, blue: 0.50)
-    private let accentEnd = Color(red: 0.11, green: 0.23, blue: 0.39)
+    private let accentStart = SaneBarChrome.accentStart
+    private let accentEnd = SaneBarChrome.accentEnd
+    private let accentHighlight = SaneBarChrome.accentHighlight
 
     // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
@@ -84,7 +86,7 @@ struct SecondMenuBarView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    colorScheme == .dark ? Color.white.opacity(0.12) : Color.blue.opacity(0.18),
+                    colorScheme == .dark ? SaneBarChrome.rowStroke : accentStart.opacity(0.18),
                     lineWidth: 1
                 )
         )
@@ -139,7 +141,7 @@ struct SecondMenuBarView: View {
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    .fill(SaneBarChrome.utilityFill)
             )
 
             Button {
@@ -147,7 +149,10 @@ struct SecondMenuBarView: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 11))
-                    .foregroundStyle(textSecondary)
+                    .foregroundStyle(textPrimary)
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(SaneBarChrome.utilityFill))
+                    .overlay(Circle().stroke(SaneBarChrome.controlStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("Settings")
@@ -157,7 +162,10 @@ struct SecondMenuBarView: View {
             } label: {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.system(size: 11))
-                    .foregroundStyle(textSecondary)
+                    .foregroundStyle(accentHighlight)
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(SaneBarChrome.utilityFill))
+                    .overlay(Circle().stroke(SaneBarChrome.controlStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("How Browse Icons works")
@@ -168,7 +176,10 @@ struct SecondMenuBarView: View {
             Button { onDismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(textSecondary)
+                    .foregroundStyle(textPrimary)
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(SaneBarChrome.utilityFill))
+                    .overlay(Circle().stroke(SaneBarChrome.controlStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("Close (Esc)")
@@ -229,83 +240,55 @@ struct SecondMenuBarView: View {
 
     // MARK: - Row State Controls
 
-    private var hiddenOnlyHintText: String? {
-        SecondMenuBarLayout.hiddenOnlyGuidance(
-            includeVisibleIcons: menuBarManager.settings.secondMenuBarShowVisible,
-            isPro: licenseService.isPro
-        )
-    }
-
     private var rowStateControls: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Rows shown")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(textMuted)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                rowStateChip(
+                    title: "Visible",
+                    isOn: menuBarManager.settings.secondMenuBarShowVisible,
+                    isLocked: false,
+                    isInteractive: licenseService.isPro,
+                    helpText: licenseService.isPro ? "Show or hide the Visible row" : nil
+                ) {
+                    menuBarManager.settings.secondMenuBarShowVisible.toggle()
+                }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    rowStateChip(
-                        title: "Visible",
-                        isOn: menuBarManager.settings.secondMenuBarShowVisible,
-                        isLocked: false,
-                        isInteractive: licenseService.isPro
-                    ) {
-                        menuBarManager.settings.secondMenuBarShowVisible.toggle()
+                rowStateChip(
+                    title: "Always Hidden",
+                    isOn: menuBarManager.settings.alwaysHiddenSectionEnabled &&
+                        menuBarManager.settings.secondMenuBarShowAlwaysHidden,
+                    isLocked: !licenseService.isPro,
+                    helpText: licenseService.isPro ? "Show or hide the Always Hidden row" : nil
+                ) {
+                    guard licenseService.isPro else {
+                        proUpsellFeature = .alwaysHidden
+                        return
                     }
 
-                    rowStateChip(
-                        title: "Hidden",
-                        isOn: true,
-                        isLocked: false,
-                        isInteractive: false
-                    ) { }
-
-                    rowStateChip(
-                        title: "Always Hidden",
-                        isOn: menuBarManager.settings.alwaysHiddenSectionEnabled &&
-                            menuBarManager.settings.secondMenuBarShowAlwaysHidden,
-                        isLocked: !licenseService.isPro,
-                        statusLabel: licenseService.isPro
-                            ? ((menuBarManager.settings.alwaysHiddenSectionEnabled &&
-                                menuBarManager.settings.secondMenuBarShowAlwaysHidden) ? "Shown" : "Hidden")
-                            : nil,
-                        accentLocked: !licenseService.isPro,
-                        showsHelpAffordance: !licenseService.isPro,
-                        helpText: "Pro unlocks the Always Hidden row, a third zone for icons you never want to see."
-                    ) {
-                        guard licenseService.isPro else {
-                            proUpsellFeature = .alwaysHidden
-                            return
-                        }
-
-                        if !menuBarManager.settings.alwaysHiddenSectionEnabled {
-                            menuBarManager.settings.alwaysHiddenSectionEnabled = true
-                            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
-                        } else {
-                            menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
-                        }
+                    if !menuBarManager.settings.alwaysHiddenSectionEnabled {
+                        menuBarManager.settings.alwaysHiddenSectionEnabled = true
+                        menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+                    } else {
+                        menuBarManager.settings.secondMenuBarShowAlwaysHidden.toggle()
                     }
                 }
             }
-
-            usageHintBanner
+            .padding(.vertical, 1)
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
     }
 
+    @ViewBuilder
     private func rowStateChip(
         title: String,
         isOn: Bool,
         isLocked: Bool,
         isInteractive: Bool = true,
-        statusLabel: String? = nil,
-        accentLocked: Bool = false,
-        showsHelpAffordance: Bool = false,
         helpText: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button {
+        let chip = Button {
             notePanelInteraction()
             action()
         } label: {
@@ -313,43 +296,40 @@ struct SecondMenuBarView: View {
                 if isLocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 8))
-                        .foregroundStyle(accentLocked ? Color.white.opacity(0.92) : textSecondary)
+                        .foregroundStyle(accentHighlight)
                 }
                 Text(title)
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(textPrimary)
-                if let statusLabel {
-                    Text(statusLabel)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(isOn ? Color.green.opacity(0.95) : textSecondary)
-                }
-                if showsHelpAffordance {
-                    Image(systemName: "questionmark.circle.fill")
-                        .font(.system(size: 8))
-                        .foregroundStyle(Color.white.opacity(0.82))
-                }
+                Text(SecondMenuBarLayout.rowStateLabel(isOn: isOn))
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(isOn ? accentHighlight : textSecondary)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                Capsule()
-                    .fill(
-                        accentLocked
-                            ? AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [accentStart.opacity(0.42), accentEnd.opacity(0.30)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            : AnyShapeStyle(isOn ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
-                    )
+                ChromeGlassCapsuleBackground(
+                    tint: isOn ? SaneBarChrome.accentTeal : SaneBarChrome.controlNavyDeep,
+                    edgeTint: isOn ? SaneBarChrome.accentHighlight : SaneBarChrome.accentTeal,
+                    tintStrength: isOn ? 0.62 : 0.10,
+                    glowOpacity: isOn ? 0.22 : 0.06,
+                    shadowOpacity: isOn ? 0.18 : 0.12,
+                    shadowRadius: isOn ? 8 : 6,
+                    shadowY: 3
+                )
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChromePressablePlainStyle())
         .disabled(!isInteractive)
         .opacity(isInteractive ? 1 : 0.95)
-        .help(helpText ?? title)
+        .accessibilityLabel(Text("\(title) row"))
+        .accessibilityValue(Text(SecondMenuBarLayout.rowStateLabel(isOn: isOn)))
+
+        if let helpText {
+            chip.help(helpText)
+        } else {
+            chip
+        }
     }
 
     private func zoneRow(
@@ -378,15 +358,7 @@ struct SecondMenuBarView: View {
                         makeTile(for: app, zone: zone)
                     }
                     if apps.isEmpty {
-                        Text(totalCount > 0 ? "\(totalCount) hidden by filter" : "Drop to \(label)")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(totalCount > 0 ? textMuted : textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .strokeBorder(.white.opacity(0.15), lineWidth: 1)
-                            )
+                        emptyZoneDropTarget(for: zone)
                             .padding(.leading, 2)
                     }
                 }
@@ -398,35 +370,45 @@ struct SecondMenuBarView: View {
                 }
             }
 
-            if apps.count > 14 {
-                Text("Scroll sideways to see all icons")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(textMuted)
-                    .padding(.leading, 2)
-            }
         }
         .padding(.vertical, 2)
         .dropDestination(for: String.self) { payloads, _ in
             handleZoneDrop(payloads, targetZone: zone)
+        } isTargeted: { isTargeted in
+            targetedEmptyZone = isTargeted ? zone : (targetedEmptyZone == zone ? nil : targetedEmptyZone)
         }
     }
 
-    @ViewBuilder
-    private var usageHintBanner: some View {
-        if let hint = hiddenOnlyHintText {
-            VStack(alignment: .leading, spacing: 4) {
-                Label(hint, systemImage: "exclamationmark.circle.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.yellow.opacity(0.92))
-                    .accessibilityLabel("Hidden-only guidance")
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.08))
-            )
+    private func emptyZoneDropTarget(for zone: IconZone) -> some View {
+        let isTargeted = targetedEmptyZone == zone
+
+        return HStack(spacing: 6) {
+            Image(systemName: isTargeted ? "arrow.down.circle.fill" : "tray")
+                .font(.system(size: 11, weight: .semibold))
+            Text(isTargeted ? "Drop here" : "Drag icons here")
+                .font(.system(size: 10, weight: .semibold))
         }
+        .foregroundStyle(isTargeted ? textPrimary : textMuted)
+        .frame(minWidth: 148, minHeight: 28)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    isTargeted ? SaneBarChrome.targetControlFill : SaneBarChrome.utilityFill
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    isTargeted
+                        ? accentHighlight.opacity(0.54)
+                        : SaneBarChrome.controlStroke,
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: isTargeted ? accentHighlight.opacity(0.18) : .clear, radius: 6, y: 2)
+        .scaleEffect(isTargeted ? 1.01 : 1)
+        .animation(.easeOut(duration: 0.12), value: isTargeted)
     }
 
     private var usageHelpPopover: some View {
@@ -434,18 +416,10 @@ struct SecondMenuBarView: View {
             Text("How Browse Icons works")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
-
-            if licenseService.isPro {
-                Text("1. Open Browse Icons from the SaneBar icon.")
-                Text("2. Drag an icon into the Visible, Hidden, or Always Hidden row.")
-                Text("3. Right-click an icon for Move actions if dragging feels awkward.")
-                Text("4. The row controls only decide which rows are shown in this panel.")
-            } else {
-                Text("1. Open Browse Icons from the SaneBar icon.")
-                Text("2. Click any icon here to open it.")
-                Text("3. Hidden and Visible stay on in Basic so this panel stays predictable.")
-                Text("4. The teal Always Hidden chip is locked in Basic. Upgrade to unlock that third row.")
-            }
+            Text("1. Click any icon here to open it.")
+            Text("2. Drag an icon into another row to move it there.")
+            Text("3. Right-click an icon for more actions.")
+            Text("4. Use the chips above to show or hide rows.")
         }
         .font(.system(size: 12))
         .padding(12)
@@ -454,7 +428,7 @@ struct SecondMenuBarView: View {
 
     private var zoneDivider: some View {
         Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.blue.opacity(0.12))
+            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : accentStart.opacity(0.12))
             .frame(height: 1)
             .padding(.horizontal, 2)
             .padding(.vertical, 2)
@@ -720,7 +694,7 @@ struct SecondMenuBarView: View {
                 _ = AccessibilityService.shared.openAccessibilitySettings()
             }
             .controlSize(.small)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(ChromeActionButtonStyle(prominent: true))
 
             Button { onRetry() } label: {
                 Image(systemName: "arrow.clockwise")
@@ -763,6 +737,10 @@ enum SecondMenuBarDropResolver {
 }
 
 enum SecondMenuBarLayout {
+    static func rowStateLabel(isOn: Bool) -> String {
+        isOn ? "On" : "Off"
+    }
+
     static func shouldShowVisibleZone(
         includeVisibleIcons: Bool
     ) -> Bool {
@@ -776,16 +754,6 @@ enum SecondMenuBarLayout {
         alwaysHiddenZoneEnabled && includeAlwaysHiddenIcons
     }
 
-    static func hiddenOnlyGuidance(
-        includeVisibleIcons: Bool,
-        isPro: Bool
-    ) -> String? {
-        guard !includeVisibleIcons else { return nil }
-        if isPro {
-            return "The Visible row is hidden right now. Turn on the Visible row above, or right-click an icon and choose Move to Visible."
-        }
-        return "Only the Hidden row is shown right now. Upgrade to Pro to move icons between Hidden and Visible."
-    }
 }
 
 // MARK: - Panel Icon Tile
@@ -810,8 +778,8 @@ private struct PanelIconTile: View {
     /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
     /// while `.fit` preserves aspect ratio (no deformation).
     private let tileSize: CGFloat = 32
-    private let accentStart = Color(red: 0.11, green: 0.32, blue: 0.50)
-    private let accentEnd = Color(red: 0.11, green: 0.23, blue: 0.39)
+    private let accentStart = SaneBarChrome.accentStart
+    private let accentEnd = SaneBarChrome.accentEnd
     private var iconSize: CGFloat {
         let icon = app.iconThumbnail ?? app.icon
         // System template icons are non-square and deform when overscaled.
@@ -847,13 +815,7 @@ private struct PanelIconTile: View {
             if !isPro {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 7))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [accentStart, accentEnd],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(SaneBarChrome.accentHighlight)
                     .padding(2)
                     .background(Circle().fill(.ultraThinMaterial))
                     .offset(x: 2, y: 2)
@@ -878,7 +840,7 @@ private struct PanelIconTile: View {
     }
 
     private var helpText: String {
-        isPro ? duplicateBaseName : "\(duplicateBaseName) — Pro unlocks right-click and move actions"
+        duplicateBaseName
     }
 
     private var accessibilityLabel: String {
@@ -887,19 +849,12 @@ private struct PanelIconTile: View {
 
     private var tileBackground: some ShapeStyle {
         if isHovering {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [accentStart.opacity(0.16), accentEnd.opacity(0.11)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            return AnyShapeStyle(SaneBarChrome.activeControlFill)
         }
-        return AnyShapeStyle(
-            colorScheme == .dark
-                ? Color.white.opacity(0.08)
-                : Color.white.opacity(0.8)
-        )
+        if colorScheme == .dark {
+            return AnyShapeStyle(SaneBarChrome.utilityFill)
+        }
+        return AnyShapeStyle(Color.white.opacity(0.8))
     }
 
     @ViewBuilder

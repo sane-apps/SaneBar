@@ -63,7 +63,7 @@ struct AboutSettingsView: View {
                             Text("Donate")
                         } icon: {
                             Image(systemName: "heart.fill")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(.pink)
                         }
                     }
                 }
@@ -84,8 +84,7 @@ struct AboutSettingsView: View {
                     }
                 }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
+            .buttonStyle(ChromeActionButtonStyle())
             .padding(.top, 12)
 
             Spacer()
@@ -119,6 +118,7 @@ struct AboutSettingsView: View {
                 Button("Done") {
                     showLicenses = false
                 }
+                .buttonStyle(ChromeActionButtonStyle(prominent: true))
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -218,6 +218,7 @@ struct AboutSettingsView: View {
                 Button("Done") {
                     showSupport = false
                 }
+                .buttonStyle(ChromeActionButtonStyle(prominent: true))
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
@@ -260,10 +261,8 @@ struct AboutSettingsView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(.pink.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ChromeActionButtonStyle(prominent: true))
 
                     // Crypto addresses
                     VStack(alignment: .leading, spacing: 12) {
@@ -275,8 +274,16 @@ struct AboutSettingsView: View {
                         CryptoAddressRow(label: "ZEC", address: "t1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN")
                     }
                     .padding()
-                    .background(.fill.quaternary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .background(
+                        ChromeGlassRoundedBackground(
+                            cornerRadius: 10,
+                            tint: SaneBarChrome.panelTint,
+                            tintStrength: 0.12,
+                            shadowOpacity: 0.10,
+                            shadowRadius: 6,
+                            shadowY: 2
+                        )
+                    )
                 }
                 .padding()
             }
@@ -296,7 +303,7 @@ private struct CryptoAddressRow: View {
         HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.blue)
+                .foregroundStyle(SaneBarChrome.accentHighlight)
                 .frame(width: 36, alignment: .leading)
 
             Text(address)
@@ -319,8 +326,8 @@ private struct CryptoAddressRow: View {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     .font(.system(size: 13))
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(copied ? .green : .white.opacity(0.9))
+            .buttonStyle(ChromeActionButtonStyle(compact: true))
+            .foregroundStyle(copied ? SaneBarChrome.accentTeal : .white.opacity(0.96))
         }
     }
 }
