@@ -106,6 +106,54 @@ extension MenuBarManager {
         return true
     }
 
+    nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
+        min(320, max(240, screenWidth * 0.14))
+    }
+
+    private static func isMainInsideNotchSafeRightZone(
+        mainX: CGFloat?,
+        notchRightSafeMinX: CGFloat?
+    ) -> Bool? {
+        guard let notchRightSafeMinX, notchRightSafeMinX > 0 else { return nil }
+        guard let mainX, mainX > 0 else { return false }
+        let notchTolerance: CGFloat = 8
+        return mainX >= (notchRightSafeMinX - notchTolerance)
+    }
+
+    private static func isMainRightGapHealthy(
+        mainRightGap: CGFloat?,
+        screenWidth: CGFloat?
+    ) -> Bool? {
+        guard let mainRightGap, let screenWidth else { return nil }
+        guard mainRightGap > 0, screenWidth > 0 else { return false }
+        return mainRightGap <= maxAllowedStartupRightGap(screenWidth: screenWidth)
+    }
+
+    static func isMainNearControlCenter(
+        mainX: CGFloat?,
+        mainRightGap: CGFloat? = nil,
+        screenWidth: CGFloat? = nil,
+        notchRightSafeMinX: CGFloat? = nil
+    ) -> Bool {
+        let notchSafe = isMainInsideNotchSafeRightZone(
+            mainX: mainX,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
+        if let notchSafe, !notchSafe {
+            return false
+        }
+
+        let gapHealthy = isMainRightGapHealthy(
+            mainRightGap: mainRightGap,
+            screenWidth: screenWidth
+        )
+        if let gapHealthy, !gapHealthy {
+            return false
+        }
+
+        return notchSafe != nil || gapHealthy != nil
+    }
+
     static func shouldRecoverStartupPositions(
         separatorX: CGFloat?,
         mainX: CGFloat?,
@@ -119,28 +167,21 @@ extension MenuBarManager {
             return true
         }
 
-        // On notched displays, keep the main icon in the right auxiliary area
-        // (near Control Center). If it drifts left of this boundary, treat as
-        // corrupted placement and recover startup positions.
-        if let notchRightSafeMinX, notchRightSafeMinX > 0 {
-            let notchTolerance: CGFloat = 8
-            if mainX < (notchRightSafeMinX - notchTolerance) {
-                return true
-            }
+        if let notchSafe = isMainInsideNotchSafeRightZone(
+            mainX: mainX,
+            notchRightSafeMinX: notchRightSafeMinX
+        ), !notchSafe {
+            return true
         }
 
-        // Machine-specific corruption can preserve an apparently "ordered"
-        // separator/main pair that still lands one or more app slots away from
-        // the Control Center side. `mainRightGap` measures from the left edge of
-        // the SaneBar icon to the screen's right edge, so a single extra app
-        // wedged between SaneBar and Control Center inflates this quickly.
-        // Keep the allowed window narrow and capped instead of scaling with the
-        // full display width.
-        guard let mainRightGap, let screenWidth else { return false }
-        guard mainRightGap > 0, screenWidth > 0 else { return false }
+        if let gapHealthy = isMainRightGapHealthy(
+            mainRightGap: mainRightGap,
+            screenWidth: screenWidth
+        ), !gapHealthy {
+            return true
+        }
 
-        let maxAllowedRightGap = min(320, max(240, screenWidth * 0.14))
-        return mainRightGap > maxAllowedRightGap
+        return false
     }
 
     func toggleHiddenItems() {

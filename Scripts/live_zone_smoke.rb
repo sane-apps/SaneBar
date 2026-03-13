@@ -448,6 +448,7 @@ class LiveZoneSmoke
     end
 
     wait_for_browse_panel(expected_mode)
+    assert_browse_panel_anchor!(expected_mode)
     live_candidates = browse_activation_candidates(list_icon_zones)
     raise "No browse activation candidate icon found in #{expected_mode} after panel open." if live_candidates.empty?
     screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
@@ -470,7 +471,8 @@ class LiveZoneSmoke
       raise "#{command} returned '#{result}'"
     end
 
-    sleep_with_watchdog(1.0)
+    wait_for_browse_panel(expected_mode)
+    assert_browse_panel_anchor!(expected_mode)
     screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
     puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
     close_browse_panel
@@ -560,6 +562,24 @@ class LiveZoneSmoke
     end
 
     raise "Browse panel did not become ready for #{expected_mode}: #{last_diagnostics}"
+  end
+
+  def assert_browse_panel_anchor!(expected_mode)
+    deadline = Time.now + BROWSE_PANEL_READY_TIMEOUT_SECONDS
+    last_snapshot = nil
+
+    while Time.now < deadline
+      check_resource_watchdog!
+      last_snapshot = layout_snapshot
+      mode_ok = last_snapshot['browseWindowMode'].to_s == expected_mode
+      visible_ok = truthy?(last_snapshot['isBrowseVisible'])
+      anchor_ok = truthy?(last_snapshot['browseWindowAnchorValid'])
+      return if mode_ok && visible_ok && anchor_ok
+
+      sleep_with_watchdog(BROWSE_PANEL_READY_POLL_SECONDS)
+    end
+
+    raise "Browse panel anchor invalid for #{expected_mode}: frame=#{last_snapshot&.dig('browseWindowFrame')} deltaX=#{last_snapshot&.dig('browseWindowAnchorDeltaX')} deltaY=#{last_snapshot&.dig('browseWindowAnchorDeltaY')} snapshot=#{last_snapshot}"
   end
 
   def close_browse_panel
