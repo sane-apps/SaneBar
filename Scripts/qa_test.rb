@@ -57,4 +57,24 @@ class ProjectQATest < Minitest::Test
   def test_runtime_smoke_retryable_failure_rejects_real_smoke_failures
     refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: Required icon(s) missing from list icon zones')
   end
+
+  def test_stability_suite_retryable_failure_matches_generic_xcodebuild_flake
+    output = <<~LOG
+      2026-03-13 15:16:31.112 xcodebuild[30284:7266800] [MT] IDETestOperationsObserverDebug: 16.440 elapsed -- Testing started completed.
+      ** TEST FAILED **
+      Testing started
+    LOG
+
+    assert @qa.send(:retryable_stability_suite_failure?, output)
+  end
+
+  def test_stability_suite_retryable_failure_rejects_real_test_failure_output
+    output = <<~LOG
+      ** TEST FAILED **
+      Testing started
+      /tmp/foo.swift:12: error: -[SaneBarTests.RuntimeGuardXCTests testExample] : XCTAssertTrue failed
+    LOG
+
+    refute @qa.send(:retryable_stability_suite_failure?, output)
+  end
 end

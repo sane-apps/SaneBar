@@ -90,6 +90,7 @@ class ProjectQA
     'SaneBarTests/RuntimeGuardXCTests',
     'SaneBarTests/MenuExtraIdentifierNormalizationTests',
   ].freeze
+  STABILITY_SUITE_RETRIES = 1
   EXPECTED_TEST_MODE_APPS = %w[
     SaneBar SaneClip SaneClick SaneHosts SaneSales SaneSync SaneVideo
   ].freeze
@@ -743,6 +744,19 @@ class ProjectQA
 
   def retryable_runtime_smoke_failure?(smoke_output)
     smoke_output.include?('launch_idle_budget_exceeded')
+  end
+
+  def retryable_stability_suite_failure?(output)
+    return false unless output.include?('** TEST FAILED **')
+    return false unless output.include?('Testing started')
+    return false if output.match?(/\berror:\b/i)
+    return false if output.include?('XCTAssert')
+    return false if output.include?('Assertion')
+    return false if output.include?('Test Suite')
+    return false if output.include?('failed -[')
+    return false if output.include?('❌')
+
+    true
   end
 
   def internal_runtime_snapshot_supported?
@@ -1429,14 +1443,27 @@ class ProjectQA
       cmd << target
     end
 
-    output, status = Open3.capture2e(*cmd)
-    if status.success?
-      puts "✅ #{STABILITY_TEST_TARGETS.count} targets"
-    else
+    attempt = 0
+    loop do
+      attempt += 1
+      output, status = Open3.capture2e(*cmd)
+      if status.success?
+        puts "✅ #{STABILITY_TEST_TARGETS.count} targets"
+        return
+      end
+
+      if attempt <= STABILITY_SUITE_RETRIES && retryable_stability_suite_failure?(output)
+        puts "   ↳ retrying stability suite after transient xcodebuild failure (retry #{attempt}/#{STABILITY_SUITE_RETRIES})"
+        Open3.capture2e('bash', '-lc', "killall #{PROJECT_NAME} >/dev/null 2>&1 || true")
+        sleep 1
+        next
+      end
+
       log_path = '/tmp/sanebar_stability_suite.log'
       File.write(log_path, output)
       @errors << "Stability suite failed. See #{log_path}"
       puts "❌ failed (#{log_path})"
+      return
     end
   end
 
