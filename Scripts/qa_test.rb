@@ -49,4 +49,12 @@ class ProjectQATest < Minitest::Test
 
     refute @qa.send(:stale_open_regression_after_release?, issue, release, now: Time.parse('2026-03-07T12:00:00Z'))
   end
+
+  def test_runtime_smoke_retryable_failure_matches_launch_idle_budget_spike
+    assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: launch_idle_budget_exceeded peakCpu=15.9% > 15.0%')
+  end
+
+  def test_runtime_smoke_retryable_failure_rejects_real_smoke_failures
+    refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: Required icon(s) missing from list icon zones')
+  end
 end
