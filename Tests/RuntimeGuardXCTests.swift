@@ -1149,9 +1149,14 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should also force explicit settle windows plus launch-idle, post-smoke idle, and active-average performance budgets"
         )
         XCTAssertTrue(
-            source.contains("resource_sample_path = \"/tmp/sanebar_runtime_resource_sample-pass#{index + 1}.txt\"") &&
+            source.contains("resource_sample_path = \"/tmp/sanebar_runtime_resource_sample-pass#{pass_number}-try#{attempt}.txt\"") &&
                 source.contains("resource_sample=#{resource_sample_path}"),
             "Project QA runtime smoke should record a per-pass process sample path alongside the smoke transcript"
+        )
+        XCTAssertTrue(
+            source.contains("retryable_runtime_smoke_failure?(smoke_out)") &&
+                source.contains("relaunching after transient launch idle spike"),
+            "Project QA runtime smoke should retry exactly the transient launch-idle spike path before failing the release"
         )
         XCTAssertTrue(
             source.contains("Runtime smoke failed on pass"),
