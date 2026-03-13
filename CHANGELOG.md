@@ -6,6 +6,15 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.27] - 2026-03-13
+
+Improved launch reliability so visible icons stay where you expect.
+Improved saved profile and layout restore behavior.
+Improved Browse Icons clarity with cleaner controls and clearer drag targets.
+Improved menu bar icon settings and overall settings polish.
+
+---
+
 ## [2.1.26] - 2026-03-11
 
 - Fix unexpected Dock icon surfacing when the Dock icon setting is off
