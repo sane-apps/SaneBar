@@ -12,6 +12,12 @@ Improves startup placement and layout recovery, especially on Tahoe and external
 
 ---
 
+## [2.1.28] - 2026-03-13
+
+Improves startup placement and layout recovery, especially on Tahoe and external displays. Also improves Browse Icons clarity and general stability.
+
+---
+
 ## [2.1.27] - 2026-03-13
 
 Improved launch reliability so visible icons stay where you expect.
