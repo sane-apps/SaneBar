@@ -515,13 +515,12 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             return alwaysHiddenX < separatorX
         }()
 
-        let mainNearControlCenter: Bool = {
-            if let notchRightSafeMinX, let mainX {
-                return mainX >= (notchRightSafeMinX - 8)
-            }
-            guard let rightGap, let screenWidth else { return false }
-            return rightGap <= max(500, screenWidth * 0.45)
-        }()
+        let mainNearControlCenter = MenuBarManager.isMainNearControlCenter(
+            mainX: mainX,
+            mainRightGap: rightGap,
+            screenWidth: screenWidth,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
 
         var payload: [String: Any] = [
             "hidingState": manager.hidingService.state.rawValue,
@@ -544,6 +543,9 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "shouldSkipHideForExternalMonitor": manager.shouldSkipHideForExternalMonitor,
             "isOnExternalMonitor": manager.isOnExternalMonitor
         ]
+        SearchWindowController.shared.browseWindowPositionSnapshot().forEach { key, value in
+            payload[key] = value
+        }
 
         func setOptional(_ key: String, _ value: CGFloat?) {
             payload[key] = value.map(Double.init) ?? NSNull()

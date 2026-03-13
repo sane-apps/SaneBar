@@ -206,6 +206,41 @@ struct SearchWindowTests {
         )
     }
 
+    @Test("Browse window anchor validation accepts correctly positioned icon panel")
+    func testBrowseWindowAnchorValidationForFindIcon() {
+        let screenFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 860)
+        let windowFrame = CGRect(x: 510, y: 320, width: 420, height: 520)
+
+        #expect(
+            SearchWindowController.isBrowseWindowAnchoredCorrectly(
+                windowFrame: windowFrame,
+                screenFrame: screenFrame,
+                visibleFrame: visibleFrame,
+                mode: .findIcon,
+                statusItemRightEdge: nil
+            )
+        )
+    }
+
+    @Test("Browse window anchor validation rejects obviously misplaced second menu bar")
+    func testBrowseWindowAnchorValidationRejectsMisplacedSecondMenuBar() {
+        let screenFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 860)
+        let expectedRightEdge: CGFloat = 1320
+        let misplacedFrame = CGRect(x: 200, y: 200, width: 280, height: 140)
+
+        #expect(
+            !SearchWindowController.isBrowseWindowAnchoredCorrectly(
+                windowFrame: misplacedFrame,
+                screenFrame: screenFrame,
+                visibleFrame: visibleFrame,
+                mode: .secondMenuBar,
+                statusItemRightEdge: expectedRightEdge
+            )
+        )
+    }
+
     @Test("Search activation rejects unverified clicks for revealed or browse-session flows")
     func testSearchActivationRequiresObservableReactionForBrowseFlows() {
         #expect(

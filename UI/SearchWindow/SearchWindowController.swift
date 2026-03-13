@@ -152,6 +152,102 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         return String(describing: mode)
     }
 
+    nonisolated static func expectedWindowOrigin(
+        windowFrame: CGRect,
+        screenFrame: CGRect,
+        visibleFrame: CGRect,
+        mode: SearchWindowMode,
+        statusItemRightEdge: CGFloat?
+    ) -> CGPoint {
+        switch mode {
+        case .findIcon:
+            let xPos = visibleFrame.midX - (windowFrame.width / 2)
+            let yPos = visibleFrame.maxY - windowFrame.height - 20
+            return CGPoint(x: xPos, y: yPos)
+        case .secondMenuBar:
+            let menuBarHeight = screenFrame.height - visibleFrame.height - visibleFrame.origin.y
+            let rightEdge = statusItemRightEdge ?? (visibleFrame.maxX - 10)
+            let xPos = max(visibleFrame.origin.x + 10, rightEdge - windowFrame.width)
+            let yPos = screenFrame.maxY - menuBarHeight - windowFrame.height - 4
+            return CGPoint(x: xPos, y: yPos)
+        }
+    }
+
+    nonisolated static func browseWindowAnchorDelta(
+        windowFrame: CGRect?,
+        screenFrame: CGRect?,
+        visibleFrame: CGRect?,
+        mode: SearchWindowMode?,
+        statusItemRightEdge: CGFloat?
+    ) -> CGPoint? {
+        guard let windowFrame, let screenFrame, let visibleFrame, let mode else { return nil }
+        let expectedOrigin = expectedWindowOrigin(
+            windowFrame: windowFrame,
+            screenFrame: screenFrame,
+            visibleFrame: visibleFrame,
+            mode: mode,
+            statusItemRightEdge: statusItemRightEdge
+        )
+        return CGPoint(
+            x: windowFrame.origin.x - expectedOrigin.x,
+            y: windowFrame.origin.y - expectedOrigin.y
+        )
+    }
+
+    nonisolated static func isBrowseWindowAnchoredCorrectly(
+        windowFrame: CGRect?,
+        screenFrame: CGRect?,
+        visibleFrame: CGRect?,
+        mode: SearchWindowMode?,
+        statusItemRightEdge: CGFloat?,
+        tolerance: CGFloat = 12
+    ) -> Bool {
+        guard let delta = browseWindowAnchorDelta(
+            windowFrame: windowFrame,
+            screenFrame: screenFrame,
+            visibleFrame: visibleFrame,
+            mode: mode,
+            statusItemRightEdge: statusItemRightEdge
+        ) else {
+            return false
+        }
+        return abs(delta.x) <= tolerance && abs(delta.y) <= tolerance
+    }
+
+    func browseWindowPositionSnapshot() -> [String: Any] {
+        let currentWindow = window
+        let screen = currentWindow?.screen ?? NSScreen.main
+        let frame = currentWindow?.frame
+        let screenFrame = screen?.frame
+        let visibleFrame = screen?.visibleFrame
+        let rightEdge = MenuBarManager.shared.mainStatusItem?.button?.window?.frame.maxX
+        let delta = Self.browseWindowAnchorDelta(
+            windowFrame: frame,
+            screenFrame: screenFrame,
+            visibleFrame: visibleFrame,
+            mode: currentMode,
+            statusItemRightEdge: rightEdge
+        )
+
+        func optionalDouble(_ value: CGFloat?) -> Any {
+            value.map(Double.init) ?? NSNull()
+        }
+
+        return [
+            "browseWindowMode": Self.diagnosticsMode(currentMode),
+            "browseWindowFrame": Self.diagnosticsRect(frame),
+            "browseWindowAnchorValid": Self.isBrowseWindowAnchoredCorrectly(
+                windowFrame: frame,
+                screenFrame: screenFrame,
+                visibleFrame: visibleFrame,
+                mode: currentMode,
+                statusItemRightEdge: rightEdge
+            ),
+            "browseWindowAnchorDeltaX": optionalDouble(delta?.x),
+            "browseWindowAnchorDeltaY": optionalDouble(delta?.y)
+        ]
+    }
+
     /// The active mode based on user settings
     var activeMode: SearchWindowMode {
         MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
