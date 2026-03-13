@@ -22,7 +22,7 @@ struct SettingsView: View {
                         Text(tab.rawValue)
                     } icon: {
                         Image(systemName: icon(for: tab))
-                            .foregroundStyle(iconColor(for: tab))
+                            .foregroundStyle(iconColor(for: tab, isSelected: selectedTab == tab))
                     }
                 }
             }
@@ -54,6 +54,7 @@ struct SettingsView: View {
             }
         }
         .groupBoxStyle(GlassGroupBoxStyle())
+        .tint(SaneBarChrome.accentStart)
         .frame(minWidth: 700, minHeight: 450)
         .background(SaneGradientBackground())
     }
@@ -70,14 +71,21 @@ struct SettingsView: View {
         }
     }
 
-    private func iconColor(for tab: SettingsTab) -> Color {
-        switch tab {
-        case .general: .gray
-        case .rules: .teal
-        case .appearance: .blue
-        case .shortcuts: .orange
-        case .about: .secondary
+    private func iconColor(for tab: SettingsTab, isSelected: Bool) -> Color {
+        let base = switch tab {
+        case .general:
+            SaneBarChrome.accentHighlight
+        case .rules:
+            SaneBarChrome.accentTeal
+        case .appearance:
+            Color(red: 0.66, green: 0.82, blue: 1.00)
+        case .shortcuts:
+            Color(red: 0.50, green: 0.74, blue: 1.00)
+        case .about:
+            Color(red: 0.76, green: 0.88, blue: 1.00)
         }
+
+        return isSelected ? base : base.opacity(0.92)
     }
 }
 

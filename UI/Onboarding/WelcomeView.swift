@@ -186,6 +186,7 @@ private struct OnboardingBackground: View {
 private struct WelcomeActionPage: View {
     @State private var isHidden = false
     @State private var detectedCompetitor: String?
+    @State private var detectedCompetitorPlistURL: URL?
     @State private var importResult: String?
 
     var body: some View {
@@ -292,19 +293,31 @@ private struct WelcomeActionPage: View {
             .cornerRadius(8)
             .padding(.horizontal, 20)
         } else {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.right.arrow.left.circle.fill")
-                    .foregroundStyle(saneAccent)
-                Text("Switching from \(competitor)?")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white)
-                Button("Import Settings") {
-                    performImport(competitor)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.right.arrow.left.circle.fill")
+                        .foregroundStyle(saneAccent)
+                    Text("Switching from \(competitor)?")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                    Button(competitor == "Bartender" ? "Import Layout" : "Import Settings") {
+                        performImport(competitor)
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .buttonStyle(.borderedProminent)
+                    .tint(saneAccent)
+                    .controlSize(.small)
                 }
-                .font(.system(size: 13, weight: .semibold))
-                .buttonStyle(.borderedProminent)
-                .tint(saneAccent)
-                .controlSize(.small)
+
+                if competitor == "Ice" {
+                    Text("SaneBar can import your Ice settings here, but Ice does not store icon positions.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.9))
+                } else {
+                    Text("SaneBar can import your Bartender layout and matching settings from the detected plist.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
             }
             .padding(10)
             .frame(maxWidth: .infinity)
@@ -330,19 +343,23 @@ private struct WelcomeActionPage: View {
         ]
         for plist in bartenderPlists where fm.fileExists(atPath: prefs.appendingPathComponent(plist).path) {
             detectedCompetitor = "Bartender"
+            detectedCompetitorPlistURL = prefs.appendingPathComponent(plist)
             return
         }
         if fm.fileExists(atPath: prefs.appendingPathComponent("com.jordanbaird.Ice.plist").path) {
             detectedCompetitor = "Ice"
+            detectedCompetitorPlistURL = prefs.appendingPathComponent("com.jordanbaird.Ice.plist")
         }
     }
 
     private func performImport(_ competitor: String) {
-        let prefs = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences")
         let manager = MenuBarManager.shared
 
         if competitor == "Ice" {
-            let url = prefs.appendingPathComponent("com.jordanbaird.Ice.plist")
+            guard let url = detectedCompetitorPlistURL else {
+                importResult = "Import available in Settings → General → Data"
+                return
+            }
             do {
                 let summary = try IceImportService.importSettings(from: url, menuBarManager: manager)
                 importResult = "Imported \(summary.applied.count) settings from Ice"
@@ -350,8 +367,18 @@ private struct WelcomeActionPage: View {
                 importResult = "Import available in Settings → General → Data"
             }
         } else {
-            // Bartender import is async — just point to settings
-            importResult = "Import available in Settings → General → Data"
+            guard let url = detectedCompetitorPlistURL else {
+                importResult = "Import available in Settings → General → Data"
+                return
+            }
+            Task { @MainActor in
+                do {
+                    let summary = try await BartenderImportService.importSettings(from: url, menuBarManager: manager)
+                    importResult = "Imported Bartender layout (\(summary.totalMoved) icons moved)"
+                } catch {
+                    importResult = "Import available in Settings → General → Data"
+                }
+            }
         }
     }
 }
@@ -482,7 +509,7 @@ private struct ZoneGuidePage: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Move icons between zones and pick the browse style you like.")
+            Text("Move icons between Visible, Hidden, and Always Hidden, and pick the browse style you like.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -493,7 +520,7 @@ private struct ZoneGuidePage: View {
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("• Second Menu Bar: browse and click icons in the Hidden and Visible rows. Pro lets you move icons between Visible, Hidden, and Always Hidden.")
+                Text("• Second Menu Bar: browse and click icons in the Hidden and Visible rows. Pro lets you move icons between the Visible, Hidden, and Always Hidden rows.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -503,7 +530,7 @@ private struct ZoneGuidePage: View {
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("• Basic includes browsing and clicking. Pro adds icon moves, reordering, and the Always Hidden zone.")
+                Text("• Basic includes browsing and clicking. Pro adds icon moves, reordering, and Always Hidden.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.92))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -779,7 +806,7 @@ private struct FreeVsProPage: View {
                 features: [
                     ("checkmark", "Everything in Basic, plus:"),
                     ("cursorarrow.click", "Activate & move icons"),
-                    ("lock.fill", "Always Hidden zone"),
+                    ("lock.fill", "Always Hidden"),
                     ("touchid", "Touch ID / password lock"),
                     ("hand.point.up", "Gestures: hover & scroll"),
                     ("paintpalette.fill", "Custom icon & appearance"),

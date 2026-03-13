@@ -1,5 +1,38 @@
 # SaneBar Research Cache
 
+## Profile / Backup Restore + Bartender/Ice Import Expectations
+
+**Updated:** 2026-03-12 | **Status:** verified | **TTL:** 14d
+**Source:** Apple docs (`NSStatusItem.autosaveName`, `NSOpenPanel`), competitor/web references (Ice GitHub README), local code/tests (`BartenderImportService`, `IceImportService`, `StatusBarController`, `PersistenceService`)
+
+### Verified Findings
+
+1. **Apple treats `NSStatusItem.autosaveName` as the persistence hook for restoring status-item state.**
+   - AppKit documents `autosaveName` as the unique name used for saving and restoring status-item information.
+   - Apps with multiple status items are expected to assign explicit autosave names.
+   - That supports making SaneBar profile/export restore ride on the existing autosave-backed layout state instead of inventing a second layout store.
+
+2. **Open/Save panels are the correct restore/export surface for these backups.**
+   - AppKit documents `NSOpenPanel` as the standard way for users to choose files to open.
+   - On modern macOS, user-selected files from the panel are handed back as sandbox-approved access.
+   - That confirms the current export/import UI is the right primitive; the missing piece was payload completeness, not the panel mechanism.
+
+3. **Ice’s own public feature list does not claim finished layout profiles.**
+   - The current Ice README advertises hide/show, drag-and-drop arrangement, separate hidden bar, and search.
+   - The same README still lists `Profiles for menu bar layout` as not yet implemented.
+   - That matches SaneBar’s checked-in `IceImportService`: Ice can provide behavioral settings, but there is no trustworthy stored layout profile to import from Ice.
+
+4. **Local SaneBar code confirms Bartender and Ice are fundamentally different import sources.**
+   - `BartenderImportService` parses explicit hidden/show profile entries and can move icons into zones from the detected Bartender plist.
+   - `IceImportService` only maps compatible behavior settings and explicitly documents that Ice does not persist per-icon section assignments.
+   - Onboarding should therefore use the detected Bartender plist directly, while Ice onboarding should stay settings-only and say so clearly.
+
+5. **Current SaneBar restore state was fragmented across three stores before this patch.**
+   - Settings lived in `settings.json`.
+   - Layout lived in `NSStatusItem Preferred Position ...` defaults plus width-bucket display backups.
+   - The custom icon asset lived separately in `custom_icon.png`, and saved profiles lived as separate JSON files in `profiles/`.
+   - That fragmentation is why profiles and export/import felt incomplete even though each individual subsystem already had the needed data.
+
 ## Second Menu Bar Idle-Close Race (#101)
 
 **Updated:** 2026-03-11 | **Status:** verified | **TTL:** 7d
@@ -1072,3 +1105,146 @@ After applying fix:
 **Source:** GitHub issue #56, codebase analysis (all relevant files traced), ARCHITECTURE.md icon moving pipeline documentation
 
 (... rest of the existing research content continues unchanged ...)
+
+---
+
+## Browse Panel Screenshot Artifacts on Mini
+
+**Updated:** 2026-03-12 | **Status:** confirmed-root-cause | **TTL:** 30d
+**Sources:** local code + mini repro, Apple docs for `NSView` snapshot APIs, local `man screencapture`, mini-installed `screenshot` package source
+
+### Findings
+
+1. **Host-level `screencapture` is not reliable for SSH-driven Mini smoke**
+   - Local mini repro still returns:
+     - `could not create image from display`
+     - `could not create image from window`
+   - `man screencapture` explicitly says SSH capture must run in the same mach bootstrap hierarchy as `loginwindow`, which the routed smoke path does not guarantee.
+
+2. **The Python `screenshot` helper is not a real alternative**
+   - Mini has `/Users/stephansmac/Library/Python/3.9/bin/screenshot`.
+   - Its implementation shells out to `screencapture -l <windowid>`.
+   - That means it inherits the same underlying WindowServer/bootstrap failure mode as raw `screencapture`.
+
+3. **SaneBar already has the correct in-process snapshot path**
+   - `SearchWindowController.captureBrowsePanelSnapshotPNG(to:)` uses:
+     - `bitmapImageRepForCachingDisplay(in:)`
+     - `cacheDisplay(in:to:)`
+   - Apple docs confirm this is the supported way to cache a view and its descendants into an `NSBitmapImageRep`.
+   - Because it runs inside the app process against the live browse-panel content view, it avoids host screenshot/TCC/bootstrap issues entirely.
+
+4. **AppleScript surface already exposes the needed commands**
+   - `Resources/SaneBar.sdef` includes:
+     - `capture browse panel snapshot`
+     - `queue browse panel snapshot`
+   - The smoke script should use those commands first and only keep host screenshot tools as a fallback.
+
+### Decision
+
+- Treat in-app browse-panel PNG capture as the primary screenshot artifact path for SaneBar runtime smoke.
+- Keep host `screencapture` / `screenshot` only as fallback/debug paths, not as the capability gate.
+
+---
+
+## Browse Icons Drag Affordance and Unified Chrome
+
+**Updated:** 2026-03-13 | **Status:** verified-design-guidance | **TTL:** 14d
+**Sources:** Apple docs for SwiftUI `dropDestination(for:action:isTargeted:)`, Apple HIG drag-and-drop search results on developer.apple.com, public GitHub reference `zenangst/KeyboardCowboy`, local SaneBar code + customer confusion history
+
+### Findings
+
+1. **SwiftUI wants the existing view to react as the drop target**
+   - Apple docs for `dropDestination(for:action:isTargeted:)` say the drop destination is the same size and position as the view you attach it to.
+   - `isTargeted` is specifically for live enter/exit feedback on that view.
+   - For SaneBar, that supports highlighting the real zone tabs and empty rows directly instead of inventing duplicate controls during drag.
+
+2. **Just-in-time destination feedback is clearer than persistent explanation**
+   - Apple HIG drag-and-drop guidance surfaced in current developer.apple.com search results still points toward visible feedback on valid destinations during drag, not duplicated controls or permanent instructional clutter.
+   - The right pattern for SaneBar is: calm at rest, obvious during drag.
+
+3. **Public SwiftUI examples also favor overlays and inline targeting over duplicated menus**
+   - `zenangst/KeyboardCowboy` uses a dedicated targeted-drop overlay that appears only while dragging and lets the original surface advertise the destination.
+   - That lines up with the user feedback here: keep one row of controls, then annotate the valid destinations rather than spawning a second row.
+
+4. **Local support history confirms the semantic problem**
+   - Prior Browse Icons confusion came from surfaces doing too many jobs at once: filter, destination, locked state, and help text.
+   - Duplicate drag rows and teal-heavy selected pills both made the UI read as “new controls appeared” or “this tab is being disabled,” not “you can drop here.”
+
+### Decision
+
+- Keep one row of Icon Panel tabs at all times.
+- During drag, show a single `Move to` label and highlight only valid destination tabs.
+- Never treat `All` as a destination.
+- Never show the source zone as a destination.
+- Use navy-glass surfaces as the base visual system.
+- Use teal only as seam, lock, or glow, not as a slab fill for every selected control.
+
+---
+
+## Startup Recovery Collapse Family (#111 / #113 / #114)
+
+**Updated:** 2026-03-13 | **Status:** verified and locally patched | **TTL:** 7d
+**Sources:** Apple docs for `NSStatusItem.autosaveName`, local code/tests (`StatusBarController`, `MenuBarManager`, `SearchService`), live GitHub issue diagnostics for `#111`, `#113`, `#114`, a round-one NV critic pass, and scripted mini runtime probes
+
+### Findings
+
+1. **`#111`, `#113`, and `#114` are probably one bug family**
+   - `#111`: icons look right, then collapse a few seconds later.
+   - `#113`: after upgrade, visible items moved to hidden and diagnostics show `main=0`, `separator=1`.
+   - `#114`: startup invariant fails, then autosave recovery bumps the namespace and the icon/separator still land wrong.
+
+2. **The current startup self-healing path is structurally unsafe for users with visible icons**
+   - `StatusBarController.seedPositionsIfNeeded()` seeds `main=0` and `separator=1`.
+   - Apple documents `autosaveName` as the persistence hook for restoring status-item state, so those ordinals are not just temporary UI values; they become the ordering state macOS restores from.
+   - `SearchService.classifyZone()` treats items left of the separator as hidden, so a `0/1` reseed effectively creates a zero-width visible lane.
+
+3. **The recovery path ignores already-known good layout backups**
+   - `#113` diagnostics still show display backup positions for the current width bucket, but the active preferred positions are `main=0`, `separator=1`.
+   - `recreateItemsWithBumpedVersion()` reseeds ordinals directly and does not try to restore the current-width backup before recreating items.
+
+4. **The timing in `#111` matches the recovery poll**
+   - `deferredUISetup()` starts after `0.35s` on macOS 26.
+   - `schedulePositionValidation()` waits `0.5s`, then retries 4 times at `250ms`.
+   - A false-positive startup recovery therefore lands in the same 2-3 second window the reporter describes.
+
+5. **The detection heuristics are likely too aggressive on Tahoe / external-monitor / multi-account setups**
+   - `shouldRecoverStartupPositions()` treats `mainRightGap > min(320, max(240, screenWidth * 0.14))` as corruption.
+   - That can be reasonable for true far-left drift, but it is fragile when WindowServer stabilizes slowly or when the login/display scene is still settling.
+
+6. **Working theory**
+   - Layer 1 bug: startup corruption detection false-positives on some Tahoe setups.
+   - Layer 2 bug: once recovery fires, the reseed strategy itself destroys the visible zone.
+
+7. **Mini runtime proof ruled out simple auto-rehide confusion**
+   - Healthy mini launch with `autoRehide=false` stayed stable at `visible=4 / hidden=10` at both `T+1s` and `T+4.5s`.
+   - Forcing the persisted preferred positions to `main=0 / separator=1` with `autoRehide=false` collapsed the mini to `visible=2 / hidden=12`; only `Control Center` and `Clock` remained visible.
+   - That means the collapse can happen with normal rehide fully disabled, so `#111 / #113` are not explained away by user misunderstanding of auto-hide.
+
+8. **The old startup validator missed the bad persisted state because geometry still looked "plausible"**
+   - In the forced `0/1` run, `layout snapshot` still reported `separatorBeforeMain=true` and `mainNearControlCenter=true`.
+   - So once the destructive ordinal state exists, the old startup validation path can treat it as healthy and skip recovery.
+
+### Local Fix Applied
+
+- `StatusBarController.positionsNeedDisplayReset()` now restores the current-width display backup when it sees tiny ordinal startup seeds (`0/1`) instead of normal persisted ordering values.
+- `StatusBarController.recoverStartupPositions(alwaysHiddenEnabled:)` now prefers the current-width display backup over destructive ordinal reseeding.
+- `StatusBarController.recreateItemsWithBumpedVersion()` now hydrates the new autosave namespace from the current-width display backup when one exists.
+
+### Verification
+
+- New tests in `StatusBarControllerTests` cover:
+  - ordinal-seed detection
+  - init restoring current-width backups over `0/1`
+  - startup recovery preferring current-width backups
+  - autosave namespace recovery preferring current-width backups
+- `./scripts/SaneMaster.rb verify` passed on the mini with `927` tests.
+- Patched mini runtime probe:
+  - healthy `autoRehide=false`: `visible=4 / hidden=10`
+  - forced `0/1` with `autoRehide=false`: now restores the healthy layout instead of collapsing
+  - streamed log confirms: `Display validation: restored current-width backup over ordinal startup seeds`
+- `./scripts/SaneMaster.rb release_preflight` passed the technical build + runtime smoke path again; only the existing governance blockers remain (`#113`, `#101`, `#94`, and unconfirmed close `#109`).
+
+### Remaining Caution
+
+- This local fix directly covers the `0/1` collapse path and the hard-recovery backup-restore path.
+- `#114` may still have an additional Tahoe/external-monitor trigger problem upstream in `shouldRecoverStartupPositions()`, but the destructive fallback now has a safe same-width backup path instead of blindly reseeding ordinals.

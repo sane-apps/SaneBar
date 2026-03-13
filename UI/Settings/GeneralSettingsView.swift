@@ -51,12 +51,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    private struct SettingsExport: Codable {
-        let version: Int
-        let exportedAt: Date
-        let settings: SaneBarSettings
-    }
-
     private var showDockIconBinding: Binding<Bool> {
         Binding(
             get: { menuBarManager.settings.showDockIcon },
@@ -126,15 +120,15 @@ struct GeneralSettingsView: View {
     private func browseIconsViewOptionHelp(useSecondMenuBar: Bool) -> String {
         if useSecondMenuBar {
             if licenseService.isPro {
-                return "Open the Second Menu Bar strip under the menu bar."
+                return "Open a row-based strip under the menu bar."
             }
-            return "Open the Second Menu Bar strip under the menu bar. Basic includes browsing and clicking there. Pro adds moving icons and the Always Hidden row."
+            return "Open a row-based strip under the menu bar. Basic includes browsing and clicking there. Pro adds moving icons and Always Hidden."
         }
 
         if licenseService.isPro {
-            return "Open the Icon Panel window with search and actions."
+            return "Open the Icon Panel window with search and icon actions."
         }
-        return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and the Always Hidden zone."
+        return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and Always Hidden."
     }
 
     private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
@@ -242,7 +236,7 @@ struct GeneralSettingsView: View {
 
                                 Image(systemName: "questionmark.circle.fill")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.68))
+                                    .foregroundStyle(SaneBarChrome.accentHighlight.opacity(0.86))
                                     .help(secondMenuBarRowsSummary)
                             }
 
@@ -272,8 +266,7 @@ struct GeneralSettingsView: View {
                                         showBrowseRowCustomization.toggle()
                                     }
                                 }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                .buttonStyle(ChromeActionButtonStyle())
                                 .help("Show or hide row-level options.")
                             }
 
@@ -296,15 +289,15 @@ struct GeneralSettingsView: View {
                     } else if isBasicSecondMenuBar {
                         CompactDivider()
                         CompactRow("Rows shown in Second Menu Bar") {
-                            Text("Hidden + Visible")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.94))
+                                Text("Hidden + Visible")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.94))
                         }
                         CompactDivider()
                         proGatedRow(feature: .alwaysHidden, label: "Always Hidden row")
                     } else if !licenseService.isPro {
                         CompactDivider()
-                        proGatedRow(feature: .zoneMoves, label: "Move icons between zones")
+                        proGatedRow(feature: .zoneMoves, label: "Move icons between Visible, Hidden, and Always Hidden")
                     }
                     CompactDivider()
                     VStack(alignment: .leading, spacing: 8) {
@@ -313,7 +306,7 @@ struct GeneralSettingsView: View {
                                 Text("Left-click SaneBar icon")
                                 Image(systemName: "questionmark.circle.fill")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.68))
+                                    .foregroundStyle(SaneBarChrome.accentHighlight.opacity(0.86))
                                     .help("Right-click the SaneBar icon to open the app menu.")
                             }
                             Spacer()
@@ -364,13 +357,18 @@ struct GeneralSettingsView: View {
                     CompactDivider()
 
                     CompactRow("Check frequency") {
-                        Picker("", selection: $updateCheckFrequency) {
+                        HStack(spacing: 6) {
                             ForEach(UpdateCheckFrequency.allCases) { frequency in
-                                Text(frequency.title).tag(frequency)
+                                ChromeSegmentedChoiceButton(
+                                    title: frequency.title,
+                                    isSelected: updateCheckFrequency == frequency
+                                ) {
+                                    updateCheckFrequency = frequency
+                                }
                             }
                         }
-                        .pickerStyle(.segmented)
                         .frame(width: 170)
+                        .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
                         .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
                     }
                     .help("Choose how often automatic update checks run")
@@ -388,7 +386,7 @@ struct GeneralSettingsView: View {
                                 isCheckingForUpdates = false
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(ChromeActionButtonStyle())
                         .controlSize(.small)
                         .disabled(isCheckingForUpdates)
                         .help("Check for updates right now")
@@ -412,7 +410,7 @@ struct GeneralSettingsView: View {
                                             .foregroundStyle(.white.opacity(0.92))
 
                                         Button("Load") { loadProfile(profile) }
-                                            .buttonStyle(.bordered)
+                                            .buttonStyle(ChromeActionButtonStyle())
                                             .controlSize(.small)
 
                                         Button {
@@ -435,9 +433,9 @@ struct GeneralSettingsView: View {
                                 newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
                                 showingSaveProfileAlert = true
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
-                            .help("Save all current settings as a named profile")
+                            .help("Save your current settings, layout, and custom icon as a named profile")
                         }
                     } else {
                         proGatedRow(feature: .settingsProfiles, label: "Save and load configurations")
@@ -451,13 +449,13 @@ struct GeneralSettingsView: View {
                             Button("Export Settings...") {
                                 exportSettings()
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
 
                             Button("Import Settings...") {
                                 importSettings()
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
                         }
 
@@ -472,7 +470,7 @@ struct GeneralSettingsView: View {
                                     importIceSettings()
                                 }
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
                         }
                     } else {
@@ -486,10 +484,10 @@ struct GeneralSettingsView: View {
                         CompactRow("Status") {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(SaneBarChrome.accentHighlight)
                                 Text("Pro")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(SaneBarChrome.accentHighlight)
                             }
                         }
                         if let email = licenseService.licenseEmail {
@@ -510,7 +508,7 @@ struct GeneralSettingsView: View {
                                     Button("Restore Purchases") {
                                         Task { await licenseService.restorePurchases() }
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(ChromeActionButtonStyle())
                                     .controlSize(.small)
                                     .disabled(licenseService.isPurchasing)
                                 }
@@ -518,7 +516,7 @@ struct GeneralSettingsView: View {
                                 Button(LicenseService.deactivateLicenseLabel()) {
                                     licenseService.deactivate()
                                 }
-                                .buttonStyle(.bordered)
+                                .buttonStyle(ChromeActionButtonStyle())
                                 .controlSize(.small)
                             }
                         }
@@ -538,15 +536,14 @@ struct GeneralSettingsView: View {
                                         Button("Unlock Pro — \(licenseService.appStoreDisplayPrice ?? "$6.99")") {
                                             Task { await licenseService.purchasePro() }
                                         }
-                                        .buttonStyle(.borderedProminent)
-                                        .tint(Color.saneAccent)
+                                        .buttonStyle(ChromeActionButtonStyle(prominent: true))
                                         .controlSize(.small)
                                         .disabled(licenseService.isPurchasing)
 
                                         Button("Restore Purchases") {
                                             Task { await licenseService.restorePurchases() }
                                         }
-                                        .buttonStyle(.bordered)
+                                        .buttonStyle(ChromeActionButtonStyle())
                                         .controlSize(.small)
                                         .disabled(licenseService.isPurchasing)
                                     }
@@ -562,14 +559,13 @@ struct GeneralSettingsView: View {
                                     Button("Unlock Pro — $6.99") {
                                         NSWorkspace.shared.open(LicenseService.checkoutURL())
                                     }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(Color.saneAccent)
+                                    .buttonStyle(ChromeActionButtonStyle(prominent: true))
                                     .controlSize(.small)
 
                                     Button(LicenseService.keyEntryButtonLabel()) {
                                         showingLicenseEntry = true
                                     }
-                                    .buttonStyle(.bordered)
+                                    .buttonStyle(ChromeActionButtonStyle())
                                     .controlSize(.small)
                                 }
                             }
@@ -583,9 +579,8 @@ struct GeneralSettingsView: View {
                         Button("Reset to Defaults…") {
                             showingResetAlert = true
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(ChromeActionButtonStyle(destructive: true))
                         .controlSize(.small)
-                        .foregroundStyle(.red)
                         .help("Reset all settings to factory defaults")
                     }
                 }
@@ -608,7 +603,7 @@ struct GeneralSettingsView: View {
             Button("Save") { saveCurrentProfile() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Save your current configuration to restore later.")
+            Text("Save your current settings, layout, and icon to restore later.")
         }
         .alert("Reset Settings?", isPresented: $showingResetAlert) {
             Button("Cancel", role: .cancel) {}
@@ -633,28 +628,7 @@ struct GeneralSettingsView: View {
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
-                .lineLimit(1)
-                .minimumScaleFactor(0.9)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(
-                            isSelected
-                                ? AnyShapeStyle(LinearGradient(
-                                    colors: [.saneAccentDeep.opacity(0.96), .saneAccent.opacity(0.96)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-                                : AnyShapeStyle(Color.white.opacity(0.08))
-                        )
-                )
-        }
-        .buttonStyle(.plain)
+        ChromeSegmentedChoiceButton(title: title, isSelected: isSelected, action: action)
     }
 
     private func applyBrowseIconsViewSelection(_ useSecondMenuBar: Bool) {
@@ -721,16 +695,7 @@ struct GeneralSettingsView: View {
             Button {
                 proUpsellFeature = feature
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                    Text("Pro")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Color.saneAccentSoft)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
         }
@@ -748,7 +713,12 @@ struct GeneralSettingsView: View {
 
     private func saveCurrentProfile() {
         guard !newProfileName.isEmpty else { return }
-        var profile = SaneBarProfile(name: newProfileName, settings: menuBarManager.settings)
+        var profile = SaneBarProfile(
+            name: newProfileName,
+            settings: menuBarManager.settings,
+            layoutSnapshot: StatusBarController.captureLayoutSnapshot(),
+            customIconSnapshot: PersistenceService.shared.makeCustomIconSnapshot()
+        )
         profile.modifiedAt = Date()
         do {
             try PersistenceService.shared.saveProfile(profile)
@@ -759,27 +729,13 @@ struct GeneralSettingsView: View {
     }
 
     private func loadProfile(_ profile: SaneBarProfile) {
-        let currentAuthEnabled = menuBarManager.settings.requireAuthToShowHiddenIcons
-        let profileAuthEnabled = profile.settings.requireAuthToShowHiddenIcons
-
-        // SECURITY: If current auth is ON and profile would turn it OFF, require auth first
-        if currentAuthEnabled, !profileAuthEnabled, !isAuthenticating {
-            isAuthenticating = true
-            Task {
-                let authenticated = await authenticateToDisable()
-                await MainActor.run {
-                    if authenticated {
-                        menuBarManager.settings = profile.settings
-                        menuBarManager.saveSettings()
-                    }
-                    isAuthenticating = false
-                }
-            }
-        } else {
-            // No auth needed - either auth is off, or profile keeps it on
-            menuBarManager.settings = profile.settings
-            menuBarManager.saveSettings()
-        }
+        applyConfiguration(
+            settings: profile.settings,
+            layoutSnapshot: profile.layoutSnapshot,
+            customIconSnapshot: profile.customIconSnapshot,
+            importedProfiles: nil,
+            successLog: "📁 Profile applied"
+        )
     }
 
     private func deleteProfile(_ profile: SaneBarProfile) {
@@ -804,7 +760,14 @@ struct GeneralSettingsView: View {
             return
         }
 
-        let export = SettingsExport(version: 1, exportedAt: Date(), settings: menuBarManager.settings)
+        let export = SaneBarSettingsArchive(
+            version: 2,
+            exportedAt: Date(),
+            settings: menuBarManager.settings,
+            layoutSnapshot: StatusBarController.captureLayoutSnapshot(),
+            customIconSnapshot: PersistenceService.shared.makeCustomIconSnapshot(),
+            savedProfiles: savedProfiles
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -836,13 +799,25 @@ struct GeneralSettingsView: View {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
-            if let export = try? decoder.decode(SettingsExport.self, from: data) {
+            if let export = try? decoder.decode(SaneBarSettingsArchive.self, from: data) {
                 settingsLogger.log("📥 Importing wrapped settings from \(url.lastPathComponent, privacy: .public)")
-                applyImportedSettings(export.settings)
+                applyConfiguration(
+                    settings: export.settings,
+                    layoutSnapshot: export.layoutSnapshot,
+                    customIconSnapshot: export.customIconSnapshot,
+                    importedProfiles: export.savedProfiles,
+                    successLog: "📥 Imported archive applied"
+                )
             } else {
                 settingsLogger.log("📥 Importing raw settings from \(url.lastPathComponent, privacy: .public)")
                 let settings = try decoder.decode(SaneBarSettings.self, from: data)
-                applyImportedSettings(settings)
+                applyConfiguration(
+                    settings: settings,
+                    layoutSnapshot: nil,
+                    customIconSnapshot: nil,
+                    importedProfiles: nil,
+                    successLog: "📥 Imported legacy settings applied"
+                )
             }
         } catch {
             settingsLogger.error("📥 Import failed: \(error.localizedDescription, privacy: .public)")
@@ -850,7 +825,13 @@ struct GeneralSettingsView: View {
         }
     }
 
-    private func applyImportedSettings(_ settings: SaneBarSettings) {
+    private func applyConfiguration(
+        settings: SaneBarSettings,
+        layoutSnapshot: SaneBarLayoutSnapshot?,
+        customIconSnapshot: SaneBarCustomIconSnapshot?,
+        importedProfiles: [SaneBarProfile]?,
+        successLog: String
+    ) {
         let currentAuthEnabled = menuBarManager.settings.requireAuthToShowHiddenIcons
         let importedAuthEnabled = settings.requireAuthToShowHiddenIcons
 
@@ -860,9 +841,13 @@ struct GeneralSettingsView: View {
                 let authenticated = await authenticateToDisable()
                 await MainActor.run {
                     if authenticated {
-                        menuBarManager.settings = settings
-                        menuBarManager.saveSettings()
-                        settingsLogger.log("📥 Imported settings applied after auth")
+                        applyConfigurationAfterAuth(
+                            settings: settings,
+                            layoutSnapshot: layoutSnapshot,
+                            customIconSnapshot: customIconSnapshot,
+                            importedProfiles: importedProfiles,
+                            successLog: successLog
+                        )
                     } else {
                         settingsLogger.log("📥 Import blocked by auth (no changes applied)")
                     }
@@ -870,9 +855,42 @@ struct GeneralSettingsView: View {
                 }
             }
         } else {
+            applyConfigurationAfterAuth(
+                settings: settings,
+                layoutSnapshot: layoutSnapshot,
+                customIconSnapshot: customIconSnapshot,
+                importedProfiles: importedProfiles,
+                successLog: successLog
+            )
+        }
+    }
+
+    private func applyConfigurationAfterAuth(
+        settings: SaneBarSettings,
+        layoutSnapshot: SaneBarLayoutSnapshot?,
+        customIconSnapshot: SaneBarCustomIconSnapshot?,
+        importedProfiles: [SaneBarProfile]?,
+        successLog: String
+    ) {
+        do {
+            if let importedProfiles {
+                try PersistenceService.shared.upsertProfiles(importedProfiles)
+            }
+            if let customIconSnapshot {
+                try PersistenceService.shared.applyCustomIconSnapshot(customIconSnapshot)
+            }
+            if let layoutSnapshot {
+                StatusBarController.applyLayoutSnapshot(layoutSnapshot)
+            }
+
             menuBarManager.settings = settings
             menuBarManager.saveSettings()
-            settingsLogger.log("📥 Imported settings applied")
+            menuBarManager.restoreStatusItemLayoutIfNeeded()
+            loadProfiles()
+            settingsLogger.log("\(successLog, privacy: .public)")
+        } catch {
+            settingsLogger.error("📥 Configuration apply failed: \(error.localizedDescription, privacy: .public)")
+            showError(title: "Import Failed", error: error)
         }
     }
 

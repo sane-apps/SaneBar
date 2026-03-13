@@ -657,9 +657,30 @@ final class SearchService: SearchServiceProtocol {
                 .map(\.app.bundleId)
         )
 
-        return items.filter { item in
+        let filtered = items.filter { item in
             item.app.hasPreciseMenuBarIdentity || !preciseBundleIds.contains(item.app.bundleId)
         }
+
+        var kept: [AccessibilityService.MenuBarItemPosition] = []
+        var aliasBuckets: [String: [AccessibilityService.MenuBarItemPosition]] = [:]
+
+        for item in filtered {
+            if let aliasKey = Self.helperHostedAliasDisplayKey(for: item.app) {
+                aliasBuckets[aliasKey, default: []].append(item)
+            } else {
+                kept.append(item)
+            }
+        }
+
+        for bucket in aliasBuckets.values {
+            guard let bestApp = Self.bestHelperHostedAliasRepresentative(from: bucket.map(\.app)),
+                  let bestItem = bucket.first(where: { $0.app.uniqueId == bestApp.uniqueId }) else {
+                continue
+            }
+            kept.append(bestItem)
+        }
+
+        return kept
     }
 
     @MainActor
@@ -986,6 +1007,15 @@ final class SearchService: SearchServiceProtocol {
             logger.warning("Resolved click target via first same-bundle fallback (\(prefix, privacy: .public))")
             return (sameBundleFirst, "\(prefix) method=firstSameBundle")
         }
+
+        if let helperHostedAliasMatch = Self.bestHelperHostedAliasResolutionCandidate(
+            for: original,
+            candidates: items.map(\.app)
+        ) {
+            logger.warning("Resolved click target via helper-family fallback (\(prefix, privacy: .public))")
+            return (helperHostedAliasMatch, "\(prefix) method=helperFamily")
+        }
+
         logger.error("Resolved click target fell back to original request (\(prefix, privacy: .public))")
         return (original, "\(prefix) method=originalFallback")
     }

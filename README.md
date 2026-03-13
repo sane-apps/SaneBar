@@ -102,8 +102,8 @@ Everything in Basic, plus:
 - **Custom Styling** — Tint, shadow, borders, rounded corners, custom menu bar icon (5 built-in styles or upload your own), light/dark mode tinting, extra dividers
 - **Icon Spacing** — Reduce system-wide menu bar spacing to fit more icons before the Notch hides them
 - **Liquid Glass** — Translucent styling ready for macOS 26 Tahoe
-- **Import from Bartender or Ice** — Migrate your existing layout automatically
-- **Settings export/import** — Back up your config and restore on another Mac
+- **Import from Bartender or Ice** — Import Bartender layout plus matching settings, or bring over compatible Ice settings
+- **Settings export/import** — Back up your settings, layout, custom icon, and saved profiles for another Mac
 - **AppleScript automation** — Full scripting integration for Shortcuts and workflows
 
 ![Rules and Automation](docs/images/settings-rules.png)
@@ -114,7 +114,7 @@ Everything in Basic, plus:
 ### Guided Onboarding
 
 A first-run walkthrough gets you set up in under a minute:
-1. **Welcome** — What SaneBar does, automatic import if Bartender or Ice is detected
+1. **Welcome** — What SaneBar does, plus one-click import if Bartender or Ice is detected
 2. **Try it** — Hide and show icons right away to see how it works
 3. **Browse your icons** — See all your menu bar apps at a glance
 4. **Choose your view** — Pick Icon Panel or Second Menu Bar
@@ -328,7 +328,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Touch ID / Password Lock** | Yes | No | No | No |
 | **Smart Triggers** | Yes | No | No | No |
 | **Guided Onboarding** | Yes | No | No | No |
-| **Import from Bartender/Ice** | Yes | No | No | No |
+| **Import from Bartender/Ice** | Bartender layout + Ice settings | No | No | No |
 | **Always-Hidden Zone** | Yes | No | Yes | No |
 | **Gesture Controls** | Yes | Yes | Yes | No |
 | **Second Menu Bar** | Yes | Yes | Yes | No |

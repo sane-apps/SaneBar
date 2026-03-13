@@ -34,6 +34,18 @@
             <result type="boolean" description="True if the close request was accepted"/>
         </command>
 
+        <command name="capture browse panel snapshot" code="SBarcbps" description="Save the current browse panel content as a PNG image">
+            <cocoa class="CaptureBrowsePanelSnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot was written"/>
+        </command>
+
+        <command name="queue browse panel snapshot" code="SBarqbps" description="Queue a browse-panel PNG snapshot shortly in the future">
+            <cocoa class="QueueBrowsePanelSnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot request was queued"/>
+        </command>
+
         <!-- List Icons Command -->
         <command name="list icons" code="SBarlsic" description="List detected menu bar icons with their identifiers">
             <cocoa class="ListIconsCommand"/>

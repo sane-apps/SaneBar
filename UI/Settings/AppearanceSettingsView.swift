@@ -1,3 +1,4 @@
+import AppKit
 import SaneUI
 import SwiftUI
 
@@ -82,17 +83,17 @@ struct AppearanceSettingsView: View {
                 CompactSection("Menu Bar Icon") {
                     CompactRow("Icon") {
                         Picker("", selection: $menuBarManager.settings.menuBarIconStyle) {
-                            Label("Filter", systemImage: "line.3.horizontal.decrease")
+                            pickerIconOptionLabel("Filter", systemImage: "line.3.horizontal.decrease")
                                 .tag(SaneBarSettings.MenuBarIconStyle.filter)
-                            Label("Dots", systemImage: "ellipsis")
+                            pickerIconOptionLabel("Dots", systemImage: "ellipsis")
                                 .tag(SaneBarSettings.MenuBarIconStyle.dots)
-                            Label("Lines", systemImage: "line.3.horizontal")
+                            pickerIconOptionLabel("Lines", systemImage: "line.3.horizontal")
                                 .tag(SaneBarSettings.MenuBarIconStyle.lines)
-                            Label("Chevron", systemImage: "chevron.up.chevron.down")
+                            pickerIconOptionLabel("Chevron", systemImage: "chevron.up.chevron.down")
                                 .tag(SaneBarSettings.MenuBarIconStyle.chevron)
-                            Label("Coin", systemImage: "circle.circle")
+                            pickerIconOptionLabel("Coin", systemImage: "circle.circle")
                                 .tag(SaneBarSettings.MenuBarIconStyle.coin)
-                            Label("Custom Image...", systemImage: "photo")
+                            pickerIconOptionLabel("Custom Image...", systemImage: "photo")
                                 .tag(SaneBarSettings.MenuBarIconStyle.custom)
                         }
                         .labelsHidden()
@@ -122,7 +123,7 @@ struct AppearanceSettingsView: View {
                                 Button("Choose...") {
                                     showCustomIconPicker()
                                 }
-                                .controlSize(.small)
+                                .buttonStyle(ChromeActionButtonStyle())
                             }
                         }
                     }
@@ -159,11 +160,21 @@ struct AppearanceSettingsView: View {
                         if menuBarManager.settings.spacerCount > 0 {
                             CompactDivider()
                             CompactRow("Extra Style") {
-                                Picker("", selection: $menuBarManager.settings.spacerStyle) {
-                                    Text("Line").tag(SaneBarSettings.SpacerStyle.line)
-                                    Text("Dot").tag(SaneBarSettings.SpacerStyle.dot)
+                                HStack(spacing: 6) {
+                                    ChromeSegmentedChoiceButton(
+                                        title: "Line",
+                                        isSelected: menuBarManager.settings.spacerStyle == .line
+                                    ) {
+                                        menuBarManager.settings.spacerStyle = .line
+                                    }
+
+                                    ChromeSegmentedChoiceButton(
+                                        title: "Dot",
+                                        isSelected: menuBarManager.settings.spacerStyle == .dot
+                                    ) {
+                                        menuBarManager.settings.spacerStyle = .dot
+                                    }
                                 }
-                                .pickerStyle(.segmented)
                                 .frame(width: 120)
                                 .help("Appearance of extra dividers")
                             }
@@ -299,16 +310,7 @@ struct AppearanceSettingsView: View {
             Button {
                 proUpsellFeature = feature
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                    Text("Pro")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(Color.saneAccentSoft)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.saneAccentDeep.opacity(0.32)))
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
         }
@@ -365,5 +367,29 @@ struct AppearanceSettingsView: View {
 
         // Trigger icon update by re-setting the style
         menuBarManager.settings.menuBarIconStyle = .custom
+    }
+
+    private func pickerIconOptionLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(nsImage: popupSymbolImage(systemImage))
+
+            Text(title)
+                .foregroundStyle(Color.white)
+        }
+    }
+
+    private func popupSymbolImage(_ systemImage: String) -> NSImage {
+        let weightConfig = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: .white)
+        let resolvedConfig = weightConfig.applying(colorConfig)
+
+        guard let image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
+            .withSymbolConfiguration(resolvedConfig)
+        else {
+            return NSImage()
+        }
+
+        image.isTemplate = false
+        return image
     }
 }
