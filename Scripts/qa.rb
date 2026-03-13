@@ -96,6 +96,7 @@ class ProjectQA
   RUNTIME_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_smoke.log'
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_SMOKE_PASSES = 2
+  RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
   RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
   RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
@@ -664,27 +665,44 @@ class ProjectQA
       end
       smoke_outputs = []
       RUNTIME_SMOKE_PASSES.times do |index|
-        resource_sample_path = "/tmp/sanebar_runtime_resource_sample-pass#{index + 1}.txt"
-        FileUtils.rm_f(resource_sample_path)
-        pass_env = smoke_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => resource_sample_path)
-        puts "   ↳ smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
-        smoke_out, smoke_status = capture2e_with_progress(
-          pass_env,
-          smoke_script,
-          heartbeat_label: "runtime smoke pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}"
-        )
-        smoke_outputs << [
-          "pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}",
-          "resource_sample=#{resource_sample_path}",
-          smoke_out
-        ].join("\n")
-        next if smoke_status.success?
+        pass_number = index + 1
+        puts "   ↳ smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}"
 
-        File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-        sample_suffix = File.exist?(resource_sample_path) ? " Resource sample: #{resource_sample_path}" : ''
-        @errors << "Runtime smoke failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}.#{sample_suffix}"
-        puts "❌ failed on pass #{index + 1}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
-        return
+        attempt = 0
+        loop do
+          attempt += 1
+          resource_sample_path = "/tmp/sanebar_runtime_resource_sample-pass#{pass_number}-try#{attempt}.txt"
+          FileUtils.rm_f(resource_sample_path)
+          pass_env = smoke_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => resource_sample_path)
+          smoke_out, smoke_status = capture2e_with_progress(
+            pass_env,
+            smoke_script,
+            heartbeat_label: "runtime smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (try #{attempt})"
+          )
+          smoke_outputs << [
+            "pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} try #{attempt}",
+            "resource_sample=#{resource_sample_path}",
+            smoke_out
+          ].join("\n")
+          break if smoke_status.success?
+
+          if attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS && retryable_runtime_smoke_failure?(smoke_out)
+            puts "   ↳ relaunching after transient launch idle spike (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+            unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+              File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+              @errors << "Runtime smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SMOKE_LOG_PATH}."
+              puts "❌ retry relaunch failed (#{RUNTIME_SMOKE_LOG_PATH})"
+              return
+            end
+            next
+          end
+
+          File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+          sample_suffix = File.exist?(resource_sample_path) ? " Resource sample: #{resource_sample_path}" : ''
+          @errors << "Runtime smoke failed on pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}.#{sample_suffix}"
+          puts "❌ failed on pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
+          return
+        end
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
@@ -721,6 +739,10 @@ class ProjectQA
     !resolve_runtime_screenshot_tool.nil?
   ensure
     FileUtils.rm_f(probe_path) if probe_path
+  end
+
+  def retryable_runtime_smoke_failure?(smoke_output)
+    smoke_output.include?('launch_idle_budget_exceeded')
   end
 
   def internal_runtime_snapshot_supported?
