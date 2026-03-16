@@ -11,6 +11,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 Improves startup and layout recovery after display and profile changes so icons are less likely to restore in the wrong place after restart.
 Improves crowded menu bar guidance when Visible gets tight and the Second Menu Bar is a better fit.
 Improves runtime validation and release smoke stability for icon movement and Browse Icons activation.
+Improves Menu Bar Appearance so the overlay is less likely to stay visible over full-width apps like World of Warcraft.
 
 ---
 
