@@ -5,7 +5,28 @@
 
                                 
         
-        <item>
+                <item>
+            <title>2.1.29</title>
+            <pubDate>Mon, 16 Mar 2026 17:39:51 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves startup and layout recovery after display and profile changes so icons are less likely to restore in the wrong place after restart.</li>
+                <li>Improves crowded menu bar guidance when Visible gets tight and the Second Menu Bar is a better fit.</li>
+                <li>Improves runtime validation and release smoke stability for icon movement and Browse Icons activation.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.29.zip"
+                       sparkle:version="2129"
+                       sparkle:shortVersionString="2.1.29"
+                       length="8155520"
+                       type="application/octet-stream"
+                       sparkle:edSignature="P+dinfrTPm12nibJOfIeoOEwjFQD2wkpcZO3bHp7xNaXIAb1elL0xeK/0cO4bpzwhO4Buq60JablNv7ZQka7Cg=="/>
+        </item>
+<item>
             <title>2.1.28</title>
             <pubDate>Fri, 13 Mar 2026 17:33:37 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
