@@ -1103,8 +1103,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
-                source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => screenshot_capture_available ? '1' : '0'"),
-            "Project QA runtime smoke should probe screenshot capability before requiring capture"
+                source.contains("capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available") &&
+                source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'"),
+            "Project QA runtime smoke should probe screenshot capability but keep capture opt-in so screenshot flakiness does not block release"
         )
         XCTAssertTrue(
             source.contains("return true if internal_runtime_snapshot_supported?") &&
@@ -1123,8 +1124,13 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should explicitly report when host screenshot capture is unavailable"
         )
         XCTAssertTrue(
+            source.contains("screenshots disabled for release smoke") &&
+                source.contains("smoke screenshots disabled for release gating"),
+            "Project QA runtime smoke should explain when screenshot capture is intentionally disabled for release gating"
+        )
+        XCTAssertTrue(
             source.contains("expected_screenshots = runtime_smoke_expected_modes(target).to_h"),
-            "Project QA runtime smoke should still resolve screenshot artifacts for every browse layout when capture is available"
+            "Project QA runtime smoke should still resolve screenshot artifacts for every browse layout when screenshot capture is explicitly enabled"
         )
         XCTAssertTrue(
             source.contains(#"Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png"))"#),

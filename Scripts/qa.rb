@@ -604,6 +604,7 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
+      capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
 
       launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
       File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
@@ -656,12 +657,16 @@ class ProjectQA
         'SANEBAR_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX' => RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX.to_s,
         'SANEBAR_SMOKE_ACTIVE_AVG_CPU_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX.to_s,
         'SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX.to_s,
-        'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => screenshot_capture_available ? '1' : '0',
+        'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
       }
-      unless screenshot_capture_available
+      if capture_runtime_smoke_screenshots
+        puts '   ↳ smoke screenshots enabled by SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1'
+      elsif screenshot_capture_available
+        puts '   ↳ smoke screenshots disabled for release gating (set SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 to opt in)'
+      else
         puts '   ↳ screenshot capture unavailable on this host; continuing without smoke screenshots'
       end
       smoke_outputs = []
@@ -707,7 +712,7 @@ class ProjectQA
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-      if screenshot_capture_available
+      if capture_runtime_smoke_screenshots
         expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
         end
@@ -720,6 +725,8 @@ class ProjectQA
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
         puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (#{artifact_summary})"
+      elsif screenshot_capture_available
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (screenshots disabled for release smoke)"
       else
         puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (screenshots skipped on this host)"
       end
