@@ -6,6 +6,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.29] - 2026-03-16
+
+Improves startup and layout recovery after display and profile changes so icons are less likely to restore in the wrong place after restart.
+Improves crowded menu bar guidance when Visible gets tight and the Second Menu Bar is a better fit.
+Improves runtime validation and release smoke stability for icon movement and Browse Icons activation.
+
+---
+
 ## [2.1.28] - 2026-03-13
 
 Improves startup placement and layout recovery, especially on Tahoe and external displays. Also improves Browse Icons clarity and general stability.
