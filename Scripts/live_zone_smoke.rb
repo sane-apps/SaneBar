@@ -51,6 +51,17 @@ class LiveZoneSmoke
     com.apple.systemuiserver
     com.apple.Spotlight
   ].freeze
+  MOVE_CANDIDATE_BUNDLE_DENYLIST = (
+    APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
+      com.apple.SSMenuAgent
+      com.apple.menuextra.focusmode
+      cc.ffitch.shottr
+      com.yonilevy.cryptoticker
+    ]
+  ).freeze
+  MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES = %w[
+    com.mrsane.
+  ].freeze
   BROWSE_ACTIVATION_BUNDLE_DENYLIST = (
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
@@ -66,7 +77,10 @@ class LiveZoneSmoke
     'secondMenuBar' => nil,
   }.freeze
   PREFERRED_BROWSE_ACTIVATION_IDS = %w[
+    com.apple.menuextra.bluetooth
+    com.apple.menuextra.display
     com.apple.menuextra.wifi
+    com.apple.menuextra.clock
     com.apple.menuextra.spotlight
     com.apple.SSMenuAgent
     com.apple.controlcenter
@@ -327,6 +341,7 @@ class LiveZoneSmoke
     candidates.reject! do |item|
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
+    candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) }
 
     # Prefer non-Apple extras first (typically more consistently movable),
     # then Apple fallbacks while avoiding known noisy bundles.
@@ -338,8 +353,36 @@ class LiveZoneSmoke
     denied = candidates.select { |item| APPLE_FALLBACK_BUNDLE_DENYLIST.include?(item[:bundle]) }
 
     ordered = preferred + apple_fallback + denied
-    zone_priority = { 'hidden' => 0, 'visible' => 1, 'alwaysHidden' => 2 }
+    zone_priority = if @require_always_hidden
+                      { 'alwaysHidden' => 0, 'hidden' => 1, 'visible' => 2 }
+                    else
+                      { 'hidden' => 0, 'visible' => 1, 'alwaysHidden' => 2 }
+                    end
     ordered.sort_by { |item| zone_priority.fetch(item[:zone], 3) }
+  end
+
+  def browse_activation_pool(zones)
+    raw_candidates = zones.select do |item|
+      item[:movable] &&
+        !item[:bundle].start_with?('com.sanebar.app') &&
+        %w[hidden visible alwaysHidden].include?(item[:zone])
+    end
+    excluded_app_menu_bundles = app_menu_bundle_ids(raw_candidates)
+    candidates = raw_candidates.reject do |item|
+      likely_standard_app_menu_candidate?(item) ||
+        excluded_app_menu_bundles.include?(item[:bundle].to_s.downcase)
+    end
+    precise_bundles = candidates.reject { |item| coarse_bundle_fallback?(item) }.map { |item| item[:bundle] }.uniq
+    candidates.reject do |item|
+      coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
+    end
+  end
+
+  def preferred_move_candidate_rank(bundle)
+    bundle = bundle.to_s.downcase
+    return 0 if MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES.any? { |prefix| bundle.start_with?(prefix) }
+
+    1
   end
 
   def app_menu_bundle_ids(candidates)
@@ -362,7 +405,7 @@ class LiveZoneSmoke
 
   def selected_candidates(zones)
     ordered = candidate_pool(zones)
-    return ordered if @required_candidate_ids.empty?
+    return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?
 
     selected = @required_candidate_ids.map do |required_id|
       resolve_required_candidate(required_id, ordered)
@@ -374,6 +417,17 @@ class LiveZoneSmoke
     raise "Required icon(s) missing from list icon zones: #{missing_ids.join(', ')}" unless missing_ids.empty?
 
     selected
+  end
+
+  def prioritize_move_candidates(candidates)
+    candidates.sort_by do |item|
+      [
+        preferred_move_candidate_rank(item[:bundle]),
+        item[:bundle].start_with?('com.apple.') ? 1 : 0,
+        coarse_bundle_fallback?(item) ? 1 : 0,
+        item[:name].to_s.downcase,
+      ]
+    end
   end
 
   def resolve_required_candidate(required_id, ordered)
@@ -416,7 +470,7 @@ class LiveZoneSmoke
   end
 
   def browse_activation_candidates(zones)
-    ordered_pool = candidate_pool(zones).sort_by do |item|
+    ordered_pool = browse_activation_pool(zones).sort_by do |item|
       [
         browse_zone_priority(item[:zone]),
         coarse_bundle_fallback?(item) ? 1 : 0,
@@ -428,15 +482,12 @@ class LiveZoneSmoke
 
     preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
       ordered_pool.find { |item| browse_candidate_matches?(item, preferred_id) }
-    end.compact.reject do |item|
-      BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
-    end.uniq { |item| item[:unique_id] }
+    end.compact.reject { |item| browse_activation_denied?(item) }
+      .uniq { |item| item[:unique_id] }
 
-    fallback = ordered_pool.reject do |item|
-      BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
-    end
+    fallback = ordered_pool.reject { |item| browse_activation_denied?(item) }
 
-    (precise_non_apple + preferred + fallback).uniq { |item| item[:unique_id] }.take(3)
+    (preferred + precise_non_apple + fallback).uniq { |item| item[:unique_id] }.take(3)
   end
 
   def browse_zone_priority(zone)
@@ -455,6 +506,12 @@ class LiveZoneSmoke
     values = [item[:unique_id], item[:bundle], item[:name]].compact.map(&:downcase)
     target = preferred_id.downcase
     values.any? { |value| value == target || value.include?(target) }
+  end
+
+  def browse_activation_denied?(item)
+    return false if PREFERRED_BROWSE_ACTIVATION_IDS.any? { |preferred_id| browse_candidate_matches?(item, preferred_id) }
+
+    BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
   end
 
   def exercise_browse_mode(expected_mode:, command:, candidates:)

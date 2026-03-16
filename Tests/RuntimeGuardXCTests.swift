@@ -1590,8 +1590,25 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("BROWSE_ACTIVATION_BUNDLE_DENYLIST") &&
             source.contains("precise_non_apple") &&
+            source.contains("browse_activation_pool(zones)") &&
+            source.contains("(preferred + precise_non_apple + fallback).uniq") &&
+            source.contains("com.apple.menuextra.bluetooth") &&
+            source.contains("browse_activation_denied?(item)") &&
             source.contains("item[:bundle].start_with?('com.apple.')"),
-            "Live smoke should prefer precise non-Apple browse candidates and deny known noisy Apple-only menu extras before probing browse activation"
+            "Live smoke should prefer the explicit stable browse targets before falling back to non-Apple or noisy Apple-only menu extras"
+        )
+        XCTAssertTrue(
+            source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&
+            source.contains("cc.ffitch.shottr") &&
+            source.contains("com.yonilevy.cryptoticker") &&
+            source.contains("candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) }") &&
+            source.contains("MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES") &&
+            source.contains("com.mrsane.") &&
+            source.contains("return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?") &&
+            source.contains("preferred_move_candidate_rank(item[:bundle])") &&
+            source.contains("if @require_always_hidden") &&
+            source.contains("{ 'alwaysHidden' => 0, 'hidden' => 1, 'visible' => 2 }"),
+            "Live smoke should prefer stable first-party move fixtures and exclude known noisy edge-case bundles when always-hidden moves are required"
         )
         XCTAssertTrue(
             source.contains("!non_idempotent_app_script?(statement)") &&

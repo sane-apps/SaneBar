@@ -1225,32 +1225,23 @@ struct StatusBarControllerTests {
 
     @Test("Layout snapshot captures current preferred positions and display backups")
     func captureLayoutSnapshotReadsPersistedState() {
-        let defaults = UserDefaults.standard
-        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
-        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
-        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let spacerKey = "NSStatusItem Preferred Position \(StatusBarController.spacerAutosaveName(index: 0))"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: 1512, slot: "separator")
-        let keys = [screenWidthKey, mainKey, separatorKey, spacerKey, backupMainKey, backupSeparatorKey]
-        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
-
+        let originalSnapshot = StatusBarController.captureLayoutSnapshot()
         defer {
-            for (key, value) in originalValues {
-                if let value {
-                    defaults.set(value, forKey: key)
-                } else {
-                    defaults.removeObject(forKey: key)
-                }
-            }
+            StatusBarController.applyLayoutSnapshot(originalSnapshot)
         }
 
-        defaults.set(1512.0, forKey: screenWidthKey)
-        defaults.set(420.0, forKey: mainKey)
-        defaults.set(390.0, forKey: separatorKey)
-        defaults.set(360.0, forKey: spacerKey)
-        defaults.set(180.0, forKey: backupMainKey)
-        defaults.set(300.0, forKey: backupSeparatorKey)
+        StatusBarController.applyLayoutSnapshot(
+            SaneBarLayoutSnapshot(
+                mainPosition: 420.0,
+                separatorPosition: 390.0,
+                alwaysHiddenSeparatorPosition: nil,
+                spacerPositions: [0: 360.0],
+                calibratedScreenWidth: 1512.0,
+                displayBackups: [
+                    .init(widthBucket: 1512, mainPosition: 180.0, separatorPosition: 300.0)
+                ]
+            )
+        )
 
         let snapshot = StatusBarController.captureLayoutSnapshot()
 
