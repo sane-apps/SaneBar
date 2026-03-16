@@ -510,6 +510,17 @@ final class StatusBarController: StatusBarControllerProtocol {
         isPixelLikePosition(mainBackup) && isPixelLikePosition(separatorBackup)
     }
 
+    nonisolated static func fitsDisplayBackupWithinScreenWidth(
+        mainBackup: Double,
+        separatorBackup: Double,
+        screenWidth: Double,
+        trailingPadding: Double = 24
+    ) -> Bool {
+        guard screenWidth > 0 else { return false }
+        let maxPosition = max(10.0, screenWidth - trailingPadding)
+        return mainBackup <= maxPosition && separatorBackup <= maxPosition
+    }
+
     nonisolated static func screenHasTopSafeAreaInset(_ screen: NSScreen?) -> Bool {
         guard let screen else { return false }
         return screen.safeAreaInsets.top > 0
@@ -528,8 +539,10 @@ final class StatusBarController: StatusBarControllerProtocol {
             return min(160, max(60, screenWidth * 0.075))
         }
 
-        let maxRightGap = Double(MenuBarManager.maxAllowedStartupRightGap(screenWidth: CGFloat(screenWidth)))
-        return max(0, maxRightGap - 24)
+        // On notched 14/16" MacBook displays, wider preferred-position values
+        // like 216 on a 1512-wide screen can still relaunch noticeably left of
+        // Control Center. Keep the startup recovery anchor tighter here.
+        return 180
     }
 
     nonisolated static func isLaunchSafeDisplayBackup(
@@ -545,6 +558,11 @@ final class StatusBarController: StatusBarControllerProtocol {
         else { return false }
 
         guard separatorBackup > mainBackup else { return false }
+        guard fitsDisplayBackupWithinScreenWidth(
+            mainBackup: mainBackup,
+            separatorBackup: separatorBackup,
+            screenWidth: screenWidth
+        ) else { return false }
         return mainBackup <= launchSafePreferredMainPositionLimit(
             for: screenWidth,
             screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
@@ -571,7 +589,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
         guard mainPosition > safeMainLimit else { return nil }
 
-        let preservedGap = max(24.0, separatorPosition - mainPosition)
+        let maxSeparator = max(safeMainLimit + 24.0, screenWidth - 24.0)
+        let maxGap = max(24.0, maxSeparator - safeMainLimit)
+        let preservedGap = min(max(24.0, separatorPosition - mainPosition), maxGap)
         return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
     }
 
@@ -894,12 +914,19 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         clearDisplayPositionBackups()
         for backup in snapshot.displayBackups {
-            if let mainPosition = backup.mainPosition {
-                defaults.set(mainPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "main"))
-            }
-            if let separatorPosition = backup.separatorPosition {
-                defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "separator"))
-            }
+            guard let mainPosition = backup.mainPosition,
+                  let separatorPosition = backup.separatorPosition,
+                  hasRestorableDisplayBackup(mainBackup: mainPosition, separatorBackup: separatorPosition),
+                  separatorPosition > mainPosition,
+                  fitsDisplayBackupWithinScreenWidth(
+                      mainBackup: mainPosition,
+                      separatorBackup: separatorPosition,
+                      screenWidth: Double(backup.widthBucket)
+                  )
+            else { continue }
+
+            defaults.set(mainPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "main"))
+            defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "separator"))
         }
     }
 
@@ -1033,7 +1060,21 @@ final class StatusBarController: StatusBarControllerProtocol {
             backups[widthBucket] = backup
         }
 
-        return backups.values.sorted { $0.widthBucket < $1.widthBucket }
+        return backups.values
+            .filter { backup in
+                guard let mainPosition = backup.mainPosition,
+                      let separatorPosition = backup.separatorPosition,
+                      hasRestorableDisplayBackup(mainBackup: mainPosition, separatorBackup: separatorPosition),
+                      separatorPosition > mainPosition
+                else { return false }
+
+                return fitsDisplayBackupWithinScreenWidth(
+                    mainBackup: mainPosition,
+                    separatorBackup: separatorPosition,
+                    screenWidth: Double(backup.widthBucket)
+                )
+            }
+            .sorted { $0.widthBucket < $1.widthBucket }
     }
 
     private nonisolated static func clearDisplayPositionBackups() {

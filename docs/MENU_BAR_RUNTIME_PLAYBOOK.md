@@ -451,6 +451,16 @@ Important interpretation rule:
 - on March 6, 2026 the Mini screenshot that looked like "Little Snitch 6-7 times" was actually four `Stats` items plus other normal hidden icons
 - the duplicate-looking `Spotlight` entry was a real merge bug and should now collapse to the precise `com.apple.menuextra.spotlight` entry when the second menu bar is open
 
+March 16, 2026 Mini recheck:
+- direct AX probing on the Mini now confirms both `at.obdev.littlesnitch` and `at.obdev.littlesnitch.networkmonitor` return no `AXExtrasMenuBar` and no `AXMenuBar`
+- raw WindowServer inspection still shows both processes owning multiple full-width `1920x30` top-bar windows
+- signed `/Applications/SaneBar.app` now proves the capability split cleanly:
+  - `list icons` returns coarse owner entries for both Little Snitch processes
+  - `list icon zones` still does not surface a usable zoned/menu-extra identity for them
+- this means the remaining Little Snitch problem is not stale helper IDs anymore; it is that macOS is exposing the app only as top-bar hosts without a normal actionable AX menu-extra
+- low-risk posture: keep Little Snitch in `R5` as a known compatibility edge case unless a future fix can prove a precise, stable menu-extra identity without broad host/window heuristics
+- do not risk SaneBar startup or generic menu-extra handling just to make Little Snitch fully operable
+
 Do not mark R5 fully closed until this is explained or fixed.
 
 ## Current Hotspots To Audit First

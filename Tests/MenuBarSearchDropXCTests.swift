@@ -169,4 +169,96 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             XCTFail("Expected alwaysHidden when item midpoint is left of AH separator")
         }
     }
+
+    func testVisibleLaneCrowdingHintStaysQuietWhenLaneHasRoom() {
+        let visibleApps = [
+            RunningApp(
+                id: "com.example.one",
+                name: "One",
+                icon: nil,
+                statusItemIndex: 0,
+                xPosition: 1200,
+                width: 24
+            ),
+            RunningApp(
+                id: "com.example.two",
+                name: "Two",
+                icon: nil,
+                statusItemIndex: 1,
+                xPosition: 1240,
+                width: 24
+            )
+        ]
+        let movedApp = RunningApp(
+            id: "com.example.three",
+            name: "Three",
+            icon: nil,
+            statusItemIndex: 2,
+            xPosition: 1280,
+            width: 24
+        )
+
+        XCTAssertFalse(
+            MenuBarSearchView.shouldSuggestSecondMenuBarForVisibleLane(
+                visibleApps: visibleApps,
+                movedApp: movedApp,
+                separatorRightEdgeX: 1100,
+                mainLeftEdgeX: 1400
+            )
+        )
+    }
+
+    func testVisibleLaneCrowdingHintTriggersWhenLaneIsNearlyFull() {
+        let visibleApps = [
+            RunningApp(
+                id: "com.example.one",
+                name: "One",
+                icon: nil,
+                statusItemIndex: 0,
+                xPosition: 1180,
+                width: 28
+            ),
+            RunningApp(
+                id: "com.example.two",
+                name: "Two",
+                icon: nil,
+                statusItemIndex: 1,
+                xPosition: 1220,
+                width: 28
+            ),
+            RunningApp(
+                id: "com.example.three",
+                name: "Three",
+                icon: nil,
+                statusItemIndex: 2,
+                xPosition: 1260,
+                width: 28
+            ),
+            RunningApp(
+                id: "com.example.four",
+                name: "Four",
+                icon: nil,
+                statusItemIndex: 3,
+                xPosition: 1300,
+                width: 28
+            )
+        ]
+        let movedApp = RunningApp(
+            id: "com.example.five",
+            name: "Five",
+            icon: nil,
+            statusItemIndex: 4,
+            xPosition: 1340,
+            width: 28
+        )
+
+        XCTAssertTrue(
+            MenuBarSearchView.shouldSuggestSecondMenuBarForVisibleLane(
+                visibleApps: visibleApps,
+                movedApp: movedApp,
+                separatorRightEdgeX: 1100,
+                mainLeftEdgeX: 1265
+            )
+        )
+    }
 }

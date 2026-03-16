@@ -53,6 +53,8 @@ struct MenuBarSearchView: View {
     @State private var permissionMonitorTask: Task<Void, Never>?
     @State private var refreshTask: Task<Void, Never>?
     @State private var postMoveRefreshTask: Task<Void, Never>?
+    @State private var crowdedVisibleHintTask: Task<Void, Never>?
+    @State private var crowdedVisibleHintDismissTask: Task<Void, Never>?
     @State private var refreshGeneration = 0
     @State private var postMoveRefreshGeneration = 0
 
@@ -72,10 +74,22 @@ struct MenuBarSearchView: View {
     @State var movingAppId: String?
     /// Set after a move completes so the next tab switch does a fresh scan
     @State private var needsPostMoveRefresh = false
+    @State private var showingCrowdedVisibleHint = false
     @ObservedObject var menuBarManager = MenuBarManager.shared
 
     static let resetSearchNotification = Notification.Name("MenuBarSearchView.resetSearch")
     static let setSearchTextNotification = Notification.Name("MenuBarSearchView.setSearchText")
+    private nonisolated static let crowdedVisibleHintVersionKey = "MenuBarSearchView.crowdedVisibleHintVersion"
+    private nonisolated static let crowdedVisibleHintSlackThreshold: CGFloat = 18
+    private nonisolated static let crowdedVisibleHintOccupancyThreshold: CGFloat = 0.88
+
+    private struct VisibleLaneCrowdingEvent {
+        let bundleID: String
+        let menuExtraID: String?
+        let statusItemIndex: Int?
+        let separatorRightEdgeX: CGFloat
+        let visibleBoundaryX: CGFloat
+    }
 
     let service: SearchServiceProtocol
     let onDismiss: () -> Void
@@ -123,6 +137,45 @@ struct MenuBarSearchView: View {
         case .all:
             false
         }
+    }
+
+    nonisolated static func shouldSuggestSecondMenuBarForVisibleLane(
+        visibleApps: [RunningApp],
+        movedApp: RunningApp,
+        separatorRightEdgeX: CGFloat?,
+        mainLeftEdgeX: CGFloat?,
+        slackThreshold: CGFloat = crowdedVisibleHintSlackThreshold,
+        occupancyThreshold: CGFloat = crowdedVisibleHintOccupancyThreshold
+    ) -> Bool {
+        guard let separatorRightEdgeX,
+              let mainLeftEdgeX,
+              separatorRightEdgeX > 0,
+              mainLeftEdgeX > separatorRightEdgeX else {
+            return false
+        }
+
+        let laneWidth = mainLeftEdgeX - separatorRightEdgeX
+        guard laneWidth > 0 else { return false }
+
+        var visibleByID: [String: RunningApp] = [:]
+        for app in visibleApps where !app.isUnmovableSystemItem {
+            visibleByID[app.uniqueId] = app
+        }
+        visibleByID[movedApp.uniqueId] = movedApp
+
+        let projectedWidth = visibleByID.values.reduce(CGFloat.zero) { partial, app in
+            partial + approximateVisibleLaneWidth(for: app)
+        }
+
+        if projectedWidth >= laneWidth - slackThreshold {
+            return true
+        }
+
+        return (projectedWidth / laneWidth) >= occupancyThreshold
+    }
+
+    nonisolated static func approximateVisibleLaneWidth(for app: RunningApp) -> CGFloat {
+        max(app.width ?? 22, 18) + 4
     }
 
     private func modeForZone(_ zone: AppZone) -> Mode {
@@ -299,6 +352,9 @@ struct MenuBarSearchView: View {
             needsPostMoveRefresh = true
             refreshApps(force: true)
         }
+        .onReceive(NotificationCenter.default.publisher(for: MenuBarManager.visibleLaneCrowdingNotification)) { notification in
+            scheduleCrowdedVisibleHintEvaluation(from: notification)
+        }
         .onChange(of: storedMode) { _, _ in
             if needsPostMoveRefresh {
                 // After a move, tabs must do a fresh scan — cache has stale zone data
@@ -327,6 +383,8 @@ struct MenuBarSearchView: View {
             permissionMonitorTask?.cancel()
             refreshTask?.cancel()
             postMoveRefreshTask?.cancel()
+            crowdedVisibleHintTask?.cancel()
+            crowdedVisibleHintDismissTask?.cancel()
         }
         .sheet(item: $hotkeyApp) { app in
             HotkeyAssignmentSheet(app: app, onDone: { hotkeyApp = nil })
@@ -370,23 +428,33 @@ struct MenuBarSearchView: View {
     // MARK: - Find Icon Body (original layout)
 
     private var findIconBody: some View {
-        VStack(spacing: 0) {
-            controls
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                controls
 
-            groupTabs
+                groupTabs
 
-            if isSearchVisible {
-                searchField
+                if isSearchVisible {
+                    searchField
+                }
+
+                Divider()
+
+                content
+
+                footer
             }
+            .frame(width: 420, height: 520)
+            .background { SaneGradientBackground() }
 
-            Divider()
-
-            content
-
-            footer
+            if showingCrowdedVisibleHint {
+                crowdedVisibleHintToast
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 14)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .frame(width: 420, height: 520)
-        .background { SaneGradientBackground() }
     }
 
     // MARK: - Second Menu Bar Body
@@ -415,6 +483,58 @@ struct MenuBarSearchView: View {
             // Avoid a second forced refresh path here to reduce scan latency/races.
             onIconMoved: nil,
             searchText: $searchText
+        )
+    }
+
+    private var crowdedVisibleHintToast: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "rectangle.tophalf.inset.filled")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accentHighlight)
+                    .padding(.top, 1)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("The menu bar is getting crowded.")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.96))
+                    Text("Some Visible icons may still get squeezed off-screen. Second Menu Bar works better for crowded setups.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.84))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+
+                Button("OK") {
+                    dismissCrowdedVisibleHint()
+                }
+                .buttonStyle(ChromeActionButtonStyle())
+
+                Button("Enable") {
+                    enableSecondMenuBarFromHint()
+                }
+                .buttonStyle(ChromeActionButtonStyle(prominent: true))
+            }
+        }
+        .padding(12)
+        .background(
+            ChromeGlassRoundedBackground(
+                cornerRadius: 14,
+                tint: SaneBarChrome.controlNavyDeep,
+                edgeTint: SaneBarChrome.accentTeal,
+                tintStrength: 0.18,
+                glowOpacity: 0.10,
+                shadowOpacity: 0.18,
+                shadowRadius: 12,
+                shadowY: 6
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(SaneBarChrome.rowStroke, lineWidth: 0.9)
         )
     }
 
@@ -528,6 +648,117 @@ struct MenuBarSearchView: View {
                 self.refreshApps(force: true)
             }
         }
+    }
+
+    @MainActor
+    private func scheduleCrowdedVisibleHintEvaluation(from notification: Notification) {
+        guard !isSecondMenuBar else { return }
+        guard !menuBarManager.settings.useSecondMenuBar else { return }
+        guard !showingCrowdedVisibleHint else { return }
+        guard let event = Self.visibleLaneCrowdingEvent(from: notification) else { return }
+        guard Self.shouldShowCrowdedVisibleHintReminder() else { return }
+
+        crowdedVisibleHintTask?.cancel()
+        crowdedVisibleHintTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
+            guard !self.menuBarManager.settings.useSecondMenuBar else { return }
+
+            let visible = self.service.cachedClassifiedApps().visible
+            guard let movedApp = visible.first(where: { Self.matchesVisibleLaneEvent($0, event: event) }) else {
+                return
+            }
+            guard Self.shouldSuggestSecondMenuBarForVisibleLane(
+                visibleApps: visible,
+                movedApp: movedApp,
+                separatorRightEdgeX: event.separatorRightEdgeX,
+                mainLeftEdgeX: event.visibleBoundaryX
+            ) else {
+                return
+            }
+
+            showCrowdedVisibleHint()
+        }
+    }
+
+    @MainActor
+    private func showCrowdedVisibleHint() {
+        UserDefaults.standard.set(
+            Self.crowdedVisibleHintVersionToken(),
+            forKey: Self.crowdedVisibleHintVersionKey
+        )
+        crowdedVisibleHintDismissTask?.cancel()
+
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+            showingCrowdedVisibleHint = true
+        }
+
+        crowdedVisibleHintDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            dismissCrowdedVisibleHint()
+        }
+    }
+
+    @MainActor
+    private func dismissCrowdedVisibleHint() {
+        crowdedVisibleHintDismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.18)) {
+            showingCrowdedVisibleHint = false
+        }
+    }
+
+    @MainActor
+    private func enableSecondMenuBarFromHint() {
+        dismissCrowdedVisibleHint()
+        if !menuBarManager.settings.secondMenuBarShowVisible {
+            menuBarManager.settings.secondMenuBarShowVisible = true
+        }
+        menuBarManager.settings.useSecondMenuBar = true
+        SearchWindowController.shared.transition(to: .secondMenuBar)
+    }
+
+    private static func visibleLaneCrowdingEvent(from notification: Notification) -> VisibleLaneCrowdingEvent? {
+        guard let userInfo = notification.userInfo,
+              let bundleID = userInfo[MenuBarManager.visibleLaneCrowdingBundleIDKey] as? String,
+              let separatorRightEdgeRaw = userInfo[MenuBarManager.visibleLaneCrowdingSeparatorRightEdgeKey] as? Double,
+              let visibleBoundaryRaw = userInfo[MenuBarManager.visibleLaneCrowdingVisibleBoundaryKey] as? Double else {
+            return nil
+        }
+
+        return VisibleLaneCrowdingEvent(
+            bundleID: bundleID,
+            menuExtraID: userInfo[MenuBarManager.visibleLaneCrowdingMenuExtraIDKey] as? String,
+            statusItemIndex: userInfo[MenuBarManager.visibleLaneCrowdingStatusItemIndexKey] as? Int,
+            separatorRightEdgeX: CGFloat(separatorRightEdgeRaw),
+            visibleBoundaryX: CGFloat(visibleBoundaryRaw)
+        )
+    }
+
+    private static func matchesVisibleLaneEvent(_ app: RunningApp, event: VisibleLaneCrowdingEvent) -> Bool {
+        guard app.bundleId == event.bundleID else { return false }
+        if let menuExtraID = event.menuExtraID {
+            return app.menuExtraIdentifier == menuExtraID
+        }
+        if let statusItemIndex = event.statusItemIndex {
+            return app.statusItemIndex == statusItemIndex
+        }
+        return app.menuExtraIdentifier == nil && app.statusItemIndex == nil
+    }
+
+    private static func crowdedVisibleHintVersionToken(bundle: Bundle = .main) -> String {
+        let shortVersion = bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let build = bundle.infoDictionary?["CFBundleVersion"] as? String ?? "0"
+        return "\(shortVersion)-\(build)"
+    }
+
+    private static func shouldShowCrowdedVisibleHintReminder(
+        defaults: UserDefaults = .standard,
+        bundle: Bundle = .main
+    ) -> Bool {
+        let currentVersion = crowdedVisibleHintVersionToken(bundle: bundle)
+        let lastShownVersion = defaults.string(forKey: crowdedVisibleHintVersionKey)
+        return lastShownVersion != currentVersion
     }
 
     @MainActor

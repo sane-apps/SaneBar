@@ -9,6 +9,14 @@ extension MenuBarManager {
     // MARK: - Icon Moving
 
     nonisolated static let separatorVisualWidth: CGFloat = 20
+    nonisolated static let visibleLaneCrowdingNotification = Notification.Name(
+        "MenuBarManager.visibleLaneCrowdingNotification"
+    )
+    nonisolated static let visibleLaneCrowdingBundleIDKey = "bundleID"
+    nonisolated static let visibleLaneCrowdingMenuExtraIDKey = "menuExtraID"
+    nonisolated static let visibleLaneCrowdingStatusItemIndexKey = "statusItemIndex"
+    nonisolated static let visibleLaneCrowdingSeparatorRightEdgeKey = "separatorRightEdgeX"
+    nonisolated static let visibleLaneCrowdingVisibleBoundaryKey = "visibleBoundaryX"
 
     nonisolated static func separatorFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
         originX > 0 && width > 0 && width < 1000
@@ -118,6 +126,35 @@ extension MenuBarManager {
             return nil
         }
         return frame
+    }
+
+    @MainActor
+    private func postVisibleLaneCrowdingHintCandidate(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        separatorRightEdgeX: CGFloat,
+        visibleBoundaryX: CGFloat?
+    ) {
+        var userInfo: [String: Any] = [
+            Self.visibleLaneCrowdingBundleIDKey: bundleID,
+            Self.visibleLaneCrowdingSeparatorRightEdgeKey: Double(separatorRightEdgeX)
+        ]
+        if let menuExtraId {
+            userInfo[Self.visibleLaneCrowdingMenuExtraIDKey] = menuExtraId
+        }
+        if let statusItemIndex {
+            userInfo[Self.visibleLaneCrowdingStatusItemIndexKey] = statusItemIndex
+        }
+        if let visibleBoundaryX {
+            userInfo[Self.visibleLaneCrowdingVisibleBoundaryKey] = Double(visibleBoundaryX)
+        }
+
+        NotificationCenter.default.post(
+            name: Self.visibleLaneCrowdingNotification,
+            object: nil,
+            userInfo: userInfo
+        )
     }
 
     /// Get the separator's LEFT edge X position (for hidden/visible icon classification)
@@ -873,6 +910,18 @@ extension MenuBarManager {
                 }
             }
 
+            if success, !toHidden {
+                await MainActor.run {
+                    self.postVisibleLaneCrowdingHintCandidate(
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        separatorRightEdgeX: activeSeparatorX,
+                        visibleBoundaryX: activeVisibleBoundaryX
+                    )
+                }
+            }
+
             // Update cached separator boundaries to the post-drag geometry before
             // any hide transition pushes separators off-screen.
             await self.refreshSeparatorCacheAfterMove()
@@ -1033,6 +1082,18 @@ extension MenuBarManager {
                 if classifiedMatch {
                     logger.info("🔧 Always-hidden move accepted after classification verification (\(toAlwaysHidden ? "alwaysHidden" : "visible"))")
                     success = true
+                }
+            }
+
+            if success, !toAlwaysHidden {
+                await MainActor.run {
+                    self.postVisibleLaneCrowdingHintCandidate(
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        separatorRightEdgeX: activeSeparatorX,
+                        visibleBoundaryX: activeVisibleBoundaryX
+                    )
                 }
             }
 

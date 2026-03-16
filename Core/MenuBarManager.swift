@@ -1135,6 +1135,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     func restoreStatusItemLayoutIfNeeded() {
         guard statusBarControllerStorage != nil else { return }
+        lastKnownSeparatorX = nil
+        lastKnownSeparatorRightEdgeX = nil
+        lastKnownAlwaysHiddenSeparatorX = nil
+        lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
         let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions()
         statusBarController.onItemsRecreated?(newMain, newSeparator)
         schedulePositionValidation()

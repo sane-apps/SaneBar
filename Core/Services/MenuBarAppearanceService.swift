@@ -166,6 +166,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var screenObserver: Any?
     private var appearanceObserver: Any?
     private var accessibilityObserver: Any?
+    private var appActivationObserver: Any?
+    private var activeSpaceObserver: Any?
 
     // MARK: - Initialization
 
@@ -187,6 +189,14 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             accessibilityObserver = nil
         }
+        if let observer = appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appActivationObserver = nil
+        }
+        if let observer = activeSpaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            activeSpaceObserver = nil
+        }
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
     }
@@ -204,6 +214,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.repositionOverlay()
+                self?.refreshOverlayVisibility()
             }
         }
 
@@ -229,6 +240,27 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
                 self?.overlayViewModel?.reduceTransparency =
                     NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
                 self?.updateWindowLevel()
+                self?.refreshOverlayVisibility()
+            }
+        }
+
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshOverlayVisibility()
+            }
+        }
+
+        activeSpaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshOverlayVisibility()
             }
         }
     }
@@ -240,18 +272,65 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             ensureOverlayExists()
             overlayViewModel?.settings = settings
             updateWindowLevel()
-            show()
+            refreshOverlayVisibility()
         } else {
             hide()
         }
     }
 
     func show() {
-        overlayWindow?.orderFront(nil)
+        refreshOverlayVisibility()
     }
 
     func hide() {
         overlayWindow?.orderOut(nil)
+    }
+
+    private func refreshOverlayVisibility() {
+        guard let window = overlayWindow else { return }
+
+        if Self.shouldSuppressOverlay(
+            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+            frontmostBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+            targetScreenFrame: preferredMenuBarScreen()?.frame,
+            windowInfos: currentWindowInfos()
+        ) {
+            logger.debug("Suppressing menu bar appearance overlay for active full-width top host")
+            window.orderOut(nil)
+            return
+        }
+
+        window.orderFront(nil)
+        window.appearance = NSApp.effectiveAppearance
+    }
+
+    private func currentWindowInfos() -> [[String: Any]] {
+        (CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+    }
+
+    internal nonisolated static func shouldSuppressOverlay(
+        frontmostPID: pid_t?,
+        frontmostBundleID: String?,
+        targetScreenFrame: CGRect?,
+        windowInfos: [[String: Any]],
+        selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
+    ) -> Bool {
+        guard let frontmostPID,
+              let bundleID = frontmostBundleID,
+              let targetScreenFrame else {
+            return false
+        }
+
+        guard frontmostPID != selfPID else { return false }
+        guard !bundleID.hasPrefix("com.apple.") else { return false }
+
+        let minimumWidth = targetScreenFrame.width * 0.7
+        let topHosts = AccessibilityService.topBarHostPIDs(
+            fromWindowInfos: windowInfos,
+            candidatePIDs: Set([frontmostPID]),
+            minimumWidth: minimumWidth
+        )
+        return topHosts.contains(frontmostPID)
     }
 
     // MARK: - Window Level

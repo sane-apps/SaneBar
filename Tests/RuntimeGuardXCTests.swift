@@ -84,6 +84,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("statusItemsNeedRecovery()"),
             "Runtime position validation should reuse geometry-aware recovery checks instead of only verifying menu-bar attachment"
         )
+        XCTAssertTrue(
+            source.contains("lastKnownSeparatorRightEdgeX = nil"),
+            "Recreating status items from persisted layout should invalidate cached separator edges first"
+        )
     }
 
     func testNormalizedEventYFlipsUnflippedMenuBarY() {
@@ -1584,6 +1588,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should ignore standard app-menu titles when choosing move candidates so all-candidate sweeps stay focused on real menu extras"
         )
         XCTAssertTrue(
+            source.contains("BROWSE_ACTIVATION_BUNDLE_DENYLIST") &&
+            source.contains("precise_non_apple") &&
+            source.contains("item[:bundle].start_with?('com.apple.')"),
+            "Live smoke should prefer precise non-Apple browse candidates and deny known noisy Apple-only menu extras before probing browse activation"
+        )
+        XCTAssertTrue(
             source.contains("!non_idempotent_app_script?(statement)") &&
             source.contains("statement.start_with?('activate browse icon ')"),
             "Live smoke should not blindly retry side-effectful browse activation AppleScript commands after a timeout"
@@ -2073,6 +2083,32 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertFalse(
             source.contains("DispatchSemaphore"),
             "AppleScript activation commands must not block the main thread with a semaphore"
+        )
+    }
+
+    func testListIconsAppleScriptCommandDoesNotDeadlockMainThread() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("@objc(ListIconsCommand)"),
+            "ListIconsCommand should exist as a scriptable command"
+        )
+        XCTAssertTrue(
+            source.contains("if Thread.isMainThread"),
+            "ListIconsCommand should detect the main-thread scripting path"
+        )
+        XCTAssertTrue(
+            source.contains("RunLoop.current.run(mode: .default"),
+            "ListIconsCommand should pump the run loop while waiting for async refresh on the main thread"
+        )
+        XCTAssertTrue(
+            source.contains("runScriptRead(timeoutSeconds: 15.0)"),
+            "ListIconsCommand should use the shared read helper with a longer timeout for slower owner scans"
+        )
+        XCTAssertTrue(
+            source.contains("scriptErrorOperationTimedOut(self)"),
+            "ListIconsCommand should report a real timeout instead of silently returning an empty result"
         )
     }
 

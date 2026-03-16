@@ -1146,9 +1146,17 @@ struct StatusBarControllerTests {
     func launchSafeDisplayBackupRejectsFarLeftMainPositions() {
         #expect(
             StatusBarController.isLaunchSafeDisplayBackup(
-                mainBackup: 187,
+                mainBackup: 180,
                 separatorBackup: 220,
                 screenWidth: 1470,
+                screenHasTopSafeAreaInset: true
+            )
+        )
+        #expect(
+            !StatusBarController.isLaunchSafeDisplayBackup(
+                mainBackup: 216,
+                separatorBackup: 249,
+                screenWidth: 1512,
                 screenHasTopSafeAreaInset: true
             )
         )
@@ -1176,6 +1184,14 @@ struct StatusBarControllerTests {
                 screenHasTopSafeAreaInset: true
             )
         )
+        #expect(
+            !StatusBarController.isLaunchSafeDisplayBackup(
+                mainBackup: 144,
+                separatorBackup: 5897,
+                screenWidth: 1920,
+                screenHasTopSafeAreaInset: false
+            )
+        )
     }
 
     @Test("Reanchored preferred positions preserve lane width while moving toward Control Center")
@@ -1195,6 +1211,16 @@ struct StatusBarControllerTests {
             )
         )
         #expect((reanchored?.separator ?? 0) - (reanchored?.main ?? 0) == 118)
+
+        let clamped = StatusBarController.reanchoredPreferredPositionsTowardControlCenter(
+            mainPosition: 456,
+            separatorPosition: 5897,
+            screenWidth: 1920,
+            screenHasTopSafeAreaInset: false
+        )
+
+        #expect(clamped != nil)
+        #expect((clamped?.separator ?? 0) <= 1896)
     }
 
     @Test("Layout snapshot captures current preferred positions and display backups")
@@ -1272,7 +1298,7 @@ struct StatusBarControllerTests {
                 spacerPositions: [0: 360.0],
                 calibratedScreenWidth: 1512.0,
                 displayBackups: [
-                    .init(widthBucket: 1512, mainPosition: 480.0, separatorPosition: 430.0)
+                    .init(widthBucket: 1512, mainPosition: 430.0, separatorPosition: 480.0)
                 ]
             )
         )
@@ -1283,8 +1309,43 @@ struct StatusBarControllerTests {
         #expect((defaults.object(forKey: spacerKey) as? NSNumber)?.doubleValue == 360.0)
         #expect(defaults.object(forKey: staleBackupMainKey) == nil)
         #expect(defaults.object(forKey: staleBackupSeparatorKey) == nil)
-        #expect((defaults.object(forKey: freshBackupMainKey) as? NSNumber)?.doubleValue == 480.0)
-        #expect((defaults.object(forKey: freshBackupSeparatorKey) as? NSNumber)?.doubleValue == 430.0)
+        #expect((defaults.object(forKey: freshBackupMainKey) as? NSNumber)?.doubleValue == 430.0)
+        #expect((defaults.object(forKey: freshBackupSeparatorKey) as? NSNumber)?.doubleValue == 480.0)
+    }
+
+    @Test("Applying a layout snapshot drops impossible display backups")
+    func applyLayoutSnapshotDropsImpossibleDisplayBackups() {
+        let defaults = UserDefaults.standard
+        let invalidBackupMainKey = StatusBarController.displayPositionBackupKey(for: 1920, slot: "main")
+        let invalidBackupSeparatorKey = StatusBarController.displayPositionBackupKey(for: 1920, slot: "separator")
+        let keys = [invalidBackupMainKey, invalidBackupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        StatusBarController.applyLayoutSnapshot(
+            SaneBarLayoutSnapshot(
+                mainPosition: 420.0,
+                separatorPosition: 390.0,
+                alwaysHiddenSeparatorPosition: 10000.0,
+                spacerPositions: [:],
+                calibratedScreenWidth: 1920.0,
+                displayBackups: [
+                    .init(widthBucket: 1920, mainPosition: 144.0, separatorPosition: 5897.0)
+                ]
+            )
+        )
+
+        #expect(defaults.object(forKey: invalidBackupMainKey) == nil)
+        #expect(defaults.object(forKey: invalidBackupSeparatorKey) == nil)
     }
 
     @Test("Status item position validation fails when no window is attached")

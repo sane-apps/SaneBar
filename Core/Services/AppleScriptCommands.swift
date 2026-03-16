@@ -46,6 +46,25 @@ class SaneBarScriptCommand: NSScriptCommand {
         }
     }
 }
+
+@MainActor
+private func runScriptRead<T>(
+    timeoutSeconds: TimeInterval = 15.0,
+    operation: @escaping @MainActor () async -> T
+) -> T? {
+    let box = ScriptResultBox<T?>(nil)
+    Task { @MainActor in
+        box.value = await operation()
+    }
+
+    let deadline = Date().addingTimeInterval(timeoutSeconds)
+    while box.value == nil, Date() < deadline {
+        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+    }
+
+    return box.value
+}
+
 // MARK: - Toggle Command
 @objc(ToggleCommand)
 final class ToggleCommand: SaneBarScriptCommand {
@@ -405,20 +424,32 @@ final class ListIconsCommand: SaneBarScriptCommand {
             return nil
         }
 
-        let semaphore = DispatchSemaphore(value: 0)
-        let box = ScriptResultBox("")
-
-        Task { @MainActor in
-            let apps = await SearchService.shared.refreshMenuBarApps()
-            let lines = apps.map { app in
-                "\(app.uniqueId)\t\(app.name)"
+        let apps: [RunningApp]? =
+            if Thread.isMainThread {
+                MainActor.assumeIsolated {
+                    runScriptRead(timeoutSeconds: 15.0) {
+                        await SearchService.shared.refreshMenuBarApps()
+                    }
+                }
+            } else {
+                DispatchQueue.main.sync {
+                    MainActor.assumeIsolated {
+                        runScriptRead(timeoutSeconds: 15.0) {
+                            await SearchService.shared.refreshMenuBarApps()
+                        }
+                    }
+                }
             }
-            box.value = lines.joined(separator: "\n")
-            semaphore.signal()
+
+        guard let apps else {
+            scriptErrorOperationTimedOut(self)
+            return nil
         }
 
-        _ = semaphore.wait(timeout: .now() + 5.0)
-        return box.value
+        let lines = apps.map { app in
+            "\(app.uniqueId)\t\(app.name)"
+        }
+        return lines.joined(separator: "\n")
     }
 }
 

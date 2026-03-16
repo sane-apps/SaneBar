@@ -51,6 +51,12 @@ class LiveZoneSmoke
     com.apple.systemuiserver
     com.apple.Spotlight
   ].freeze
+  BROWSE_ACTIVATION_BUNDLE_DENYLIST = (
+    APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
+      com.apple.SSMenuAgent
+      com.apple.menuextra.focusmode
+    ]
+  ).freeze
   BROWSE_PANEL_COMMANDS = {
     'secondMenuBar' => 'show second menu bar',
     'findIcon' => 'open icon panel',
@@ -410,17 +416,27 @@ class LiveZoneSmoke
   end
 
   def browse_activation_candidates(zones)
-    preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
-      zones.find { |item| browse_candidate_matches?(item, preferred_id) }
-    end.compact.uniq { |item| item[:unique_id] }
-
-    fallback = candidate_pool(zones).sort_by do |item|
+    ordered_pool = candidate_pool(zones).sort_by do |item|
       [
         browse_zone_priority(item[:zone]),
         coarse_bundle_fallback?(item) ? 1 : 0,
       ]
     end
-    (preferred + fallback).uniq { |item| item[:unique_id] }.take(3)
+    precise_non_apple = ordered_pool.reject do |item|
+      coarse_bundle_fallback?(item) || item[:bundle].start_with?('com.apple.')
+    end
+
+    preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
+      ordered_pool.find { |item| browse_candidate_matches?(item, preferred_id) }
+    end.compact.reject do |item|
+      BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
+    end.uniq { |item| item[:unique_id] }
+
+    fallback = ordered_pool.reject do |item|
+      BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
+    end
+
+    (precise_non_apple + preferred + fallback).uniq { |item| item[:unique_id] }.take(3)
   end
 
   def browse_zone_priority(zone)

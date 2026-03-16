@@ -197,6 +197,99 @@ struct MenuBarAppearanceServiceTests {
         #expect(true, "show/hide should be safe without setup")
     }
 
+    @Test("Appearance overlay suppresses for active third-party full-width top host")
+    func testSuppressOverlayForThirdPartyTopHost() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 30)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.blizzard.worldofwarcraft",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay does not suppress for ordinary frontmost windows")
+    func testDoesNotSuppressOverlayForOrdinaryWindow() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 345),
+                "Y": NSNumber(value: 109),
+                "Width": NSNumber(value: 1230),
+                "Height": NSNumber(value: 646)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.blizzard.worldofwarcraft",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay does not suppress for SaneBar itself")
+    func testDoesNotSuppressOverlayForSelf() {
+        let selfPID: pid_t = 4242
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: selfPID),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 30)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: selfPID,
+                frontmostBundleID: "com.sanebar.app",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: selfPID
+            )
+        )
+    }
+
+    @Test("Appearance overlay does not suppress for Apple-owned top bars")
+    func testDoesNotSuppressOverlayForAppleBundle() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 30)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.controlcenter",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
     // MARK: - Protocol Conformance Tests
 
     @Test("MenuBarAppearanceService conforms to protocol")
