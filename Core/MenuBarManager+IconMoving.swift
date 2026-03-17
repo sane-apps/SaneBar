@@ -86,6 +86,29 @@ extension MenuBarManager {
         return boundary
     }
 
+    nonisolated static func hasPreciseMoveIdentity(
+        menuExtraId: String?,
+        statusItemIndex: Int?
+    ) -> Bool {
+        if let menuExtraId, !menuExtraId.isEmpty {
+            return true
+        }
+        if let statusItemIndex, statusItemIndex >= 0 {
+            return true
+        }
+        return false
+    }
+
+    nonisolated static func shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+        visibleBoundaryX: CGFloat?,
+        sourceFrameIsOnScreen: Bool,
+        hasPreciseIdentity: Bool
+    ) -> Bool {
+        guard let visibleBoundaryX, visibleBoundaryX > 0 else { return false }
+        guard sourceFrameIsOnScreen else { return false }
+        return hasPreciseIdentity
+    }
+
     private func resolvedSeparatorRightEdgeFromCaches() -> CGFloat? {
         let normalized = Self.normalizedSeparatorRightEdge(
             cachedRightEdge: lastKnownSeparatorRightEdgeX,
@@ -486,33 +509,71 @@ extension MenuBarManager {
         return (separatorX, mainLeftEdge)
     }
 
+    private func sourceFrameIsOnScreenForMove(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        preferredCenterX: CGFloat?
+    ) -> Bool {
+        guard let frame = AccessibilityService.shared.getMenuBarIconFrame(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        ) else {
+            return false
+        }
+
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
+    }
+
     private func resolveMoveTargetsWithRetries(
         toHidden: Bool,
+        sourceIdentity: MoveSourceIdentity,
         separatorOverrideX: CGFloat?,
         maxAttempts: Int = 20
     ) async -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
         var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
 
         for attempt in 1 ... maxAttempts {
-            let (targets, liveSeparatorReady) = await MainActor.run {
+            let (targets, liveSeparatorReady, sourceFrameIsOnScreen) = await MainActor.run {
                 let targets = self.computeMoveTargets(toHidden: toHidden, separatorOverrideX: separatorOverrideX)
                 let liveSeparatorReady = separatorOverrideX != nil || self.currentLiveSeparatorFrame() != nil
-                return (targets, liveSeparatorReady)
+                let sourceFrameIsOnScreen = !toHidden && self.sourceFrameIsOnScreenForMove(
+                    bundleID: sourceIdentity.bundleID,
+                    menuExtraId: sourceIdentity.menuExtraId,
+                    statusItemIndex: sourceIdentity.statusItemIndex,
+                    preferredCenterX: sourceIdentity.preferredCenterX
+                )
+                return (targets, liveSeparatorReady, sourceFrameIsOnScreen)
             }
             lastTargets = targets
 
             if let separatorX = targets.separatorX, separatorX > 0 {
                 if toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0) {
-                    if liveSeparatorReady || attempt == maxAttempts {
+                    let canUseCachedVisibleTarget = !toHidden && Self.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+                        visibleBoundaryX: targets.visibleBoundaryX,
+                        sourceFrameIsOnScreen: sourceFrameIsOnScreen,
+                        hasPreciseIdentity: Self.hasPreciseMoveIdentity(
+                            menuExtraId: sourceIdentity.menuExtraId,
+                            statusItemIndex: sourceIdentity.statusItemIndex
+                        )
+                    )
+
+                    if liveSeparatorReady || canUseCachedVisibleTarget || attempt == maxAttempts {
                         if attempt > 1 {
                             logger.info("🔧 Resolved separator target after \(attempt * 50)ms")
+                        }
+                        if canUseCachedVisibleTarget {
+                            logger.info("🔧 Accepting cached visible move target because source icon is already on-screen with a precise identity")
                         }
                         return targets
                     }
 
                     if attempt == 1 || attempt % 5 == 0 {
                         logger.debug("🔧 Cached separator target available after \(attempt * 50)ms but live frame is still stale")
-                        logger.debug("🔧 Waiting for live separator frame before accepting cached move target")
+                        logger.debug("🔧 Waiting for live separator frame or an on-screen precise source icon before accepting cached move target")
                     }
                 }
             }
@@ -543,6 +604,13 @@ extension MenuBarManager {
         case visible
         case hidden
         case alwaysHidden
+    }
+
+    private struct MoveSourceIdentity {
+        let bundleID: String
+        let menuExtraId: String?
+        let statusItemIndex: Int?
+        let preferredCenterX: CGFloat?
     }
 
     private func moveVerificationMatchesTarget(
@@ -742,9 +810,16 @@ extension MenuBarManager {
                 try? await Task.sleep(for: .milliseconds(50))
             }
 
+            let sourceIdentity = MoveSourceIdentity(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
             logger.info("🔧 Getting separator position for move...")
             var (separatorX, visibleBoundaryX) = await self.resolveMoveTargetsWithRetries(
                 toHidden: toHidden,
+                sourceIdentity: sourceIdentity,
                 separatorOverrideX: separatorOverrideX
             )
 
@@ -767,6 +842,7 @@ extension MenuBarManager {
                     try? await Task.sleep(for: .milliseconds(300))
                     (separatorX, visibleBoundaryX) = await self.resolveMoveTargetsWithRetries(
                         toHidden: toHidden,
+                        sourceIdentity: sourceIdentity,
                         separatorOverrideX: separatorOverrideX
                     )
                 }
@@ -827,6 +903,7 @@ extension MenuBarManager {
 
                 let retryTargets = await self.resolveMoveTargetsWithRetries(
                     toHidden: toHidden,
+                    sourceIdentity: sourceIdentity,
                     separatorOverrideX: separatorOverrideX
                 )
                 if let retrySeparatorX = retryTargets.separatorX {
@@ -858,6 +935,7 @@ extension MenuBarManager {
 
                 let (fallbackSeparatorX, fallbackVisibleBoundaryX) = await self.resolveMoveTargetsWithRetries(
                     toHidden: toHidden,
+                    sourceIdentity: sourceIdentity,
                     separatorOverrideX: separatorOverrideX
                 )
 

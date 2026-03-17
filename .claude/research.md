@@ -1,5 +1,26 @@
 # SaneBar Research Cache
 
+## Native Menu Extras vs Edge Cases (99%-first policy)
+
+**Updated:** 2026-03-17 | **Status:** verified | **TTL:** 14d
+**Source:** Apple docs (`NSStatusBar`, `NSStatusItem`, `autosaveName`, `isVisible`, `behavior`), official Bartender release notes/docs, Ice releases/issues, mini live smoke on the signed app
+
+### Verified Findings
+
+1. Apple documents the standard contract as `NSStatusBar` / `NSStatusItem` creation plus `autosaveName` / `isVisible` persistence, but Apple does **not** promise exact slot/order persistence or universal interoperability with menu bar managers.
+2. Bartender and Ice both treat common Apple/system items as normal support targets, but both publicly carry per-item and per-OS workarounds. This supports a policy of "support the mainstream path aggressively, do not promise every oddball host model."
+3. Bartender publicly ships fixes for Apple-item handling, notch overflow, duplicate items, Little Snitch naming/persistence, and restart/layout drift. Ice publicly describes some apps as unavoidable outliers when their menu bar implementation differs.
+4. Safe FAQ language is: SaneBar is optimized for standard macOS menu bar items and most common Apple/third-party items, while some items remain compatibility edge cases because macOS/app host models differ.
+5. Unsafe FAQ language is: Apple enforces one strict implementation and third parties are simply "non-compliant." The research does not support that claim.
+6. Mini focused smoke now has a real first-party path for native-item investigations: `SANEBAR_SMOKE_REQUIRED_IDS=... ruby scripts/live_zone_smoke.rb`.
+7. That focused smoke path now bypasses the normal move-candidate denylist for the exact required IDs and downgrades browse checks to open/close-only, so move investigations no longer depend on unrelated browse-activation flakiness.
+8. Mini focused smoke passed end to end for `com.apple.menuextra.siri`, `com.apple.menuextra.spotlight`, and `com.apple.menuextra.focusmode` on the signed app after the collapsed visible-move resolver change.
+9. A focused Shottr run also passed on the same build, so "Shottr is definitely still an edge case" is weaker than before and should not be stated confidently without fresher failures.
+10. Bluetooth was not present in the later mini `list icons` / `list icon zones` output, so no conclusion should be drawn from that failed required-ID run.
+11. On the patched mini build launched through `./scripts/SaneMaster.rb test_mode --release`, the common move set passed end to end in one focused smoke: `Display`, `Focus`, `Siri`, `Spotlight`, and `SSMenuAgent`.
+12. The patched mini build also passed a separate focused Shottr move smoke, so the current safe edge-case bucket is narrower than the old blanket "weird third-party app" framing.
+13. A default conservative smoke run can still return `No movable candidate icon found` or otherwise be inconclusive on an Apple-heavy setup where every present movable item is denylisted by release-fixture policy. That should be treated as a fixture-policy result, not as evidence that the move fix failed.
+
 ## Display-Backup Corruption + Profile Apply Mismatch (Antonios / #111 / #113 / #114)
 
 **Updated:** 2026-03-14 | **Status:** verified | **TTL:** 7d  
