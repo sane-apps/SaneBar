@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.30] - 2026-03-17
+
+Fix common Apple menu extra moves. Fix multi display hover screen detection. Add compatibility FAQ for unusual custom host menu bar apps.
+
+---
+
 ## [2.1.29] - 2026-03-16
 
 Improves startup and layout recovery after display and profile changes so icons are less likely to restore in the wrong place after restart.
