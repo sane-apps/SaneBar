@@ -38,7 +38,8 @@
 6. Setapp macOS 13+ updates require `NSUpdateSecurityPolicy` for `com.setapp.DesktopClient.SetappAgent`.
 7. If SaneBar's Setapp build remains sandboxed, it will need the `com.setapp.ProvisioningService` Mach lookup exception.
 8. Current SaneBar project settings are `arm64` only, so Setapp universal-readiness is a real blocker, not a box to tick later.
-9. Operational blocker: final Setapp runtime verification cannot happen until the real `setappPublicKey.pem` is provided.
+9. SaneBar currently stores app data in `Application Support/SaneBar` but keys credentials off the bundle ID, so a direct build and a Setapp build would likely share settings/profile data while keeping separate license state.
+10. Operational blocker: final Setapp runtime verification cannot happen until the real `setappPublicKey.pem` is provided.
 
 ## Display-Backup Corruption + Profile Apply Mismatch (Antonios / #111 / #113 / #114)
 
