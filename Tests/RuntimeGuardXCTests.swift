@@ -1698,17 +1698,27 @@ final class RuntimeGuardXCTests: XCTestCase {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
-        guard let skipIndex = source.range(of: "if self.shouldSkipHideForExternalMonitor"),
+        guard let autoRehideIndex = source.range(of: "if !self.settings.autoRehide"),
+              let skipIndex = source.range(of: "if self.shouldSkipHideForExternalMonitor"),
               let hideIndex = source.range(of: "await self.hidingService.hide()")
         else {
-            XCTFail("Startup external-monitor or initial-hide blocks not found")
+            XCTFail("Startup auto-rehide, external-monitor, or initial-hide blocks not found")
             return
         }
 
         XCTAssertLessThan(
+            autoRehideIndex.lowerBound.utf16Offset(in: source),
+            hideIndex.lowerBound.utf16Offset(in: source),
+            "Startup should respect auto-rehide before attempting initial hide"
+        )
+        XCTAssertLessThan(
             skipIndex.lowerBound.utf16Offset(in: source),
             hideIndex.lowerBound.utf16Offset(in: source),
             "Startup should apply external-monitor policy before attempting initial hide"
+        )
+        XCTAssertTrue(
+            source.contains("Skipping initial hide: auto-rehide disabled"),
+            "Startup should log when the launch hide is skipped because auto-rehide is off"
         )
     }
 

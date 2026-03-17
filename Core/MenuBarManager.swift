@@ -679,6 +679,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 // Repair AH separator ordering drift before any startup hide.
                 self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
 
+                if !self.settings.autoRehide {
+                    logger.info("Skipping initial hide: auto-rehide disabled")
+                    return
+                }
+
                 // Skip startup hide if user is on external monitor
                 if self.shouldSkipHideForExternalMonitor {
                     logger.info("Skipping initial hide: user is on external monitor")
