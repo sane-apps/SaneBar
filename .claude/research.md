@@ -20,6 +20,8 @@
 11. On the patched mini build launched through `./scripts/SaneMaster.rb test_mode --release`, the common move set passed end to end in one focused smoke: `Display`, `Focus`, `Siri`, `Spotlight`, and `SSMenuAgent`.
 12. The patched mini build also passed a separate focused Shottr move smoke, so the current safe edge-case bucket is narrower than the old blanket "weird third-party app" framing.
 13. A default conservative smoke run can still return `No movable candidate icon found` or otherwise be inconclusive on an Apple-heavy setup where every present movable item is denylisted by release-fixture policy. That should be treated as a fixture-policy result, not as evidence that the move fix failed.
+14. Customer-facing edge-case framing should be: SaneBar is built around Apple’s supported menu bar APIs and the standard macOS behavior they produce; most Apple menu extras and normal third-party apps should work well; some apps use unusual/custom helper-host or window-backed models, and those compatibility limits come from that app’s implementation rather than from SaneBar ignoring the supported path.
+15. Avoid saying Apple "enforces" one universal implementation. Prefer "Apple supports the standard menu bar API path, and SaneBar is optimized for that supported path."
 
 ## Display-Backup Corruption + Profile Apply Mismatch (Antonios / #111 / #113 / #114)
 

@@ -461,6 +461,14 @@ March 16, 2026 Mini recheck:
 - low-risk posture: keep Little Snitch in `R5` as a known compatibility edge case unless a future fix can prove a precise, stable menu-extra identity without broad host/window heuristics
 - do not risk SaneBar startup or generic menu-extra handling just to make Little Snitch fully operable
 
+Customer-facing wording for `R5` / FAQ:
+- SaneBar is built around Apple's supported menu bar APIs and the standard macOS behavior they produce.
+- Most Apple menu extras and normal third-party menu bar apps should work well.
+- Some apps use unusual helper-host, window-backed, or other custom menu bar models.
+- When those apps do not behave correctly, the compatibility limit usually comes from that app's implementation rather than from SaneBar ignoring the standard macOS path.
+- Avoid saying Apple "enforces" one universal implementation.
+- Keep the tone factual and calm; do not sound defensive.
+
 Do not mark R5 fully closed until this is explained or fixed.
 
 ## Current Hotspots To Audit First

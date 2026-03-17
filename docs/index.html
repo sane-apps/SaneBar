@@ -2866,6 +2866,20 @@
         </div>
     </section>
 
+    <section class="compatibility-faq" id="faq">
+        <div class="container">
+            <h2 class="section-title">Compatibility FAQ</h2>
+            <p class="section-subtitle">Why some menu bar apps are edge cases.</p>
+            <details class="crypto-faq" id="faq-edge-case-apps">
+                <summary>Why doesn’t SaneBar work with every menu bar app?</summary>
+                <p>SaneBar is built around Apple’s supported menu bar APIs and the standard macOS behavior they produce.</p>
+                <p>Most Apple menu extras and normal third-party menu bar apps should work well. Some apps use unusual helper-host, window-backed, or other custom menu bar models instead.</p>
+                <p>When those apps misbehave, the compatibility limit comes from that app’s implementation rather than from SaneBar ignoring the supported macOS path.</p>
+                <p>I avoid risky heuristics that could make common menu bar apps less reliable just to chase a small number of outliers.</p>
+            </details>
+        </div>
+    </section>
+
     <section class="support" id="support">
         <div class="container">
             <h2 class="section-title">Support SaneBar</h2>
