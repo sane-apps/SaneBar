@@ -272,8 +272,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Move target resolution should wait for a live separator window when the main separator should already be visible"
         )
         XCTAssertTrue(
-            source.contains("Waiting for live separator frame before accepting cached move target"),
-            "Move target resolution should log when it is still polling for live separator geometry"
+            source.contains("Waiting for live separator frame or an on-screen precise source icon before accepting cached move target"),
+            "Visible moves should keep polling until the separator is live or the source icon is safely on-screen with a precise identity"
+        )
+        XCTAssertTrue(
+            source.contains("Accepting cached visible move target because source icon is already on-screen with a precise identity"),
+            "Visible moves should have a narrow fallback for precise on-screen items when the separator frame is still stale"
         )
     }
 

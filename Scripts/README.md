@@ -101,6 +101,7 @@ Run the live browse smoke directly:
 ```bash
 SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN=1 ./Scripts/live_zone_smoke.rb
 SANEBAR_SMOKE_SCREENSHOT_DIR=~/Desktop/Screenshots/SaneBar ./Scripts/live_zone_smoke.rb
+SANEBAR_SMOKE_REQUIRED_IDS=com.apple.menuextra.siri,com.apple.menuextra.spotlight,com.apple.menuextra.focusmode SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES=1 SANEBAR_SMOKE_CAPTURE_SCREENSHOTS=0 ./Scripts/live_zone_smoke.rb
 ```
 
 The smoke now covers both browse layouts:
@@ -113,4 +114,11 @@ When browse activation fails, the smoke now reports:
 - requested icon identity
 - first attempt / retry verification result
 - final outcome
+
+Notes:
+- `SANEBAR_SMOKE_REQUIRED_IDS` forces an exact candidate set for scientific repro work.
+- Required IDs now bypass the normal move-candidate denylist, so native-item investigations can target Focus / Siri / Spotlight without changing the default release smoke policy.
+- Required-ID runs use compatibility browse checks (open/close only) so move investigations do not get blocked by unrelated browse-activation flakiness.
+- On Apple-heavy setups, the default conservative move pool can legitimately return `No movable candidate icon found`. That is a fixture-policy result, not proof that common native items are broken.
+- When that happens, keep the default release smoke conservative and switch to `SANEBAR_SMOKE_REQUIRED_IDS=...` for focused native-item verification.
 - browse panel mode + visibility + last relayout reason

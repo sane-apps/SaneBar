@@ -326,7 +326,7 @@ class LiveZoneSmoke
     raise "Zone API did not become ready in #{ZONE_API_READY_TIMEOUT_SECONDS}s#{last_error ? " (last error: #{last_error.message})" : ''}"
   end
 
-  def candidate_pool(zones)
+  def candidate_pool(zones, allow_denylisted: false)
     raw_candidates = zones.select do |item|
       item[:movable] &&
         !item[:bundle].start_with?('com.sanebar.app') &&
@@ -341,7 +341,7 @@ class LiveZoneSmoke
     candidates.reject! do |item|
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
-    candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) }
+    candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) } unless allow_denylisted
 
     # Prefer non-Apple extras first (typically more consistently movable),
     # then Apple fallbacks while avoiding known noisy bundles.
@@ -404,7 +404,7 @@ class LiveZoneSmoke
   end
 
   def selected_candidates(zones)
-    ordered = candidate_pool(zones)
+    ordered = candidate_pool(zones, allow_denylisted: !@required_candidate_ids.empty?)
     return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?
 
     selected = @required_candidate_ids.map do |required_id|
@@ -450,12 +450,13 @@ class LiveZoneSmoke
         next
       end
 
-      if full_browse_activation_supported?
+      if full_browse_activation_supported? && !focused_required_id_mode?
         activation_candidates = browse_activation_candidates(zones)
         raise 'No browse activation candidate icon found.' if activation_candidates.empty?
         exercise_browse_mode(expected_mode: expected_mode, command: command, candidates: activation_candidates)
       else
-        puts "ℹ️ Compatibility browse check for #{expected_mode}: activation diagnostics unavailable in running app"
+        reason = focused_required_id_mode? ? 'focused required-id smoke' : 'activation diagnostics unavailable in running app'
+        puts "ℹ️ Compatibility browse check for #{expected_mode}: #{reason}"
         exercise_compatibility_browse_mode(expected_mode: expected_mode, command: command)
       end
     end
@@ -1318,6 +1319,10 @@ class LiveZoneSmoke
     @require_all_candidates || !@required_candidate_ids.empty?
   end
 
+  def focused_required_id_mode?
+    !@required_candidate_ids.empty?
+  end
+
   def escape_quotes(value)
     value.to_s.gsub('\\', '\\\\').gsub('"', '\"')
   end
@@ -1376,4 +1381,6 @@ class LiveZoneSmoke
   end
 end
 
-exit(LiveZoneSmoke.new.run ? 0 : 1)
+if __FILE__ == $PROGRAM_NAME
+  exit(LiveZoneSmoke.new.run ? 0 : 1)
+end

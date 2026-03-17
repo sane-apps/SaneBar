@@ -1147,4 +1147,34 @@ struct IconMovingSeparatorCacheCoherencyTests {
         )
         #expect(resolved == nil)
     }
+
+    @Test("Visible cached move target is allowed when source is on-screen and identity is precise")
+    func acceptsCachedVisibleMoveTargetForPreciseOnScreenSource() {
+        let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            visibleBoundaryX: 1699,
+            sourceFrameIsOnScreen: true,
+            hasPreciseIdentity: true
+        )
+        #expect(allowed)
+    }
+
+    @Test("Visible cached move target stays blocked for coarse source identity")
+    func rejectsCachedVisibleMoveTargetForCoarseIdentity() {
+        let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            visibleBoundaryX: 1699,
+            sourceFrameIsOnScreen: true,
+            hasPreciseIdentity: false
+        )
+        #expect(allowed == false)
+    }
+
+    @Test("Visible cached move target stays blocked while source is still off-screen")
+    func rejectsCachedVisibleMoveTargetForOffScreenSource() {
+        let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            visibleBoundaryX: 1699,
+            sourceFrameIsOnScreen: false,
+            hasPreciseIdentity: true
+        )
+        #expect(allowed == false)
+    }
 }

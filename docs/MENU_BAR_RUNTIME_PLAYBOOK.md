@@ -704,6 +704,29 @@ What the performance budgets mean:
   - post-smoke idle: avg CPU `<= 5%`, peak CPU `<= 20%`, RSS `<= 128 MB`
   - whole-pass average: avg CPU `<= 10%`, avg RSS `<= 192 MB`
 
+### 2c. Targeted native-item smoke
+
+Use the existing smoke harness when you need scientific repros for Apple-native items without widening the default release candidate pool:
+
+```bash
+SANEBAR_SMOKE_REQUIRED_IDS=com.apple.menuextra.siri,com.apple.menuextra.spotlight,com.apple.menuextra.focusmode \
+SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES=1 \
+SANEBAR_SMOKE_CAPTURE_SCREENSHOTS=0 \
+ruby ./Scripts/live_zone_smoke.rb
+```
+
+What it proves:
+- the real hidden -> visible move path still works for the exact native items you named
+- the smoke is using the same browse/move tooling as release smoke, not an ad-hoc AppleScript harness
+- explicit required IDs can now bypass the normal move denylist for focused investigations, while the default release smoke policy stays conservative
+- focused required-ID runs keep browse validation in compatibility mode (open/close only) so unrelated right-click browse flakiness does not block a move-path investigation
+- if the default conservative smoke has no movable candidates on an Apple-heavy machine, use this path instead of widening the release fixture pool
+
+When to use it:
+- Focus / Siri / Spotlight regressions
+- reproducing a customer report on a specific Apple-native item
+- verifying a native-item move fix before deciding whether a third-party oddball should stay in the known-edge-case bucket
+
 ### 3. Trusted app direct move round-trip
 
 Use path-targeted AppleScript against:
