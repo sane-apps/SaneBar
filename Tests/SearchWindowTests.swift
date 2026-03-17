@@ -704,6 +704,8 @@ struct SearchWindowTests {
         #expect(source.contains("StatusBarController.autosaveVersion"))
         #expect(source.contains("StatusBarController.displayPositionBackupKey"))
         #expect(source.contains("SaneBar_CalibratedScreenWidth"))
+        #expect(source.contains("statusItemScreenWidth"))
+        #expect(source.contains("pointerScreenWidth"))
     }
 
     @Test("All mode discovery uses the broader menu bar app list")

@@ -32,7 +32,9 @@ private func collectSaneBarSettings() -> String {
     let separatorPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)")
     let alwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)")
     let legacyAlwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator")
-    let currentScreenWidth = NSScreen.main?.frame.width
+    let statusItemScreen = mainButton?.window?.screen ?? separatorButton?.window?.screen
+    let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) })
+    let currentScreenWidth = statusItemScreen?.frame.width ?? NSScreen.main?.frame.width
     let currentScreenCount = NSScreen.screens.count
     let calibratedScreenWidth = (defaults.object(forKey: "SaneBar_CalibratedScreenWidth") as? NSNumber)?.doubleValue
     let currentWidthBucket = currentScreenWidth.map { StatusBarController.displayWidthBucket(Double($0)) }
@@ -128,6 +130,10 @@ private func collectSaneBarSettings() -> String {
       autosaveVersion: \(StatusBarController.autosaveVersion)
       currentScreenWidth: \(formatCGFloat(currentScreenWidth))
       currentScreenCount: \(currentScreenCount)
+      statusItemScreen: \(statusItemScreen?.localizedName ?? "nil")
+      statusItemScreenWidth: \(formatCGFloat(statusItemScreen?.frame.width))
+      pointerScreen: \(pointerScreen?.localizedName ?? "nil")
+      pointerScreenWidth: \(formatCGFloat(pointerScreen?.frame.width))
       calibratedScreenWidth: \(formatDouble(calibratedScreenWidth))
       currentWidthBucket: \(currentWidthBucket.map(String.init) ?? "nil")
       storedWidthBucket: \(storedWidthBucket.map(String.init) ?? "nil")

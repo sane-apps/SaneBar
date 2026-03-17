@@ -73,9 +73,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Screen Detection
 
+    private var statusItemScreen: NSScreen? {
+        mainStatusItem?.button?.window?.screen ??
+            separatorItem?.button?.window?.screen ??
+            NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) ??
+            NSScreen.main
+    }
+
     /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)
     var hasNotch: Bool {
-        guard let screen = NSScreen.main else { return false }
+        guard let screen = statusItemScreen else { return false }
         // auxiliaryTopLeftArea is non-nil on notched Macs (macOS 12+)
         return screen.auxiliaryTopLeftArea != nil
     }

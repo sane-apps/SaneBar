@@ -344,14 +344,19 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func isInMenuBarRegion(_ point: NSPoint) -> Bool {
-        guard let screen = NSScreen.main else { return false }
+        Self.isPointInMenuBarInteractionRegion(
+            point,
+            screens: NSScreen.screens,
+            detectionZoneHeight: detectionZoneHeight,
+            leaveThreshold: leaveThreshold
+        )
+    }
 
-        let screenFrame = screen.frame
-        let menuBarTop = screenFrame.maxY
-        let menuBarBottom = menuBarTop - detectionZoneHeight
-
-        // Check if point is in the menu bar vertical band
-        return point.y >= menuBarBottom && point.y <= menuBarTop
+    static func screenFrameContainingPoint(
+        _ point: NSPoint,
+        screenFrames: [CGRect]
+    ) -> CGRect? {
+        screenFrames.first(where: { NSMouseInRect(point, $0, false) })
     }
 
     static func isPointInMenuBarInteractionRegion(
@@ -374,7 +379,7 @@ final class HoverService: HoverServiceProtocol {
         detectionZoneHeight: CGFloat = 24,
         leaveThreshold: CGFloat = 200
     ) -> Bool {
-        guard let screenFrame = screenFrames.first(where: { NSMouseInRect(point, $0, false) }) else {
+        guard let screenFrame = screenFrameContainingPoint(point, screenFrames: screenFrames) else {
             return false
         }
 
@@ -408,7 +413,7 @@ final class HoverService: HoverServiceProtocol {
         screenFrames: [CGRect],
         detectionZoneHeight: CGFloat = 24
     ) -> Bool {
-        guard let screenFrame = screenFrames.first(where: { NSMouseInRect(point, $0, false) }) else {
+        guard let screenFrame = screenFrameContainingPoint(point, screenFrames: screenFrames) else {
             return false
         }
 
@@ -417,10 +422,19 @@ final class HoverService: HoverServiceProtocol {
         return point.y >= menuBarBottom && point.y <= menuBarTop
     }
 
+    static func distanceFromMenuBarTop(
+        _ point: NSPoint,
+        screenFrames: [CGRect]
+    ) -> CGFloat? {
+        guard let screenFrame = screenFrameContainingPoint(point, screenFrames: screenFrames) else {
+            return nil
+        }
+        return screenFrame.maxY - point.y
+    }
+
     private func distanceFromMenuBarTop(_ point: NSPoint) -> CGFloat {
-        guard let screen = NSScreen.main else { return 0 }
-        let menuBarTop = screen.frame.maxY
-        return menuBarTop - point.y
+        Self.distanceFromMenuBarTop(point, screenFrames: NSScreen.screens.map(\.frame))
+            ?? .greatestFiniteMagnitude
     }
 
     private func scheduleHoverTrigger() {

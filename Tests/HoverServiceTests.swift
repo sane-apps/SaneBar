@@ -330,4 +330,34 @@ struct HoverServiceTests {
 
         #expect(result == false)
     }
+
+    @Test("Menu bar interaction region uses the screen containing the pointer")
+    func testInteractionRegionUsesContainingScreen() {
+        let builtIn = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let external = CGRect(x: 1512, y: 0, width: 2560, height: 1440)
+        let point = NSPoint(x: 1800, y: 1430)
+
+        let result = HoverService.isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: [builtIn, external],
+            detectionZoneHeight: 24,
+            leaveThreshold: 200
+        )
+
+        #expect(result == true)
+    }
+
+    @Test("Menu bar distance uses the containing screen instead of NSScreen.main assumptions")
+    func testDistanceFromMenuBarTopUsesContainingScreen() {
+        let builtIn = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let external = CGRect(x: 1512, y: 0, width: 2560, height: 1440)
+        let point = NSPoint(x: 2000, y: 1410)
+
+        let distance = HoverService.distanceFromMenuBarTop(
+            point,
+            screenFrames: [builtIn, external]
+        )
+
+        #expect(distance == 30)
+    }
 }
