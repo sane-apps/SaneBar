@@ -227,10 +227,19 @@ See `PRIVACY.md` for details and rationale.
 
 ## Updates and Distribution
 
-- Sparkle is used for updates (appcast in Info.plist).
-- Update feed: `https://sanebar.com/appcast.xml`.
-- Release builds produce a notarized DMG; downloads are hosted via Cloudflare R2 and `dist.sanebar.com`.
-- DMGs are never committed to GitHub.
+- Current public channel is direct download:
+  - Sparkle is used for updates (appcast in Info.plist)
+  - update feed: `https://sanebar.com/appcast.xml`
+  - release builds produce a notarized DMG hosted via Cloudflare R2 and `dist.sanebar.com`
+- The current full-featured Mac App Store lane is intentionally disabled.
+- Planned Setapp lane is a third distribution channel, not a repackaged direct build:
+  - separate `-setapp` bundle ID
+  - Setapp-managed entitlement/update path
+  - no Sparkle
+  - no Lemon Squeezy key-entry / purchase UI
+  - no donate/sponsorship UI in the Setapp build
+  - same core feature set where Setapp policy allows it
+- Direct Lemon Squeezy sales stay in place for the website/direct channel. Setapp using Stripe does not replace that business flow.
 
 ## Build and Release Infrastructure
 
@@ -239,6 +248,11 @@ See `PRIVACY.md` for details and rationale.
 - **Appcast**: Sparkle reads `SUFeedURL` from `SaneBar/Info.plist` → `https://sanebar.com/appcast.xml`.
 - **Sparkle key**: `7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=` (shared across all SaneApps).
 - **Release workflow**: see DEVELOPMENT.md § Release Process and ARCHITECTURE.md § Operations & Scripts Reference.
+- **Setapp-specific gotchas**:
+  - menu bar apps must report Setapp `.userInteraction` events on real menu bar activation
+  - Setapp macOS 13+ updates require `NSUpdateSecurityPolicy` authorizing `com.setapp.DesktopClient.SetappAgent`
+  - if the Setapp build is sandboxed, it needs the `com.setapp.ProvisioningService` Mach lookup exception
+  - current project settings are `arm64` only, so Setapp universal-binary readiness must be verified deliberately instead of assumed
 
 ## Error Handling and Recovery
 
