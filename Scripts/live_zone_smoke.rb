@@ -155,43 +155,51 @@ class LiveZoneSmoke
     zones = list_icon_zones
     exercise_browse_modes(zones)
     candidates = selected_candidates(zones)
-    raise "No movable candidate icon found (need at least one hidden/visible icon)." if candidates.empty?
+    if candidates.empty?
+      if move_candidates_required?
+        raise "No movable candidate icon found (need at least one hidden/visible icon)."
+      else
+        puts 'ℹ️ No movable candidate icon found on this setup; skipping move checks for this default smoke run.'
+      end
+    end
 
     failures = []
     passed_candidates = []
 
-    candidates.each do |candidate|
-      begin
-        puts "🎯 Candidate: #{candidate[:name]} (#{candidate[:bundle]}) zone=#{candidate[:zone]}"
-        exercise_hidden_visible_moves(candidate)
-        exercise_always_hidden_moves(candidate)
-        passed_candidates << candidate
-        puts "✅ Candidate passed: #{candidate[:unique_id]}"
-        break unless strict_candidate_mode?
-      rescue StandardError => e
-        failures << [candidate, e]
-        puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
-      ensure
+    unless candidates.empty?
+      candidates.each do |candidate|
         begin
-          restore_zone(candidate)
-        rescue StandardError
-          # Keep trying other candidates; final failure will include last_error.
+          puts "🎯 Candidate: #{candidate[:name]} (#{candidate[:bundle]}) zone=#{candidate[:zone]}"
+          exercise_hidden_visible_moves(candidate)
+          exercise_always_hidden_moves(candidate)
+          passed_candidates << candidate
+          puts "✅ Candidate passed: #{candidate[:unique_id]}"
+          break unless strict_candidate_mode?
+        rescue StandardError => e
+          failures << [candidate, e]
+          puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
+        ensure
+          begin
+            restore_zone(candidate)
+          rescue StandardError
+            # Keep trying other candidates; final failure will include last_error.
+          end
         end
       end
-    end
 
-    if strict_candidate_mode?
-      unless failures.empty?
-        summary = failures.map do |candidate, error|
-          "#{candidate[:unique_id]}: #{error.message}"
-        end.join(' | ')
-        raise "Candidate failures: #{summary}"
+      if strict_candidate_mode?
+        unless failures.empty?
+          summary = failures.map do |candidate, error|
+            "#{candidate[:unique_id]}: #{error.message}"
+          end.join(' | ')
+          raise "Candidate failures: #{summary}"
+        end
+        raise 'No candidates passed move action checks.' if passed_candidates.empty?
+        puts "✅ Candidate set passed: #{passed_candidates.map { |candidate| candidate[:unique_id] }.join(', ')}"
+      else
+        last_failure = failures.last&.last
+        raise(last_failure || 'No candidate passed move action checks.') if passed_candidates.empty?
       end
-      raise 'No candidates passed move action checks.' if passed_candidates.empty?
-      puts "✅ Candidate set passed: #{passed_candidates.map { |candidate| candidate[:unique_id] }.join(', ')}"
-    else
-      last_failure = failures.last&.last
-      raise(last_failure || 'No candidate passed move action checks.') if passed_candidates.empty?
     end
 
     duration = (Time.now.utc - started_at).round(2)
@@ -1317,6 +1325,10 @@ class LiveZoneSmoke
 
   def strict_candidate_mode?
     @require_all_candidates || !@required_candidate_ids.empty?
+  end
+
+  def move_candidates_required?
+    strict_candidate_mode?
   end
 
   def focused_required_id_mode?
