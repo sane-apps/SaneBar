@@ -160,4 +160,19 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         XCTAssertTrue(UpdateService.shouldShowScheduledUpdateDockBadge(showDockIcon: true))
         XCTAssertFalse(UpdateService.shouldShowScheduledUpdateDockBadge(showDockIcon: false))
     }
+
+    func testUpdateUnavailableTooltipMatchesDistributionChannel() {
+        XCTAssertEqual(
+            MenuBarManager.updateUnavailableTooltip(for: .direct),
+            "Updates are available from the installed /Applications/SaneBar.app build."
+        )
+        XCTAssertEqual(
+            MenuBarManager.updateUnavailableTooltip(for: .appStore),
+            "Updates are managed by the App Store."
+        )
+        XCTAssertEqual(
+            MenuBarManager.updateUnavailableTooltip(for: .setapp),
+            "Updates are managed by Setapp."
+        )
+    }
 }

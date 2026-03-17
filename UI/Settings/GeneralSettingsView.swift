@@ -348,48 +348,56 @@ struct GeneralSettingsView: View {
 
                 // 4. Updates
                 CompactSection("Software Updates") {
-                    CompactToggle(
-                        label: "Check for updates automatically",
-                        isOn: $menuBarManager.settings.checkForUpdatesAutomatically
-                    )
-                    .help("Periodically check for new versions")
+                    if licenseService.distributionChannel.supportsInAppUpdates {
+                        CompactToggle(
+                            label: "Check for updates automatically",
+                            isOn: $menuBarManager.settings.checkForUpdatesAutomatically
+                        )
+                        .help("Periodically check for new versions")
 
-                    CompactDivider()
+                        CompactDivider()
 
-                    CompactRow("Check frequency") {
-                        HStack(spacing: 6) {
-                            ForEach(UpdateCheckFrequency.allCases) { frequency in
-                                ChromeSegmentedChoiceButton(
-                                    title: frequency.title,
-                                    isSelected: updateCheckFrequency == frequency
-                                ) {
-                                    updateCheckFrequency = frequency
+                        CompactRow("Check frequency") {
+                            HStack(spacing: 6) {
+                                ForEach(UpdateCheckFrequency.allCases) { frequency in
+                                    ChromeSegmentedChoiceButton(
+                                        title: frequency.title,
+                                        isSelected: updateCheckFrequency == frequency
+                                    ) {
+                                        updateCheckFrequency = frequency
+                                    }
                                 }
                             }
+                            .frame(width: 170)
+                            .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
+                            .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
                         }
-                        .frame(width: 170)
-                        .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
-                        .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
-                    }
-                    .help("Choose how often automatic update checks run")
+                        .help("Choose how often automatic update checks run")
 
-                    CompactDivider()
+                        CompactDivider()
 
-                    CompactRow("Actions") {
-                        Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
-                            guard !isCheckingForUpdates else { return }
-                            isCheckingForUpdates = true
-                            menuBarManager.userDidClickCheckForUpdates()
+                        CompactRow("Actions") {
+                            Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
+                                guard !isCheckingForUpdates else { return }
+                                isCheckingForUpdates = true
+                                menuBarManager.userDidClickCheckForUpdates()
 
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .seconds(5))
-                                isCheckingForUpdates = false
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(5))
+                                    isCheckingForUpdates = false
+                                }
                             }
+                            .buttonStyle(ChromeActionButtonStyle())
+                            .controlSize(.small)
+                            .disabled(isCheckingForUpdates)
+                            .help("Check for updates right now")
                         }
-                        .buttonStyle(ChromeActionButtonStyle())
-                        .controlSize(.small)
-                        .disabled(isCheckingForUpdates)
-                        .help("Check for updates right now")
+                    } else {
+                        CompactRow("Status") {
+                            Text(licenseService.distributionChannel.managementLabel ?? "Managed externally")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.82))
+                        }
                     }
                 }
 
@@ -500,17 +508,19 @@ struct GeneralSettingsView: View {
                         }
                         CompactDivider()
                         CompactRow("Actions") {
-                            if licenseService.usesAppStorePurchase {
+                            if let managementLabel = licenseService.distributionChannel.managementLabel {
                                 HStack(spacing: 10) {
-                                    Text("Managed by App Store")
+                                    Text(managementLabel)
                                         .font(.system(size: 12))
                                         .foregroundStyle(.white.opacity(0.82))
-                                    Button("Restore Purchases") {
-                                        Task { await licenseService.restorePurchases() }
+                                    if licenseService.usesAppStorePurchase {
+                                        Button("Restore Purchases") {
+                                            Task { await licenseService.restorePurchases() }
+                                        }
+                                        .buttonStyle(ChromeActionButtonStyle())
+                                        .controlSize(.small)
+                                        .disabled(licenseService.isPurchasing)
                                     }
-                                    .buttonStyle(ChromeActionButtonStyle())
-                                    .controlSize(.small)
-                                    .disabled(licenseService.isPurchasing)
                                 }
                             } else {
                                 Button(LicenseService.deactivateLicenseLabel()) {
@@ -554,6 +564,10 @@ struct GeneralSettingsView: View {
                                             .foregroundStyle(.red)
                                     }
                                 }
+                            } else if licenseService.usesSetappDistribution {
+                                Text("Included with Setapp")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.9))
                             } else {
                                 HStack(spacing: 8) {
                                     Button("Unlock Pro — $6.99") {

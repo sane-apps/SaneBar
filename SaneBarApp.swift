@@ -48,7 +48,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         scheduleDuplicateInstanceTerminationCheckIfNeeded()
 
         // Move to /Applications if running from Downloads or other location (Release only)
-        #if !DEBUG
+        #if !DEBUG && !APP_STORE && !SETAPP
             if SaneAppMover.moveToApplicationsFolderIfNeeded() { return }
         #endif
 
@@ -144,15 +144,17 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         showAllItem.target = self
         menu.addItem(showAllItem)
 
-        menu.addItem(NSMenuItem.separator())
+        if LicenseService.shared.distributionChannel.supportsInAppUpdates {
+            menu.addItem(NSMenuItem.separator())
 
-        let checkUpdatesItem = NSMenuItem(
-            title: "Check for Updates...",
-            action: #selector(checkForUpdatesFromDock(_:)),
-            keyEquivalent: ""
-        )
-        checkUpdatesItem.target = self
-        menu.addItem(checkUpdatesItem)
+            let checkUpdatesItem = NSMenuItem(
+                title: "Check for Updates...",
+                action: #selector(checkForUpdatesFromDock(_:)),
+                keyEquivalent: ""
+            )
+            checkUpdatesItem.target = self
+            menu.addItem(checkUpdatesItem)
+        }
 
         menu.addItem(NSMenuItem.separator())
 

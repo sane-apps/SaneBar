@@ -136,6 +136,9 @@ public struct WelcomeView: View {
                         if selectedTier == .pro, !LicenseService.shared.isPro {
                             if LicenseService.shared.usesAppStorePurchase {
                                 Task { await LicenseService.shared.purchasePro() }
+                            } else if LicenseService.shared.usesSetappDistribution {
+                                onComplete()
+                                return
                             } else {
                                 NSWorkspace.shared.open(LicenseService.checkoutURL())
                             }
@@ -801,8 +804,8 @@ private struct FreeVsProPage: View {
         HStack(alignment: .top, spacing: 14) {
             selectableTierCard(
                 tier: .pro,
-                title: "Pro — $6.99",
-                price: "One-time — yours forever",
+                title: licenseService.usesSetappDistribution ? "Pro — Setapp" : "Pro — $6.99",
+                price: licenseService.usesSetappDistribution ? "Included with your Setapp install" : "One-time — yours forever",
                 features: [
                     ("checkmark", "Everything in Basic, plus:"),
                     ("cursorarrow.click", "Activate & move icons"),
@@ -836,6 +839,10 @@ private struct FreeVsProPage: View {
                             .controlSize(.small)
                             .font(.system(size: 13))
                             .disabled(licenseService.isPurchasing)
+                        } else if licenseService.usesSetappDistribution {
+                            Text("Managed by Setapp")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.82))
                         } else {
                             Button {
                                 NSWorkspace.shared.open(LicenseService.checkoutURL())

@@ -8,8 +8,10 @@ options:
 configs:
   Debug: debug
   ProdDebug: debug
+  ProdDebug-Setapp: debug
   Release: release
   Release-AppStore: release
+  Release-Setapp: release
 
 packages:
   KeyboardShortcuts:
@@ -19,8 +21,7 @@ packages:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.8.0
   SaneUI:
-    url: https://github.com/sane-apps/SaneUI.git
-    branch: main
+    path: ../../infra/SaneUI
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -71,6 +72,21 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  SaneBarSetapp:
+    build:
+      targets:
+        SaneBar: all
+        SaneBarTests: [test]
+    test:
+      targets:
+        - SaneBarTests
+    profile:
+      config: Release-Setapp
+    run:
+      config: ProdDebug-Setapp
+    archive:
+      config: Release-Setapp
 
 targets:
   SaneBar:
@@ -137,6 +153,12 @@ targets:
           CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG"
+        ProdDebug-Setapp:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app-setapp
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Apple Development"
+          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG SETAPP"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           DEVELOPMENT_TEAM: M78L6FXD48
@@ -153,6 +175,12 @@ targets:
           APP_STORE_PRODUCT_ID: com.sanebar.app.pro.unlock
           INFOPLIST_KEY_AppStoreProductID: com.sanebar.app.pro.unlock
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar-AppStore.entitlements
+        Release-Setapp:
+          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app-setapp
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
+          OTHER_SWIFT_FLAGS: "$(inherited) -D SETAPP"
     postCompileScripts:
       - script: |
           export PATH="/opt/homebrew/bin:$PATH"
@@ -162,6 +190,25 @@ targets:
             echo "warning: SwiftLint not installed"
           fi
         name: Run SwiftLint
+        basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - script: |
+          if [ "$CONFIGURATION" == "ProdDebug-Setapp" ] || [ "$CONFIGURATION" == "Release-Setapp" ]; then
+            echo "Setapp build: stripping Sparkle framework and direct-store keys..."
+            rm -rf "${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework"
+            /usr/libexec/PlistBuddy -c "Delete :SUFeedURL" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :SUEnableAutomaticChecks" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :SUEnableSystemProfiling" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :AppStoreProductID" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            WEAKEN_SCRIPT="${SRCROOT}/../../infra/SaneProcess/scripts/weaken_sparkle.rb"
+            if [ -f "${WEAKEN_SCRIPT}" ]; then
+              find "${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}" -type f -path "*/Contents/MacOS/*" -print0 | \
+                xargs -0 -I{} ruby "${WEAKEN_SCRIPT}" "{}" || exit 1
+            fi
+            echo "Setapp build: Sparkle and direct-store keys removed"
+          fi
+        name: Strip Sparkle for Setapp
         basedOnDependencyAnalysis: false
 
   SaneBarTests:
@@ -184,6 +231,12 @@ targets:
         Debug:
           DEVELOPMENT_TEAM: ""
           CODE_SIGN_IDENTITY: "-"
+        ProdDebug-Setapp:
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Apple Development"
         Release:
+          DEVELOPMENT_TEAM: M78L6FXD48
+          CODE_SIGN_IDENTITY: "Apple Development"
+        Release-Setapp:
           DEVELOPMENT_TEAM: M78L6FXD48
           CODE_SIGN_IDENTITY: "Apple Development"

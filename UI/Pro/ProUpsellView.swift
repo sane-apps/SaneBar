@@ -62,13 +62,23 @@ struct ProUpsellView: View {
 
             // Price + CTA
             VStack(spacing: 8) {
-                Text(licenseService.appStoreDisplayPrice ?? "$6.99")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.saneAccentSoft)
+                if licenseService.usesSetappDistribution {
+                    Text("Setapp")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.saneAccentSoft)
 
-                Text("One-time purchase")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
+                    Text("Included with your Setapp install")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.92))
+                } else {
+                    Text(licenseService.appStoreDisplayPrice ?? "$6.99")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.saneAccentSoft)
+
+                    Text("One-time purchase")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.92))
+                }
 
                 if licenseService.usesAppStorePurchase {
                     Button {
@@ -91,6 +101,11 @@ struct ProUpsellView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(licenseService.isPurchasing)
+                } else if licenseService.usesSetappDistribution {
+                    Text("Managed by Setapp")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.vertical, 4)
                 } else {
                     Button {
                         NSWorkspace.shared.open(LicenseService.checkoutURL())

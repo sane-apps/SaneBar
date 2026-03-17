@@ -1,5 +1,6 @@
 import Foundation
 import os.log
+import SaneUI
 #if canImport(StoreKit)
     import StoreKit
 #endif
@@ -76,12 +77,35 @@ final class LicenseService: ObservableObject {
         self.keychain = keychain
     }
 
+    nonisolated static func resolvedDistributionChannel(
+        appStoreProductIDPresent: Bool,
+        setappBuild: Bool
+    ) -> SaneDistributionChannel {
+        if setappBuild {
+            return .setapp
+        }
+        return appStoreProductIDPresent ? .appStore : .direct
+    }
+
     var usesAppStorePurchase: Bool {
-        #if APP_STORE
-            return Self.appStoreProductIDFromBundle() != nil
-        #else
-            return false
-        #endif
+        distributionChannel == .appStore
+    }
+
+    var usesSetappDistribution: Bool {
+        distributionChannel == .setapp
+    }
+
+    var distributionChannel: SaneDistributionChannel {
+        Self.resolvedDistributionChannel(
+            appStoreProductIDPresent: Self.appStoreProductIDFromBundle() != nil,
+            setappBuild: {
+                #if SETAPP
+                    true
+                #else
+                    false
+                #endif
+            }()
+        )
     }
 
     // MARK: - Startup
@@ -93,6 +117,16 @@ final class LicenseService: ObservableObject {
                 await preloadAppStoreProduct()
                 await refreshAppStoreEntitlement()
             }
+            return
+        }
+
+        if usesSetappDistribution {
+            isPro = false
+            isEarlyAdopter = false
+            licenseEmail = nil
+            purchaseError = nil
+            validationError = nil
+            licenseLogger.notice("Setapp distribution selected; runtime entitlement integration is still pending.")
             return
         }
 
@@ -169,6 +203,11 @@ final class LicenseService: ObservableObject {
             return
         }
 
+        if usesSetappDistribution {
+            validationError = "This Setapp build manages access through Setapp."
+            return
+        }
+
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             validationError = ["Please enter a", Self.licenseKeyLabel().lowercased() + "."].joined(separator: " ")
@@ -207,6 +246,10 @@ final class LicenseService: ObservableObject {
     func deactivate() {
         if usesAppStorePurchase {
             purchaseError = "App Store purchases are managed by Apple. Use Restore Purchases if needed."
+            return
+        }
+        if usesSetappDistribution {
+            purchaseError = "This Setapp build is managed by Setapp."
             return
         }
         try? keychain.delete(Keys.licenseKey)
@@ -251,7 +294,9 @@ final class LicenseService: ObservableObject {
 
     func purchasePro() async {
         guard usesAppStorePurchase, let productID = Self.appStoreProductIDFromBundle() else {
-            purchaseError = "This build uses direct license purchase."
+            purchaseError = usesSetappDistribution
+                ? "This Setapp build manages access through Setapp."
+                : "This build uses direct license purchase."
             return
         }
 

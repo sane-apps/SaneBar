@@ -30,8 +30,13 @@ app.appearance = NSAppearance(named: .darkAqua)
 // SAFETY: Enforce bundle ID separation between dev and release builds
 // ProdDebug config uses production bundle ID intentionally (for testing with real permissions)
 let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
-#if PRODDEBUG
-// ProdDebug: production bundle ID is expected — no check needed
+#if SETAPP
+    let expectedBundleId = "com.sanebar.app-setapp"
+    if bundleId != expectedBundleId {
+        fatalError("Setapp build must use Setapp bundle ID (\(expectedBundleId)). Found: \(bundleId)")
+    }
+#elseif PRODDEBUG
+    // ProdDebug: production bundle ID is expected — no check needed
 #elseif DEBUG
     if bundleId == "com.sanebar.app" {
         let env = ProcessInfo.processInfo.environment
@@ -40,8 +45,9 @@ let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
         }
     }
 #else
-    if bundleId != "com.sanebar.app" {
-        fatalError("Release build must use production bundle ID (com.sanebar.app). Found: \(bundleId)")
+    let expectedBundleId = "com.sanebar.app"
+    if bundleId != expectedBundleId {
+        fatalError("Release build must use production bundle ID (\(expectedBundleId)). Found: \(bundleId)")
     }
 #endif
 

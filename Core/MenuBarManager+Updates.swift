@@ -1,5 +1,6 @@
 import AppKit
 import os.log
+import SaneUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.Updates")
 
@@ -33,7 +34,18 @@ extension MenuBarManager {
         if updateService.isUpdateChannelEnabled {
             updateItem.toolTip = nil
         } else {
-            updateItem.toolTip = "Updates are available from the installed /Applications/SaneBar.app build."
+            updateItem.toolTip = Self.updateUnavailableTooltip(for: LicenseService.shared.distributionChannel)
+        }
+    }
+
+    nonisolated static func updateUnavailableTooltip(for channel: SaneDistributionChannel) -> String {
+        switch channel {
+        case .setapp:
+            "Updates are managed by Setapp."
+        case .appStore:
+            "Updates are managed by the App Store."
+        case .direct:
+            "Updates are available from the installed /Applications/SaneBar.app build."
         }
     }
 

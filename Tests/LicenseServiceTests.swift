@@ -100,4 +100,12 @@ struct LicenseServiceTests {
         let feature = ProFeature.iconActivation
         #expect(feature.id == feature.rawValue)
     }
+
+    @Test("Distribution channel resolves direct, App Store, and Setapp lanes")
+    func distributionChannelResolution() {
+        #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: false, setappBuild: false) == .direct)
+        #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: true, setappBuild: false) == .appStore)
+        #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: true, setappBuild: true) == .setapp)
+        #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: false, setappBuild: true) == .setapp)
+    }
 }
