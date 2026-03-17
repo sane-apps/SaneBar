@@ -70,4 +70,16 @@ class LiveZoneSmokeTest < Minitest::Test
 
     assert smoke.send(:focused_required_id_mode?)
   end
+
+  def test_default_smoke_does_not_require_move_candidates
+    smoke = build_smoke
+
+    refute smoke.send(:move_candidates_required?)
+  end
+
+  def test_required_id_smoke_requires_move_candidates
+    smoke = build_smoke(required_ids: ['com.apple.menuextra.focusmode'])
+
+    assert smoke.send(:move_candidates_required?)
+  end
 end
