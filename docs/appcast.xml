@@ -5,7 +5,26 @@
 
                                 
         
-                <item>
+                        <item>
+            <title>2.1.30</title>
+            <pubDate>Tue, 17 Mar 2026 11:53:18 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fix common Apple menu extra moves. Fix multi display hover screen detection. Add compatibility FAQ for unusual custom host menu bar apps.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.30.zip"
+                       sparkle:version="2130"
+                       sparkle:shortVersionString="2.1.30"
+                       length="8157095"
+                       type="application/octet-stream"
+                       sparkle:edSignature="AHTj/v5IhA5/51+JYoaZIISg7dVtGdcIN9wXqoW6g3v/t2wvbTv6svedwBuXkNnySUaEOyXYjsUomGYcbpkkBw=="/>
+        </item>
+<item>
             <title>2.1.29</title>
             <pubDate>Mon, 16 Mar 2026 17:39:51 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
