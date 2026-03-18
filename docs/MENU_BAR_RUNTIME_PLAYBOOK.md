@@ -11,6 +11,7 @@ This file is the single debugging entry point for:
 
 Use this together with:
 - `docs/DEBUGGING_MENU_BAR_INTERACTIONS.md` for lower-level positioning notes
+- `docs/RUNTIME_AUDIT_2026-03-18.md` for the current evidence-based audit of the startup / browse / move bug class
 - `docs/state-machines.md` for the older full-system diagrams
 - `docs/E2E_TESTING_CHECKLIST.md` for broader release coverage
 
@@ -159,32 +160,24 @@ Use this table before replying, closing, or opening another issue. Keep one prim
 
 | Issue | State | Primary bucket | Why it belongs there | Notes |
 |------|------|------|------|------|
-| `#106` | open | `R1` | Browse Icons move path fails; logs show unresolved on-screen frame and bad hardware-fallback coordinates on an external monitor | Treat as current canonical browse-move issue for external-monitor style repros |
-| `#110` | open | `R7` | `showDockIcon=false`, yet Console shows `NSApplication._react(to:) dock` shortly after inline app-menu suppression fires | Treat as a Dock-policy drift regression in the inline reveal / app-menu suppression path |
-| `#109` | open | `R1` | Fresh 2.1.24 reporter diagnostics show repeated move-to-visible verification failures; same report also exposed browse undercount | Mixed thread: primary bucket stays `R1`, but it also carries `R5` evidence |
-| `#108` | open | `R5` | Screenshot plus diagnostics prove Browse undercount: SaneBar found 32 menu bar items while the Second Menu Bar rendered only visible=4 hidden=7 | Real detection/data-pipeline bug, not just customer confusion |
-| `#105` | closed | `R2` | Duplicate of `#101` from the same reporter/machine after the later second-menu-bar follow-up landed | Historical duplicate; keep `#101` as the canonical public thread |
-| `#102` | closed | `R4` | Report is mostly screenshots plus configuration confusion; no fresh diagnostics ever arrived on a current build | Closed as settings-mismatch / stale-diagnostics, not as a verified runtime regression |
-| `#101` | open | `R2` | Reporter supplied fresh 2.1.22 diagnostics showing second-menu-bar activation mismatch and unstable relayout | Historical evidence for the same family as `#105` |
-| `#95` | closed | `R1` | Click/move and ghost-cursor family; later reports in `#94` / `#106` have the fresher builds and follow-up | Historical superseded thread; do not use as the current public reference |
-| `#94` | open | `R5` | Latest 2.1.23 feedback says generic app opening/movement is mainly fixed, but specific apps (Little Snitch, Solver 3, Carrot Weather) still fail | Treat current `#94` as the residual host-model / no-AX activation thread, not the whole-system move bug anymore |
-| `#93` | closed | `R1` | Original ghost-cursor move-to-visible issue | Historical superseded thread; keep for evidence, not as a live blocker |
-| `#107` | open | `R6` | Tahoe 26.3.1 report: process alive, no icon/separator render, disconnected scene console errors | New startup bucket; not a move, browse, or persistence regression |
-| `#103` | closed | `R4` | Crowded-menu-bar feature request / expectation mismatch | Behavior exists; explicit toggle is implemented on main and queued for next release |
-| `#92` | closed | `R3` | Update reset / persistence drift | Same family as `#79` |
-| `#79` | closed | `R3` | Visible layout reset after update | Same family as `#92` |
-| `#73` | closed | `R3` | Visible icons no longer persist | Earlier persistence-reset thread |
-| `#72` | closed | `R3` | Layout does not survive quit/logout/reboot | Earlier persistence-reset thread |
-| `#71` | closed | `R5` | Little Snitch never appears in discovery/import | Keep as the original public R5 reporter thread |
+| `#111` | open | `R3` | Reporter says arranged icons and saved profiles do not restore; later follow-up and linked diagnostics place it in the startup/persistence collapse family | Use as the older public anchor for the reset family |
+| `#113` | open | `R3` | Visible items later collapse back into hidden and diagnostics show the `main=0 / separator=1` shape | Same family as `#111/#114/#115` |
+| `#114` | open | `R3` | Main icon and separator relaunch too far left of Control Center after login | Same family, stronger multi-display/login wording |
+| `#115` | open | `R3` | Fresh March 18 report says reset still happens while the app is already open, not just at startup | Treat as the newest live public reset-family thread |
+| `#116` | open | `R2` | Right-click browse flashes, sometimes needs a second click, and focus can jump back to a prior app/window | Canonical live browse focus / activation thread |
+| `#117` | open | `R1` | Hidden-visible add can beachball and the wrong Control Center-family icon can move instead of the requested one | Canonical live move / identity-drift thread |
+| `#109` | closed | `R1` | Earlier browse/move mismatch thread with undercount and move-failure evidence on 2.1.24 | Historical anchor for the broader move/browse cluster |
+| `#108` | closed | `R5` | Browse undercount proved a real detection/data-pipeline mismatch on an earlier build | Historical anchor for detection gaps |
+| `#107` | open | `R6` | Tahoe report: process alive, no icon/separator render, disconnected scene logs | Separate startup/bootstrap bucket |
+| `#94` | open | `R5` | Residual app-specific detection/activation failures after broader move fixes | Keep separate from the current `#117` move family |
 
 Practical rule:
-- `#101` and `#106` are the current live open reference threads for second-menu-bar and browse-move regressions.
-- `#110` is the current live public reference for Dock icon drift while `showDockIcon=false`.
-- `#108` is the live public reference for the Browse undercount / detection mismatch class.
-- `#109` is currently the best public mixed thread when a report combines browse mismatch with move failure on the same machine.
-- `#94` and `#93` no longer mean the same thing: `#93` remains historical move/click evidence, while current `#94` is now the best public thread for app-specific host-model fallout after the broader move fixes.
-- `#71` remains the public reference for the no-AX-host detection class.
-- `#107` is the public reference for startup scene/bootstrap failures on Tahoe-class systems.
+- `#111/#113/#114/#115` should be treated as one active startup/persistence family until proven otherwise.
+- `#116` is the live public reference for right-click browse focus/activation regressions.
+- `#117` is the live public reference for wrong-target move / hidden-visible add regressions.
+- `#109` and `#108` are older evidence, not the current public reference threads.
+- `#94` remains the public reference for app-specific host-model / detection fallout.
+- `#107` remains the public reference for startup scene/bootstrap failures on Tahoe-class systems.
 - Do not tell users to open a brand-new issue if the symptom clearly matches one of these buckets.
 
 ## Live Email Thread Map

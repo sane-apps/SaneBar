@@ -2,6 +2,7 @@
 
 Start here for active menu bar regressions:
 - `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+- `docs/RUNTIME_AUDIT_2026-03-18.md`
 
 > **MANDATORY**: Run this checklist before every release. Use tracing tools to verify flows.
 
@@ -38,6 +39,23 @@ If the Mini falls back to an unsigned `~/Applications/SaneBar.app` build because
 - keep that copy only for current-tree debug checks
 - preserve `/Applications/SaneBar.app` as the signed/trusted release baseline
 - use the signed `/Applications` app for release-style smoke unless you have a freshly trusted signed current build
+
+## Critical Runtime Regression Matrix
+
+These checks are mandatory for the current startup / browse / move bug class. Do not call this class fixed without them.
+
+| Check | Why it exists | Must prove |
+|------|------|------|
+| Cold-start restore with valid current-width backup and poisoned `main=0 / separator=1` | Catches startup recovery collapse family (`#111/#113/#114/#115`) | backup restore beats ordinal reseed, visible lane stays sane |
+| Cold-start with `autoRehide=false` | Catches hidden-after-launch regressions | no initial hide after deferred setup |
+| Right-click browse focus integrity | Catches `#116` | failed browse activation never changes frontmost app/window |
+| Hidden-visible move under stale geometry | Catches wrong-zone false success | retry or fail cleanly, never report wrong success |
+| Shared-bundle exact-ID move | Catches `#117` class drift | requested `unique_id` is what moved, not a sibling |
+| Restart/update recovery replay | Catches persistence drift | current-width backup survives relaunch and autosave churn |
+
+Release rule:
+- if smoke says `No movable candidate icon found; skipping move checks`, treat that as incomplete coverage, not a pass
+- if browse diagnostics show `workspace activation fallback` during browse-panel right-click, treat that as a failure even if the panel stayed visible
 
 ## Pre-Test Setup
 
