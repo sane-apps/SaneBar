@@ -5,7 +5,26 @@
 
                                 
         
-                        <item>
+                                <item>
+            <title>2.1.32</title>
+            <pubDate>Wed, 18 Mar 2026 19:04:12 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes startup/layout resets after launch and display changes. Tightens shared-bundle identity handling so Browse Icons and moves fail safely instead of targeting the wrong sibling. Adds stronger staged-app startup and runtime release checks before shipping.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.32.zip"
+                       sparkle:version="2132"
+                       sparkle:shortVersionString="2.1.32"
+                       length="8248171"
+                       type="application/octet-stream"
+                       sparkle:edSignature="hvGdDsaAlHUWNLDL3FFdqDj2vQ07nxjXPp45W7GnHVOrqVZ0SLsJROm3HjAFzdq+gOaqply/joS3kMjSkhO1Ag=="/>
+        </item>
+<item>
             <title>2.1.30</title>
             <pubDate>Tue, 17 Mar 2026 11:53:18 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
