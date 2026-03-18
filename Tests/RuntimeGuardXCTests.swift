@@ -1574,8 +1574,14 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should verify browse left-click activation"
         )
         XCTAssertTrue(
-            source.contains("exercise_browse_activation('right click browse icon'"),
+            source.contains("exercise_browse_activation(") &&
+                source.contains("'right click browse icon'"),
             "Live smoke should verify browse right-click activation"
+        )
+        XCTAssertTrue(
+            source.contains("seed_focus_probe_prior_app") &&
+                source.contains("assert_frontmost_did_not_revert_to"),
+            "Live smoke should seed a known prior app and fail if browse right-click jumps focus back to it"
         )
         XCTAssertTrue(
             source.contains("sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)"),

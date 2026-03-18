@@ -45,6 +45,11 @@ class LiveZoneSmoke
   BROWSE_PANEL_READY_POLL_SECONDS = 0.25
   BROWSE_ACTIVATION_COOLDOWN_SECONDS = 0.6
   SECOND_MENU_BAR_POST_ACTIVATION_VISIBILITY_SECONDS = 1.2
+  RIGHT_CLICK_FOCUS_PROBE_SETTLE_SECONDS = 0.35
+  FOCUS_PROBE_POLL_SECONDS = 0.2
+  FOCUS_PROBE_TIMEOUT_SECONDS = 4.0
+  FOCUS_PROBE_APP_NAME = 'Finder'
+  FOCUS_PROBE_APP_BUNDLE = 'com.apple.finder'
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
@@ -524,6 +529,7 @@ class LiveZoneSmoke
   end
 
   def exercise_browse_mode(expected_mode:, command:, candidates:)
+    focus_probe_prior_bundle = seed_focus_probe_prior_app
     result = app_script(command).strip.downcase
     unless %w[true 1].include?(result)
       raise "#{command} returned '#{result}'"
@@ -540,7 +546,12 @@ class LiveZoneSmoke
     # SearchService debounces duplicate activation of the same icon for 450ms.
     # Leave enough headroom before immediately retrying that tile with right-click.
     sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)
-    exercise_browse_activation('right click browse icon', expected_mode, live_candidates)
+    exercise_browse_activation(
+      'right click browse icon',
+      expected_mode,
+      live_candidates,
+      prior_frontmost_bundle: focus_probe_prior_bundle
+    )
     close_browse_panel
     puts "✅ Browse mode #{expected_mode} activation ok"
   ensure
@@ -563,7 +574,7 @@ class LiveZoneSmoke
     close_browse_panel_safely
   end
 
-  def exercise_browse_activation(command, expected_mode, candidates)
+  def exercise_browse_activation(command, expected_mode, candidates, prior_frontmost_bundle: nil)
     failures = []
 
     candidates.each do |candidate|
@@ -572,6 +583,7 @@ class LiveZoneSmoke
       diagnostics = app_script(%(#{command} "#{escape_quotes(live_identifier)}"))
       if browse_activation_succeeded?(diagnostics, expected_mode)
         verify_post_activation_browse_state!(expected_mode)
+        assert_frontmost_did_not_revert_to(prior_frontmost_bundle, command) unless prior_frontmost_bundle.nil?
         return
       end
 
@@ -609,6 +621,56 @@ class LiveZoneSmoke
               diagnostics.include?('windowVisible: true')
 
     raise "second menu bar collapsed after activation: #{browse_activation_failure_summary(diagnostics)}"
+  end
+
+  def seed_focus_probe_prior_app
+    out, code = capture2e_with_timeout(
+      '/usr/bin/osascript',
+      '-e',
+      %(tell application "#{FOCUS_PROBE_APP_NAME}" to activate),
+      timeout: APPLESCRIPT_TIMEOUT_SECONDS
+    )
+    raise "focus probe activation failed: #{out.strip}" unless code.success?
+
+    deadline = Time.now + FOCUS_PROBE_TIMEOUT_SECONDS
+    while Time.now < deadline
+      current_bundle = frontmost_app_bundle_id
+      return current_bundle if current_bundle == FOCUS_PROBE_APP_BUNDLE
+
+      sleep_with_watchdog(FOCUS_PROBE_POLL_SECONDS)
+    end
+
+    raise "focus probe did not reach #{FOCUS_PROBE_APP_BUNDLE}"
+  rescue StandardError => e
+    puts "ℹ️ Focus probe skipped: #{e.message}"
+    nil
+  end
+
+  def assert_frontmost_did_not_revert_to(prior_frontmost_bundle, command)
+    return if prior_frontmost_bundle.to_s.empty?
+
+    sleep_with_watchdog(RIGHT_CLICK_FOCUS_PROBE_SETTLE_SECONDS)
+    current_bundle = frontmost_app_bundle_id
+    return unless current_bundle == prior_frontmost_bundle
+
+    diagnostics = current_browse_activation_diagnostics
+    raise "#{command} reverted focus to prior app #{prior_frontmost_bundle}: #{browse_activation_failure_summary(diagnostics)}"
+  end
+
+  def frontmost_app_bundle_id
+    script = <<~JXA
+      ObjC.import('AppKit')
+      const app = $.NSWorkspace.sharedWorkspace.frontmostApplication
+      if (!app) {
+        ''
+      } else {
+        ObjC.unwrap(app.bundleIdentifier) || ''
+      }
+    JXA
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-l', 'JavaScript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "frontmost-app probe failed: #{out.strip}" unless code.success?
+
+    out.to_s.strip
   end
 
   def browse_activation_observably_verified?(diagnostics)
