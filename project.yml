@@ -201,12 +201,27 @@ targets:
             /usr/libexec/PlistBuddy -c "Delete :SUEnableAutomaticChecks" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Delete :SUEnableSystemProfiling" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Delete :AppStoreProductID" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :MPSupportedArchitectures" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures array" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures:0 string arm64" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Delete :NSUpdateSecurityPolicy" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425 array" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425:0 string com.setapp.DesktopClient.SetappAgent" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            SETAPP_KEY_SOURCE="${SRCROOT}/Setapp/setappPublicKey.pem"
+            if [ -f "${SETAPP_KEY_SOURCE}" ]; then
+              cp "${SETAPP_KEY_SOURCE}" "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/setappPublicKey.pem"
+              echo "Setapp build: bundled setappPublicKey.pem"
+            else
+              echo "warning: Setapp build missing ${SETAPP_KEY_SOURCE}"
+            fi
             WEAKEN_SCRIPT="${SRCROOT}/../../infra/SaneProcess/scripts/weaken_sparkle.rb"
             if [ -f "${WEAKEN_SCRIPT}" ]; then
               find "${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}" -type f -path "*/Contents/MacOS/*" -print0 | \
                 xargs -0 -I{} ruby "${WEAKEN_SCRIPT}" "{}" || exit 1
             fi
-            echo "Setapp build: Sparkle and direct-store keys removed"
+            echo "Setapp build: Sparkle removed, Setapp policy applied"
           fi
         name: Strip Sparkle for Setapp
         basedOnDependencyAnalysis: false
