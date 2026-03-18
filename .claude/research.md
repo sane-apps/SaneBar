@@ -1768,3 +1768,46 @@ After applying fix:
    - Setapp release notes/update path is still not integrated.
    - Setapp `.userInteraction` reporting for the SaneBar menu bar icon is still not integrated.
    - So the build lane is cleaner, but it is not truthfully Setapp-ready yet.
+
+## 2026-03-18 Runtime Audit: Startup / Browse / Move Regression Class
+
+**Updated:** 2026-03-18 17:10 ET | **Status:** verified audit; runtime suite rerun pending | **TTL:** 7d
+**Sources:** local code audit, Apple docs (`NSStatusItem.autosaveName`, `NSStatusItem.isVisible`, `NSWorkspace.applicationUserInfoKey`, `NSScreen.auxiliaryTopRightArea`), GitHub `#111 #113 #114 #115 #116 #117`, inbox `#364 #368 #384 #387`, Serena memories, mini research gate behavior
+
+### Findings
+
+1. **This is a distributed coordination system, not one real state machine.**
+   - Current behavior is split across `MenuBarManager`, `StatusBarController`, `HidingService`, `SearchWindowController`, and `SearchService`.
+   - `setupStatusItem()` still mixes item creation, startup recovery, rehide policy, and persistence recovery in one path.
+   - `activate()` still mixes reveal, wait, target refresh, click policy, retry, and fallback in one method.
+
+2. **The current public doc set is not aligned with the real runtime.**
+   - `docs/state-machines.md` still presents an older simplified model and is marked `Generated: 2026-01-11`.
+   - `docs/MENU_BAR_RUNTIME_PLAYBOOK.md` has the right general warning about drifting state machines, but its live issue map is stale relative to the current public set `#111/#113/#114/#115/#116/#117`.
+
+3. **There are at least three real bug families, not one.**
+   - Startup/layout recovery collapse family: `#111 #113 #114 #115` and email `#387`.
+   - Browse activation false-success / focus-steal family: `#116` and email `#384`.
+   - Hidden-visible move / identity drift family: `#117`, email `#364`, and likely email `#368`.
+
+4. **The strongest design smell is implicit policy spread across owners.**
+   - Geometry confidence is inferred from local booleans and cached frames instead of a typed runtime state.
+   - Actionable browse/move paths can still degrade to coarse same-bundle identity in `SearchService`.
+   - Move APIs can report success once async work starts instead of when the move is proven complete.
+
+5. **Current verification is weaker than the severity of the bug class.**
+   - `RuntimeGuardXCTests` prove a lot of source-string and guard presence, not full runtime invariants.
+   - `live_zone_smoke.rb` samples browse and move behavior, but it does not currently fail on frontmost-app jumps after failed right-click browse activation.
+   - The default smoke can still skip move coverage when no candidate exists, which is a false-green path for this class.
+
+6. **The Mini verify gate exposed a process bug too.**
+   - Local `research_status` was clear, but routed Mini `verify` re-synced issue-cluster locks and blocked again because the remote `sanebar-browse-move` lock had a newer `source_updated_at`.
+   - Fresh runtime research has to be written after the latest issue movement or the Mini gate will keep blocking even when the actual investigation is done.
+
+### Minimum next proof required
+
+- Rerun Mini `verify` after this entry to clear the refreshed lock.
+- Run a canonical release launch plus `live_zone_smoke.rb`.
+- Add a hard browse-focus invariant: failed browse activation must not change the frontmost app/window.
+- Add a hard startup invariant: visible-lane width and visible-count floor must survive restart when a current-width backup exists.
+- Add an exact-ID move check for shared-bundle / Control Center-family items.

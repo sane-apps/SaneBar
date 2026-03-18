@@ -2,9 +2,14 @@
 
 Start here first for the current debugging workflow:
 - `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`
+- `docs/RUNTIME_AUDIT_2026-03-18.md`
 
 This file remains the broader diagram reference. The playbook above is the
 practical entry point for active regressions.
+
+Warning:
+- this file is older and simplified
+- use `docs/RUNTIME_AUDIT_2026-03-18.md` for the current startup / browse / move model and active bug-family audit
 
 > Generated: 2026-01-11
 > Purpose: Visualize all state transitions to catch edge cases and verify correctness
