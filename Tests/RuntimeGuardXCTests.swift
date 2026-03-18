@@ -678,6 +678,15 @@ final class RuntimeGuardXCTests: XCTestCase {
             movingSource.contains("func moveIconFromAlwaysHiddenToHiddenAndWait("),
             "MenuBarManager should expose an awaitable always-hidden-to-hidden helper for AppleScript command reliability"
         )
+        XCTAssertTrue(
+            movingSource.contains("let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety("),
+            "Interactive move flows should ask AccessibilityService whether a multi-item bundle can be moved safely before dragging"
+        )
+        XCTAssertTrue(
+            movingSource.contains("if actionableMoveSafety.allowsClassifiedZoneFallback {") &&
+                movingSource.contains("Skipping classified-zone move fallback for ambiguous multi-item identity"),
+            "Interactive move flows should refuse classified-zone success fallback when exact move identity could not be proven"
+        )
     }
 
     func testAppleScriptAlwaysHiddenExitsUseRobustUnpinHelpers() throws {
@@ -1112,6 +1121,13 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')"),
             "Project QA should stage the release app before runtime smoke"
+        )
+        XCTAssertTrue(
+            source.contains("startup_probe_script = File.join(__dir__, 'startup_layout_probe.rb')") &&
+                source.contains("heartbeat_label: 'runtime startup layout probe'") &&
+                source.contains("'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH") &&
+                source.contains("'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"),
+            "Project QA should run a dedicated startup layout probe after browse smoke so poisoned relaunch state is release-gated too"
         )
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
@@ -1648,6 +1664,25 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("Salvaging timed-out move command via zone verification") &&
             source.contains("timed_out_move_command?"),
             "Live smoke should verify the final zone before failing a move command whose AppleScript reply timed out"
+        )
+        XCTAssertTrue(
+            source.contains("icon_unique_id = resolve_live_move_identifier(candidate)") &&
+            source.contains("def resolve_live_move_identifier(candidate)"),
+            "Live smoke move commands should resolve through a move-specific identity helper instead of reusing the browse fallback path"
+        )
+        XCTAssertTrue(
+            source.contains("if exact_move_identity_lost?(candidate, icon_unique_id, zones)") &&
+            source.contains("Shared-bundle move verification lost exact identity"),
+            "Live smoke should fail fast when a shared-bundle move can no longer prove the requested identity after relayout"
+        )
+        XCTAssertTrue(
+            source.contains("return nil if same_bundle.length > 1") &&
+            source.contains("def matched_move_candidate(zones, requested_unique_id, candidate)"),
+            "Live smoke should refuse same-bundle sibling fallback when verifying a shared-bundle move result"
+        )
+        XCTAssertFalse(
+            source.contains("zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] } ||\n        zones.find { |item| item[:bundle] == candidate[:bundle] && item[:movable] }"),
+            "Live smoke should not allow wait_for_zone to bless move success through bundle/name or bundle-only fallback alone"
         )
         XCTAssertTrue(
             source.contains("retryable_zone_poll_error?") &&

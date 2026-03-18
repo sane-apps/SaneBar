@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.32] - 2026-03-18
+
+Hardens startup/layout recovery so poisoned relaunch state restores from current-width backups instead of collapsing visible items into hidden. Tightens shared-bundle move identity so SaneBar will not silently move the wrong Control Center-family sibling. Also adds a real Mini startup relaunch probe to release preflight, so poisoned prefs and `autoRehide=false` are checked on the staged app before shipping.
+
+---
+
 ## [2.1.30] - 2026-03-17
 
 Fix common Apple menu extra moves. Fix multi display hover screen detection. Add compatibility FAQ for unusual custom host menu bar apps.

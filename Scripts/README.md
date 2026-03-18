@@ -82,7 +82,8 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 |--------|---------|
 | `SaneMaster.rb` | Thin wrapper (20L) delegating to SaneProcess |
 | `live_zone_smoke.rb` | Live browse + move smoke. Opens both the icon panel and second menu bar, captures screenshots, verifies browse left/right-click, then runs move checks. |
-| `qa.rb` | Project QA checks (release guardrails, appcast blocks, migration guards, stability suite) |
+| `qa.rb` | Project QA checks (release guardrails, browse smoke, startup layout probe, appcast blocks, migration guards, stability suite) |
+| `startup_layout_probe.rb` | Mini-only relaunch probe for startup/layout recovery. Backs up live prefs, poisons persisted status-item positions, relaunches the signed app, verifies backup restore and `autoRehide=false`, then restores the original state. |
 | `post_release.rb` | Post-release tasks (appcast update, GitHub release) |
 | `button_map.rb` | Map all UI controls and their handlers |
 | `trace_flow.rb` | Debug function call flow through the codebase |

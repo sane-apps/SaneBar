@@ -56,6 +56,7 @@ These checks are mandatory for the current startup / browse / move bug class. Do
 Release rule:
 - if smoke says `No movable candidate icon found; skipping move checks`, treat that as incomplete coverage, not a pass
 - if browse diagnostics show `workspace activation fallback` during browse-panel right-click, treat that as a failure even if the panel stayed visible
+- release preflight on the Mini should now run `scripts/startup_layout_probe.rb` automatically after browse smoke, not as an optional manual step
 
 ## Pre-Test Setup
 

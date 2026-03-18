@@ -203,6 +203,111 @@ struct IconMovingTargetTests {
     }
 }
 
+@Suite("Icon Moving — Identity Proof")
+struct IconMovingIdentityProofTests {
+    private struct SmokeItem {
+        let bundle: String
+        let uniqueID: String
+        let name: String
+        let zone: String
+        let movable: Bool
+    }
+
+    private func sameBundleMovableCandidates(
+        zones: [SmokeItem],
+        candidate: SmokeItem
+    ) -> [SmokeItem] {
+        zones.filter { $0.bundle == candidate.bundle && $0.movable }
+    }
+
+    private func exactMoveIdentityLost(
+        candidate: SmokeItem,
+        requestedUniqueID: String,
+        zones: [SmokeItem]
+    ) -> Bool {
+        guard sameBundleMovableCandidates(zones: zones, candidate: candidate).count > 1 else {
+            return false
+        }
+
+        return !zones.contains { $0.uniqueID == requestedUniqueID }
+    }
+
+    private func matchedMoveCandidate(
+        zones: [SmokeItem],
+        requestedUniqueID: String,
+        candidate: SmokeItem
+    ) -> SmokeItem? {
+        if let exact = zones.first(where: { $0.uniqueID == requestedUniqueID }) {
+            return exact
+        }
+
+        let sameBundle = sameBundleMovableCandidates(zones: zones, candidate: candidate)
+        guard sameBundle.count <= 1 else { return nil }
+
+        return zones.first(where: { $0.bundle == candidate.bundle && $0.name == candidate.name }) ??
+            sameBundle.first
+    }
+
+    @Test("Shared-bundle move proof rejects sibling fallback when requested identity disappears")
+    func sharedBundleMoveProofRejectsSiblingFallback() {
+        let requested = SmokeItem(
+            bundle: "com.apple.controlcenter",
+            uniqueID: "com.apple.controlcenter::axid:wifi",
+            name: "Wi-Fi",
+            zone: "hidden",
+            movable: true
+        )
+        let liveZones = [
+            SmokeItem(
+                bundle: "com.apple.controlcenter",
+                uniqueID: "com.apple.controlcenter::axid:battery",
+                name: "Battery",
+                zone: "visible",
+                movable: true
+            ),
+            SmokeItem(
+                bundle: "com.apple.controlcenter",
+                uniqueID: "com.apple.controlcenter::axid:bluetooth",
+                name: "Bluetooth",
+                zone: "hidden",
+                movable: true
+            ),
+        ]
+
+        #expect(exactMoveIdentityLost(candidate: requested, requestedUniqueID: requested.uniqueID, zones: liveZones))
+        #expect(matchedMoveCandidate(zones: liveZones, requestedUniqueID: requested.uniqueID, candidate: requested) == nil)
+    }
+
+    @Test("Single-bundle move proof still allows non-shared fallback")
+    func singleBundleMoveProofAllowsSingleCandidateFallback() {
+        let requested = SmokeItem(
+            bundle: "com.example.single",
+            uniqueID: "com.example.single::statusItem:1",
+            name: "Single App",
+            zone: "hidden",
+            movable: true
+        )
+        let liveZones = [
+            SmokeItem(
+                bundle: "com.example.single",
+                uniqueID: "com.example.single::statusItem:2",
+                name: "Single App",
+                zone: "visible",
+                movable: true
+            )
+        ]
+
+        let matched = matchedMoveCandidate(
+            zones: liveZones,
+            requestedUniqueID: requested.uniqueID,
+            candidate: requested
+        )
+
+        #expect(!exactMoveIdentityLost(candidate: requested, requestedUniqueID: requested.uniqueID, zones: liveZones))
+        #expect(matched?.uniqueID == "com.example.single::statusItem:2")
+    }
+}
+
 // MARK: - Grab Point Tests
 
 @Suite("Icon Moving — Grab Point")

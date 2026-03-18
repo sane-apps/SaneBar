@@ -923,7 +923,7 @@ class LiveZoneSmoke
   end
 
   def move_and_verify(command, candidate, expected_zone)
-    icon_unique_id = resolve_live_icon_identifier(candidate)
+    icon_unique_id = resolve_live_move_identifier(candidate)
     icon = escape_quotes(icon_unique_id)
     begin
       result = app_script("#{command} \"#{icon}\"").strip.downcase
@@ -953,9 +953,12 @@ class LiveZoneSmoke
         next
       end
 
-      matched = zones.find { |item| item[:unique_id] == icon_unique_id } ||
-        zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] } ||
-        zones.find { |item| item[:bundle] == candidate[:bundle] && item[:movable] }
+      if exact_move_identity_lost?(candidate, icon_unique_id, zones)
+        live_ids = same_bundle_movable_candidates(zones, candidate).map { |item| item[:unique_id] }
+        raise "Shared-bundle move verification lost exact identity: requested=#{icon_unique_id} bundle=#{candidate[:bundle]} live=#{live_ids.join(', ')}"
+      end
+
+      matched = matched_move_candidate(zones, icon_unique_id, candidate)
       return true if matched && matched[:zone] == expected_zone
       sleep_with_watchdog(POLL_SECONDS)
     end
@@ -965,6 +968,46 @@ class LiveZoneSmoke
     end
 
     raise "Timeout waiting for #{candidate[:bundle]} (#{candidate[:name]}) to reach zone #{expected_zone}"
+  end
+
+  def same_bundle_movable_candidates(zones, candidate)
+    zones.select { |item| item[:bundle] == candidate[:bundle] && item[:movable] }
+  end
+
+  def exact_move_identity_lost?(candidate, requested_unique_id, zones)
+    return false unless same_bundle_movable_candidates(zones, candidate).length > 1
+
+    zones.none? { |item| item[:unique_id] == requested_unique_id }
+  end
+
+  def matched_move_candidate(zones, requested_unique_id, candidate)
+    exact = zones.find { |item| item[:unique_id] == requested_unique_id }
+    return exact if exact
+
+    same_bundle = same_bundle_movable_candidates(zones, candidate)
+    return nil if same_bundle.length > 1
+
+    zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] } ||
+      same_bundle.first
+  end
+
+  def resolve_live_move_identifier(candidate)
+    zones = list_icon_zones
+
+    exact = zones.find { |item| item[:unique_id] == candidate[:unique_id] }
+    return exact[:unique_id] if exact
+
+    same_bundle = same_bundle_movable_candidates(zones, candidate)
+    if same_bundle.length > 1
+      live_ids = same_bundle.map { |item| item[:unique_id] }
+      raise "Shared-bundle move candidate lost exact identity before action: requested=#{candidate[:unique_id]} bundle=#{candidate[:bundle]} live=#{live_ids.join(', ')}"
+    end
+
+    bundle_and_name = zones.find { |item| item[:bundle] == candidate[:bundle] && item[:name] == candidate[:name] }
+    return bundle_and_name[:unique_id] if bundle_and_name
+    return same_bundle.first[:unique_id] if same_bundle.length == 1
+
+    candidate[:unique_id]
   end
 
   def resolve_live_icon_identifier(candidate)
