@@ -1742,3 +1742,29 @@ After applying fix:
   - Setapp update policy / release notes path
   - Setapp usage reporting for menu bar interaction
 - Real release flow must sanitize before final signing/notarization, or re-sign afterward as part of the Setapp lane.
+
+## 2026-03-18 Setapp Mini Verification
+
+**Updated:** 2026-03-18 00:18 ET | **Status:** mini bundle verification good; runtime readiness still blocked by real Setapp assets/integration | **TTL:** 14d
+**Sources:** clean mini worktrees under `/Users/stephansmac/SaneApps-setapp-verify`, mini xcodebuild output, mini bundle inspection, mini launch checks, official Setapp docs
+
+### Findings
+
+1. **The mini-side Setapp build is now materially cleaner than the first local scaffold pass.**
+   - Clean mini worktree for SaneBar was updated to commit `3d4eafd`.
+   - `SaneBarSetapp` built successfully on the mini from the clean worktree.
+   - The built app now carries:
+     - bundle id `com.sanebar.app-setapp`
+     - no embedded `Sparkle.framework`
+     - `NSUpdateSecurityPolicy` for `com.setapp.DesktopClient.SetappAgent`
+     - `MPSupportedArchitectures = [arm64]`
+
+2. **Sanitized mini Setapp bundles still need a final signing step, but they do launch after ad hoc re-sign.**
+   - `sanitize_distribution_bundle.rb --channel setapp` still patches the weak Sparkle load command in `SaneBar.debug.dylib`.
+   - After ad hoc re-sign on the mini, the sanitized Setapp test bundle launched and `lsappinfo` reported `CFBundleIdentifier = com.sanebar.app-setapp`.
+
+3. **The remaining blockers are now narrower and better defined.**
+   - `setappPublicKey.pem` is still missing.
+   - Setapp release notes/update path is still not integrated.
+   - Setapp `.userInteraction` reporting for the SaneBar menu bar icon is still not integrated.
+   - So the build lane is cleaner, but it is not truthfully Setapp-ready yet.
