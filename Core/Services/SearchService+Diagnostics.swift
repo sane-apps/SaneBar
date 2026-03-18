@@ -124,6 +124,14 @@ extension SearchService {
         !(origin == .browsePanel && isRightClick)
     }
 
+    nonisolated static func shouldAllowSameBundleActivationFallback(
+        original: RunningApp,
+        sameBundleCount: Int
+    ) -> Bool {
+        guard sameBundleCount > 1 else { return true }
+        return !original.hasPreciseMenuBarIdentity
+    }
+
     nonisolated static func isFallbackCenterOnScreen(_ fallbackCenter: CGPoint?) -> Bool {
         guard let fallbackCenter else { return false }
         return NSScreen.screens.contains { screen in
