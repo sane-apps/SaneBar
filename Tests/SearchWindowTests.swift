@@ -340,6 +340,44 @@ struct SearchWindowTests {
             )
         )
         #expect(
+            !SearchService.shouldAllowSameBundleActivationFallback(
+                original: RunningApp.menuExtraItem(
+                    ownerBundleId: "com.apple.controlcenter",
+                    name: "Wi-Fi",
+                    identifier: "com.apple.controlcenter.wifi",
+                    xPosition: 1500,
+                    width: 24
+                ),
+                sameBundleCount: 2
+            )
+        )
+        #expect(
+            SearchService.shouldAllowSameBundleActivationFallback(
+                original: RunningApp.menuExtraItem(
+                    ownerBundleId: "com.apple.controlcenter",
+                    name: "Wi-Fi",
+                    identifier: "com.apple.controlcenter.wifi",
+                    xPosition: 1500,
+                    width: 24
+                ),
+                sameBundleCount: 1
+            )
+        )
+        #expect(
+            SearchService.shouldAllowSameBundleActivationFallback(
+                original: RunningApp(
+                    id: "com.apple.controlcenter",
+                    name: "Control Center",
+                    icon: nil,
+                    policy: .accessory,
+                    category: .system,
+                    xPosition: 1500,
+                    width: 24
+                ),
+                sameBundleCount: 2
+            )
+        )
+        #expect(
             SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: true,

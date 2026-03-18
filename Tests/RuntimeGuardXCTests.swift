@@ -1811,6 +1811,25 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testInitialPositionValidationWaitsForStartupHideOrRecovery() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func scheduleInitialPositionValidationAfterStartup()") &&
+                source.contains("Avoid racing the first geometry check against the startup"),
+            "MenuBarManager should have an explicit helper for post-startup validation so launch recovery and initial hide do not race the first geometry check"
+        )
+        XCTAssertFalse(
+            source.contains("setupStatusItem()\n            schedulePositionValidation()"),
+            "Deferred UI setup should not arm position validation in parallel with setupStatusItem anymore"
+        )
+        XCTAssertTrue(
+            source.contains("self.scheduleInitialPositionValidationAfterStartup()"),
+            "Startup setup should arm the first position validation only after startup hide/skip/recovery has settled"
+        )
+    }
+
     func testScreenParameterChangesReschedulePositionValidation() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)

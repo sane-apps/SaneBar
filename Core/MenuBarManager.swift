@@ -493,7 +493,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             // Create status items (with additional retry logic inside)
             setupStatusItem()
-            schedulePositionValidation()
 
             // These all depend on status items being ready
             updateSpacers()
@@ -540,6 +539,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             logger.info("Deferred UI setup complete")
         }
+    }
+
+    @MainActor
+    private func scheduleInitialPositionValidationAfterStartup() {
+        // Avoid racing the first geometry check against the startup
+        // hide/recovery path. Validate only after launch settles.
+        schedulePositionValidation()
     }
 
     private func setupStatusItem() {
@@ -657,6 +663,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                     self.recreateStatusItemsFromPersistedLayout(reason: "startup-missing-coordinates")
                     await self.hidingService.show()
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
                 }
                 if Self.shouldRecoverStartupPositions(
@@ -676,6 +683,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                     self.recreateStatusItemsFromPersistedLayout(reason: "startup-invariant")
                     await self.hidingService.show()
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
                 }
                 // Repair AH separator ordering drift before any startup hide.
@@ -683,12 +691,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 if !self.settings.autoRehide {
                     logger.info("Skipping initial hide: auto-rehide disabled")
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
                 }
 
                 // Skip startup hide if user is on external monitor
                 if self.shouldSkipHideForExternalMonitor {
                     logger.info("Skipping initial hide: user is on external monitor")
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
                 }
                 // Also skip if setting is enabled and any external monitor is connected
@@ -699,6 +709,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                        return CGDisplayIsBuiltin(displayID) == 0
                    }) {
                     logger.info("Skipping initial hide: external monitor connected with always-show enabled")
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
                 }
 
@@ -717,6 +728,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 await self.hidingService.hide()
                 logger.info("Initial hide complete")
+                self.scheduleInitialPositionValidationAfterStartup()
             }
         }
     }

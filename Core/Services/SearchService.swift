@@ -1003,6 +1003,13 @@ final class SearchService: SearchServiceProtocol {
 
         // Last fallback: closest position within the same bundle.
         let sameBundle = items.filter { $0.app.bundleId == original.bundleId }.map(\.app)
+        if !Self.shouldAllowSameBundleActivationFallback(
+            original: original,
+            sameBundleCount: sameBundle.count
+        ) {
+            logger.error("Refusing same-bundle activation fallback after precise identity loss (\(prefix, privacy: .public))")
+            return (original, "\(prefix) method=preciseIdentityLost")
+        }
         if let originalX = original.xPosition,
            let closest = sameBundle.min(by: { abs(($0.xPosition ?? originalX) - originalX) < abs(($1.xPosition ?? originalX) - originalX) }) {
             logger.warning("Resolved click target via closest same-bundle position (\(prefix, privacy: .public))")
