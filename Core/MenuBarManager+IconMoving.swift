@@ -810,12 +810,24 @@ extension MenuBarManager {
                 try? await Task.sleep(for: .milliseconds(50))
             }
 
+            let accessibilityService = await MainActor.run { AccessibilityService.shared }
             let sourceIdentity = MoveSourceIdentity(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: preferredCenterX
             )
+            let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+            if !actionableMoveSafety.canExecuteMove {
+                logger.warning("🔧 Refusing ambiguous move target for \(bundleID, privacy: .private); exact identity could not be proven")
+                await restoreShieldIfNeeded()
+                return false
+            }
             logger.info("🔧 Getting separator position for move...")
             var (separatorX, visibleBoundaryX) = await self.resolveMoveTargetsWithRetries(
                 toHidden: toHidden,
@@ -863,8 +875,6 @@ extension MenuBarManager {
                 }
             }
             logger.info("🔧 Separator for move: X=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
-
-            let accessibilityService = await MainActor.run { AccessibilityService.shared }
 
             if toHidden,
                let hiddenLaneLeftBoundaryX = activeVisibleBoundaryX,
@@ -958,16 +968,20 @@ extension MenuBarManager {
             }
 
             if !success {
-                let expectedZone: MoveExpectedZone = toHidden ? .hidden : .visible
-                let classifiedMatch = await self.verifyMoveByClassifiedZone(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    expectedZone: expectedZone
-                )
-                if classifiedMatch {
-                    logger.info("🔧 Move accepted after classification verification (\(toHidden ? "hidden" : "visible"))")
-                    success = true
+                if actionableMoveSafety.allowsClassifiedZoneFallback {
+                    let expectedZone: MoveExpectedZone = toHidden ? .hidden : .visible
+                    let classifiedMatch = await self.verifyMoveByClassifiedZone(
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        expectedZone: expectedZone
+                    )
+                    if classifiedMatch {
+                        logger.info("🔧 Move accepted after classification verification (\(toHidden ? "hidden" : "visible"))")
+                        success = true
+                    }
+                } else {
+                    logger.info("🔧 Skipping classified-zone move fallback for ambiguous multi-item identity")
                 }
             }
 

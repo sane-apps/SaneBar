@@ -96,6 +96,8 @@ class ProjectQA
   ].freeze
   RUNTIME_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_smoke.log'
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
+  RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
+  RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
@@ -587,6 +589,12 @@ class ProjectQA
       puts '❌ missing live_zone_smoke.rb'
       return
     end
+    startup_probe_script = File.join(__dir__, 'startup_layout_probe.rb')
+    unless File.exist?(startup_probe_script)
+      @errors << "Startup layout probe missing: #{startup_probe_script}"
+      puts '❌ missing startup_layout_probe.rb'
+      return
+    end
 
     restore_mode = nil
 
@@ -712,6 +720,23 @@ class ProjectQA
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+      startup_probe_env = {
+        'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+        'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH,
+        'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH
+      }
+      startup_probe_out, startup_probe_status = capture2e_with_progress(
+        startup_probe_env,
+        startup_probe_script,
+        heartbeat_label: 'runtime startup layout probe'
+      )
+      File.write(RUNTIME_STARTUP_PROBE_LOG_PATH, startup_probe_out)
+      unless startup_probe_status.success?
+        @errors << "Startup layout probe failed. See #{RUNTIME_STARTUP_PROBE_LOG_PATH} and #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH}."
+        puts "❌ startup probe failed (#{RUNTIME_STARTUP_PROBE_LOG_PATH})"
+        return
+      end
+
       if capture_runtime_smoke_screenshots
         expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
@@ -724,11 +749,11 @@ class ProjectQA
         end
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (#{artifact_summary})"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (#{artifact_summary})"
       elsif screenshot_capture_available
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (screenshots disabled for release smoke)"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots disabled for release smoke)"
       else
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} (screenshots skipped on this host)"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots skipped on this host)"
       end
     ensure
       restore_runtime_smoke_mode(restore_mode)

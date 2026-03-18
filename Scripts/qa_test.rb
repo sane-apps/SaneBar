@@ -58,6 +58,15 @@ class ProjectQATest < Minitest::Test
     refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: Required icon(s) missing from list icon zones')
   end
 
+  def test_runtime_smoke_requires_startup_layout_probe
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, "startup_probe_script = File.join(__dir__, 'startup_layout_probe.rb')"
+    assert_includes source, "'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH"
+    assert_includes source, "'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"
+    assert_includes source, "runtime startup layout probe"
+  end
+
   def test_stability_suite_retryable_failure_matches_generic_xcodebuild_flake
     output = <<~LOG
       2026-03-13 15:16:31.112 xcodebuild[30284:7266800] [MT] IDETestOperationsObserverDebug: 16.440 elapsed -- Testing started completed.

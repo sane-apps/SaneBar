@@ -557,11 +557,129 @@ extension AccessibilityService {
         return items[resolvedIndex]
     }
 
+    nonisolated func actionableMoveResolutionSafety(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
+    ) -> (canExecuteMove: Bool, allowsClassifiedZoneFallback: Bool) {
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else {
+            menuExtrasLogger.error("🔧 actionableMoveResolutionSafety: App not found for bundleID: \(bundleID, privacy: .private)")
+            return (false, false)
+        }
+
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+
+        var extrasBar: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+        guard result == .success, let bar = extrasBar else {
+            menuExtrasLogger.error("🔧 actionableMoveResolutionSafety: App \(bundleID, privacy: .private) has no AXExtrasMenuBar (Error: \(result.rawValue))")
+            return (false, false)
+        }
+        guard let barElement = safeAXUIElement(bar) else { return (false, false) }
+
+        var children: CFTypeRef?
+        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
+        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+            menuExtrasLogger.error("🔧 actionableMoveResolutionSafety: No items found in AXExtrasMenuBar for \(bundleID, privacy: .private)")
+            return (false, false)
+        }
+
+        return actionableMoveResolutionSafety(
+            from: items,
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        )
+    }
+
+    nonisolated func actionableMoveResolutionSafety(
+        from items: [AXUIElement],
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        preferredCenterX: CGFloat?
+    ) -> (canExecuteMove: Bool, allowsClassifiedZoneFallback: Bool) {
+        guard items.count > 1 else {
+            return (true, true)
+        }
+
+        if let extraId = menuExtraId {
+            let hasExactIdentifier = items.contains { item in
+                var identifierValue: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                return (identifierValue as? String) == extraId
+            }
+            if hasExactIdentifier {
+                return (true, true)
+            }
+
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing identifier-miss fallback for multi-item bundle \(bundleID, privacy: .private)")
+            return positionalActionableMoveResolutionSafety(
+                from: items,
+                bundleID: bundleID,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        }
+
+        return positionalActionableMoveResolutionSafety(
+            from: items,
+            bundleID: bundleID,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        )
+    }
+
+    private nonisolated func positionalActionableMoveResolutionSafety(
+        from items: [AXUIElement],
+        bundleID: String,
+        statusItemIndex: Int?,
+        preferredCenterX: CGFloat?
+    ) -> (canExecuteMove: Bool, allowsClassifiedZoneFallback: Bool) {
+        guard let statusItemIndex, let preferredCenterX else {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for multi-item bundle \(bundleID, privacy: .private) without both statusItemIndex and preferredCenterX")
+            return (false, false)
+        }
+
+        let candidates = items.enumerated().compactMap { index, item -> (index: Int, midX: CGFloat)? in
+            guard let frame = frameForStatusItem(item) else { return nil }
+            return (index, frame.midX)
+        }
+
+        guard !candidates.isEmpty else {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for \(bundleID, privacy: .private) because no candidate frames were readable")
+            return (false, false)
+        }
+
+        let candidateMidXs = candidates.map(\.midX)
+        guard let bestCandidateIndex = Self.resolvedStatusItemIndex(
+            midXs: candidateMidXs,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        ) else {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for \(bundleID, privacy: .private) because positional resolution failed")
+            return (false, false)
+        }
+
+        let resolvedIndex = candidates[bestCandidateIndex].index
+        guard resolvedIndex == statusItemIndex else {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for \(bundleID, privacy: .private) because hinted index \(statusItemIndex, privacy: .public) resolved to sibling \(resolvedIndex, privacy: .public)")
+            return (false, false)
+        }
+
+        return (true, false)
+    }
+
     internal nonisolated static func shouldContinueStatusItemResolutionAfterIdentifierMiss(
         statusItemIndex: Int?,
         preferredCenterX: CGFloat?
     ) -> Bool {
-        statusItemIndex != nil || preferredCenterX != nil
+        // Actionable flows should not keep resolving by stale ordinal alone after an
+        // explicit AX identifier miss. Require a live spatial hint so nearest-item
+        // fallback cannot silently jump to a sibling in a same-bundle host family.
+        preferredCenterX != nil
     }
 
     nonisolated static func resolvedStatusItemIndex(

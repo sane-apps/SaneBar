@@ -151,16 +151,20 @@ struct AccessibilityServiceTests {
         #expect(index == 2)
     }
 
-    @Test("Status item resolution continues after identifier miss when positional hints exist")
-    func testStatusItemResolutionContinuesAfterIdentifierMissWithHints() {
+    @Test("Status item resolution continues after identifier miss when a live spatial hint exists")
+    func testStatusItemResolutionContinuesAfterIdentifierMissWithPreferredCenterX() {
         #expect(
             AccessibilityService.shouldContinueStatusItemResolutionAfterIdentifierMiss(
                 statusItemIndex: nil,
                 preferredCenterX: 1408
             )
         )
+    }
+
+    @Test("Status item resolution stops after identifier miss when only stale ordinal remains")
+    func testStatusItemResolutionStopsAfterIdentifierMissWithOnlyStatusItemIndex() {
         #expect(
-            AccessibilityService.shouldContinueStatusItemResolutionAfterIdentifierMiss(
+            !AccessibilityService.shouldContinueStatusItemResolutionAfterIdentifierMiss(
                 statusItemIndex: 1,
                 preferredCenterX: nil
             )
@@ -854,5 +858,48 @@ struct AccessibilityServiceTests {
         #expect(appPositions.count == 1)
         #expect(appPositions["com.apple.menuextra.spotlight"] != nil)
         #expect(appPositions["com.apple.Spotlight"] == nil)
+    }
+
+    @Test("Same-bundle precise menu extras keep distinct unique identities")
+    func testSameBundlePreciseMenuExtrasKeepDistinctUniqueIDs() {
+        let wifi = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Wi-Fi",
+            identifier: "com.apple.controlcenter.wifi"
+        )
+        let bluetooth = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Bluetooth",
+            identifier: "com.apple.controlcenter.bluetooth"
+        )
+
+        #expect(wifi.hasPreciseMenuBarIdentity)
+        #expect(bluetooth.hasPreciseMenuBarIdentity)
+        #expect(wifi.uniqueId != bluetooth.uniqueId)
+    }
+
+    @Test("Bundle-only fallback stays coarse beside same-bundle precise items")
+    func testBundleOnlyFallbackStaysCoarseNextToPreciseSameBundleItem() {
+        let coarse = RunningApp(
+            id: "com.apple.controlcenter",
+            name: "Control Center",
+            icon: nil,
+            policy: .accessory,
+            category: .system,
+            xPosition: 1500,
+            width: 24
+        )
+        let precise = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Wi-Fi",
+            identifier: "com.apple.controlcenter.wifi",
+            xPosition: 1510,
+            width: 24
+        )
+
+        #expect(!coarse.hasPreciseMenuBarIdentity)
+        #expect(coarse.uniqueId == "com.apple.controlcenter")
+        #expect(precise.hasPreciseMenuBarIdentity)
+        #expect(precise.uniqueId != coarse.uniqueId)
     }
 }
