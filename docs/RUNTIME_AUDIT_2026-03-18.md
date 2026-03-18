@@ -69,6 +69,34 @@ stateDiagram-v2
     }
 ```
 
+## Generalized operation pipeline
+
+Startup recovery, browse activation, and hidden-visible moves are different user flows, but they break for the same structural reasons.
+
+They all pass through the same five-stage pipeline:
+
+```mermaid
+flowchart LR
+    A["Identify target"] --> B["Choose visibility policy"]
+    B --> C["Choose geometry source"]
+    C --> D["Execute action"]
+    D --> E["Verify + persist"]
+```
+
+The shared fragility is here:
+- identity can degrade from exact to coarse without the caller treating that as a different risk level
+- visibility policy is spread across multiple owners instead of one coordinator
+- geometry can slide from live to cached or shielded without an explicit contract
+- verification can bless "close enough" instead of "the requested thing changed"
+- persistence repair can race with live recovery and make a bad fallback look intentional
+
+That is why this bug class keeps reappearing under different symptoms:
+- startup reset bugs are mostly `B -> C -> E`
+- browse focus bugs are mostly `B -> D`
+- wrong-target move bugs are mostly `A -> C -> E`
+
+So the right framing is not "three unrelated regressions." It is "one fragile operation model showing up in three places."
+
 ## Proven bug families
 
 ### Family A: startup/layout recovery collapse
@@ -232,6 +260,66 @@ This should become required before calling this class fixed.
 4. Hidden-visible move from stale-geometry conditions with exact-ID verification.
 5. Shared-bundle move test for Control Center-family items.
 6. Restart/update recovery test where persisted backups must beat ordinal reseed.
+
+## Additional proof from the late March 18 pass
+
+These are real Mini runtime checks, not source guards.
+
+### Confirmed on Mini
+
+1. Poisoned startup prefs with a valid current-width backup recovered cleanly.
+   - Setup: forced `main=0 / separator=1` while keeping a valid `1920` backup.
+   - Result at `T+2s` and `T+5s`: the app restored to the width-matched backup and stayed healthy.
+   - Observed persisted result: `main=144`, `separator=247`, `autosaveVersion=51`.
+   - Meaning: the current-width backup restore path is real and working on the Mini.
+
+2. `autoRehide=false` is currently honored on the real launch path.
+   - Result at `T+2s` and `T+5s`: `hidingState=expanded`.
+   - Meaning: the earlier forced-launch-hide bug is not the whole remaining reset family anymore.
+
+3. Exact-ID same-bundle move can work on the current tree.
+   - Live probe used the Control Center family already present on the Mini:
+     - hidden `Focus`
+     - visible `Control Center`
+     - visible `Clock`
+   - `move icon to visible "com.apple.menuextra.focusmode"` moved `Focus`, not a sibling.
+   - Moving it back to hidden also returned the same exact item.
+   - Meaning: the strong claim is not “same-bundle moves always fail.” The stronger claim is “same-bundle fallback is unsafe when exact identity is missing or stale.”
+
+### Newly confirmed architecture/process problems
+
+1. Startup recovery still has too many planners.
+   - `StatusBarController.init`
+   - `MenuBarManager.setupStatusItem()`
+   - `MenuBarManager.schedulePositionValidation()`
+   all mutate or escalate layout state during the same launch.
+
+2. The move API still has a false-success seam.
+   - `moveIcon(...)` returns `true` when the detached task is queued, not when the final drag/verifier outcome is known.
+
+3. Browse-session correctness is still caller-owned.
+   - activation bracketing is split across UI callers, AppleScript callers, and `SearchWindowController`.
+   - `SearchService.activate()` still reads browse state and chooses policy based on that split ownership.
+
+4. The docs and handoff lagged the runtime.
+   - `docs/state-machines.md` still describes older behavior.
+   - `SESSION_HANDOFF.md` was still anchored to March 12 and `v2.1.26` during this audit, which is too stale for support/release confidence.
+
+## Standard evidence rule
+
+For this bug family, every “fixed” claim should carry one explicit evidence block:
+
+- build or commit tested
+- matrix rows run
+- proof type per row:
+  - `runtime`
+  - `logic/unit`
+  - `source-guard`
+- field status:
+  - `confirmed by reporter`
+  - `unconfirmed in field`
+
+If the relevant row did not pass in `runtime`, call it `unconfirmed in runtime`, not fixed.
 
 ## Recommended design change
 
