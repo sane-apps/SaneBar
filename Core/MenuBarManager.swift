@@ -655,6 +655,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownSeparatorRightEdgeX = nil
                     self.lastKnownAlwaysHiddenSeparatorX = nil
                     self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-missing-coordinates")
                     await self.hidingService.show()
                     return
                 }
@@ -673,6 +674,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.lastKnownSeparatorRightEdgeX = nil
                     self.lastKnownAlwaysHiddenSeparatorX = nil
                     self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-invariant")
                     await self.hidingService.show()
                     return
                 }
@@ -754,6 +756,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error(
                 "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
             )
+            if recoveryCount == 0 {
+                logger.error(
+                    "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — recreating from persisted layout before autosave recovery"
+                )
+                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation")
+                self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
+                return
+            }
             if recoveryCount >= Self.maxStatusItemRecoveryCount {
                 logger.error(
                     "Status item recovery already attempted \(recoveryCount, privacy: .public) times this launch; leaving current autosave version in place"
@@ -1147,13 +1157,18 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     func restoreStatusItemLayoutIfNeeded() {
         guard statusBarControllerStorage != nil else { return }
+        recreateStatusItemsFromPersistedLayout(reason: "manual-layout-restore")
+        schedulePositionValidation()
+    }
+
+    private func recreateStatusItemsFromPersistedLayout(reason: String) {
         lastKnownSeparatorX = nil
         lastKnownSeparatorRightEdgeX = nil
         lastKnownAlwaysHiddenSeparatorX = nil
         lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
         let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions()
         statusBarController.onItemsRecreated?(newMain, newSeparator)
-        schedulePositionValidation()
+        logger.info("Recreated status items from persisted layout (\(reason, privacy: .public))")
     }
 
     // MARK: - Onboarding

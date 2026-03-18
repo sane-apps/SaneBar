@@ -859,12 +859,17 @@ final class SearchService: SearchServiceProtocol {
         }
 
         if !clickSuccess {
-            // Fallback: Just activate the app normally (user can then click the now-visible icon)
-            let workspace = NSWorkspace.shared
-            if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.bundleId }) {
-                runningApp.activate()
+            if Self.shouldUseWorkspaceActivationFallback(origin: origin, isRightClick: isRightClick) {
+                // Fallback: Just activate the app normally (user can then click the now-visible icon)
+                let workspace = NSWorkspace.shared
+                if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.bundleId }) {
+                    runningApp.activate()
+                }
+                diagnostics.finalOutcome = "workspace activation fallback"
+            } else {
+                logger.info("Click failed for browse-panel right-click; keeping panel active")
+                diagnostics.finalOutcome = "click failed (kept browse panel active)"
             }
-            diagnostics.finalOutcome = "workspace activation fallback"
         } else {
             diagnostics.finalOutcome = "click succeeded"
         }
