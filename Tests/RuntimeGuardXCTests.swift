@@ -559,12 +559,20 @@ final class RuntimeGuardXCTests: XCTestCase {
             "SearchService should expose a reusable hardware-vs-AX policy helper"
         )
         XCTAssertTrue(
+            diagnosticsSource.contains("shouldUseWorkspaceActivationFallback("),
+            "SearchService should centralize workspace-fallback policy so browse-panel right-click failures do not steal focus"
+        )
+        XCTAssertTrue(
             diagnosticsSource.contains("if origin == .browsePanel, let xPosition = app.xPosition, xPosition >= 0"),
             "Browse-panel left clicks should prefer AX first for on-screen targets so Spotlight-like items do not burn the timeout budget on failed hardware attempts"
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if app.menuExtraIdentifier == nil"),
             "Direct activation should still prefer hardware-first when a status item lacks stable AX per-item identity"
+        )
+        XCTAssertTrue(
+            source.contains("if Self.shouldUseWorkspaceActivationFallback(origin: origin, isRightClick: isRightClick)"),
+            "SearchService.activate should skip workspace activation fallback for browse-panel right-click failures so the panel stays usable after a missed click"
         )
     }
 
@@ -1741,6 +1749,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Status item geometry drift detected"),
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
+        )
+        XCTAssertTrue(
+            source.contains("recreating from persisted layout before autosave recovery"),
+            "Validation should try a persisted-layout relayout before bumping autosave namespaces"
+        )
+    }
+
+    func testStartupRecoveryRecreatesLiveItemsImmediately() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("self.recreateStatusItemsFromPersistedLayout(reason: \"startup-missing-coordinates\")"),
+            "Missing-coordinate startup recovery should recreate the live status items immediately"
+        )
+        XCTAssertTrue(
+            source.contains("self.recreateStatusItemsFromPersistedLayout(reason: \"startup-invariant\")"),
+            "Startup invariant recovery should recreate the live status items immediately"
         )
     }
 

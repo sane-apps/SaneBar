@@ -322,6 +322,24 @@ struct SearchWindowTests {
             )
         )
         #expect(
+            !SearchService.shouldUseWorkspaceActivationFallback(
+                origin: .browsePanel,
+                isRightClick: true
+            )
+        )
+        #expect(
+            SearchService.shouldUseWorkspaceActivationFallback(
+                origin: .browsePanel,
+                isRightClick: false
+            )
+        )
+        #expect(
+            SearchService.shouldUseWorkspaceActivationFallback(
+                origin: .direct,
+                isRightClick: true
+            )
+        )
+        #expect(
             SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: true,

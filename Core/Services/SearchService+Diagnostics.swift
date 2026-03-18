@@ -117,6 +117,13 @@ extension SearchService {
         !(didReveal || isBrowseSessionActive || origin == .browsePanel)
     }
 
+    nonisolated static func shouldUseWorkspaceActivationFallback(
+        origin: ActivationOrigin,
+        isRightClick: Bool
+    ) -> Bool {
+        !(origin == .browsePanel && isRightClick)
+    }
+
     nonisolated static func isFallbackCenterOnScreen(_ fallbackCenter: CGPoint?) -> Bool {
         guard let fallbackCenter else { return false }
         return NSScreen.screens.contains { screen in
