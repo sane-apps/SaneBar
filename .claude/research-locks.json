@@ -2,8 +2,8 @@
   {
     "slug": "sanebar-browse-ux",
     "reason": "Repeated Browse Icons / Second Menu Bar confusion reports. Fresh Apple docs, competitor UX, GitHub, and local research required before more changes.",
-    "created_at": "2026-03-11T23:50:49Z",
-    "source_updated_at": "2026-03-11T23:50:49Z",
+    "created_at": "2026-03-16T04:23:33Z",
+    "source_updated_at": "2026-03-16T04:23:33Z",
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
@@ -66,8 +66,8 @@
         "kind": "github",
         "id": 101,
         "title": "Second Menu Bar is not working.",
-        "state": "OPEN",
-        "updated_at": "2026-03-11T16:45:59Z"
+        "state": "CLOSED",
+        "updated_at": "2026-03-16T04:23:33Z"
       },
       {
         "kind": "github",
@@ -95,8 +95,8 @@
   {
     "slug": "sanebar-browse-move",
     "reason": "Repeated icon move / visibility mismatch reports. Fresh runtime research is required before more fixes in this cluster.",
-    "created_at": "2026-03-14T18:12:56Z",
-    "source_updated_at": "2026-03-14T18:12:56Z",
+    "created_at": "2026-03-17T15:55:06Z",
+    "source_updated_at": "2026-03-17T15:55:06Z",
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
@@ -149,7 +149,7 @@
         "id": 113,
         "title": "[Bug]: All visible items moved to hidden",
         "state": "OPEN",
-        "updated_at": "2026-03-14T01:23:43Z"
+        "updated_at": "2026-03-16T21:45:16Z"
       },
       {
         "kind": "github",
@@ -169,8 +169,8 @@
         "kind": "github",
         "id": 101,
         "title": "Second Menu Bar is not working.",
-        "state": "OPEN",
-        "updated_at": "2026-03-11T16:45:59Z"
+        "state": "CLOSED",
+        "updated_at": "2026-03-16T04:23:33Z"
       },
       {
         "kind": "github",
