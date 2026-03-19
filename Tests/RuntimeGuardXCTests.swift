@@ -81,8 +81,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "MenuBarManager should not eagerly create status items during init before the deferred startup delay"
         )
         XCTAssertTrue(
-            source.contains("statusItemsNeedRecovery()"),
-            "Runtime position validation should reuse geometry-aware recovery checks instead of only verifying menu-bar attachment"
+            source.contains("currentStatusItemRecoverySnapshot()") &&
+                source.contains("executeStatusItemRecoveryAction("),
+            "Runtime position validation should route startup, validation, and restore through one typed recovery snapshot plus one recovery executor"
         )
         XCTAssertTrue(
             source.contains("lastKnownSeparatorRightEdgeX = nil"),
@@ -623,16 +624,21 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             coordinatorSource.contains("enum MenuBarOperationCoordinator") &&
-                coordinatorSource.contains("startupInitialAction(") &&
-                coordinatorSource.contains("positionValidationAction(") &&
+                coordinatorSource.contains("statusItemRecoveryAction(") &&
+                coordinatorSource.contains("manualLayoutRestoreRequest") &&
                 coordinatorSource.contains("moveQueueDecision("),
-            "Runtime coordinator should own the shared startup and move admission policies"
+            "Runtime coordinator should own the shared startup, restore, and move admission policies"
         )
         XCTAssertTrue(
-            managerSource.contains("currentStartupRuntimeSnapshot()") &&
-                managerSource.contains("MenuBarOperationCoordinator.startupInitialAction(") &&
-                managerSource.contains("MenuBarOperationCoordinator.positionValidationAction("),
-            "MenuBarManager should build a typed startup snapshot and route launch validation through the coordinator"
+            managerSource.contains("currentStatusItemRecoverySnapshot()") &&
+                managerSource.contains("MenuBarOperationCoordinator.statusItemRecoveryAction(") &&
+                managerSource.contains("executeStatusItemRecoveryAction("),
+            "MenuBarManager should build one typed recovery snapshot and route startup, validation, and restore through one coordinator action"
+        )
+        XCTAssertTrue(
+            managerSource.contains("context: .manualLayoutRestoreRequest") &&
+                managerSource.contains("trigger: \"manual-layout-restore\""),
+            "Manual restore should go through the shared recovery executor instead of directly replaying persisted layout"
         )
         XCTAssertTrue(
             movingSource.contains("currentMoveRuntimeSnapshot(") &&
@@ -1920,26 +1926,36 @@ final class RuntimeGuardXCTests: XCTestCase {
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
         let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
 
-        guard let autoRehideIndex = coordinatorSource.range(of: "if !autoRehideEnabled"),
-              let skipIndex = coordinatorSource.range(of: "if shouldSkipHideForExternalMonitor"),
-              let hideIndex = coordinatorSource.range(of: "return .performInitialHide")
+        guard let startupBlockStart = coordinatorSource.range(of: "case let .startupInitial(inputs):"),
+              let startupBlockEnd = coordinatorSource.range(of: "case let .positionValidation(validationContext):"),
+              startupBlockStart.upperBound <= startupBlockEnd.lowerBound
+        else {
+            XCTFail("Startup recovery block not found")
+            return
+        }
+
+        let startupBlock = String(coordinatorSource[startupBlockStart.lowerBound..<startupBlockEnd.lowerBound])
+
+        guard let autoRehideIndex = startupBlock.range(of: "if !inputs.autoRehideEnabled"),
+              let skipIndex = startupBlock.range(of: "if inputs.shouldSkipHideForExternalMonitor"),
+              let hideIndex = startupBlock.range(of: "return .performInitialHide")
         else {
             XCTFail("Startup auto-rehide, external-monitor, or initial-hide blocks not found")
             return
         }
 
         XCTAssertLessThan(
-            autoRehideIndex.lowerBound.utf16Offset(in: coordinatorSource),
-            hideIndex.lowerBound.utf16Offset(in: coordinatorSource),
+            autoRehideIndex.lowerBound.utf16Offset(in: startupBlock),
+            hideIndex.lowerBound.utf16Offset(in: startupBlock),
             "Startup should respect auto-rehide before attempting initial hide"
         )
         XCTAssertLessThan(
-            skipIndex.lowerBound.utf16Offset(in: coordinatorSource),
-            hideIndex.lowerBound.utf16Offset(in: coordinatorSource),
+            skipIndex.lowerBound.utf16Offset(in: startupBlock),
+            hideIndex.lowerBound.utf16Offset(in: startupBlock),
             "Startup should apply external-monitor policy before attempting initial hide"
         )
         XCTAssertTrue(
-            managerSource.contains("MenuBarOperationCoordinator.startupInitialAction(") &&
+            managerSource.contains("MenuBarOperationCoordinator.statusItemRecoveryAction(") &&
                 managerSource.contains("case .performInitialHide:") &&
                 managerSource.contains("await self.hidingService.hide()"),
             "MenuBarManager should route startup hide policy through the runtime coordinator before performing the initial hide"
@@ -1967,12 +1983,13 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Startup validation should log successful transient recovery without bumping autosave version"
         )
         XCTAssertTrue(
-            source.contains("Status item geometry drift detected"),
+            source.contains("geometry drift detected"),
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
         )
         XCTAssertTrue(
-            source.contains("repairing persisted positions before recreating live items") &&
-                source.contains("StatusBarController.recoverStartupPositions("),
+            source.contains("case .repairPersistedLayoutAndRecreate:") &&
+                source.contains("StatusBarController.recoverStartupPositions(") &&
+                source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
             "Geometry drift validation should repair persisted positions before recreating live items"
         )
     }
@@ -1984,8 +2001,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("case let .recoverAndKeepExpanded(reason):") &&
-                source.contains("self.recreateStatusItemsFromPersistedLayout(reason: \"startup-\\(reason.rawValue)\")") &&
+            source.contains("case let .repairPersistedLayoutAndRecreate(reason):") &&
+                source.contains("self.executeStatusItemRecoveryAction(") &&
+                source.contains("trigger: \"startup-\\(reason?.rawValue ?? \"recovery\")\"") &&
                 coordinatorSource.contains("case missingCoordinates = \"missing-coordinates\"") &&
                 coordinatorSource.contains("case invalidGeometry = \"invalid-geometry\""),
             "Startup recovery should recreate the live status items immediately using the coordinator-owned recovery reason"
@@ -2040,7 +2058,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Initial status-item wiring should gate the always-hidden separator on effective Pro state"
         )
         XCTAssertTrue(
-            managerSource.contains("alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled()"),
+            managerSource.contains("alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()"),
             "Startup recovery should only reseed always-hidden state when the feature is effectively enabled"
         )
         XCTAssertTrue(

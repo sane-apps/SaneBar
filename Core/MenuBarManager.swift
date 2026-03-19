@@ -654,39 +654,38 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 if let w = NSScreen.main?.frame.width {
                     UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
                 }
-                let startupSnapshot = self.currentStartupRuntimeSnapshot()
+                let startupSnapshot = self.currentStatusItemRecoverySnapshot()
                 let hasConnectedExternalMonitorWithAlwaysShow = self.settings.disableOnExternalMonitor &&
                     NSScreen.screens.contains(where: { screen in
                         guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
                         return CGDisplayIsBuiltin(displayID) == 0
                     })
-                let startupAction = MenuBarOperationCoordinator.startupInitialAction(
+                let startupAction = MenuBarOperationCoordinator.statusItemRecoveryAction(
                     snapshot: startupSnapshot,
-                    hasCompletedOnboarding: self.settings.hasCompletedOnboarding,
-                    autoRehideEnabled: self.settings.autoRehide,
-                    shouldSkipHideForExternalMonitor: self.shouldSkipHideForExternalMonitor,
-                    hasConnectedExternalMonitorWithAlwaysShow: hasConnectedExternalMonitorWithAlwaysShow
+                    context: .startupInitial(.init(
+                        hasCompletedOnboarding: self.settings.hasCompletedOnboarding,
+                        autoRehideEnabled: self.settings.autoRehide,
+                        shouldSkipHideForExternalMonitor: self.shouldSkipHideForExternalMonitor,
+                        hasConnectedExternalMonitorWithAlwaysShow: hasConnectedExternalMonitorWithAlwaysShow
+                    )),
+                    recoveryCount: 0,
+                    maxRecoveryCount: Self.maxStatusItemRecoveryCount
                 )
 
                 switch startupAction {
-                case let .recoverAndKeepExpanded(reason):
-                    switch reason {
-                    case .invalidStatusItems:
-                        logger.error("Startup status items were invalid — applying soft recovery and skipping initial hide")
-                    case .missingCoordinates:
-                        logger.error("Onboarding startup missing icon coordinates — applying soft recovery and skipping initial hide")
-                    case .invalidGeometry:
-                        logger.error(
-                            "Startup invariant failed (separator=\(startupSnapshot.separatorX ?? -1, privacy: .public), main=\(startupSnapshot.mainX ?? -1, privacy: .public), rightGap=\(startupSnapshot.mainRightGap ?? -1, privacy: .public), width=\(startupSnapshot.screenWidth ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
-                        )
-                    }
-                    StatusBarController.recoverStartupPositions(
-                        alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled()
+                case let .repairPersistedLayoutAndRecreate(reason):
+                    self.logStatusItemRecoveryReason(
+                        reason,
+                        snapshot: startupSnapshot,
+                        prefix: "Startup recovery"
                     )
-                    self.clearCachedSeparatorGeometry()
-                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-\(reason.rawValue)")
+                    self.executeStatusItemRecoveryAction(
+                        startupAction,
+                        trigger: "startup-\(reason?.rawValue ?? "recovery")",
+                        validationContext: .startupFollowUp,
+                        recoveryCount: 0
+                    )
                     await self.hidingService.show()
-                    self.scheduleInitialPositionValidationAfterStartup()
                     return
 
                 case .keepExpanded(.waitingForLiveCoordinates):
@@ -712,6 +711,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 case .performInitialHide:
                     // Repair AH separator ordering drift before any startup hide.
                     self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
+
+                case .captureCurrentDisplayBackup, .recreateFromPersistedLayout, .bumpAutosaveVersion, .stop:
+                    logger.error("Unexpected startup recovery action \(String(describing: startupAction), privacy: .public) — continuing with initial hide path")
                 }
 
                 let hasAccessibilityPermission = AccessibilityService.shared.isGranted
@@ -749,7 +751,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @MainActor
-    private func currentStartupRuntimeSnapshot() -> MenuBarRuntimeSnapshot {
+    private func currentStatusItemRecoverySnapshot() -> MenuBarRuntimeSnapshot {
         let controller = statusBarController
         let startupItemsValid = StatusBarController.validateStartupItems(
             main: controller.mainItem,
@@ -798,6 +800,70 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         )
     }
 
+    @MainActor
+    private func logStatusItemRecoveryReason(
+        _ reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
+        snapshot: MenuBarRuntimeSnapshot,
+        prefix: String
+    ) {
+        guard let reason else { return }
+
+        switch reason {
+        case .invalidStatusItems:
+            logger.error("\(prefix, privacy: .public): status-item windows are invalid")
+        case .missingCoordinates:
+            logger.error("\(prefix, privacy: .public): live coordinates are still missing")
+        case .invalidGeometry:
+            logger.error(
+                "\(prefix, privacy: .public): geometry drift detected (separator=\(snapshot.separatorX ?? -1, privacy: .public), main=\(snapshot.mainX ?? -1, privacy: .public), rightGap=\(snapshot.mainRightGap ?? -1, privacy: .public), width=\(snapshot.screenWidth ?? -1, privacy: .public))"
+            )
+        }
+    }
+
+    @MainActor
+    private func executeStatusItemRecoveryAction(
+        _ action: MenuBarOperationCoordinator.StatusItemRecoveryAction,
+        trigger: String,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil,
+        recoveryCount: Int = 0
+    ) {
+        switch action {
+        case .captureCurrentDisplayBackup:
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+
+        case .repairPersistedLayoutAndRecreate:
+            StatusBarController.recoverStartupPositions(
+                alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()
+            )
+            clearCachedSeparatorGeometry()
+            recreateStatusItemsFromPersistedLayout(reason: trigger)
+            if let validationContext {
+                schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
+            }
+
+        case .recreateFromPersistedLayout:
+            recreateStatusItemsFromPersistedLayout(reason: trigger)
+            if let validationContext {
+                schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
+            }
+
+        case .bumpAutosaveVersion:
+            let (newMain, newSep) = statusBarController.recreateItemsWithBumpedVersion()
+            statusBarController.onItemsRecreated?(newMain, newSep)
+            if let validationContext {
+                schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
+            }
+
+        case let .stop(reason):
+            logger.error(
+                "Status item recovery stopped after \(recoveryCount, privacy: .public) attempt(s) for \(trigger, privacy: .public); last reason=\(reason?.rawValue ?? "none", privacy: .public)"
+            )
+
+        case .keepExpanded, .performInitialHide:
+            break
+        }
+    }
+
     /// Validate status-item position after layout settles. If WindowServer has a
     /// corrupted position cache, recover by bumping autosave namespace and recreating.
     private func schedulePositionValidation(
@@ -815,13 +881,26 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             try? await Task.sleep(for: initialDelayDuration)
 
             for attempt in 1 ... maxAttempts {
-                if !self.statusItemsNeedRecovery() {
-                    StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+                let snapshot = self.currentStatusItemRecoverySnapshot()
+                let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot)
+                if recoveryReason == nil {
+                    self.executeStatusItemRecoveryAction(
+                        .captureCurrentDisplayBackup,
+                        trigger: "position-validation-\(context.rawValue)",
+                        validationContext: nil,
+                        recoveryCount: recoveryCount
+                    )
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
                     return
                 }
+
+                self.logStatusItemRecoveryReason(
+                    recoveryReason,
+                    snapshot: snapshot,
+                    prefix: "Status item validation"
+                )
 
                 if attempt < maxAttempts {
                     try? await Task.sleep(for: retryDelay)
@@ -831,66 +910,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error(
                 "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
             )
-            let snapshot = self.currentStartupRuntimeSnapshot()
-            switch MenuBarOperationCoordinator.positionValidationAction(
+            let snapshot = self.currentStatusItemRecoverySnapshot()
+            let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
-                context: context,
+                context: .positionValidation(context),
                 recoveryCount: recoveryCount,
                 maxRecoveryCount: Self.maxStatusItemRecoveryCount
-            ) {
-            case .stable:
-                return
-
-            case .repairPersistedLayoutAndRecreate:
-                logger.error(
-                    "Status item geometry drift persisted after \(maxAttempts, privacy: .public) checks — repairing persisted positions before recreating live items (\(context.rawValue, privacy: .public))"
-                )
-                StatusBarController.recoverStartupPositions(
-                    alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled()
-                )
-                self.clearCachedSeparatorGeometry()
-                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation-\(context.rawValue)")
-                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
-
-            case .recreateFromPersistedLayout:
-                logger.error(
-                    "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — recreating from persisted layout before autosave recovery (\(context.rawValue, privacy: .public))"
-                )
-                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation-\(context.rawValue)")
-                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
-
-            case .bumpAutosaveVersion:
-                let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
-                self.statusBarController.onItemsRecreated?(newMain, newSep)
-                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
-
-            case .stop:
-                logger.error(
-                    "Status item recovery already attempted \(recoveryCount, privacy: .public) times for \(context.rawValue, privacy: .public); leaving current autosave version in place"
-                )
-            }
-        }
-    }
-
-    @MainActor
-    private func statusItemsNeedRecovery() -> Bool {
-        let snapshot = currentStartupRuntimeSnapshot()
-        guard let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) else {
-            return false
-        }
-
-        switch recoveryReason {
-        case .invalidStatusItems:
-            logger.error("Status item validation detected invalid status-item windows")
-        case .missingCoordinates:
-            logger.error("Status item validation still missing live coordinates after startup settle")
-        case .invalidGeometry:
-            logger.error(
-                "Status item geometry drift detected (separator=\(snapshot.separatorX ?? -1, privacy: .public), main=\(snapshot.mainX ?? -1, privacy: .public), rightGap=\(snapshot.mainRightGap ?? -1, privacy: .public), width=\(snapshot.screenWidth ?? -1, privacy: .public))"
+            )
+            self.executeStatusItemRecoveryAction(
+                action,
+                trigger: "position-validation-\(context.rawValue)",
+                validationContext: context,
+                recoveryCount: recoveryCount
             )
         }
-
-        return true
     }
 
     private func setupObservers() {
@@ -1244,8 +1277,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     func restoreStatusItemLayoutIfNeeded() {
         guard statusBarControllerStorage != nil else { return }
-        recreateStatusItemsFromPersistedLayout(reason: "manual-layout-restore")
-        schedulePositionValidation(context: .manualLayoutRestore)
+        let snapshot = currentStatusItemRecoverySnapshot()
+        let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .manualLayoutRestoreRequest,
+            recoveryCount: 0,
+            maxRecoveryCount: Self.maxStatusItemRecoveryCount
+        )
+        executeStatusItemRecoveryAction(
+            action,
+            trigger: "manual-layout-restore",
+            validationContext: .manualLayoutRestore,
+            recoveryCount: 0
+        )
     }
 
     private func recreateStatusItemsFromPersistedLayout(reason: String) {

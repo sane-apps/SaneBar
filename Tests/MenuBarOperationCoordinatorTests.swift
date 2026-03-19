@@ -26,12 +26,16 @@ struct MenuBarOperationCoordinatorTests {
             mainX: nil
         )
 
-        let action = MenuBarOperationCoordinator.startupInitialAction(
+        let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
             snapshot: snapshot,
-            hasCompletedOnboarding: true,
-            autoRehideEnabled: true,
-            shouldSkipHideForExternalMonitor: false,
-            hasConnectedExternalMonitorWithAlwaysShow: false
+            context: .startupInitial(.init(
+                hasCompletedOnboarding: true,
+                autoRehideEnabled: true,
+                shouldSkipHideForExternalMonitor: false,
+                hasConnectedExternalMonitorWithAlwaysShow: false
+            )),
+            recoveryCount: 0,
+            maxRecoveryCount: 2
         )
 
         guard case .keepExpanded(.waitingForLiveCoordinates) = action else {
@@ -52,20 +56,20 @@ struct MenuBarOperationCoordinatorTests {
         )
 
         #expect(
-            MenuBarOperationCoordinator.positionValidationAction(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
-                context: .startupFollowUp,
+                context: .positionValidation(.startupFollowUp),
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .repairPersistedLayoutAndRecreate
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
         )
         #expect(
-            MenuBarOperationCoordinator.positionValidationAction(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
-                context: .startupFollowUp,
+                context: .positionValidation(.startupFollowUp),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
-            ) == .bumpAutosaveVersion
+            ) == .bumpAutosaveVersion(.invalidGeometry)
         )
     }
 
@@ -81,20 +85,41 @@ struct MenuBarOperationCoordinatorTests {
         )
 
         #expect(
-            MenuBarOperationCoordinator.positionValidationAction(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
-                context: .screenParametersChanged,
+                context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .repairPersistedLayoutAndRecreate
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
         )
         #expect(
-            MenuBarOperationCoordinator.positionValidationAction(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
-                context: .screenParametersChanged,
+                context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
-            ) == .stop
+            ) == .stop(.invalidGeometry)
+        )
+    }
+
+    @Test("Manual restore always sanitizes persisted layout before replay")
+    func manualRestoreUsesRepairPathFirst() {
+        let healthySnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .live,
+            startupItemsValid: true,
+            separatorX: 160,
+            mainX: 180,
+            mainRightGap: 200,
+            screenWidth: 1440
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: healthySnapshot,
+                context: .manualLayoutRestoreRequest,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(nil)
         )
     }
 

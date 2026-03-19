@@ -1,6 +1,13 @@
 import Foundation
 
 enum MenuBarOperationCoordinator {
+    struct StartupInitialInputs: Equatable, Sendable {
+        let hasCompletedOnboarding: Bool
+        let autoRehideEnabled: Bool
+        let shouldSkipHideForExternalMonitor: Bool
+        let hasConnectedExternalMonitorWithAlwaysShow: Bool
+    }
+
     enum StartupRecoveryReason: String, Equatable, Sendable {
         case invalidStatusItems = "invalid-status-items"
         case missingCoordinates = "missing-coordinates"
@@ -32,6 +39,22 @@ enum MenuBarOperationCoordinator {
         case startupFollowUp = "startup-follow-up"
         case screenParametersChanged = "screen-parameters-changed"
         case manualLayoutRestore = "manual-layout-restore"
+    }
+
+    enum StatusItemRecoveryContext: Equatable, Sendable {
+        case startupInitial(StartupInitialInputs)
+        case positionValidation(PositionValidationContext)
+        case manualLayoutRestoreRequest
+    }
+
+    enum StatusItemRecoveryAction: Equatable, Sendable {
+        case keepExpanded(StartupHoldReason)
+        case performInitialHide
+        case captureCurrentDisplayBackup
+        case repairPersistedLayoutAndRecreate(StartupRecoveryReason?)
+        case recreateFromPersistedLayout(StartupRecoveryReason?)
+        case bumpAutosaveVersion(StartupRecoveryReason?)
+        case stop(StartupRecoveryReason?)
     }
 
     struct BrowseActivationPlan: Equatable, Sendable {
@@ -85,28 +108,32 @@ enum MenuBarOperationCoordinator {
         shouldSkipHideForExternalMonitor: Bool,
         hasConnectedExternalMonitorWithAlwaysShow: Bool
     ) -> StartupInitialAction {
-        if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
-            switch recoveryReason {
-            case .missingCoordinates where hasCompletedOnboarding:
-                return .keepExpanded(.waitingForLiveCoordinates)
-            default:
-                return .recoverAndKeepExpanded(recoveryReason)
-            }
-        }
+        let inputs = StartupInitialInputs(
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            autoRehideEnabled: autoRehideEnabled,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
+            hasConnectedExternalMonitorWithAlwaysShow: hasConnectedExternalMonitorWithAlwaysShow
+        )
 
-        if !autoRehideEnabled {
-            return .keepExpanded(.autoRehideDisabled)
+        switch statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .startupInitial(inputs),
+            recoveryCount: 0,
+            maxRecoveryCount: 0
+        ) {
+        case let .keepExpanded(reason):
+            return .keepExpanded(reason)
+        case .performInitialHide:
+            return .performInitialHide
+        case let .repairPersistedLayoutAndRecreate(reason):
+            return .recoverAndKeepExpanded(reason ?? .invalidGeometry)
+        case let .recreateFromPersistedLayout(reason):
+            return .recoverAndKeepExpanded(reason ?? .invalidStatusItems)
+        case let .bumpAutosaveVersion(reason):
+            return .recoverAndKeepExpanded(reason ?? .invalidStatusItems)
+        case .captureCurrentDisplayBackup, .stop:
+            return .performInitialHide
         }
-
-        if shouldSkipHideForExternalMonitor {
-            return .keepExpanded(.externalMonitorPolicy)
-        }
-
-        if hasConnectedExternalMonitorWithAlwaysShow {
-            return .keepExpanded(.externalMonitorConnectedAlwaysShow)
-        }
-
-        return .performInitialHide
     }
 
     static func positionValidationAction(
@@ -115,31 +142,100 @@ enum MenuBarOperationCoordinator {
         recoveryCount: Int,
         maxRecoveryCount: Int
     ) -> PositionValidationAction {
-        guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
+        switch statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .positionValidation(context),
+            recoveryCount: recoveryCount,
+            maxRecoveryCount: maxRecoveryCount
+        ) {
+        case .captureCurrentDisplayBackup:
+            return .stable
+        case .repairPersistedLayoutAndRecreate:
+            return .repairPersistedLayoutAndRecreate
+        case .recreateFromPersistedLayout:
+            return .recreateFromPersistedLayout
+        case .bumpAutosaveVersion:
+            return .bumpAutosaveVersion
+        case .stop:
+            return .stop
+        case .keepExpanded, .performInitialHide:
             return .stable
         }
+    }
 
-        if recoveryReason == .invalidGeometry {
+    static func statusItemRecoveryAction(
+        snapshot: MenuBarRuntimeSnapshot,
+        context: StatusItemRecoveryContext,
+        recoveryCount: Int,
+        maxRecoveryCount: Int
+    ) -> StatusItemRecoveryAction {
+        switch context {
+        case let .startupInitial(inputs):
+            if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
+                switch recoveryReason {
+                case .missingCoordinates where inputs.hasCompletedOnboarding:
+                    return .keepExpanded(.waitingForLiveCoordinates)
+                default:
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+            }
+
+            if !inputs.autoRehideEnabled {
+                return .keepExpanded(.autoRehideDisabled)
+            }
+
+            if inputs.shouldSkipHideForExternalMonitor {
+                return .keepExpanded(.externalMonitorPolicy)
+            }
+
+            if inputs.hasConnectedExternalMonitorWithAlwaysShow {
+                return .keepExpanded(.externalMonitorConnectedAlwaysShow)
+            }
+
+            return .performInitialHide
+
+        case let .positionValidation(validationContext):
+            guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
+                return .captureCurrentDisplayBackup
+            }
+
+            if validationContext == .manualLayoutRestore {
+                if recoveryCount == 0 {
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+
+                if recoveryCount < maxRecoveryCount {
+                    return .bumpAutosaveVersion(recoveryReason)
+                }
+
+                return .stop(recoveryReason)
+            }
+
+            if recoveryReason == .invalidGeometry {
+                if recoveryCount == 0 {
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+
+                if validationContext == .startupFollowUp, recoveryCount < maxRecoveryCount {
+                    return .bumpAutosaveVersion(recoveryReason)
+                }
+
+                return .stop(recoveryReason)
+            }
+
+            if recoveryCount >= maxRecoveryCount {
+                return .stop(recoveryReason)
+            }
+
             if recoveryCount == 0 {
-                return .repairPersistedLayoutAndRecreate
+                return .recreateFromPersistedLayout(recoveryReason)
             }
 
-            if context == .startupFollowUp, recoveryCount < maxRecoveryCount {
-                return .bumpAutosaveVersion
-            }
+            return .bumpAutosaveVersion(recoveryReason)
 
-            return .stop
+        case .manualLayoutRestoreRequest:
+            return .repairPersistedLayoutAndRecreate(startupRecoveryReason(snapshot: snapshot))
         }
-
-        if recoveryCount >= maxRecoveryCount {
-            return .stop
-        }
-
-        if recoveryCount == 0 {
-            return .recreateFromPersistedLayout
-        }
-
-        return .bumpAutosaveVersion
     }
 
     static func browseActivationPlan(
