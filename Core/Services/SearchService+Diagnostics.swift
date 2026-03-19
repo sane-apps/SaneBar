@@ -244,10 +244,11 @@ extension SearchService {
             return true
         }
 
-        // Browse panel targets are already on-screen and now have observable
-        // reaction verification. Prefer AX first there so we do not burn the
-        // timeout budget on a failed hardware attempt before trying AXPress.
-        if origin == .browsePanel, let xPosition = app.xPosition, xPosition >= 0 {
+        // Browse panel clicks should use AX first by default. If the target is
+        // still off-screen after a reveal, clickSystemWideItem will detect that
+        // and fall back to a hardware click without burning the hardware-first
+        // verification budget upfront.
+        if origin == .browsePanel {
             return false
         }
 

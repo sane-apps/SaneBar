@@ -91,6 +91,40 @@ extension MenuBarManager {
         AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
+    @discardableResult
+    func pinAlwaysHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil
+    ) -> Bool {
+        let rawId: String
+        if let menuExtraId {
+            if menuExtraId.hasPrefix("com.apple.menuextra.") {
+                rawId = menuExtraId
+            } else {
+                rawId = "\(bundleID)::axid:\(menuExtraId)"
+            }
+        } else if let statusItemIndex {
+            rawId = "\(bundleID)::statusItem:\(statusItemIndex)"
+        } else {
+            rawId = bundleID
+        }
+
+        let id = rawId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidPinId(id) else {
+            logger.warning("Rejecting invalid pin ID: \(id, privacy: .private)")
+            return false
+        }
+
+        var newIds = Set(settings.alwaysHiddenPinnedItemIds)
+        let inserted = newIds.insert(id).inserted
+        guard inserted else { return false }
+
+        settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+        AccessibilityService.shared.invalidateMenuBarItemCache()
+        return true
+    }
+
     /// Remove a pin so the item no longer gets auto-moved into always-hidden.
     func unpinAlwaysHidden(app: RunningApp) {
         let id = app.uniqueId.trimmingCharacters(in: .whitespacesAndNewlines)

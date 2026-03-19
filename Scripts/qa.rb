@@ -1030,10 +1030,17 @@ class ProjectQA
   def runtime_smoke_list_icon_zone_ids(target)
     return [] unless ensure_runtime_smoke_target_running!(target)
 
+    expected_bundle_id = 'com.sanebar.app'
     output, status = Open3.capture2e(
       'osascript',
       '-e',
-      "tell application \"#{PROJECT_NAME}\" to list icon zones"
+      %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
+      '-e',
+      %(using terms from application id "#{expected_bundle_id}"),
+      '-e',
+      'tell application appTarget to list icon zones',
+      '-e',
+      'end using terms from'
     )
     return [] unless status.success?
 

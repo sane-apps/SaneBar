@@ -221,6 +221,60 @@ struct AppleScriptCommandsTests {
         #expect(true, "Command safely dispatches to MainActor")
     }
 
+    @Test("Script zone wait refreshes on first poll and for empty caches")
+    func scriptZoneWaitRefreshesInitially() {
+        let now = Date()
+
+        #expect(
+            shouldForceRefreshDuringScriptZoneWait(
+                pollCount: 0,
+                zonesAreEmpty: false,
+                lastRefreshAt: now,
+                now: now
+            )
+        )
+        #expect(
+            shouldForceRefreshDuringScriptZoneWait(
+                pollCount: 3,
+                zonesAreEmpty: true,
+                lastRefreshAt: now,
+                now: now
+            )
+        )
+    }
+
+    @Test("Script zone wait skips redundant refreshes before the interval expires")
+    func scriptZoneWaitSkipsRedundantRefreshes() {
+        let now = Date()
+        let lastRefreshAt = now.addingTimeInterval(-0.25)
+
+        #expect(
+            !shouldForceRefreshDuringScriptZoneWait(
+                pollCount: 2,
+                zonesAreEmpty: false,
+                lastRefreshAt: lastRefreshAt,
+                now: now,
+                refreshIntervalSeconds: 0.8
+            )
+        )
+    }
+
+    @Test("Script zone wait refreshes again after the interval elapses")
+    func scriptZoneWaitRefreshesAfterInterval() {
+        let now = Date()
+        let lastRefreshAt = now.addingTimeInterval(-1.0)
+
+        #expect(
+            shouldForceRefreshDuringScriptZoneWait(
+                pollCount: 2,
+                zonesAreEmpty: false,
+                lastRefreshAt: lastRefreshAt,
+                now: now,
+                refreshIntervalSeconds: 0.8
+            )
+        )
+    }
+
     // MARK: - SDEF Mapping Tests
 
     @Test("Command class names match expected SDEF mapping")

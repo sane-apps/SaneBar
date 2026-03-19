@@ -93,6 +93,8 @@ final class AccessibilityService: ObservableObject {
     var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
     var menuBarCacheWarmupTask: Task<Void, Never>?
+    var menuBarCacheWarmupSuppressionDepth = 0
+    var deferredMenuBarCacheWarmupReason: CacheWarmupReason?
     private var bundlesWithoutExtrasMenuBar: Set<String> = []
 
     enum CacheWarmupReason: String, Sendable {
@@ -114,6 +116,27 @@ final class AccessibilityService: ObservableObject {
         case .structuralChange:
             return 0.25
         }
+    }
+
+    nonisolated static func mergedDeferredCacheWarmupReason(
+        current: CacheWarmupReason?,
+        new: CacheWarmupReason
+    ) -> CacheWarmupReason {
+        func priority(for reason: CacheWarmupReason) -> Int {
+            switch reason {
+            case .launch:
+                0
+            case .conceal:
+                1
+            case .reveal:
+                2
+            case .structuralChange:
+                3
+            }
+        }
+
+        guard let current else { return new }
+        return priority(for: new) >= priority(for: current) ? new : current
     }
 
     func bundlesWithoutExtrasMenuBarSnapshot() -> [String] {

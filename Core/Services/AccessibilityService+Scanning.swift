@@ -520,7 +520,7 @@ extension AccessibilityService {
                 ownerBundleId: bundleID,
                 allowThirdPartyMenuBarFallback: true
             )
-            logger.info("Top-bar host AXMenuBar fallback bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public) items=\(fallbackItems.count, privacy: .public)")
+            logger.debug("Top-bar host AXMenuBar fallback bundle=\(bundleID, privacy: .public) pid=\(pid, privacy: .public) items=\(fallbackItems.count, privacy: .public)")
             guard Self.shouldIncludeThirdPartyTopBarOwner(
                 bundleID: bundleID,
                 fallbackItemsCount: fallbackItems.count
@@ -636,7 +636,7 @@ extension AccessibilityService {
         menuBarItemCacheTime = now
 
         let hiddenCount = apps.filter { $0.x < 0 }.count
-        logger.info("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
+        logger.debug("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
 
         return apps
     }

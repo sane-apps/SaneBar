@@ -289,13 +289,14 @@ extension AccessibilityService {
 
     nonisolated func captureStatusItemReactionSnapshot(
         item: AXUIElement,
-        appElement: AXUIElement
+        appElement: AXUIElement,
+        includeWindowServerWindowCount: Bool = true
     ) -> StatusItemReactionSnapshot {
         StatusItemReactionSnapshot(
             shownMenuPresent: shownMenuPresence(item: item, appElement: appElement),
             focusedWindowPresent: focusedWindowPresence(appElement),
             windowCount: appWindowCount(appElement),
-            windowServerWindowCount: appWindowServerCount(appElement),
+            windowServerWindowCount: includeWindowServerWindowCount ? appWindowServerCount(appElement) : nil,
             expanded: boolAttribute(kAXExpandedAttribute as CFString, on: item),
             selected: boolAttribute(kAXSelectedAttribute as CFString, on: item)
         )

@@ -486,17 +486,6 @@ struct SecondMenuBarView: View {
         return queueMove(app, from: source, to: target)
     }
 
-    private func rollbackAlwaysHiddenMutation(for app: RunningApp, from source: IconZone, to target: IconZone) {
-        switch (source, target) {
-        case (.alwaysHidden, .visible), (.alwaysHidden, .hidden):
-            menuBarManager.pinAlwaysHidden(app: app)
-        case (.hidden, .alwaysHidden), (.visible, .alwaysHidden):
-            menuBarManager.unpinAlwaysHidden(app: app)
-        default:
-            break
-        }
-    }
-
     private func applySuccessfulMovePresentation(for target: IconZone) {
         switch target {
         case .visible where !menuBarManager.settings.secondMenuBarShowVisible:
@@ -509,18 +498,11 @@ struct SecondMenuBarView: View {
         onIconMoved?()
     }
 
-    private func observeQueuedMoveResult(
-        _ task: Task<Bool, Never>,
-        app: RunningApp,
-        source: IconZone,
-        target: IconZone
-    ) {
+    private func observeQueuedMoveResult(_ task: Task<Bool, Never>, target: IconZone) {
         Task { @MainActor in
             let moved = await task.value
             if moved {
                 applySuccessfulMovePresentation(for: target)
-            } else {
-                rollbackAlwaysHiddenMutation(for: app, from: source, to: target)
             }
         }
     }
@@ -535,76 +517,30 @@ struct SecondMenuBarView: View {
     }
 
     private func queueMove(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
-        let bundleID = app.bundleId
-        let menuExtraId = app.menuExtraIdentifier
-        let statusItemIndex = app.statusItemIndex
-
-        let task: Task<Bool, Never>?
+        let request: MenuBarManager.ZoneMoveRequest?
         switch (source, target) {
-        // From Always Hidden
-        case (.alwaysHidden, .visible):
-            menuBarManager.unpinAlwaysHidden(app: app)
-            task = menuBarManager.queueMoveIconFromAlwaysHidden(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
-
-        case (.alwaysHidden, .hidden):
-            menuBarManager.unpinAlwaysHidden(app: app)
-            task = menuBarManager.queueMoveIconFromAlwaysHiddenToHidden(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
-
-        // From Hidden
-        case (.hidden, .visible):
-            task = menuBarManager.queueMoveIcon(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX,
-                toHidden: false
-            )
-
-        case (.hidden, .alwaysHidden):
-            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
-            menuBarManager.pinAlwaysHidden(app: app)
-            task = menuBarManager.queueMoveIconToAlwaysHidden(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
-
-        // From Visible
         case (.visible, .hidden):
-            task = menuBarManager.queueMoveIcon(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX,
-                toHidden: true
-            )
-
+            request = .visibleToHidden
+        case (.hidden, .visible):
+            request = .hiddenToVisible
         case (.visible, .alwaysHidden):
             guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
-            menuBarManager.pinAlwaysHidden(app: app)
-            task = menuBarManager.queueMoveIconToAlwaysHidden(
-                bundleID: bundleID, menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
-
-        // No-op (same zone)
+            request = .visibleToAlwaysHidden
+        case (.hidden, .alwaysHidden):
+            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
+            request = .hiddenToAlwaysHidden
+        case (.alwaysHidden, .visible):
+            request = .alwaysHiddenToVisible
+        case (.alwaysHidden, .hidden):
+            request = .alwaysHiddenToHidden
         case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            task = nil
+            request = nil
         }
 
-        guard let task else {
-            rollbackAlwaysHiddenMutation(for: app, from: source, to: target)
-            return false
-        }
+        guard let request,
+              let task = menuBarManager.queueZoneMove(app: app, request: request) else { return false }
 
-        observeQueuedMoveResult(task, app: app, source: source, target: target)
+        observeQueuedMoveResult(task, target: target)
         return true
     }
 

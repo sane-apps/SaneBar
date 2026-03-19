@@ -110,6 +110,10 @@ struct ReleaseRegressionTests {
         #expect(MenuBarManager.RevealTrigger.hotkey.rawValue == "hotkey")
         #expect(MenuBarManager.RevealTrigger.search.rawValue == "search")
         #expect(MenuBarManager.RevealTrigger.automation.rawValue == "automation")
+        #expect(MenuBarManager.RevealTrigger.hover.rawValue == "hover")
+        #expect(MenuBarManager.RevealTrigger.scroll.rawValue == "scroll")
+        #expect(MenuBarManager.RevealTrigger.click.rawValue == "click")
+        #expect(MenuBarManager.RevealTrigger.userDrag.rawValue == "userDrag")
         #expect(MenuBarManager.RevealTrigger.settingsButton.rawValue == "settingsButton")
         #expect(MenuBarManager.RevealTrigger.findIcon.rawValue == "findIcon")
     }

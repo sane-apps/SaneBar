@@ -80,9 +80,42 @@ struct MenuBarManagerTests {
     @Test("Status-item validation waits longer after a failed startup recovery")
     func statusItemValidationDelayBackoff() {
         #expect(MenuBarManager.maxStatusItemRecoveryCount == 2)
-        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 0) == 0.5)
-        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 1) == 1.0)
-        #expect(MenuBarManager.statusItemValidationInitialDelaySeconds(recoveryCount: 2) == 1.0)
+        #expect(
+            MenuBarManager.statusItemValidationInitialDelaySeconds(
+                context: .startupFollowUp,
+                recoveryCount: 0
+            ) == 0.5
+        )
+        #expect(
+            MenuBarManager.statusItemValidationInitialDelaySeconds(
+                context: .startupFollowUp,
+                recoveryCount: 1
+            ) == 1.0
+        )
+        #expect(
+            MenuBarManager.statusItemValidationInitialDelaySeconds(
+                context: .startupFollowUp,
+                recoveryCount: 2
+            ) == 1.0
+        )
+        #expect(
+            MenuBarManager.statusItemValidationInitialDelaySeconds(
+                context: .wakeResume,
+                recoveryCount: 0
+            ) == 2.0
+        )
+    }
+
+    @Test("Runtime snapshot is safe before deferred status-item setup")
+    @MainActor
+    func currentRuntimeSnapshotBeforeDeferredSetupDoesNotCrash() {
+        let manager = MenuBarManager(statusBarController: nil)
+
+        let snapshot = manager.currentRuntimeSnapshot(identityPrecision: .exact)
+
+        #expect(snapshot.identityPrecision == .exact)
+        #expect(snapshot.geometryConfidence == .missing)
+        #expect(snapshot.startupItemsValid == false)
     }
 
     // MARK: - Position Validation Tests (BUG: separator eating main icon)
@@ -313,19 +346,21 @@ struct MenuBarManagerTests {
                 hideApplicationMenusOnInlineReveal: false,
                 showDockIcon: false,
                 accessibilityGranted: true,
-                hidingState: .expanded
+                hidingState: .expanded,
+                revealTrigger: .click
             )
         )
     }
 
-    @Test("App menu suppression only applies to expanded inline reveal")
-    func appMenuSuppressionRequiresExpandedInlineReveal() {
+    @Test("App menu suppression only applies to explicit expanded inline reveal")
+    func appMenuSuppressionRequiresExplicitExpandedInlineReveal() {
         #expect(
             MenuBarManager.shouldManageApplicationMenus(
                 hideApplicationMenusOnInlineReveal: true,
                 showDockIcon: false,
                 accessibilityGranted: true,
-                hidingState: .expanded
+                hidingState: .expanded,
+                revealTrigger: .click
             )
         )
 
@@ -334,7 +369,8 @@ struct MenuBarManagerTests {
                 hideApplicationMenusOnInlineReveal: true,
                 showDockIcon: true,
                 accessibilityGranted: true,
-                hidingState: .expanded
+                hidingState: .expanded,
+                revealTrigger: .click
             )
         )
 
@@ -343,7 +379,8 @@ struct MenuBarManagerTests {
                 hideApplicationMenusOnInlineReveal: true,
                 showDockIcon: false,
                 accessibilityGranted: false,
-                hidingState: .expanded
+                hidingState: .expanded,
+                revealTrigger: .click
             )
         )
 
@@ -352,7 +389,18 @@ struct MenuBarManagerTests {
                 hideApplicationMenusOnInlineReveal: true,
                 showDockIcon: false,
                 accessibilityGranted: true,
-                hidingState: .hidden
+                hidingState: .hidden,
+                revealTrigger: .click
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldManageApplicationMenus(
+                hideApplicationMenusOnInlineReveal: true,
+                showDockIcon: false,
+                accessibilityGranted: true,
+                hidingState: .expanded,
+                revealTrigger: .hover
             )
         )
     }
