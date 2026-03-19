@@ -556,7 +556,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     private func scheduleInitialPositionValidationAfterStartup() {
         // Avoid racing the first geometry check against the startup
         // hide/recovery path. Validate only after launch settles.
-        schedulePositionValidation()
+        schedulePositionValidation(context: .startupFollowUp)
     }
 
     private func setupStatusItem() {
@@ -800,7 +800,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Validate status-item position after layout settles. If WindowServer has a
     /// corrupted position cache, recover by bumping autosave namespace and recreating.
-    private func schedulePositionValidation(recoveryCount: Int = 0) {
+    private func schedulePositionValidation(
+        context: MenuBarOperationCoordinator.PositionValidationContext = .startupFollowUp,
+        recoveryCount: Int = 0
+    ) {
         Task { @MainActor [weak self] in
             guard let self, !self.usingExternalItems else { return }
 
@@ -813,6 +816,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             for attempt in 1 ... maxAttempts {
                 if !self.statusItemsNeedRecovery() {
+                    StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
@@ -830,27 +834,39 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             let snapshot = self.currentStartupRuntimeSnapshot()
             switch MenuBarOperationCoordinator.positionValidationAction(
                 snapshot: snapshot,
+                context: context,
                 recoveryCount: recoveryCount,
                 maxRecoveryCount: Self.maxStatusItemRecoveryCount
             ) {
             case .stable:
                 return
 
+            case .repairPersistedLayoutAndRecreate:
+                logger.error(
+                    "Status item geometry drift persisted after \(maxAttempts, privacy: .public) checks — repairing persisted positions before recreating live items (\(context.rawValue, privacy: .public))"
+                )
+                StatusBarController.recoverStartupPositions(
+                    alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled()
+                )
+                self.clearCachedSeparatorGeometry()
+                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation-\(context.rawValue)")
+                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
+
             case .recreateFromPersistedLayout:
                 logger.error(
-                    "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — recreating from persisted layout before autosave recovery"
+                    "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — recreating from persisted layout before autosave recovery (\(context.rawValue, privacy: .public))"
                 )
-                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation")
-                self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
+                self.recreateStatusItemsFromPersistedLayout(reason: "position-validation-\(context.rawValue)")
+                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
 
             case .bumpAutosaveVersion:
                 let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
                 self.statusBarController.onItemsRecreated?(newMain, newSep)
-                self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
+                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
 
             case .stop:
                 logger.error(
-                    "Status item recovery already attempted \(recoveryCount, privacy: .public) times this launch; leaving current autosave version in place"
+                    "Status item recovery already attempted \(recoveryCount, privacy: .public) times for \(context.rawValue, privacy: .public); leaving current autosave version in place"
                 )
             }
         }
@@ -984,7 +1000,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
-                self?.schedulePositionValidation()
+                self?.schedulePositionValidation(context: .screenParametersChanged)
             }
             .store(in: &cancellables)
 
@@ -1229,7 +1245,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     func restoreStatusItemLayoutIfNeeded() {
         guard statusBarControllerStorage != nil else { return }
         recreateStatusItemsFromPersistedLayout(reason: "manual-layout-restore")
-        schedulePositionValidation()
+        schedulePositionValidation(context: .manualLayoutRestore)
     }
 
     private func recreateStatusItemsFromPersistedLayout(reason: String) {

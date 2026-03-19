@@ -22,9 +22,16 @@ enum MenuBarOperationCoordinator {
 
     enum PositionValidationAction: Equatable, Sendable {
         case stable
+        case repairPersistedLayoutAndRecreate
         case recreateFromPersistedLayout
         case bumpAutosaveVersion
         case stop
+    }
+
+    enum PositionValidationContext: String, Equatable, Sendable {
+        case startupFollowUp = "startup-follow-up"
+        case screenParametersChanged = "screen-parameters-changed"
+        case manualLayoutRestore = "manual-layout-restore"
     }
 
     struct BrowseActivationPlan: Equatable, Sendable {
@@ -104,19 +111,32 @@ enum MenuBarOperationCoordinator {
 
     static func positionValidationAction(
         snapshot: MenuBarRuntimeSnapshot,
+        context: PositionValidationContext,
         recoveryCount: Int,
         maxRecoveryCount: Int
     ) -> PositionValidationAction {
-        guard needsStartupRecovery(snapshot: snapshot) else {
+        guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
             return .stable
         }
 
-        if recoveryCount == 0 {
-            return .recreateFromPersistedLayout
+        if recoveryReason == .invalidGeometry {
+            if recoveryCount == 0 {
+                return .repairPersistedLayoutAndRecreate
+            }
+
+            if context == .startupFollowUp, recoveryCount < maxRecoveryCount {
+                return .bumpAutosaveVersion
+            }
+
+            return .stop
         }
 
         if recoveryCount >= maxRecoveryCount {
             return .stop
+        }
+
+        if recoveryCount == 0 {
+            return .recreateFromPersistedLayout
         }
 
         return .bumpAutosaveVersion

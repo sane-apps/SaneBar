@@ -685,6 +685,41 @@ final class StatusBarController: StatusBarControllerProtocol {
         return true
     }
 
+    static func captureCurrentDisplayPositionBackupIfPossible() {
+        guard let currentWidth = NSScreen.main?.frame.width else { return }
+        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(NSScreen.main)
+        let mainPosition = resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
+        let separatorPosition = resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
+
+        if isLaunchSafeDisplayBackup(
+            mainBackup: mainPosition,
+            separatorBackup: separatorPosition,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+        ) {
+            saveDisplayPositionBackupIfNeeded(
+                for: currentWidth,
+                mainPosition: mainPosition,
+                separatorPosition: separatorPosition
+            )
+            return
+        }
+
+        guard let reanchored = reanchoredPreferredPositionsTowardControlCenter(
+            mainPosition: mainPosition,
+            separatorPosition: separatorPosition,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+        ) else { return }
+
+        let defaults = UserDefaults.standard
+        defaults.set(reanchored.main, forKey: displayPositionBackupKey(for: currentWidth, slot: "main"))
+        defaults.set(reanchored.separator, forKey: displayPositionBackupKey(for: currentWidth, slot: "separator"))
+        logger.info(
+            "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
+        )
+    }
+
     private static func reanchorCurrentDisplayPositionsIfNeeded(for width: Double) -> Bool {
         let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(NSScreen.main)
         guard let reanchored = reanchoredPreferredPositionsTowardControlCenter(
@@ -725,13 +760,11 @@ final class StatusBarController: StatusBarControllerProtocol {
         let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
         let hasOrdinalSeedPositions = hasOrdinalSeedPair(mainPosition: mainPos, separatorPosition: sepPos)
 
-        if reanchorCurrentDisplayPositionsIfNeeded(for: currentWidth) {
-            defaults.set(currentWidth, forKey: screenWidthKey)
-            return false
-        }
-
         if storedWidth == 0 {
             // First launch after update — stamp current width, accept positions as-is
+            // Do not eager-reanchor here: the persisted preferred-position values are
+            // not a trustworthy proxy for bad live launch geometry, and mutating them
+            // before status items exist can collapse the user's visible lane.
             defaults.set(currentWidth, forKey: screenWidthKey)
             saveDisplayPositionBackupIfNeeded(
                 for: currentWidth,

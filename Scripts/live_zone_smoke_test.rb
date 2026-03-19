@@ -10,6 +10,8 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.instance_variable_set(:@require_always_hidden, false)
     smoke.instance_variable_set(:@require_all_candidates, false)
     smoke.instance_variable_set(:@required_candidate_ids, required_ids)
+    smoke.instance_variable_set(:@app_pid, Process.pid)
+    smoke.send(:reset_resource_watchdog_state)
     smoke
   end
 
@@ -81,5 +83,35 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke = build_smoke(required_ids: ['com.apple.menuextra.focusmode'])
 
     assert smoke.send(:move_candidates_required?)
+  end
+
+  def test_transient_process_missing_is_tolerated_while_pid_is_still_alive
+    smoke = build_smoke
+
+    assert smoke.send(:tolerate_process_monitor_error?, RuntimeError.new('process_missing'))
+    refute smoke.send(:resource_watchdog_failure)
+  end
+
+  def test_repeated_process_missing_stops_after_tolerance
+    smoke = build_smoke
+
+    assert smoke.send(:tolerate_process_monitor_error?, RuntimeError.new('process_missing'))
+    refute smoke.send(:tolerate_process_monitor_error?, RuntimeError.new('process_missing'))
+  end
+
+  def test_process_missing_is_tolerated_when_same_pid_is_still_visible_in_full_process_table
+    smoke = build_smoke
+    smoke.define_singleton_method(:app_process_still_alive?) { false }
+    smoke.define_singleton_method(:current_app_process_visible?) { true }
+
+    assert smoke.send(:tolerate_process_monitor_error?, RuntimeError.new('process_missing'))
+  end
+
+  def test_process_missing_is_not_tolerated_when_pid_is_gone_everywhere
+    smoke = build_smoke
+    smoke.define_singleton_method(:app_process_still_alive?) { false }
+    smoke.define_singleton_method(:current_app_process_visible?) { false }
+
+    refute smoke.send(:tolerate_process_monitor_error?, RuntimeError.new('process_missing'))
   end
 end

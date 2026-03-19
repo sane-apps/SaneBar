@@ -40,6 +40,64 @@ struct MenuBarOperationCoordinatorTests {
         }
     }
 
+    @Test("Startup follow-up repairs persisted geometry before recreating live items")
+    func startupValidationRepairsGeometryBeforeRecreate() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: true,
+            separatorX: 956,
+            mainX: 976,
+            mainRightGap: 944,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.positionValidationAction(
+                snapshot: snapshot,
+                context: .startupFollowUp,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate
+        )
+        #expect(
+            MenuBarOperationCoordinator.positionValidationAction(
+                snapshot: snapshot,
+                context: .startupFollowUp,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion
+        )
+    }
+
+    @Test("Runtime geometry drift stops after one persisted-layout repair attempt")
+    func runtimeValidationDoesNotEscalateGeometryDriftIndefinitely() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: true,
+            separatorX: 956,
+            mainX: 976,
+            mainRightGap: 944,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.positionValidationAction(
+                snapshot: snapshot,
+                context: .screenParametersChanged,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate
+        )
+        #expect(
+            MenuBarOperationCoordinator.positionValidationAction(
+                snapshot: snapshot,
+                context: .screenParametersChanged,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .stop
+        )
+    }
+
     @Test("Browse panel right click uses strict verification and no workspace fallback")
     func browsePanelRightClickPlanStaysStrict() {
         let app = RunningApp.menuExtraItem(

@@ -103,6 +103,8 @@ class ProjectQA
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
   RUNTIME_SHARED_BUNDLE_IDS = %w[
+    com.apple.menuextra.wifi
+    com.apple.menuextra.battery
     com.apple.menuextra.focusmode
     com.apple.menuextra.display
   ].freeze
@@ -738,7 +740,7 @@ class ProjectQA
         required_ids: RUNTIME_SHARED_BUNDLE_IDS
       )
       if shared_bundle_ids.empty?
-        puts '   ↳ shared-bundle focused smoke skipped (Focus/Display not present on this host)'
+        puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
       else
         puts "   ↳ shared-bundle focused smoke after relaunch: #{shared_bundle_ids.join(', ')}"
         shared_bundle_sample_path = '/tmp/sanebar_runtime_shared_bundle_resource_sample.txt'

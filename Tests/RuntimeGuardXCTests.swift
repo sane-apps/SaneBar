@@ -1971,8 +1971,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
         )
         XCTAssertTrue(
-            source.contains("recreating from persisted layout before autosave recovery"),
-            "Validation should try a persisted-layout relayout before bumping autosave namespaces"
+            source.contains("repairing persisted positions before recreating live items") &&
+                source.contains("StatusBarController.recoverStartupPositions("),
+            "Geometry drift validation should repair persisted positions before recreating live items"
         )
     }
 
@@ -2062,8 +2063,8 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("Screen parameters changed — invalidated cached separator positions") &&
-                source.contains("self?.schedulePositionValidation()"),
-            "Screen/menu-bar topology changes should trigger another position validation pass so attached-but-drifted items self-heal"
+                source.contains("self?.schedulePositionValidation(context: .screenParametersChanged)"),
+            "Screen/menu-bar topology changes should trigger a screen-change validation pass so attached-but-drifted items self-heal without reusing generic startup timing blindly"
         )
     }
 

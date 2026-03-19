@@ -34,6 +34,7 @@ class LiveZoneSmoke
   DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
   DEFAULT_ACTIVE_AVG_CPU_MAX = 15.0
   DEFAULT_ACTIVE_AVG_RSS_MB_MAX = 192.0
+  RESOURCE_WATCHDOG_PROCESS_MISSING_TOLERANCE = 2
   LAYOUT_STABILIZE_TIMEOUT_SECONDS = 10
   LAYOUT_STABILIZE_POLL_SECONDS = 0.25
   ZONE_API_READY_TIMEOUT_SECONDS = 10
@@ -1206,6 +1207,10 @@ class LiveZoneSmoke
 
         sleep @resource_poll_seconds
       rescue StandardError => e
+        if tolerate_process_monitor_error?(e)
+          sleep @resource_poll_seconds
+          next
+        end
         record_resource_watchdog_failure("resource_watchdog process_monitor_failed reason=#{e.message}")
         break
       end
@@ -1229,6 +1234,7 @@ class LiveZoneSmoke
       peak_rss_mb: 0.0,
       total_cpu: 0.0,
       total_rss_mb: 0.0,
+      process_monitor_failures: 0,
       last_sample: nil,
       cpu_breach_samples: 0,
       rss_breach_samples: 0,
@@ -1248,6 +1254,7 @@ class LiveZoneSmoke
       state[:peak_rss_mb] = [state[:peak_rss_mb], sample[:rss_mb]].max
       state[:total_cpu] += sample[:cpu]
       state[:total_rss_mb] += sample[:rss_mb]
+      state[:process_monitor_failures] = 0
       state[:cpu_breach_samples] = sample[:cpu] >= @max_cpu_percent ? state[:cpu_breach_samples] + 1 : 0
       state[:rss_breach_samples] = sample[:rss_mb] >= @max_rss_mb ? state[:rss_breach_samples] + 1 : 0
       failure = resource_limit_failure(sample, state)
@@ -1325,6 +1332,39 @@ class LiveZoneSmoke
     @resource_watchdog_mutex.synchronize do
       @resource_watchdog_state[:failure] ||= message
     end
+  end
+
+  def tolerate_process_monitor_error?(error)
+    return false unless error.message == 'process_missing'
+    return false unless app_process_still_alive? || current_app_process_visible?
+
+    failures = @resource_watchdog_mutex.synchronize do
+      @resource_watchdog_state[:process_monitor_failures] += 1
+    end
+    failures < RESOURCE_WATCHDOG_PROCESS_MISSING_TOLERANCE
+  end
+
+  def app_process_still_alive?
+    return false if @app_pid.to_i <= 0
+
+    Process.kill(0, @app_pid)
+    true
+  rescue StandardError
+    false
+  end
+
+  def current_app_process_visible?
+    return false if @app_pid.to_i <= 0
+
+    out, status = sh('ps ax -o pid=,command=')
+    return false unless status.success?
+
+    out.lines.map(&:strip).reject(&:empty?).any? do |line|
+      pid, command = line.split(/\s+/, 2)
+      pid.to_i == @app_pid && matching_app_process?(command.to_s)
+    end
+  rescue StandardError
+    false
   end
 
   def resource_watchdog_failure

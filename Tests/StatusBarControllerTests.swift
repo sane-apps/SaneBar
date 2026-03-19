@@ -1465,6 +1465,50 @@ struct StatusBarControllerTests {
         #expect(restoredSeparator == expectedSeparator, "Ordinal seed separator position should be replaced with a safe current-width backup")
     }
 
+    @Test("Init preserves same-display pixel positions instead of eager reanchoring before live validation")
+    @MainActor
+    func initPreservesSameDisplayPixelPositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for same-display position preservation test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.set(220.0, forKey: mainKey)
+        defaults.set(340.0, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        _ = StatusBarController()
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == 220.0, "Same-display pixel positions should survive launch preflight unchanged until live geometry says otherwise")
+        #expect(restoredSeparator == 340.0, "Pre-launch display validation should not shrink the visible lane on a same-width launch")
+    }
+
     @Test("Startup recovery restores current-width backup when available")
     @MainActor
     func startupRecoveryRestoresCurrentWidthBackup() {
@@ -1571,9 +1615,9 @@ struct StatusBarControllerTests {
         #expect(restoredSeparator == expectedSeparator, "Autosave recovery should restore or safely reanchor separator ordering into the new namespace")
     }
 
-    @Test("Init reanchors far-left persisted positions on the current display")
+    @Test("Init does not eager-reanchor far-left persisted positions on the current display")
     @MainActor
-    func initReanchorsFarLeftPersistedPositions() {
+    func initDoesNotEagerlyReanchorFarLeftPersistedPositions() {
         guard let currentWidth = NSScreen.main?.frame.width else {
             Issue.record("Expected a main screen for current-display reanchor test")
             return
@@ -1612,14 +1656,107 @@ struct StatusBarControllerTests {
         let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
         let backupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
         let backupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
-        let expectedMain = StatusBarController.launchSafePreferredMainPositionLimit(
-            for: currentWidth,
-            screenHasTopSafeAreaInset: StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
-        )
 
-        #expect(restoredMain == expectedMain, "Current-display drift should be reanchored toward Control Center")
-        #expect(restoredSeparator == expectedMain + 118.0, "Reanchor should preserve the visible-lane gap")
-        #expect(backupMain == expectedMain, "Reanchored current display should replace the poisoned backup")
-        #expect(backupSeparator == expectedMain + 118.0, "Backup should be rewritten with the reanchored separator")
+        #expect(restoredMain == 456.0, "Same-display launch preflight should preserve persisted positions until live geometry proves they are bad")
+        #expect(restoredSeparator == 574.0, "Launch preflight should not shrink the visible lane before status items exist")
+        #expect(backupMain == nil, "Unsafe current-width backups should not be rewritten from prelaunch preferred-position heuristics")
+        #expect(backupSeparator == nil, "Unsafe current-width backups should be cleared instead of replacing user layout early")
+    }
+
+    @Test("Stable live positions backfill the current-width display backup")
+    @MainActor
+    func captureCurrentDisplayPositionBackupFromStablePositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for display backup capture test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let safeMain = screenHasTopSafeAreaInset
+            ? 180.0
+            : StatusBarController.launchSafePreferredMainPositionLimit(
+                for: currentWidth,
+                screenHasTopSafeAreaInset: false
+            )
+        let safeSeparator = screenHasTopSafeAreaInset ? 300.0 : safeMain + 120.0
+
+        defaults.set(safeMain, forKey: mainKey)
+        defaults.set(safeSeparator, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(storedBackupMain == safeMain, "Stable live positions should seed a current-width main backup for the next startup recovery")
+        #expect(storedBackupSeparator == safeSeparator, "Stable live positions should seed a current-width separator backup for the next startup recovery")
+    }
+
+    @Test("Stable but startup-unsafe positions backfill a reanchored current-width backup")
+    @MainActor
+    func captureCurrentDisplayPositionBackupReanchorsUnsafePositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for reanchored display backup capture test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let safeMainLimit = StatusBarController.launchSafePreferredMainPositionLimit(
+            for: currentWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        )
+        let unsafeMain = safeMainLimit + 40.0
+        let unsafeSeparator = unsafeMain + 34.0
+
+        defaults.set(unsafeMain, forKey: mainKey)
+        defaults.set(unsafeSeparator, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(storedBackupMain == safeMainLimit, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
+        #expect(storedBackupSeparator == safeMainLimit + 34.0, "Reanchored separator backup should preserve the live gap while staying launch-safe")
     }
 }
