@@ -493,6 +493,30 @@ struct SearchWindowTests {
         #expect(summary.contains("relayoutPassCount: 2"))
     }
 
+    @Test("Browse diagnostics report live mode and visibility instead of cached state")
+    @MainActor
+    func testBrowseDiagnosticsSnapshotReflectsLiveWindowState() {
+        let controller = SearchWindowController.shared
+        controller.close()
+
+        controller.show(mode: .findIcon)
+        let openSummary = controller.diagnosticsSnapshot()
+        #expect(openSummary.contains("currentMode: findIcon"))
+        #expect(openSummary.contains("windowVisible: true"))
+
+        controller.close()
+        let closedSummary = controller.diagnosticsSnapshot()
+        #expect(closedSummary.contains("currentMode: findIcon"))
+        #expect(closedSummary.contains("windowVisible: false"))
+
+        controller.show(mode: .secondMenuBar)
+        let secondMenuSummary = controller.diagnosticsSnapshot()
+        #expect(secondMenuSummary.contains("currentMode: secondMenuBar"))
+        #expect(secondMenuSummary.contains("windowVisible: true"))
+
+        controller.close()
+    }
+
     @Test("Merged discoverable apps append owner-only fallbacks without duplicating precise matches")
     @MainActor
     func testMergedDiscoverableAppsPrefersPreciseItems() {

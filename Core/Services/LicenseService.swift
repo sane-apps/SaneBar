@@ -121,12 +121,12 @@ final class LicenseService: ObservableObject {
         }
 
         if usesSetappDistribution {
-            isPro = false
+            isPro = true
             isEarlyAdopter = false
             licenseEmail = nil
             purchaseError = nil
             validationError = nil
-            licenseLogger.notice("Setapp distribution selected; runtime entitlement integration is still pending.")
+            licenseLogger.info("Setapp distribution selected; Pro access is managed by Setapp.")
             return
         }
 

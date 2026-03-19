@@ -376,6 +376,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - External Item Injection
 
+    private func currentEffectiveAlwaysHiddenSectionEnabled() -> Bool {
+        Self.effectiveAlwaysHiddenSectionEnabled(
+            isPro: LicenseService.shared.isPro,
+            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
+        )
+    }
+
     /// Use status items that were created externally (by SaneBarAppDelegate)
     /// This is the WORKING approach - items created before MenuBarManager
     /// with pre-set position values appear on the RIGHT side correctly.
@@ -395,7 +402,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Store the external items
         mainStatusItem = main
         separatorItem = separator
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Wire up click handler for main item
@@ -410,6 +417,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
+            showReleaseNotesAction: LicenseService.shared.usesSetappDistribution ? #selector(showReleaseNotes) : nil,
             checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
             quitAction: #selector(quitApp)
         ))
@@ -568,7 +576,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         // Copy references for local use
         mainStatusItem = statusBarController.mainItem
         separatorItem = statusBarController.separatorItem
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: settings.alwaysHiddenSectionEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
 
         // Setup menu using controller (shown via right-click on main icon)
@@ -576,6 +584,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
+            showReleaseNotesAction: LicenseService.shared.usesSetappDistribution ? #selector(showReleaseNotes) : nil,
             checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
             quitAction: #selector(quitApp)
         ))
@@ -642,75 +651,64 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 if let w = NSScreen.main?.frame.width {
                     UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
                 }
-                let startupSeparatorX = self.getSeparatorOriginX()
-                let startupMainX = self.getMainStatusItemLeftEdgeX()
-                let startupMainWindow = self.mainStatusItem?.button?.window
-                let startupScreenWidth = startupMainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
-                let startupNotchRightSafeMinX = startupMainWindow?.screen?.auxiliaryTopRightArea?.minX
-                    ?? NSScreen.main?.auxiliaryTopRightArea?.minX
-                let startupMainRightGap: CGFloat? = {
-                    guard let startupMainWindow else { return nil }
-                    guard let rightEdge = startupMainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
-                    return rightEdge - startupMainWindow.frame.origin.x
-                }()
-                if !self.settings.hasCompletedOnboarding,
-                   startupSeparatorX == nil || startupMainX == nil {
-                    logger.error("Onboarding startup missing icon coordinates — applying soft recovery and skipping initial hide")
-                    StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: self.settings.alwaysHiddenSectionEnabled)
-                    self.lastKnownSeparatorX = nil
-                    self.lastKnownSeparatorRightEdgeX = nil
-                    self.lastKnownAlwaysHiddenSeparatorX = nil
-                    self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
-                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-missing-coordinates")
-                    await self.hidingService.show()
-                    self.scheduleInitialPositionValidationAfterStartup()
-                    return
-                }
-                if Self.shouldRecoverStartupPositions(
-                    separatorX: startupSeparatorX,
-                    mainX: startupMainX,
-                    mainRightGap: startupMainRightGap,
-                    screenWidth: startupScreenWidth,
-                    notchRightSafeMinX: startupNotchRightSafeMinX
-                ) {
-                    logger.error(
-                        "Startup invariant failed (separator=\(startupSeparatorX ?? -1, privacy: .public), main=\(startupMainX ?? -1, privacy: .public), rightGap=\(startupMainRightGap ?? -1, privacy: .public), width=\(startupScreenWidth ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
+                let startupSnapshot = self.currentStartupRuntimeSnapshot()
+                let hasConnectedExternalMonitorWithAlwaysShow = self.settings.disableOnExternalMonitor &&
+                    NSScreen.screens.contains(where: { screen in
+                        guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
+                        return CGDisplayIsBuiltin(displayID) == 0
+                    })
+                let startupAction = MenuBarOperationCoordinator.startupInitialAction(
+                    snapshot: startupSnapshot,
+                    hasCompletedOnboarding: self.settings.hasCompletedOnboarding,
+                    autoRehideEnabled: self.settings.autoRehide,
+                    shouldSkipHideForExternalMonitor: self.shouldSkipHideForExternalMonitor,
+                    hasConnectedExternalMonitorWithAlwaysShow: hasConnectedExternalMonitorWithAlwaysShow
+                )
+
+                switch startupAction {
+                case let .recoverAndKeepExpanded(reason):
+                    switch reason {
+                    case .invalidStatusItems:
+                        logger.error("Startup status items were invalid — applying soft recovery and skipping initial hide")
+                    case .missingCoordinates:
+                        logger.error("Onboarding startup missing icon coordinates — applying soft recovery and skipping initial hide")
+                    case .invalidGeometry:
+                        logger.error(
+                            "Startup invariant failed (separator=\(startupSnapshot.separatorX ?? -1, privacy: .public), main=\(startupSnapshot.mainX ?? -1, privacy: .public), rightGap=\(startupSnapshot.mainRightGap ?? -1, privacy: .public), width=\(startupSnapshot.screenWidth ?? -1, privacy: .public)) — applying soft recovery and skipping initial hide"
+                        )
+                    }
+                    StatusBarController.recoverStartupPositions(
+                        alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled()
                     )
-                    StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: self.settings.alwaysHiddenSectionEnabled)
-                    self.lastKnownSeparatorX = nil
-                    self.lastKnownSeparatorRightEdgeX = nil
-                    self.lastKnownAlwaysHiddenSeparatorX = nil
-                    self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
-                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-invariant")
+                    self.clearCachedSeparatorGeometry()
+                    self.recreateStatusItemsFromPersistedLayout(reason: "startup-\(reason.rawValue)")
                     await self.hidingService.show()
                     self.scheduleInitialPositionValidationAfterStartup()
                     return
-                }
-                // Repair AH separator ordering drift before any startup hide.
-                self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
 
-                if !self.settings.autoRehide {
-                    logger.info("Skipping initial hide: auto-rehide disabled")
+                case .keepExpanded(.waitingForLiveCoordinates):
+                    logger.warning("Startup coordinates were still missing after initial settle — skipping initial hide and relying on position validation")
                     self.scheduleInitialPositionValidationAfterStartup()
                     return
-                }
 
-                // Skip startup hide if user is on external monitor
-                if self.shouldSkipHideForExternalMonitor {
-                    logger.info("Skipping initial hide: user is on external monitor")
+                case let .keepExpanded(reason):
+                    self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
+                    switch reason {
+                    case .autoRehideDisabled:
+                        logger.info("Skipping initial hide: auto-rehide disabled")
+                    case .externalMonitorPolicy:
+                        logger.info("Skipping initial hide: user is on external monitor")
+                    case .externalMonitorConnectedAlwaysShow:
+                        logger.info("Skipping initial hide: external monitor connected with always-show enabled")
+                    case .waitingForLiveCoordinates:
+                        break
+                    }
                     self.scheduleInitialPositionValidationAfterStartup()
                     return
-                }
-                // Also skip if setting is enabled and any external monitor is connected
-                // (mouse may be on built-in now but user wants icons visible on external)
-                if self.settings.disableOnExternalMonitor,
-                   NSScreen.screens.contains(where: { screen in
-                       guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
-                       return CGDisplayIsBuiltin(displayID) == 0
-                   }) {
-                    logger.info("Skipping initial hide: external monitor connected with always-show enabled")
-                    self.scheduleInitialPositionValidationAfterStartup()
-                    return
+
+                case .performInitialHide:
+                    // Repair AH separator ordering drift before any startup hide.
+                    self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "startup")
                 }
 
                 let hasAccessibilityPermission = AccessibilityService.shared.isGranted
@@ -737,6 +735,64 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         for item in statusMenu?.items ?? [] where item.action != nil {
             item.target = self
         }
+    }
+
+    @MainActor
+    private func clearCachedSeparatorGeometry() {
+        lastKnownSeparatorX = nil
+        lastKnownSeparatorRightEdgeX = nil
+        lastKnownAlwaysHiddenSeparatorX = nil
+        lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+    }
+
+    @MainActor
+    private func currentStartupRuntimeSnapshot() -> MenuBarRuntimeSnapshot {
+        let controller = statusBarController
+        let startupItemsValid = StatusBarController.validateStartupItems(
+            main: controller.mainItem,
+            separator: controller.separatorItem
+        )
+        let separatorX = getSeparatorOriginX()
+        let mainX = getMainStatusItemLeftEdgeX()
+        let mainWindow = mainStatusItem?.button?.window ?? controller.mainItem.button?.window
+        let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
+        let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
+            ?? NSScreen.main?.auxiliaryTopRightArea?.minX
+        let mainRightGap: CGFloat? = {
+            guard let mainWindow else { return nil }
+            guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
+            return rightEdge - mainWindow.frame.origin.x
+        }()
+
+        let geometryConfidence: MenuBarGeometryConfidence = {
+            guard startupItemsValid else { return .stale }
+            guard separatorX != nil, mainX != nil else { return .missing }
+            if Self.shouldRecoverStartupPositions(
+                separatorX: separatorX,
+                mainX: mainX,
+                mainRightGap: mainRightGap,
+                screenWidth: screenWidth,
+                notchRightSafeMinX: notchRightSafeMinX
+            ) {
+                return .stale
+            }
+            return .live
+        }()
+
+        return MenuBarRuntimeSnapshot(
+            geometryConfidence: geometryConfidence,
+            visibilityPhase: hidingService.isAnimating || hidingService.isTransitioning ? .transitioning : (hidingService.state == .hidden ? .hidden : .expanded),
+            browsePhase: SearchWindowController.shared.isMoveInProgress ? .moveInProgress : (SearchWindowController.shared.isBrowseSessionActive ? .open : .idle),
+            startupItemsValid: startupItemsValid,
+            hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
+            hasActiveMoveTask: activeMoveTask != nil,
+            hasAnyScreens: !NSScreen.screens.isEmpty,
+            separatorX: separatorX,
+            mainX: mainX,
+            mainRightGap: mainRightGap,
+            screenWidth: screenWidth,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
     }
 
     /// Validate status-item position after layout settles. If WindowServer has a
@@ -768,62 +824,54 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error(
                 "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
             )
-            if recoveryCount == 0 {
+            let snapshot = self.currentStartupRuntimeSnapshot()
+            switch MenuBarOperationCoordinator.positionValidationAction(
+                snapshot: snapshot,
+                recoveryCount: recoveryCount,
+                maxRecoveryCount: Self.maxStatusItemRecoveryCount
+            ) {
+            case .stable:
+                return
+
+            case .recreateFromPersistedLayout:
                 logger.error(
                     "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — recreating from persisted layout before autosave recovery"
                 )
                 self.recreateStatusItemsFromPersistedLayout(reason: "position-validation")
                 self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
-                return
-            }
-            if recoveryCount >= Self.maxStatusItemRecoveryCount {
+
+            case .bumpAutosaveVersion:
+                let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
+                self.statusBarController.onItemsRecreated?(newMain, newSep)
+                self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
+
+            case .stop:
                 logger.error(
                     "Status item recovery already attempted \(recoveryCount, privacy: .public) times this launch; leaving current autosave version in place"
                 )
-                return
             }
-            let (newMain, newSep) = self.statusBarController.recreateItemsWithBumpedVersion()
-            self.statusBarController.onItemsRecreated?(newMain, newSep)
-            self.schedulePositionValidation(recoveryCount: recoveryCount + 1)
         }
     }
 
     @MainActor
     private func statusItemsNeedRecovery() -> Bool {
-        let controller = statusBarController
-        let startupItemsValid = StatusBarController.validateStartupItems(
-            main: controller.mainItem,
-            separator: controller.separatorItem
-        )
-        guard startupItemsValid else {
-            return true
+        let snapshot = currentStartupRuntimeSnapshot()
+        guard let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) else {
+            return false
         }
 
-        let separatorX = getSeparatorOriginX()
-        let mainX = getMainStatusItemLeftEdgeX()
-        let mainWindow = mainStatusItem?.button?.window ?? controller.mainItem.button?.window
-        let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
-        let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
-            ?? NSScreen.main?.auxiliaryTopRightArea?.minX
-        let mainRightGap: CGFloat? = {
-            guard let mainWindow else { return nil }
-            guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
-            return rightEdge - mainWindow.frame.origin.x
-        }()
-
-        let needsRecovery = Self.shouldRecoverStartupPositions(
-            separatorX: separatorX,
-            mainX: mainX,
-            mainRightGap: mainRightGap,
-            screenWidth: screenWidth,
-            notchRightSafeMinX: notchRightSafeMinX
-        )
-        if needsRecovery {
+        switch recoveryReason {
+        case .invalidStatusItems:
+            logger.error("Status item validation detected invalid status-item windows")
+        case .missingCoordinates:
+            logger.error("Status item validation still missing live coordinates after startup settle")
+        case .invalidGeometry:
             logger.error(
-                "Status item geometry drift detected (separator=\(separatorX ?? -1, privacy: .public), main=\(mainX ?? -1, privacy: .public), rightGap=\(mainRightGap ?? -1, privacy: .public), width=\(screenWidth ?? -1, privacy: .public))"
+                "Status item geometry drift detected (separator=\(snapshot.separatorX ?? -1, privacy: .public), main=\(snapshot.mainX ?? -1, privacy: .public), rightGap=\(snapshot.mainRightGap ?? -1, privacy: .public), width=\(snapshot.screenWidth ?? -1, privacy: .public))"
             )
         }
-        return needsRecovery
+
+        return true
     }
 
     private func setupObservers() {
@@ -993,18 +1041,26 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     func updateAlwaysHiddenSeparator() {
-        let effectiveAlwaysHiddenEnabled = Self.effectiveAlwaysHiddenSectionEnabled(
-            isPro: LicenseService.shared.isPro,
-            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
-        )
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: effectiveAlwaysHiddenEnabled)
+        statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
     }
 
-    func updateAlwaysHiddenSeparatorIfReady() {
-        guard statusBarControllerStorage != nil else { return }
+    func updateAlwaysHiddenSeparatorIfReady(forceRecreateIfMissing: Bool = false) {
+        guard let statusBarControllerStorage else { return }
         updateAlwaysHiddenSeparator()
+        guard forceRecreateIfMissing,
+              currentEffectiveAlwaysHiddenSectionEnabled(),
+              alwaysHiddenSeparatorItem == nil
+        else { return }
+
+        logger.warning("Force-recreating always-hidden separator after nil update")
+        statusBarControllerStorage.ensureAlwaysHiddenSeparator(enabled: false)
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        statusBarControllerStorage.ensureAlwaysHiddenSeparator(enabled: true)
+        alwaysHiddenSeparatorItem = statusBarControllerStorage.alwaysHiddenSeparatorItem
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+        AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
     func enforceExternalMonitorVisibilityPolicy(reason: String) {

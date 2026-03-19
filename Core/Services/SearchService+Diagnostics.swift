@@ -93,6 +93,57 @@ extension SearchService {
         )
     }
 
+    nonisolated static func activationRuntimeSnapshot(
+        app: RunningApp,
+        origin: ActivationOrigin,
+        didReveal: Bool,
+        isBrowseSessionActive: Bool
+    ) -> MenuBarRuntimeSnapshot {
+        let geometryConfidence: MenuBarGeometryConfidence = if didReveal {
+            .cached
+        } else if let xPosition = app.xPosition {
+            xPosition >= 0 ? .live : .stale
+        } else {
+            .missing
+        }
+
+        let browsePhase: MenuBarBrowsePhase = if origin == .browsePanel {
+            .activationInFlight
+        } else if isBrowseSessionActive {
+            .open
+        } else {
+            .idle
+        }
+
+        return MenuBarRuntimeSnapshot(
+            identityPrecision: app.hasPreciseMenuBarIdentity ? .exact : .coarse,
+            geometryConfidence: geometryConfidence,
+            visibilityPhase: didReveal ? .expanded : .hidden,
+            browsePhase: browsePhase
+        )
+    }
+
+    nonisolated static func activationPlan(
+        app: RunningApp,
+        origin: ActivationOrigin,
+        isRightClick: Bool,
+        didReveal: Bool,
+        isBrowseSessionActive: Bool
+    ) -> MenuBarOperationCoordinator.BrowseActivationPlan {
+        MenuBarOperationCoordinator.browseActivationPlan(
+            snapshot: activationRuntimeSnapshot(
+                app: app,
+                origin: origin,
+                didReveal: didReveal,
+                isBrowseSessionActive: isBrowseSessionActive
+            ),
+            origin: origin,
+            isRightClick: isRightClick,
+            didReveal: didReveal,
+            requestedApp: app
+        )
+    }
+
     nonisolated static func requiresObservableReactionVerification(
         origin: ActivationOrigin,
         didReveal: Bool,
@@ -128,8 +179,12 @@ extension SearchService {
         original: RunningApp,
         sameBundleCount: Int
     ) -> Bool {
-        guard sameBundleCount > 1 else { return true }
-        return !original.hasPreciseMenuBarIdentity
+        MenuBarOperationCoordinator.shouldAllowSameBundleActivationFallback(
+            snapshot: MenuBarRuntimeSnapshot(
+                identityPrecision: original.hasPreciseMenuBarIdentity ? .exact : .coarse
+            ),
+            sameBundleCount: sameBundleCount
+        )
     }
 
     nonisolated static func isFallbackCenterOnScreen(_ fallbackCenter: CGPoint?) -> Bool {

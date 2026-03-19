@@ -705,26 +705,17 @@ final class SearchService: SearchServiceProtocol {
         let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
         diagnostics.didReveal = didReveal
         let browseSessionActive = SearchWindowController.shared.isBrowseSessionActive
-        let requireObservableReaction = Self.requiresObservableReactionVerification(
-            origin: origin,
-            didReveal: didReveal,
-            isBrowseSessionActive: browseSessionActive
-        )
-        let forceFreshTargetResolution = Self.shouldForceFreshTargetResolution(
-            origin: origin,
-            didReveal: didReveal,
-            isBrowseSessionActive: browseSessionActive
-        )
-        let allowImmediateFallbackCenter = Self.shouldAllowImmediateFallbackCenter(
-            origin: origin,
-            didReveal: didReveal,
-            isBrowseSessionActive: browseSessionActive
-        )
-        let requestedPreferHardwareFirst = Self.shouldPreferHardwareFirst(
+        let activationPlan = Self.activationPlan(
+            app: app,
             origin: origin,
             isRightClick: isRightClick,
-            app: app
+            didReveal: didReveal,
+            isBrowseSessionActive: browseSessionActive
         )
+        let requireObservableReaction = activationPlan.requireObservableReaction
+        let forceFreshTargetResolution = activationPlan.forceFreshTargetResolution
+        let allowImmediateFallbackCenter = activationPlan.allowImmediateFallbackCenter
+        let requestedPreferHardwareFirst = activationPlan.preferHardwareFirst
         // 2. Wait for menu bar re-layout after reveal.
         // Previously used a fixed 500ms sleep which was insufficient on slower
         // systems with many hidden icons (#69, #77, #102). Now polls until the
@@ -754,11 +745,14 @@ final class SearchService: SearchServiceProtocol {
             forceRefresh: forceFreshTargetResolution
         )
         let initialTarget = initialResolution.app
-        let preferHardwareFirst = Self.shouldPreferHardwareFirst(
+        let initialPlan = Self.activationPlan(
+            app: initialTarget,
             origin: origin,
             isRightClick: isRightClick,
-            app: initialTarget
+            didReveal: didReveal,
+            isBrowseSessionActive: browseSessionActive
         )
+        let preferHardwareFirst = initialPlan.preferHardwareFirst
         diagnostics.initialResolution = initialResolution.strategy
         diagnostics.initialTarget = Self.diagnosticsApp(initialTarget)
         diagnostics.preferHardwareFirst = preferHardwareFirst
@@ -821,11 +815,14 @@ final class SearchService: SearchServiceProtocol {
                 let refreshedResolution = await resolveLatestClickTarget(for: app, forceRefresh: true)
                 let refreshedTarget = refreshedResolution.app
                 let refreshedFallbackCenter = fallbackCenter(for: refreshedTarget, fallbackSource: app)
-                let refreshedPreferHardwareFirst = Self.shouldPreferHardwareFirst(
+                let refreshedPlan = Self.activationPlan(
+                    app: refreshedTarget,
                     origin: origin,
                     isRightClick: isRightClick,
-                    app: refreshedTarget
+                    didReveal: didReveal,
+                    isBrowseSessionActive: browseSessionActive
                 )
+                let refreshedPreferHardwareFirst = refreshedPlan.preferHardwareFirst
                 let refreshedLikelyNoExtras = axService.likelyLacksExtrasMenuBar(bundleID: refreshedTarget.bundleId)
                 let refreshedAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
                     baseAllowImmediateFallbackCenter: false,
@@ -859,11 +856,14 @@ final class SearchService: SearchServiceProtocol {
         }
 
         if !clickSuccess {
-            if Self.shouldUseWorkspaceActivationFallback(origin: origin, isRightClick: isRightClick) {
+            if activationPlan.allowWorkspaceActivationFallback {
                 // Fallback: Just activate the app normally (user can then click the now-visible icon)
                 let workspace = NSWorkspace.shared
                 if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.bundleId }) {
-                    runningApp.activate()
+                    if NSApp.isActive {
+                        NSApp.yieldActivation(to: runningApp)
+                    }
+                    _ = runningApp.activate(options: [])
                 }
                 diagnostics.finalOutcome = "workspace activation fallback"
             } else {
@@ -1003,8 +1003,14 @@ final class SearchService: SearchServiceProtocol {
 
         // Last fallback: closest position within the same bundle.
         let sameBundle = items.filter { $0.app.bundleId == original.bundleId }.map(\.app)
-        if !Self.shouldAllowSameBundleActivationFallback(
-            original: original,
+        let sameBundleSnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: original.hasPreciseMenuBarIdentity ? .exact : .coarse,
+            geometryConfidence: forceRefresh ? .cached : .live,
+            visibilityPhase: .expanded,
+            browsePhase: .activationInFlight
+        )
+        if !MenuBarOperationCoordinator.shouldAllowSameBundleActivationFallback(
+            snapshot: sameBundleSnapshot,
             sameBundleCount: sameBundle.count
         ) {
             logger.error("Refusing same-bundle activation fallback after precise identity loss (\(prefix, privacy: .public))")

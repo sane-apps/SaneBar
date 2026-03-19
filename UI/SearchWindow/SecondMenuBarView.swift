@@ -483,6 +483,58 @@ struct SecondMenuBarView: View {
 
     private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
         notePanelInteraction()
+        return queueMove(app, from: source, to: target)
+    }
+
+    private func rollbackAlwaysHiddenMutation(for app: RunningApp, from source: IconZone, to target: IconZone) {
+        switch (source, target) {
+        case (.alwaysHidden, .visible), (.alwaysHidden, .hidden):
+            menuBarManager.pinAlwaysHidden(app: app)
+        case (.hidden, .alwaysHidden), (.visible, .alwaysHidden):
+            menuBarManager.unpinAlwaysHidden(app: app)
+        default:
+            break
+        }
+    }
+
+    private func applySuccessfulMovePresentation(for target: IconZone) {
+        switch target {
+        case .visible where !menuBarManager.settings.secondMenuBarShowVisible:
+            menuBarManager.settings.secondMenuBarShowVisible = true
+        case .alwaysHidden where !menuBarManager.settings.secondMenuBarShowAlwaysHidden:
+            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
+        default:
+            break
+        }
+        onIconMoved?()
+    }
+
+    private func observeQueuedMoveResult(
+        _ task: Task<Bool, Never>,
+        app: RunningApp,
+        source: IconZone,
+        target: IconZone
+    ) {
+        Task { @MainActor in
+            let moved = await task.value
+            if moved {
+                applySuccessfulMovePresentation(for: target)
+            } else {
+                rollbackAlwaysHiddenMutation(for: app, from: source, to: target)
+            }
+        }
+    }
+
+    private func observeQueuedReorderResult(_ task: Task<Bool, Never>) {
+        Task { @MainActor in
+            let moved = await task.value
+            if moved {
+                onIconMoved?()
+            }
+        }
+    }
+
+    private func queueMove(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
@@ -547,23 +599,12 @@ struct SecondMenuBarView: View {
             started = false
         }
 
-        guard started else { return false }
-
-        // Keep UX predictable: if user moves into a filtered-off row,
-        // auto-enable that row so the result is immediately visible.
-        switch target {
-        case .visible where !menuBarManager.settings.secondMenuBarShowVisible:
-            menuBarManager.settings.secondMenuBarShowVisible = true
-        case .alwaysHidden where !menuBarManager.settings.secondMenuBarShowAlwaysHidden:
-            menuBarManager.settings.secondMenuBarShowAlwaysHidden = true
-        default:
-            break
+        guard started, let task = menuBarManager.activeMoveTask else {
+            rollbackAlwaysHiddenMutation(for: app, from: source, to: target)
+            return false
         }
 
-        // Refresh the panel data after the move takes effect
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onIconMoved?()
-        }
+        observeQueuedMoveResult(task, app: app, source: source, target: target)
         return true
     }
 
@@ -639,11 +680,9 @@ struct SecondMenuBarView: View {
             placeAfterTarget: placeAfterTarget
         )
 
-        guard started else { return false }
+        guard started, let task = menuBarManager.activeMoveTask else { return false }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onIconMoved?()
-        }
+        observeQueuedReorderResult(task)
         return true
     }
 

@@ -56,11 +56,13 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // This ensures NSStatusItem windows are created at the correct window layer (25).
         NSApp.setActivationPolicy(.accessory)
 
+        // Load cached Pro state before the menu bar runtime creates any
+        // license-gated status items. Otherwise launch can briefly create and
+        // tear down the always-hidden separator while `isPro` catches up.
+        LicenseService.shared.checkCachedLicense()
+
         // Initialize MenuBarManager (creates status items) - MUST be after activation policy is set
         _ = MenuBarManager.shared
-
-        // Check cached Pro license (Keychain)
-        LicenseService.shared.checkCachedLicense()
         MenuBarManager.shared.normalizeLicenseDependentDefaults()
 
         // Configure keyboard shortcuts
@@ -70,6 +72,8 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         // Apply user's preferred policy (may override to .regular if dock icon enabled)
         SaneActivationPolicy.applyInitialPolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
+        SetappIntegration.logPurchaseType()
+        SetappIntegration.showReleaseNotesIfNeeded(delay: 1.5)
 
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
@@ -166,7 +170,18 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        menu.addItem(NSMenuItem.separator())
+        if LicenseService.shared.usesSetappDistribution {
+            let whatsNewItem = NSMenuItem(
+                title: "What's New...",
+                action: #selector(showReleaseNotesFromDock(_:)),
+                keyEquivalent: ""
+            )
+            whatsNewItem.target = self
+            menu.addItem(whatsNewItem)
+            menu.addItem(NSMenuItem.separator())
+        } else {
+            menu.addItem(NSMenuItem.separator())
+        }
 
         let quitItem = NSMenuItem(
             title: "Quit SaneBar",
@@ -194,6 +209,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     @objc private func openSettingsFromDock(_: Any?) {
         SettingsOpener.open()
+    }
+
+    @MainActor
+    @objc private func showReleaseNotesFromDock(_: Any?) {
+        SetappIntegration.showReleaseNotes()
     }
 
     @MainActor

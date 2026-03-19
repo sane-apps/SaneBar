@@ -238,6 +238,32 @@ struct ScriptIconIdentity: Sendable {
         statusItemIndex = app.statusItemIndex
     }
 
+    init?(identifier: String) {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        uniqueId = trimmed
+        if let range = trimmed.range(of: "::axid:") {
+            bundleId = String(trimmed[..<range.lowerBound])
+            let menuExtra = String(trimmed[range.upperBound...])
+            menuExtraIdentifier = menuExtra.isEmpty ? nil : menuExtra
+            statusItemIndex = nil
+            return
+        }
+
+        if let range = trimmed.range(of: "::statusItem:") {
+            bundleId = String(trimmed[..<range.lowerBound])
+            let indexString = String(trimmed[range.upperBound...])
+            statusItemIndex = Int(indexString)
+            menuExtraIdentifier = nil
+            return
+        }
+
+        bundleId = trimmed
+        menuExtraIdentifier = nil
+        statusItemIndex = nil
+    }
+
     func matches(_ app: RunningApp) -> Bool {
         if app.uniqueId == uniqueId {
             return true
@@ -276,6 +302,23 @@ private func currentIconZones() -> [ScriptZonedIcon] {
     }
     return zones(from: classified)
 }
+
+func sortedScriptZones(_ zones: [ScriptZonedIcon]) -> [ScriptZonedIcon] {
+    zones.sorted { lhs, rhs in
+        if lhs.zone.rawValue == rhs.zone.rawValue {
+            return (lhs.app.xPosition ?? 0) < (rhs.app.xPosition ?? 0)
+        }
+        return lhs.zone.rawValue < rhs.zone.rawValue
+    }
+}
+
+func preferredScriptListingZones(
+    cached: [ScriptZonedIcon],
+    refreshed: @autoclosure () -> [ScriptZonedIcon]
+) -> [ScriptZonedIcon] {
+    sortedScriptZones(cached.isEmpty ? refreshed() : cached)
+}
+
 @MainActor
 private func runScriptMove(timeoutSeconds: TimeInterval = 6.5, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
@@ -337,6 +380,54 @@ func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
     return refreshedIconZones(timeoutSeconds: 1.2)
 }
 
+func shouldPreferFreshZonesForScriptMove(
+    identifier: String,
+    matchedApp: RunningApp,
+    sameBundleCount: Int
+) -> Bool {
+    if matchedApp.hasPreciseMenuBarIdentity, matchedApp.uniqueId == identifier {
+        return true
+    }
+    if matchedApp.menuExtraIdentifier == identifier {
+        return true
+    }
+    if let statusItemIndex = matchedApp.statusItemIndex,
+       identifier == "\(matchedApp.bundleId)::statusItem:\(statusItemIndex)" {
+        return true
+    }
+    return sameBundleCount > 1
+}
+
+@MainActor
+func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
+    let cached = currentIconZones()
+    guard let matched = resolveScriptIcon(identifier, from: cached) else {
+        AccessibilityService.shared.invalidateMenuBarItemCache()
+        return refreshedIconZones(timeoutSeconds: 1.8)
+    }
+
+    let sameBundleCount = cached.reduce(into: 0) { count, item in
+        if item.app.bundleId == matched.app.bundleId {
+            count += 1
+        }
+    }
+
+    guard shouldPreferFreshZonesForScriptMove(
+        identifier: identifier,
+        matchedApp: matched.app,
+        sameBundleCount: sameBundleCount
+    ) else {
+        return cached
+    }
+
+    AccessibilityService.shared.invalidateMenuBarItemCache()
+    let refreshed = refreshedIconZones(timeoutSeconds: 1.8)
+    if resolveScriptIcon(identifier, from: refreshed) != nil {
+        return refreshed
+    }
+    return cached
+}
+
 func parseIconIdentifier(_ raw: Any?) -> String? {
     guard let iconId = raw as? String else { return nil }
     let trimmed = iconId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -379,7 +470,22 @@ func scriptIdentifierMatches(_ identifier: String, app: RunningApp) -> Bool {
 
 @MainActor
 func resolveScriptIcon(_ identifier: String, from zones: [ScriptZonedIcon]) -> ScriptZonedIcon? {
-    zones.first(where: { scriptIdentifierMatches(identifier, app: $0.app) })
+    if let exact = zones.first(where: { scriptIdentifierMatches(identifier, app: $0.app) }) {
+        return exact
+    }
+
+    guard let identity = ScriptIconIdentity(identifier: identifier) else { return nil }
+    let sameBundle = zones.filter { $0.app.bundleId == identity.bundleId }
+    if sameBundle.count == 1 {
+        return sameBundle.first
+    }
+
+    let coarseFallback = sameBundle.filter { !$0.app.hasPreciseMenuBarIdentity }
+    if coarseFallback.count == 1 {
+        return coarseFallback.first
+    }
+
+    return nil
 }
 
 @MainActor
@@ -465,21 +571,17 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
 
         let zones: [ScriptZonedIcon] = if Thread.isMainThread {
             MainActor.assumeIsolated {
-                refreshedIconZones(timeoutSeconds: 1.2).sorted { lhs, rhs in
-                    if lhs.zone.rawValue == rhs.zone.rawValue {
-                        return (lhs.app.xPosition ?? 0) < (rhs.app.xPosition ?? 0)
-                    }
-                    return lhs.zone.rawValue < rhs.zone.rawValue
-                }
+                preferredScriptListingZones(
+                    cached: currentIconZones(),
+                    refreshed: refreshedIconZones(timeoutSeconds: 1.2)
+                )
             }
         } else {
             DispatchQueue.main.sync {
-                refreshedIconZones(timeoutSeconds: 1.2).sorted { lhs, rhs in
-                    if lhs.zone.rawValue == rhs.zone.rawValue {
-                        return (lhs.app.xPosition ?? 0) < (rhs.app.xPosition ?? 0)
-                    }
-                    return lhs.zone.rawValue < rhs.zone.rawValue
-                }
+                preferredScriptListingZones(
+                    cached: currentIconZones(),
+                    refreshed: refreshedIconZones(timeoutSeconds: 1.2)
+                )
             }
         }
 
@@ -513,6 +615,12 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
 
     @MainActor
     private static func buildSnapshotPayload(from manager: MenuBarManager) -> [String: Any] {
+        let licenseIsPro = LicenseService.shared.isPro
+        let alwaysHiddenRequested = manager.settings.alwaysHiddenSectionEnabled
+        let alwaysHiddenEffective = MenuBarManager.effectiveAlwaysHiddenSectionEnabled(
+            isPro: licenseIsPro,
+            alwaysHiddenSectionEnabled: alwaysHiddenRequested
+        )
         let mainX = manager.getMainStatusItemLeftEdgeX()
         let separatorX = manager.getSeparatorOriginX()
         let separatorRightEdgeX = manager.getSeparatorRightEdgeX()
@@ -558,6 +666,10 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "separatorBeforeMain": separatorBeforeMain,
             "alwaysHiddenBeforeSeparator": alwaysHiddenBeforeSeparator,
             "alwaysHiddenGeometryReliable": alwaysHiddenGeometry.isReliable,
+            "alwaysHiddenSectionEnabledRequested": alwaysHiddenRequested,
+            "alwaysHiddenSectionEnabledEffective": alwaysHiddenEffective,
+            "alwaysHiddenSeparatorPresent": manager.alwaysHiddenSeparatorItem != nil,
+            "licenseIsPro": licenseIsPro,
             "mainNearControlCenter": mainNearControlCenter,
             // Rehide/debug state to diagnose "stuck expanded" reports quickly.
             "autoRehideEnabled": manager.settings.autoRehide,
@@ -776,15 +888,17 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         let targetZone = self.targetZone
         var errorCode: String?
         var skipZoneWait = false
+        var movedUniqueID: String?
         let started: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
                 let manager = MenuBarManager.shared
-                let startZones = zonesForScriptResolution(trimmedId)
+                let startZones = zonesForScriptMoveResolution(trimmedId)
                 guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
                     errorCode = "notFound"
                     return false
                 }
                 let icon = source.app
+                movedUniqueID = icon.uniqueId
                 let sourceZone = source.zone
                 logger.info(
                     "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
@@ -932,13 +1046,14 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         } else {
             DispatchQueue.main.sync {
                 let manager = MenuBarManager.shared
-                let startZones = zonesForScriptResolution(trimmedId)
+                let startZones = zonesForScriptMoveResolution(trimmedId)
                 guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
                     errorCode = "notFound"
                     return false
                 }
 
                 let icon = source.app
+                movedUniqueID = icon.uniqueId
                 let sourceZone = source.zone
                 logger.info(
                     "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
@@ -1100,6 +1215,29 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         if skipZoneWait {
             return true
         }
+
+        guard let movedUniqueID else {
+            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
+            return false
+        }
+
+        let settled: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                waitForScriptZone(iconUniqueID: movedUniqueID, expected: targetZone, timeoutSeconds: 4.0)
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    waitForScriptZone(iconUniqueID: movedUniqueID, expected: targetZone, timeoutSeconds: 4.0)
+                }
+            }
+        }
+
+        guard settled else {
+            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
+            return false
+        }
+
         return true
     }
 }

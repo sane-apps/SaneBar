@@ -40,6 +40,7 @@ class LiveZoneSmoke
   ZONE_API_READY_POLL_SECONDS = 0.5
   APPLESCRIPT_TIMEOUT_SECONDS = 8
   APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20
+  APPLESCRIPT_MOVE_TIMEOUT_SECONDS = 25
   APPLESCRIPT_RETRIES = 2
   BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
   BROWSE_PANEL_READY_POLL_SECONDS = 0.25
@@ -127,6 +128,7 @@ class LiveZoneSmoke
     @active_avg_rss_mb_max = float_env('SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX') || DEFAULT_ACTIVE_AVG_RSS_MB_MAX
     @resource_sample_path = expand_env_path('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH') || File.join(Dir.tmpdir, 'sanebar_runtime_resource_sample.txt')
     @require_always_hidden = ENV['SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN'] == '1'
+    @require_candidate = ENV['SANEBAR_SMOKE_REQUIRE_CANDIDATE'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
@@ -265,13 +267,26 @@ class LiveZoneSmoke
     deadline = Time.now + LAYOUT_STABILIZE_TIMEOUT_SECONDS
     attempts = 0
     last_snapshot = nil
+    last_error = nil
 
     while Time.now < deadline
       attempts += 1
       check_resource_watchdog!
-      last_snapshot = layout_snapshot
+      begin
+        last_snapshot = layout_snapshot
+      rescue StandardError => e
+        last_error = e
+        raise unless layout_snapshot_retryable?(e)
+
+        sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
+        next
+      end
       return last_snapshot if layout_invariants_satisfied?(last_snapshot)
       sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
+    end
+
+    if last_error
+      raise "Layout did not stabilize in #{LAYOUT_STABILIZE_TIMEOUT_SECONDS}s (attempts=#{attempts}, last_error=#{last_error.message}, snapshot=#{last_snapshot})"
     end
 
     raise "Layout did not stabilize in #{LAYOUT_STABILIZE_TIMEOUT_SECONDS}s (attempts=#{attempts}, snapshot=#{last_snapshot})"
@@ -529,7 +544,7 @@ class LiveZoneSmoke
   end
 
   def exercise_browse_mode(expected_mode:, command:, candidates:)
-    focus_probe_prior_bundle = seed_focus_probe_prior_app
+    focus_probe_prior_state = seed_focus_probe_prior_app
     result = app_script(command).strip.downcase
     unless %w[true 1].include?(result)
       raise "#{command} returned '#{result}'"
@@ -550,7 +565,7 @@ class LiveZoneSmoke
       'right click browse icon',
       expected_mode,
       live_candidates,
-      prior_frontmost_bundle: focus_probe_prior_bundle
+      prior_frontmost_state: focus_probe_prior_state
     )
     close_browse_panel
     puts "✅ Browse mode #{expected_mode} activation ok"
@@ -574,7 +589,7 @@ class LiveZoneSmoke
     close_browse_panel_safely
   end
 
-  def exercise_browse_activation(command, expected_mode, candidates, prior_frontmost_bundle: nil)
+  def exercise_browse_activation(command, expected_mode, candidates, prior_frontmost_state: nil)
     failures = []
 
     candidates.each do |candidate|
@@ -583,7 +598,7 @@ class LiveZoneSmoke
       diagnostics = app_script(%(#{command} "#{escape_quotes(live_identifier)}"))
       if browse_activation_succeeded?(diagnostics, expected_mode)
         verify_post_activation_browse_state!(expected_mode)
-        assert_frontmost_did_not_revert_to(prior_frontmost_bundle, command) unless prior_frontmost_bundle.nil?
+        assert_frontmost_did_not_revert_to(prior_frontmost_state, command) unless prior_frontmost_state.nil?
         return
       end
 
@@ -634,8 +649,8 @@ class LiveZoneSmoke
 
     deadline = Time.now + FOCUS_PROBE_TIMEOUT_SECONDS
     while Time.now < deadline
-      current_bundle = frontmost_app_bundle_id
-      return current_bundle if current_bundle == FOCUS_PROBE_APP_BUNDLE
+      current_state = frontmost_app_state
+      return current_state if current_state['bundleId'] == FOCUS_PROBE_APP_BUNDLE
 
       sleep_with_watchdog(FOCUS_PROBE_POLL_SECONDS)
     end
@@ -646,31 +661,64 @@ class LiveZoneSmoke
     nil
   end
 
-  def assert_frontmost_did_not_revert_to(prior_frontmost_bundle, command)
-    return if prior_frontmost_bundle.to_s.empty?
+  def assert_frontmost_did_not_revert_to(prior_frontmost_state, command)
+    return if prior_frontmost_state.nil?
+    prior_bundle = prior_frontmost_state['bundleId'].to_s
+    return if prior_bundle.empty?
 
     sleep_with_watchdog(RIGHT_CLICK_FOCUS_PROBE_SETTLE_SECONDS)
-    current_bundle = frontmost_app_bundle_id
-    return unless current_bundle == prior_frontmost_bundle
+    current_state = frontmost_app_state
+    return unless current_state['bundleId'].to_s == prior_bundle
 
     diagnostics = current_browse_activation_diagnostics
-    raise "#{command} reverted focus to prior app #{prior_frontmost_bundle}: #{browse_activation_failure_summary(diagnostics)}"
+    prior_window = prior_frontmost_state['windowTitle'].to_s
+    current_window = current_state['windowTitle'].to_s
+    detail =
+      if !prior_window.empty? && !current_window.empty? && prior_window == current_window
+        "prior app/window #{prior_bundle} / #{prior_window.inspect}"
+      elsif !prior_window.empty? || !current_window.empty?
+        "prior app #{prior_bundle} (priorWindow=#{prior_window.inspect}, currentWindow=#{current_window.inspect})"
+      else
+        "prior app #{prior_bundle}"
+      end
+    raise "#{command} reverted focus to #{detail}: #{browse_activation_failure_summary(diagnostics)}"
   end
 
-  def frontmost_app_bundle_id
+  def frontmost_app_state
     script = <<~JXA
       ObjC.import('AppKit')
-      const app = $.NSWorkspace.sharedWorkspace.frontmostApplication
-      if (!app) {
-        ''
-      } else {
-        ObjC.unwrap(app.bundleIdentifier) || ''
+      function frontWindowTitle() {
+        try {
+          const se = Application('System Events')
+          const processes = se.applicationProcesses.whose({ frontmost: true })()
+          if (!processes.length) return ''
+          const windows = processes[0].windows()
+          if (!windows.length) return ''
+          return windows[0].name() || ''
+        } catch (error) {
+          return ''
+        }
       }
+      const app = $.NSWorkspace.sharedWorkspace.frontmostApplication
+      const payload = {
+        bundleId: '',
+        localizedName: '',
+        pid: 0,
+        windowTitle: frontWindowTitle()
+      }
+      if (app) {
+        payload.bundleId = ObjC.unwrap(app.bundleIdentifier) || ''
+        payload.localizedName = ObjC.unwrap(app.localizedName) || ''
+        payload.pid = Number(app.processIdentifier) || 0
+      }
+      JSON.stringify(payload)
     JXA
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-l', 'JavaScript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     raise "frontmost-app probe failed: #{out.strip}" unless code.success?
 
-    out.to_s.strip
+    JSON.parse(out.to_s)
+  rescue JSON::ParserError => e
+    raise "frontmost-app probe returned invalid JSON: #{e.message}"
   end
 
   def browse_activation_observably_verified?(diagnostics)
@@ -1086,6 +1134,7 @@ class LiveZoneSmoke
   end
 
   def app_script_timeout_for(statement)
+    return APPLESCRIPT_MOVE_TIMEOUT_SECONDS if move_app_script?(statement)
     return APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS if heavy_read_app_script?(statement)
 
     APPLESCRIPT_TIMEOUT_SECONDS
@@ -1093,6 +1142,10 @@ class LiveZoneSmoke
 
   def heavy_read_app_script?(statement)
     statement == 'list icon zones' || statement == 'list icons'
+  end
+
+  def move_app_script?(statement)
+    statement.start_with?('move icon to ')
   end
 
   def capture2e_with_timeout(*cmd, timeout:)
@@ -1428,12 +1481,18 @@ class LiveZoneSmoke
     error.message.include?('AppleScript timeout')
   end
 
+  def layout_snapshot_retryable?(error)
+    return true if retryable_zone_poll_error?(error)
+
+    error.message.include?('layout snapshot')
+  end
+
   def strict_candidate_mode?
     @require_all_candidates || !@required_candidate_ids.empty?
   end
 
   def move_candidates_required?
-    strict_candidate_mode?
+    @require_candidate || strict_candidate_mode?
   end
 
   def focused_required_id_mode?

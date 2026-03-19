@@ -90,7 +90,15 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     }
 
     func diagnosticsSnapshot() -> String {
-        lastSecondMenuBarDiagnostics.formattedSummary()
+        liveDiagnosticsSnapshot().formattedSummary()
+    }
+
+    private func liveDiagnosticsSnapshot() -> SecondMenuBarDiagnostics {
+        var snapshot = lastSecondMenuBarDiagnostics
+        snapshot.currentMode = Self.diagnosticsMode(currentMode)
+        snapshot.windowVisible = window?.isVisible == true
+        snapshot.windowFrame = Self.diagnosticsRect(window?.frame)
+        return snapshot
     }
 
     func captureBrowsePanelSnapshotPNG(to path: String) -> Bool {

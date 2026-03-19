@@ -308,6 +308,63 @@ struct IconMovingIdentityProofTests {
     }
 }
 
+@Suite("AppleScript Move Resolution")
+struct AppleScriptMoveResolutionTests {
+    @Test("Precise identifiers prefer a fresh zone snapshot for moves")
+    func preciseIdentifiersPreferFreshSnapshot() {
+        let focus = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Focus",
+            identifier: "com.apple.menuextra.focusmode",
+            xPosition: 1400,
+            width: 24
+        )
+
+        #expect(
+            shouldPreferFreshZonesForScriptMove(
+                identifier: "com.apple.menuextra.focusmode",
+                matchedApp: focus,
+                sameBundleCount: 2
+            )
+        )
+        #expect(
+            shouldPreferFreshZonesForScriptMove(
+                identifier: focus.uniqueId,
+                matchedApp: focus,
+                sameBundleCount: 1
+            )
+        )
+    }
+
+    @Test("Coarse bundle identifiers only force refresh when siblings exist")
+    func coarseBundleIdentifiersOnlyRefreshWhenNeeded() {
+        let coarse = RunningApp(
+            id: "com.example.single",
+            name: "Single",
+            icon: nil,
+            menuExtraIdentifier: nil,
+            statusItemIndex: nil,
+            xPosition: 1200,
+            width: 24
+        )
+
+        #expect(
+            !shouldPreferFreshZonesForScriptMove(
+                identifier: "com.example.single",
+                matchedApp: coarse,
+                sameBundleCount: 1
+            )
+        )
+        #expect(
+            shouldPreferFreshZonesForScriptMove(
+                identifier: "com.example.single",
+                matchedApp: coarse,
+                sameBundleCount: 2
+            )
+        )
+    }
+}
+
 // MARK: - Grab Point Tests
 
 @Suite("Icon Moving — Grab Point")
@@ -752,29 +809,29 @@ struct IconMovingScenarioTests {
         #expect(targetX < ahSeparatorOriginX, "Must move LEFT of AH separator")
     }
 
-    @Test("Always-hidden move keeps standard target for normal-width icons")
+    @Test("Always-hidden move uses dedicated separator-adjacent target for normal-width icons")
     func alwaysHiddenMoveNormalWidthTarget() {
         let targetX = AccessibilityService.moveTargetX(
-            toHidden: true,
+            targetLane: .alwaysHidden,
             iconWidth: 22,
             separatorX: 828,
             visibleBoundaryX: nil
         )
 
-        #expect(targetX == 746, "Normal-width extras keep the standard always-hidden offset")
+        #expect(targetX == 786, "Normal-width extras should insert just left of the always-hidden separator")
     }
 
-    @Test("Always-hidden move uses deeper insertion target for wide Weather-style icons")
-    func alwaysHiddenMoveWideIconUsesDeeperTarget() {
+    @Test("Always-hidden move stays separator-adjacent even for wide icons")
+    func alwaysHiddenMoveWideIconUsesBoundedTarget() {
         let targetX = AccessibilityService.moveTargetX(
-            toHidden: true,
+            targetLane: .alwaysHidden,
             iconWidth: 70.5,
             separatorX: 828,
             visibleBoundaryX: nil
         )
 
-        #expect(targetX == 586.5, "Wide text-style extras need a deeper always-hidden drag target")
-        #expect(targetX < 697.5, "Wide always-hidden target should be farther left than the old fallback")
+        #expect(targetX == 737.5, "Wide icons should still target the insertion edge instead of overshooting deep into the lane")
+        #expect(targetX < 828, "Always-hidden target must stay left of the separator")
     }
 
     @Test("Post-move verification with successful move")

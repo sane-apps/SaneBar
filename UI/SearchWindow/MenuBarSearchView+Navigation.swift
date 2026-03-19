@@ -59,45 +59,35 @@ extension MenuBarSearchView {
 
     func makeToggleHiddenAction(for app: RunningApp) -> (() -> Void)? {
         // Determine direction based on tab (or actual zone for All tab)
-        let toHidden: Bool
-        let isAH: Bool
+        let sourceZone: AppZone
+        let targetZone: AppZone
         switch mode {
-        case .visible: toHidden = true; isAH = false
-        case .hidden: toHidden = false; isAH = false
-        case .alwaysHidden: toHidden = false; isAH = true
+        case .visible:
+            sourceZone = .visible
+            targetZone = .hidden
+        case .hidden:
+            sourceZone = .hidden
+            targetZone = .visible
+        case .alwaysHidden:
+            sourceZone = .alwaysHidden
+            targetZone = .visible
         case .all:
             let zone = appZone(for: app)
             switch zone {
-            case .visible: toHidden = true; isAH = false
-            case .hidden: toHidden = false; isAH = false
-            case .alwaysHidden: toHidden = false; isAH = true
+            case .visible:
+                sourceZone = .visible
+                targetZone = .hidden
+            case .hidden:
+                sourceZone = .hidden
+                targetZone = .visible
+            case .alwaysHidden:
+                sourceZone = .alwaysHidden
+                targetZone = .visible
             }
         }
 
         return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
-
-            self.movingAppId = app.uniqueId
-
-            if isAH {
-                self.menuBarManager.unpinAlwaysHidden(app: app)
-                _ = self.menuBarManager.moveIconFromAlwaysHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX
-                )
-            } else {
-                _ = self.menuBarManager.moveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX,
-                    toHidden: toHidden
-                )
-            }
+            _ = self.queueMove(app, from: sourceZone, to: targetZone)
         }
     }
 
@@ -106,18 +96,7 @@ extension MenuBarSearchView {
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard isAH else { return nil }
         return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
-
-            self.movingAppId = app.uniqueId
-            self.menuBarManager.unpinAlwaysHidden(app: app)
-            _ = self.menuBarManager.moveIconFromAlwaysHiddenToHidden(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
+            _ = self.queueMove(app, from: .alwaysHidden, to: .hidden)
         }
     }
 
@@ -127,19 +106,136 @@ extension MenuBarSearchView {
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard !isAH else { return nil }
         return {
-            let bundleID = app.bundleId
-            let menuExtraId = app.menuExtraIdentifier
-            let statusItemIndex = app.statusItemIndex
+            _ = self.queueMove(app, from: self.appZone(for: app), to: .alwaysHidden)
+        }
+    }
 
-            self.movingAppId = app.uniqueId
-            self.menuBarManager.pinAlwaysHidden(app: app)
-            _ = self.menuBarManager.moveIconToAlwaysHidden(
+    private func rollbackAlwaysHiddenMutation(for app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) {
+        switch (sourceZone, targetZone) {
+        case (.alwaysHidden, .visible), (.alwaysHidden, .hidden):
+            menuBarManager.pinAlwaysHidden(app: app)
+        case (.hidden, .alwaysHidden), (.visible, .alwaysHidden):
+            menuBarManager.unpinAlwaysHidden(app: app)
+        default:
+            break
+        }
+    }
+
+    private func observeQueuedMoveResult(
+        _ task: Task<Bool, Never>,
+        app: RunningApp,
+        sourceZone: AppZone,
+        targetZone: AppZone
+    ) {
+        Task { @MainActor in
+            let moved = await task.value
+            if !moved {
+                rollbackAlwaysHiddenMutation(for: app, from: sourceZone, to: targetZone)
+                movingAppId = nil
+            }
+        }
+    }
+
+    private func observeQueuedReorderResult(_ task: Task<Bool, Never>) {
+        Task { @MainActor in
+            let moved = await task.value
+            if !moved {
+                movingAppId = nil
+            }
+        }
+    }
+
+    private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
+        let bundleID = app.bundleId
+        let menuExtraID = app.menuExtraIdentifier
+        let statusItemIndex = app.statusItemIndex
+
+        let started: Bool
+        switch targetZone {
+        case .visible:
+            guard sourceZone != .visible else { return false }
+            if sourceZone == .alwaysHidden {
+                menuBarManager.unpinAlwaysHidden(app: app)
+                started = menuBarManager.moveIconFromAlwaysHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX
+                )
+            } else {
+                started = menuBarManager.moveIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX,
+                    toHidden: false
+                )
+            }
+
+        case .hidden:
+            guard sourceZone != .hidden else { return false }
+            if sourceZone == .alwaysHidden {
+                menuBarManager.unpinAlwaysHidden(app: app)
+                started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX
+                )
+            } else {
+                started = menuBarManager.moveIcon(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraID,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: app.preferredCenterX,
+                    toHidden: true
+                )
+            }
+
+        case .alwaysHidden:
+            guard isAlwaysHiddenEnabled else { return false }
+            guard sourceZone != .alwaysHidden else { return false }
+            menuBarManager.pinAlwaysHidden(app: app)
+            started = menuBarManager.moveIconToAlwaysHidden(
                 bundleID: bundleID,
-                menuExtraId: menuExtraId,
+                menuExtraId: menuExtraID,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX
             )
         }
+
+        guard started, let task = menuBarManager.activeMoveTask else {
+            rollbackAlwaysHiddenMutation(for: app, from: sourceZone, to: targetZone)
+            return false
+        }
+
+        movingAppId = app.uniqueId
+        observeQueuedMoveResult(task, app: app, sourceZone: sourceZone, targetZone: targetZone)
+        return true
+    }
+
+    private func queueReorder(_ sourceApp: RunningApp, targetApp: RunningApp) -> Bool {
+        let sourceX = sourceApp.xPosition ?? 0
+        let targetX = targetApp.xPosition ?? 0
+        let placeAfterTarget = sourceX < targetX
+
+        let started = menuBarManager.reorderIcon(
+            sourceBundleID: sourceApp.bundleId,
+            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
+            sourceStatusItemIndex: sourceApp.statusItemIndex,
+            targetBundleID: targetApp.bundleId,
+            targetMenuExtraID: targetApp.menuExtraIdentifier,
+            targetStatusItemIndex: targetApp.statusItemIndex,
+            placeAfterTarget: placeAfterTarget
+        )
+
+        guard started, let task = menuBarManager.activeMoveTask else {
+            return false
+        }
+
+        movingAppId = sourceApp.uniqueId
+        observeQueuedReorderResult(task)
+        return true
     }
 
     @MainActor
@@ -161,22 +257,7 @@ extension MenuBarSearchView {
         guard sourceID != targetApp.uniqueId else { return false }
         guard let sourceApp = filteredApps.first(where: { $0.uniqueId == sourceID }) else { return false }
 
-        let sourceX = sourceApp.xPosition ?? 0
-        let targetX = targetApp.xPosition ?? 0
-        let placeAfterTarget = sourceX < targetX
-
-        _ = menuBarManager.reorderIcon(
-            sourceBundleID: sourceApp.bundleId,
-            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
-            sourceStatusItemIndex: sourceApp.statusItemIndex,
-            targetBundleID: targetApp.bundleId,
-            targetMenuExtraID: targetApp.menuExtraIdentifier,
-            targetStatusItemIndex: targetApp.statusItemIndex,
-            placeAfterTarget: placeAfterTarget
-        )
-
-        movingAppId = sourceApp.uniqueId
-        return true
+        return queueReorder(sourceApp, targetApp: targetApp)
     }
 
     func handleZoneDrop(_ payloads: [String], targetMode: Mode) -> Bool {
@@ -201,71 +282,17 @@ extension MenuBarSearchView {
 
         let sourceApp = source.app
         let sourceZone = source.zone
-        let bundleID = sourceApp.bundleId
-        let menuExtraID = sourceApp.menuExtraIdentifier
-        let statusItemIndex = sourceApp.statusItemIndex
 
-        let started: Bool
         switch targetMode {
         case .visible:
-            guard sourceZone != AppZone.visible else { return false }
-            if sourceZone == AppZone.alwaysHidden {
-                menuBarManager.unpinAlwaysHidden(app: sourceApp)
-                started = menuBarManager.moveIconFromAlwaysHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: sourceApp.preferredCenterX
-                )
-            } else {
-                started = menuBarManager.moveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: sourceApp.preferredCenterX,
-                    toHidden: false
-                )
-            }
-
+            return queueMove(sourceApp, from: sourceZone, to: .visible)
         case .hidden:
-            guard sourceZone != AppZone.hidden else { return false }
-            if sourceZone == AppZone.alwaysHidden {
-                menuBarManager.unpinAlwaysHidden(app: sourceApp)
-                started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: sourceApp.preferredCenterX
-                )
-            } else {
-                started = menuBarManager.moveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: sourceApp.preferredCenterX,
-                    toHidden: true
-                )
-            }
-
+            return queueMove(sourceApp, from: sourceZone, to: .hidden)
         case .alwaysHidden:
-            guard isAlwaysHiddenEnabled else { return false }
-            guard sourceZone != AppZone.alwaysHidden else { return false }
-            menuBarManager.pinAlwaysHidden(app: sourceApp)
-            started = menuBarManager.moveIconToAlwaysHidden(
-                bundleID: bundleID,
-                menuExtraId: menuExtraID,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: sourceApp.preferredCenterX
-            )
-
+            return queueMove(sourceApp, from: sourceZone, to: .alwaysHidden)
         case .all:
             return false
         }
-
-        if started {
-            movingAppId = sourceApp.uniqueId
-        }
-        return started
     }
 
     static func sourceForDropPayload(

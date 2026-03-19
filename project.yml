@@ -17,6 +17,9 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.4.0
+  Setapp:
+    url: https://github.com/MacPaw/Setapp-framework.git
+    from: 5.0.1
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.8.0
@@ -107,6 +110,7 @@ targets:
       - Resources
     dependencies:
       - package: KeyboardShortcuts
+      - package: Setapp
       - package: Sparkle
       - package: SaneUI
     info:

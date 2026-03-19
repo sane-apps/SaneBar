@@ -1,5 +1,5 @@
 {
-  "originHash" : "0f1ae3d062cc6cf55fbeaa5bcbc3b2bd5034fb3f9c987e414040c7c2a3e9d01e",
+  "originHash" : "dac691e37f667797526a116425e19f6abcb5056d357e5d4a67838dcc0a0ad78d",
   "pins" : [
     {
       "identity" : "keyboardshortcuts",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
         "version" : "2.4.0"
+      }
+    },
+    {
+      "identity" : "setapp-framework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/MacPaw/Setapp-framework.git",
+      "state" : {
+        "revision" : "b6946a01e7530d6f25e9e593de9d2216a3e3cf65",
+        "version" : "5.0.1"
       }
     },
     {

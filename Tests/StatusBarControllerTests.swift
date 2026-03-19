@@ -842,6 +842,7 @@ struct StatusBarControllerTests {
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
         ))
@@ -885,6 +886,7 @@ struct StatusBarControllerTests {
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
         ))
@@ -920,6 +922,7 @@ struct StatusBarControllerTests {
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
         ))
@@ -955,6 +958,7 @@ struct StatusBarControllerTests {
             toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
+            showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
         ))

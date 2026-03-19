@@ -151,6 +151,20 @@ extension MenuBarManager {
         return frame
     }
 
+    private func currentLiveAlwaysHiddenSeparatorFrame() -> CGRect? {
+        guard let alwaysHiddenSeparatorItem, alwaysHiddenSeparatorItem.length <= 1000,
+              let separatorButton = alwaysHiddenSeparatorItem.button,
+              let separatorWindow = separatorButton.window else {
+            return nil
+        }
+
+        let frame = separatorWindow.frame
+        guard Self.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) else {
+            return nil
+        }
+        return frame
+    }
+
     @MainActor
     private func postVisibleLaneCrowdingHintCandidate(
         bundleID: String,
@@ -444,15 +458,43 @@ extension MenuBarManager {
         logger.debug("🔧 Unable to warm separator cache before hide (will use runtime fallbacks)")
     }
 
+    @MainActor
+    func warmAlwaysHiddenSeparatorPositionCache(maxAttempts: Int = 12) async {
+        for attempt in 1 ... maxAttempts {
+            if let frame = currentLiveAlwaysHiddenSeparatorFrame() {
+                lastKnownAlwaysHiddenSeparatorX = frame.origin.x
+                lastKnownAlwaysHiddenSeparatorRightEdgeX = frame.origin.x + frame.width
+                if attempt > 1 {
+                    logger.info("🔧 Warmed always-hidden separator cache after \(attempt) attempts")
+                }
+                return
+            }
+
+            if let separatorOrigin = lastKnownAlwaysHiddenSeparatorX,
+               let separatorRightEdge = lastKnownAlwaysHiddenSeparatorRightEdgeX,
+               separatorOrigin > 0, separatorRightEdge > separatorOrigin {
+                if attempt > 1 {
+                    logger.info("🔧 Warmed always-hidden separator cache after \(attempt) attempts")
+                }
+                return
+            }
+
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        logger.debug("🔧 Unable to warm always-hidden separator cache before move")
+    }
+
     /// Refresh cached separator boundaries after a drag mutation while separators
     /// are still at visual size. This prevents post-move zone classification from
     /// using stale hidden-mode cache values.
     @MainActor
     func refreshSeparatorCacheAfterMove() async {
         await warmSeparatorPositionCache(maxAttempts: 16)
+        await warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
         _ = getSeparatorOriginX()
         _ = getSeparatorRightEdgeX()
         _ = getAlwaysHiddenSeparatorOriginX()
+        _ = getAlwaysHiddenSeparatorBoundaryX()
     }
 
     @MainActor
@@ -584,6 +626,52 @@ extension MenuBarManager {
         return lastTargets
     }
 
+    private func resolveAlwaysHiddenMoveTargetsWithRetries(
+        toAlwaysHidden: Bool,
+        maxAttempts: Int = 20
+    ) async -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
+        var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
+
+        for attempt in 1 ... maxAttempts {
+            let (targets, liveAHSeparatorReady, liveMainSeparatorReady) = await MainActor.run {
+                if toAlwaysHidden {
+                    return (
+                        (self.getAlwaysHiddenSeparatorBoundaryX(), nil as CGFloat?),
+                        self.currentLiveAlwaysHiddenSeparatorFrame() != nil,
+                        true
+                    )
+                }
+
+                return (
+                    (self.getSeparatorRightEdgeX(), self.getMainStatusItemLeftEdgeX()),
+                    self.currentLiveAlwaysHiddenSeparatorFrame() != nil,
+                    self.currentLiveSeparatorFrame() != nil
+                )
+            }
+            lastTargets = targets
+
+            if let separatorX = targets.0,
+               separatorX > 0,
+               toAlwaysHidden || (targets.1 != nil && (targets.1 ?? 0) > 0) {
+                let liveGeometryReady = toAlwaysHidden ? liveAHSeparatorReady : liveAHSeparatorReady && liveMainSeparatorReady
+                if liveGeometryReady || attempt == maxAttempts {
+                    if attempt > 1 {
+                        logger.info("🔧 Resolved always-hidden move targets after \(attempt * 50)ms")
+                    }
+                    return targets
+                }
+
+                if attempt == 1 || attempt % 5 == 0 {
+                    logger.debug("🔧 Waiting for live always-hidden separator geometry before move target acceptance")
+                }
+            }
+
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        return lastTargets
+    }
+
     nonisolated static func shouldBlockWideIconHiddenMove(
         iconWidth: CGFloat,
         hiddenLaneWidth: CGFloat
@@ -664,12 +752,141 @@ extension MenuBarManager {
         return false
     }
 
+    @MainActor
+    private func currentMoveRuntimeSnapshot(
+        identityPrecision: MenuBarIdentityPrecision
+    ) -> MenuBarRuntimeSnapshot {
+        let visibilityPhase: MenuBarVisibilityPhase = if hidingService.isAnimating || hidingService.isTransitioning {
+            .transitioning
+        } else if hidingService.state == .hidden {
+            .hidden
+        } else {
+            .expanded
+        }
+
+        let browsePhase: MenuBarBrowsePhase = if SearchWindowController.shared.isMoveInProgress {
+            .moveInProgress
+        } else if SearchWindowController.shared.isBrowseSessionActive {
+            .open
+        } else {
+            .idle
+        }
+
+        return MenuBarRuntimeSnapshot(
+            identityPrecision: identityPrecision,
+            geometryConfidence: hidingService.state == .hidden ? .shielded : .live,
+            visibilityPhase: visibilityPhase,
+            browsePhase: browsePhase,
+            hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
+            hasActiveMoveTask: activeMoveTask?.isCancelled == false,
+            hasAnyScreens: !NSScreen.screens.isEmpty
+        )
+    }
+
+    @MainActor
+    private func canQueueInteractiveMove(
+        operationName: String,
+        requiresAlwaysHiddenSeparator: Bool,
+        identityPrecision: MenuBarIdentityPrecision
+    ) -> Bool {
+        switch MenuBarOperationCoordinator.moveQueueDecision(
+            snapshot: currentMoveRuntimeSnapshot(identityPrecision: identityPrecision),
+            requiresAlwaysHiddenSeparator: requiresAlwaysHiddenSeparator
+        ) {
+        case .ready:
+            return true
+        case .rejectBusy:
+            logger.warning("🔧 \(operationName, privacy: .public) skipped — hiding service busy")
+            return false
+        case .rejectMoveAlreadyInFlight:
+            logger.warning("⚠️ \(operationName, privacy: .public) rejected: another move is in progress")
+            return false
+        case .rejectMissingAlwaysHiddenSeparator:
+            logger.error("🔧 \(operationName, privacy: .public): always-hidden separator unavailable")
+            return false
+        case .rejectMissingScreenGeometry:
+            logger.error("🔧 \(operationName, privacy: .public): no screens available — aborting")
+            return false
+        }
+    }
+
+    private func prepareAlwaysHiddenMoveQueue(
+        operationName: String,
+        identityPrecision: MenuBarIdentityPrecision,
+        shouldEnableSection: Bool
+    ) -> Bool {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated {
+                _ = ensureAlwaysHiddenSeparatorReady(
+                    operationName: operationName,
+                    shouldEnableSection: shouldEnableSection
+                )
+                return canQueueInteractiveMove(
+                    operationName: operationName,
+                    requiresAlwaysHiddenSeparator: true,
+                    identityPrecision: identityPrecision
+                )
+            }
+        }
+
+        var canQueue = false
+        DispatchQueue.main.sync {
+            _ = self.ensureAlwaysHiddenSeparatorReady(
+                operationName: operationName,
+                shouldEnableSection: shouldEnableSection
+            )
+            canQueue = self.canQueueInteractiveMove(
+                operationName: operationName,
+                requiresAlwaysHiddenSeparator: true,
+                identityPrecision: identityPrecision
+            )
+        }
+        return canQueue
+    }
+
+    @MainActor
+    private func ensureAlwaysHiddenSeparatorReady(
+        operationName: String,
+        shouldEnableSection: Bool,
+        maxAttempts: Int = 12
+    ) -> Bool {
+        if shouldEnableSection, !settings.alwaysHiddenSectionEnabled {
+            settings.alwaysHiddenSectionEnabled = true
+            saveSettings()
+        }
+
+        let featureEnabled = Self.effectiveAlwaysHiddenSectionEnabled(
+            isPro: LicenseService.shared.isPro,
+            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
+        )
+        guard featureEnabled else {
+            logger.error(
+                "🔧 \(operationName, privacy: .public): always-hidden feature unavailable (isPro=\(LicenseService.shared.isPro, privacy: .public) requested=\(self.settings.alwaysHiddenSectionEnabled, privacy: .public))"
+            )
+            return false
+        }
+
+        for attempt in 1 ... maxAttempts {
+            updateAlwaysHiddenSeparatorIfReady(forceRecreateIfMissing: attempt >= 4)
+            if alwaysHiddenSeparatorItem != nil {
+                if attempt > 1 {
+                    logger.info("🔧 \(operationName, privacy: .public): always-hidden separator became ready after \(attempt) attempts")
+                }
+                return true
+            }
+            _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        logger.error("🔧 \(operationName, privacy: .public): always-hidden separator unavailable after wait")
+        return false
+    }
+
     /// Move an icon to hidden or visible position
     /// - Parameters:
     ///   - bundleID: The bundle ID of the app to move
     ///   - menuExtraId: For Control Center items, the specific menu extra identifier
     ///   - toHidden: True to hide, false to show
-    /// - Returns: True if successful
+    /// - Returns: True when the move task was queued; final success is async.
     func moveIcon(
         bundleID: String,
         menuExtraId: String? = nil,
@@ -678,10 +895,15 @@ extension MenuBarManager {
         toHidden: Bool,
         separatorOverrideX: CGFloat? = nil
     ) -> Bool {
-        // Block moves during hide/show or shield transitions
-        let isBusy = hidingService.isAnimating || hidingService.isTransitioning
-        guard !isBusy else {
-            logger.warning("🔧 moveIcon skipped — hiding service busy")
+        let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex
+        ) ? .exact : .coarse
+        guard canQueueInteractiveMove(
+            operationName: "moveIcon",
+            requiresAlwaysHiddenSeparator: false,
+            identityPrecision: identityPrecision
+        ) else {
             return false
         }
 
@@ -743,18 +965,6 @@ extension MenuBarManager {
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
-        guard !NSScreen.screens.isEmpty else {
-            logger.error("🔧 moveIcon: No screens available — aborting")
-            return false
-        }
-
-        // Reject if a move is already in progress — cancelling mid-drag
-        // leaves mouse state corrupted (button stuck down, cursor teleported).
-        if let existing = activeMoveTask, !existing.isCancelled {
-            logger.warning("⚠️ Move rejected: another move is in progress")
-            return false
-        }
-
         // Important: avoid blocking the MainActor while simulating Cmd+drag.
         // Any UI stalls here can make the Find Icon window appear to "collapse".
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
@@ -1051,13 +1261,15 @@ extension MenuBarManager {
         preferredCenterX: CGFloat? = nil,
         toAlwaysHidden: Bool
     ) -> Bool {
-        // Block moves during hide/show or shield transitions
-        guard !hidingService.isAnimating, !hidingService.isTransitioning else {
-            logger.warning("🔧 moveIconAlwaysHidden skipped — hiding service busy")
-            return false
-        }
-        guard alwaysHiddenSeparatorItem != nil else {
-            logger.error("🔧 Always-hidden separator unavailable")
+        let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex
+        ) ? .exact : .coarse
+        guard prepareAlwaysHiddenMoveQueue(
+            operationName: "moveIconAlwaysHidden",
+            identityPrecision: identityPrecision,
+            shouldEnableSection: toAlwaysHidden
+        ) else {
             return false
         }
 
@@ -1066,15 +1278,6 @@ extension MenuBarManager {
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
-        guard !NSScreen.screens.isEmpty else {
-            logger.error("🔧 moveIconAlwaysHidden: No screens available — aborting")
-            return false
-        }
-
-        if let existing = activeMoveTask, !existing.isCancelled {
-            logger.warning("⚠️ Always-hidden move rejected: another move is in progress")
-            return false
-        }
 
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
@@ -1102,14 +1305,9 @@ extension MenuBarManager {
             try? await Task.sleep(for: .milliseconds(300))
 
             // 3. Resolve target position (both separators at visual size now)
-            let (separatorX, visibleBoundaryX): (CGFloat?, CGFloat?) = await MainActor.run {
-                if toAlwaysHidden {
-                    return (self.getAlwaysHiddenSeparatorBoundaryX(), nil)
-                }
-                let sep = self.getSeparatorRightEdgeX()
-                let mainLeft = self.getMainStatusItemLeftEdgeX()
-                return (sep, mainLeft)
-            }
+            let (separatorX, visibleBoundaryX) = await self.resolveAlwaysHiddenMoveTargetsWithRetries(
+                toAlwaysHidden: toAlwaysHidden
+            )
 
             guard let resolvedSeparatorX = separatorX else {
                 logger.error("🔧 Cannot resolve separator position for always-hidden move")
@@ -1123,12 +1321,26 @@ extension MenuBarManager {
 
             // 4. Cmd+drag (icon and separator are both on-screen)
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+            if !actionableMoveSafety.canExecuteMove {
+                logger.warning("🔧 Refusing ambiguous always-hidden move target for \(bundleID, privacy: .private); exact identity could not be proven")
+                await hidingService.restoreFromShowAll()
+                let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+                if wasHidden, !shouldSkipHide { await hidingService.hide() }
+                return false
+            }
             var success = accessibilityService.moveMenuBarIcon(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: preferredCenterX,
                 toHidden: toAlwaysHidden,
+                targetLane: toAlwaysHidden ? .alwaysHidden : .visible,
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
                 originalMouseLocation: originalCGPoint
@@ -1138,12 +1350,10 @@ extension MenuBarManager {
             if !success {
                 logger.info("🔧 Always-hidden move retry with session tap...")
                 try? await Task.sleep(for: .milliseconds(200))
-                let retryTargets: (CGFloat?, CGFloat?) = await MainActor.run {
-                    if toAlwaysHidden {
-                        return (self.getAlwaysHiddenSeparatorBoundaryX(), nil)
-                    }
-                    return (self.getSeparatorRightEdgeX(), self.getMainStatusItemLeftEdgeX())
-                }
+                let retryTargets = await self.resolveAlwaysHiddenMoveTargetsWithRetries(
+                    toAlwaysHidden: toAlwaysHidden,
+                    maxAttempts: 10
+                )
                 if let retrySeparatorX = retryTargets.0 {
                     activeSeparatorX = retrySeparatorX
                     activeVisibleBoundaryX = retryTargets.1
@@ -1155,6 +1365,7 @@ extension MenuBarManager {
                     statusItemIndex: statusItemIndex,
                     preferredCenterX: preferredCenterX,
                     toHidden: toAlwaysHidden,
+                    targetLane: toAlwaysHidden ? .alwaysHidden : .visible,
                     separatorX: activeSeparatorX,
                     visibleBoundaryX: activeVisibleBoundaryX,
                     eventTap: .cgSessionEventTap,
@@ -1164,16 +1375,20 @@ extension MenuBarManager {
             }
 
             if !success {
-                let expectedZone: MoveExpectedZone = toAlwaysHidden ? .alwaysHidden : .visible
-                let classifiedMatch = await self.verifyMoveByClassifiedZone(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    expectedZone: expectedZone
-                )
-                if classifiedMatch {
-                    logger.info("🔧 Always-hidden move accepted after classification verification (\(toAlwaysHidden ? "alwaysHidden" : "visible"))")
-                    success = true
+                if actionableMoveSafety.allowsClassifiedZoneFallback {
+                    let expectedZone: MoveExpectedZone = toAlwaysHidden ? .alwaysHidden : .visible
+                    let classifiedMatch = await self.verifyMoveByClassifiedZone(
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        expectedZone: expectedZone
+                    )
+                    if classifiedMatch {
+                        logger.info("🔧 Always-hidden move accepted after classification verification (\(toAlwaysHidden ? "alwaysHidden" : "visible"))")
+                        success = true
+                    }
+                } else {
+                    logger.info("🔧 Skipping always-hidden classified-zone fallback for ambiguous multi-item identity")
                 }
             }
 
@@ -1255,12 +1470,15 @@ extension MenuBarManager {
         statusItemIndex: Int? = nil,
         preferredCenterX: CGFloat? = nil
     ) -> Bool {
-        guard !hidingService.isAnimating, !hidingService.isTransitioning else {
-            logger.warning("🔧 moveIconFromAlwaysHiddenToHidden skipped — hiding service busy")
-            return false
-        }
-        guard alwaysHiddenSeparatorItem != nil else {
-            logger.error("🔧 Always-hidden separator unavailable")
+        let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex
+        ) ? .exact : .coarse
+        guard canQueueInteractiveMove(
+            operationName: "moveIconFromAlwaysHiddenToHidden",
+            requiresAlwaysHiddenSeparator: true,
+            identityPrecision: identityPrecision
+        ) else {
             return false
         }
 
@@ -1268,12 +1486,6 @@ extension MenuBarManager {
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
-        guard !NSScreen.screens.isEmpty else { return false }
-
-        if let existing = activeMoveTask, !existing.isCancelled {
-            logger.warning("⚠️ AH-to-Hidden move rejected: another move is in progress")
-            return false
-        }
 
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
@@ -1319,6 +1531,19 @@ extension MenuBarManager {
 
             // 3. Cmd+drag: move RIGHT of AH separator, clamped LEFT of main separator
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+            if !actionableMoveSafety.canExecuteMove {
+                logger.warning("🔧 Refusing ambiguous AH-to-Hidden move target for \(bundleID, privacy: .private); exact identity could not be proven")
+                await hidingService.restoreFromShowAll()
+                let shouldSkipHide = await MainActor.run { self.shouldSkipHideForExternalMonitor }
+                if wasHidden, !shouldSkipHide { await hidingService.hide() }
+                return false
+            }
             var success = accessibilityService.moveMenuBarIcon(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
@@ -1363,15 +1588,19 @@ extension MenuBarManager {
             }
 
             if !success {
-                let classifiedMatch = await self.verifyMoveByClassifiedZone(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    expectedZone: .hidden
-                )
-                if classifiedMatch {
-                    logger.info("🔧 AH-to-Hidden move accepted after classification verification")
-                    success = true
+                if actionableMoveSafety.allowsClassifiedZoneFallback {
+                    let classifiedMatch = await self.verifyMoveByClassifiedZone(
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        expectedZone: .hidden
+                    )
+                    if classifiedMatch {
+                        logger.info("🔧 AH-to-Hidden move accepted after classification verification")
+                        success = true
+                    }
+                } else {
+                    logger.info("🔧 Skipping AH-to-Hidden classified-zone fallback for ambiguous multi-item identity")
                 }
             }
 
@@ -1410,8 +1639,19 @@ extension MenuBarManager {
         targetStatusItemIndex: Int? = nil,
         placeAfterTarget: Bool
     ) -> Bool {
-        guard !hidingService.isAnimating, !hidingService.isTransitioning else {
-            logger.warning("🔧 reorderIcon skipped — hiding service busy")
+        let preciseSourceIdentity = Self.hasPreciseMoveIdentity(
+            menuExtraId: sourceMenuExtraID,
+            statusItemIndex: sourceStatusItemIndex
+        )
+        let preciseTargetIdentity = Self.hasPreciseMoveIdentity(
+            menuExtraId: targetMenuExtraID,
+            statusItemIndex: targetStatusItemIndex
+        )
+        guard canQueueInteractiveMove(
+            operationName: "reorderIcon",
+            requiresAlwaysHiddenSeparator: false,
+            identityPrecision: preciseSourceIdentity && preciseTargetIdentity ? .exact : .coarse
+        ) else {
             return false
         }
 
@@ -1420,12 +1660,6 @@ extension MenuBarManager {
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
-        guard !NSScreen.screens.isEmpty else { return false }
-
-        if let existing = activeMoveTask, !existing.isCancelled {
-            logger.warning("⚠️ Reorder rejected: another move is in progress")
-            return false
-        }
 
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
@@ -1501,6 +1735,35 @@ extension MenuBarManager {
         }
 
         return true
+    }
+
+    @MainActor
+    func reorderIconAndWait(
+        sourceBundleID: String,
+        sourceMenuExtraID: String? = nil,
+        sourceStatusItemIndex: Int? = nil,
+        targetBundleID: String,
+        targetMenuExtraID: String? = nil,
+        targetStatusItemIndex: Int? = nil,
+        placeAfterTarget: Bool
+    ) async -> Bool {
+        if let task = activeMoveTask {
+            _ = await task.value
+        }
+
+        let started = reorderIcon(
+            sourceBundleID: sourceBundleID,
+            sourceMenuExtraID: sourceMenuExtraID,
+            sourceStatusItemIndex: sourceStatusItemIndex,
+            targetBundleID: targetBundleID,
+            targetMenuExtraID: targetMenuExtraID,
+            targetStatusItemIndex: targetStatusItemIndex,
+            placeAfterTarget: placeAfterTarget
+        )
+
+        guard let task = activeMoveTask else { return false }
+        let success = await task.value
+        return started && success
     }
 
     @MainActor

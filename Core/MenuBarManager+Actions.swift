@@ -156,6 +156,11 @@ extension MenuBarManager {
         SettingsOpener.open()
     }
 
+    @objc func showReleaseNotes(_: Any?) {
+        logger.info("Menu: Opening Setapp release notes")
+        SetappIntegration.showReleaseNotes()
+    }
+
     @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Browse Icons")
         SearchWindowController.shared.toggle()
@@ -194,6 +199,8 @@ extension MenuBarManager {
             logger.info("Ignoring click while animating")
             return
         }
+
+        SetappIntegration.reportMenuBarInteraction()
 
         guard let event = NSApp.currentEvent else {
             logger.warning("statusItemClicked: No current event available; defaulting to left click")

@@ -98,9 +98,14 @@ class ProjectQA
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
   RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
+  RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
+  RUNTIME_SHARED_BUNDLE_IDS = %w[
+    com.apple.menuextra.focusmode
+    com.apple.menuextra.display
+  ].freeze
   RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
   RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
   RUNTIME_SMOKE_EMERGENCY_CPU_PERCENT = 200.0
@@ -611,6 +616,7 @@ class ProjectQA
       Dir.glob(File.join(screenshot_dir, 'sanebar-*.png')).each { |path| FileUtils.rm_f(path) }
       FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
 
@@ -648,6 +654,7 @@ class ProjectQA
 
       smoke_env = {
         'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+        'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => '1',
         'SANEBAR_SMOKE_WATCH_RESOURCES' => '1',
         'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s,
         'SANEBAR_SMOKE_MAX_CPU_BREACH_SAMPLES' => RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES.to_s,
@@ -720,6 +727,50 @@ class ProjectQA
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+      unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+        @errors << "Focused shared-bundle smoke could not relaunch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
+        puts "❌ shared-bundle relaunch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+        return
+      end
+
+      shared_bundle_ids = runtime_smoke_available_required_candidate_ids(
+        target,
+        required_ids: RUNTIME_SHARED_BUNDLE_IDS
+      )
+      if shared_bundle_ids.empty?
+        puts '   ↳ shared-bundle focused smoke skipped (Focus/Display not present on this host)'
+      else
+        puts "   ↳ shared-bundle focused smoke after relaunch: #{shared_bundle_ids.join(', ')}"
+        shared_bundle_sample_path = '/tmp/sanebar_runtime_shared_bundle_resource_sample.txt'
+        FileUtils.rm_f(shared_bundle_sample_path)
+        shared_bundle_env = smoke_env.merge(
+          'SANEBAR_SMOKE_REQUIRED_IDS' => shared_bundle_ids.join(','),
+          'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1',
+          'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0',
+          'SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => shared_bundle_sample_path
+        )
+        shared_bundle_out, shared_bundle_status = capture2e_with_progress(
+          shared_bundle_env,
+          smoke_script,
+          heartbeat_label: 'runtime smoke shared-bundle exact ids'
+        )
+        File.write(
+          RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH,
+          [
+            "required_ids=#{shared_bundle_ids.join(',')}",
+            "resource_sample=#{shared_bundle_sample_path}",
+            shared_bundle_out
+          ].join("\n")
+        )
+        unless shared_bundle_status.success?
+          sample_suffix = File.exist?(shared_bundle_sample_path) ? " Resource sample: #{shared_bundle_sample_path}" : ''
+          @errors << "Focused shared-bundle runtime smoke failed. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}.#{sample_suffix}"
+          puts "❌ shared-bundle smoke failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
+          return
+        end
+        puts "✅ focused shared-bundle smoke passed (#{shared_bundle_ids.join(', ')})"
+      end
+
       startup_probe_env = {
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH,
@@ -849,10 +900,27 @@ class ProjectQA
     nil
   end
 
+  def runtime_smoke_uses_no_keychain?(launch_output)
+    launch_output.include?('fresh build verified, no-keychain')
+  end
+
+  def runtime_smoke_relaunch_command(target)
+    command = ['open']
+    if target[:no_keychain]
+      command += ['--env', 'SANEAPPS_DISABLE_KEYCHAIN=1']
+    end
+    command << target[:app_path]
+    if target[:no_keychain]
+      command += ['--args', '--sane-no-keychain']
+    end
+    command
+  end
+
   def runtime_smoke_target(launch_output:)
     launched_path = launch_output.lines.reverse.find { |line| line.include?('📱 Launching:') }
     launched_path = launched_path&.split('📱 Launching:', 2)&.last&.strip
     unsigned_fallback = launch_output.include?('Unsigned fallback active:')
+    no_keychain = runtime_smoke_uses_no_keychain?(launch_output)
     system_app_path = "/Applications/#{PROJECT_NAME}.app"
     system_process_path = File.join(system_app_path, 'Contents', 'MacOS', PROJECT_NAME)
     launched_target = nil
@@ -862,6 +930,7 @@ class ProjectQA
         app_path: launched_path,
         process_path: File.join(launched_path, 'Contents', 'MacOS', PROJECT_NAME),
         relaunch: false,
+        no_keychain: no_keychain,
         note: 'using the app that test_mode just launched',
       }
     end
@@ -876,6 +945,7 @@ class ProjectQA
             app_path: system_app_path,
             process_path: system_process_path,
             relaunch: true,
+            no_keychain: no_keychain,
             note: "using installed signed app for smoke because unsigned fallback build #{format_bundle_metadata(launched_meta)} matches /Applications/#{PROJECT_NAME}.app",
           }
         end
@@ -888,6 +958,7 @@ class ProjectQA
         app_path: system_app_path,
         process_path: system_process_path,
         relaunch: true,
+        no_keychain: no_keychain,
         note: 'using installed signed app for smoke because test_mode did not report a launched app path',
       }
     end
@@ -901,7 +972,7 @@ class ProjectQA
     if target[:relaunch]
       system('killall', PROJECT_NAME, out: File::NULL, err: File::NULL)
       sleep 1
-      launched = system('open', target[:app_path], out: File::NULL, err: File::NULL)
+      launched = system(*runtime_smoke_relaunch_command(target), out: File::NULL, err: File::NULL)
       return false unless launched
     end
 
@@ -947,6 +1018,29 @@ class ProjectQA
     modes << 'secondMenuBar' if commands.include?('show second menu bar')
     modes << 'findIcon' if commands.include?('open icon panel')
     modes
+  end
+
+  def runtime_smoke_available_required_candidate_ids(target, required_ids:)
+    available_ids = runtime_smoke_list_icon_zone_ids(target)
+    required_ids.select { |required_id| available_ids.include?(required_id) }
+  end
+
+  def runtime_smoke_list_icon_zone_ids(target)
+    return [] unless ensure_runtime_smoke_target_running!(target)
+
+    output, status = Open3.capture2e(
+      'osascript',
+      '-e',
+      "tell application \"#{PROJECT_NAME}\" to list icon zones"
+    )
+    return [] unless status.success?
+
+    output.lines.map do |line|
+      _zone, _movable, _bundle, unique_id, _name = line.strip.split("\t", 5)
+      unique_id
+    end.compact
+  rescue StandardError
+    []
   end
 
   def applescript_commands_for_app(app_path)

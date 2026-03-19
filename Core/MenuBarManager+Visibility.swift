@@ -110,7 +110,7 @@ extension MenuBarManager {
         min(320, max(240, screenWidth * 0.14))
     }
 
-    private static func isMainInsideNotchSafeRightZone(
+    private nonisolated static func isMainInsideNotchSafeRightZone(
         mainX: CGFloat?,
         notchRightSafeMinX: CGFloat?
     ) -> Bool? {
@@ -120,7 +120,7 @@ extension MenuBarManager {
         return mainX >= (notchRightSafeMinX - notchTolerance)
     }
 
-    private static func isMainRightGapHealthy(
+    private nonisolated static func isMainRightGapHealthy(
         mainRightGap: CGFloat?,
         screenWidth: CGFloat?
     ) -> Bool? {
@@ -129,7 +129,7 @@ extension MenuBarManager {
         return mainRightGap <= maxAllowedStartupRightGap(screenWidth: screenWidth)
     }
 
-    static func isMainNearControlCenter(
+    nonisolated static func isMainNearControlCenter(
         mainX: CGFloat?,
         mainRightGap: CGFloat? = nil,
         screenWidth: CGFloat? = nil,
@@ -154,7 +154,7 @@ extension MenuBarManager {
         return notchSafe != nil || gapHealthy != nil
     }
 
-    static func shouldRecoverStartupPositions(
+    nonisolated static func shouldRecoverStartupPositions(
         separatorX: CGFloat?,
         mainX: CGFloat?,
         mainRightGap: CGFloat? = nil,

@@ -5,6 +5,12 @@ import os.log
 // swiftlint:disable file_length
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Interaction")
 extension AccessibilityService {
+    enum MoveTargetLane: Sendable {
+        case hidden
+        case alwaysHidden
+        case visible
+    }
+
     struct ClickMenuBarItemResult: Sendable {
         let success: Bool
         let verification: String
@@ -626,17 +632,18 @@ extension AccessibilityService {
     }
 
     /// Shared target X selection for Cmd+drag moves.
-    /// Hidden moves enforce a safety offset left of the separator to prevent
-    /// "looks moved but still visible" landings near the boundary.
+    /// Each lane uses its own insertion policy so we do not conflate regular
+    /// hidden drags with always-hidden drags.
     nonisolated static func moveTargetX(
-        toHidden: Bool,
+        targetLane: MoveTargetLane,
         iconWidth: CGFloat,
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat?
     ) -> CGFloat {
         let moveOffset = max(30, iconWidth + 20)
 
-        if toHidden {
+        switch targetLane {
+        case .hidden:
             // No clamp = direct hidden move.
             let farHiddenX = separatorX - max(80, iconWidth + 60)
             guard let ahBoundary = visibleBoundaryX else {
@@ -670,9 +677,15 @@ extension AccessibilityService {
             // Keep the old far-hidden fallback available for extremely wide
             // icons where right-bias would under-move.
             return max(boundedPreferredX, min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX))
-        }
 
-        if let boundary = visibleBoundaryX {
+        case .alwaysHidden:
+            // Always-hidden insertion should stay close to the AH separator instead
+            // of using the deeper generic hidden target, which can overshoot across
+            // sibling icons and fail exact-identity verification.
+            return separatorX - moveOffset
+
+        case .visible:
+            if let boundary = visibleBoundaryX {
             // Visible moves usually want a short hop right of the separator.
             // On tight notch layouts there may be no room between the separator
             // and the SaneBar icon, so hugging `boundary - 2` leaves wide icons
@@ -687,9 +700,24 @@ extension AccessibilityService {
 
             let insertionOverlap = max(6, min(18, iconWidth * 0.35))
             return max(separatorX + 1, boundary + insertionOverlap)
-        }
+            }
 
-        return separatorX + 1
+            return separatorX + 1
+        }
+    }
+
+    nonisolated static func moveTargetX(
+        toHidden: Bool,
+        iconWidth: CGFloat,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat?
+    ) -> CGFloat {
+        moveTargetX(
+            targetLane: toHidden ? .hidden : .visible,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX
+        )
     }
 
     // MARK: - Icon Moving (CGEvent-based)
@@ -777,13 +805,15 @@ extension AccessibilityService {
         statusItemIndex: Int? = nil,
         preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
+        targetLane: MoveTargetLane? = nil,
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
         eventTap: CGEventTapLocation = .cghidEventTap,
         originalMouseLocation: CGPoint
     ) -> Bool {
         let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
-        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
+        let resolvedTargetLane = targetLane ?? (toHidden ? .hidden : .visible)
+        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
 
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -827,7 +857,7 @@ extension AccessibilityService {
         // Visible: just LEFT of the SaneBar icon — macOS auto-inserts the icon there.
         //          Never overshoot past SaneBar or the icon lands in the system area.
         let targetX = Self.moveTargetX(
-            toHidden: toHidden,
+            targetLane: resolvedTargetLane,
             iconWidth: iconFrame.size.width,
             separatorX: separatorX,
             visibleBoundaryX: visibleBoundaryX

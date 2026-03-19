@@ -10,6 +10,7 @@ struct MenuConfiguration {
     let toggleAction: Selector
     let findIconAction: Selector
     let settingsAction: Selector
+    let showReleaseNotesAction: Selector?
     let checkForUpdatesAction: Selector
     let quitAction: Selector
 }
@@ -1315,6 +1316,11 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         let settingsItem = NSMenuItem(title: "Settings...", action: configuration.settingsAction, keyEquivalent: ",")
         menu.addItem(settingsItem)
+
+        if let showReleaseNotesAction = configuration.showReleaseNotesAction {
+            let whatsNewItem = NSMenuItem(title: "What's New...", action: showReleaseNotesAction, keyEquivalent: "")
+            menu.addItem(whatsNewItem)
+        }
 
         let updateItem = NSMenuItem(title: "Check for Updates...", action: configuration.checkForUpdatesAction, keyEquivalent: "")
         menu.addItem(updateItem)

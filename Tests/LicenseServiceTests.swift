@@ -108,4 +108,18 @@ struct LicenseServiceTests {
         #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: true, setappBuild: true) == .setapp)
         #expect(LicenseService.resolvedDistributionChannel(appStoreProductIDPresent: false, setappBuild: true) == .setapp)
     }
+
+    #if SETAPP
+        @Test("Setapp build starts in Pro mode")
+        func setappBuildStartsInProMode() {
+            let keychain = MockKeychainService()
+            let service = LicenseService(keychain: keychain)
+
+            service.checkCachedLicense()
+
+            #expect(service.isPro)
+            #expect(service.validationError == nil)
+            #expect(service.purchaseError == nil)
+        }
+    #endif
 }

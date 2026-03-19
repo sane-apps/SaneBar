@@ -363,6 +363,77 @@ struct AppleScriptCommandsTests {
         #expect(!ScriptIconIdentity(app: menuExtraAnchor).matches(statusRelayout))
     }
 
+    @MainActor
+    @Test("Script icon resolution falls back from an exact identifier to a single coarse bundle candidate")
+    func scriptIconResolutionFallsBackToSingleBundleCandidate() {
+        let exactIdentifier = "com.mrsane.SaneHosts::axid:com.mrsane.SaneHosts.menuextra.network"
+        let coarseApp = RunningApp(
+            id: "com.mrsane.SaneHosts",
+            name: "SaneHosts",
+            icon: nil
+        )
+        let zones: [ScriptZonedIcon] = [(coarseApp, .hidden)]
+
+        let match = resolveScriptIcon(exactIdentifier, from: zones)
+
+        #expect(match?.app.bundleId == "com.mrsane.SaneHosts")
+        #expect(match?.zone == .hidden)
+    }
+
+    @Test("Script icon zone listing prefers cached zones when available")
+    func preferredScriptListingZonesUsesCachedZonesBeforeRefreshing() {
+        let cachedApp = RunningApp(
+            id: "com.example.cached",
+            name: "Cached",
+            icon: nil,
+            menuExtraIdentifier: "com.example.cached.extra",
+            statusItemIndex: nil,
+            xPosition: 220,
+            width: 24
+        )
+        var refreshCalled = false
+
+        let zones = preferredScriptListingZones(
+            cached: [(cachedApp, .hidden)],
+            refreshed: {
+                refreshCalled = true
+                return []
+            }()
+        )
+
+        #expect(!refreshCalled)
+        #expect(zones.count == 1)
+        #expect(zones.first?.app.bundleId == "com.example.cached")
+        #expect(zones.first?.zone == .hidden)
+    }
+
+    @Test("Script icon zone listing refreshes when cached zones are empty")
+    func preferredScriptListingZonesRefreshesWhenCacheIsEmpty() {
+        let refreshedApp = RunningApp(
+            id: "com.example.refreshed",
+            name: "Refreshed",
+            icon: nil,
+            menuExtraIdentifier: "com.example.refreshed.extra",
+            statusItemIndex: nil,
+            xPosition: 180,
+            width: 22
+        )
+        var refreshCalled = false
+
+        let zones = preferredScriptListingZones(
+            cached: [],
+            refreshed: {
+                refreshCalled = true
+                return [(refreshedApp, .visible)]
+            }()
+        )
+
+        #expect(refreshCalled)
+        #expect(zones.count == 1)
+        #expect(zones.first?.app.bundleId == "com.example.refreshed")
+        #expect(zones.first?.zone == .visible)
+    }
+
     @Test("Layout snapshot suppresses always-hidden geometry while hidden")
     func layoutSnapshotSuppressesAlwaysHiddenGeometryWhileHidden() {
         let geometry = LayoutSnapshotCommand.normalizedSnapshotAlwaysHiddenGeometry(
