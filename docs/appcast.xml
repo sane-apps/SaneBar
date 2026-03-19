@@ -5,7 +5,28 @@
 
                                 
         
-                                <item>
+                                        <item>
+            <title>2.1.33</title>
+            <pubDate>Thu, 19 Mar 2026 19:46:12 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes focus jumps after hover reveal.</li>
+                <li>Improves menu bar reliability after sleep, wake, and display changes.</li>
+                <li>Makes startup layout restore more reliable on notch Macs and external monitors.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.33.zip"
+                       sparkle:version="2133"
+                       sparkle:shortVersionString="2.1.33"
+                       length="8553709"
+                       type="application/octet-stream"
+                       sparkle:edSignature="YitdBA6kgwA5jKjlBLnNdRfpq2KC1WnYS71ZzsHjBlTh/XM68zHTPK1YqtP8ejFtqvTBPp8Cter3Z2WTVqEwCw=="/>
+        </item>
+<item>
             <title>2.1.32</title>
             <pubDate>Wed, 18 Mar 2026 19:04:12 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
