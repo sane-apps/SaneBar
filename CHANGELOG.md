@@ -8,6 +8,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.33] - 2026-03-19
 
+Fixes focus jumps after hover reveal.
+Improves menu bar reliability after sleep, wake, and display changes.
+Makes startup layout restore more reliable on notch Macs and external monitors.
+
+---
+
+## [2.1.33] - 2026-03-19
+
 Separates passive hover reveal from inline app-menu suppression so hover no longer steals focus through the overlap path. Adds wake-aware position validation with stale-task cancellation, which makes restart, sleep, and display-change recovery more reliable. Also tightens release proof on both the notch MacBook Air and the external-display Mini against the staged Release app.
 
 ---
