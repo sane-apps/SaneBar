@@ -106,6 +106,43 @@ struct AccessibilityServiceTests {
         #expect(AccessibilityService.cacheWarmupDelay(for: .conceal) <= AccessibilityService.cacheWarmupDelay(for: .structuralChange))
     }
 
+    @Test("Deferred cache warmup keeps the strongest pending reason")
+    func testMergedDeferredCacheWarmupReason() {
+        #expect(
+            AccessibilityService.mergedDeferredCacheWarmupReason(
+                current: .reveal,
+                new: .structuralChange
+            ) == .structuralChange
+        )
+        #expect(
+            AccessibilityService.mergedDeferredCacheWarmupReason(
+                current: .structuralChange,
+                new: .conceal
+            ) == .structuralChange
+        )
+        #expect(
+            AccessibilityService.mergedDeferredCacheWarmupReason(
+                current: nil,
+                new: .launch
+            ) == .launch
+        )
+    }
+
+    @Test("Cmd-drag step count keeps a minimum for short drags")
+    func testCmdDragStepCountHasMinimum() {
+        #expect(AccessibilityService.cmdDragStepCount(distance: 40) == 10)
+    }
+
+    @Test("Cmd-drag step count scales for medium drags")
+    func testCmdDragStepCountScales() {
+        #expect(AccessibilityService.cmdDragStepCount(distance: 264) == 12)
+    }
+
+    @Test("Cmd-drag step count caps for long drags")
+    func testCmdDragStepCountHasMaximum() {
+        #expect(AccessibilityService.cmdDragStepCount(distance: 600) == 14)
+    }
+
     @Test("Preferred status item index chooses nearest X when explicit identity is missing")
     func testPreferredStatusItemIndexUsesNearestCenterX() {
         let index = AccessibilityService.preferredStatusItemIndex(
@@ -238,7 +275,8 @@ struct AccessibilityServiceTests {
             AccessibilityService.shouldFallbackToAXAfterHardwareAttempt(
                 success: true,
                 verificationSummary: "unavailable (no comparable AX reaction signals)",
-                isItemOnScreen: true
+                isItemOnScreen: true,
+                isRightClick: false
             )
         )
     }
@@ -249,7 +287,8 @@ struct AccessibilityServiceTests {
             !AccessibilityService.shouldFallbackToAXAfterHardwareAttempt(
                 success: true,
                 verificationSummary: "verified (shownMenu)",
-                isItemOnScreen: true
+                isItemOnScreen: true,
+                isRightClick: false
             )
         )
     }
@@ -260,7 +299,20 @@ struct AccessibilityServiceTests {
             !AccessibilityService.shouldFallbackToAXAfterHardwareAttempt(
                 success: false,
                 verificationSummary: "failed (no observable menu/panel reaction)",
-                isItemOnScreen: false
+                isItemOnScreen: false,
+                isRightClick: false
+            )
+        )
+    }
+
+    @Test("Hardware-first right click does not fall back to AX after a dispatched on-screen click")
+    func testShouldFallbackToAXAfterHardwareAttemptSkipsRightClickFallback() {
+        #expect(
+            !AccessibilityService.shouldFallbackToAXAfterHardwareAttempt(
+                success: true,
+                verificationSummary: "failed (no observable menu/panel reaction)",
+                isItemOnScreen: true,
+                isRightClick: true
             )
         )
     }
@@ -305,6 +357,28 @@ struct AccessibilityServiceTests {
             category: .system,
             menuExtraIdentifier: "com.apple.menuextra.spotlight",
             xPosition: 1344,
+            width: 32
+        )
+
+        #expect(
+            !SearchService.shouldPreferHardwareFirst(
+                origin: .browsePanel,
+                isRightClick: false,
+                app: app
+            )
+        )
+    }
+
+    @Test("Browse-panel left click still prefers AX first when cached X is missing")
+    func testShouldPreferHardwareFirstSkipsBrowsePanelLeftClickWithoutCachedX() {
+        let app = RunningApp(
+            id: "com.apple.Spotlight",
+            name: "Spotlight",
+            icon: nil,
+            policy: .accessory,
+            category: .system,
+            menuExtraIdentifier: "com.apple.menuextra.spotlight",
+            xPosition: nil,
             width: 32
         )
 

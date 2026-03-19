@@ -6,7 +6,22 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.IconMoving")
 
 extension MenuBarManager {
+    @MainActor
+    private enum AlwaysHiddenQueuedMutation {
+        case pin(bundleID: String, menuExtraId: String?, statusItemIndex: Int?)
+        case unpin(bundleID: String, menuExtraId: String?, statusItemIndex: Int?)
+    }
+
     // MARK: - Icon Moving
+
+    enum ZoneMoveRequest: Sendable {
+        case visibleToHidden
+        case hiddenToVisible
+        case visibleToAlwaysHidden
+        case hiddenToAlwaysHidden
+        case alwaysHiddenToVisible
+        case alwaysHiddenToHidden
+    }
 
     nonisolated static let separatorVisualWidth: CGFloat = 20
     nonisolated static let visibleLaneCrowdingNotification = Notification.Name(
@@ -375,7 +390,7 @@ extension MenuBarManager {
             return resolvedSeparatorRightEdgeFromCaches()
         }
         let frame = separatorWindow.frame
-        logger.info("🔧 getSeparatorRightEdgeX: window.frame = \(String(describing: frame))")
+        logger.debug("🔧 getSeparatorRightEdgeX: window.frame = \(String(describing: frame))")
         guard frame.width > 0 else {
             logger.error("🔧 getSeparatorRightEdgeX: frame.width is 0")
             return resolvedSeparatorRightEdgeFromCaches()
@@ -409,7 +424,7 @@ extension MenuBarManager {
             mainLeftEdge: getMainStatusItemLeftEdgeX()
         ) ?? (frame.origin.x + frame.width)
         lastKnownSeparatorRightEdgeX = rightEdge
-        logger.info("🔧 getSeparatorRightEdgeX: returning \(rightEdge)")
+        logger.debug("🔧 getSeparatorRightEdgeX: returning \(rightEdge)")
         return rightEdge
     }
 
@@ -423,7 +438,7 @@ extension MenuBarManager {
             return nil
         }
         let frame = mainWindow.frame
-        logger.info("🔧 getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
+        logger.debug("🔧 getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
         return frame.origin.x
     }
 
@@ -756,31 +771,16 @@ extension MenuBarManager {
     private func currentMoveRuntimeSnapshot(
         identityPrecision: MenuBarIdentityPrecision
     ) -> MenuBarRuntimeSnapshot {
-        let visibilityPhase: MenuBarVisibilityPhase = if hidingService.isAnimating || hidingService.isTransitioning {
-            .transitioning
-        } else if hidingService.state == .hidden {
-            .hidden
-        } else {
-            .expanded
+        var snapshot = currentRuntimeSnapshot(identityPrecision: identityPrecision)
+        if snapshot.visibilityPhase == .hidden {
+            switch snapshot.geometryConfidence {
+            case .live, .cached:
+                snapshot.geometryConfidence = .shielded
+            case .shielded, .stale, .missing:
+                break
+            }
         }
-
-        let browsePhase: MenuBarBrowsePhase = if SearchWindowController.shared.isMoveInProgress {
-            .moveInProgress
-        } else if SearchWindowController.shared.isBrowseSessionActive {
-            .open
-        } else {
-            .idle
-        }
-
-        return MenuBarRuntimeSnapshot(
-            identityPrecision: identityPrecision,
-            geometryConfidence: hidingService.state == .hidden ? .shielded : .live,
-            visibilityPhase: visibilityPhase,
-            browsePhase: browsePhase,
-            hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
-            hasActiveMoveTask: activeMoveTask?.isCancelled == false,
-            hasAnyScreens: !NSScreen.screens.isEmpty
-        )
+        return snapshot
     }
 
     @MainActor
@@ -907,18 +907,18 @@ extension MenuBarManager {
             return false
         }
 
-        logger.info("🔧 ========== MOVE ICON START ==========")
-        logger.info("🔧 moveIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), toHidden=\(toHidden, privacy: .public)")
+        logger.debug("🔧 ========== MOVE ICON START ==========")
+        logger.debug("🔧 moveIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), toHidden=\(toHidden, privacy: .public)")
         let currentHidingState = hidingState
-        logger.info("🔧 Current hidingState: \(String(describing: currentHidingState))")
+        logger.debug("🔧 Current hidingState: \(String(describing: currentHidingState))")
 
         // Log current positions BEFORE any action
         let preMoveSeparatorRightEdge = getSeparatorRightEdgeX()
         if let sepX = preMoveSeparatorRightEdge {
-            logger.info("🔧 Separator right edge BEFORE: \(sepX)")
+            logger.debug("🔧 Separator right edge BEFORE: \(sepX)")
         }
         if let mainX = getMainStatusItemLeftEdgeX() {
-            logger.info("🔧 Main icon left edge BEFORE: \(mainX)")
+            logger.debug("🔧 Main icon left edge BEFORE: \(mainX)")
         }
 
         // IMPORTANT:
@@ -930,7 +930,7 @@ extension MenuBarManager {
         // For moves INTO the visible zone, ensure we're expanded, then use the RIGHT edge.
 
         let wasHidden = hidingService.state == .hidden
-        logger.info("🔧 wasHidden: \(wasHidden)")
+        logger.debug("🔧 wasHidden: \(wasHidden)")
 
         // Prevent always-hidden pin enforcement from kicking off mid-move and
         // perturbing separator geometry while targets are being resolved.
@@ -1024,7 +1024,7 @@ extension MenuBarManager {
                 await restoreShieldIfNeeded()
                 return false
             }
-            logger.info("🔧 Getting separator position for move...")
+            logger.debug("🔧 Getting separator position for move...")
             var (separatorX, visibleBoundaryX) = await manager.resolveMoveTargetsWithRetries(
                 toHidden: toHidden,
                 sourceIdentity: sourceIdentity,
@@ -1070,7 +1070,7 @@ extension MenuBarManager {
                     return false
                 }
             }
-            logger.info("🔧 Separator for move: X=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
+            logger.debug("🔧 Separator for move: X=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
 
             if toHidden,
                let hiddenLaneLeftBoundaryX = activeVisibleBoundaryX,
@@ -1099,7 +1099,7 @@ extension MenuBarManager {
                 visibleBoundaryX: activeVisibleBoundaryX,
                 originalMouseLocation: originalCGPoint
             )
-            logger.info("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
+            logger.debug("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
 
             // One retry if verification failed — icon may have partially moved
             // or AX position hadn't settled yet on slower Macs.
@@ -1116,7 +1116,7 @@ extension MenuBarManager {
                     activeSeparatorX = retrySeparatorX
                     activeVisibleBoundaryX = retryTargets.visibleBoundaryX
                     let retryLabel = toHidden ? "hidden" : "visible"
-                    logger.info("🔧 Re-resolved \(retryLabel) move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
+                logger.debug("🔧 Re-resolved \(retryLabel) move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
                 }
 
                 success = accessibilityService.moveMenuBarIcon(
@@ -1130,7 +1130,7 @@ extension MenuBarManager {
                     eventTap: .cgSessionEventTap,
                     originalMouseLocation: originalCGPoint
                 )
-                logger.info("🔧 Retry returned: \(success, privacy: .public)")
+                logger.debug("🔧 Retry returned: \(success, privacy: .public)")
             }
 
             if !success && toHidden && !usedShowAllShield {
@@ -1223,12 +1223,12 @@ extension MenuBarManager {
             try? await Task.sleep(for: .milliseconds(300))
 
             await MainActor.run {
-                logger.info("🔧 Triggering post-move refresh...")
-                AccessibilityService.shared.invalidateMenuBarItemCache()
+                logger.debug("🔧 Triggering post-move refresh...")
+                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
-            logger.info("🔧 ========== MOVE ICON END ==========")
+            logger.debug("🔧 ========== MOVE ICON END ==========")
             return success
         }
     }
@@ -1262,8 +1262,15 @@ extension MenuBarManager {
         let originalLocation = NSEvent.mouseLocation
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
+        let optimisticAlwaysHiddenMutation: AlwaysHiddenQueuedMutation =
+            toAlwaysHidden
+                ? .pin(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)
+                : .unpin(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)
 
-        return queueDetachedMoveTask(operationName: "moveIconAlwaysHidden") { manager in
+        return queueDetachedMoveTask(
+            operationName: "moveIconAlwaysHidden",
+            optimisticAlwaysHiddenMutation: optimisticAlwaysHiddenMutation
+        ) { manager in
             // 1. Auth check if moving FROM always-hidden and auth is required
             if needsAuthCheck {
                 let revealed = await manager.showHiddenItemsNow(trigger: .findIcon)
@@ -1390,7 +1397,7 @@ extension MenuBarManager {
             // 7. Refresh after positions settle
             try? await Task.sleep(for: .milliseconds(300))
             await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache()
+                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
@@ -1456,7 +1463,14 @@ extension MenuBarManager {
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: globalMaxY - originalLocation.y)
 
-        return queueDetachedMoveTask(operationName: "moveIconFromAlwaysHiddenToHidden") { manager in
+        return queueDetachedMoveTask(
+            operationName: "moveIconFromAlwaysHiddenToHidden",
+            optimisticAlwaysHiddenMutation: .unpin(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        ) { manager in
             // 1. Reveal ALL items (both separators at visual size)
             await manager.hidingService.showAll()
             try? await Task.sleep(for: .milliseconds(300))
@@ -1574,7 +1588,7 @@ extension MenuBarManager {
             // 5. Refresh after positions settle
             try? await Task.sleep(for: .milliseconds(300))
             await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache()
+                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
@@ -1668,7 +1682,7 @@ extension MenuBarManager {
 
             try? await Task.sleep(for: .milliseconds(300))
             await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache()
+                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
@@ -1679,27 +1693,88 @@ extension MenuBarManager {
     @MainActor
     private func queueDetachedMoveTask(
         operationName: String,
+        optimisticAlwaysHiddenMutation: AlwaysHiddenQueuedMutation? = nil,
         _ operation: @escaping @Sendable (MenuBarManager) async -> Bool
     ) -> Bool {
+        applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
 
             await MainActor.run {
                 SearchWindowController.shared.setMoveInProgress(true)
                 self.hidingService.cancelRehide()
+                AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()
             }
             defer {
                 Task { @MainActor [weak self] in
                     SearchWindowController.shared.setMoveInProgress(false)
+                    AccessibilityService.shared.endMenuBarCacheWarmupSuppression()
                     self?.activeMoveTask = nil
                 }
             }
 
             logger.info("🔧 \(operationName, privacy: .public) task started")
-            return await operation(self)
+            let success = await operation(self)
+            if !success {
+                await MainActor.run {
+                    self.rollbackQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
+                }
+            }
+            return success
         }
 
         return true
+    }
+
+    @MainActor
+    private func applyQueuedAlwaysHiddenMutation(_ mutation: AlwaysHiddenQueuedMutation?) {
+        guard let mutation else { return }
+        switch mutation {
+        case let .pin(bundleID, menuExtraId, statusItemIndex):
+            _ = pinAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        case let .unpin(bundleID, menuExtraId, statusItemIndex):
+            _ = removeQueuedAlwaysHiddenPin(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
+    }
+
+    @MainActor
+    private func rollbackQueuedAlwaysHiddenMutation(_ mutation: AlwaysHiddenQueuedMutation?) {
+        guard let mutation else { return }
+        switch mutation {
+        case let .pin(bundleID, menuExtraId, statusItemIndex):
+            _ = removeQueuedAlwaysHiddenPin(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        case let .unpin(bundleID, menuExtraId, statusItemIndex):
+            _ = pinAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
+    }
+
+    @MainActor
+    private func removeQueuedAlwaysHiddenPin(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?
+    ) -> Bool {
+        unpinAlwaysHidden(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex
+        ) || (!bundleID.hasPrefix("com.apple.controlcenter") && unpinAlwaysHidden(bundleID: bundleID))
     }
 
     @MainActor
@@ -1713,6 +1788,60 @@ extension MenuBarManager {
         if let task = activeMoveTask {
             _ = await task.value
         }
+    }
+
+    @MainActor
+    func queueZoneMove(
+        app: RunningApp,
+        request: ZoneMoveRequest
+    ) -> Task<Bool, Never>? {
+        let bundleID = app.bundleId
+        let menuExtraId = app.menuExtraIdentifier
+        let statusItemIndex = app.statusItemIndex
+        let preferredCenterX = app.preferredCenterX
+
+        let startedTask: Task<Bool, Never>?
+        switch request {
+        case .visibleToHidden:
+            startedTask = queueMoveIcon(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
+                toHidden: true
+            )
+        case .hiddenToVisible:
+            startedTask = queueMoveIcon(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
+                toHidden: false
+            )
+        case .visibleToAlwaysHidden, .hiddenToAlwaysHidden:
+            startedTask = queueMoveIconToAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        case .alwaysHiddenToVisible:
+            startedTask = queueMoveIconFromAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        case .alwaysHiddenToHidden:
+            startedTask = queueMoveIconFromAlwaysHiddenToHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        }
+
+        return startedTask
     }
 
     @MainActor

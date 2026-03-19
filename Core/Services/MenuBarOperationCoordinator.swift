@@ -38,6 +38,7 @@ enum MenuBarOperationCoordinator {
     enum PositionValidationContext: String, Equatable, Sendable {
         case startupFollowUp = "startup-follow-up"
         case screenParametersChanged = "screen-parameters-changed"
+        case wakeResume = "wake-resume"
         case manualLayoutRestore = "manual-layout-restore"
     }
 
@@ -211,6 +212,21 @@ enum MenuBarOperationCoordinator {
                 return .stop(recoveryReason)
             }
 
+            if validationContext == .startupFollowUp {
+                switch recoveryReason {
+                case .invalidGeometry:
+                    break
+                case .invalidStatusItems, .missingCoordinates:
+                    if recoveryCount == 0 {
+                        return .recreateFromPersistedLayout(recoveryReason)
+                    }
+                    if recoveryCount < maxRecoveryCount {
+                        return .bumpAutosaveVersion(recoveryReason)
+                    }
+                    return .stop(recoveryReason)
+                }
+            }
+
             if recoveryReason == .invalidGeometry {
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
@@ -257,7 +273,7 @@ enum MenuBarOperationCoordinator {
                 return true
             }
 
-            if origin == .browsePanel, let xPosition = requestedApp.xPosition, xPosition >= 0 {
+            if origin == .browsePanel {
                 return false
             }
 

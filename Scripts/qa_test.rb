@@ -67,6 +67,14 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "runtime startup layout probe"
   end
 
+  def test_runtime_smoke_list_icon_zones_targets_exact_app_path
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, 'set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)'
+    assert_includes source, 'using terms from application id "#{expected_bundle_id}"'
+    assert_includes source, "tell application appTarget to list icon zones"
+  end
+
   def test_stability_suite_retryable_failure_matches_generic_xcodebuild_flake
     output = <<~LOG
       2026-03-13 15:16:31.112 xcodebuild[30284:7266800] [MT] IDETestOperationsObserverDebug: 16.440 elapsed -- Testing started completed.

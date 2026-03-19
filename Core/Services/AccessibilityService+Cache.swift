@@ -25,6 +25,8 @@ extension AccessibilityService {
           ownersRefreshInFlight: \(menuBarOwnersRefreshTask != nil)
           itemsRefreshInFlight: \(menuBarItemsRefreshTask != nil)
           cacheWarmupInFlight: \(menuBarCacheWarmupTask != nil)
+          cacheWarmupSuppressionDepth: \(menuBarCacheWarmupSuppressionDepth)
+          deferredCacheWarmupReason: \(deferredMenuBarCacheWarmupReason?.rawValue ?? "none")
           bundlesWithoutExtrasMenuBarCount: \(noExtrasBundles.count)
           bundlesWithoutExtrasMenuBar: \(bundleSummary.isEmpty ? "none" : bundleSummary + bundleSuffix)
         """
@@ -122,6 +124,25 @@ extension AccessibilityService {
         }
     }
 
+    @MainActor
+    func beginMenuBarCacheWarmupSuppression() {
+        menuBarCacheWarmupSuppressionDepth += 1
+        menuBarCacheWarmupTask?.cancel()
+        menuBarCacheWarmupTask = nil
+    }
+
+    @MainActor
+    func endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: Bool = true) {
+        guard menuBarCacheWarmupSuppressionDepth > 0 else { return }
+        menuBarCacheWarmupSuppressionDepth -= 1
+        guard menuBarCacheWarmupSuppressionDepth == 0 else { return }
+
+        let deferredReason = deferredMenuBarCacheWarmupReason
+        deferredMenuBarCacheWarmupReason = nil
+        guard scheduleDeferredWarmup, let deferredReason else { return }
+        scheduleMenuBarCacheWarmup(reason: deferredReason)
+    }
+
     /// Invalidates all menu bar caches, forcing a fresh scan on next call.
     /// Optionally schedules a background warmup so the next UI/script interaction
     /// does not pay the full cold-scan penalty.
@@ -136,7 +157,15 @@ extension AccessibilityService {
         logger.debug("Menu bar item caches invalidated")
 
         if let reason {
-            scheduleMenuBarCacheWarmup(reason: reason)
+            if menuBarCacheWarmupSuppressionDepth > 0 {
+                deferredMenuBarCacheWarmupReason = Self.mergedDeferredCacheWarmupReason(
+                    current: deferredMenuBarCacheWarmupReason,
+                    new: reason
+                )
+                menuBarCacheWarmupTask = nil
+            } else {
+                scheduleMenuBarCacheWarmup(reason: reason)
+            }
         } else {
             menuBarCacheWarmupTask = nil
         }

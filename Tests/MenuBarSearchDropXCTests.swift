@@ -170,6 +170,24 @@ final class MenuBarSearchDropXCTests: XCTestCase {
         }
     }
 
+    func testAllTabAlwaysHiddenBoundaryPrefersNormalizedBoundaryHelper() {
+        let boundary = MenuBarSearchView.alwaysHiddenBoundaryForAllTabClassification(
+            separatorBoundaryX: 1200,
+            alwaysHiddenBoundaryX: 240,
+            alwaysHiddenOriginX: 80
+        )
+        XCTAssertEqual(boundary, 240)
+    }
+
+    func testAllTabAlwaysHiddenBoundaryFallsBackFromOriginUsingRuntimeNormalization() {
+        let boundary = MenuBarSearchView.alwaysHiddenBoundaryForAllTabClassification(
+            separatorBoundaryX: 1200,
+            alwaysHiddenBoundaryX: nil,
+            alwaysHiddenOriginX: 180
+        )
+        XCTAssertEqual(boundary, 200)
+    }
+
     func testVisibleLaneCrowdingHintStaysQuietWhenLaneHasRoom() {
         let visibleApps = [
             RunningApp(

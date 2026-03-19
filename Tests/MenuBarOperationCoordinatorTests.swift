@@ -102,6 +102,88 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
+    @Test("Wake validation uses the same bounded recovery policy as screen changes")
+    func wakeValidationDoesNotEscalateGeometryDriftIndefinitely() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: true,
+            separatorX: 956,
+            mainX: 976,
+            mainRightGap: 944,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .stop(.invalidGeometry)
+        )
+    }
+
+    @Test("Startup follow-up escalates persistent missing coordinates and invalid items after the retry window")
+    func startupValidationEscalatesPersistentMissingCoordinateState() {
+        let missingCoordinateSnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            startupItemsValid: true,
+            separatorX: nil,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+        let invalidItemSnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: false,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: missingCoordinateSnapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: invalidItemSnapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .recreateFromPersistedLayout(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: missingCoordinateSnapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: invalidItemSnapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidStatusItems)
+        )
+    }
+
     @Test("Manual restore skips repair path when the snapshot is already healthy")
     func manualRestoreUsesDirectReplayWhenHealthy() {
         let healthySnapshot = MenuBarRuntimeSnapshot(
@@ -190,7 +272,7 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
-    @Test("Move queue decision rejects busy or incomplete runtime state")
+    @Test("Move queue decision rejects only busy or impossible runtime state")
     func moveQueueDecisionRejectsBusyStates() {
         let busySnapshot = MenuBarRuntimeSnapshot(
             visibilityPhase: .transitioning,
@@ -229,6 +311,49 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: activeMoveSnapshot,
                 requiresAlwaysHiddenSeparator: false
             ) == .rejectMoveAlreadyInFlight
+        )
+
+        let missingScreenSnapshot = MenuBarRuntimeSnapshot(
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: false
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: missingScreenSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .rejectMissingScreenGeometry
+        )
+
+        let staleGeometrySnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .stale,
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: staleGeometrySnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .ready
+        )
+
+        let coarseCachedGeometrySnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .coarse,
+            geometryConfidence: .cached,
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: coarseCachedGeometrySnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .ready
         )
     }
 }

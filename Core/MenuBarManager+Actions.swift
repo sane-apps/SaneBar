@@ -230,7 +230,7 @@ extension MenuBarManager {
             #if DEBUG
                 print("[MenuBarManager] statusItemClicked: no event")
             #endif
-            toggleHiddenItems()
+            toggleHiddenItems(trigger: .click)
             return
         }
 
@@ -257,7 +257,7 @@ extension MenuBarManager {
                 let fallbackShouldBeEvaluated = self.settings.useSecondMenuBar &&
                     !self.settings.requireAuthToShowHiddenIcons &&
                     preToggleState == .hidden
-                toggleHiddenItems()
+                toggleHiddenItems(trigger: .click)
                 if fallbackShouldBeEvaluated {
                     Task { @MainActor [weak self] in
                         // Let toggleHiddenItems() complete first.

@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.33] - 2026-03-19
+
+Separates passive hover reveal from inline app-menu suppression so hover no longer steals focus through the overlap path. Adds wake-aware position validation with stale-task cancellation, which makes restart, sleep, and display-change recovery more reliable. Also tightens release proof on both the notch MacBook Air and the external-display Mini against the staged Release app.
+
+---
+
 ## [2.1.32] - 2026-03-18
 
 Fixes startup/layout resets after launch and display changes. Tightens shared-bundle identity handling so Browse Icons and moves fail safely instead of targeting the wrong sibling. Adds stronger staged-app startup and runtime release checks before shipping.

@@ -1,5 +1,61 @@
 # SaneBar Research Cache
 
+## Browse / Move / Startup Follow-up Hardening
+
+**Updated:** 2026-03-19 | **Status:** verified | **TTL:** 14d
+**Source:** Apple docs (`NSWindow.hidesOnDeactivate`, `NSStatusItem.autosaveName`), GitHub issues `#111` / `#113` / `#114` / `#115` / `#116` / `#117`, local code audit, local focused tests, Mini staged release smoke/probe
+
+### Verified Findings
+
+1. The earlier second-menu-bar smoke failure on March 19 was tainted by bad test orchestration, not proven as a stable app regression.
+   - I had launched `live_zone_smoke.rb` and `startup_layout_probe.rb` in parallel against the same staged app.
+   - A clean rerun, in sequence, passed:
+     - staged `live_zone_smoke.rb`
+     - staged `startup_layout_probe.rb`
+2. The staged runtime gate had a real tooling weakness even after the `open -na` fix:
+   - process verification was exact-path based
+   - but AppleScript control still targeted `application "SaneBar"` by name
+   - that is now fixed so staged smoke and QA talk to the exact staged bundle path via `application (POSIX file "...")`
+3. Fresh local proof for the new tooling path:
+   - `Scripts/qa_test.rb` passed (`11` runs / `21` assertions)
+   - focused local `xcodebuild` passed (`117` tests) for:
+     - `MenuBarOperationCoordinatorTests`
+     - `MenuBarSearchDropXCTests`
+     - `RuntimeGuardXCTests`
+4. The startup recovery refactor still had one real dead-end:
+   - startup initial missing coordinates after onboarding correctly stayed expanded
+   - but startup follow-up missing coordinates / invalid status items would only log and stop after the retry window
+   - that is now fixed:
+     - first persistent follow-up failure recreates from persisted layout
+     - second persistent failure bumps autosave version
+     - only then does it stop
+5. The All-tab action menu classifier had drifted from the runtime classifier:
+   - All-tab classification was using the always-hidden separator origin directly
+   - runtime classification was using the normalized always-hidden boundary / right-edge model
+   - that mismatch is now removed; All-tab uses the same normalized boundary logic
+6. `show icon` AppleScript had a real false-success seam:
+   - it matched pinned IDs too loosely (`hasPrefix`)
+   - removed pins before proving any visible restore happened
+   - and could report success on a no-op
+   - that is now fixed:
+     - it resolves a real live always-hidden source item
+     - routes the restore through `moveIconAlwaysHiddenAndWait(... toAlwaysHidden: false)`
+     - only clears pins after a successful move
+7. Fresh Mini staged proof after these fixes:
+   - `./scripts/SaneMaster.rb test_mode --release --no-logs` passed
+   - staged `Scripts/live_zone_smoke.rb` passed cleanly in sequence
+   - staged `Scripts/startup_layout_probe.rb` passed cleanly in sequence
+8. Public issue surface is still the same live family, and should remain the release focus:
+   - `#111` open
+   - `#113` open
+   - `#114` open
+   - `#115` open
+   - `#116` open
+   - `#117` open
+9. Apple’s documented contract still supports the product direction:
+   - `NSWindow.hidesOnDeactivate` confirms panel visibility on app deactivation is an explicit policy surface
+   - `NSStatusItem.autosaveName` remains the relevant persistence contract for launch/layout restore behavior
+
 ## Move-Task Lifecycle Centralization
 
 **Updated:** 2026-03-19 | **Status:** verified | **TTL:** 14d
@@ -2172,3 +2228,79 @@ After applying fix:
   - `verify` is ready to rerun now that this research note is newer than the active browse/move lock state
 
 - 2026-03-19 14:27 ET: post-architecture-refresh timestamp bump after fresh Apple-doc + GitHub + local-code reconciliation and passing targeted recovery suites.
+
+## March 19 Verify Follow-up: Browse Policy vs Stale Test Expectation
+
+**Updated:** 2026-03-19 | **Status:** verified | **TTL:** 3d
+**Sources:** local code/tests (`SearchService+Diagnostics.swift`, `MenuBarOperationCoordinator.swift`, `SearchWindowTests.swift`, `AccessibilityServiceTests.swift`), local + Mini `./scripts/SaneMaster.rb verify --quiet*` diagnostics, live smoke on Air + Mini
+
+### Verified Findings
+
+1. **The latest full `verify` failure is not a runtime regression.**
+   - Air and Mini both passed staged `live_zone_smoke.rb` and `startup_layout_probe.rb` on `/Applications/SaneBar.app`.
+   - Both full `verify` runs then failed on the same single unit test in `SearchWindowTests`: `Search activation rejects unverified clicks for revealed or browse-session flows`.
+
+2. **The failing assertion is stale relative to the new browse policy.**
+   - Current policy in `MenuBarOperationCoordinator.browseActivationPlan(...)` and `SearchService.shouldPreferHardwareFirst(...)` is:
+     - browse-panel left click => AX first
+     - browse-panel right click => hardware first
+   - That policy is intentional because the recent Mini regression showed hardware-first left click wasting time on off-screen or stale browse targets before falling back to AX anyway.
+
+3. **The runtime proof supports the new policy.**
+   - After syncing the real current tree to the Mini, staged smoke passed on both hosts:
+     - Air notch host: `avgCpu=5.7%`, both browse modes + hidden/always-hidden moves passed
+     - Mini external-display host: `avgCpu=9.5%`, both browse modes + hidden/always-hidden moves passed
+   - That means the code path is behaving as intended in runtime even though one source-level unit expectation was left behind.
+
+4. **The right fix is to update the stale unit expectation, not revert the runtime policy.**
+   - `SearchWindowTests` should no longer expect hardware-first for browse-panel left-click off-screen targets.
+   - The test should instead assert the split policy explicitly:
+     - left click in browse panel => `false`
+     - right click in browse panel => `true`
+
+### Concrete action justified by this research
+
+1. Update `SearchWindowTests` to match the new browse activation policy.
+2. Rerun the focused test target first.
+3. If that passes, rerun full `verify` on both Air and Mini before any release call.
+
+## March 19 Hover/Wake Root-Cause E2E | Updated: 2026-03-19 | Status: verified | TTL: 3d
+
+**Sources:** local code/tests (`MenuBarManager.swift`, `MenuBarManager+Visibility.swift`, `MenuBarManager+Actions.swift`, `MenuBarOperationCoordinator.swift`, `MenuBarManagerTests.swift`, `MenuBarOperationCoordinatorTests.swift`, `ReleaseRegressionTests.swift`, `RuntimeGuardXCTests.swift`), local Air staged app, Mini staged app, Mini `qa.rb`
+
+### Verified Findings
+
+1. **Passive hover reveal no longer shares the inline app-menu suppression path.**
+   - `RevealTrigger` is now explicit for `.hover`, `.scroll`, `.click`, and `.userDrag`.
+   - `shouldManageApplicationMenus(...)` is now gated by `shouldSuppressApplicationMenus(for:)`.
+   - Passive/system reveals route to `restoreApplicationMenusIfNeeded(reason: "passiveReveal")` instead of activating SaneBar and restoring focus later.
+
+2. **Wake/screen validation now cancels stale recovery work instead of stacking it.**
+   - `schedulePositionValidation(...)` now uses `positionValidationGeneration` guards.
+   - `NSWorkspace.willSleepNotification`, `screensDidSleepNotification`, `didWakeNotification`, and `screensDidWakeNotification` are now observed.
+   - Wake resume now uses its own validation context (`.wakeResume`) and longer delay budget.
+
+3. **The full trusted staged-app matrix is green on both machines.**
+   - Air (notch host):
+     - `./scripts/SaneMaster.rb verify --quiet --local` passed with `1020` tests.
+     - `./scripts/SaneMaster.rb test_mode --release --no-logs --local` passed and staged `/Applications/SaneBar.app`.
+     - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./Scripts/live_zone_smoke.rb` passed in `94.68s`.
+     - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./Scripts/startup_layout_probe.rb` passed.
+   - Mini (external-display host):
+     - `./scripts/SaneMaster.rb verify --quiet` passed with `1020` tests.
+     - `./scripts/SaneMaster.rb test_mode --release --no-logs` passed and staged `/Applications/SaneBar.app`.
+     - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./Scripts/live_zone_smoke.rb` passed in `67.67s`.
+     - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./Scripts/startup_layout_probe.rb` passed.
+     - `SANEBAR_RUN_RUNTIME_SMOKE=1 SANEBAR_RUN_STABILITY_SUITE=1 ruby ./Scripts/qa.rb` completed with warnings only; all technical gates passed.
+
+4. **The extra focused required-ID probe failure on the Air was fixture availability, not a runtime regression.**
+   - `SANEBAR_SMOKE_REQUIRED_IDS=com.apple.menuextra.focusmode` failed because that menu extra was not present in `list icon zones` on that Air session.
+   - Generic staged smoke and startup probe on the same Air session still passed cleanly.
+
+### Release implication
+
+1. **Technical confidence is materially higher than it was before the hover/wake patch.**
+   - The fresh field reports from Ellery/Matt now line up with code paths that have been concretely changed and re-verified.
+
+2. **The remaining blocker is field confirmation, not an open local red lane.**
+   - Current routed `qa.rb` warnings are governance-only (`#117`, `#115`, `#113`, and old close `#94`), not build/test/runtime failures.

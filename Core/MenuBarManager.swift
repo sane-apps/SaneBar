@@ -59,6 +59,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Explicit right-click menu opens should not depend on NSApp.currentEvent
     /// still looking like a right click by the time NSMenuDelegate fires.
     var pendingExplicitStatusMenuRightClick = false
+    /// Tracks the reveal source so passive hover reveals can avoid focus-stealing
+    /// inline app-menu suppression.
+    var lastRevealTrigger: RevealTrigger = .automation
+    /// Monotonic token used to invalidate older position-validation passes when
+    /// screen/wake notifications or recovery flows schedule a newer pass.
+    var positionValidationGeneration: Int = 0
 
     /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0
@@ -205,8 +211,20 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     nonisolated static let maxStatusItemRecoveryCount = 2
 
-    nonisolated static func statusItemValidationInitialDelaySeconds(recoveryCount: Int) -> TimeInterval {
-        recoveryCount == 0 ? 0.5 : 1.0
+    nonisolated static func statusItemValidationInitialDelaySeconds(
+        context: MenuBarOperationCoordinator.PositionValidationContext,
+        recoveryCount: Int
+    ) -> TimeInterval {
+        switch context {
+        case .startupFollowUp:
+            return recoveryCount == 0 ? 0.5 : 1.0
+        case .manualLayoutRestore:
+            return recoveryCount == 0 ? 0.35 : 0.75
+        case .screenParametersChanged:
+            return recoveryCount == 0 ? 1.5 : 2.0
+        case .wakeResume:
+            return recoveryCount == 0 ? 2.0 : 2.5
+        }
     }
 
     init(
@@ -271,27 +289,27 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 switch reason {
                 case .hover:
                     // Hover always reveals only (toggling on hover would be annoying)
-                    _ = await self.showHiddenItemsNow(trigger: .automation)
+                    _ = await self.showHiddenItemsNow(trigger: .hover)
 
                 case let .scroll(direction):
                     if self.settings.useDirectionalScroll {
                         // Ice-style directional: up=show, down=hide (standard behavior)
                         // Takes priority over gestureToggles for scrolling
                         if direction == .up {
-                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                            _ = await self.showHiddenItemsNow(trigger: .scroll)
                         } else if !self.shouldSkipHideForExternalMonitor {
                             self.hideHiddenItems()
                         }
                     } else if self.settings.gestureToggles {
                         // Legacy toggle mode (any scroll toggles) - for backwards compatibility
                         if self.shouldSkipHideForExternalMonitor {
-                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                            _ = await self.showHiddenItemsNow(trigger: .scroll)
                         } else {
-                            self.toggleHiddenItems()
+                            self.toggleHiddenItems(trigger: .scroll)
                         }
                     } else {
                         // Show only: scroll reveals without hiding
-                        _ = await self.showHiddenItemsNow(trigger: .automation)
+                        _ = await self.showHiddenItemsNow(trigger: .scroll)
                     }
 
                 case .click:
@@ -299,17 +317,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                         // Toggle can hide, so respect external monitor setting
                         if self.shouldSkipHideForExternalMonitor {
                             // On external monitor with setting enabled - only allow show
-                            _ = await self.showHiddenItemsNow(trigger: .automation)
+                            _ = await self.showHiddenItemsNow(trigger: .click)
                         } else {
-                            self.toggleHiddenItems()
+                            self.toggleHiddenItems(trigger: .click)
                         }
                     } else {
-                        _ = await self.showHiddenItemsNow(trigger: .automation)
+                        _ = await self.showHiddenItemsNow(trigger: .click)
                     }
 
                 case .userDrag:
                     // ⌘+drag: reveal all icons so user can rearrange
-                    _ = await self.showHiddenItemsNow(trigger: .automation)
+                    _ = await self.showHiddenItemsNow(trigger: .userDrag)
                     // Pin the reveal so auto-hide doesn't kick in while dragging
                     self.isRevealPinned = true
                 }
@@ -682,10 +700,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                     self.executeStatusItemRecoveryAction(
                         startupAction,
                         trigger: "startup-\(reason?.rawValue ?? "recovery")",
-                        validationContext: .startupFollowUp,
+                        validationContext: nil,
                         recoveryCount: 0
                     )
                     await self.hidingService.show()
+                    self.scheduleInitialPositionValidationAfterStartup()
                     return
 
                 case .keepExpanded(.waitingForLiveCoordinates):
@@ -751,15 +770,22 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @MainActor
-    private func currentStatusItemRecoverySnapshot() -> MenuBarRuntimeSnapshot {
-        let controller = statusBarController
-        let startupItemsValid = StatusBarController.validateStartupItems(
-            main: controller.mainItem,
-            separator: controller.separatorItem
-        )
+    func currentRuntimeSnapshot(
+        identityPrecision: MenuBarIdentityPrecision = .unknown
+    ) -> MenuBarRuntimeSnapshot {
+        let controller = statusBarControllerStorage
+        let mainItem = mainStatusItem ?? controller?.mainItem
+        let separator = separatorItem ?? controller?.separatorItem
+        let startupItemsValid: Bool = {
+            guard let mainItem, let separator else { return false }
+            return StatusBarController.validateStartupItems(
+                main: mainItem,
+                separator: separator
+            )
+        }()
         let separatorX = getSeparatorOriginX()
         let mainX = getMainStatusItemLeftEdgeX()
-        let mainWindow = mainStatusItem?.button?.window ?? controller.mainItem.button?.window
+        let mainWindow = mainItem?.button?.window
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
         let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
             ?? NSScreen.main?.auxiliaryTopRightArea?.minX
@@ -770,6 +796,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }()
 
         let geometryConfidence: MenuBarGeometryConfidence = {
+            guard mainItem != nil, separator != nil else { return .missing }
             guard startupItemsValid else { return .stale }
             guard separatorX != nil, mainX != nil else { return .missing }
             if Self.shouldRecoverStartupPositions(
@@ -785,12 +812,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }()
 
         return MenuBarRuntimeSnapshot(
+            identityPrecision: identityPrecision,
             geometryConfidence: geometryConfidence,
             visibilityPhase: hidingService.isAnimating || hidingService.isTransitioning ? .transitioning : (hidingService.state == .hidden ? .hidden : .expanded),
             browsePhase: SearchWindowController.shared.isMoveInProgress ? .moveInProgress : (SearchWindowController.shared.isBrowseSessionActive ? .open : .idle),
             startupItemsValid: startupItemsValid,
             hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
-            hasActiveMoveTask: activeMoveTask != nil,
+            hasActiveMoveTask: activeMoveTask?.isCancelled == false,
             hasAnyScreens: !NSScreen.screens.isEmpty,
             separatorX: separatorX,
             mainX: mainX,
@@ -798,6 +826,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             screenWidth: screenWidth,
             notchRightSafeMinX: notchRightSafeMinX
         )
+    }
+
+    @MainActor
+    private func currentStatusItemRecoverySnapshot() -> MenuBarRuntimeSnapshot {
+        currentRuntimeSnapshot()
     }
 
     @MainActor
@@ -870,17 +903,32 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         context: MenuBarOperationCoordinator.PositionValidationContext = .startupFollowUp,
         recoveryCount: Int = 0
     ) {
+        positionValidationGeneration += 1
+        let validationGeneration = positionValidationGeneration
+
         Task { @MainActor [weak self] in
             guard let self, !self.usingExternalItems else { return }
 
-            let initialDelay = Self.statusItemValidationInitialDelaySeconds(recoveryCount: recoveryCount)
+            let initialDelay = Self.statusItemValidationInitialDelaySeconds(
+                context: context,
+                recoveryCount: recoveryCount
+            )
             let initialDelayDuration: Duration = .milliseconds(Int(initialDelay * 1000))
             let retryDelay: Duration = .milliseconds(250)
             let maxAttempts = 4
 
             try? await Task.sleep(for: initialDelayDuration)
+            guard self.positionValidationGeneration == validationGeneration else {
+                logger.debug("Skipping stale status item validation task for \(context.rawValue, privacy: .public)")
+                return
+            }
 
             for attempt in 1 ... maxAttempts {
+                guard self.positionValidationGeneration == validationGeneration else {
+                    logger.debug("Aborting stale status item validation retry for \(context.rawValue, privacy: .public)")
+                    return
+                }
+
                 let snapshot = self.currentStatusItemRecoverySnapshot()
                 let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot)
                 if recoveryReason == nil {
@@ -905,6 +953,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 if attempt < maxAttempts {
                     try? await Task.sleep(for: retryDelay)
                 }
+            }
+
+            guard self.positionValidationGeneration == validationGeneration else {
+                logger.debug("Skipping stale recovery escalation for \(context.rawValue, privacy: .public)")
+                return
             }
 
             logger.error(
@@ -1027,13 +1080,56 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.lastKnownSeparatorX = nil
-                self?.lastKnownSeparatorRightEdgeX = nil
-                self?.lastKnownAlwaysHiddenSeparatorX = nil
-                self?.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+                self?.clearCachedSeparatorGeometry()
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
                 self?.schedulePositionValidation(context: .screenParametersChanged)
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.willSleepNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.positionValidationGeneration += 1
+                self.clearCachedSeparatorGeometry()
+                logger.debug("System will sleep — cancelled pending position validation and invalidated cached separator positions")
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.screensDidSleepNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.positionValidationGeneration += 1
+                self.clearCachedSeparatorGeometry()
+                logger.debug("Screens did sleep — cancelled pending position validation and invalidated cached separator positions")
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.clearCachedSeparatorGeometry()
+                logger.debug("System did wake — invalidated cached separator positions")
+                self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
+                self.schedulePositionValidation(context: .wakeResume)
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.screensDidWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.clearCachedSeparatorGeometry()
+                logger.debug("Screens did wake — invalidated cached separator positions")
+                self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
+                self.schedulePositionValidation(context: .wakeResume)
             }
             .store(in: &cancellables)
 

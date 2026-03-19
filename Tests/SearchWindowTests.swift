@@ -392,7 +392,7 @@ struct SearchWindowTests {
             )
         )
         #expect(
-            SearchService.shouldPreferHardwareFirst(
+            !SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
                 app: RunningApp(id: "offscreen.app", name: "Offscreen", icon: nil, xPosition: -4300, width: 24)
@@ -402,6 +402,13 @@ struct SearchWindowTests {
             !SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
+                app: RunningApp(id: "visible.app", name: "Visible", icon: nil, xPosition: 631, width: 24)
+            )
+        )
+        #expect(
+            SearchService.shouldPreferHardwareFirst(
+                origin: .browsePanel,
+                isRightClick: true,
                 app: RunningApp(id: "visible.app", name: "Visible", icon: nil, xPosition: 631, width: 24)
             )
         )

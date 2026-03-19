@@ -39,6 +39,28 @@ extension MenuBarSearchView {
         return midX < (separatorBoundaryX - margin) ? .hidden : .visible
     }
 
+    static func alwaysHiddenBoundaryForAllTabClassification(
+        separatorBoundaryX: CGFloat?,
+        alwaysHiddenBoundaryX: CGFloat?,
+        alwaysHiddenOriginX: CGFloat?
+    ) -> CGFloat? {
+        guard let separatorBoundaryX else { return nil }
+
+        let preferredBoundary = SearchService.normalizedAlwaysHiddenBoundary(
+            alwaysHiddenBoundaryX,
+            separatorX: separatorBoundaryX
+        )
+        if preferredBoundary != nil {
+            return preferredBoundary
+        }
+
+        guard let alwaysHiddenOriginX, alwaysHiddenOriginX > 0 else { return nil }
+        return SearchService.normalizedAlwaysHiddenBoundary(
+            alwaysHiddenOriginX + 20,
+            separatorX: separatorBoundaryX
+        )
+    }
+
     /// Classify an app's current zone based on its X position vs separator positions.
     func appZone(for app: RunningApp) -> AppZone {
         guard let xPos = app.xPosition else { return .visible }
@@ -47,11 +69,16 @@ extension MenuBarSearchView {
             separatorRightEdgeX: menuBarManager.getSeparatorRightEdgeX(),
             separatorOriginX: menuBarManager.getSeparatorOriginX()
         )
+        let alwaysHiddenBoundaryX = Self.alwaysHiddenBoundaryForAllTabClassification(
+            separatorBoundaryX: separatorBoundaryX,
+            alwaysHiddenBoundaryX: menuBarManager.getAlwaysHiddenSeparatorBoundaryX(),
+            alwaysHiddenOriginX: menuBarManager.getAlwaysHiddenSeparatorOriginX()
+        )
 
         return Self.classifyAllTabZone(
             midX: midX,
             separatorBoundaryX: separatorBoundaryX,
-            alwaysHiddenSeparatorX: menuBarManager.getAlwaysHiddenSeparatorOriginX()
+            alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
         )
     }
 
@@ -110,27 +137,10 @@ extension MenuBarSearchView {
         }
     }
 
-    private func rollbackAlwaysHiddenMutation(for app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) {
-        switch (sourceZone, targetZone) {
-        case (.alwaysHidden, .visible), (.alwaysHidden, .hidden):
-            menuBarManager.pinAlwaysHidden(app: app)
-        case (.hidden, .alwaysHidden), (.visible, .alwaysHidden):
-            menuBarManager.unpinAlwaysHidden(app: app)
-        default:
-            break
-        }
-    }
-
-    private func observeQueuedMoveResult(
-        _ task: Task<Bool, Never>,
-        app: RunningApp,
-        sourceZone: AppZone,
-        targetZone: AppZone
-    ) {
+    private func observeQueuedMoveResult(_ task: Task<Bool, Never>) {
         Task { @MainActor in
             let moved = await task.value
             if !moved {
-                rollbackAlwaysHiddenMutation(for: app, from: sourceZone, to: targetZone)
                 movingAppId = nil
             }
         }
@@ -146,71 +156,31 @@ extension MenuBarSearchView {
     }
 
     private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
-        let bundleID = app.bundleId
-        let menuExtraID = app.menuExtraIdentifier
-        let statusItemIndex = app.statusItemIndex
-
-        let task: Task<Bool, Never>?
-        switch targetZone {
-        case .visible:
-            guard sourceZone != .visible else { return false }
-            if sourceZone == .alwaysHidden {
-                menuBarManager.unpinAlwaysHidden(app: app)
-                task = menuBarManager.queueMoveIconFromAlwaysHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX
-                )
-            } else {
-                task = menuBarManager.queueMoveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX,
-                    toHidden: false
-                )
-            }
-
-        case .hidden:
-            guard sourceZone != .hidden else { return false }
-            if sourceZone == .alwaysHidden {
-                menuBarManager.unpinAlwaysHidden(app: app)
-                task = menuBarManager.queueMoveIconFromAlwaysHiddenToHidden(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX
-                )
-            } else {
-                task = menuBarManager.queueMoveIcon(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraID,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: app.preferredCenterX,
-                    toHidden: true
-                )
-            }
-
-        case .alwaysHidden:
+        let request: MenuBarManager.ZoneMoveRequest?
+        switch (sourceZone, targetZone) {
+        case (.visible, .hidden):
+            request = .visibleToHidden
+        case (.hidden, .visible):
+            request = .hiddenToVisible
+        case (.visible, .alwaysHidden):
             guard isAlwaysHiddenEnabled else { return false }
-            guard sourceZone != .alwaysHidden else { return false }
-            menuBarManager.pinAlwaysHidden(app: app)
-            task = menuBarManager.queueMoveIconToAlwaysHidden(
-                bundleID: bundleID,
-                menuExtraId: menuExtraID,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: app.preferredCenterX
-            )
+            request = .visibleToAlwaysHidden
+        case (.hidden, .alwaysHidden):
+            guard isAlwaysHiddenEnabled else { return false }
+            request = .hiddenToAlwaysHidden
+        case (.alwaysHidden, .visible):
+            request = .alwaysHiddenToVisible
+        case (.alwaysHidden, .hidden):
+            request = .alwaysHiddenToHidden
+        case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
+            request = nil
         }
 
-        guard let task else {
-            rollbackAlwaysHiddenMutation(for: app, from: sourceZone, to: targetZone)
-            return false
-        }
+        guard let request,
+              let task = menuBarManager.queueZoneMove(app: app, request: request) else { return false }
 
         movingAppId = app.uniqueId
-        observeQueuedMoveResult(task, app: app, sourceZone: sourceZone, targetZone: targetZone)
+        observeQueuedMoveResult(task)
         return true
     }
 
@@ -238,9 +208,7 @@ extension MenuBarSearchView {
 
     @MainActor
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
-        SearchWindowController.shared.noteBrowseActivationStarted()
         Task { @MainActor in
-            defer { SearchWindowController.shared.noteBrowseActivationFinished() }
             await service.activate(app: app, isRightClick: isRightClick, origin: .browsePanel)
         }
     }

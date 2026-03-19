@@ -14,16 +14,6 @@ private func performScriptActivation(
     isRightClick: Bool,
     activationOrigin: SearchService.ActivationOrigin
 ) async {
-    let browseController = SearchWindowController.shared
-    if activationOrigin == .browsePanel {
-        browseController.noteBrowseActivationStarted()
-    }
-    defer {
-        if activationOrigin == .browsePanel {
-            browseController.noteBrowseActivationFinished()
-        }
-    }
-
     await SearchService.shared.activate(
         app: app,
         isRightClick: isRightClick,

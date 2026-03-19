@@ -96,13 +96,19 @@
   {
     "slug": "sanebar-browse-move",
     "reason": "Repeated icon move / visibility mismatch reports. Fresh runtime research is required before more fixes in this cluster.",
-    "created_at": "2026-03-19T14:39:52Z",
-    "source_updated_at": "2026-03-19T14:39:52Z",
+    "created_at": "2026-03-19T20:15:20Z",
+    "source_updated_at": "2026-03-19T20:15:20Z",
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
-    "match_count": 27,
+    "match_count": 28,
     "matches": [
+      {
+        "kind": "email",
+        "id": 404,
+        "subject": "SaneBar doesn't work",
+        "created_at": "2026-03-19 20:15:20"
+      },
       {
         "kind": "email",
         "id": 401,
@@ -170,13 +176,6 @@
         "title": "[Bug]: All visible items moved to hidden",
         "state": "OPEN",
         "updated_at": "2026-03-18T23:06:20Z"
-      },
-      {
-        "kind": "github",
-        "id": 109,
-        "title": "Icons in the Browse Icons.. view are not matching what is pr",
-        "state": "CLOSED",
-        "updated_at": "2026-03-11T22:54:01Z"
       }
     ]
   }

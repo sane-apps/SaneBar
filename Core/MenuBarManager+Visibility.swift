@@ -51,6 +51,10 @@ extension MenuBarManager {
         case hotkey
         case search
         case automation
+        case hover
+        case scroll
+        case click
+        case userDrag
         case settingsButton
         case findIcon
     }
@@ -194,7 +198,16 @@ extension MenuBarManager {
         return false
     }
 
-    func toggleHiddenItems() {
+    nonisolated static func shouldSuppressApplicationMenus(for revealTrigger: RevealTrigger) -> Bool {
+        switch revealTrigger {
+        case .click, .scroll, .userDrag:
+            return true
+        case .hotkey, .search, .automation, .hover, .settingsButton, .findIcon:
+            return false
+        }
+    }
+
+    func toggleHiddenItems(trigger: RevealTrigger = .automation) {
         Task {
             let currentState = hidingService.state
             let authSetting = settings.requireAuthToShowHiddenIcons
@@ -222,6 +235,10 @@ extension MenuBarManager {
                 }
             }
 
+            if currentState == .hidden {
+                lastRevealTrigger = trigger
+            }
+
             await hidingService.toggle()
             logger.info("hidingService.toggle() completed, new state: \(self.hidingService.state.rawValue)")
 
@@ -245,6 +262,7 @@ extension MenuBarManager {
         if shouldSkipHideForExternalMonitor {
             let didReveal = hidingService.state == .hidden
             if didReveal {
+                lastRevealTrigger = trigger
                 await hidingService.show()
             }
             hidingService.cancelRehide()
@@ -266,6 +284,9 @@ extension MenuBarManager {
         }
 
         let didReveal = hidingService.state == .hidden
+        if didReveal {
+            lastRevealTrigger = trigger
+        }
         await hidingService.show()
 
         // Search / Find Icon paths use their own dedicated delay handling so
@@ -326,12 +347,14 @@ extension MenuBarManager {
         hideApplicationMenusOnInlineReveal: Bool,
         showDockIcon: Bool,
         accessibilityGranted: Bool,
-        hidingState: HidingState
+        hidingState: HidingState,
+        revealTrigger: RevealTrigger
     ) -> Bool {
         hideApplicationMenusOnInlineReveal &&
             !showDockIcon &&
             accessibilityGranted &&
-            hidingState == .expanded
+            hidingState == .expanded &&
+            shouldSuppressApplicationMenus(for: revealTrigger)
     }
 
     func scheduleAppMenuSuppressionEvaluation() {
@@ -342,7 +365,8 @@ extension MenuBarManager {
             hideApplicationMenusOnInlineReveal: settings.hideApplicationMenusOnInlineReveal,
             showDockIcon: settings.showDockIcon,
             accessibilityGranted: AccessibilityService.shared.isGranted,
-            hidingState: hidingService.state
+            hidingState: hidingService.state,
+            revealTrigger: lastRevealTrigger
         ) else {
             if !settings.hideApplicationMenusOnInlineReveal {
                 restoreApplicationMenusIfNeeded(reason: "settingDisabled")
@@ -350,6 +374,8 @@ extension MenuBarManager {
                 restoreApplicationMenusIfNeeded(reason: "dockIconEnabled")
             } else if !AccessibilityService.shared.isGranted {
                 restoreApplicationMenusIfNeeded(reason: "axNotGranted")
+            } else if !Self.shouldSuppressApplicationMenus(for: lastRevealTrigger) {
+                restoreApplicationMenusIfNeeded(reason: "passiveReveal")
             } else {
                 restoreApplicationMenusIfNeeded(reason: "sectionHidden")
             }

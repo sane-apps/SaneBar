@@ -19,10 +19,14 @@ extension AccessibilityService {
     nonisolated static func shouldFallbackToAXAfterHardwareAttempt(
         success: Bool,
         verificationSummary: String,
-        isItemOnScreen: Bool
+        isItemOnScreen: Bool,
+        isRightClick: Bool
     ) -> Bool {
         guard isItemOnScreen else { return false }
         if success, verificationSummary.hasPrefix("verified") {
+            return false
+        }
+        if success, isRightClick {
             return false
         }
         return true
@@ -226,7 +230,8 @@ extension AccessibilityService {
             if !Self.shouldFallbackToAXAfterHardwareAttempt(
                 success: hardwareResult.success,
                 verificationSummary: hardwareResult.verification,
-                isItemOnScreen: itemOnScreen
+                isItemOnScreen: itemOnScreen,
+                isRightClick: isRightClick
             ) {
                 return hardwareResult
             }
@@ -388,7 +393,11 @@ extension AccessibilityService {
 
         for _ in 0 ..< attempts {
             Thread.sleep(forTimeInterval: interval)
-            let currentSnapshot = captureStatusItemReactionSnapshot(item: item, appElement: appElement)
+            let currentSnapshot = captureStatusItemReactionSnapshot(
+                item: item,
+                appElement: appElement,
+                includeWindowServerWindowCount: false
+            )
             lastSnapshot = currentSnapshot
             if let reaction = Self.observableReactionDescription(before: baseline, after: currentSnapshot) {
                 return .verified(reaction)
@@ -397,6 +406,16 @@ extension AccessibilityService {
 
         if Self.hasComparableReactionSignals(before: baseline, after: lastSnapshot) {
             return .failed("no observable menu/panel reaction")
+        }
+
+        if baseline.windowServerWindowCount != nil {
+            let finalSnapshot = captureStatusItemReactionSnapshot(item: item, appElement: appElement)
+            if let reaction = Self.observableReactionDescription(before: baseline, after: finalSnapshot) {
+                return .verified(reaction)
+            }
+            if Self.hasComparableReactionSignals(before: baseline, after: finalSnapshot) {
+                return .failed("no observable menu/panel reaction")
+            }
         }
 
         return .unavailable("no comparable AX reaction signals")
@@ -537,7 +556,7 @@ extension AccessibilityService {
             restoreEvent.post(tap: .cgSessionEventTap)
         }
 
-        logger.info("Simulated hardware click at \(point.x), \(point.y)")
+        logger.debug("Simulated hardware click at \(point.x), \(point.y)")
         return true
     }
 
@@ -720,6 +739,12 @@ extension AccessibilityService {
         )
     }
 
+    nonisolated static func cmdDragStepCount(distance: CGFloat) -> Int {
+        let normalizedDistance = max(0, distance)
+        let proposedSteps = Int(ceil(normalizedDistance / 22))
+        return min(max(proposedSteps, 10), 14)
+    }
+
     // MARK: - Icon Moving (CGEvent-based)
 
     /// Move a menu bar icon starting from a known WindowServer frame.
@@ -813,7 +838,7 @@ extension AccessibilityService {
     ) -> Bool {
         let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
         let resolvedTargetLane = targetLane ?? (toHidden ? .hidden : .visible)
-        logger.info("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
+        logger.debug("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
 
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -837,7 +862,7 @@ extension AccessibilityService {
             if frame.origin.x >= 0 {
                 iconFrame = frame
                 if attempt > 1 {
-                    logger.info("🔧 Icon moved on-screen after \(attempt * 100)ms polling (x=\(frame.origin.x, privacy: .public))")
+                    logger.debug("🔧 Icon moved on-screen after \(attempt * 100)ms polling (x=\(frame.origin.x, privacy: .public))")
                 }
                 break
             }
@@ -850,7 +875,7 @@ extension AccessibilityService {
             return false
         }
 
-        logger.info("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
+        logger.debug("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
 
         // Calculate target position
         // Hidden: LEFT of separator (into hidden zone) — need enough offset to clearly cross.
@@ -863,7 +888,7 @@ extension AccessibilityService {
             visibleBoundaryX: visibleBoundaryX
         )
 
-        logger.info("🔧 Target X: \(targetX, privacy: .public)")
+        logger.debug("🔧 Target X: \(targetX, privacy: .public)")
 
         // AX and CGEvent Y-axis orientation can differ by OS/build.
         // Normalize both points so drag coordinates stay anchored to the menu bar.
@@ -877,7 +902,7 @@ extension AccessibilityService {
                 "🔧 Normalized drag Y from raw (\(rawFromPoint.y, privacy: .public)->\(fromPoint.y, privacy: .public), \(rawToPoint.y, privacy: .public)->\(toPoint.y, privacy: .public))"
             )
         }
-        logger.info("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
+        logger.debug("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
 
         let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
         guard didPostEvents else {
@@ -900,7 +925,7 @@ extension AccessibilityService {
             )
             if let current = currentFrame, let previous = previousFrame, current.origin.x == previous.origin.x {
                 afterFrame = current
-                logger.info("🔧 AX position stabilized after \(attempt * 50)ms")
+                logger.debug("🔧 AX position stabilized after \(attempt * 50)ms")
                 break
             }
             previousFrame = currentFrame
@@ -912,7 +937,7 @@ extension AccessibilityService {
             return false
         }
 
-        logger.info("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
+        logger.debug("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
         // Verify icon landed in the expected zone using midpoint-based logic.
         // This aligns with SearchService zone classification and prevents
@@ -1022,7 +1047,7 @@ extension AccessibilityService {
                 mouseButton: .left
             ) {
                 moveToStart.post(tap: eventTap)
-                Thread.sleep(forTimeInterval: 0.08) // Let cursor settle
+                Thread.sleep(forTimeInterval: 0.06) // Let cursor settle
             }
 
             // 2. Hide cursor during drag (Ice-style: prevents visual glitches
@@ -1043,11 +1068,12 @@ extension AccessibilityService {
             }
             mouseDown.flags = .maskCommand
             mouseDown.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.09) // Hold before dragging (human-like)
+            Thread.sleep(forTimeInterval: 0.08) // Hold before dragging (human-like)
 
             // 4. Multi-step drag with human-like timing
-            //    20 steps × 18ms = ~360ms total drag (vs old: 6 × 5ms = 30ms)
-            let steps = 20
+            // Use fewer steps for short drags but keep a bounded, human-like path.
+            let dragDistance = hypot(to.x - from.x, to.y - from.y)
+            let steps = Self.cmdDragStepCount(distance: dragDistance)
             for i in 1 ... steps {
                 let t = CGFloat(i) / CGFloat(steps)
                 let x = from.x + (to.x - from.x) * t
@@ -1062,7 +1088,7 @@ extension AccessibilityService {
                 ) {
                     drag.flags = .maskCommand
                     drag.post(tap: eventTap)
-                    Thread.sleep(forTimeInterval: 0.018)
+                    Thread.sleep(forTimeInterval: 0.015)
                 }
             }
 
@@ -1079,7 +1105,7 @@ extension AccessibilityService {
             }
             mouseUp.flags = .maskCommand
             mouseUp.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.18) // Let the 'drop' settle
+            Thread.sleep(forTimeInterval: 0.14) // Let the 'drop' settle
 
             // 6. Restore cursor position
             if let restoreEvent = CGEvent(

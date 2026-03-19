@@ -347,8 +347,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AppleScript routing should detect when an icon is already in the requested zone"
         )
         XCTAssertTrue(
-            source.contains("case .alwaysHidden:\n                        let removedPin = manager.unpinAlwaysHidden"),
-            "Always-hidden sources should be unpinned before routing to a move helper"
+            source.contains("await manager.moveIconAlwaysHiddenAndWait(") &&
+                source.contains("await manager.moveIconFromAlwaysHiddenToHiddenAndWait("),
+            "Always-hidden sources should route through the dedicated manager move helpers instead of rolling their own pin mutation first"
         )
         XCTAssertTrue(
             source.contains("await manager.moveIconFromAlwaysHiddenToHiddenAndWait("),
@@ -595,8 +596,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Browse activation policy should route through the shared runtime coordinator instead of being rebuilt inline"
         )
         XCTAssertTrue(
-            diagnosticsSource.contains("if origin == .browsePanel, let xPosition = app.xPosition, xPosition >= 0"),
-            "Browse-panel left clicks should prefer AX first for on-screen targets so Spotlight-like items do not burn the timeout budget on failed hardware attempts"
+            diagnosticsSource.contains("if origin == .browsePanel {") &&
+                diagnosticsSource.contains("clickSystemWideItem will detect that"),
+            "Browse-panel left clicks should prefer AX first by default so Spotlight-like items do not burn the timeout budget on failed hardware attempts"
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if app.menuExtraIdentifier == nil"),
@@ -696,6 +698,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AppleScript move checks should use a longer classified-app refresh window before fallback"
         )
         XCTAssertTrue(
+            source.contains("let cachedZones = currentIconZones()") &&
+                source.contains("shouldForceRefreshDuringScriptZoneWait("),
+            "AppleScript move settle should prefer cached zones and rate-limit expensive refreshes"
+        )
+        XCTAssertTrue(
             source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"),
             "AppleScript move verification should invalidate AX cache before fallback refresh"
         )
@@ -793,6 +800,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         let hidingSource = try String(contentsOf: hidingURL, encoding: .utf8)
         let cacheURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Cache.swift")
         let cacheSource = try String(contentsOf: cacheURL, encoding: .utf8)
+        let movingURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let movingSource = try String(contentsOf: movingURL, encoding: .utf8)
 
         XCTAssertTrue(
             hidingSource.contains("invalidateMenuBarItemCache(scheduleWarmupAfter: .reveal)"),
@@ -810,19 +819,29 @@ final class RuntimeGuardXCTests: XCTestCase {
             cacheSource.contains("cacheWarmupInFlight"),
             "Accessibility diagnostics should report whether a background cache warmup is running"
         )
+        XCTAssertTrue(
+            cacheSource.contains("func beginMenuBarCacheWarmupSuppression()") &&
+                cacheSource.contains("func endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: Bool = true)"),
+            "Accessibility cache warmup control should support suppressing repeated warmups during a single move operation"
+        )
+        XCTAssertTrue(
+            movingSource.contains("AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()") &&
+                movingSource.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression()"),
+            "Move tasks should suspend intermediate cache warmups and restore them only after the move finishes"
+        )
     }
 
     func testAppleScriptAlwaysHiddenExitsUseRobustUnpinHelpers() throws {
-        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("manager.unpinAlwaysHidden("),
-            "AppleScript always-hidden exits should unpin through robust helper paths, not exact-ID only removal"
+            source.contains("private func removeQueuedAlwaysHiddenPin("),
+            "Always-hidden exit rollback should flow through one shared helper in the move engine"
         )
         XCTAssertTrue(
-            source.contains("manager.unpinAlwaysHidden(bundleID: icon.bundleId)"),
-            "AppleScript always-hidden exits should include non-Control-Center bundle fallback unpin"
+            source.contains("!bundleID.hasPrefix(\"com.apple.controlcenter\") && unpinAlwaysHidden(bundleID: bundleID)"),
+            "Always-hidden exit rollback should still include the non-Control-Center bundle fallback unpin"
         )
     }
 
@@ -831,22 +850,33 @@ final class RuntimeGuardXCTests: XCTestCase {
         let iconPanelSource = try String(contentsOf: iconPanelURL, encoding: .utf8)
         let secondMenuBarURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift")
         let secondMenuBarSource = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
 
         XCTAssertTrue(
-            iconPanelSource.contains("queueMoveIcon(") &&
-                iconPanelSource.contains("queueMoveIconToAlwaysHidden(") &&
-                iconPanelSource.contains("guard let task else") &&
-                iconPanelSource.contains("let moved = await task.value") &&
-                iconPanelSource.contains("rollbackAlwaysHiddenMutation"),
-            "Icon panel move flows should use task-returning queue helpers, wait on the real task result, and roll back pin mutations when the drag fails"
+            managerSource.contains("enum ZoneMoveRequest: Sendable") &&
+                managerSource.contains("func queueZoneMove(") &&
+                managerSource.contains("enum AlwaysHiddenQueuedMutation") &&
+                managerSource.contains("optimisticAlwaysHiddenMutation") &&
+                managerSource.contains("rollbackQueuedAlwaysHiddenMutation"),
+            "MenuBarManager should own queued zone-move planning and always-hidden optimistic mutation rollback inside the move engine"
         )
         XCTAssertTrue(
-            secondMenuBarSource.contains("queueMoveIcon(") &&
-                secondMenuBarSource.contains("queueMoveIconToAlwaysHidden(") &&
-                secondMenuBarSource.contains("guard let task else") &&
+            iconPanelSource.contains("queueZoneMove(app: app, request: request)") &&
+                iconPanelSource.contains("guard let request,") &&
+                iconPanelSource.contains("let moved = await task.value") &&
+                !iconPanelSource.contains("pinAlwaysHidden(app: app)") &&
+                !iconPanelSource.contains("unpinAlwaysHidden(app: app)"),
+            "Icon panel move flows should delegate queue planning and always-hidden mutation ownership to MenuBarManager"
+        )
+        XCTAssertTrue(
+            secondMenuBarSource.contains("queueZoneMove(app: app, request: request)") &&
+                secondMenuBarSource.contains("guard let request,") &&
                 secondMenuBarSource.contains("let moved = await task.value") &&
-                secondMenuBarSource.contains("applySuccessfulMovePresentation"),
-            "Second menu bar moves should use task-returning queue helpers and wait on the real drag result before updating row state or reporting success"
+                secondMenuBarSource.contains("applySuccessfulMovePresentation") &&
+                !secondMenuBarSource.contains("pinAlwaysHidden(app: app)") &&
+                !secondMenuBarSource.contains("unpinAlwaysHidden(app: app)"),
+            "Second menu bar moves should wait on the shared manager-owned zone move result before updating row state or reporting success"
         )
         XCTAssertFalse(
             secondMenuBarSource.contains("DispatchQueue.main.asyncAfter(deadline: .now() + 0.3)"),
@@ -854,17 +884,46 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testAppleScriptAlwaysHiddenMovesPrePinToMatchBrowseUI() throws {
+    func testAppleScriptAlwaysHiddenMovesUseManagerOwnedPinMutation() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            managerSource.contains(".pin(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)") &&
+                managerSource.contains(".unpin(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex)"),
+            "The move engine should own always-hidden optimistic pin and unpin mutations for both queued and awaited move flows"
+        )
+        XCTAssertTrue(
+            source.contains("manager.saveSettings()") &&
+                source.contains("await manager.moveIconAlwaysHiddenAndWait("),
+            "AppleScript move commands should route always-hidden moves through the manager-owned move lifecycle"
+        )
+        XCTAssertFalse(
+            source.contains("if !moved {\n                        _ = manager.unpinAlwaysHidden("),
+            "AppleScript move commands should stop hand-rolling always-hidden rollback logic on move failure"
+        )
+    }
+
+    func testShowIconOnlyUnpinsAfterVerifiedMoveOutOfAlwaysHidden() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("case .alwaysHidden:\n                    if !manager.settings.alwaysHiddenSectionEnabled {\n                        manager.settings.alwaysHiddenSectionEnabled = true\n                    }\n                    manager.pinAlwaysHidden(app: icon)\n                    manager.saveSettings()\n                    let moved = runScriptMove {"),
-            "AppleScript moves into always-hidden should pin before the move, matching the browse UI path"
+            source.contains("let startZones = zonesForScriptMoveResolution(trimmedId)") &&
+                source.contains("source.zone == .alwaysHidden") &&
+                source.contains("await manager.moveIconAlwaysHiddenAndWait("),
+            "Show icon should resolve a real always-hidden source item and route the restore through the manager-owned always-hidden move path"
         )
         XCTAssertTrue(
-            source.contains("if !moved {\n                        _ = manager.unpinAlwaysHidden("),
-            "AppleScript always-hidden moves should roll back the pin when the drag fails"
+            source.contains("let removedPin = manager.unpinAlwaysHidden(") &&
+                source.contains("guard moved else {"),
+            "Show icon should only clear pins after a successful visible restore, not before proving the move worked"
+        )
+        XCTAssertFalse(
+            source.contains("pinId.hasPrefix(trimmedId)"),
+            "Show icon should stop using prefix pin matches that can silently unpin the wrong item"
         )
     }
 
@@ -957,6 +1016,18 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("getAlwaysHiddenSeparatorBoundaryX()"),
             "Search classification should use AH boundary/right-edge for zone splits near the AH divider"
+        )
+    }
+
+    func testAllTabClassificationUsesSameAlwaysHiddenBoundaryNormalizationAsRuntimeClassifier() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("alwaysHiddenBoundaryForAllTabClassification(") &&
+                source.contains("getAlwaysHiddenSeparatorBoundaryX()") &&
+                source.contains("SearchService.normalizedAlwaysHiddenBoundary("),
+            "All-tab zone classification should use the same normalized always-hidden boundary model as the runtime classifier"
         )
     }
 
@@ -1176,10 +1247,10 @@ final class RuntimeGuardXCTests: XCTestCase {
         // each move/reorder entry should queue through the shared lifecycle helper,
         // and the helper must cancel rehide before drag work.
         let pipelinePatterns = [
-            #"func\s+moveIcon\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIcon"\)"#,
-            #"func\s+moveIconAlwaysHidden\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIconAlwaysHidden"\)"#,
-            #"func\s+moveIconFromAlwaysHiddenToHidden\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIconFromAlwaysHiddenToHidden"\)"#,
-            #"func\s+reorderIcon\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"reorderIcon"\)"#,
+            #"func\s+moveIcon\([\s\S]*?queueDetachedMoveTask\([\s\S]*?operationName:\s*"moveIcon""#,
+            #"func\s+moveIconAlwaysHidden\([\s\S]*?queueDetachedMoveTask\([\s\S]*?operationName:\s*"moveIconAlwaysHidden""#,
+            #"func\s+moveIconFromAlwaysHiddenToHidden\([\s\S]*?queueDetachedMoveTask\([\s\S]*?operationName:\s*"moveIconFromAlwaysHiddenToHidden""#,
+            #"func\s+reorderIcon\([\s\S]*?queueDetachedMoveTask\([\s\S]*?operationName:\s*"reorderIcon""#,
         ]
 
         for pattern in pipelinePatterns {
@@ -1830,11 +1901,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("BROWSE_ACTIVATION_BUNDLE_DENYLIST") &&
             source.contains("precise_non_apple") &&
             source.contains("browse_activation_pool(zones)") &&
-            source.contains("(preferred + precise_non_apple + fallback).uniq") &&
+            source.contains("(precise_non_apple + preferred + fallback).uniq") &&
             source.contains("com.apple.menuextra.bluetooth") &&
             source.contains("browse_activation_denied?(item)") &&
             source.contains("item[:bundle].start_with?('com.apple.')"),
-            "Live smoke should prefer the explicit stable browse targets before falling back to non-Apple or noisy Apple-only menu extras"
+            "Live smoke should try a precise third-party browse target first before falling back to noisier Apple extras"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&
@@ -1865,8 +1936,14 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should verify the final zone before failing a move command whose AppleScript reply timed out"
         )
         XCTAssertTrue(
+            source.contains("current_physical_footprint_mb") &&
+                source.contains("phys_footprint:") &&
+                source.contains("accepting RSS-only breach because physical footprint settled"),
+            "Live smoke should corroborate RSS-only idle-memory failures with physical footprint before failing the host"
+        )
+        XCTAssertTrue(
             source.contains("icon_unique_id = resolve_live_move_identifier(candidate)") &&
-            source.contains("def resolve_live_move_identifier(candidate)"),
+                source.contains("def resolve_live_move_identifier(candidate)"),
             "Live smoke move commands should resolve through a move-specific identity helper instead of reusing the browse fallback path"
         )
         XCTAssertTrue(
@@ -1912,6 +1989,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should reject heavy average CPU/RSS behavior across the full interaction pass, not just absurd spikes"
         )
         XCTAssertTrue(
+            source.contains("label: 'launch'") &&
+                source.contains("reset_resource_watchdog_window!") &&
+                source.contains("begin\n      assert_active_average_budget!\n    ensure\n      restore_zone(post_budget_restore_candidate) if post_budget_restore_candidate\n    end"),
+            "Live smoke should reset the active resource window after launch-idle validation so the interaction budget is not polluted by startup settling"
+        )
+        XCTAssertTrue(
             source.contains("📉 Idle budget %s: avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB") &&
                 source.contains("🫀 Resource watchdog: samples=%d avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB"),
             "Live smoke should print both idle-budget and whole-pass performance summaries so the numbers are reviewable in smoke logs"
@@ -1921,6 +2004,18 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("ps',") &&
                 source.contains("'pid=,%cpu=,rss=,etime=,command='"),
             "Live smoke should monitor the staged process with native macOS tooling and sample it when thresholds are breached"
+        )
+        XCTAssertTrue(
+            source.contains("match = out.lines") &&
+                source.contains("@app_pid = pid.to_i if pid.to_i.positive?"),
+            "Live smoke should refresh the tracked app PID when the same staged app is still visible after a transient process handoff"
+        )
+        XCTAssertTrue(
+            source.contains("if @app_path") &&
+                source.contains("set appTarget to ((POSIX file") &&
+                source.contains("using terms from") &&
+                source.contains("tell application appTarget to"),
+            "Live smoke AppleScript should target the exact staged app path when SANEBAR_SMOKE_APP_PATH is provided"
         )
     }
 
@@ -2026,9 +2121,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("case let .repairPersistedLayoutAndRecreate(reason):") &&
                 source.contains("self.executeStatusItemRecoveryAction(") &&
                 source.contains("trigger: \"startup-\\(reason?.rawValue ?? \"recovery\")\"") &&
+                source.contains("validationContext: nil") &&
+                source.contains("await self.hidingService.show()") &&
+                source.contains("self.scheduleInitialPositionValidationAfterStartup()") &&
                 coordinatorSource.contains("case missingCoordinates = \"missing-coordinates\"") &&
                 coordinatorSource.contains("case invalidGeometry = \"invalid-geometry\""),
-            "Startup recovery should recreate the live status items immediately using the coordinator-owned recovery reason"
+            "Startup recovery should recreate immediately, then arm follow-up validation only after the recovery show path has settled"
         )
     }
 
@@ -2103,8 +2201,15 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("Screen parameters changed — invalidated cached separator positions") &&
-                source.contains("self?.schedulePositionValidation(context: .screenParametersChanged)"),
-            "Screen/menu-bar topology changes should trigger a screen-change validation pass so attached-but-drifted items self-heal without reusing generic startup timing blindly"
+                source.contains("self?.schedulePositionValidation(context: .screenParametersChanged)") &&
+                source.contains("NSWorkspace.willSleepNotification") &&
+                source.contains("NSWorkspace.screensDidSleepNotification") &&
+                source.contains("NSWorkspace.didWakeNotification") &&
+                source.contains("NSWorkspace.screensDidWakeNotification") &&
+                source.contains("self.schedulePositionValidation(context: .wakeResume)") &&
+                source.contains("positionValidationGeneration += 1") &&
+                source.contains("guard self.positionValidationGeneration == validationGeneration else"),
+            "Screen and wake topology changes should invalidate stale validation work, then schedule a wake-aware validation pass instead of letting overlapping recovery tasks race each other"
         )
     }
 
@@ -2113,12 +2218,19 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("private func suppressApplicationMenusIfNeeded()"),
-            "Inline reveal path should still have an explicit app-menu suppression handler"
+            source.contains("private func suppressApplicationMenusIfNeeded()") &&
+                source.contains("nonisolated static func shouldSuppressApplicationMenus(for revealTrigger: RevealTrigger) -> Bool"),
+            "Inline reveal path should still have an explicit app-menu suppression handler and a trigger-aware policy gate"
         )
         XCTAssertFalse(
             source.contains("private func suppressApplicationMenusIfNeeded() {\n        guard !isAppMenuSuppressed else { return }\n        guard !settings.showDockIcon else { return }\n\n        appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication\n        NSApp.setActivationPolicy(.regular)"),
             "Inline app-menu suppression must not force regular activation when the user has hidden the Dock icon"
+        )
+        XCTAssertTrue(
+            source.contains("revealTrigger: lastRevealTrigger") &&
+                source.contains("shouldSuppressApplicationMenus(for: revealTrigger)") &&
+                source.contains("restoreApplicationMenusIfNeeded(reason: \"passiveReveal\")"),
+            "Passive hover/system reveals must not reuse the inline overlap suppression path that activates SaneBar and restores focus later"
         )
         XCTAssertTrue(
             source.contains("appToReactivateAfterSuppression = NSWorkspace.shared.frontmostApplication") &&
@@ -2290,6 +2402,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         let controllerSource = try String(contentsOf: controllerURL, encoding: .utf8)
         let secondMenuBarURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift")
         let secondMenuBarSource = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
+        let navigationURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let navigationSource = try String(contentsOf: navigationURL, encoding: .utf8)
         let smokeURL = projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb")
         let smokeSource = try String(contentsOf: smokeURL, encoding: .utf8)
 
@@ -2309,6 +2423,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             controllerSource.contains("noteBrowseActivationStarted()") &&
                 controllerSource.contains("noteBrowseActivationFinished()"),
             "Browse activation should refresh second-menu-bar idle protection around panel clicks"
+        )
+        XCTAssertTrue(
+            navigationSource.contains("await service.activate(app: app, isRightClick: isRightClick, origin: .browsePanel)"),
+            "Second Menu Bar activation should still route through SearchService for browse-panel clicks"
         )
         XCTAssertTrue(
             controllerSource.contains("func noteSecondMenuBarInteraction()"),
@@ -2334,12 +2452,23 @@ final class RuntimeGuardXCTests: XCTestCase {
     func testBrowseAppleScriptActivationUsesSameIdleProtectionAsUI() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptActivationCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let searchServiceURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let searchServiceSource = try String(contentsOf: searchServiceURL, encoding: .utf8)
+        let navigationURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let navigationSource = try String(contentsOf: navigationURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("if activationOrigin == .browsePanel") &&
-                source.contains("browseController.noteBrowseActivationStarted()") &&
-                source.contains("browseController.noteBrowseActivationFinished()"),
-            "Browse AppleScript activations should opt into the same second-menu-bar idle-close protection as the panel UI path"
+            searchServiceSource.contains("let tracksBrowseActivation = origin == .browsePanel") &&
+                searchServiceSource.contains("browseController.noteBrowseActivationStarted()") &&
+                searchServiceSource.contains("browseController.noteBrowseActivationFinished()"),
+            "SearchService should own browse-panel activation grace bookkeeping so all callers get the same idle-close protection"
+        )
+        XCTAssertTrue(
+            !source.contains("noteBrowseActivationStarted()") &&
+                !source.contains("noteBrowseActivationFinished()") &&
+                !navigationSource.contains("noteBrowseActivationStarted()") &&
+                !navigationSource.contains("noteBrowseActivationFinished()"),
+            "UI and AppleScript callers should delegate browse activation lifecycle ownership to SearchService instead of bracketing it themselves"
         )
     }
 
@@ -2428,6 +2557,18 @@ final class RuntimeGuardXCTests: XCTestCase {
             combinedSource.contains("observableReactionDescription"),
             "Click verification should compare before/after AX reaction snapshots"
         )
+        XCTAssertTrue(
+            interactionSource.contains("includeWindowServerWindowCount: false"),
+            "Click verification should poll cheap AX reaction signals in the loop instead of rescanning WindowServer every pass"
+        )
+        XCTAssertTrue(
+            interactionSource.contains("if baseline.windowServerWindowCount != nil"),
+            "Click verification should reserve WindowServer counting for a narrow fallback pass instead of the hot polling path"
+        )
+        XCTAssertTrue(
+            interactionSource.contains("if success, isRightClick"),
+            "Hardware-first right-click activation should not pay for an AX fallback after a dispatched click"
+        )
 
         let searchURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
         let searchSource = try String(contentsOf: searchURL, encoding: .utf8)
@@ -2451,6 +2592,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             searchSource.contains("SearchWindowController.shared.isBrowseSessionActive"),
             "Second menu bar activation should use active browse-session state when deciding whether to trust a click"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("if origin == .browsePanel {") &&
+                diagnosticsSource.contains("Browse panel clicks should use AX first by default."),
+            "Browse activation should prefer AX first for left-click browse flows instead of burning the hardware-first path on stale menu-bar coordinates"
         )
         XCTAssertTrue(
             searchSource.contains("Rejecting unverified click success for revealed/browse-session activation"),

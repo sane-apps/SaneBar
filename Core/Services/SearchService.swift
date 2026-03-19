@@ -689,6 +689,17 @@ final class SearchService: SearchServiceProtocol {
         isRightClick: Bool = false,
         origin: ActivationOrigin = .direct
     ) async {
+        let browseController = SearchWindowController.shared
+        let tracksBrowseActivation = origin == .browsePanel
+        if tracksBrowseActivation {
+            browseController.noteBrowseActivationStarted()
+        }
+        defer {
+            if tracksBrowseActivation {
+                browseController.noteBrowseActivationFinished()
+            }
+        }
+
         var diagnostics = ActivationDiagnostics(
             startedAt: Self.diagnosticsTimestamp(Date()),
             requestedApp: Self.diagnosticsApp(app),
@@ -752,11 +763,11 @@ final class SearchService: SearchServiceProtocol {
             didReveal: didReveal,
             isBrowseSessionActive: browseSessionActive
         )
+        let initialFallbackCenter = fallbackCenter(for: initialTarget, fallbackSource: app)
         let preferHardwareFirst = initialPlan.preferHardwareFirst
         diagnostics.initialResolution = initialResolution.strategy
         diagnostics.initialTarget = Self.diagnosticsApp(initialTarget)
         diagnostics.preferHardwareFirst = preferHardwareFirst
-        let initialFallbackCenter = fallbackCenter(for: initialTarget, fallbackSource: app)
         let axService = AccessibilityService.shared
         let initialLikelyNoExtras = axService.likelyLacksExtrasMenuBar(bundleID: initialTarget.bundleId)
         let initialAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
