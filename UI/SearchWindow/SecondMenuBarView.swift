@@ -539,12 +539,12 @@ struct SecondMenuBarView: View {
         let menuExtraId = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
 
-        let started: Bool
+        let task: Task<Bool, Never>?
         switch (source, target) {
         // From Always Hidden
         case (.alwaysHidden, .visible):
             menuBarManager.unpinAlwaysHidden(app: app)
-            started = menuBarManager.moveIconFromAlwaysHidden(
+            task = menuBarManager.queueMoveIconFromAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX
@@ -552,7 +552,7 @@ struct SecondMenuBarView: View {
 
         case (.alwaysHidden, .hidden):
             menuBarManager.unpinAlwaysHidden(app: app)
-            started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+            task = menuBarManager.queueMoveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX
@@ -560,7 +560,7 @@ struct SecondMenuBarView: View {
 
         // From Hidden
         case (.hidden, .visible):
-            started = menuBarManager.moveIcon(
+            task = menuBarManager.queueMoveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX,
@@ -570,7 +570,7 @@ struct SecondMenuBarView: View {
         case (.hidden, .alwaysHidden):
             guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
             menuBarManager.pinAlwaysHidden(app: app)
-            started = menuBarManager.moveIconToAlwaysHidden(
+            task = menuBarManager.queueMoveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX
@@ -578,7 +578,7 @@ struct SecondMenuBarView: View {
 
         // From Visible
         case (.visible, .hidden):
-            started = menuBarManager.moveIcon(
+            task = menuBarManager.queueMoveIcon(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX,
@@ -588,7 +588,7 @@ struct SecondMenuBarView: View {
         case (.visible, .alwaysHidden):
             guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
             menuBarManager.pinAlwaysHidden(app: app)
-            started = menuBarManager.moveIconToAlwaysHidden(
+            task = menuBarManager.queueMoveIconToAlwaysHidden(
                 bundleID: bundleID, menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: app.preferredCenterX
@@ -596,10 +596,10 @@ struct SecondMenuBarView: View {
 
         // No-op (same zone)
         case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            started = false
+            task = nil
         }
 
-        guard started, let task = menuBarManager.activeMoveTask else {
+        guard let task else {
             rollbackAlwaysHiddenMutation(for: app, from: source, to: target)
             return false
         }
@@ -670,7 +670,7 @@ struct SecondMenuBarView: View {
         let targetX = targetApp.xPosition ?? 0
         let placeAfterTarget = sourceX < targetX
 
-        let started = menuBarManager.reorderIcon(
+        guard let task = menuBarManager.queueReorderIcon(
             sourceBundleID: sourceApp.bundleId,
             sourceMenuExtraID: sourceApp.menuExtraIdentifier,
             sourceStatusItemIndex: sourceApp.statusItemIndex,
@@ -678,9 +678,7 @@ struct SecondMenuBarView: View {
             targetMenuExtraID: targetApp.menuExtraIdentifier,
             targetStatusItemIndex: targetApp.statusItemIndex,
             placeAfterTarget: placeAfterTarget
-        )
-
-        guard started, let task = menuBarManager.activeMoveTask else { return false }
+        ) else { return false }
 
         observeQueuedReorderResult(task)
         return true

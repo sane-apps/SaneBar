@@ -833,16 +833,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         let secondMenuBarSource = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
 
         XCTAssertTrue(
-            iconPanelSource.contains("guard started, let task = menuBarManager.activeMoveTask else") &&
+            iconPanelSource.contains("queueMoveIcon(") &&
+                iconPanelSource.contains("queueMoveIconToAlwaysHidden(") &&
+                iconPanelSource.contains("guard let task else") &&
                 iconPanelSource.contains("let moved = await task.value") &&
                 iconPanelSource.contains("rollbackAlwaysHiddenMutation"),
-            "Icon panel move flows should wait on the queued task result and roll back pin mutations when the drag fails"
+            "Icon panel move flows should use task-returning queue helpers, wait on the real task result, and roll back pin mutations when the drag fails"
         )
         XCTAssertTrue(
-            secondMenuBarSource.contains("guard started, let task = menuBarManager.activeMoveTask else") &&
+            secondMenuBarSource.contains("queueMoveIcon(") &&
+                secondMenuBarSource.contains("queueMoveIconToAlwaysHidden(") &&
+                secondMenuBarSource.contains("guard let task else") &&
                 secondMenuBarSource.contains("let moved = await task.value") &&
                 secondMenuBarSource.contains("applySuccessfulMovePresentation"),
-            "Second menu bar moves should wait on the real drag result before updating row state or reporting success"
+            "Second menu bar moves should use task-returning queue helpers and wait on the real drag result before updating row state or reporting success"
         )
         XCTAssertFalse(
             secondMenuBarSource.contains("DispatchQueue.main.asyncAfter(deadline: .now() + 0.3)"),

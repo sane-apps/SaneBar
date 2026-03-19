@@ -150,20 +150,20 @@ extension MenuBarSearchView {
         let menuExtraID = app.menuExtraIdentifier
         let statusItemIndex = app.statusItemIndex
 
-        let started: Bool
+        let task: Task<Bool, Never>?
         switch targetZone {
         case .visible:
             guard sourceZone != .visible else { return false }
             if sourceZone == .alwaysHidden {
                 menuBarManager.unpinAlwaysHidden(app: app)
-                started = menuBarManager.moveIconFromAlwaysHidden(
+                task = menuBarManager.queueMoveIconFromAlwaysHidden(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
                     preferredCenterX: app.preferredCenterX
                 )
             } else {
-                started = menuBarManager.moveIcon(
+                task = menuBarManager.queueMoveIcon(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
@@ -176,14 +176,14 @@ extension MenuBarSearchView {
             guard sourceZone != .hidden else { return false }
             if sourceZone == .alwaysHidden {
                 menuBarManager.unpinAlwaysHidden(app: app)
-                started = menuBarManager.moveIconFromAlwaysHiddenToHidden(
+                task = menuBarManager.queueMoveIconFromAlwaysHiddenToHidden(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
                     preferredCenterX: app.preferredCenterX
                 )
             } else {
-                started = menuBarManager.moveIcon(
+                task = menuBarManager.queueMoveIcon(
                     bundleID: bundleID,
                     menuExtraId: menuExtraID,
                     statusItemIndex: statusItemIndex,
@@ -196,7 +196,7 @@ extension MenuBarSearchView {
             guard isAlwaysHiddenEnabled else { return false }
             guard sourceZone != .alwaysHidden else { return false }
             menuBarManager.pinAlwaysHidden(app: app)
-            started = menuBarManager.moveIconToAlwaysHidden(
+            task = menuBarManager.queueMoveIconToAlwaysHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraID,
                 statusItemIndex: statusItemIndex,
@@ -204,7 +204,7 @@ extension MenuBarSearchView {
             )
         }
 
-        guard started, let task = menuBarManager.activeMoveTask else {
+        guard let task else {
             rollbackAlwaysHiddenMutation(for: app, from: sourceZone, to: targetZone)
             return false
         }
@@ -219,7 +219,7 @@ extension MenuBarSearchView {
         let targetX = targetApp.xPosition ?? 0
         let placeAfterTarget = sourceX < targetX
 
-        let started = menuBarManager.reorderIcon(
+        guard let task = menuBarManager.queueReorderIcon(
             sourceBundleID: sourceApp.bundleId,
             sourceMenuExtraID: sourceApp.menuExtraIdentifier,
             sourceStatusItemIndex: sourceApp.statusItemIndex,
@@ -227,9 +227,7 @@ extension MenuBarSearchView {
             targetMenuExtraID: targetApp.menuExtraIdentifier,
             targetStatusItemIndex: targetApp.statusItemIndex,
             placeAfterTarget: placeAfterTarget
-        )
-
-        guard started, let task = menuBarManager.activeMoveTask else {
+        ) else {
             return false
         }
 

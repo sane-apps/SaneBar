@@ -1738,6 +1738,107 @@ extension MenuBarManager {
     }
 
     @MainActor
+    private func queuedMoveTaskIfStarted(_ started: Bool) -> Task<Bool, Never>? {
+        guard started, let task = activeMoveTask else { return nil }
+        return task
+    }
+
+    @MainActor
+    func queueMoveIcon(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil,
+        toHidden: Bool,
+        separatorOverrideX: CGFloat? = nil
+    ) -> Task<Bool, Never>? {
+        queuedMoveTaskIfStarted(
+            moveIcon(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
+                toHidden: toHidden,
+                separatorOverrideX: separatorOverrideX
+            )
+        )
+    }
+
+    @MainActor
+    func queueMoveIconToAlwaysHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
+    ) -> Task<Bool, Never>? {
+        queuedMoveTaskIfStarted(
+            moveIconToAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        )
+    }
+
+    @MainActor
+    func queueMoveIconFromAlwaysHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
+    ) -> Task<Bool, Never>? {
+        queuedMoveTaskIfStarted(
+            moveIconFromAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        )
+    }
+
+    @MainActor
+    func queueMoveIconFromAlwaysHiddenToHidden(
+        bundleID: String,
+        menuExtraId: String? = nil,
+        statusItemIndex: Int? = nil,
+        preferredCenterX: CGFloat? = nil
+    ) -> Task<Bool, Never>? {
+        queuedMoveTaskIfStarted(
+            moveIconFromAlwaysHiddenToHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX
+            )
+        )
+    }
+
+    @MainActor
+    func queueReorderIcon(
+        sourceBundleID: String,
+        sourceMenuExtraID: String? = nil,
+        sourceStatusItemIndex: Int? = nil,
+        targetBundleID: String,
+        targetMenuExtraID: String? = nil,
+        targetStatusItemIndex: Int? = nil,
+        placeAfterTarget: Bool
+    ) -> Task<Bool, Never>? {
+        queuedMoveTaskIfStarted(
+            reorderIcon(
+                sourceBundleID: sourceBundleID,
+                sourceMenuExtraID: sourceMenuExtraID,
+                sourceStatusItemIndex: sourceStatusItemIndex,
+                targetBundleID: targetBundleID,
+                targetMenuExtraID: targetMenuExtraID,
+                targetStatusItemIndex: targetStatusItemIndex,
+                placeAfterTarget: placeAfterTarget
+            )
+        )
+    }
+
+    @MainActor
     func reorderIconAndWait(
         sourceBundleID: String,
         sourceMenuExtraID: String? = nil,
@@ -1751,7 +1852,7 @@ extension MenuBarManager {
             _ = await task.value
         }
 
-        let started = reorderIcon(
+        guard let task = queueReorderIcon(
             sourceBundleID: sourceBundleID,
             sourceMenuExtraID: sourceMenuExtraID,
             sourceStatusItemIndex: sourceStatusItemIndex,
@@ -1759,11 +1860,8 @@ extension MenuBarManager {
             targetMenuExtraID: targetMenuExtraID,
             targetStatusItemIndex: targetStatusItemIndex,
             placeAfterTarget: placeAfterTarget
-        )
-
-        guard let task = activeMoveTask else { return false }
-        let success = await task.value
-        return started && success
+        ) else { return false }
+        return await task.value
     }
 
     @MainActor
@@ -1779,18 +1877,15 @@ extension MenuBarManager {
             _ = await task.value
         }
 
-        let started = moveIcon(
+        guard let task = queueMoveIcon(
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
             preferredCenterX: preferredCenterX,
             toHidden: toHidden,
             separatorOverrideX: separatorOverrideX
-        )
-
-        guard let task = activeMoveTask else { return false }
-        let success = await task.value
-        return started && success
+        ) else { return false }
+        return await task.value
     }
 
     @MainActor
@@ -1805,17 +1900,16 @@ extension MenuBarManager {
             _ = await task.value
         }
 
-        let started = moveIconAlwaysHidden(
-            bundleID: bundleID,
-            menuExtraId: menuExtraId,
-            statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX,
-            toAlwaysHidden: toAlwaysHidden
-        )
-
-        guard let task = activeMoveTask else { return false }
-        let success = await task.value
-        return started && success
+        guard let task = queuedMoveTaskIfStarted(
+            moveIconAlwaysHidden(
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex,
+                preferredCenterX: preferredCenterX,
+                toAlwaysHidden: toAlwaysHidden
+            )
+        ) else { return false }
+        return await task.value
     }
 
     @MainActor
@@ -1829,16 +1923,13 @@ extension MenuBarManager {
             _ = await task.value
         }
 
-        let started = moveIconFromAlwaysHiddenToHidden(
+        guard let task = queueMoveIconFromAlwaysHiddenToHidden(
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
             preferredCenterX: preferredCenterX
-        )
-
-        guard let task = activeMoveTask else { return false }
-        let success = await task.value
-        return started && success
+        ) else { return false }
+        return await task.value
     }
 }
 
