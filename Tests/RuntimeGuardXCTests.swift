@@ -250,7 +250,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let retryTargets = await self.resolveMoveTargetsWithRetries("),
+            source.contains("let retryTargets = await manager.resolveMoveTargetsWithRetries("),
             "Standard retry path should refresh move targets before retrying"
         )
         XCTAssertTrue(
@@ -274,7 +274,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Always-hidden moves should wait for live AH separator geometry before trusting cached drag targets"
         )
         XCTAssertTrue(
-            source.contains("let (separatorX, visibleBoundaryX) = await self.resolveAlwaysHiddenMoveTargetsWithRetries("),
+            source.contains("let (separatorX, visibleBoundaryX) = await manager.resolveAlwaysHiddenMoveTargetsWithRetries("),
             "Always-hidden move pipelines should use the dedicated always-hidden target resolver instead of a one-shot separator lookup"
         )
         XCTAssertTrue(
@@ -903,7 +903,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden moves that fail while state appears expanded should trigger a shield fallback retry"
         )
         XCTAssertTrue(
-            source.contains("await hidingService.showAll()"),
+            source.contains("await manager.hidingService.showAll()"),
             "Shield fallback should force showAll before recomputing move targets"
         )
         XCTAssertTrue(
@@ -1163,14 +1163,23 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("cancelRehide()"),
             "Move pipelines should cancel any pending rehide timer before drag simulation begins"
         )
+        XCTAssertTrue(
+            source.contains("private func queueDetachedMoveTask("),
+            "Move/reorder flows should share one helper for move-task lifecycle instead of wiring activeMoveTask separately in each entry point"
+        )
+        XCTAssertTrue(
+            source.contains("private func waitForActiveMoveTaskIfNeeded() async"),
+            "Awaitable move helpers should share one gate before queuing a new move task"
+        )
 
         // Guard against formatting churn by validating the intent per pipeline:
-        // each detached move/reorder task should cancel rehide before drag work.
+        // each move/reorder entry should queue through the shared lifecycle helper,
+        // and the helper must cancel rehide before drag work.
         let pipelinePatterns = [
-            #"func\s+moveIcon\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
-            #"func\s+moveIconAlwaysHidden\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
-            #"func\s+moveIconFromAlwaysHiddenToHidden\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
-            #"func\s+reorderIcon\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#,
+            #"func\s+moveIcon\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIcon"\)"#,
+            #"func\s+moveIconAlwaysHidden\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIconAlwaysHidden"\)"#,
+            #"func\s+moveIconFromAlwaysHiddenToHidden\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"moveIconFromAlwaysHiddenToHidden"\)"#,
+            #"func\s+reorderIcon\([\s\S]*?queueDetachedMoveTask\(operationName:\s*"reorderIcon"\)"#,
         ]
 
         for pattern in pipelinePatterns {
@@ -1179,9 +1188,18 @@ final class RuntimeGuardXCTests: XCTestCase {
             XCTAssertGreaterThan(
                 regex.numberOfMatches(in: source, range: range),
                 0,
-                "Detached move/reorder pipeline must cancel rehide before drag simulation"
+                "Move/reorder pipeline should queue through the shared lifecycle helper"
             )
         }
+
+        let helperPattern = #"private\s+func\s+queueDetachedMoveTask\([\s\S]*?activeMoveTask\s*=\s*Task\.detached[\s\S]*?cancelRehide\(\)"#
+        let helperRegex = try NSRegularExpression(pattern: helperPattern)
+        let helperRange = NSRange(source.startIndex ..< source.endIndex, in: source)
+        XCTAssertGreaterThan(
+            helperRegex.numberOfMatches(in: source, range: helperRange),
+            0,
+            "Shared move-task helper must still cancel rehide before drag simulation begins"
+        )
     }
 
     func testBrowsePanelShowSuspendsRehideWhileVisible() throws {
@@ -1577,7 +1595,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden-origin move restore path should return directly to hidden before restore fallback"
         )
         XCTAssertTrue(
-            source.contains("await self.hidingService.restoreFromShowAll()"),
+            source.contains("await manager.hidingService.restoreFromShowAll()"),
             "Restore fallback must remain for expanded-return paths and external-monitor skip-hide policy"
         )
     }
