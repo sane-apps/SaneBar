@@ -185,7 +185,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             object: nil
         )
 
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .reveal)
     }
 
     /// Hide items by expanding delimiter to push them off screen
@@ -224,7 +224,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             object: nil
         )
 
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .conceal)
     }
 
     // MARK: - Show All / Restore (Shield Pattern)
@@ -270,7 +270,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         delimiterItem.length = StatusItemLength.expanded
         state = .expanded
 
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .reveal)
         NotificationCenter.default.post(name: .hiddenSectionShowAll, object: nil)
     }
 
@@ -310,7 +310,7 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         delimiterItem.length = StatusItemLength.expanded
         state = .expanded
 
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
         NotificationCenter.default.post(name: .hiddenSectionRestoredFromShowAll, object: nil)
     }
 

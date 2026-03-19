@@ -24,6 +24,7 @@ extension AccessibilityService {
           itemsCacheAge: \(ageString(since: menuBarItemCacheTime))
           ownersRefreshInFlight: \(menuBarOwnersRefreshTask != nil)
           itemsRefreshInFlight: \(menuBarItemsRefreshTask != nil)
+          cacheWarmupInFlight: \(menuBarCacheWarmupTask != nil)
           bundlesWithoutExtrasMenuBarCount: \(noExtrasBundles.count)
           bundlesWithoutExtrasMenuBar: \(bundleSummary.isEmpty ? "none" : bundleSummary + bundleSuffix)
         """
@@ -86,37 +87,64 @@ extension AccessibilityService {
         return result
     }
     
+    @MainActor
+    private func scheduleMenuBarCacheWarmup(reason: CacheWarmupReason) {
+        guard isTrusted else {
+            logger.debug("Skipping cache warmup (\(reason.rawValue, privacy: .public)) - accessibility not granted")
+            return
+        }
+
+        menuBarCacheWarmupTask?.cancel()
+        let delaySeconds = Self.cacheWarmupDelay(for: reason)
+
+        menuBarCacheWarmupTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if delaySeconds > 0 {
+                try? await Task.sleep(for: .milliseconds(Int(delaySeconds * 1000)))
+            }
+            guard !Task.isCancelled else {
+                self.menuBarCacheWarmupTask = nil
+                return
+            }
+
+            logger.info("Pre-warming menu bar cache (\(reason.rawValue, privacy: .public))...")
+            let startTime = Date()
+
+            _ = await self.refreshMenuBarItemOwners()
+            _ = await self.refreshMenuBarItemsWithPositions()
+
+            let elapsed = Date().timeIntervalSince(startTime)
+            logger.info(
+                "Menu bar cache pre-warmed (\(reason.rawValue, privacy: .public)) in \(String(format: "%.2f", elapsed), privacy: .public)s"
+            )
+            self.menuBarCacheWarmupTask = nil
+        }
+    }
+
     /// Invalidates all menu bar caches, forcing a fresh scan on next call.
-    /// Call this when you know menu bar items have changed (e.g., after hiding/showing).
-    func invalidateMenuBarItemCache() {
+    /// Optionally schedules a background warmup so the next UI/script interaction
+    /// does not pay the full cold-scan penalty.
+    func invalidateMenuBarItemCache(scheduleWarmupAfter reason: CacheWarmupReason? = nil) {
         menuBarItemCacheTime = .distantPast
         menuBarOwnersCacheTime = .distantPast
         menuBarOwnersRefreshTask?.cancel()
         menuBarItemsRefreshTask?.cancel()
+        menuBarCacheWarmupTask?.cancel()
         menuBarOwnersRefreshTask = nil
         menuBarItemsRefreshTask = nil
         logger.debug("Menu bar item caches invalidated")
+
+        if let reason {
+            scheduleMenuBarCacheWarmup(reason: reason)
+        } else {
+            menuBarCacheWarmupTask = nil
+        }
     }
 
     /// Pre-warms the menu bar caches in the background.
     /// Call this on app launch so Find Icon opens instantly.
     func prewarmCache() {
-        guard isTrusted else {
-            logger.debug("Skipping cache prewarm - accessibility not granted")
-            return
-        }
-
-        Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
-            logger.info("Pre-warming menu bar cache...")
-            let startTime = Date()
-
-            // Warm both caches (off the main thread)
-            _ = await self.refreshMenuBarItemOwners()
-            _ = await self.refreshMenuBarItemsWithPositions()
-
-            let elapsed = Date().timeIntervalSince(startTime)
-            logger.info("Menu bar cache pre-warmed in \(String(format: "%.2f", elapsed))s")
-        }
+        scheduleMenuBarCacheWarmup(reason: .launch)
     }
 }

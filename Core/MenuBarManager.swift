@@ -1060,7 +1060,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         statusBarControllerStorage.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarControllerStorage.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
     }
 
     func enforceExternalMonitorVisibilityPolicy(reason: String) {

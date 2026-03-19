@@ -92,7 +92,29 @@ final class AccessibilityService: ObservableObject {
 
     var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
+    var menuBarCacheWarmupTask: Task<Void, Never>?
     private var bundlesWithoutExtrasMenuBar: Set<String> = []
+
+    enum CacheWarmupReason: String, Sendable {
+        case launch
+        case reveal
+        case conceal
+        case structuralChange
+    }
+
+    nonisolated static func cacheWarmupDelay(for reason: CacheWarmupReason) -> TimeInterval {
+        switch reason {
+        case .launch:
+            return 0
+        case .reveal:
+            // Let WindowServer finish the reveal relayout before scanning.
+            return 0.2
+        case .conceal:
+            return 0.1
+        case .structuralChange:
+            return 0.25
+        }
+    }
 
     func bundlesWithoutExtrasMenuBarSnapshot() -> [String] {
         bundlesWithoutExtrasMenuBar.sorted()

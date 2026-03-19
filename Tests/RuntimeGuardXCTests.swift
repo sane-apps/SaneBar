@@ -782,6 +782,30 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testVisibilityTransitionsInvalidateAndWarmCaches() throws {
+        let hidingURL = projectRootURL().appendingPathComponent("Core/Services/HidingService.swift")
+        let hidingSource = try String(contentsOf: hidingURL, encoding: .utf8)
+        let cacheURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Cache.swift")
+        let cacheSource = try String(contentsOf: cacheURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            hidingSource.contains("invalidateMenuBarItemCache(scheduleWarmupAfter: .reveal)"),
+            "Reveal transitions should schedule a background cache warmup instead of leaving the next interaction cold"
+        )
+        XCTAssertTrue(
+            hidingSource.contains("invalidateMenuBarItemCache(scheduleWarmupAfter: .conceal)"),
+            "Hide transitions should also refresh the cache soon after state changes"
+        )
+        XCTAssertTrue(
+            cacheSource.contains("private func scheduleMenuBarCacheWarmup(reason: CacheWarmupReason)"),
+            "Accessibility cache invalidation should have a dedicated warmup scheduler"
+        )
+        XCTAssertTrue(
+            cacheSource.contains("cacheWarmupInFlight"),
+            "Accessibility diagnostics should report whether a background cache warmup is running"
+        )
+    }
+
     func testAppleScriptAlwaysHiddenExitsUseRobustUnpinHelpers() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)

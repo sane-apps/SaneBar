@@ -98,6 +98,14 @@ struct AccessibilityServiceTests {
         #expect(url?.scheme == "x-apple.systempreferences", "URL scheme must be x-apple.systempreferences")
     }
 
+    @Test("Cache warmup delays prioritize launch immediacy and reveal settling")
+    func testCacheWarmupDelays() {
+        #expect(AccessibilityService.cacheWarmupDelay(for: .launch) == 0)
+        #expect(AccessibilityService.cacheWarmupDelay(for: .reveal) > 0)
+        #expect(AccessibilityService.cacheWarmupDelay(for: .structuralChange) >= AccessibilityService.cacheWarmupDelay(for: .reveal))
+        #expect(AccessibilityService.cacheWarmupDelay(for: .conceal) <= AccessibilityService.cacheWarmupDelay(for: .structuralChange))
+    }
+
     @Test("Preferred status item index chooses nearest X when explicit identity is missing")
     func testPreferredStatusItemIndexUsesNearestCenterX() {
         let index = AccessibilityService.preferredStatusItemIndex(
