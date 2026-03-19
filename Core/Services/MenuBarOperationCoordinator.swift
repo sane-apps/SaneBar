@@ -234,7 +234,10 @@ enum MenuBarOperationCoordinator {
             return .bumpAutosaveVersion(recoveryReason)
 
         case .manualLayoutRestoreRequest:
-            return .repairPersistedLayoutAndRecreate(startupRecoveryReason(snapshot: snapshot))
+            if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
+                return .repairPersistedLayoutAndRecreate(recoveryReason)
+            }
+            return .recreateFromPersistedLayout(nil)
         }
     }
 

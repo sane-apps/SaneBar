@@ -102,8 +102,8 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
-    @Test("Manual restore always sanitizes persisted layout before replay")
-    func manualRestoreUsesRepairPathFirst() {
+    @Test("Manual restore skips repair path when the snapshot is already healthy")
+    func manualRestoreUsesDirectReplayWhenHealthy() {
         let healthySnapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .live,
             startupItemsValid: true,
@@ -119,7 +119,28 @@ struct MenuBarOperationCoordinatorTests {
                 context: .manualLayoutRestoreRequest,
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .repairPersistedLayoutAndRecreate(nil)
+            ) == .recreateFromPersistedLayout(nil)
+        )
+    }
+
+    @Test("Manual restore still repairs persisted layout when geometry is unhealthy")
+    func manualRestoreUsesRepairPathWhenSnapshotIsUnhealthy() {
+        let unhealthySnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: true,
+            separatorX: 956,
+            mainX: 976,
+            mainRightGap: 944,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: unhealthySnapshot,
+                context: .manualLayoutRestoreRequest,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
         )
     }
 

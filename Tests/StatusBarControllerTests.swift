@@ -15,6 +15,14 @@ extension NSMenu {
 
 @Suite("StatusBarController Tests", .serialized)
 struct StatusBarControllerTests {
+    private func launchSafeRecoveryPair() -> (main: Double, separator: Double)? {
+        guard let currentWidth = NSScreen.main?.frame.width else { return nil }
+        return StatusBarController.launchSafeCurrentDisplayRecoveryPair(
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        )
+    }
+
     // MARK: - Icon Name Tests
 
     @Test("iconName returns correct icon for expanded state")
@@ -461,9 +469,14 @@ struct StatusBarControllerTests {
                 "Stable migration key should be set after first run")
     }
 
-    @Test("Migration resets positions when legacy always-hidden position is corrupted")
+    @Test("Migration reanchors positions when legacy always-hidden position is corrupted")
     @MainActor
     func migrationResetsForLegacyAlwaysHiddenCorruption() {
+        guard let safeRecovery = launchSafeRecoveryPair() else {
+            Issue.record("Expected a main screen for migration recovery test")
+            return
+        }
+
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
@@ -506,8 +519,8 @@ struct StatusBarControllerTests {
 
         let mainValue = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
         let separatorValue = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(mainValue == 0.0, "Corrupted legacy AH position should trigger main reset to ordinal seed")
-        #expect(separatorValue == 1.0, "Corrupted legacy AH position should trigger separator reset to ordinal seed")
+        #expect(mainValue == safeRecovery.main, "Corrupted legacy AH position should trigger a launch-safe main recovery anchor")
+        #expect(separatorValue == safeRecovery.separator, "Corrupted legacy AH position should trigger a launch-safe separator recovery anchor")
         #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"),
                 "Stable migration key should be set after recovery")
     }
@@ -515,6 +528,11 @@ struct StatusBarControllerTests {
     @Test("Upgrade matrix handles healthy and corrupted states safely")
     @MainActor
     func upgradeMatrixRecoveryCoverage() {
+        guard let safeRecovery = launchSafeRecoveryPair() else {
+            Issue.record("Expected a main screen for upgrade matrix recovery test")
+            return
+        }
+
         struct Scenario {
             let name: String
             let main: Double?
@@ -566,8 +584,8 @@ struct StatusBarControllerTests {
                 separator: 360.0,
                 alwaysHidden: 10000.0,
                 legacyAlwaysHidden: 50.0,
-                expectedMain: 0.0,
-                expectedSeparator: 1.0
+                expectedMain: safeRecovery.main,
+                expectedSeparator: safeRecovery.separator
             ),
             Scenario(
                 name: "v2.1.6 invalid separator position",
@@ -575,8 +593,8 @@ struct StatusBarControllerTests {
                 separator: -24.0,
                 alwaysHidden: 10000.0,
                 legacyAlwaysHidden: nil,
-                expectedMain: 0.0,
-                expectedSeparator: 1.0
+                expectedMain: safeRecovery.main,
+                expectedSeparator: safeRecovery.separator
             )
         ]
 
@@ -700,6 +718,11 @@ struct StatusBarControllerTests {
     @Test("Corruption recovery runs once, then preserves user layout")
     @MainActor
     func corruptionRecoveryRunsOnceThenStops() {
+        guard let safeRecovery = launchSafeRecoveryPair() else {
+            Issue.record("Expected a main screen for corruption recovery test")
+            return
+        }
+
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
@@ -732,7 +755,7 @@ struct StatusBarControllerTests {
             defaults.set(currentWidth, forKey: "SaneBar_CalibratedScreenWidth")
         }
 
-        // First launch from corrupted legacy state should recover to 0/1.
+        // First launch from corrupted legacy state should recover to a launch-safe anchor.
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
         defaults.set(10000.0, forKey: alwaysHiddenKey)
@@ -741,8 +764,8 @@ struct StatusBarControllerTests {
 
         let recoveredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
         let recoveredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
-        #expect(recoveredMain == 0.0)
-        #expect(recoveredSeparator == 1.0)
+        #expect(recoveredMain == safeRecovery.main)
+        #expect(recoveredSeparator == safeRecovery.separator)
         #expect(defaults.bool(forKey: "SaneBar_PositionRecovery_Migration_v1"))
 
         // User rearranges after recovery.
@@ -1415,6 +1438,54 @@ struct StatusBarControllerTests {
         )
     }
 
+    @Test("Init uses launch-safe current-display recovery when width changed and no backup exists")
+    @MainActor
+    func initUsesLaunchSafeFallbackForDisplayResetWithoutBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for display reset fallback test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+        defaults.set(currentWidth * 1.6, forKey: screenWidthKey)
+        defaults.set(2200.0, forKey: mainKey)
+        defaults.set(2100.0, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        _ = StatusBarController()
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+        let storedWidth = defaults.double(forKey: screenWidthKey)
+
+        #expect(restoredMain == safeRecovery.main, "Display-reset init should use a launch-safe main anchor before ordinals")
+        #expect(restoredSeparator == safeRecovery.separator, "Display-reset init should use a launch-safe separator anchor before ordinals")
+        #expect(abs(storedWidth - Double(currentWidth)) < 0.001, "Display-reset init should stamp the current screen width after applying the launch-safe anchor")
+    }
+
     @Test("Init restores current-width backup when persisted positions are ordinal seeds")
     @MainActor
     func initRestoresCurrentWidthBackupOverOrdinalSeeds() {
@@ -1557,6 +1628,50 @@ struct StatusBarControllerTests {
         #expect(restoredSeparator == expectedSeparator, "Startup recovery should restore or safely reanchor the separator from the current-width backup")
     }
 
+    @Test("Startup recovery falls back to launch-safe current-display positions before ordinals")
+    @MainActor
+    func startupRecoveryUsesLaunchSafeFallbackWithoutBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for startup recovery fallback test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [screenWidthKey, mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+        defaults.removeObject(forKey: mainKey)
+        defaults.removeObject(forKey: separatorKey)
+
+        StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: false)
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == safeRecovery.main, "Startup recovery should use a launch-safe main anchor before falling back to ordinals")
+        #expect(restoredSeparator == safeRecovery.separator, "Startup recovery should use a launch-safe separator anchor before falling back to ordinals")
+    }
+
     @Test("Autosave namespace recovery restores current-width backup into new version")
     @MainActor
     func recreateItemsWithBumpedVersionRestoresCurrentWidthBackup() {
@@ -1613,6 +1728,59 @@ struct StatusBarControllerTests {
         #expect(defaults.integer(forKey: versionKey) == 11)
         #expect(restoredMain == expectedMain, "Autosave recovery should hydrate the new namespace from a safe current-width backup")
         #expect(restoredSeparator == expectedSeparator, "Autosave recovery should restore or safely reanchor separator ordering into the new namespace")
+    }
+
+    @Test("Autosave namespace recovery falls back to launch-safe positions without backup")
+    @MainActor
+    func recreateItemsWithBumpedVersionUsesLaunchSafeFallback() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for autosave recovery fallback test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let originalVersion = defaults.object(forKey: versionKey)
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
+        let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
+        let newMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
+        let newSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v11"
+        let keys = [versionKey, backupMainKey, backupSeparatorKey, oldMainKey, oldSeparatorKey, newMainKey, newSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalVersion {
+                defaults.set(originalVersion, forKey: versionKey)
+            } else {
+                defaults.removeObject(forKey: versionKey)
+            }
+        }
+
+        defaults.set(10, forKey: versionKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+        defaults.removeObject(forKey: oldMainKey)
+        defaults.removeObject(forKey: oldSeparatorKey)
+
+        let controller = StatusBarController()
+        _ = controller.recreateItemsWithBumpedVersion()
+
+        let restoredMain = (defaults.object(forKey: newMainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: newSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == safeRecovery.main, "Autosave recovery should fall back to a launch-safe main anchor before ordinals")
+        #expect(restoredSeparator == safeRecovery.separator, "Autosave recovery should fall back to a launch-safe separator anchor before ordinals")
     }
 
     @Test("Init does not eager-reanchor far-left persisted positions on the current display")

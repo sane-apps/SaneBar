@@ -105,9 +105,11 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         // Display-aware validation: reset pixel positions from a different screen
         if Self.positionsNeedDisplayReset() {
-            Self.resetPositionsToOrdinals()
-            if let w = NSScreen.main?.frame.width {
-                UserDefaults.standard.set(w, forKey: Self.screenWidthKey)
+            if !Self.applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+                Self.resetPositionsToOrdinals()
+                if let w = NSScreen.main?.frame.width {
+                    UserDefaults.standard.set(w, forKey: Self.screenWidthKey)
+                }
             }
         }
 
@@ -230,7 +232,11 @@ final class StatusBarController: StatusBarControllerProtocol {
                 }
                 logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
             } else {
-                Self.seedPositionsIfNeeded()
+                if Self.applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+                    logger.info("Recreated status items with autosave version \(nextVersion) using launch-safe recovery positions")
+                } else {
+                    Self.seedPositionsIfNeeded()
+                }
             }
         }
         if hadAlwaysHiddenSeparator {
@@ -441,12 +447,16 @@ final class StatusBarController: StatusBarControllerProtocol {
             logger.info("Recovered startup positions by reanchoring persisted positions toward Control Center")
             return
         }
-        resetPositionsToOrdinals()
-        seedPositionsIfNeeded()
+        if !applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+            resetPositionsToOrdinals()
+            seedPositionsIfNeeded()
+            logger.info("Applied startup position recovery ordinal seeds")
+        } else {
+            logger.info("Applied launch-safe startup recovery positions")
+        }
         if alwaysHiddenEnabled {
             seedAlwaysHiddenSeparatorPositionIfNeeded()
         }
-        logger.info("Applied startup position recovery seeds")
     }
 
     // MARK: - Display-Aware Position Validation
@@ -594,6 +604,44 @@ final class StatusBarController: StatusBarControllerProtocol {
         let maxGap = max(24.0, maxSeparator - safeMainLimit)
         let preservedGap = min(max(24.0, separatorPosition - mainPosition), maxGap)
         return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
+    }
+
+    nonisolated static func launchSafeCurrentDisplayRecoveryPair(
+        screenWidth: Double,
+        screenHasTopSafeAreaInset: Bool
+    ) -> (main: Double, separator: Double)? {
+        guard screenWidth > 0 else { return nil }
+
+        let safeMain = launchSafePreferredMainPositionLimit(
+            for: screenWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        )
+        let safeSeparator = min(screenWidth - 24.0, safeMain + 120.0)
+        guard safeSeparator > safeMain else { return nil }
+        return (main: safeMain, separator: safeSeparator)
+    }
+
+    @discardableResult
+    private static func applyLaunchSafeRecoveryPositionsForCurrentDisplay() -> Bool {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let recoveryPair = launchSafeCurrentDisplayRecoveryPair(
+                  screenWidth: currentWidth,
+                  screenHasTopSafeAreaInset: screenHasTopSafeAreaInset(NSScreen.main)
+              )
+        else { return false }
+
+        setPreferredPosition(recoveryPair.main, forAutosaveName: mainAutosaveName)
+        setPreferredPosition(recoveryPair.separator, forAutosaveName: separatorAutosaveName)
+        saveDisplayPositionBackupIfNeeded(
+            for: currentWidth,
+            mainPosition: recoveryPair.main,
+            separatorPosition: recoveryPair.separator
+        )
+        UserDefaults.standard.set(currentWidth, forKey: screenWidthKey)
+        logger.info(
+            "Applied launch-safe recovery positions for width \(currentWidth, privacy: .public) (main=\(recoveryPair.main, privacy: .public), separator=\(recoveryPair.separator, privacy: .public))"
+        )
+        return true
     }
 
     private static func saveDisplayPositionBackupIfNeeded(
@@ -879,7 +927,9 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         if shouldResetPositionsForKnownCorruption() {
             logger.info("Applying status item position recovery for known corrupted state")
-            resetPositionsToOrdinals()
+            if !applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+                resetPositionsToOrdinals()
+            }
         } else {
             logger.info("Skipping status item position reset (no known corruption)")
         }

@@ -72,7 +72,7 @@ class ProjectQA
   BLOCKED_APPCAST_VERSIONS = %w[2.1.3 2.1.6 2.1.11 2.1.12].freeze
   REQUIRED_MIGRATION_TEST_TITLES = [
     'Migration preserves healthy custom positions on upgrade',
-    'Migration resets positions when legacy always-hidden position is corrupted',
+    'Migration reanchors positions when legacy always-hidden position is corrupted',
     'Upgrade matrix handles healthy and corrupted states safely',
     'Real upgrade snapshots from 2.1.2 and 2.1.5 preserve layout',
   ].freeze
