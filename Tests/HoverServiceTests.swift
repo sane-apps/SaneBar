@@ -197,6 +197,15 @@ struct HoverServiceTests {
         #expect(service.isEnabled == true, "isEnabled is a setting, not monitoring state")
     }
 
+    @Test("Explicit status-item interaction marks mouse as active in menu bar")
+    func testExplicitStatusItemInteractionMarksMenuBarActive() {
+        let service = HoverService()
+
+        service.noteExplicitStatusItemInteraction()
+
+        #expect(service.isMouseInMenuBar == true)
+    }
+
     // MARK: - TriggerReason Enum Tests
 
     @Test("TriggerReason has distinct cases")

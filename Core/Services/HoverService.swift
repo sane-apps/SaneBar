@@ -16,6 +16,7 @@ protocol HoverServiceProtocol {
     /// Whether the mouse cursor is currently in the menu bar region.
     /// Used by rehide guards to prevent hiding while user interacts with any menu.
     var isMouseInMenuBar: Bool { get }
+    func noteExplicitStatusItemInteraction()
     func start()
     func stop()
 }
@@ -171,6 +172,14 @@ final class HoverService: HoverServiceProtocol {
             screens: NSScreen.screens,
             detectionZoneHeight: detectionZoneHeight
         )
+    }
+
+    /// Direct status-item clicks should win over any pending passive hover reveal.
+    /// Otherwise a stale hover timer can fire after an explicit click and make
+    /// the main icon feel inconsistent.
+    func noteExplicitStatusItemInteraction() {
+        cancelHoverTimer()
+        isMouseInMenuBar = true
     }
 
     // MARK: - Private Methods

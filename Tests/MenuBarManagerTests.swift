@@ -366,6 +366,67 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("App menu suppression only restores saved focus when SaneBar is still frontmost")
+    func appMenuSuppressionFocusRestoreDecision() {
+        let ownPID: pid_t = 999
+        let savedPID: pid_t = 111
+        let otherAppPID: pid_t = 222
+
+        #expect(
+            MenuBarManager.shouldReactivateSavedAppAfterSuppression(
+                savedAppPID: savedPID,
+                currentFrontmostPID: ownPID,
+                ownPID: ownPID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldReactivateSavedAppAfterSuppression(
+                savedAppPID: savedPID,
+                currentFrontmostPID: otherAppPID,
+                ownPID: ownPID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldReactivateSavedAppAfterSuppression(
+                savedAppPID: ownPID,
+                currentFrontmostPID: ownPID,
+                ownPID: ownPID
+            )
+        )
+    }
+
+    @Test("Explicit status menu trigger wins over stale currentEvent classification")
+    func statusMenuExplicitTriggerOverridesCurrentEvent() {
+        #expect(
+            MenuBarManager.isStatusMenuRightClick(
+                explicitTriggerPending: true,
+                eventType: .leftMouseUp,
+                buttonNumber: 0,
+                modifierFlags: []
+            )
+        )
+
+        #expect(
+            MenuBarManager.isStatusMenuRightClick(
+                explicitTriggerPending: false,
+                eventType: .rightMouseUp,
+                buttonNumber: 1,
+                modifierFlags: []
+            )
+        )
+
+        #expect(
+            !MenuBarManager.isStatusMenuRightClick(
+                explicitTriggerPending: false,
+                eventType: .leftMouseUp,
+                buttonNumber: 0,
+                modifierFlags: []
+            )
+        )
+    }
+
     @Test("Second menu fallback opens only for fully-eligible hidden-state path")
     func secondMenuFallbackDecisionMatrix() {
         let baseline = MenuBarManager.shouldOpenSecondMenuBarFallback(

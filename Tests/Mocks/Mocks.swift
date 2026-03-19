@@ -455,6 +455,12 @@ final class HoverServiceProtocolMock: HoverServiceProtocol {
 
     var isMouseInMenuBar: Bool = false
 
+    private(set) var noteExplicitStatusItemInteractionCallCount = 0
+    func noteExplicitStatusItemInteraction() {
+        noteExplicitStatusItemInteractionCallCount += 1
+        isMouseInMenuBar = true
+    }
+
     private(set) var startCallCount = 0
     var startHandler: (() -> Void)?
     func start() {

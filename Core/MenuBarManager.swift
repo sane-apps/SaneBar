@@ -56,6 +56,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var isAppMenuSuppressed = false
     /// Front app to reactivate after temporary menu suppression.
     var appToReactivateAfterSuppression: NSRunningApplication?
+    /// Explicit right-click menu opens should not depend on NSApp.currentEvent
+    /// still looking like a right click by the time NSMenuDelegate fires.
+    var pendingExplicitStatusMenuRightClick = false
 
     /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0

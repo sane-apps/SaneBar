@@ -106,6 +106,16 @@ extension MenuBarManager {
         return true
     }
 
+    nonisolated static func shouldReactivateSavedAppAfterSuppression(
+        savedAppPID: pid_t?,
+        currentFrontmostPID: pid_t?,
+        ownPID: pid_t
+    ) -> Bool {
+        guard let savedAppPID, savedAppPID != ownPID else { return false }
+        guard let currentFrontmostPID else { return true }
+        return currentFrontmostPID == ownPID
+    }
+
     nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
         min(320, max(240, screenWidth * 0.14))
     }
@@ -368,11 +378,19 @@ extension MenuBarManager {
         let appToRestore = appToReactivateAfterSuppression
         appToReactivateAfterSuppression = nil
 
-        if let appToRestore,
-           !appToRestore.isTerminated,
-           appToRestore.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+        let currentFrontmostApp = NSWorkspace.shared.frontmostApplication
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        let shouldReactivateSavedApp = Self.shouldReactivateSavedAppAfterSuppression(
+            savedAppPID: appToRestore?.processIdentifier,
+            currentFrontmostPID: currentFrontmostApp?.processIdentifier,
+            ownPID: ownPID
+        )
+
+        if shouldReactivateSavedApp,
+           let appToRestore,
+           !appToRestore.isTerminated {
             _ = appToRestore.activate(options: [])
-        } else {
+        } else if currentFrontmostApp?.processIdentifier == ownPID || currentFrontmostApp == nil {
             NSApp.deactivate()
         }
 

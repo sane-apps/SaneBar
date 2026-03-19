@@ -6,6 +6,29 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 extension MenuBarManager {
     // MARK: - NSMenuDelegate
 
+    nonisolated static func isStatusMenuRightClick(
+        explicitTriggerPending: Bool,
+        eventType: NSEvent.EventType?,
+        buttonNumber: Int?,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> Bool {
+        if explicitTriggerPending {
+            return true
+        }
+
+        if eventType == .rightMouseUp || eventType == .rightMouseDown {
+            return true
+        }
+
+        if eventType == .leftMouseUp || eventType == .leftMouseDown {
+            if modifierFlags.contains(.control) {
+                return true
+            }
+        }
+
+        return buttonNumber == 1
+    }
+
     func menuWillOpen(_ menu: NSMenu) {
         let event = NSApp.currentEvent
         let mainHasMenu = (mainStatusItem?.menu != nil)
@@ -17,14 +40,13 @@ extension MenuBarManager {
             print("[MenuBarManager] menuWillOpen eventType=\(eventType) button=\(buttonNumber) mainHasMenu=\(mainHasMenu) sepHasMenu=\(sepHasMenu)")
         #endif
 
-        let isRightClick: Bool = {
-            guard let event else { return false }
-            if event.type == .rightMouseUp || event.type == .rightMouseDown { return true }
-            if event.type == .leftMouseUp || event.type == .leftMouseDown {
-                if event.modifierFlags.contains(.control) { return true }
-            }
-            return event.buttonNumber == 1
-        }()
+        let explicitRightClickTrigger = pendingExplicitStatusMenuRightClick
+        let isRightClick = Self.isStatusMenuRightClick(
+            explicitTriggerPending: explicitRightClickTrigger,
+            eventType: event?.type,
+            buttonNumber: event?.buttonNumber,
+            modifierFlags: event?.modifierFlags ?? []
+        )
 
         if !isRightClick {
             logger.warning("Menu opened from non-right click; cancelling and toggling instead")
@@ -50,6 +72,7 @@ extension MenuBarManager {
     func menuDidClose(_: NSMenu) {
         logger.debug("Menu did close")
         isMenuOpen = false
+        pendingExplicitStatusMenuRightClick = false
 
         // If we are expanded and auto-rehide is enabled, restart the timer
         // so the bar doesn't stay stuck open after a menu interaction.
@@ -218,6 +241,7 @@ extension MenuBarManager {
         #endif
 
         let clickedButton = sender as? NSStatusBarButton
+        hoverService.noteExplicitStatusItemInteraction()
 
         switch clickType {
         case .optionClick:
@@ -270,13 +294,16 @@ extension MenuBarManager {
 
         // Use AppKit's context-menu path when we have a click event.
         // This anchors to the actual event location and avoids coordinate drift.
+        pendingExplicitStatusMenuRightClick = true
         if let event {
             NSMenu.popUpContextMenu(statusMenu, with: event, for: button)
+            pendingExplicitStatusMenuRightClick = false
             return
         }
 
         // Fallback if no event is available.
         let origin = NSPoint(x: button.bounds.midX, y: button.bounds.maxY)
         statusMenu.popUp(positioning: nil, at: origin, in: button)
+        pendingExplicitStatusMenuRightClick = false
     }
 }
