@@ -75,6 +75,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         SetappIntegration.logPurchaseType()
         SetappIntegration.showReleaseNotesIfNeeded(delay: 1.5)
 
+        let launchTier = LicenseService.shared.isPro ? "pro" : "free"
+        Task.detached {
+            await EventTracker.log("app_launch_\(launchTier)", tier: launchTier)
+        }
+
         appLogger.info("🏁 applicationDidFinishLaunching complete")
     }
 

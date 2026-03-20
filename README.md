@@ -4,7 +4,7 @@
 [![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
-[![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-success)](PRIVACY.md)
+[![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-open--source--mac--os--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
 > **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $6.99](https://sanebar.com)** · Keeps development alive
@@ -82,7 +82,7 @@ Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **A
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
 - **Crowded menu bar handling** — Inline reveal can temporarily hide app menus to make room when your menu bar is full
-- **100% on-device** — No analytics. No telemetry. No network requests. Verify with Little Snitch: zero connections.
+- **On-device by default** — No user-content upload. Network use is limited to updates, license checks, and anonymous aggregate product-health counts.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
@@ -121,7 +121,7 @@ A first-run walkthrough gets you set up in under a minute:
 5. **Permissions** — Grant Accessibility access (required for menu bar management)
 6. **Basic vs Pro** — See what's included and what Pro unlocks
 
-Works perfectly on Macs with Notch. **100% private** — no network requests, no analytics, no account.
+Works perfectly on Macs with Notch. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and anonymous aggregate product-health counts.
 
 ---
 
@@ -205,7 +205,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ## Privacy
 
-**Your data stays on your Mac.** SaneBar makes zero network requests. No analytics. No telemetry. No account.
+**Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates, license validation, and anonymous aggregate product-health counts such as app version, build, OS version, channel, and update availability.
 
 ![100% On-Device](docs/images/settings-about.png)
 
@@ -335,7 +335,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Find Icon Search** | Yes | Yes | Yes | No |
 | **AppleScript** | Yes | Yes | No | No |
 | **100% Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
-| **100% On-Device** | Yes | No (telemetry) | Yes | Yes |
+| **On-Device by Default** | Yes | No (telemetry) | Yes | Yes |
 | **Pricing** | Basic ($0) / Pro $6.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |
 

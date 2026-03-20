@@ -36,9 +36,9 @@ struct AboutSettingsView: View {
                 Text("Made with ❤️ in 🇺🇸")
                     .fontWeight(.medium)
                 Text(" · ")
-                Text("100% On-Device")
+                Text("On-Device by Default")
                 Text(" · ")
-                Text("No Analytics")
+                Text("No Personal Data")
             }
             .font(.callout)
             .foregroundStyle(.white.opacity(0.92))

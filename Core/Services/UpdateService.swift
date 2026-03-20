@@ -69,7 +69,7 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
 
         // SPUStandardUpdaterController must be retained by the app.
         // startingUpdater: true starts the scheduled checks logic immediately.
-        self.updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
+        self.updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         normalizeUpdateCheckFrequency()
 
         logger.info("Sparkle updater initialized")
@@ -92,6 +92,10 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
         }
         clearScheduledUpdateReminder(reason: "manual_check")
         logger.info("User triggered check for updates")
+        let tier = LicenseService.shared.isPro ? "pro" : "free"
+        Task.detached {
+            await EventTracker.log("update_check_manual", tier: tier)
+        }
         updaterController?.checkForUpdates(nil)
     }
 
@@ -201,6 +205,36 @@ extension UpdateService: @preconcurrency SPUStandardUserDriverDelegate {
 
     func standardUserDriverWillFinishUpdateSession() {
         clearScheduledUpdateReminder(reason: "session_finished")
+    }
+}
+
+extension UpdateService: SPUUpdaterDelegate {
+    nonisolated func updater(_: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        let targetVersion = item.displayVersionString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetBuild = item.versionString.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task { @MainActor in
+            let tier = LicenseService.shared.isPro ? "pro" : "free"
+            await EventTracker.log(
+                "update_available",
+                tier: tier,
+                targetVersion: targetVersion.isEmpty ? nil : targetVersion,
+                targetBuild: targetBuild.isEmpty ? nil : targetBuild
+            )
+        }
+    }
+
+    nonisolated func updater(_: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        let targetVersion = item.displayVersionString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetBuild = item.versionString.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task { @MainActor in
+            let tier = LicenseService.shared.isPro ? "pro" : "free"
+            await EventTracker.log(
+                "update_install_started",
+                tier: tier,
+                targetVersion: targetVersion.isEmpty ? nil : targetVersion,
+                targetBuild: targetBuild.isEmpty ? nil : targetBuild
+            )
+        }
     }
 }
 
