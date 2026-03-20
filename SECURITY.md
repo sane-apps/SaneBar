@@ -31,7 +31,7 @@ SaneBar is a **menu bar utility** that:
 
 1. **Requires Accessibility permissions** to read and manipulate menu bar items
 2. **Stores settings locally** in `~/Library/Application Support/SaneBar/`
-3. **Makes zero network requests** — no analytics, telemetry, or updates phoning home (Sparkle update checks are user-initiated)
+3. **Uses limited network requests only when needed** — Sparkle update checks, direct-license validation, and anonymous aggregate product-health counts
 
 ### Known Limitations
 
@@ -86,7 +86,7 @@ Key findings:
 - Sparkle updates use EdDSA cryptographic signing with system profiling disabled
 - Diagnostic data sanitization removes paths, emails, and API key patterns
 - Authentication rate limiting (5 attempts, 60-second lockout)
-- No telemetry, analytics, or user identifiers detected
+- No personal data or persistent user identifiers detected
 - Remote attack surface effectively zero
 
 Minor concerns (all documented with mitigations above):
@@ -101,7 +101,7 @@ Minor concerns (all documented with mitigations above):
 SaneBar implements:
 
 - **Hardened Runtime** — Required for notarization
-- **No network entitlements** — App cannot make network connections
+- **No special network entitlements** — Standard outbound macOS networking only for updates, direct-license checks, and anonymous aggregate product-health counts
 - **Notarized by Apple** — Scanned for malware before distribution
 - **100% transparent code** — Full source available for inspection on GitHub
 
@@ -109,11 +109,11 @@ SaneBar implements:
 
 ## Privacy
 
-SaneBar collects **zero** user data:
+SaneBar does **not** upload personal content:
 
-- No analytics
-- No telemetry
+- No names, emails, files, icon names, or menu bar contents
 - No crash reporting to external services
 - No account required
+- Only anonymous aggregate product-health counts for release management
 
 See [PRIVACY.md](PRIVACY.md) for our full privacy policy.

@@ -4,11 +4,11 @@ SaneBar is built with privacy as the foundation. This document explains every pe
 
 ## The Short Version
 
-- **No analytics** - Nothing is tracked or measured
-- **No telemetry** - No usage data is collected
+- **No personal data** - No names, emails, files, icon names, or menu bar contents are uploaded
+- **Anonymous aggregate product-health counts only** - We count things like app version, build, OS version, channel, and update availability
 - **No user identifiers** - We don't know who you are
 - **Local storage only** - Settings saved to `~/Library/Application Support/SaneBar/`
-- **Optional update check** - Only when YOU click "Check for Updates"
+- **Limited network use** - Update checks, license validation, and anonymous aggregate product-health counts
 
 ---
 
@@ -125,6 +125,32 @@ rm ~/Library/Preferences/com.sanebar.app.plist
 
 ---
 
+## Anonymous Product Health Metrics
+
+SaneBar sends a small number of anonymous aggregate product-health events to help manage releases responsibly.
+
+These events may include:
+
+- app name
+- event name
+- app version and build
+- macOS version
+- distribution channel (`direct`, `app_store`, or `setapp`)
+- license tier (`free` or `pro`)
+- update target version/build when Sparkle offers or starts installing an update
+
+These events do **not** include:
+
+- your name or email
+- license key
+- IP address in SaneApps analytics storage
+- menu bar contents, icon names, screenshots, or files
+- any persistent user identifier
+
+Storage is daily aggregate counts only. SaneApps does not store raw per-user event histories for this telemetry.
+
+---
+
 ## Network Activity Verification
 
 Want to verify SaneBar's network behavior? Run this while the app is open:
@@ -134,7 +160,7 @@ Want to verify SaneBar's network behavior? Run this while the app is open:
 sudo lsof -i -P | grep SaneBar
 ```
 
-You'll see zero results unless you're actively checking for updates.
+You'll only see traffic for update checks, license validation, or anonymous aggregate product-health events.
 
 ---
 
