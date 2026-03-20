@@ -101,6 +101,7 @@
 		D2871B156F56853B56E41C06 /* ScheduleTriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9CD7B77F3337BB1C6362A41 /* ScheduleTriggerService.swift */; };
 		D325DC9CDAAB48158A818FFF /* MenuBarOperationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A082B5A938BDAC46C4462DC /* MenuBarOperationCoordinator.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
+		DCD7859B590532E39241C485 /* EventTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */; };
 		E54264B26C920E675142DDF5 /* AppleScriptActivationCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5210BD9C73BEBE3AAE8DBDE9 /* AppleScriptActivationCommands.swift */; };
 		E76C0E436818A68318131627 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9A64F4720057AEA3A9D2BF /* AppearanceSettingsView.swift */; };
 		E7985007531E3C34AEC4B6C8 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */; };
@@ -171,6 +172,7 @@
 		4C0B1C1B3F989733A71F1C53 /* HoverService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverService.swift; sourceTree = "<group>"; };
 		4DC492784BEE1FEE5A7DA151 /* MenuBarManager+AlwaysHidden.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+AlwaysHidden.swift"; sourceTree = "<group>"; };
 		5210BD9C73BEBE3AAE8DBDE9 /* AppleScriptActivationCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptActivationCommands.swift; sourceTree = "<group>"; };
+		5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTrackerTests.swift; sourceTree = "<group>"; };
 		53C1903EBAF08F08138D9F79 /* ReleaseRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseRegressionTests.swift; sourceTree = "<group>"; };
 		541BA320CBEF7881B2FC9DAA /* SecondMenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondMenuBarView.swift; sourceTree = "<group>"; };
 		559CC16A1F18750B4B3C5181 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 				B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */,
 				73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */,
 				00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */,
+				5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */,
 				EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
@@ -661,6 +664,7 @@
 				FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */,
 				81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */,
 				357F28E6F430EBE6D344A98D /* BartenderImportServiceTests.swift in Sources */,
+				DCD7859B590532E39241C485 /* EventTrackerTests.swift in Sources */,
 				A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
