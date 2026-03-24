@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.34] - 2026-03-24
+
+Improved layout recovery after sleep, wake, and display changes. Fixed the dark tint turning black. Better reliability for hidden, visible, and Always Hidden icon moves. Standardized shared chrome so browse and settings surfaces stay consistent.
+
+---
+
 ## [2.1.33] - 2026-03-19
 
 Fixes focus jumps after hover reveal.
