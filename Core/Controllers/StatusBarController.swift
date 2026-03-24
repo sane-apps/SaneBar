@@ -7,7 +7,6 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarCo
 // MARK: - Menu Configuration
 
 struct MenuConfiguration {
-    let toggleAction: Selector
     let findIconAction: Selector
     let settingsAction: Selector
     let showReleaseNotesAction: Selector?
@@ -733,8 +732,22 @@ final class StatusBarController: StatusBarControllerProtocol {
         return true
     }
 
-    static func captureCurrentDisplayPositionBackupIfPossible() {
-        guard let currentWidth = NSScreen.main?.frame.width else { return }
+    nonisolated static func hasLaunchSafeCurrentDisplayBackupForCurrentDisplay() -> Bool {
+        guard let currentWidth = NSScreen.main?.frame.width else { return false }
+        let defaults = UserDefaults.standard
+        let mainBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: currentWidth, slot: "main")))
+        let separatorBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: currentWidth, slot: "separator")))
+        return isLaunchSafeDisplayBackup(
+            mainBackup: mainBackup,
+            separatorBackup: separatorBackup,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset(NSScreen.main)
+        )
+    }
+
+    @discardableResult
+    static func captureCurrentDisplayPositionBackupIfPossible() -> Bool {
+        guard let currentWidth = NSScreen.main?.frame.width else { return false }
         let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(NSScreen.main)
         let mainPosition = resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
         let separatorPosition = resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
@@ -750,7 +763,7 @@ final class StatusBarController: StatusBarControllerProtocol {
                 mainPosition: mainPosition,
                 separatorPosition: separatorPosition
             )
-            return
+            return true
         }
 
         guard let reanchored = reanchoredPreferredPositionsTowardControlCenter(
@@ -758,7 +771,7 @@ final class StatusBarController: StatusBarControllerProtocol {
             separatorPosition: separatorPosition,
             screenWidth: currentWidth,
             screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) else { return }
+        ) else { return hasLaunchSafeCurrentDisplayBackupForCurrentDisplay() }
 
         let defaults = UserDefaults.standard
         defaults.set(reanchored.main, forKey: displayPositionBackupKey(for: currentWidth, slot: "main"))
@@ -766,6 +779,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info(
             "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
         )
+        return true
     }
 
     private static func reanchorCurrentDisplayPositionsIfNeeded(for width: Double) -> Bool {

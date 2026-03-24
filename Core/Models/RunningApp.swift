@@ -85,8 +85,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let bundleId: String
     let name: String
     let icon: NSImage?
-    /// Pre-calculated thumbnail for efficient UI rendering
-    let iconThumbnail: NSImage?
     let policy: Policy
     let category: AppCategory
     let xPosition: CGFloat?
@@ -110,25 +108,11 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     /// this identifies which AX child we represent.
     let statusItemIndex: Int?
 
-    /// Whether this is an individual system menu extra item (Battery, Wi‑Fi, etc.)
-    var isControlCenterItem: Bool {
-        (bundleId == "com.apple.controlcenter" || bundleId == "com.apple.systemuiserver") && (menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") ?? false)
-    }
-
     /// Zone-based surfaces (Hidden/Visible/Always Hidden, second menu bar, move flows)
     /// need a precise identity. Bundle-only fallbacks are fine for broad discovery but
     /// too coarse for reliable move/open behavior.
     var hasPreciseMenuBarIdentity: Bool {
         menuExtraIdentifier != nil || statusItemIndex != nil
-    }
-
-    /// SF Symbol name for known system menu extras (Bluetooth, Wi-Fi, Battery, etc.).
-    /// Used as a view-layer fallback when `icon` is a generic gear from the owning process.
-    var preferredSFSymbol: String? {
-        guard let id = menuExtraIdentifier else { return nil }
-        let symbol = Self.iconForMenuExtra(id)
-        // "circle.grid.2x2" is the default/unknown — don't use it as a preferred override
-        return symbol == "circle.grid.2x2" ? nil : symbol
     }
 
     /// System items that cannot be moved or hidden (Clock, Control Center toggle).
@@ -173,79 +157,16 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     /// For menu extras this is the `uniqueId`; for normal apps it's the bundle id.
     var id: String { uniqueId }
 
-    /// A resized thumbnail of the app icon for efficient grid rendering.
-    /// This is generated on-demand and should ideally be cached.
-    func thumbnail(size: CGFloat) -> NSImage? {
-        guard let icon else { return nil }
-
-        // If the icon is already a template (SFSymbol), just return it
-        if icon.isTemplate { return icon }
-
-        let targetSize = NSSize(width: size, height: size)
-
-        // Check if we already have a representation of this size
-        if icon.size == targetSize { return icon }
-
-        let thumbnail = NSImage(size: targetSize)
-        thumbnail.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        icon.draw(in: NSRect(origin: .zero, size: targetSize), from: .zero, operation: .copy, fraction: 1.0)
-        thumbnail.unlockFocus()
-        thumbnail.isTemplate = icon.isTemplate
-
-        return thumbnail
-    }
-
-    /// Return a copy of this app with a pre-calculated thumbnail
-    func withThumbnail(size: CGFloat) -> RunningApp {
-        if let thumbnail = thumbnail(size: size) {
-            // Since RunningApp is a struct, we need to use a private init or make it a var.
-            // But let's just use a specialized init for this.
-            return RunningApp(
-                id: bundleId,
-                name: name,
-                icon: icon,
-                iconThumbnail: thumbnail,
-                policy: policy,
-                category: category,
-                menuExtraIdentifier: menuExtraIdentifier,
-                statusItemIndex: statusItemIndex,
-                xPosition: xPosition,
-                width: width
-            )
-        }
-        return self
-    }
-
-    private init(id: String, name: String, icon: NSImage?, iconThumbnail: NSImage?, policy: Policy, category: AppCategory, menuExtraIdentifier: String?, statusItemIndex: Int?, xPosition: CGFloat?, width: CGFloat?) {
-        bundleId = id
-        self.name = name
-        self.icon = icon
-        self.iconThumbnail = iconThumbnail
-        self.policy = policy
-        self.category = category
-        self.menuExtraIdentifier = menuExtraIdentifier
-        self.statusItemIndex = statusItemIndex
-        self.xPosition = xPosition
-        self.width = width
-    }
-
     init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, statusItemIndex: Int? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = id
         self.name = name
         self.icon = icon
-        iconThumbnail = nil // Will be set by specialized inits if needed
         self.policy = policy
         self.category = category
         self.menuExtraIdentifier = menuExtraIdentifier
         self.statusItemIndex = statusItemIndex
         self.xPosition = xPosition
         self.width = width
-    }
-
-    /// Create a Control Center item with an SF Symbol icon
-    static func controlCenterItem(name: String, identifier: String, xPosition: CGFloat? = nil, width: CGFloat? = nil) -> RunningApp {
-        menuExtraItem(ownerBundleId: "com.apple.controlcenter", name: name, identifier: identifier, xPosition: xPosition, width: width)
     }
 
     /// Create a system-owned menu extra item (e.g. Wi‑Fi, Battery) with an SF Symbol icon.
@@ -352,7 +273,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     init(app: NSRunningApplication, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = app.bundleIdentifier ?? UUID().uuidString
         name = app.localizedName ?? "Unknown"
-        iconThumbnail = nil
         icon = app.icon
         self.xPosition = xPosition
         self.width = width
@@ -379,7 +299,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     init(app: NSRunningApplication, resolvedBundleId: String, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = resolvedBundleId
         name = app.localizedName ?? "Unknown"
-        iconThumbnail = nil
         icon = app.icon
         self.xPosition = xPosition
         self.width = width

@@ -687,6 +687,7 @@ class ProjectQA
         puts '   ↳ screenshot capture unavailable on this host; continuing without smoke screenshots'
       end
       smoke_outputs = []
+      default_move_coverage_deferred = false
       RUNTIME_SMOKE_PASSES.times do |index|
         pass_number = index + 1
         puts "   ↳ smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}"
@@ -710,7 +711,7 @@ class ProjectQA
           break if smoke_status.success?
 
           if attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS && retryable_runtime_smoke_failure?(smoke_out)
-            puts "   ↳ relaunching after transient launch idle spike (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+            puts "   ↳ relaunching after transient runtime smoke budget blip (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
             unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
               File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
               @errors << "Runtime smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SMOKE_LOG_PATH}."
@@ -718,6 +719,12 @@ class ProjectQA
               return
             end
             next
+          end
+
+          if runtime_smoke_no_candidate_fixture_policy?(smoke_out)
+            default_move_coverage_deferred = true
+            puts '   ↳ default move pool empty on this host; keeping browse/layout result and deferring move coverage to shared-bundle exact-id smoke'
+            break
           end
 
           File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
@@ -740,35 +747,66 @@ class ProjectQA
         required_ids: RUNTIME_SHARED_BUNDLE_IDS
       )
       if shared_bundle_ids.empty?
+        if default_move_coverage_deferred
+          File.write(
+            RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH,
+            [
+              'required_ids=',
+              'resource_sample=',
+              'default_move_pool_empty=1'
+            ].join("\n")
+          )
+          @errors << "Runtime smoke had no default move candidates and no shared-bundle fallback candidates. See #{RUNTIME_SMOKE_LOG_PATH} and #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}."
+          puts "❌ no shared-bundle fallback candidates after default move-pool miss (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
+          return
+        end
         puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
       else
         puts "   ↳ shared-bundle focused smoke after relaunch: #{shared_bundle_ids.join(', ')}"
-        shared_bundle_sample_path = '/tmp/sanebar_runtime_shared_bundle_resource_sample.txt'
-        FileUtils.rm_f(shared_bundle_sample_path)
         shared_bundle_env = smoke_env.merge(
           'SANEBAR_SMOKE_REQUIRED_IDS' => shared_bundle_ids.join(','),
           'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1',
-          'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0',
-          'SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => shared_bundle_sample_path
+          'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'
         )
-        shared_bundle_out, shared_bundle_status = capture2e_with_progress(
-          shared_bundle_env,
-          smoke_script,
-          heartbeat_label: 'runtime smoke shared-bundle exact ids'
-        )
-        File.write(
-          RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH,
-          [
+        shared_bundle_outputs = []
+        shared_bundle_attempt = 0
+        loop do
+          shared_bundle_attempt += 1
+          shared_bundle_sample_path = "/tmp/sanebar_runtime_shared_bundle_resource_sample-try#{shared_bundle_attempt}.txt"
+          FileUtils.rm_f(shared_bundle_sample_path)
+          shared_bundle_out, shared_bundle_status = capture2e_with_progress(
+            shared_bundle_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => shared_bundle_sample_path),
+            smoke_script,
+            heartbeat_label: "runtime smoke shared-bundle exact ids (try #{shared_bundle_attempt})"
+          )
+          shared_bundle_outputs << [
             "required_ids=#{shared_bundle_ids.join(',')}",
+            "try=#{shared_bundle_attempt}",
             "resource_sample=#{shared_bundle_sample_path}",
             shared_bundle_out
           ].join("\n")
-        )
-        unless shared_bundle_status.success?
-          sample_suffix = File.exist?(shared_bundle_sample_path) ? " Resource sample: #{shared_bundle_sample_path}" : ''
-          @errors << "Focused shared-bundle runtime smoke failed. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}.#{sample_suffix}"
-          puts "❌ shared-bundle smoke failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
-          return
+
+          if !shared_bundle_status.success? &&
+             shared_bundle_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
+             retryable_runtime_smoke_failure?(shared_bundle_out)
+            puts "   ↳ relaunching after transient shared-bundle runtime smoke budget blip (retry #{shared_bundle_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+            unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+              File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
+              @errors << "Focused shared-bundle smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}."
+              puts "❌ shared-bundle retry relaunch failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
+              return
+            end
+            next
+          end
+
+          File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
+          unless shared_bundle_status.success?
+            sample_suffix = File.exist?(shared_bundle_sample_path) ? " Resource sample: #{shared_bundle_sample_path}" : ''
+            @errors << "Focused shared-bundle runtime smoke failed. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}.#{sample_suffix}"
+            puts "❌ shared-bundle smoke failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
+            return
+          end
+          break
         end
         puts "✅ focused shared-bundle smoke passed (#{shared_bundle_ids.join(', ')})"
       end
@@ -828,7 +866,22 @@ class ProjectQA
   end
 
   def retryable_runtime_smoke_failure?(smoke_output)
-    smoke_output.include?('launch_idle_budget_exceeded')
+    return true if smoke_output.include?('launch_idle_budget_exceeded')
+
+    retryable_active_budget_overrun?(smoke_output)
+  end
+
+  def retryable_active_budget_overrun?(smoke_output)
+    match = smoke_output.match(/active_budget_exceeded\s+avgCpu=(\d+(?:\.\d+)?)%\s+>\s+(\d+(?:\.\d+)?)%/)
+    return false unless match
+
+    observed = match[1].to_f
+    limit = match[2].to_f
+    observed > limit && (observed - limit) <= 0.5
+  end
+
+  def runtime_smoke_no_candidate_fixture_policy?(smoke_output)
+    smoke_output.include?('No movable candidate icon found (need at least one hidden/visible icon).')
   end
 
   def retryable_stability_suite_failure?(output)

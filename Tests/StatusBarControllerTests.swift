@@ -854,7 +854,6 @@ struct StatusBarControllerTests {
 
         // Create a dummy target
         class DummyTarget: NSObject {
-            @objc func toggle() {}
             @objc func findIcon() {}
             @objc func settings() {}
             @objc func checkForUpdates() {}
@@ -862,7 +861,6 @@ struct StatusBarControllerTests {
         }
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             showReleaseNotesAction: nil,
@@ -898,7 +896,6 @@ struct StatusBarControllerTests {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
-            @objc func toggle() {}
             @objc func findIcon() {}
             @objc func settings() {}
             @objc func checkForUpdates() {}
@@ -906,7 +903,6 @@ struct StatusBarControllerTests {
         }
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             showReleaseNotesAction: nil,
@@ -928,13 +924,11 @@ struct StatusBarControllerTests {
         let controller = StatusBarController()
 
         class DummyTarget: NSObject {
-            var toggleCalled = false
             var findIconCalled = false
             var settingsCalled = false
             var checkForUpdatesCalled = false
             var quitCalled = false
 
-            @objc func toggle() { toggleCalled = true }
             @objc func findIcon() { findIconCalled = true }
             @objc func settings() { settingsCalled = true }
             @objc func checkForUpdates() { checkForUpdatesCalled = true }
@@ -942,7 +936,6 @@ struct StatusBarControllerTests {
         }
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             showReleaseNotesAction: nil,
@@ -969,7 +962,6 @@ struct StatusBarControllerTests {
 
         class DummyTarget: NSObject {
             var settingsCalled = false
-            @objc func toggle() {}
             @objc func findIcon() {}
             @objc func settings() { settingsCalled = true }
             @objc func checkForUpdates() {}
@@ -978,7 +970,6 @@ struct StatusBarControllerTests {
         let target = DummyTarget()
 
         let menu = controller.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(DummyTarget.toggle),
             findIconAction: #selector(DummyTarget.findIcon),
             settingsAction: #selector(DummyTarget.settings),
             showReleaseNotesAction: nil,
@@ -1871,7 +1862,10 @@ struct StatusBarControllerTests {
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
 
-        StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            "Stable live positions should either create or confirm a safe current-width backup"
+        )
 
         let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
         let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
@@ -1919,7 +1913,10 @@ struct StatusBarControllerTests {
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
 
-        StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            "Stable but startup-unsafe positions should still end with a safe current-width backup"
+        )
 
         let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
         let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue

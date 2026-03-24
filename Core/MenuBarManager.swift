@@ -23,11 +23,6 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 /// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
 final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
-    enum HideRequestOrigin: Sendable {
-        case manual
-        case automatic
-    }
-
     // MARK: - Singleton
 
     static let shared = MenuBarManager()
@@ -65,6 +60,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Monotonic token used to invalidate older position-validation passes when
     /// screen/wake notifications or recovery flows schedule a newer pass.
     var positionValidationGeneration: Int = 0
+    /// Prevent overlapping structural recovery passes from tearing down and
+    /// rebuilding the status items multiple times inside one launch.
+    var isExecutingStatusItemRecovery = false
 
     /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0
@@ -117,7 +115,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Check if hiding should be skipped due to external monitor setting
     var shouldSkipHideForExternalMonitor: Bool {
-        shouldIgnoreHideRequest(origin: .automatic)
+        Self.shouldSkipHide(
+            disableOnExternalMonitor: settings.disableOnExternalMonitor,
+            isOnExternalMonitor: isOnExternalMonitor
+        )
     }
 
     /// Prevent development/test builds from mutating persistent login-item state.
@@ -169,10 +170,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Used when AH boundary checks run while live frames are stale/off-screen.
     var lastKnownAlwaysHiddenSeparatorRightEdgeX: CGFloat?
     var statusMenu: NSMenu?
-    private var onboardingPopover: NSPopover?
-    /// Flag to prevent setupStatusItem from overwriting externally-provided items
-    private var usingExternalItems = false
-
     // MARK: - Subscriptions
 
     private var cancellables = Set<AnyCancellable>()
@@ -395,110 +392,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return false
     }
 
-    // MARK: - External Item Injection
-
     private func currentEffectiveAlwaysHiddenSectionEnabled() -> Bool {
         Self.effectiveAlwaysHiddenSectionEnabled(
             isPro: LicenseService.shared.isPro,
             alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
         )
-    }
-
-    /// Use status items that were created externally (by SaneBarAppDelegate)
-    /// This is the WORKING approach - items created before MenuBarManager
-    /// with pre-set position values appear on the RIGHT side correctly.
-    func useExistingItems(main: NSStatusItem, separator: NSStatusItem) {
-        logger.info("Using externally-created status items")
-        let statusBarController = ensureStatusBarController()
-
-        // Set flag FIRST to prevent setupStatusItem from overwriting these items
-        usingExternalItems = true
-
-        // Remove any locally-created items before swapping in the externally
-        // positioned ones so the menu bar only keeps one SaneBar runtime.
-        NSStatusBar.system.removeStatusItem(statusBarController.mainItem)
-        NSStatusBar.system.removeStatusItem(statusBarController.separatorItem)
-        logger.info("Removed locally-created status items before using external ones")
-
-        // Store the external items
-        mainStatusItem = main
-        separatorItem = separator
-        statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
-        alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
-
-        // Wire up click handler for main item
-        if let button = main.button {
-            button.action = #selector(statusItemClicked)
-            button.target = self
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        }
-
-        // Setup menu (shown via right-click on main icon)
-        statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(menuToggleHiddenItems),
-            findIconAction: #selector(openFindIcon),
-            settingsAction: #selector(openSettings),
-            showReleaseNotesAction: LicenseService.shared.usesSetappDistribution ? #selector(showReleaseNotes) : nil,
-            checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
-            quitAction: #selector(quitApp)
-        ))
-        wireStatusMenuTargets()
-        updateUpdateMenuAvailability()
-        statusMenu?.delegate = self
-        separator.menu = nil
-        clearStatusItemMenus()
-
-        // Configure hiding service with delimiter
-        hidingService.configure(delimiterItem: separator)
-        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
-
-        // Unified fire-time guard for ALL auto-rehide paths (#97).
-        // Checked when the timer actually fires, not when it's scheduled.
-        // Prevents hiding while user is interacting with any menu (SaneBar's or third-party).
-        hidingService.shouldRehide = { [weak self] in
-            guard let self else { return true }
-            return self.canAutoRehideAtFireTime()
-        }
-
-        // Now do the rest of setup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self else { return }
-
-            updateSpacers()
-            setupObservers()
-            updateAppearance()
-
-            triggerService.configure(menuBarManager: self)
-            iconHotkeysService.configure(with: self)
-            networkTriggerService.configure(menuBarManager: self)
-            if settings.showOnNetworkChange {
-                networkTriggerService.startMonitoring()
-            }
-
-            focusModeService.configure(menuBarManager: self)
-            if settings.showOnFocusModeChange {
-                focusModeService.startMonitoring()
-            }
-
-            scheduleTriggerService.configure(menuBarManager: self)
-            if settings.showOnSchedule {
-                scheduleTriggerService.startMonitoring()
-            }
-
-            scriptTriggerService.configure(menuBarManager: self)
-            if settings.scriptTriggerEnabled {
-                scriptTriggerService.startMonitoring()
-            }
-
-            configureHoverService()
-            showOnboardingIfNeeded()
-            syncUpdateConfiguration()
-            updateMainIconVisibility()
-            updateDividerStyle()
-            updateIconStyle()
-
-            logger.info("External items setup complete")
-        }
     }
 
     // MARK: - Setup
@@ -578,13 +476,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func setupStatusItem() {
-        // If using external items (from useExistingItems), skip this setup
-        // because the external items are already configured and we don't want to overwrite them
-        if usingExternalItems {
-            logger.info("Skipping setupStatusItem - using external items")
-            return
-        }
-
         let statusBarController = ensureStatusBarController()
 
         // Create and configure status items only after the deferred startup
@@ -602,7 +493,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Setup menu using controller (shown via right-click on main icon)
         statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
-            toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
             settingsAction: #selector(openSettings),
             showReleaseNotesAction: LicenseService.shared.usesSetappDistribution ? #selector(showReleaseNotes) : nil,
@@ -776,6 +666,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         let controller = statusBarControllerStorage
         let mainItem = mainStatusItem ?? controller?.mainItem
         let separator = separatorItem ?? controller?.separatorItem
+        let alwaysHiddenSeparatorX = getAlwaysHiddenSeparatorOriginX()
         let startupItemsValid: Bool = {
             guard let mainItem, let separator else { return false }
             return StatusBarController.validateStartupItems(
@@ -794,11 +685,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
             return rightEdge - mainWindow.frame.origin.x
         }()
+        let alwaysHiddenSeparatorMisordered = Self.alwaysHiddenSeparatorNeedsRepair(
+            hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
+            separatorX: separatorX,
+            alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+        )
 
         let geometryConfidence: MenuBarGeometryConfidence = {
             guard mainItem != nil, separator != nil else { return .missing }
             guard startupItemsValid else { return .stale }
             guard separatorX != nil, mainX != nil else { return .missing }
+            guard !alwaysHiddenSeparatorMisordered else { return .stale }
             if Self.shouldRecoverStartupPositions(
                 separatorX: separatorX,
                 mainX: mainX,
@@ -821,6 +718,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             hasActiveMoveTask: activeMoveTask?.isCancelled == false,
             hasAnyScreens: !NSScreen.screens.isEmpty,
             separatorX: separatorX,
+            alwaysHiddenSeparatorX: alwaysHiddenSeparatorX,
             mainX: mainX,
             mainRightGap: mainRightGap,
             screenWidth: screenWidth,
@@ -831,6 +729,44 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     @MainActor
     private func currentStatusItemRecoverySnapshot() -> MenuBarRuntimeSnapshot {
         currentRuntimeSnapshot()
+    }
+
+    @MainActor
+    private func stableSnapshotNeedsAlwaysHiddenRepair(_ snapshot: MenuBarRuntimeSnapshot) -> Bool {
+        Self.alwaysHiddenSeparatorNeedsRepair(
+            hasAlwaysHiddenSeparator: snapshot.hasAlwaysHiddenSeparator,
+            separatorX: snapshot.separatorX,
+            alwaysHiddenSeparatorX: snapshot.alwaysHiddenSeparatorX
+        )
+    }
+
+    @MainActor
+    private func logAlwaysHiddenSeparatorRecoveryNeed(
+        snapshot: MenuBarRuntimeSnapshot,
+        prefix: String
+    ) {
+        logger.error(
+            "\(prefix, privacy: .public): always-hidden separator misordered (ah=\(snapshot.alwaysHiddenSeparatorX ?? -1, privacy: .public), sep=\(snapshot.separatorX ?? -1, privacy: .public))"
+        )
+    }
+
+    @MainActor
+    private func captureCurrentDisplayBackupAfterStableValidation(
+        maxAttempts: Int = 6,
+        delay: Duration = .milliseconds(150)
+    ) async -> Bool {
+        for attempt in 1 ... maxAttempts {
+            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible() {
+                return true
+            }
+            if StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay() {
+                return true
+            }
+            if attempt < maxAttempts {
+                try? await Task.sleep(for: delay)
+            }
+        }
+        return StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay()
     }
 
     @MainActor
@@ -858,13 +794,29 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         _ action: MenuBarOperationCoordinator.StatusItemRecoveryAction,
         trigger: String,
         validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil,
-        recoveryCount: Int = 0
+        recoveryCount: Int = 0,
+        validationGeneration: Int? = nil
     ) {
+        if let validationGeneration,
+           positionValidationGeneration != validationGeneration {
+            logger.debug(
+                "Skipping stale status item recovery action for \(trigger, privacy: .public) (expected generation \(validationGeneration, privacy: .public), current \(self.positionValidationGeneration, privacy: .public))"
+            )
+            return
+        }
+
         switch action {
         case .captureCurrentDisplayBackup:
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
 
         case .repairPersistedLayoutAndRecreate:
+            guard !isExecutingStatusItemRecovery else {
+                logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
+                return
+            }
+            isExecutingStatusItemRecovery = true
+            positionValidationGeneration += 1
+            defer { isExecutingStatusItemRecovery = false }
             StatusBarController.recoverStartupPositions(
                 alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()
             )
@@ -875,12 +827,26 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
 
         case .recreateFromPersistedLayout:
+            guard !isExecutingStatusItemRecovery else {
+                logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
+                return
+            }
+            isExecutingStatusItemRecovery = true
+            positionValidationGeneration += 1
+            defer { isExecutingStatusItemRecovery = false }
             recreateStatusItemsFromPersistedLayout(reason: trigger)
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
             }
 
         case .bumpAutosaveVersion:
+            guard !isExecutingStatusItemRecovery else {
+                logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
+                return
+            }
+            isExecutingStatusItemRecovery = true
+            positionValidationGeneration += 1
+            defer { isExecutingStatusItemRecovery = false }
             let (newMain, newSep) = statusBarController.recreateItemsWithBumpedVersion()
             statusBarController.onItemsRecreated?(newMain, newSep)
             if let validationContext {
@@ -907,7 +873,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         let validationGeneration = positionValidationGeneration
 
         Task { @MainActor [weak self] in
-            guard let self, !self.usingExternalItems else { return }
+            guard let self else { return }
 
             let initialDelay = Self.statusItemValidationInitialDelaySeconds(
                 context: context,
@@ -923,6 +889,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 return
             }
 
+            var lastSnapshot: MenuBarRuntimeSnapshot?
+            var lastAlwaysHiddenNeedsRepair = false
+
             for attempt in 1 ... maxAttempts {
                 guard self.positionValidationGeneration == validationGeneration else {
                     logger.debug("Aborting stale status item validation retry for \(context.rawValue, privacy: .public)")
@@ -931,24 +900,37 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 let snapshot = self.currentStatusItemRecoverySnapshot()
                 let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot)
-                if recoveryReason == nil {
-                    self.executeStatusItemRecoveryAction(
-                        .captureCurrentDisplayBackup,
-                        trigger: "position-validation-\(context.rawValue)",
-                        validationContext: nil,
-                        recoveryCount: recoveryCount
-                    )
+                let alwaysHiddenNeedsRepair = self.stableSnapshotNeedsAlwaysHiddenRepair(snapshot)
+
+                lastSnapshot = snapshot
+                lastAlwaysHiddenNeedsRepair = alwaysHiddenNeedsRepair
+
+                if recoveryReason == nil, !alwaysHiddenNeedsRepair {
+                    let capturedBackup = await self.captureCurrentDisplayBackupAfterStableValidation()
+                    if !capturedBackup {
+                        logger.warning(
+                            "Status item validation reached a healthy layout without a current-width backup for \(context.rawValue, privacy: .public)"
+                        )
+                    }
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
                     return
                 }
 
-                self.logStatusItemRecoveryReason(
-                    recoveryReason,
-                    snapshot: snapshot,
-                    prefix: "Status item validation"
-                )
+                if alwaysHiddenNeedsRepair {
+                    self.logAlwaysHiddenSeparatorRecoveryNeed(
+                        snapshot: snapshot,
+                        prefix: "Status item validation"
+                    )
+                    self.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "position-validation-\(context.rawValue)")
+                } else {
+                    self.logStatusItemRecoveryReason(
+                        recoveryReason,
+                        snapshot: snapshot,
+                        prefix: "Status item validation"
+                    )
+                }
 
                 if attempt < maxAttempts {
                     try? await Task.sleep(for: retryDelay)
@@ -960,10 +942,29 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 return
             }
 
+            if lastAlwaysHiddenNeedsRepair {
+                logger.error(
+                    "Always-hidden separator remained misordered after \(maxAttempts, privacy: .public) checks — triggering persisted-layout recovery"
+                )
+                let action = MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                    context: context,
+                    recoveryCount: recoveryCount,
+                    maxRecoveryCount: Self.maxStatusItemRecoveryCount
+                )
+                self.executeStatusItemRecoveryAction(
+                    action,
+                    trigger: "always-hidden-position-validation-\(context.rawValue)",
+                    validationContext: context,
+                    recoveryCount: recoveryCount,
+                    validationGeneration: validationGeneration
+                )
+                return
+            }
+
             logger.error(
                 "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
             )
-            let snapshot = self.currentStatusItemRecoverySnapshot()
+            let snapshot = lastSnapshot ?? self.currentStatusItemRecoverySnapshot()
             let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(context),
@@ -974,7 +975,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 action,
                 trigger: "position-validation-\(context.rawValue)",
                 validationContext: context,
-                recoveryCount: recoveryCount
+                recoveryCount: recoveryCount,
+                validationGeneration: validationGeneration
             )
         }
     }

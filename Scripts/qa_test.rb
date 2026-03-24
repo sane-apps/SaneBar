@@ -54,8 +54,30 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: launch_idle_budget_exceeded peakCpu=15.9% > 15.0%')
   end
 
+  def test_runtime_smoke_retryable_failure_matches_tiny_active_budget_overrun
+    assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.1% > 15.0%')
+  end
+
+  def test_runtime_smoke_retryable_failure_rejects_large_active_budget_overrun
+    refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.8% > 15.0%')
+  end
+
   def test_runtime_smoke_retryable_failure_rejects_real_smoke_failures
     refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: Required icon(s) missing from list icon zones')
+  end
+
+  def test_runtime_smoke_no_candidate_fixture_policy_matches_empty_default_pool
+    assert @qa.send(
+      :runtime_smoke_no_candidate_fixture_policy?,
+      '❌ Live zone smoke failed: No movable candidate icon found (need at least one hidden/visible icon).'
+    )
+  end
+
+  def test_runtime_smoke_no_candidate_fixture_policy_rejects_real_smoke_failures
+    refute @qa.send(
+      :runtime_smoke_no_candidate_fixture_policy?,
+      '❌ Live zone smoke failed: Candidate failures: com.apple.menuextra.display: Icon failed to move'
+    )
   end
 
   def test_runtime_smoke_requires_startup_layout_probe

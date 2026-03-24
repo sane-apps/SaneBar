@@ -97,7 +97,8 @@ struct SearchWindowTests {
             statusItemIndex: 1,
             xPosition: 80
         )
-        let wifi = RunningApp.controlCenterItem(
+        let wifi = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
             name: "Wi-Fi",
             identifier: "com.apple.menuextra.wifi",
             xPosition: 260
@@ -114,17 +115,20 @@ struct SearchWindowTests {
 
     @Test("Duplicate badges do not merge same-bundle items with different names")
     func duplicateBadgesRespectDistinctNamesWithinSameBundle() {
-        let wifi = RunningApp.controlCenterItem(
+        let wifi = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
             name: "Wi-Fi",
             identifier: "com.apple.menuextra.wifi",
             xPosition: 100
         )
-        let display = RunningApp.controlCenterItem(
+        let display = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
             name: "Display",
             identifier: "com.apple.menuextra.display",
             xPosition: 130
         )
-        let focus = RunningApp.controlCenterItem(
+        let focus = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
             name: "Focus",
             identifier: "com.apple.menuextra.focusmode",
             xPosition: 160

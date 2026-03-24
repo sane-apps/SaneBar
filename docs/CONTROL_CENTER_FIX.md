@@ -55,7 +55,6 @@ struct RunningApp {
 
     // New: For Control Center items
     var menuExtraIdentifier: String?  // e.g., "com.apple.menuextra.battery"
-    var isControlCenterItem: Bool { menuExtraIdentifier != nil }
 
     // Unique ID: use menuExtraIdentifier if present, else bundleID
     var uniqueId: String {
@@ -148,7 +147,7 @@ Before merging to main:
 
 ## Files Modified
 
-1. ✅ `Core/Models/RunningApp.swift` - Added `menuExtraIdentifier`, `uniqueId`, `isControlCenterItem`, and `controlCenterItem()` factory
+1. ✅ `Core/Models/RunningApp.swift` - Added `menuExtraIdentifier`, `uniqueId`, and `menuExtraItem()` support
 2. ✅ `Core/Services/AccessibilityService.swift` - Added `enumerateControlCenterItems()` and updated all scanning methods
 3. ⏳ `Core/MenuBarManager.swift` - TODO: Update moveIcon for menu extras
 4. ⏳ `UI/SearchWindow/MenuBarSearchView.swift` - TODO: Handle virtual apps in UI (may work automatically)

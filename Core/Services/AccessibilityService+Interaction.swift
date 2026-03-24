@@ -65,6 +65,7 @@ extension AccessibilityService {
             }
         }
     }
+
     // MARK: - Actions
     nonisolated func clickMenuBarItem(for bundleID: String) -> Bool {
         clickMenuBarItem(bundleID: bundleID, menuExtraId: nil, fallbackCenter: nil)
@@ -967,7 +968,9 @@ extension AccessibilityService {
         }
 
         if !movedToExpectedSide {
-            logger.error("🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public)")
+            logger.error(
+                "🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), targetX=\(targetX, privacy: .public), beforeX=\(iconFrame.origin.x, privacy: .public), beforeMidX=\(iconFrame.midX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public), deltaMidX=\((afterFrame.midX - iconFrame.midX), privacy: .public), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public)"
+            )
         }
 
         return movedToExpectedSide

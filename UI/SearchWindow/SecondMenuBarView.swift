@@ -1,4 +1,5 @@
 import AppKit
+import SaneUI
 import SwiftUI
 
 // MARK: - Second Menu Bar View
@@ -32,7 +33,6 @@ struct SecondMenuBarView: View {
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
     private let accentStart = SaneBarChrome.accentStart
-    private let accentEnd = SaneBarChrome.accentEnd
     private let accentHighlight = SaneBarChrome.accentHighlight
 
     // Filter out system items that can't be moved (Clock, Control Center)
@@ -105,7 +105,7 @@ struct SecondMenuBarView: View {
     // MARK: - Background
 
     private var panelBackground: some View {
-        SaneGradientBackground()
+        SaneGradientBackground(style: .panel)
     }
 
     // MARK: - Compact Toolbar
@@ -751,10 +751,8 @@ private struct PanelIconTile: View {
     /// clipShape trims the overflow so glyphs visually fill ≈80-90 % of the tile
     /// while `.fit` preserves aspect ratio (no deformation).
     private let tileSize: CGFloat = 32
-    private let accentStart = SaneBarChrome.accentStart
-    private let accentEnd = SaneBarChrome.accentEnd
     private var iconSize: CGFloat {
-        let icon = app.iconThumbnail ?? app.icon
+        let icon = app.icon
         // System template icons are non-square and deform when overscaled.
         // Regular app icons have padding that needs overscaling to fill the tile.
         return icon?.isTemplate == true ? tileSize * 0.65 : tileSize * 1.15
@@ -832,7 +830,7 @@ private struct PanelIconTile: View {
 
     @ViewBuilder
     private var iconImage: some View {
-        if let icon = app.iconThumbnail ?? app.icon {
+        if let icon = app.icon {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)

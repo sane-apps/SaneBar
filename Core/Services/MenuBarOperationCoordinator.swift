@@ -164,6 +164,34 @@ enum MenuBarOperationCoordinator {
         }
     }
 
+    static func alwaysHiddenMisorderRecoveryAction(
+        context: PositionValidationContext,
+        recoveryCount: Int,
+        maxRecoveryCount: Int
+    ) -> StatusItemRecoveryAction {
+        if context == .manualLayoutRestore {
+            if recoveryCount == 0 {
+                return .repairPersistedLayoutAndRecreate(.invalidGeometry)
+            }
+
+            if recoveryCount < maxRecoveryCount {
+                return .bumpAutosaveVersion(.invalidGeometry)
+            }
+
+            return .stop(.invalidGeometry)
+        }
+
+        if recoveryCount == 0 {
+            return .repairPersistedLayoutAndRecreate(.invalidGeometry)
+        }
+
+        if context == .startupFollowUp, recoveryCount < maxRecoveryCount {
+            return .bumpAutosaveVersion(.invalidGeometry)
+        }
+
+        return .stop(.invalidGeometry)
+    }
+
     static func statusItemRecoveryAction(
         snapshot: MenuBarRuntimeSnapshot,
         context: StatusItemRecoveryContext,
@@ -174,6 +202,8 @@ enum MenuBarOperationCoordinator {
         case let .startupInitial(inputs):
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
                 switch recoveryReason {
+                case .invalidStatusItems where inputs.hasCompletedOnboarding:
+                    return .keepExpanded(.waitingForLiveCoordinates)
                 case .missingCoordinates where inputs.hasCompletedOnboarding:
                     return .keepExpanded(.waitingForLiveCoordinates)
                 default:

@@ -262,8 +262,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Standard retry path should log the re-resolved target set for both hidden and visible retries"
         )
         XCTAssertFalse(
-            source.contains("if !toHidden {\n                    let retryTargets"),
-            "Standard retry path should not special-case visible moves when refreshing targets"
+            source.contains("if !success,\n               !toHidden,\n               actionableMoveSafety.allowsClassifiedZoneFallback"),
+            "Standard retry path should not special-case visible moves before the extra drag"
         )
         XCTAssertTrue(
             source.contains("Re-resolved always-hidden move targets for retry"),
@@ -288,6 +288,44 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Always-hidden move accepted after classification verification"),
             "Always-hidden move path should reconcile verification failures with classified zones before returning false"
+        )
+        XCTAssertTrue(
+            source.contains("let shouldAttemptShieldFallback = !success && (toHidden ? !usedShowAllShield : true)"),
+            "Visible moves should get one shield-backed final retry even when the standard retry already ran"
+        )
+        XCTAssertTrue(
+            source.contains("Visible move still failed after standard retry while already using showAll shield — refreshing move targets once more"),
+            "Visible moves that were already using the shield path should still get one last target refresh before failing"
+        )
+        XCTAssertTrue(
+            source.contains("Shield fallback could not resolve visible boundary - keeping failure"),
+            "Visible shield fallback should refuse to retry with a missing visible boundary"
+        )
+        XCTAssertTrue(
+            source.contains("private func verifyVisibleMoveWithFreshGeometry("),
+            "Visible return moves should have a narrow fresh-geometry recheck before spending another drag"
+        )
+        XCTAssertTrue(
+            source.contains("Visible move accepted after fresh geometry recheck"),
+            "Fresh geometry acceptance should stay explicit in source so stale-separator fixes do not silently regress"
+        )
+        XCTAssertTrue(
+            source.contains("if !success, !toHidden {\n                success = await manager.verifyVisibleMoveWithFreshGeometry("),
+            "Regular visible returns should attempt the fresh-geometry recheck before the retry drag"
+        )
+        XCTAssertTrue(
+            source.contains("if !success, !toAlwaysHidden {\n                success = await manager.verifyVisibleMoveWithFreshGeometry("),
+            "Always-hidden visible returns should attempt the same fresh-geometry recheck before retrying"
+        )
+    }
+
+    func testAppleScriptMoveTimeoutAllowsShieldFallbackPath() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func runScriptMove(timeoutSeconds: TimeInterval = 9.0"),
+            "AppleScript move commands should allow enough time for the hardened fallback path before reporting a timeout"
         )
     }
 
@@ -392,26 +430,6 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(MenuBarManager.shouldSkipHide(disableOnExternalMonitor: true, isOnExternalMonitor: true))
         XCTAssertFalse(MenuBarManager.shouldSkipHide(disableOnExternalMonitor: false, isOnExternalMonitor: true))
         XCTAssertFalse(MenuBarManager.shouldSkipHide(disableOnExternalMonitor: true, isOnExternalMonitor: false))
-    }
-
-    func testManualHideRequestsAreNotSuppressedByExternalMonitorPolicy() {
-        XCTAssertFalse(
-            MenuBarManager.shouldIgnoreHideRequest(
-                disableOnExternalMonitor: true,
-                isOnExternalMonitor: true,
-                origin: .manual
-            )
-        )
-    }
-
-    func testAutomaticHideRequestsAreSuppressedByExternalMonitorPolicy() {
-        XCTAssertTrue(
-            MenuBarManager.shouldIgnoreHideRequest(
-                disableOnExternalMonitor: true,
-                isOnExternalMonitor: true,
-                origin: .automatic
-            )
-        )
     }
 
     func testStartupRecoveryTriggersWhenSeparatorIsRightOfMain() {
@@ -958,8 +976,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("if !success && toHidden && !usedShowAllShield"),
-            "Hidden moves that fail while state appears expanded should trigger a shield fallback retry"
+            source.contains("let shouldAttemptShieldFallback = !success && (toHidden ? !usedShowAllShield : true)"),
+            "Hidden moves that fail while state appears expanded should still be eligible for one shield fallback retry"
         )
         XCTAssertTrue(
             source.contains("await manager.hidingService.showAll()"),
@@ -1440,8 +1458,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("retryable_runtime_smoke_failure?(smoke_out)") &&
-                source.contains("relaunching after transient launch idle spike"),
-            "Project QA runtime smoke should retry exactly the transient launch-idle spike path before failing the release"
+                source.contains("relaunching after transient runtime smoke budget blip"),
+            "Project QA runtime smoke should retry exactly the narrow transient budget-blip path before failing the release"
         )
         XCTAssertTrue(
             source.contains("Runtime smoke failed on pass"),
@@ -1464,9 +1482,22 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("shared_bundle_ids = runtime_smoke_available_required_candidate_ids(") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => shared_bundle_ids.join(',')") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'") &&
-                source.contains("runtime smoke shared-bundle exact ids") &&
-                source.contains("ensure_runtime_smoke_target_running!(target.merge(relaunch: true))"),
+                source.contains("runtime smoke shared-bundle exact ids (try") &&
+                source.contains("ensure_runtime_smoke_target_running!(target.merge(relaunch: true))") &&
+                source.contains("relaunching after transient shared-bundle runtime smoke budget blip"),
             "Project QA runtime smoke should run a dedicated focused pass for shared-bundle Apple extras when those exact IDs are present"
+        )
+        XCTAssertTrue(
+            source.contains("runtime_smoke_no_candidate_fixture_policy?(smoke_out)") &&
+                source.contains("default move pool empty on this host; keeping browse/layout result and deferring move coverage to shared-bundle exact-id smoke") &&
+                source.contains("default_move_coverage_deferred = true"),
+            "Project QA runtime smoke should treat an empty default move pool as fixture-policy fallout and hand move coverage to the shared-bundle exact-id pass"
+        )
+        XCTAssertTrue(
+            source.contains("if default_move_coverage_deferred") &&
+                source.contains("Runtime smoke had no default move candidates and no shared-bundle fallback candidates.") &&
+                source.contains("no shared-bundle fallback candidates after default move-pool miss"),
+            "Project QA runtime smoke should still fail when the default move pool is empty and no focused shared-bundle fallback exists"
         )
         XCTAssertTrue(
             source.contains("def runtime_smoke_relaunch_command(target)") &&
@@ -1766,6 +1797,73 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertFalse(
             source.contains("Color.green.opacity"),
             "Top row toggles should not fall back to a bright green status color that overwhelms the panel"
+        )
+    }
+
+    func testSaneBarUsesSharedPanelBackgroundsFromSaneUI() throws {
+        let settingsSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/SettingsView.swift"),
+            encoding: .utf8
+        )
+        let iconPanelSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift"),
+            encoding: .utf8
+        )
+        let secondMenuBarSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            settingsSource.contains("import SaneUI") &&
+                iconPanelSource.contains("import SaneUI") &&
+                secondMenuBarSource.contains("import SaneUI"),
+            "SaneBar surfaces should import SaneUI directly instead of relying on a local background copy"
+        )
+        XCTAssertTrue(
+            settingsSource.contains("SaneSettingsContainer(defaultTab: SettingsTab.general)") &&
+                iconPanelSource.contains("SaneGradientBackground(style: .panel)") &&
+                secondMenuBarSource.contains("SaneGradientBackground(style: .panel)"),
+            "Settings should use the shared SaneUI container, and both browse surfaces should use the calmer shared panel background"
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: projectRootURL().appendingPathComponent("UI/Components/Backgrounds.swift").path
+            ),
+            "SaneBar should not keep a local gradient background clone once SaneUI owns the shared panel background"
+        )
+        XCTAssertTrue(
+            settingsSource.contains("SaneSettingsContainer(defaultTab: SettingsTab.general)"),
+            "Settings shell should come from SaneUI so the shared settings chrome stays unified across apps"
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: projectRootURL().appendingPathComponent("UI/Settings/GlassGroupBoxStyle.swift").path
+            ),
+            "SaneBar should not keep a local GroupBoxStyle clone once SaneUI owns the shared glass group box styling"
+        )
+    }
+
+    func testSaneBarChromeComponentsAreTypealiasesToSaneUI() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Components/CompactSettingsComponents.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("typealias ChromeGlassRoundedBackground = SaneUI.SaneGlassRoundedBackground") &&
+                source.contains("typealias ChromeActionButtonStyle = SaneUI.SaneActionButtonStyle") &&
+                source.contains("typealias ChromeBadge = SaneUI.SaneAccentBadge"),
+            "SaneBar should reuse SaneUI chrome components instead of carrying local glass/button/badge implementations"
+        )
+        XCTAssertFalse(
+            source.contains("struct ChromeGlassRoundedBackground") ||
+                source.contains("struct ChromeActionButtonStyle") ||
+                source.contains("struct CompactSection<") ||
+                source.contains("struct CompactRow<") ||
+                source.contains("struct CompactToggle") ||
+                source.contains("struct CompactDivider"),
+            "SaneBar should not keep local implementations of the shared settings chrome primitives"
         )
     }
 
@@ -2104,6 +2202,21 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
         )
         XCTAssertTrue(
+            source.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
+                source.contains("repairAlwaysHiddenSeparatorPositionIfNeeded(reason: \"position-validation-\\(context.rawValue)\")"),
+            "Position validation should repair a misordered always-hidden separator before it blesses the layout as stable"
+        )
+        XCTAssertTrue(
+            source.contains("captureCurrentDisplayBackupAfterStableValidation(") &&
+                source.contains("hasLaunchSafeCurrentDisplayBackupForCurrentDisplay()"),
+            "Stable validation should wait briefly for a safe current-width backup instead of assuming one exists immediately"
+        )
+        XCTAssertTrue(
+            source.contains("MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(") &&
+                source.contains("trigger: \"always-hidden-position-validation-\\(context.rawValue)\""),
+            "Persistent always-hidden separator drift should escalate through the shared bounded recovery policy instead of repeating same-version repairs forever"
+        )
+        XCTAssertTrue(
             source.contains("case .repairPersistedLayoutAndRecreate:") &&
                 source.contains("StatusBarController.recoverStartupPositions(") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
@@ -2210,6 +2323,21 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("positionValidationGeneration += 1") &&
                 source.contains("guard self.positionValidationGeneration == validationGeneration else"),
             "Screen and wake topology changes should invalidate stale validation work, then schedule a wake-aware validation pass instead of letting overlapping recovery tasks race each other"
+        )
+    }
+
+    func testStatusItemRecoverySkipsStaleOrOverlappingStructuralActions() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("var isExecutingStatusItemRecovery = false") &&
+                source.contains("validationGeneration: Int? = nil") &&
+                source.contains("positionValidationGeneration != validationGeneration") &&
+                source.contains("Skipping stale status item recovery action") &&
+                source.contains("Skipping overlapping status item recovery action") &&
+                source.contains("positionValidationGeneration += 1"),
+            "Structural status-item recovery should reject stale validation escalations and overlapping rebuilds so one bad launch cannot trigger repeated autosave-version bumps"
         )
     }
 

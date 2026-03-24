@@ -346,7 +346,7 @@ func shouldForceRefreshDuringScriptZoneWait(
 }
 
 @MainActor
-private func runScriptMove(timeoutSeconds: TimeInterval = 6.5, operation: @escaping @MainActor () async -> Bool) -> Bool? {
+private func runScriptMove(timeoutSeconds: TimeInterval = 9.0, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
     Task { @MainActor in
         box.value = await operation()

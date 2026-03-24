@@ -104,13 +104,10 @@ class "MenuBarManager" as MenuBarManager << (C, DarkSeaGreen) >> {
   ~mainStatusItem : NSStatusItem?
   ~separatorItem : NSStatusItem?
   ~statusMenu : NSMenu?
-  -onboardingPopover : NSPopover?
-  -usingExternalItems
   -cancellables
   ~init(hidingService:persistenceService:settingsController:statusBarController:triggerService:iconHotkeysService:appearanceService:networkTriggerService:hoverService:updateService:)
   -configureHoverService()
   -isRunningInHeadlessEnvironment()
-  ~useExistingItems(main:separator:)
   -deferredUISetup()
   -setupStatusItem()
   -setupObservers()
@@ -211,13 +208,10 @@ class "MenuBarManager" as MenuBarManager0 << (C, DarkSeaGreen) >> {
   ~mainStatusItem : NSStatusItem?
   ~separatorItem : NSStatusItem?
   ~statusMenu : NSMenu?
-  -onboardingPopover : NSPopover?
-  -usingExternalItems
   -cancellables
   ~init(hidingService:persistenceService:settingsController:statusBarController:triggerService:iconHotkeysService:appearanceService:networkTriggerService:hoverService:updateService:)
   -configureHoverService()
   -isRunningInHeadlessEnvironment()
-  ~useExistingItems(main:separator:)
   -deferredUISetup()
   -setupStatusItem()
   -setupObservers()
@@ -278,11 +272,9 @@ class "RunningApp" as RunningApp << (S, SkyBlue) struct >> {
   ~width : CGFloat?
   ~menuExtraIdentifier : String?
   ~statusItemIndex : Int?
-  ~isControlCenterItem : Bool
   ~uniqueId : String
   ~id : String
   ~init(id:name:icon:policy:category:menuExtraIdentifier:statusItemIndex:xPosition:width:)
-  ~{static} controlCenterItem(name:identifier:xPosition:width:)
   ~{static} menuExtraItem(ownerBundleId:name:identifier:xPosition:width:)
   -{static} displayNameForMenuExtra(_:)
   -{static} sanitizeMenuExtraLabel(_:)

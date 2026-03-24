@@ -290,6 +290,33 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Overlay appearance resolves dark matches to a concrete dark appearance")
+    func testResolvedOverlayAppearanceDarkMatch() {
+        let source = NSAppearance(named: .darkAqua)
+
+        let resolved = MenuBarAppearanceService.resolvedOverlayAppearance(from: source)
+
+        #expect(
+            resolved?.bestMatch(from: [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua]) == .darkAqua
+        )
+    }
+
+    @Test("Overlay appearance resolves light matches to a concrete light appearance")
+    func testResolvedOverlayAppearanceLightMatch() {
+        let source = NSAppearance(named: .aqua)
+
+        let resolved = MenuBarAppearanceService.resolvedOverlayAppearance(from: source)
+
+        #expect(
+            resolved?.bestMatch(from: [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua]) == .aqua
+        )
+    }
+
+    @Test("Overlay appearance keeps nil when no appearance is available")
+    func testResolvedOverlayAppearanceNil() {
+        #expect(MenuBarAppearanceService.resolvedOverlayAppearance(from: nil) == nil)
+    }
+
     // MARK: - Protocol Conformance Tests
 
     @Test("MenuBarAppearanceService conforms to protocol")

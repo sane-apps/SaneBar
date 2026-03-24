@@ -2,6 +2,7 @@
 import AppKit
 import KeyboardShortcuts
 import os.log
+import SaneUI
 import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSearchView")
@@ -27,14 +28,6 @@ struct MenuBarSearchView: View {
             }
         }
 
-        var symbolName: String {
-            switch self {
-            case .hidden: "eye.slash"
-            case .visible: "eye"
-            case .alwaysHidden: "lock"
-            case .all: "square.grid.2x2"
-            }
-        }
     }
 
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
@@ -115,13 +108,6 @@ struct MenuBarSearchView: View {
             return .all
         }
         return current
-    }
-
-    private var modeBinding: Binding<Mode> {
-        Binding(
-            get: { mode },
-            set: { storedMode = $0.rawValue }
-        )
     }
 
     private var availableModes: [Mode] {
@@ -257,10 +243,6 @@ struct MenuBarSearchView: View {
         // Return in a sensible order, filtering to only those with apps
         return AppCategory.allCases.filter { categories.contains($0) }
     }
-
-    private var accentStart: Color { SaneBarChrome.accentStart }
-
-    private var accentEnd: Color { SaneBarChrome.accentEnd }
 
     private var accentHighlight: Color { SaneBarChrome.accentHighlight }
 
@@ -445,7 +427,7 @@ struct MenuBarSearchView: View {
                 footer
             }
             .frame(width: 420, height: 520)
-            .background { SaneGradientBackground() }
+            .background { SaneGradientBackground(style: .panel) }
 
             if showingCrowdedVisibleHint {
                 crowdedVisibleHintToast
@@ -982,7 +964,6 @@ struct MenuBarSearchView: View {
                 // "All" tab - shows everything
                 SmartGroupTab(
                     title: "All",
-                    icon: "square.grid.2x2",
                     isSelected: selectedGroupId == nil && selectedSmartCategory == nil,
                     action: {
                         selectedGroupId = nil
@@ -994,7 +975,6 @@ struct MenuBarSearchView: View {
                 ForEach(availableCategories, id: \.self) { category in
                     SmartGroupTab(
                         title: category.rawValue,
-                        icon: category.iconName,
                         isSelected: selectedGroupId == nil && selectedSmartCategory == category,
                         action: {
                             selectedGroupId = nil

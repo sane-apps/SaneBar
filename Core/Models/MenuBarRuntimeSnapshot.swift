@@ -38,6 +38,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
     var hasActiveMoveTask: Bool
     var hasAnyScreens: Bool
     var separatorX: CGFloat?
+    var alwaysHiddenSeparatorX: CGFloat?
     var mainX: CGFloat?
     var mainRightGap: CGFloat?
     var screenWidth: CGFloat?
@@ -53,6 +54,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
         hasActiveMoveTask: Bool = false,
         hasAnyScreens: Bool = true,
         separatorX: CGFloat? = nil,
+        alwaysHiddenSeparatorX: CGFloat? = nil,
         mainX: CGFloat? = nil,
         mainRightGap: CGFloat? = nil,
         screenWidth: CGFloat? = nil,
@@ -67,6 +69,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
         self.hasActiveMoveTask = hasActiveMoveTask
         self.hasAnyScreens = hasAnyScreens
         self.separatorX = separatorX
+        self.alwaysHiddenSeparatorX = alwaysHiddenSeparatorX
         self.mainX = mainX
         self.mainRightGap = mainRightGap
         self.screenWidth = screenWidth

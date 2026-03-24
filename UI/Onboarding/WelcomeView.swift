@@ -161,7 +161,7 @@ public struct WelcomeView: View {
 private struct OnboardingBackground: View {
     var body: some View {
         ZStack {
-            VisualEffectBackground(material: .sidebar, blendingMode: .behindWindow)
+            VisualEffectBlur(material: .sidebar, blendingMode: .behindWindow, isEmphasized: true)
 
             // Radial glow (matches website hero)
             RadialGradient(

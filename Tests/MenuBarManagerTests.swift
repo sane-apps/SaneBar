@@ -118,6 +118,38 @@ struct MenuBarManagerTests {
         #expect(snapshot.startupItemsValid == false)
     }
 
+    @Test("Always-hidden separator repair only triggers for a real misordered divider")
+    func alwaysHiddenSeparatorRepairGuard() {
+        #expect(
+            !MenuBarManager.alwaysHiddenSeparatorNeedsRepair(
+                hasAlwaysHiddenSeparator: false,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: 220
+            )
+        )
+        #expect(
+            !MenuBarManager.alwaysHiddenSeparatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: 180
+            )
+        )
+        #expect(
+            !MenuBarManager.alwaysHiddenSeparatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: nil
+            )
+        )
+        #expect(
+            MenuBarManager.alwaysHiddenSeparatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: 220
+            )
+        )
+    }
+
     // MARK: - Position Validation Tests (BUG: separator eating main icon)
 
     @Test("Position validation: separator LEFT of main is valid")

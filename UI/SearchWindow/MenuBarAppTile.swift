@@ -243,7 +243,7 @@ struct MenuBarAppTile: View {
 
     @ViewBuilder
     private var tileIcon: some View {
-        if let icon = app.iconThumbnail ?? app.icon {
+        if let icon = app.icon {
             Image(nsImage: icon)
                 .resizable()
                 .renderingMode(icon.isTemplate ? .template : .original)

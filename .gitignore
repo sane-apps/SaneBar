@@ -91,6 +91,7 @@ releases/
 .claude/read_history.json
 .claude/user_patterns.json
 .claude/bypass_mode.txt
+.claude/sop-verify-state.json
 .claude/saneloop-archive/
 .claude/research/
 .claude/rule_tracking.jsonl
@@ -114,6 +115,8 @@ node_modules/
 
 # Serena
 .serena/
+.sanemaster/
+infra
 
 # ═══════════════════════════════════════════════════════════════
 # Media (keep app assets, ignore test/marketing/root)
@@ -190,4 +193,5 @@ outputs/
 MinimalTest/
 *.bak
 project.yml.bak
+scripts/runtime_smoke.rb
 scripts/*.swift

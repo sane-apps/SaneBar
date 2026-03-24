@@ -1,5 +1,5 @@
 {
-  "originHash" : "dac691e37f667797526a116425e19f6abcb5056d357e5d4a67838dcc0a0ad78d",
+  "originHash" : "b3df9b8c88ae30cabd7f887a20ed40492b05865488b06c20f13a44d51b669f92",
   "pins" : [
     {
       "identity" : "keyboardshortcuts",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
         "version" : "2.4.0"
+      }
+    },
+    {
+      "identity" : "saneui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sane-apps/SaneUI.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "f93a53864e7e865c394ed38c2f85838c8da748d2"
       }
     },
     {

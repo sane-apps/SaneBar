@@ -44,6 +44,33 @@ struct MenuBarOperationCoordinatorTests {
         }
     }
 
+    @Test("Startup waits when status-item windows are still unattached after onboarding")
+    func startupHoldsExpandedWhenStatusItemWindowsAreStillMissing() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: false,
+            separatorX: 160,
+            mainX: 180
+        )
+
+        let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .startupInitial(.init(
+                hasCompletedOnboarding: true,
+                autoRehideEnabled: true,
+                shouldSkipHideForExternalMonitor: false,
+                hasConnectedExternalMonitorWithAlwaysShow: false
+            )),
+            recoveryCount: 0,
+            maxRecoveryCount: 2
+        )
+
+        guard case .keepExpanded(.waitingForLiveCoordinates) = action else {
+            Issue.record("Expected startup to hold expanded while waiting for unattached status-item windows")
+            return
+        }
+    }
+
     @Test("Startup follow-up repairs persisted geometry before recreating live items")
     func startupValidationRepairsGeometryBeforeRecreate() {
         let snapshot = MenuBarRuntimeSnapshot(
@@ -70,6 +97,42 @@ struct MenuBarOperationCoordinatorTests {
                 recoveryCount: 1,
                 maxRecoveryCount: 2
             ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+    }
+
+    @Test("Always-hidden startup drift escalates to a fresh autosave namespace after one failed repair")
+    func alwaysHiddenStartupValidationBumpsAutosaveVersionAfterRetry() {
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .startupFollowUp,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .startupFollowUp,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+    }
+
+    @Test("Always-hidden runtime drift stays bounded outside startup")
+    func alwaysHiddenRuntimeValidationStopsAfterOneRepair() {
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .screenParametersChanged,
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .screenParametersChanged,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .stop(.invalidGeometry)
         )
     }
 

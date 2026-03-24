@@ -1,91 +1,60 @@
 import SwiftUI
+import SaneUI
 
 struct SettingsView: View {
-    @ObservedObject private var menuBarManager = MenuBarManager.shared
-    @State private var selectedTab: SettingsTab? = .general
-
-    enum SettingsTab: String, CaseIterable, Identifiable {
+    enum SettingsTab: String, SaneSettingsTab {
         case general = "General"
         case rules = "Rules"
         case appearance = "Appearance"
         case shortcuts = "Shortcuts"
         case about = "About"
 
-        var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .general: "gear"
+            case .rules: "wand.and.stars"
+            case .appearance: "paintpalette"
+            case .shortcuts: "keyboard"
+            case .about: "questionmark.circle"
+            }
+        }
+
+        var iconColor: Color {
+            switch self {
+            case .general:
+                SaneBarChrome.accentHighlight
+            case .rules:
+                SaneBarChrome.accentTeal
+            case .appearance:
+                Color(red: 0.66, green: 0.82, blue: 1.00)
+            case .shortcuts:
+                Color(red: 0.50, green: 0.74, blue: 1.00)
+            case .about:
+                Color(red: 0.76, green: 0.88, blue: 1.00)
+            }
+        }
     }
 
     var body: some View {
-        NavigationSplitView {
-            List(SettingsTab.allCases, selection: $selectedTab) { tab in
-                NavigationLink(value: tab) {
-                    Label {
-                        Text(tab.rawValue)
-                    } icon: {
-                        Image(systemName: icon(for: tab))
-                            .foregroundStyle(iconColor(for: tab, isSelected: selectedTab == tab))
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-        } detail: {
-            ZStack {
-                SaneGradientBackground()
-
-                switch selectedTab {
-                case .general:
-                    GeneralSettingsView()
-                        .navigationTitle("General")
-                case .rules:
-                    RulesSettingsView()
-                        .navigationTitle("Rules")
-                case .appearance:
-                    AppearanceSettingsView()
-                        .navigationTitle("Appearance")
-                case .shortcuts:
-                    ShortcutsSettingsView()
-                        .navigationTitle("Shortcuts")
-                case .about:
-                    AboutSettingsView()
-                        .navigationTitle("About")
-                case .none:
-                    GeneralSettingsView()
-                }
+        SaneSettingsContainer(defaultTab: SettingsTab.general) { tab in
+            switch tab {
+            case .general:
+                GeneralSettingsView()
+                    .navigationTitle("General")
+            case .rules:
+                RulesSettingsView()
+                    .navigationTitle("Rules")
+            case .appearance:
+                AppearanceSettingsView()
+                    .navigationTitle("Appearance")
+            case .shortcuts:
+                ShortcutsSettingsView()
+                    .navigationTitle("Shortcuts")
+            case .about:
+                AboutSettingsView()
+                    .navigationTitle("About")
             }
         }
-        .groupBoxStyle(GlassGroupBoxStyle())
-        .tint(SaneBarChrome.accentStart)
-        .frame(minWidth: 700, minHeight: 450)
-        .background(SaneGradientBackground())
-    }
-
-    // MARK: - Icons
-
-    private func icon(for tab: SettingsTab) -> String {
-        switch tab {
-        case .general: "gear"
-        case .rules: "wand.and.stars"
-        case .appearance: "paintpalette"
-        case .shortcuts: "keyboard"
-        case .about: "questionmark.circle"
-        }
-    }
-
-    private func iconColor(for tab: SettingsTab, isSelected: Bool) -> Color {
-        let base = switch tab {
-        case .general:
-            SaneBarChrome.accentHighlight
-        case .rules:
-            SaneBarChrome.accentTeal
-        case .appearance:
-            Color(red: 0.66, green: 0.82, blue: 1.00)
-        case .shortcuts:
-            Color(red: 0.50, green: 0.74, blue: 1.00)
-        case .about:
-            Color(red: 0.76, green: 0.88, blue: 1.00)
-        }
-
-        return isSelected ? base : base.opacity(0.92)
     }
 }
 

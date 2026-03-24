@@ -554,6 +554,18 @@ extension AccessibilityService {
         }
 
         let resolvedIndex = candidates[bestCandidateIndex].index
+        if menuExtraId != nil, items.count > 1 {
+            let candidateSummary = items.enumerated().compactMap { index, item -> String? in
+                guard let frame = frameForStatusItem(item) else { return nil }
+                var identifierValue: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                let identifier = (identifierValue as? String) ?? "nil"
+                return "\(index):\(identifier)@\(frame.midX)"
+            }.joined(separator: ",")
+            menuExtrasLogger.error(
+                "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
+            )
+        }
         menuExtrasLogger.info("🔧 Resolved nearest status item for \(bundleID, privacy: .private) at index \(resolvedIndex, privacy: .public)")
         return items[resolvedIndex]
     }

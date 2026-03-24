@@ -767,6 +767,65 @@ extension MenuBarManager {
         return false
     }
 
+    private func verifyVisibleMoveWithFreshGeometry(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        preferredCenterX: CGFloat?,
+        staleSeparatorX: CGFloat,
+        allowsGeometryRecheck: Bool
+    ) async -> Bool {
+        guard allowsGeometryRecheck else { return false }
+        guard staleSeparatorX.isFinite, staleSeparatorX > 0 else { return false }
+
+        let accessibilityService = AccessibilityService.shared
+        guard let staleFrame = accessibilityService.getMenuBarIconFrame(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        ) else {
+            return false
+        }
+
+        let staleShortfall = staleSeparatorX - staleFrame.midX
+        guard staleShortfall > 0, staleShortfall <= 48 else { return false }
+
+        try? await Task.sleep(for: .milliseconds(120))
+        await warmSeparatorPositionCache(maxAttempts: 8)
+
+        guard let freshSeparatorX = getSeparatorRightEdgeX(),
+              freshSeparatorX > 0,
+              freshSeparatorX + 2 < staleSeparatorX else {
+            return false
+        }
+        guard let freshVisibleBoundaryX = getMainStatusItemLeftEdgeX(),
+              freshVisibleBoundaryX > 0 else {
+            return false
+        }
+        guard let refreshedFrame = accessibilityService.getMenuBarIconFrame(
+            bundleID: bundleID,
+            menuExtraId: menuExtraId,
+            statusItemIndex: statusItemIndex,
+            preferredCenterX: preferredCenterX
+        ) else {
+            return false
+        }
+
+        guard AccessibilityService.frameIsInTargetZone(
+            afterFrame: refreshedFrame,
+            separatorX: freshSeparatorX,
+            toHidden: false
+        ) else {
+            return false
+        }
+
+        logger.info(
+            "🔧 Visible move accepted after fresh geometry recheck (staleSeparatorX=\(staleSeparatorX, privacy: .public), freshSeparatorX=\(freshSeparatorX, privacy: .public), freshVisibleBoundaryX=\(freshVisibleBoundaryX, privacy: .public), afterMidX=\(refreshedFrame.midX, privacy: .public))"
+        )
+        return true
+    }
+
     @MainActor
     private func currentMoveRuntimeSnapshot(
         identityPrecision: MenuBarIdentityPrecision
@@ -1101,6 +1160,17 @@ extension MenuBarManager {
             )
             logger.debug("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
 
+            if !success, !toHidden {
+                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
+                    staleSeparatorX: activeSeparatorX,
+                    allowsGeometryRecheck: actionableMoveSafety.allowsClassifiedZoneFallback
+                )
+            }
+
             // One retry if verification failed — icon may have partially moved
             // or AX position hadn't settled yet on slower Macs.
             if !success {
@@ -1116,7 +1186,7 @@ extension MenuBarManager {
                     activeSeparatorX = retrySeparatorX
                     activeVisibleBoundaryX = retryTargets.visibleBoundaryX
                     let retryLabel = toHidden ? "hidden" : "visible"
-                logger.debug("🔧 Re-resolved \(retryLabel) move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
+                    logger.debug("🔧 Re-resolved \(retryLabel) move targets for retry: separator=\(activeSeparatorX), visibleBoundary=\(activeVisibleBoundaryX ?? -1)")
                 }
 
                 success = accessibilityService.moveMenuBarIcon(
@@ -1133,11 +1203,21 @@ extension MenuBarManager {
                 logger.debug("🔧 Retry returned: \(success, privacy: .public)")
             }
 
-            if !success && toHidden && !usedShowAllShield {
-                logger.warning("🔧 Hidden move still failed after standard retry — forcing showAll shield fallback")
-                await manager.hidingService.showAll()
-                usedShowAllShield = true
-                try? await Task.sleep(for: .milliseconds(300))
+            let shouldAttemptShieldFallback = !success && (toHidden ? !usedShowAllShield : true)
+            if shouldAttemptShieldFallback {
+                if !usedShowAllShield {
+                    let fallbackLabel = toHidden ? "Hidden" : "Visible"
+                    logger.warning("🔧 \(fallbackLabel, privacy: .public) move still failed after standard retry — forcing showAll shield fallback")
+                    await manager.hidingService.showAll()
+                    usedShowAllShield = true
+                    try? await Task.sleep(for: .milliseconds(300))
+                } else {
+                    logger.warning("🔧 Visible move still failed after standard retry while already using showAll shield — refreshing move targets once more")
+                }
+
+                await MainActor.run {
+                    AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
+                }
 
                 let (fallbackSeparatorX, fallbackVisibleBoundaryX) = await manager.resolveMoveTargetsWithRetries(
                     toHidden: toHidden,
@@ -1146,18 +1226,23 @@ extension MenuBarManager {
                 )
 
                 if let fallbackSeparatorX {
-                    success = accessibilityService.moveMenuBarIcon(
-                        bundleID: bundleID,
-                        menuExtraId: menuExtraId,
-                        statusItemIndex: statusItemIndex,
-                        preferredCenterX: preferredCenterX,
-                        toHidden: toHidden,
-                        separatorX: fallbackSeparatorX,
-                        visibleBoundaryX: fallbackVisibleBoundaryX,
-                        eventTap: .cgSessionEventTap,
-                        originalMouseLocation: originalCGPoint
-                    )
-                    logger.info("🔧 Shield fallback returned: \(success, privacy: .public)")
+                    if !toHidden,
+                       (fallbackVisibleBoundaryX ?? 0) <= 0 {
+                        logger.error("🔧 Shield fallback could not resolve visible boundary - keeping failure")
+                    } else {
+                        success = accessibilityService.moveMenuBarIcon(
+                            bundleID: bundleID,
+                            menuExtraId: menuExtraId,
+                            statusItemIndex: statusItemIndex,
+                            preferredCenterX: preferredCenterX,
+                            toHidden: toHidden,
+                            separatorX: fallbackSeparatorX,
+                            visibleBoundaryX: fallbackVisibleBoundaryX,
+                            eventTap: .cgSessionEventTap,
+                            originalMouseLocation: originalCGPoint
+                        )
+                        logger.info("🔧 Shield fallback returned: \(success, privacy: .public)")
+                    }
                 } else {
                     logger.error("🔧 Shield fallback could not resolve separator - keeping failure")
                 }
@@ -1323,6 +1408,17 @@ extension MenuBarManager {
                 visibleBoundaryX: activeVisibleBoundaryX,
                 originalMouseLocation: originalCGPoint
             )
+
+            if !success, !toAlwaysHidden {
+                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
+                    staleSeparatorX: activeSeparatorX,
+                    allowsGeometryRecheck: actionableMoveSafety.allowsClassifiedZoneFallback
+                )
+            }
 
             // One retry if verification failed
             if !success {
@@ -1937,30 +2033,6 @@ extension MenuBarManager {
                 placeAfterTarget: placeAfterTarget
             )
         )
-    }
-
-    @MainActor
-    func reorderIconAndWait(
-        sourceBundleID: String,
-        sourceMenuExtraID: String? = nil,
-        sourceStatusItemIndex: Int? = nil,
-        targetBundleID: String,
-        targetMenuExtraID: String? = nil,
-        targetStatusItemIndex: Int? = nil,
-        placeAfterTarget: Bool
-    ) async -> Bool {
-        await waitForActiveMoveTaskIfNeeded()
-
-        guard let task = queueReorderIcon(
-            sourceBundleID: sourceBundleID,
-            sourceMenuExtraID: sourceMenuExtraID,
-            sourceStatusItemIndex: sourceStatusItemIndex,
-            targetBundleID: targetBundleID,
-            targetMenuExtraID: targetMenuExtraID,
-            targetStatusItemIndex: targetStatusItemIndex,
-            placeAfterTarget: placeAfterTarget
-        ) else { return false }
-        return await task.value
     }
 
     @MainActor

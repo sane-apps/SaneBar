@@ -2,7 +2,6 @@ import SaneUI
 import SwiftUI
 
 struct ExperimentalSettingsView: View {
-    @ObservedObject private var menuBarManager = MenuBarManager.shared
     @State private var showingFeedback = false
 
     var body: some View {

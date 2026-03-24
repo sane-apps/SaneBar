@@ -4,7 +4,6 @@ import SwiftUI
 
 struct SmartGroupTab: View {
     let title: String
-    let icon: String
     let isSelected: Bool
     let action: () -> Void
     var body: some View {

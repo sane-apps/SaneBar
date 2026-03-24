@@ -225,8 +225,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                // Force SwiftUI to re-evaluate colorScheme by toggling window appearance
-                self?.overlayWindow?.appearance = NSApp.effectiveAppearance
+                self?.applyResolvedAppearance()
             }
         }
 
@@ -301,7 +300,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
 
         window.orderFront(nil)
-        window.appearance = NSApp.effectiveAppearance
+        applyResolvedAppearance()
     }
 
     private func currentWindowInfos() -> [[String: Any]] {
@@ -331,6 +330,29 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             minimumWidth: minimumWidth
         )
         return topHosts.contains(frontmostPID)
+    }
+
+    private func applyResolvedAppearance() {
+        guard let window = overlayWindow else { return }
+
+        let resolvedAppearance = Self.resolvedOverlayAppearance(from: NSApp.effectiveAppearance)
+        window.appearance = resolvedAppearance
+        window.contentView?.appearance = resolvedAppearance
+    }
+
+    internal nonisolated static func resolvedOverlayAppearance(from appearance: NSAppearance?) -> NSAppearance? {
+        guard let appearance else { return nil }
+
+        let supportedAppearances: [NSAppearance.Name] = [
+            .aqua,
+            .darkAqua,
+            .accessibilityHighContrastAqua,
+            .accessibilityHighContrastDarkAqua
+        ]
+        guard let matchedName = appearance.bestMatch(from: supportedAppearances) else {
+            return appearance
+        }
+        return NSAppearance(named: matchedName) ?? appearance
     }
 
     // MARK: - Window Level
@@ -396,8 +418,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         hostingView.frame = NSRect(origin: .zero, size: menuBarFrame.size)
         hostingView.autoresizingMask = [.width, .height]
         window.contentView = hostingView
-
         overlayWindow = window
+        applyResolvedAppearance()
 
         logger.info("Created menu bar overlay window at \(NSStringFromRect(menuBarFrame))")
     }

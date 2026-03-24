@@ -6,6 +6,22 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarMana
 extension MenuBarManager {
     // MARK: - Always-Hidden Pins (Experimental)
 
+    nonisolated static func alwaysHiddenSeparatorNeedsRepair(
+        hasAlwaysHiddenSeparator: Bool,
+        separatorX: CGFloat?,
+        alwaysHiddenSeparatorX: CGFloat?
+    ) -> Bool {
+        guard hasAlwaysHiddenSeparator else { return false }
+        guard let separatorX,
+              separatorX.isFinite,
+              separatorX > 0,
+              let alwaysHiddenSeparatorX,
+              alwaysHiddenSeparatorX.isFinite,
+              alwaysHiddenSeparatorX > 0
+        else { return false }
+        return alwaysHiddenSeparatorX >= separatorX
+    }
+
     func repairAlwaysHiddenSeparatorPositionIfNeeded(reason: String) {
         guard settings.alwaysHiddenSectionEnabled else { return }
         guard !isRepairingAlwaysHiddenSeparator else { return }
@@ -254,15 +270,6 @@ extension MenuBarManager {
             try? await Task.sleep(for: delay)
             await enforceAlwaysHiddenPinnedItems(reason: reason, filterBundleId: filterBundleId)
         }
-    }
-
-    func waitForAlwaysHiddenSeparatorX(maxAttempts: Int = 15, delay: Duration = .milliseconds(100)) async -> CGFloat? {
-        for _ in 0 ..< maxAttempts {
-            if Task.isCancelled { return nil }
-            if let x = getAlwaysHiddenSeparatorOriginX() { return x }
-            try? await Task.sleep(for: delay)
-        }
-        return nil
     }
 
     func isInAlwaysHiddenZone(itemX: CGFloat, itemWidth: CGFloat?, alwaysHiddenSeparatorX: CGFloat) -> Bool {

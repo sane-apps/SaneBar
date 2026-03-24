@@ -61,28 +61,8 @@ extension MenuBarManager {
 
     // MARK: - Visibility Policy
 
-    func shouldIgnoreHideRequest(origin: HideRequestOrigin) -> Bool {
-        Self.shouldIgnoreHideRequest(
-            disableOnExternalMonitor: settings.disableOnExternalMonitor,
-            isOnExternalMonitor: isOnExternalMonitor,
-            origin: origin
-        )
-    }
-
     static func shouldSkipHide(disableOnExternalMonitor: Bool, isOnExternalMonitor: Bool) -> Bool {
-        shouldIgnoreHideRequest(
-            disableOnExternalMonitor: disableOnExternalMonitor,
-            isOnExternalMonitor: isOnExternalMonitor,
-            origin: .automatic
-        )
-    }
-
-    static func shouldIgnoreHideRequest(
-        disableOnExternalMonitor: Bool,
-        isOnExternalMonitor: Bool,
-        origin: HideRequestOrigin
-    ) -> Bool {
-        disableOnExternalMonitor && isOnExternalMonitor && origin == .automatic
+        disableOnExternalMonitor && isOnExternalMonitor
     }
 
     // swiftlint:disable:next function_parameter_count
