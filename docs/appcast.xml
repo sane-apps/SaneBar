@@ -5,7 +5,26 @@
 
                                 
         
-                                        <item>
+                                                <item>
+            <title>2.1.34</title>
+            <pubDate>Tue, 24 Mar 2026 09:43:41 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improved layout recovery after sleep, wake, and display changes. Fixed the dark tint turning black. Better reliability for hidden, visible, and Always Hidden icon moves. Standardized shared chrome so browse and settings surfaces stay consistent.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.34.zip"
+                       sparkle:version="2134"
+                       sparkle:shortVersionString="2.1.34"
+                       length="8540512"
+                       type="application/octet-stream"
+                       sparkle:edSignature="xwef4+zhy8m4ZxT7A2yvFc0nRzpKb7bm/Dd/maC9f37u2QywhFfhPw7xp5e++V3kshPQJoyPDGizlWXIYlF7CA=="/>
+        </item>
+<item>
             <title>2.1.33</title>
             <pubDate>Thu, 19 Mar 2026 19:46:12 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
