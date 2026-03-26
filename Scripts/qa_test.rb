@@ -89,6 +89,35 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "runtime startup layout probe"
   end
 
+  def test_preflight_mode_accepts_saneprocess_env_names
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, "ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1'"
+    assert_includes source, "ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1'"
+  end
+
+  def test_runtime_smoke_bootstraps_pro_for_always_hidden_checks
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
+    assert_includes source, "target[:no_keychain] = true"
+    assert_includes source, "Runtime smoke requires a Pro-enabled target for Always Hidden checks;"
+  end
+
+  def test_startup_layout_probe_restores_state_before_marking_success
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, "restore_state!\n    @state_restored = true\n\n    write_artifact!(\n      status: 'pass'"
+  end
+
+  def test_startup_layout_probe_persists_restore_failures
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, "unless @state_restored"
+    assert_includes source, 'log("⚠️ Restore failed: #{e.message}")'
+    assert_includes source, "persist_log!"
+  end
+
   def test_runtime_smoke_list_icon_zones_targets_exact_app_path
     source = File.read(File.join(__dir__, 'qa.rb'))
 

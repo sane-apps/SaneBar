@@ -169,6 +169,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Cached right edge of always-hidden separator when at visual size.
     /// Used when AH boundary checks run while live frames are stale/off-screen.
     var lastKnownAlwaysHiddenSeparatorRightEdgeX: CGFloat?
+    /// Recovery rebuilds temporarily reconfigure the delimiter in expanded mode.
+    /// Preserve a prior hidden state so wake/display recovery can restore it.
+    var pendingRecoveryHideRestore = false
     var statusMenu: NSMenu?
     // MARK: - Subscriptions
 
@@ -525,6 +528,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.mainStatusItem = main
             self.separatorItem = separator
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
+            let shouldRestoreHidden = self.pendingRecoveryHideRestore
+            self.pendingRecoveryHideRestore = false
 
             if let button = main.button {
                 button.action = #selector(statusItemClicked)
@@ -540,6 +545,14 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateIconStyle()
             self.updateAlwaysHiddenSeparator()
             self.updateSpacers()
+
+            if shouldRestoreHidden {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await self.hidingService.hide()
+                    logger.info("Restored hidden state after status item recovery")
+                }
+            }
 
             logger.info("Re-wired status items after autosave recovery")
         }
@@ -807,6 +820,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         switch action {
         case .captureCurrentDisplayBackup:
+            pendingRecoveryHideRestore = false
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
 
         case .repairPersistedLayoutAndRecreate:
@@ -814,6 +828,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
                 return
             }
+            pendingRecoveryHideRestore = Self.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: hidingService.state,
+                shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+            )
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
@@ -831,6 +849,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
                 return
             }
+            pendingRecoveryHideRestore = Self.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: hidingService.state,
+                shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+            )
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
@@ -844,6 +866,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
                 return
             }
+            pendingRecoveryHideRestore = Self.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: hidingService.state,
+                shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+            )
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
@@ -854,12 +880,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             }
 
         case let .stop(reason):
+            pendingRecoveryHideRestore = false
             logger.error(
                 "Status item recovery stopped after \(recoveryCount, privacy: .public) attempt(s) for \(trigger, privacy: .public); last reason=\(reason?.rawValue ?? "none", privacy: .public)"
             )
-
-        case .keepExpanded, .performInitialHide:
-            break
+            case .keepExpanded, .performInitialHide:
+            pendingRecoveryHideRestore = false
         }
     }
 

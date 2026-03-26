@@ -34,6 +34,16 @@
             <result type="boolean" description="True if the close request was accepted"/>
         </command>
 
+        <command name="open settings window" code="SBaropsw" description="Open the SaneBar settings window">
+            <cocoa class="OpenSettingsWindowCommand"/>
+            <result type="boolean" description="True if the settings open request was accepted"/>
+        </command>
+
+        <command name="close settings window" code="SBarclsw" description="Close the SaneBar settings window if it is open">
+            <cocoa class="CloseSettingsWindowCommand"/>
+            <result type="boolean" description="True if the settings close request was accepted"/>
+        </command>
+
         <command name="capture browse panel snapshot" code="SBarcbps" description="Save the current browse panel content as a PNG image">
             <cocoa class="CaptureBrowsePanelSnapshotCommand"/>
             <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
@@ -42,6 +52,18 @@
 
         <command name="queue browse panel snapshot" code="SBarqbps" description="Queue a browse-panel PNG snapshot shortly in the future">
             <cocoa class="QueueBrowsePanelSnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot request was queued"/>
+        </command>
+
+        <command name="capture settings window snapshot" code="SBarcssw" description="Save the current settings window content as a PNG image">
+            <cocoa class="CaptureSettingsWindowSnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot was written"/>
+        </command>
+
+        <command name="queue settings window snapshot" code="SBarqssw" description="Queue a settings-window PNG snapshot shortly in the future">
+            <cocoa class="QueueSettingsWindowSnapshotCommand"/>
             <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
             <result type="boolean" description="True if the snapshot request was queued"/>
         </command>

@@ -25,6 +25,7 @@ class StartupLayoutProbe
     @had_defaults_domain = false
     @had_settings_file = false
     @was_running = false
+    @state_restored = false
   end
 
   def run
@@ -40,13 +41,15 @@ class StartupLayoutProbe
     @cases << poisoned_backup_case
     @cases << auto_rehide_case
 
+    restore_state!
+    @state_restored = true
+
     write_artifact!(
       status: 'pass',
       bundle_id: @bundle_id,
       app_path: @app_path,
       cases: @cases
     )
-    persist_log!
     puts "✅ Startup layout probe passed (#{@cases.map { |entry| entry[:name] }.join(', ')})"
     true
   rescue StandardError => e
@@ -59,11 +62,17 @@ class StartupLayoutProbe
       cases: @cases
     )
     log("❌ Startup layout probe failed: #{e.message}")
-    persist_log!
     warn e.message
     false
   ensure
-    restore_state!
+    unless @state_restored
+      begin
+        restore_state!
+      rescue StandardError => e
+        log("⚠️ Restore failed: #{e.message}")
+      end
+    end
+    persist_log!
     FileUtils.remove_entry(@workspace) if @workspace && Dir.exist?(@workspace)
   end
 
@@ -96,15 +105,16 @@ class StartupLayoutProbe
     end
 
     if @had_settings_file
+      raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
+
       FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-      FileUtils.cp(@settings_backup_path, SETTINGS_PATH) if File.exist?(@settings_backup_path)
+      FileUtils.cp(@settings_backup_path, SETTINGS_PATH)
     else
       FileUtils.rm_f(SETTINGS_PATH)
     end
 
     launch_app if @was_running
-  rescue StandardError => e
-    log("⚠️ Restore failed: #{e.message}")
+    log('Restored startup probe state')
   end
 
   def run_poisoned_backup_restore_case

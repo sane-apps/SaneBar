@@ -1,5 +1,40 @@
 # SaneBar Research Cache
 
+## 2.1.34 Reset / Disappear / Always-Hidden Recheck
+
+**Updated:** 2026-03-25 | **Status:** verified | **TTL:** 7d
+**Source:** inbox threads `#436` / `#437` / `#438` / `#439`, GitHub issues `#124` / `#125` / `#126`, CleanShot transcript from `https://cleanshot.com/share/C362YVxl`, local code audit of `StatusBarController.swift`, `MenuBarManager.swift`, `MenuBarOperationCoordinator.swift`
+
+### Verified Findings
+
+1. `2.1.34` did not close the main SaneBar runtime family.
+   - Customer feedback is uniformly still negative:
+     - `#436`: Always Hidden still fails and the app freezes/hangs during move attempts
+     - `#437`: disconnecting and reconnecting an external monitor still resets layout
+     - `#438`: behavior is only "a little better" and still too unpredictable
+     - `#439`: sleep/wake still reveals all icons and can make the SaneBar icon disappear while the app is still running
+   - GitHub confirms the same picture on `2.1.34`: `#125`, `#126`, and the fresh external update on `#124`
+2. The new evidence is not one bug but one family with at least two concrete sub-failures:
+   - geometry/layout drift after startup, wake, or monitor changes
+   - status items never attaching to a real menu bar window (`status-item windows are invalid` / icon disappears while app still runs)
+3. There is one obvious recovery dead-end in current code:
+   - `StatusBarController.recreateItemsWithBumpedVersion()` hard-stops when `autosaveVersion` reaches `99`
+   - live reports `#124` and `#126` both show `Autosave version cap reached (99)`
+   - once a user hits that cap, the namespace-bump escape hatch is gone and recovery can loop or stall on the same corrupted state
+4. Wake / monitor-change geometry recovery is currently weaker than startup recovery:
+   - in `MenuBarOperationCoordinator.statusItemRecoveryAction(...)`, invalid geometry during `.screenParametersChanged` or `.wakeResume` does one `repairPersistedLayoutAndRecreate`
+   - after that first failed attempt it stops instead of escalating to a fresh autosave namespace
+   - this matches field reports centered on sleep/wake and external monitor reconnect
+5. The Always Hidden complaint in `#436` is not just wrong final placement; it also shows real responsiveness problems.
+   - CleanShot transcript repeatedly mentions slowness, freezing, and delayed/no movement while trying to move items into Always Hidden
+   - that means the runtime family still includes a responsiveness component, not only bad final geometry
+6. Best current read before the next patch:
+   - the first repair should be structural recovery, not another retry layer
+   - highest-value next fixes are:
+     - recycle the autosave namespace when version `99` is reached
+     - allow wake / screen-change invalid-geometry recovery to escalate to namespace bump the same way startup follow-up already does
+   - do not claim `2.1.34` fixed the reset/disappear family; it did not
+
 ## Browse/Move Runtime + Tint Recheck
 
 **Updated:** 2026-03-23 | **Status:** in progress | **TTL:** 7d
@@ -2708,3 +2743,141 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 - Next proof needed:
   - rerun the real routed `verify` / startup probe after this research refresh
   - if the Debug-only probe failure reproduces on the trusted staged artifact too, keep digging in the invalid-status-items startup path before cutting a release
+
+## 2026-03-24 Settings Snapshot Helper | Updated: 2026-03-24 10:03 ET | Status: in-progress | TTL: 7d
+
+**Goal:** make the mini visual-QA path capture the settings window reliably, not just the browse panel.
+
+### What I verified
+
+1. **The new in-app settings snapshot command path works end to end.**
+   - Mini `verify` passed with `1036` tests after adding:
+     - `open settings window`
+     - `close settings window`
+     - `capture settings window snapshot`
+     - `queue settings window snapshot`
+   - Mini live smoke passed and produced:
+     - `sanebar-secondMenuBar-20260324-135620.png`
+     - `sanebar-findIcon-20260324-135627.png`
+     - `sanebar-settings-20260324-135630.png`
+
+2. **The settings screenshot exposed a real quality gap in the helper, not necessarily in the app UI.**
+   - The browse screenshots looked correct.
+   - The settings PNG showed the left sidebar region as a blank white slab.
+   - `SettingsView` uses `SaneUI`'s `SaneSettingsContainer`, which is built on `NavigationSplitView` and a sidebar `List`.
+   - That strongly suggests the current `bitmapImageRepForCachingDisplay` path is dropping material/sidebar rendering for this window type.
+
+3. **The old Core Graphics window-screenshot shortcut is not a valid fix on this SDK.**
+   - A direct `CGWindowListCreateImage` attempt failed compile on the mini with:
+     - `'CGWindowListCreateImage' is unavailable in macOS: Please use ScreenCaptureKit instead.`
+
+4. **Apple's supported replacement is ScreenCaptureKit.**
+   - Apple docs and current SDK headers confirm:
+     - `SCScreenshotManager.captureImage(contentFilter:configuration:completionHandler:)` is available on macOS 14.0+.
+     - `SCShareableContent.currentProcess` is available on macOS 14.4+ and explicitly returns shareable windows for the current process without separate TCC consent.
+     - `SCContentFilter(desktopIndependentWindow:)` can capture a single `SCWindow`.
+
+### Current best direction
+
+1. **Keep the new settings-window AppleScript hooks.**
+   - They are the right long-term SOP surface for visual QA.
+
+2. **Move the settings snapshot implementation to ScreenCaptureKit first, with the existing view-cache capture as fallback.**
+   - That is the supported API path on current macOS.
+   - It should capture the real composed window instead of a partially cached SwiftUI/AppKit subtree.
+
+3. **Do not treat the current white-sidebar PNG as proof of a user-facing settings bug yet.**
+   - Right now it is more likely a helper artifact than a live UI regression.
+
+## 2026-03-25 Branch Consolidation + Always-Hidden Smoke Bootstrap | Updated: 2026-03-25 19:40 ET | Status: verified | TTL: 14d
+
+### What I verified
+
+1. **Named branch clutter is gone.**
+   - The old side branches were audited against `main`.
+   - `codex/regression-stability`, `codex/sanebar-2.1.23-release`, `feature/license-and-browse-merge`, `codex/main-issuefix-integrate`, `codex/qa-worktree-stability`, and `codex/fix-separator-cache-coherency` were deleted after confirming they were stale, duplicated, or already represented in the current `main` worktree.
+   - Detached Codex worktrees under `~/.codex/worktrees/` still exist, but those are separate agent scratch dirs, not alternate named branches for SaneBar.
+
+2. **One stale worktree had a real QA bug worth keeping.**
+   - `Scripts/qa.rb` still only treated `SANEBAR_RELEASE_PREFLIGHT` / `SANEBAR_RUN_STABILITY_SUITE` as preflight mode.
+   - Shared SaneProcess release tooling now sets `SANEPROCESS_RELEASE_PREFLIGHT` / `SANEPROCESS_RUN_STABILITY_SUITE`.
+   - `main` now accepts both names, and `Scripts/qa_test.rb` covers that.
+
+3. **The startup probe issue on the mini was fixture state, not product state.**
+   - The probe had previously left `autoRehide=false` behind because restore failures were swallowed after success was already logged.
+   - `Scripts/startup_layout_probe.rb` now restores state before marking success and keeps restore failures in the log.
+   - Re-run result on the mini: `✅ Startup layout probe passed (current-width backup beats ordinal seeds, autoRehide=false prevents launch hide)`.
+
+4. **The scary Always Hidden smoke failure was a false regression caused by free-mode setup.**
+   - First release smoke failure logs showed:
+     - `moveIconAlwaysHidden: always-hidden feature unavailable (isPro=false requested=true)`
+   - That means the installed signed app on the mini was running in free mode, so a Pro-only Always Hidden move was never a valid product assertion.
+   - `Scripts/live_zone_smoke.rb` now fails clearly when Always Hidden is requested against a free target.
+   - `Scripts/qa.rb` now bootstraps the signed app through the existing no-keychain Pro fallback before running Always Hidden smoke.
+
+5. **After the bootstrap fix, the real signed runtime path passed again on the mini.**
+   - `./scripts/SaneMaster.rb verify --quiet` passed with `1037` tests.
+   - Signed app startup probe passed.
+   - Signed app live smoke with Pro bootstrap passed:
+     - browse activation
+     - hidden/visible moves
+     - always-hidden moves
+     - settings visual check
+   - Passing run screenshots looked visually clean for:
+     - second menu bar
+     - icon panel
+     - settings
+
+### Current release read
+
+- The repo is now architecturally consolidated on `main`.
+- The remaining work is about real runtime confidence on the live bug family, not branch confusion.
+- If another runtime issue appears, check first whether the smoke target is free-mode versus Pro-mode before calling it a product regression.
+
+## 2026-03-25 Wake Recovery Hidden-State Restore | Updated: 2026-03-25 23:55 ET | Status: verified | TTL: 14d
+
+### Root cause
+
+1. **Wake/display recovery was rebuilding the delimiter in expanded mode and forgetting the prior hidden state.**
+   - `HidingService.configure(delimiterItem:)` always starts expanded.
+   - Status-item recovery re-created items after wake/display drift and re-wired them through `onItemsRecreated`.
+   - Before this fix, nothing restored the previous hidden state after that rebuild.
+
+2. **The live mini repro matched that exact failure shape.**
+   - On the pre-fix build, a display sleep/wake cycle left `hidingState=expanded` even after a 20 second settle window.
+   - Logs showed wake-time geometry drift followed by autosave recovery:
+     - `Status item remained off-menu-bar after 4 checks — triggering autosave recovery`
+   - The bar stayed expanded despite `autoRehideEnabled=true`, `isRevealPinned=false`, and `hoverMouseInMenuBar=false`.
+
+### Fix
+
+1. **Status-item recovery now preserves hidden-state intent.**
+   - `MenuBarManager` now records `pendingRecoveryHideRestore` before structural recovery actions.
+   - The restore decision is centralized in `shouldRestoreHiddenAfterStatusItemRecovery(hidingState:shouldSkipHideForExternalMonitor:)`.
+   - After `onItemsRecreated` re-wires the new status items, it re-applies `await hidingService.hide()` when recovery started from a hidden state and hiding is still allowed.
+
+### Proof
+
+1. **Mini verify passed on the patched tree.**
+   - `./scripts/SaneMaster.rb verify --quiet`
+   - Result: `1037` tests green.
+
+2. **The exact display wake repro changed from bad to good on the patched build.**
+   - Patched signed `/Applications/SaneBar.app` on the mini:
+     - `before`: `hidingState=hidden`
+     - `after_wake`: `hidingState=hidden`
+     - `after_settle` (20s later): `hidingState=hidden`
+   - The pre-fix build had stayed expanded in the same experiment.
+
+3. **Post-wake runtime smoke stayed green with screenshots.**
+   - `Scripts/live_zone_smoke.rb` passed after the wake cycle with:
+     - second menu bar screenshot
+     - icon panel screenshot
+     - settings screenshot
+     - hidden/visible moves green
+     - always-hidden moves green
+
+### Release meaning
+
+- This fix closes one concrete wake-family hole that was still causing post-2.1.34 field symptoms.
+- Remaining release work is no longer “does wake recovery obviously leave the app stuck expanded?” That specific path is now re-proven on the mini.
