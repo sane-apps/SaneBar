@@ -136,6 +136,62 @@ struct StatusBarControllerTests {
         #expect(StatusBarController.mainAutosaveName == "SaneBar_Main_v11")
     }
 
+    @Test("Recreate at autosave cap recycles the namespace instead of getting stuck")
+    @MainActor
+    func recreateItemsAtAutosaveCapRecyclesNamespace() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for autosave cap recycle test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let originalVersion = defaults.object(forKey: versionKey)
+        let cappedMainKey = "NSStatusItem Preferred Position SaneBar_Main_v99"
+        let cappedSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v99"
+        let recycledMainKey = "NSStatusItem Preferred Position SaneBar_Main_v7"
+        let recycledSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v7"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [versionKey, cappedMainKey, cappedSeparatorKey, recycledMainKey, recycledSeparatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalVersion {
+                defaults.set(originalVersion, forKey: versionKey)
+            } else {
+                defaults.removeObject(forKey: versionKey)
+            }
+        }
+
+        defaults.set(99, forKey: versionKey)
+        defaults.set(0.0, forKey: cappedMainKey)
+        defaults.set(1.0, forKey: cappedSeparatorKey)
+        defaults.set(180.0, forKey: backupMainKey)
+        defaults.set(300.0, forKey: backupSeparatorKey)
+
+        let controller = StatusBarController()
+        let oldMain = controller.mainItem
+        let (newMain, _) = controller.recreateItemsWithBumpedVersion()
+
+        let recycledMain = (defaults.object(forKey: recycledMainKey) as? NSNumber)?.doubleValue
+        let recycledSeparator = (defaults.object(forKey: recycledSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(defaults.integer(forKey: versionKey) == 7)
+        #expect(newMain !== oldMain)
+        #expect(recycledMain != nil)
+        #expect(recycledSeparator != nil)
+        #expect(defaults.object(forKey: cappedMainKey) == nil)
+        #expect(defaults.object(forKey: cappedSeparatorKey) == nil)
+    }
+
     @Test("Main and separator disable interactive removal behaviors on init")
     @MainActor
     func initDisablesInteractiveRemoval() {

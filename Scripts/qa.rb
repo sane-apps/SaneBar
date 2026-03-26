@@ -210,7 +210,10 @@ class ProjectQA
   private
 
   def preflight_mode?
-    ENV['SANEBAR_RELEASE_PREFLIGHT'] == '1' || ENV['SANEBAR_RUN_STABILITY_SUITE'] == '1'
+    ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1' ||
+      ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1' ||
+      ENV['SANEBAR_RELEASE_PREFLIGHT'] == '1' ||
+      ENV['SANEBAR_RUN_STABILITY_SUITE'] == '1'
   end
 
   def runtime_smoke_mode?
@@ -650,6 +653,13 @@ class ProjectQA
         return
       end
 
+      always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)
+      if always_hidden_setup_error
+        @errors << always_hidden_setup_error
+        puts '❌ always-hidden runtime smoke setup failed'
+        return
+      end
+
       puts
       puts "   ↳ smoke target: #{target[:app_path]}"
       puts "   ↳ #{target[:note]}" if target[:note]
@@ -903,7 +913,11 @@ class ProjectQA
 
     source = File.read(sdef_path)
     source.include?('capture browse panel snapshot') &&
-      source.include?('queue browse panel snapshot')
+      source.include?('queue browse panel snapshot') &&
+      source.include?('open settings window') &&
+      source.include?('close settings window') &&
+      source.include?('capture settings window snapshot') &&
+      source.include?('queue settings window snapshot')
   rescue StandardError
     false
   end
@@ -934,6 +948,28 @@ class ProjectQA
     nil
   end
 
+  def runtime_smoke_layout_snapshot(target)
+    return nil unless ensure_runtime_smoke_target_running!(target)
+
+    expected_bundle_id = 'com.sanebar.app'
+    output, status = Open3.capture2e(
+      'osascript',
+      '-e',
+      %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
+      '-e',
+      %(using terms from application id "#{expected_bundle_id}"),
+      '-e',
+      'tell application appTarget to layout snapshot',
+      '-e',
+      'end using terms from'
+    )
+    return nil unless status.success?
+
+    JSON.parse(output)
+  rescue JSON::ParserError, StandardError
+    nil
+  end
+
   def ensure_runtime_smoke_pro_mode!
     current_mode = runtime_smoke_mode_status
     return [nil, 'Runtime smoke could not determine the current fallback test mode.'] if current_mode.nil?
@@ -945,6 +981,21 @@ class ProjectQA
     [nil, "Runtime smoke could not switch fallback test mode to Pro: #{output.lines.last&.strip || output.strip}"]
   rescue StandardError => e
     [nil, "Runtime smoke could not switch fallback test mode to Pro: #{e.message}"]
+  end
+
+  def ensure_runtime_smoke_always_hidden_ready!(target)
+    snapshot = runtime_smoke_layout_snapshot(target)
+    return 'Runtime smoke could not read the target layout snapshot before Always Hidden checks.' if snapshot.nil?
+    return nil if snapshot['licenseIsPro'] == true
+
+    target[:no_keychain] = true
+    target[:relaunch] = true
+
+    snapshot = runtime_smoke_layout_snapshot(target)
+    return nil if snapshot && snapshot['licenseIsPro'] == true
+
+    detail = snapshot.nil? ? 'snapshot unavailable after no-keychain relaunch' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
+    "Runtime smoke requires a Pro-enabled target for Always Hidden checks; the mini runtime target stayed in free mode (#{detail})."
   end
 
   def restore_runtime_smoke_mode(mode)
@@ -1072,6 +1123,7 @@ class ProjectQA
     modes = []
     modes << 'secondMenuBar' if commands.include?('show second menu bar')
     modes << 'findIcon' if commands.include?('open icon panel')
+    modes << 'settings' if commands.include?('open settings window')
     modes
   end
 

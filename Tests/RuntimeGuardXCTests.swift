@@ -1397,8 +1397,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("return true if internal_runtime_snapshot_supported?") &&
                 source.contains("def internal_runtime_snapshot_supported?") &&
                 source.contains("capture browse panel snapshot") &&
-                source.contains("queue browse panel snapshot"),
-            "Project QA runtime smoke should treat the staged app's internal browse-panel snapshot commands as the primary screenshot capability"
+                source.contains("queue browse panel snapshot") &&
+                source.contains("capture settings window snapshot") &&
+                source.contains("queue settings window snapshot"),
+            "Project QA runtime smoke should treat the staged app's internal browse and settings snapshot commands as the primary screenshot capability"
         )
         XCTAssertTrue(
             source.contains("resolve_runtime_screenshot_tool") &&
@@ -1416,7 +1418,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("expected_screenshots = runtime_smoke_expected_modes(target).to_h"),
-            "Project QA runtime smoke should still resolve screenshot artifacts for every browse layout when screenshot capture is explicitly enabled"
+            "Project QA runtime smoke should still resolve screenshot artifacts for every required visual state when screenshot capture is explicitly enabled"
         )
         XCTAssertTrue(
             source.contains(#"Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png"))"#),
@@ -1424,7 +1426,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("modes << 'findIcon' if commands.include?('open icon panel')"),
-            "Project QA runtime smoke should derive expected browse layouts from the staged app's AppleScript support"
+            "Project QA runtime smoke should derive expected visual captures from the staged app's AppleScript support"
+        )
+        XCTAssertTrue(
+            source.contains("modes << 'settings' if commands.include?('open settings window')"),
+            "Project QA runtime smoke should require a settings screenshot when the staged app exposes the settings-window automation hooks"
         )
         XCTAssertTrue(
             source.contains("RUNTIME_SMOKE_PASSES = 2"),
@@ -1941,10 +1947,17 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should capture screenshots while each browse mode is open"
         )
         XCTAssertTrue(
+            source.contains("exercise_settings_window_visual_check") &&
+                source.contains("capture_settings_screenshot"),
+            "Live smoke should also open settings, capture it, and close it as part of standard visual QA"
+        )
+        XCTAssertTrue(
             source.contains("capture_internal_browse_screenshot") &&
                 source.contains("capture browse panel snapshot") &&
-                source.contains("queue browse panel snapshot"),
-            "Live smoke should prefer the app's internal browse-panel snapshot commands before falling back to host capture"
+                source.contains("queue browse panel snapshot") &&
+                source.contains("capture settings window snapshot") &&
+                source.contains("queue settings window snapshot"),
+            "Live smoke should prefer the app's internal browse and settings snapshot commands before falling back to host capture"
         )
         XCTAssertTrue(
             source.contains("capture_window_screenshot") &&
@@ -2017,6 +2030,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("if @require_always_hidden") &&
             source.contains("{ 'alwaysHidden' => 0, 'hidden' => 1, 'visible' => 2 }"),
             "Live smoke should prefer stable first-party move fixtures and exclude known noisy edge-case bundles when always-hidden moves are required"
+        )
+        XCTAssertTrue(
+            source.contains("check_always_hidden_preconditions(snapshot)") &&
+            source.contains("Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)."),
+            "Live smoke should fail clearly when an Always Hidden smoke is pointed at a free-mode runtime target"
         )
         XCTAssertTrue(
             source.contains("!non_idempotent_app_script?(statement)") &&
@@ -2332,12 +2350,15 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("var isExecutingStatusItemRecovery = false") &&
+                source.contains("var pendingRecoveryHideRestore = false") &&
                 source.contains("validationGeneration: Int? = nil") &&
                 source.contains("positionValidationGeneration != validationGeneration") &&
                 source.contains("Skipping stale status item recovery action") &&
                 source.contains("Skipping overlapping status item recovery action") &&
-                source.contains("positionValidationGeneration += 1"),
-            "Structural status-item recovery should reject stale validation escalations and overlapping rebuilds so one bad launch cannot trigger repeated autosave-version bumps"
+                source.contains("positionValidationGeneration += 1") &&
+                source.contains("Restored hidden state after status item recovery") &&
+                source.contains("await self.hidingService.hide()"),
+            "Structural status-item recovery should reject stale validation escalations, preserve hidden-state rebuild intent, and avoid leaving the bar permanently expanded after a wake/display repair"
         )
     }
 

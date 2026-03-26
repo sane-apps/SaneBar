@@ -136,8 +136,8 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
-    @Test("Runtime geometry drift stops after one persisted-layout repair attempt")
-    func runtimeValidationDoesNotEscalateGeometryDriftIndefinitely() {
+    @Test("Screen-change geometry drift escalates to autosave bump after one failed repair")
+    func runtimeValidationEscalatesGeometryDriftForScreenChanges() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
             startupItemsValid: true,
@@ -161,12 +161,12 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
-            ) == .stop(.invalidGeometry)
+            ) == .bumpAutosaveVersion(.invalidGeometry)
         )
     }
 
-    @Test("Wake validation uses the same bounded recovery policy as screen changes")
-    func wakeValidationDoesNotEscalateGeometryDriftIndefinitely() {
+    @Test("Wake validation escalates geometry drift after one failed repair")
+    func wakeValidationEscalatesGeometryDrift() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
             startupItemsValid: true,
@@ -190,7 +190,7 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
-            ) == .stop(.invalidGeometry)
+            ) == .bumpAutosaveVersion(.invalidGeometry)
         )
     }
 

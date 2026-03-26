@@ -82,6 +82,7 @@ class LiveZoneSmoke
   WINDOW_SCREENSHOT_TITLES = {
     'findIcon' => 'Icon Panel',
     'secondMenuBar' => nil,
+    'settings' => 'SaneBar Settings',
   }.freeze
   PREFERRED_BROWSE_ACTIVATION_IDS = %w[
     com.apple.menuextra.bluetooth
@@ -150,6 +151,7 @@ class LiveZoneSmoke
     start_resource_watchdog
     snapshot = wait_for_stable_layout_snapshot
     check_layout_invariants(snapshot)
+    check_always_hidden_preconditions(snapshot)
     wait_for_zone_api_ready
     assert_idle_budget!(
       label: 'launch',
@@ -306,6 +308,13 @@ class LiveZoneSmoke
     end
 
     puts "✅ Layout invariants ok: separator/main order and launch proximity"
+  end
+
+  def check_always_hidden_preconditions(snapshot)
+    return unless @require_always_hidden
+    return if truthy?(snapshot['licenseIsPro'])
+
+    raise 'Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false).'
   end
 
   def layout_invariants_satisfied?(snapshot)
@@ -496,6 +505,8 @@ class LiveZoneSmoke
         exercise_compatibility_browse_mode(expected_mode: expected_mode, command: command)
       end
     end
+
+    exercise_settings_window_visual_check
   end
 
   def full_browse_activation_supported?
@@ -627,6 +638,21 @@ class LiveZoneSmoke
     end
 
     raise "#{command} failed in #{expected_mode}: #{failures.join(' | ')}"
+  end
+
+  def exercise_settings_window_visual_check
+    return unless supports_applescript_command?('open settings window')
+
+    result = app_script('open settings window').strip.downcase
+    unless %w[true 1].include?(result)
+      raise "open settings window returned '#{result}'"
+    end
+
+    screenshot_path = capture_settings_screenshot if @capture_screenshots
+    puts "📸 settings screenshot: #{screenshot_path}" if screenshot_path
+    puts '✅ Settings window visual check ok'
+  ensure
+    close_settings_window_safely
   end
 
   def browse_activation_succeeded?(diagnostics, expected_mode)
@@ -869,12 +895,54 @@ class LiveZoneSmoke
     nil
   end
 
+  def capture_settings_screenshot
+    FileUtils.mkdir_p(@screenshot_dir)
+    path = File.join(
+      @screenshot_dir,
+      "sanebar-settings-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
+    )
+    internal_error = capture_internal_settings_screenshot(path)
+    return await_screenshot_file(path) if internal_error.nil?
+
+    display_error = capture_display_screenshot(path)
+    return await_screenshot_file(path) if display_error.nil?
+
+    window_error = capture_window_screenshot('settings', path)
+    return await_screenshot_file(path) if window_error.nil?
+
+    disable_screenshot_capture!(
+      [
+        ("internal settings capture failed: #{internal_error}" unless internal_error.nil? || internal_error.empty?),
+        ("display capture failed: #{display_error}" unless display_error.nil? || display_error.empty?),
+        ("window capture failed: #{window_error}" unless window_error.nil? || window_error.empty?)
+      ].compact.join(' | '),
+      path
+    )
+    nil
+  rescue StandardError => e
+    disable_screenshot_capture!(e.message, path)
+    nil
+  end
+
   def capture_internal_browse_screenshot(path)
     escaped_path = escape_quotes(path)
     direct_result = app_script(%(capture browse panel snapshot "#{escaped_path}")).strip.downcase
     return nil if %w[true 1].include?(direct_result)
 
     queued_result = app_script(%(queue browse panel snapshot "#{escaped_path}")).strip.downcase
+    return nil if %w[true 1].include?(queued_result)
+
+    "capture command returned #{direct_result.inspect}; queue command returned #{queued_result.inspect}"
+  rescue StandardError => e
+    e.message
+  end
+
+  def capture_internal_settings_screenshot(path)
+    escaped_path = escape_quotes(path)
+    direct_result = app_script(%(capture settings window snapshot "#{escaped_path}")).strip.downcase
+    return nil if %w[true 1].include?(direct_result)
+
+    queued_result = app_script(%(queue settings window snapshot "#{escaped_path}")).strip.downcase
     return nil if %w[true 1].include?(queued_result)
 
     "capture command returned #{direct_result.inspect}; queue command returned #{queued_result.inspect}"
@@ -933,6 +1001,14 @@ class LiveZoneSmoke
     end
 
     path
+  end
+
+  def close_settings_window_safely
+    return unless supports_applescript_command?('close settings window')
+
+    app_script('close settings window')
+  rescue StandardError
+    nil
   end
 
   def disable_screenshot_capture!(reason, path = nil)

@@ -100,6 +100,13 @@ extension MenuBarManager {
         return currentFrontmostPID == ownPID
     }
 
+    nonisolated static func shouldRestoreHiddenAfterStatusItemRecovery(
+        hidingState: HidingState,
+        shouldSkipHideForExternalMonitor: Bool
+    ) -> Bool {
+        hidingState == .hidden && !shouldSkipHideForExternalMonitor
+    }
+
     nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
         min(320, max(240, screenWidth * 0.14))
     }

@@ -2,6 +2,7 @@ import AppKit
 import KeyboardShortcuts
 import os.log
 import SaneUI
+@preconcurrency import ScreenCaptureKit
 import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
@@ -280,12 +281,40 @@ enum SettingsOpener {
         // This fixes the bug where dock icon appears when Settings opens despite setting being OFF
         NSApp.activate()
 
-        if let window = settingsWindow, window.isVisible {
-            window.makeKeyAndOrderFront(nil)
-            window.orderFrontRegardless()
-            return
+        let window = settingsWindow ?? makeWindow()
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    @MainActor static func close() {
+        settingsWindow?.close()
+    }
+
+    @MainActor static func captureSnapshotPNG(to path: String) async -> Bool {
+        guard let window = settingsWindow,
+              window.isVisible,
+              let outputURL = snapshotOutputURL(for: path) else {
+            return false
         }
 
+        guard let pngData = await captureWindowPNGData(window: window) ?? captureContentPNGData(window: window) else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: outputURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try pngData.write(to: outputURL, options: .atomic)
+            return true
+        } catch {
+            appLogger.error("Failed to write settings snapshot: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    @MainActor private static func makeWindow() -> NSWindow {
         let settingsView = SettingsView()
         let hostingController = NSHostingController(rootView: settingsView)
 
@@ -300,11 +329,71 @@ enum SettingsOpener {
         let delegate = SettingsWindowDelegate()
         window.delegate = delegate
         windowDelegate = delegate
-
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
-
         settingsWindow = window
+        return window
+    }
+
+    private static func snapshotOutputURL(for path: String) -> URL? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed).standardizedFileURL
+    }
+
+    @MainActor private static func captureWindowPNGData(window: NSWindow) async -> Data? {
+        guard #available(macOS 14.4, *),
+              let cgImage = await captureWindowImage(window: window) else {
+            return nil
+        }
+
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
+    @MainActor private static func captureContentPNGData(window: NSWindow) -> Data? {
+        guard let contentView = window.contentView else { return nil }
+
+        contentView.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+
+        let bounds = contentView.bounds.integral
+        guard bounds.width > 0,
+              bounds.height > 0,
+              let bitmap = contentView.bitmapImageRepForCachingDisplay(in: bounds) else {
+            return nil
+        }
+
+        bitmap.size = bounds.size
+        contentView.cacheDisplay(in: bounds, to: bitmap)
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
+    @available(macOS 14.4, *)
+    @MainActor private static func captureWindowImage(window: NSWindow) async -> CGImage? {
+        do {
+            let shareableContent = try await SCShareableContent.currentProcess
+            guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+                return nil
+            }
+
+            let filter = SCContentFilter(desktopIndependentWindow: shareableWindow)
+            let config = SCStreamConfiguration()
+            let scale = window.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+            config.width = max(1, Int(window.frame.width * scale))
+            config.height = max(1, Int(window.frame.height * scale))
+
+            return try await withCheckedThrowingContinuation { continuation in
+                SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: image)
+                    }
+                }
+            }
+        } catch {
+            appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }
 

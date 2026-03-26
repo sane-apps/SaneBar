@@ -262,7 +262,10 @@ enum MenuBarOperationCoordinator {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }
 
-                if validationContext == .startupFollowUp, recoveryCount < maxRecoveryCount {
+                if validationContext == .startupFollowUp ||
+                    validationContext == .screenParametersChanged ||
+                    validationContext == .wakeResume,
+                    recoveryCount < maxRecoveryCount {
                     return .bumpAutosaveVersion(recoveryReason)
                 }
 

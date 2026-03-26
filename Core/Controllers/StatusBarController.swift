@@ -49,6 +49,13 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated private static let autosaveVersionKey = "SaneBar_AutosaveVersion"
     nonisolated private static let baseAutosaveVersion = 7
     nonisolated private static let maxAutosaveVersion = 99
+    nonisolated private static func autosaveNamesForCleanup(version: Int) -> [String] {
+        [
+            "SaneBar_Main_v\(version)",
+            "SaneBar_Separator_v\(version)",
+            "SaneBar_AlwaysHiddenSeparator_v\(version)"
+        ]
+    }
 
     nonisolated static var autosaveVersion: Int {
         let stored = UserDefaults.standard.integer(forKey: autosaveVersionKey)
@@ -184,13 +191,20 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// position cache corruption keyed by autosaveName.
     func recreateItemsWithBumpedVersion() -> (main: NSStatusItem, separator: NSStatusItem) {
         let oldVersion = Self.autosaveVersion
-        let nextVersion = oldVersion + 1
-        guard nextVersion <= Self.maxAutosaveVersion else {
-            logger.error("Autosave version cap reached (\(Self.maxAutosaveVersion))")
-            return (mainItem, separatorItem)
+        let hadAlwaysHiddenSeparator = alwaysHiddenSeparatorItem != nil
+        let nextVersion: Int
+        let recycledNamespace: Bool
+
+        if oldVersion < Self.maxAutosaveVersion {
+            nextVersion = oldVersion + 1
+            recycledNamespace = false
+        } else {
+            logger.error("Autosave version cap reached (\(Self.maxAutosaveVersion)) — recycling autosave namespace")
+            Self.clearHistoricalAutosaveNamespaces()
+            nextVersion = Self.baseAutosaveVersion
+            recycledNamespace = true
         }
 
-        let hadAlwaysHiddenSeparator = alwaysHiddenSeparatorItem != nil
         let currentWidth = NSScreen.main.map { Double($0.frame.width) }
         let currentScreenHasTopSafeAreaInset = Self.screenHasTopSafeAreaInset(NSScreen.main)
         let reanchoredCurrentPair = currentWidth.flatMap { width in
@@ -203,7 +217,11 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
 
         UserDefaults.standard.set(nextVersion, forKey: Self.autosaveVersionKey)
-        logger.warning("Bumping autosave version \(oldVersion) → \(nextVersion) for status item recovery")
+        if recycledNamespace {
+            logger.warning("Recycled autosave namespace \(oldVersion) → \(nextVersion) for status item recovery")
+        } else {
+            logger.warning("Bumping autosave version \(oldVersion) → \(nextVersion) for status item recovery")
+        }
 
         NSStatusBar.system.removeStatusItem(mainItem)
         NSStatusBar.system.removeStatusItem(separatorItem)
@@ -213,9 +231,11 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
         removeSpacerItems()
 
-        Self.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
-        Self.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
-        Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
+        if !recycledNamespace {
+            Self.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
+            Self.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
+            Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
+        }
 
         let restoredCurrentDisplayBackup = Self.restoreCurrentDisplayPositionBackupIfAvailable()
         if !restoredCurrentDisplayBackup {
@@ -905,9 +925,10 @@ final class StatusBarController: StatusBarControllerProtocol {
     private static func clearPersistedVisibilityOverrides() {
         let defaults = UserDefaults.standard
         var clearedAny = false
+        let currentAutosaveNames = [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName]
 
         // App-domain cleanup: named items + spacer prefix sweep
-        for name in [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName] {
+        for name in currentAutosaveNames {
             let appKey = "NSStatusItem Visible \(name)"
             if defaults.object(forKey: appKey) != nil {
                 defaults.removeObject(forKey: appKey)
@@ -1183,6 +1204,17 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
     }
 
+    private nonisolated static func clearHistoricalAutosaveNamespaces() {
+        for version in baseAutosaveVersion ... maxAutosaveVersion {
+            for autosaveName in autosaveNamesForCleanup(version: version) {
+                removePreferredPosition(forAutosaveName: autosaveName)
+                let appVisibilityKey = "NSStatusItem Visible \(autosaveName)"
+                UserDefaults.standard.removeObject(forKey: appVisibilityKey)
+            }
+        }
+        _ = removeAllByHostVisibilityOverrides()
+    }
+
     private nonisolated static func removeDisplayPositionBackup(for width: Double) {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "main"))
@@ -1238,7 +1270,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Enumerate ALL ByHost keys matching SaneBar visibility prefixes and remove them.
     /// This catches every variant macOS may write — known casing, legacy lowercased,
     /// future `_vN` suffixes, spacer items, and macOS 26's `VisibleCC` keys.
-    private static func removeAllByHostVisibilityOverrides() -> Bool {
+    private nonisolated static func removeAllByHostVisibilityOverrides() -> Bool {
         let globalDomain = ".GlobalPreferences" as CFString
         guard let allKeys = CFPreferencesCopyKeyList(
             globalDomain,

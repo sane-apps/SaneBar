@@ -148,6 +148,26 @@ final class CloseBrowsePanelCommand: SaneBarScriptCommand {
     }
 }
 
+@objc(OpenSettingsWindowCommand)
+final class OpenSettingsWindowCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        Task { @MainActor in
+            SettingsOpener.open()
+        }
+        return true
+    }
+}
+
+@objc(CloseSettingsWindowCommand)
+final class CloseSettingsWindowCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        Task { @MainActor in
+            SettingsOpener.close()
+        }
+        return true
+    }
+}
+
 @objc(CaptureBrowsePanelSnapshotCommand)
 final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -186,6 +206,64 @@ final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     }
 }
 
+@objc(CaptureSettingsWindowSnapshotCommand)
+final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let didCapture: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                let box = ScriptResultBox<Bool?>(nil)
+                Task { @MainActor in
+                    box.value = await SettingsOpener.captureSnapshotPNG(to: path)
+                }
+
+                let deadline = Date().addingTimeInterval(20.0)
+                while box.value == nil, Date() < deadline {
+                    _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+                }
+
+                return box.value ?? false
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    let box = ScriptResultBox<Bool?>(nil)
+                    Task { @MainActor in
+                        box.value = await SettingsOpener.captureSnapshotPNG(to: path)
+                    }
+
+                    let deadline = Date().addingTimeInterval(20.0)
+                    while box.value == nil, Date() < deadline {
+                        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+                    }
+
+                    return box.value ?? false
+                }
+            }
+        }
+
+        guard didCapture else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Settings snapshot failed. Make sure the settings window is visible first."
+            return nil
+        }
+
+        return true
+    }
+}
+
 @objc(QueueBrowsePanelSnapshotCommand)
 final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -205,6 +283,30 @@ final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(700))
             _ = SearchWindowController.shared.captureBrowsePanelSnapshotPNG(to: path)
+        }
+        return true
+    }
+}
+
+@objc(QueueSettingsWindowSnapshotCommand)
+final class QueueSettingsWindowSnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            _ = await SettingsOpener.captureSnapshotPNG(to: path)
         }
         return true
     }

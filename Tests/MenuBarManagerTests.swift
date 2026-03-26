@@ -106,6 +106,28 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Status-item recovery restores hidden state only when hide is allowed")
+    func statusItemRecoveryHiddenStateDecisionMatrix() {
+        #expect(
+            MenuBarManager.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: .expanded,
+                shouldSkipHideForExternalMonitor: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldRestoreHiddenAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: true
+            )
+        )
+    }
+
     @Test("Runtime snapshot is safe before deferred status-item setup")
     @MainActor
     func currentRuntimeSnapshotBeforeDeferredSetupDoesNotCrash() {
