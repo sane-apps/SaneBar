@@ -447,6 +447,28 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("Reset all status item positions — will reseed on next creation")
     }
 
+    /// Resets persisted status-item state to a clean, launch-safe baseline.
+    /// Use this for explicit user recovery actions such as Reset to Defaults.
+    static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool) {
+        clearPersistedVisibilityOverrides()
+        clearHistoricalAutosaveNamespaces()
+        clearDisplayPositionBackups()
+
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: autosaveVersionKey)
+        defaults.removeObject(forKey: screenWidthKey)
+
+        if !applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+            seedPositionsIfNeeded()
+        }
+
+        if alwaysHiddenEnabled {
+            seedAlwaysHiddenSeparatorPositionIfNeeded()
+        }
+
+        logger.info("Reset persistent status item state to a startup-safe baseline")
+    }
+
     /// Best-effort startup recovery used when runtime invariants detect a bad
     /// separator layout. This keeps the current session usable and seeds safe
     /// positions for the next status-item relayout/restart.

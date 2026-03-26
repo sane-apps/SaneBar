@@ -474,6 +474,111 @@ struct StatusBarControllerTests {
         }
     }
 
+    @Test("Explicit reset clears persistent status-item state and reseeds startup-safe positions")
+    @MainActor
+    func resetPersistentStatusItemStateClearsCorruptState() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for persistent state reset test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let mainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
+        let separatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
+        let alwaysHiddenKey = "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator_v10"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let appVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10"
+        let byHostVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10_v6"
+        let keys = [
+            versionKey, screenWidthKey, mainKey, separatorKey, alwaysHiddenKey,
+            backupMainKey, backupSeparatorKey, appVisibilityKey
+        ]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+        let originalByHost = CFPreferencesCopyValue(
+            byHostVisibilityKey as CFString,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            CFPreferencesSetValue(
+                byHostVisibilityKey as CFString,
+                originalByHost,
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSynchronize(
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+        }
+
+        defaults.set(10, forKey: versionKey)
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.set(420.0, forKey: mainKey)
+        defaults.set(360.0, forKey: separatorKey)
+        defaults.set(10000.0, forKey: alwaysHiddenKey)
+        defaults.set(180.0, forKey: backupMainKey)
+        defaults.set(300.0, forKey: backupSeparatorKey)
+        defaults.set(false, forKey: appVisibilityKey)
+        CFPreferencesSetValue(
+            byHostVisibilityKey as CFString,
+            kCFBooleanFalse,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        CFPreferencesSynchronize(
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+
+        StatusBarController.resetPersistentStatusItemState(alwaysHiddenEnabled: true)
+
+        #expect(defaults.object(forKey: versionKey) == nil)
+        #expect(defaults.object(forKey: appVisibilityKey) == nil)
+        #expect((defaults.object(forKey: screenWidthKey) as? NSNumber)?.doubleValue == Double(currentWidth))
+        #expect((defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue == safeRecovery.main)
+        #expect((defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue == safeRecovery.separator)
+
+        let byHostVisibility = CFPreferencesCopyValue(
+            byHostVisibilityKey as CFString,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        #expect(byHostVisibility == nil)
+
+        let reseededMain = UserDefaults.standard.object(
+            forKey: "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        )
+        let reseededSeparator = UserDefaults.standard.object(
+            forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        )
+        let reseededAlwaysHidden = UserDefaults.standard.object(
+            forKey: "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)"
+        ) as? NSNumber
+        #expect(reseededMain != nil)
+        #expect(reseededSeparator != nil)
+        #expect(reseededAlwaysHidden?.doubleValue == 10000.0)
+    }
+
     @Test("Migration preserves healthy custom positions on upgrade")
     @MainActor
     func migrationPreservesHealthyPositions() {

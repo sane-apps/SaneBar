@@ -34,6 +34,19 @@ rm -f ~/Library/Preferences/com.sanebar.app.SharedFileList.plist
 defaults delete com.sanebar.app 2>/dev/null || true
 defaults delete com.sanebar.dev 2>/dev/null || true
 
+echo "🧽 Clearing current-host NSStatusItem state..."
+CURRENT_HOST_KEYS=$(
+    defaults -currentHost export NSGlobalDomain - 2>/dev/null \
+        | plutil -convert json -o - - 2>/dev/null \
+        | grep -Eo '"NSStatusItem (Visible(CC)?|Preferred Position) SaneBar_[^"]+"' \
+        | tr -d '"' \
+        || true
+)
+while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    defaults -currentHost delete NSGlobalDomain "$key" 2>/dev/null || true
+done <<< "$CURRENT_HOST_KEYS"
+
 # 4. Remove Sparkle and System artifacts
 echo "✨ Cleaning up update and system artifacts..."
 rm -rf ~/Library/Caches/com.sanebar.app

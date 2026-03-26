@@ -248,7 +248,7 @@ enum MenuBarOperationCoordinator {
                     break
                 case .invalidStatusItems, .missingCoordinates:
                     if recoveryCount == 0 {
-                        return .recreateFromPersistedLayout(recoveryReason)
+                        return .repairPersistedLayoutAndRecreate(recoveryReason)
                     }
                     if recoveryCount < maxRecoveryCount {
                         return .bumpAutosaveVersion(recoveryReason)

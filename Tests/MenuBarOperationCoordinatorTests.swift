@@ -219,7 +219,7 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.startupFollowUp),
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .recreateFromPersistedLayout(.missingCoordinates)
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
@@ -227,7 +227,7 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.startupFollowUp),
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .recreateFromPersistedLayout(.invalidStatusItems)
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(

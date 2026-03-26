@@ -91,6 +91,30 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testResetToDefaultsAlsoResetsPersistentStatusItemState() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("StatusBarController.resetPersistentStatusItemState(") &&
+                source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\")") &&
+                source.contains("schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)"),
+            "Reset to Defaults should reset status-item persistence and recreate live menu bar items immediately"
+        )
+    }
+
+    func testUninstallScriptClearsCurrentHostStatusItemState() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Scripts/uninstall_sanebar.sh")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("defaults -currentHost export NSGlobalDomain -") &&
+                source.contains("NSStatusItem (Visible(CC)?|Preferred Position) SaneBar_") &&
+                source.contains("defaults -currentHost delete NSGlobalDomain"),
+            "Uninstall should remove current-host NSStatusItem visibility and preferred-position state that survives reinstall"
+        )
+    }
+
     func testNormalizedEventYFlipsUnflippedMenuBarY() {
         let y = AccessibilityService.normalizedEventY(rawY: 1425, globalMaxY: 1440, anchorY: 15)
         XCTAssertEqual(y, 15, accuracy: 0.001)

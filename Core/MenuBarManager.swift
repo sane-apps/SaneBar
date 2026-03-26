@@ -1377,6 +1377,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     func resetToDefaults() {
         settingsController.resetToDefaults()
         settings = settingsController.settings
+        StatusBarController.resetPersistentStatusItemState(
+            alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()
+        )
+        clearCachedSeparatorGeometry()
+        recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults")
+        schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)
         updateSpacers()
         updateAppearance()
         iconHotkeysService.registerHotkeys(from: settings)
