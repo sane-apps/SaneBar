@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.36] - 2026-03-26
+
+Fixes missing menu bar icon recovery after drag-out and reset, makes Reset to Defaults rebuild the menu bar items safely, improves uninstall cleanup for stale status-item state, and updates the Ruby JSON dependency for security.
+
+---
+
 ## [2.1.35] - 2026-03-25
 
 Fixed wake and display recovery so hidden icons stay hidden. Improved status-item recovery when menu bar layout drifts. Better Always Hidden reliability and stronger visual QA for browse and settings.
