@@ -62,6 +62,12 @@
             <result type="boolean" description="True if the snapshot was written"/>
         </command>
 
+        <command name="capture appearance overlay snapshot" code="SBarcaos" description="Save the current menu bar appearance overlay as a PNG image">
+            <cocoa class="CaptureAppearanceOverlaySnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot was written"/>
+        </command>
+
         <command name="queue settings window snapshot" code="SBarqssw" description="Queue a settings-window PNG snapshot shortly in the future">
             <cocoa class="QueueSettingsWindowSnapshotCommand"/>
             <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>

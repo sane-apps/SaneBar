@@ -323,13 +323,48 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         guard frontmostPID != selfPID else { return false }
         guard !bundleID.hasPrefix("com.apple.") else { return false }
 
-        let minimumWidth = targetScreenFrame.width * 0.7
-        let topHosts = AccessibilityService.topBarHostPIDs(
-            fromWindowInfos: windowInfos,
-            candidatePIDs: Set([frontmostPID]),
-            minimumWidth: minimumWidth
-        )
-        return topHosts.contains(frontmostPID)
+        func number(_ value: Any?) -> CGFloat? {
+            switch value {
+            case let number as NSNumber:
+                return CGFloat(truncating: number)
+            case let value as CGFloat:
+                return value
+            case let value as Double:
+                return value
+            case let value as Int:
+                return CGFloat(value)
+            default:
+                return nil
+            }
+        }
+
+        let targetFrame = targetScreenFrame.standardized
+        let minimumCoveredWidth = targetFrame.width * 0.97
+        let maximumHorizontalDrift: CGFloat = 8
+        let maximumTopDrift: CGFloat = 2
+
+        for info in windowInfos {
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
+            let ownerPID = pid_t(ownerPIDValue.intValue)
+            guard ownerPID == frontmostPID else { continue }
+
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let x = number(bounds["X"]),
+                  let y = number(bounds["Y"]),
+                  let width = number(bounds["Width"]),
+                  let height = number(bounds["Height"]) else {
+                continue
+            }
+
+            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
+            guard height >= 20, height <= 26 else { continue }
+            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
+            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
+            guard rect.intersection(targetFrame).width >= minimumCoveredWidth else { continue }
+            return true
+        }
+
+        return false
     }
 
     private func applyResolvedAppearance() {
@@ -338,6 +373,51 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let resolvedAppearance = Self.resolvedOverlayAppearance(from: NSApp.effectiveAppearance)
         window.appearance = resolvedAppearance
         window.contentView?.appearance = resolvedAppearance
+    }
+
+    @MainActor
+    func captureSnapshotPNG(to path: String) -> Bool {
+        guard let window = overlayWindow,
+              window.isVisible,
+              let contentView = window.contentView else {
+            return false
+        }
+
+        contentView.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+
+        let bounds = contentView.bounds.integral
+        guard bounds.width > 0,
+              bounds.height > 0,
+              let bitmap = contentView.bitmapImageRepForCachingDisplay(in: bounds),
+              let outputURL = Self.snapshotOutputURL(for: path) else {
+            return false
+        }
+
+        bitmap.size = bounds.size
+        contentView.cacheDisplay(in: bounds, to: bitmap)
+
+        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            return false
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: outputURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try pngData.write(to: outputURL, options: .atomic)
+            return true
+        } catch {
+            logger.error("appearance overlay snapshot write failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    private static func snapshotOutputURL(for path: String) -> URL? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed).standardizedFileURL
     }
 
     internal nonisolated static func resolvedOverlayAppearance(from appearance: NSAppearance?) -> NSAppearance? {

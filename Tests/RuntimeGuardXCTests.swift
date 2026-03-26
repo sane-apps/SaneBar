@@ -1190,6 +1190,22 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testAppChangeRehideRequiresAutoRehideEnabled() throws {
+        let visibilityURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let visibilitySource = try String(contentsOf: visibilityURL, encoding: .utf8)
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            visibilitySource.contains("guard autoRehideEnabled else { return false }"),
+            "App-change rehide should bail out when auto-rehide is disabled"
+        )
+        XCTAssertTrue(
+            managerSource.contains("autoRehideEnabled: settings.autoRehide"),
+            "MenuBarManager should pass the live auto-rehide setting into app-change rehide decisions"
+        )
+    }
+
     func testAppMenuSuppressionUsesClassifiedVisibleAndHiddenLanes() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)

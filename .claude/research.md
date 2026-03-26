@@ -1,5 +1,72 @@
 # SaneBar Research Cache
 
+## 2.1.35 Browse UX + Move Cluster Refresh
+
+**Updated:** 2026-03-26 | **Status:** verified | **TTL:** 7d
+**Source:** Apple docs for `NSStatusItem`, `NSStatusBar`, `CGWindowListCopyWindowInfo`, and `kCGWindowBounds`; live GitHub issues `#117`, `#123`, `#122`, `#116`; competitor review of Ice and Bartender support/docs; local code audit of `MenuBarManager+Actions.swift`, `UI/Settings/GeneralSettingsView.swift`, `UI/SearchWindow/SearchWindowController.swift`, `Core/Services/SearchService.swift`, `Core/Services/AccessibilityService+MenuExtras.swift`, and `Scripts/qa.rb`
+
+### Verified Findings
+
+1. Apple still does not provide a new first-party API that replaces the current Accessibility-driven browse/move architecture for third-party menu bar extras.
+   - `NSStatusBar` / `NSStatusItem` remain the documented path for an app's own menu bar items, not for reading or repositioning other apps' items.
+   - `CGWindowListCopyWindowInfo` remains an expensive raw-window inspection API; `kCGWindowBounds` only gives screen-space rectangles, not semantic classification of "good top bar host" versus "ordinary app titlebar".
+   - Current takeaway: keep the existing AX + window-geometry model, but keep heuristics narrow and runtime-tested.
+2. Fresh GitHub state says the browse-focus bug is no longer the active browse blocker.
+   - `#116` was closed on 2026-03-26 after a fresh mini recheck: icon panel activation, second menu bar activation, and screenshot-backed browse smoke all passed on current `main`.
+   - `#123` was also updated today and is now closed; the reset-family retest request is on `2.1.35`, not an open browse-UX escalation.
+   - The still-open browse-adjacent issue is `#122`, but that is now a separate appearance/appcast problem, not a Browse Icons interaction bug.
+3. The open move-family anchor is still `#117`, and the latest field action is "retest on 2.1.35", not "invent a new move theory".
+   - `#117` is still open as of 2026-03-26 and now has a fresh maintainer retest request for `2.1.35`.
+   - The customer-facing symptom is still the same pair: hidden -> visible can beachball, and same-bundle Control Center items can map to the wrong sibling.
+   - That means the right current framing is still exact-identity + stale-geometry hardening, not a broad rewrite of Browse Icons.
+4. Competitor behavior is converged enough that SaneBar should match the same mental model, not invent a stranger one.
+   - Ice publicly advertises show-on-click, show-on-hover, show-on-scroll, auto-rehide, a separate bar under the menu bar, drag-and-drop arrangement, and search.
+   - Ice also publicly documents the same failure class: restart/reset of hidden sections and Tahoe-era movement instability, which confirms this is a real platform-fragile category rather than a uniquely local bug.
+   - Bartender support still centers recovery around a visible icon or hotkey, reinforcing that hidden-icon tools need an always-available recovery path and clear primary trigger.
+5. Local browse UX is feature-complete, but discoverability is still split across too many knobs.
+   - Current code already supports both browse surfaces (`Icon Panel` and `Second Menu Bar`), left-click browse mode, option-click browse, and trigger-based reveal (`hover`, `scroll`, `hotkey`, `automation`, `userDrag`).
+   - The likely remaining UX risk is not missing capability; it is that browse mode, left-click behavior, and reveal triggers live in different settings surfaces and can still be easy to misread as one control.
+   - Do not treat fresh confusion reports as proof that the browse runtime is broken without confirming the user's configured trigger path first.
+6. Local move/runtime hardening is already pointed at the right seam.
+   - `SearchService` still refuses same-bundle activation fallback after precise identity loss.
+   - `AccessibilityService.actionableMoveResolutionSafety(...)` still refuses ambiguous multi-item bundle moves unless identity and geometry are strong enough.
+   - `Scripts/qa.rb` still carries the shared-bundle exact-ID smoke fallback for `Wi-Fi`, `Battery`, `Focus`, and `Display`, so the release lane already knows how to exercise this class on current hosts.
+7. Best current read before rerunning release checks:
+   - browse UX does not need a speculative new code change first
+   - the active move-family theory remains "shared-bundle identity drift plus stale geometry"
+   - the next step should be rerunning `verify` / `release_preflight` on the refreshed research state and only patching code if those checks surface a current technical red
+
+## 2.1.35 Outstanding-Issue Sweep
+
+**Updated:** 2026-03-25 | **Status:** verified | **TTL:** 7d
+**Source:** Apple docs for `CGWindowListCopyWindowInfo`, `kCGWindowBounds`, and `NSWorkspace.didActivateApplicationNotification`; live web checks against `dist.sanebar.com`; GitHub issues `#122`, `#119`, `#120`, `#116`; local code audit of `MenuBarAppearanceService.swift`, `SearchService.swift`, `MenuBarOperationCoordinator.swift`, and `infra/SaneProcess/scripts/release.sh`
+
+### Verified Findings
+
+1. `#122` is two real problems, not one:
+   - the tint overlay can disappear because `MenuBarAppearanceService.shouldSuppressOverlay(...)` was suppressing on any third-party top-aligned window wider than `70%` of the target screen
+   - the old-version download complaint is also real: live checks show `SaneBar-2.1.35.zip` returns `200`, while older appcast-linked enclosures like `2.1.34` and `2.1.28` currently return `404`
+2. The tint suppression rule was too broad for ordinary apps:
+   - Apple’s `CGWindowListCopyWindowInfo` / `kCGWindowBounds` only give raw window bounds; they do not classify “game top strip” versus “normal titlebar”
+   - our old heuristic ignored target-screen `x` alignment and accepted any top-aligned window with width `>= 0.7 * screen width`
+   - that matches the reporter’s Firefox/Finder-style false positives on a `1600`-wide external monitor
+3. The old-version link breakage is self-inflicted:
+   - `infra/SaneProcess/scripts/release.sh` deletes old R2 binaries after every release
+   - the same script also purges older GitHub binary assets by default
+   - `docs/appcast.xml` still advertises many historical enclosure URLs, so the release pipeline is leaving dead links behind
+4. `#116` still looks like a fixed-but-not-closed internal issue:
+   - local code still routes browse-panel right-click through the strict no-workspace-fallback path in `MenuBarOperationCoordinator.browseActivationPlan(...)`
+   - the live smoke script still explicitly exercises `right click browse icon`
+   - this needs fresh mini verification, not a new code theory first
+5. `#120` still looks like a verify-and-close issue unless a fresh repro proves otherwise:
+   - the earlier real regression was the local `../../infra/SaneUI` package path drift
+   - current local memories and source-build guardrails say that path was fixed and guarded
+   - this needs another clean standalone build proof on current `main`
+6. `#119` is still not proven as a current product bug:
+   - local `UpdateService` still delegates manual checks directly to Sparkle’s `checkForUpdates(nil)`
+   - there is no SaneBar-side “step through intermediate versions” logic in the current code
+   - this needs an old-build-to-current-feed repro or it stays “not reproduced”
+
 ## 2.1.34 Reset / Disappear / Always-Hidden Recheck
 
 **Updated:** 2026-03-25 | **Status:** verified | **TTL:** 7d

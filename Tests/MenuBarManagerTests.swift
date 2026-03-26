@@ -615,6 +615,7 @@ struct MenuBarManagerTests {
         #expect(
             MenuBarManager.shouldScheduleRehideOnAppChange(
                 rehideOnAppChange: true,
+                autoRehideEnabled: true,
                 hidingState: .expanded,
                 isRevealPinned: false,
                 shouldSkipHideForExternalMonitor: false,
@@ -627,6 +628,7 @@ struct MenuBarManagerTests {
         #expect(
             !MenuBarManager.shouldScheduleRehideOnAppChange(
                 rehideOnAppChange: true,
+                autoRehideEnabled: true,
                 hidingState: .expanded,
                 isRevealPinned: false,
                 shouldSkipHideForExternalMonitor: false,
@@ -639,6 +641,7 @@ struct MenuBarManagerTests {
         #expect(
             !MenuBarManager.shouldScheduleRehideOnAppChange(
                 rehideOnAppChange: true,
+                autoRehideEnabled: true,
                 hidingState: .expanded,
                 isRevealPinned: false,
                 shouldSkipHideForExternalMonitor: false,
@@ -651,6 +654,20 @@ struct MenuBarManagerTests {
         #expect(
             !MenuBarManager.shouldScheduleRehideOnAppChange(
                 rehideOnAppChange: false,
+                autoRehideEnabled: true,
+                hidingState: .expanded,
+                isRevealPinned: false,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.finder",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarManager.shouldScheduleRehideOnAppChange(
+                rehideOnAppChange: true,
+                autoRehideEnabled: false,
                 hidingState: .expanded,
                 isRevealPinned: false,
                 shouldSkipHideForExternalMonitor: false,

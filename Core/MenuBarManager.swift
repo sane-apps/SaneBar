@@ -1063,6 +1063,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
                 if Self.shouldScheduleRehideOnAppChange(
                     rehideOnAppChange: settings.rehideOnAppChange,
+                    autoRehideEnabled: settings.autoRehide,
                     hidingState: hidingState,
                     isRevealPinned: isRevealPinned,
                     shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,

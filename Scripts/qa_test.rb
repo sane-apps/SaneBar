@@ -50,6 +50,19 @@ class ProjectQATest < Minitest::Test
     refute @qa.send(:stale_open_regression_after_release?, issue, release, now: Time.parse('2026-03-07T12:00:00Z'))
   end
 
+  def test_release_blocking_title_detection_catches_tint_build_and_update_bugs
+    assert @qa.send(:regression_like_title?, 'When opening an app, the custom dark tint turns black')
+    assert @qa.send(:regression_like_title?, "Can't build from source again")
+    assert @qa.send(:regression_like_title?, 'App update direct to latest version')
+  end
+
+  def test_appcast_download_url_check_avoids_filter_map_for_old_ruby
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    refute_includes source, 'filter_map do |url|'
+    assert_includes source, 'urls.each do |url|'
+  end
+
   def test_runtime_smoke_retryable_failure_matches_launch_idle_budget_spike
     assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: launch_idle_budget_exceeded peakCpu=15.9% > 15.0%')
   end

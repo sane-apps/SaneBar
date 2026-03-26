@@ -264,6 +264,44 @@ final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     }
 }
 
+@objc(CaptureAppearanceOverlaySnapshotCommand)
+final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let didCapture: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                MenuBarManager.shared.appearanceService.captureSnapshotPNG(to: path)
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    MenuBarManager.shared.appearanceService.captureSnapshotPNG(to: path)
+                }
+            }
+        }
+
+        guard didCapture else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Appearance overlay snapshot failed. Make sure the custom appearance overlay is visible first."
+            return nil
+        }
+
+        return true
+    }
+}
+
 @objc(QueueBrowsePanelSnapshotCommand)
 final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
