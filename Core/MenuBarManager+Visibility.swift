@@ -68,6 +68,7 @@ extension MenuBarManager {
     // swiftlint:disable:next function_parameter_count
     nonisolated static func shouldScheduleRehideOnAppChange(
         rehideOnAppChange: Bool,
+        autoRehideEnabled: Bool,
         hidingState: HidingState,
         isRevealPinned: Bool,
         shouldSkipHideForExternalMonitor: Bool,
@@ -76,6 +77,7 @@ extension MenuBarManager {
         ownBundleID: String?
     ) -> Bool {
         guard rehideOnAppChange else { return false }
+        guard autoRehideEnabled else { return false }
         guard hidingState == .expanded else { return false }
         guard !isRevealPinned else { return false }
         guard !shouldSkipHideForExternalMonitor else { return false }

@@ -205,7 +205,7 @@ struct MenuBarAppearanceServiceTests {
                 "X": NSNumber(value: 0),
                 "Y": NSNumber(value: 0),
                 "Width": NSNumber(value: 1920),
-                "Height": NSNumber(value: 30)
+                "Height": NSNumber(value: 24)
             ]
         ]]
 
@@ -214,6 +214,52 @@ struct MenuBarAppearanceServiceTests {
                 frontmostPID: 5151,
                 frontmostBundleID: "com.blizzard.worldofwarcraft",
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay does not suppress for wide titlebar windows")
+    func testDoesNotSuppressOverlayForWideTopAlignedWindow() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 148),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1280),
+                "Height": NSNumber(value: 30)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "org.mozilla.firefox",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1600, height: 900),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay does not suppress for top host on another screen")
+    func testDoesNotSuppressOverlayForTopHostOnDifferentScreen() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1600),
+                "Height": NSNumber(value: 24)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.blizzard.worldofwarcraft",
+                targetScreenFrame: CGRect(x: 1600, y: 0, width: 1600, height: 900),
                 windowInfos: infos,
                 selfPID: 9999
             )

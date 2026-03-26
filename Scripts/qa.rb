@@ -170,6 +170,7 @@ class ProjectQA
     check_code_rules
     check_version_consistency
     check_appcast_guardrails
+    check_appcast_download_urls
     check_migration_guardrails
     check_test_mode_tooling_guardrails
     check_runtime_release_smoke
@@ -477,6 +478,39 @@ class ProjectQA
     end
 
     puts "✅ no blocked versions (#{BLOCKED_APPCAST_VERSIONS.join(', ')})"
+  end
+
+  def check_appcast_download_urls
+    print "Checking appcast download URLs... "
+
+    unless File.exist?(APPCAST_XML)
+      @warnings << "Appcast file not found at #{APPCAST_XML}"
+      puts "⚠️  appcast.xml missing"
+      return
+    end
+
+    content = File.read(APPCAST_XML)
+    urls = content.scan(/<enclosure\s+url="([^"]+)"/).flatten.uniq
+
+    if urls.empty?
+      @warnings << "No appcast enclosure URLs found in #{APPCAST_XML}"
+      puts "⚠️  no enclosure URLs found"
+      return
+    end
+
+    failures = []
+    urls.each do |url|
+      response_code = url_status(url)
+      next if response_code && response_code < 400
+      failures << "#{url} (#{response_code || 'error'})"
+    end
+
+    if failures.empty?
+      puts "✅ #{urls.count} enclosure URLs reachable"
+    else
+      failures.each { |failure| @errors << "Dead appcast enclosure URL: #{failure}" }
+      puts "❌ #{failures.count} dead enclosure URL#{'s' unless failures.count == 1}"
+    end
   end
 
   def check_migration_guardrails
@@ -1494,14 +1528,18 @@ class ProjectQA
       /reset/,
       /persist/,
       /disappear/,
+      /appearance|tint|turns black|black bar|bar turns black/,
       /icons? gone/,
       /visible.*hidden|hidden.*visible/,
       /move.*visible|visible.*move/,
       /move.*hidden|hidden.*move/,
       /second menu bar/,
       /browse icons/,
+      /focus jump|focus jumps|focus bug|focus/,
       /drag and drop/,
       /drag/,
+      /build from source|can'?t build|cannot build|source build/,
+      /check for updates|update direct to latest|app update|updater|update/,
       /cursor|mouse/,
       /cannot open/,
       /does not function|doesn't function|doesnt function/,
@@ -1737,27 +1775,12 @@ class ProjectQA
     bad_urls = []
     urls_to_check.uniq { |u| u[:url] }.each do |entry|
       begin
-        uri = URI.parse(entry[:url])
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == 'https'
-        http.open_timeout = 5
-        http.read_timeout = 5
-
-        response = nil
-        [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
-          request = request_class.new(uri.request_uri)
-          request['User-Agent'] = "#{PROJECT_NAME} QA URL Check"
-          response = http.request(request)
-          code = response.code.to_i
-          break unless [401, 403, 405].include?(code) && index.zero?
-        end
-
-        response_code = response.code.to_i
+        response_code = url_status(entry[:url])
         reachable = response_code < 400
         reachable ||= response_code == 404 && entry[:url].include?('raw.githubusercontent')
         reachable ||= [401, 403, 405].include?(response_code)
         unless reachable
-          bad_urls << "#{entry[:url]} (#{response.code}) in #{entry[:file]}"
+          bad_urls << "#{entry[:url]} (#{response_code || 'error'}) in #{entry[:file]}"
         end
       rescue StandardError => e
         bad_urls << "#{entry[:url]} (#{e.class.name}) in #{entry[:file]}"
@@ -1770,6 +1793,27 @@ class ProjectQA
       bad_urls.each { |u| @warnings << "Unreachable URL: #{u}" }
       puts "⚠️  #{bad_urls.count} unreachable"
     end
+  end
+
+  def url_status(url)
+    uri = URI.parse(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == 'https'
+    http.open_timeout = 5
+    http.read_timeout = 5
+
+    response = nil
+    [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
+      request = request_class.new(uri.request_uri)
+      request['User-Agent'] = "#{PROJECT_NAME} QA URL Check"
+      response = http.request(request)
+      code = response.code.to_i
+      break unless [401, 403, 405].include?(code) && index.zero?
+    end
+
+    response&.code&.to_i
+  rescue StandardError
+    nil
   end
 
   def write_status_snapshot(exit_code:)

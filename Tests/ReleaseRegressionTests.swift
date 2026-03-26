@@ -576,6 +576,20 @@ struct AppcastReleaseGuardrailTests {
         return (major, minor, patch)
     }
 
+    private func newestVersionOffered(to currentVersion: String, appcastVersions: [String]) -> String? {
+        guard let current = semverTuple(currentVersion) else { return nil }
+
+        return appcastVersions
+            .compactMap { version -> (String, (Int, Int, Int))? in
+                guard let tuple = semverTuple(version) else { return nil }
+                return (version, tuple)
+            }
+            .filter { $0.1 > current }
+            .sorted { $0.1 > $1.1 }
+            .first?
+            .0
+    }
+
     @Test("Blocked versions are never offered in appcast")
     func blockedVersionsAreAbsent() throws {
         let appcastURL = repositoryRoot().appendingPathComponent("docs/appcast.xml")
@@ -628,5 +642,22 @@ struct AppcastReleaseGuardrailTests {
             lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
         }
         #expect(isSortedDescending, "Appcast versions must be sorted newest-first")
+    }
+
+    @Test("Older hosts are always offered the newest published version")
+    func olderHostsGetLatestPublishedVersion() throws {
+        let appcastURL = repositoryRoot().appendingPathComponent("docs/appcast.xml")
+        let xml = try String(contentsOf: appcastURL, encoding: .utf8)
+        let versions = parseShortVersions(from: xml)
+
+        #expect(!versions.isEmpty, "No appcast versions found")
+
+        let latest = versions.first
+        #expect(latest == "2.1.35", "Expected latest published appcast version to stay current for this regression test")
+
+        for currentVersion in ["2.1.14", "2.1.22", "2.1.28", "2.1.34"] {
+            let offered = newestVersionOffered(to: currentVersion, appcastVersions: versions)
+            #expect(offered == latest, "Host \(currentVersion) should be offered \(latest ?? "latest"), got \(offered ?? "nil")")
+        }
     }
 }

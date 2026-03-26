@@ -102,6 +102,7 @@ struct AppleScriptCommandsTests {
         let openSettingsWindow = OpenSettingsWindowCommand()
         let closeSettingsWindow = CloseSettingsWindowCommand()
         let captureSettingsWindowSnapshot = CaptureSettingsWindowSnapshotCommand()
+        let captureAppearanceOverlaySnapshot = CaptureAppearanceOverlaySnapshotCommand()
         let queueSettingsWindowSnapshot = QueueSettingsWindowSnapshotCommand()
 
         let openSupers = [
@@ -116,6 +117,10 @@ struct AppleScriptCommandsTests {
             String(describing: type(of: captureSettingsWindowSnapshot).superclass()),
             String(describing: type(of: captureSettingsWindowSnapshot).superclass()?.superclass()),
         ]
+        let captureOverlaySupers = [
+            String(describing: type(of: captureAppearanceOverlaySnapshot).superclass()),
+            String(describing: type(of: captureAppearanceOverlaySnapshot).superclass()?.superclass()),
+        ]
         let queueSupers = [
             String(describing: type(of: queueSettingsWindowSnapshot).superclass()),
             String(describing: type(of: queueSettingsWindowSnapshot).superclass()?.superclass()),
@@ -124,6 +129,7 @@ struct AppleScriptCommandsTests {
         #expect(openSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
         #expect(closeSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
         #expect(captureSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
+        #expect(captureOverlaySupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
         #expect(queueSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
     }
 
@@ -322,6 +328,7 @@ struct AppleScriptCommandsTests {
             "CaptureBrowsePanelSnapshotCommand": "capture browse panel snapshot",
             "QueueBrowsePanelSnapshotCommand": "queue browse panel snapshot",
             "CaptureSettingsWindowSnapshotCommand": "capture settings window snapshot",
+            "CaptureAppearanceOverlaySnapshotCommand": "capture appearance overlay snapshot",
             "QueueSettingsWindowSnapshotCommand": "queue settings window snapshot",
             "ActivateIconCommand": "activate icon",
             "RightClickIconCommand": "right click icon",
@@ -343,6 +350,7 @@ struct AppleScriptCommandsTests {
         let captureBrowsePanelSnapshotName = NSStringFromClass(CaptureBrowsePanelSnapshotCommand.self)
         let queueBrowsePanelSnapshotName = NSStringFromClass(QueueBrowsePanelSnapshotCommand.self)
         let captureSettingsWindowSnapshotName = NSStringFromClass(CaptureSettingsWindowSnapshotCommand.self)
+        let captureAppearanceOverlaySnapshotName = NSStringFromClass(CaptureAppearanceOverlaySnapshotCommand.self)
         let queueSettingsWindowSnapshotName = NSStringFromClass(QueueSettingsWindowSnapshotCommand.self)
         let activateName = NSStringFromClass(ActivateIconCommand.self)
         let rightClickName = NSStringFromClass(RightClickIconCommand.self)
@@ -362,6 +370,7 @@ struct AppleScriptCommandsTests {
         #expect(!captureBrowsePanelSnapshotName.isEmpty, "CaptureBrowsePanelSnapshotCommand class should exist")
         #expect(!queueBrowsePanelSnapshotName.isEmpty, "QueueBrowsePanelSnapshotCommand class should exist")
         #expect(!captureSettingsWindowSnapshotName.isEmpty, "CaptureSettingsWindowSnapshotCommand class should exist")
+        #expect(!captureAppearanceOverlaySnapshotName.isEmpty, "CaptureAppearanceOverlaySnapshotCommand class should exist")
         #expect(!queueSettingsWindowSnapshotName.isEmpty, "QueueSettingsWindowSnapshotCommand class should exist")
         #expect(!activateName.isEmpty, "ActivateIconCommand class should exist")
         #expect(!rightClickName.isEmpty, "RightClickIconCommand class should exist")
@@ -370,7 +379,7 @@ struct AppleScriptCommandsTests {
         #expect(!activationDiagnosticsName.isEmpty, "ActivationDiagnosticsCommand class should exist")
         #expect(!browseDiagnosticsName.isEmpty, "BrowsePanelDiagnosticsCommand class should exist")
 
-        #expect(expectedMappings.count == 18, "All commands have SDEF mappings")
+        #expect(expectedMappings.count == 19, "All commands have SDEF mappings")
     }
 
     @Test("Diagnostics AppleScript commands expose activation and browse summaries")
