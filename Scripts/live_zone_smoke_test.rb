@@ -85,6 +85,66 @@ class LiveZoneSmokeTest < Minitest::Test
     assert smoke.send(:move_candidates_required?)
   end
 
+  def test_browse_activation_candidates_prefer_curated_fixtures_and_skip_menumeters
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.precise',
+        unique_id: 'com.example.precise::statusItem:2',
+        name: 'Widget'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.yujitach.MenuMeters',
+        unique_id: 'com.yujitach.MenuMeters::statusItem:3',
+        name: 'MenuMeters'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.apple.SSMenuAgent',
+        unique_id: 'com.apple.SSMenuAgent',
+        name: 'SSMenuAgent'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(:browse_activation_candidates, zones)
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    assert_equal 'com.apple.SSMenuAgent', candidate_ids.first
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
+    assert_includes candidate_ids, 'com.example.precise::statusItem:2'
+    refute_includes candidate_ids, 'com.yujitach.MenuMeters::statusItem:3'
+  end
+
+  def test_prepare_layout_baseline_hides_expanded_runtime
+    smoke = build_smoke
+    called = []
+
+    smoke.define_singleton_method(:close_browse_panel_safely) { called << :close_browse }
+    smoke.define_singleton_method(:close_settings_window_safely) { called << :close_settings }
+    smoke.define_singleton_method(:layout_snapshot) { { 'hidingState' => 'expanded' } }
+    smoke.define_singleton_method(:supports_applescript_command?) { |command| command == 'hide' }
+    smoke.define_singleton_method(:app_script) { |statement| called << statement }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| called << [:sleep, seconds] }
+
+    smoke.send(:prepare_layout_baseline)
+
+    assert_includes called, :close_browse
+    assert_includes called, :close_settings
+    assert_includes called, 'hide'
+  end
+
   def test_transient_process_missing_is_tolerated_while_pid_is_still_alive
     smoke = build_smoke
 

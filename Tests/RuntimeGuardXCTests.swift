@@ -2055,13 +2055,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("BROWSE_ACTIVATION_BUNDLE_DENYLIST") &&
+            source.contains("%w[hidden visible].include?(item[:zone])") &&
+            source.contains("compact_precise_non_apple_bundle_candidates") &&
             source.contains("precise_non_apple") &&
+            source.contains("prepare_layout_baseline") &&
             source.contains("browse_activation_pool(zones)") &&
-            source.contains("(precise_non_apple + preferred + fallback).uniq") &&
+            source.contains("com.yujitach.MenuMeters") &&
+            source.contains("(preferred + precise_non_apple + fallback).uniq") &&
             source.contains("com.apple.menuextra.bluetooth") &&
             source.contains("browse_activation_denied?(item)") &&
-            source.contains("item[:bundle].start_with?('com.apple.')"),
-            "Live smoke should try a precise third-party browse target first before falling back to noisier Apple extras"
+            source.contains("item[:bundle].start_with?('com.apple.')") &&
+            source.contains("prefer known-stable curated fixtures before") &&
+            source.contains("only spending one slot per precise") &&
+            source.contains("Keep the candidate pool from the pre-open snapshot."),
+            "Live smoke should keep generic browse activation on stable curated fixtures, cap duplicate third-party bundles, and avoid known noisy browse candidates"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&

@@ -452,11 +452,62 @@ func sortedScriptZones(_ zones: [ScriptZonedIcon]) -> [ScriptZonedIcon] {
     }
 }
 
+struct ScriptListingZoneQuality {
+    let alwaysHiddenCount: Int
+    let preciseIdentityCount: Int
+    let totalCount: Int
+}
+
+func scriptListingZoneQuality(_ zones: [ScriptZonedIcon]) -> ScriptListingZoneQuality {
+    ScriptListingZoneQuality(
+        alwaysHiddenCount: zones.filter { $0.zone == .alwaysHidden }.count,
+        preciseIdentityCount: zones.filter { $0.app.hasPreciseMenuBarIdentity }.count,
+        totalCount: zones.count
+    )
+}
+
+func shouldPreferRefreshedScriptListingZones(
+    cached: [ScriptZonedIcon],
+    refreshed: [ScriptZonedIcon]
+) -> Bool {
+    guard !refreshed.isEmpty else { return false }
+    guard !cached.isEmpty else { return true }
+
+    let cachedQuality = scriptListingZoneQuality(cached)
+    let refreshedQuality = scriptListingZoneQuality(refreshed)
+
+    if refreshedQuality.alwaysHiddenCount != cachedQuality.alwaysHiddenCount {
+        return refreshedQuality.alwaysHiddenCount > cachedQuality.alwaysHiddenCount
+    }
+
+    if refreshedQuality.preciseIdentityCount != cachedQuality.preciseIdentityCount {
+        return refreshedQuality.preciseIdentityCount > cachedQuality.preciseIdentityCount
+    }
+
+    if refreshedQuality.totalCount != cachedQuality.totalCount {
+        return refreshedQuality.totalCount > cachedQuality.totalCount
+    }
+
+    return false
+}
+
 func preferredScriptListingZones(
     cached: [ScriptZonedIcon],
     refreshed: @autoclosure () -> [ScriptZonedIcon]
 ) -> [ScriptZonedIcon] {
-    sortedScriptZones(cached.isEmpty ? refreshed() : cached)
+    guard !cached.isEmpty else {
+        return sortedScriptZones(refreshed())
+    }
+
+    // Cold-start cache snapshots can flatten always-hidden lanes into generic
+    // hidden rows. Prefer the refreshed read when it exposes richer lane or
+    // identity information, otherwise keep the cached snapshot for stability.
+    let refreshedZones = refreshed()
+    if shouldPreferRefreshedScriptListingZones(cached: cached, refreshed: refreshedZones) {
+        return sortedScriptZones(refreshedZones)
+    }
+
+    return sortedScriptZones(cached)
 }
 
 func scriptZonesContainExpectedMatch(
