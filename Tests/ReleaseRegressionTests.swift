@@ -646,14 +646,17 @@ struct AppcastReleaseGuardrailTests {
 
     @Test("Older hosts are always offered the newest published version")
     func olderHostsGetLatestPublishedVersion() throws {
-        let appcastURL = repositoryRoot().appendingPathComponent("docs/appcast.xml")
-        let xml = try String(contentsOf: appcastURL, encoding: .utf8)
+        let root = repositoryRoot()
+        let xml = try String(contentsOf: root.appendingPathComponent("docs/appcast.xml"), encoding: .utf8)
+        let projectYml = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
         let versions = parseShortVersions(from: xml)
+        let marketingVersion = parseMarketingVersion(from: projectYml)
 
         #expect(!versions.isEmpty, "No appcast versions found")
+        #expect(marketingVersion != nil, "Could not parse MARKETING_VERSION from project.yml")
 
         let latest = versions.first
-        #expect(latest == "2.1.35", "Expected latest published appcast version to stay current for this regression test")
+        #expect(latest == marketingVersion, "Expected latest published appcast version to stay current for this regression test")
 
         for currentVersion in ["2.1.14", "2.1.22", "2.1.28", "2.1.34"] {
             let offered = newestVersionOffered(to: currentVersion, appcastVersions: versions)
