@@ -567,6 +567,11 @@ class LiveZoneSmoke
         item[:bundle].start_with?('com.apple.') ||
         browse_activation_denied?(item)
     end
+    coarse_non_apple = ordered_pool.select do |item|
+      coarse_bundle_fallback?(item) &&
+        !item[:bundle].start_with?('com.apple.') &&
+        !browse_activation_denied?(item)
+    end
 
     preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
       ordered_pool.find { |item| browse_candidate_matches?(item, preferred_id) }
@@ -575,12 +580,13 @@ class LiveZoneSmoke
 
     fallback = ordered_pool.reject { |item| browse_activation_denied?(item) }
 
-    # Generic browse smoke needs to prefer exact third-party identities first.
-    # They have been more stable on the Mini than Apple/system fixtures for the
-    # actual click paths we exercise, while the denylist still keeps known-bad
-    # rows like MenuMeters out of the pool. Curated Apple fixtures stay as
-    # fallback coverage, but they should not consume the main smoke budget.
-    candidate_order = precise_non_apple + preferred + fallback
+    # Generic browse smoke needs to prefer third-party identities first.
+    # Precise rows are best, but even coarse third-party bundle fallbacks have
+    # been more stable on this Mini than Apple/system fixtures for the browse
+    # click paths we exercise. Curated Apple fixtures stay as fallback
+    # coverage, but they should not consume the main smoke budget when usable
+    # non-Apple rows are available.
+    candidate_order = precise_non_apple + coarse_non_apple + preferred + fallback
 
     candidate_order.uniq { |item| item[:unique_id] }.take(3)
   end

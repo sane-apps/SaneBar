@@ -2058,17 +2058,18 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("%w[hidden visible].include?(item[:zone])") &&
             source.contains("compact_precise_non_apple_bundle_candidates") &&
             source.contains("precise_non_apple") &&
+            source.contains("coarse_non_apple") &&
             source.contains("prepare_layout_baseline") &&
             source.contains("browse_activation_pool(zones)") &&
             source.contains("com.yujitach.MenuMeters") &&
-            source.contains("candidate_order = precise_non_apple + preferred + fallback") &&
+            source.contains("candidate_order = precise_non_apple + coarse_non_apple + preferred + fallback") &&
             source.contains("com.apple.menuextra.bluetooth") &&
             source.contains("browse_activation_denied?(item)") &&
             source.contains("item[:bundle].start_with?('com.apple.')") &&
-            source.contains("Generic browse smoke needs to prefer exact third-party identities first.") &&
-            source.contains("fallback coverage, but they should not consume the main smoke budget.") &&
+            source.contains("Generic browse smoke needs to prefer third-party identities first.") &&
+            source.contains("non-Apple rows are available.") &&
             source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
-            "Live smoke should prioritize precise non-Apple browse fixtures first, keep Apple fixtures as fallback coverage, and avoid known noisy browse candidates"
+            "Live smoke should prioritize third-party browse fixtures ahead of Apple/system fallbacks and avoid known noisy browse candidates"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&

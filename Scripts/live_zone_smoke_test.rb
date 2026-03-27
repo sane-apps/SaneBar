@@ -188,6 +188,45 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
+  def test_browse_activation_candidates_prefer_coarse_non_apple_before_apple_fixtures
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'org.p0deje.Maccy',
+        unique_id: 'org.p0deje.Maccy',
+        name: 'Maccy'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.apple.SSMenuAgent',
+        unique_id: 'com.apple.SSMenuAgent',
+        name: 'SSMenuAgent'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(
+      :browse_activation_candidates,
+      zones,
+      expected_mode: 'secondMenuBar',
+      activation_command: 'right click browse icon'
+    )
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    assert_equal 'org.p0deje.Maccy', candidate_ids.first
+    assert_includes candidate_ids, 'com.apple.SSMenuAgent'
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
   def test_prepare_layout_baseline_hides_expanded_runtime
     smoke = build_smoke
     called = []
