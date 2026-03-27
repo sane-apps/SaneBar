@@ -2061,20 +2061,23 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("prepare_layout_baseline") &&
             source.contains("browse_activation_pool(zones)") &&
             source.contains("com.yujitach.MenuMeters") &&
-            source.contains("(preferred + precise_non_apple + fallback).uniq") &&
+            source.contains("candidate_order = precise_non_apple + preferred + fallback") &&
             source.contains("com.apple.menuextra.bluetooth") &&
             source.contains("browse_activation_denied?(item)") &&
             source.contains("item[:bundle].start_with?('com.apple.')") &&
-            source.contains("prefer known-stable curated fixtures before") &&
-            source.contains("only spending one slot per precise") &&
-            source.contains("Keep the candidate pool from the pre-open snapshot."),
-            "Live smoke should keep generic browse activation on stable curated fixtures, cap duplicate third-party bundles, and avoid known noisy browse candidates"
+            source.contains("Generic browse smoke needs to prefer exact third-party identities first.") &&
+            source.contains("fallback coverage, but they should not consume the main smoke budget.") &&
+            source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
+            "Live smoke should prioritize precise non-Apple browse fixtures first, keep Apple fixtures as fallback coverage, and avoid known noisy browse candidates"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&
             source.contains("cc.ffitch.shottr") &&
             source.contains("com.yonilevy.cryptoticker") &&
-            source.contains("candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) }") &&
+            source.contains("com.yujitach.MenuMeters") &&
+            source.contains("candidates.reject! { |item| move_candidate_denied?(item) }") &&
+            source.contains("bundle = item[:bundle].to_s.strip.downcase") &&
+            source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }") &&
             source.contains("MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES") &&
             source.contains("com.mrsane.") &&
             source.contains("return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?") &&
@@ -2094,9 +2097,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should not blindly retry side-effectful browse activation AppleScript commands after a timeout"
         )
         XCTAssertTrue(
+            source.contains("APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS = 25") &&
             source.contains("APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20") &&
-            source.contains("statement == 'list icon zones' || statement == 'list icons'"),
-            "Live smoke should allow longer timeouts for heavy read-only AppleScript commands during cold-start smoke"
+            source.contains("return APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS if activation_app_script?(statement)") &&
+            source.contains("statement == 'browse panel diagnostics'") &&
+            source.contains("statement == 'activation diagnostics'"),
+            "Live smoke should give browse activation commands a longer timeout and treat diagnostics reads as heavy read-only AppleScript"
         )
         XCTAssertTrue(
             source.contains("Salvaging timed-out move command via zone verification") &&
