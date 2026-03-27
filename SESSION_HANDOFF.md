@@ -1,7 +1,33 @@
 # Session Handoff — SaneBar
 
-**Date:** 2026-03-23
-**Last released version:** `v2.1.33` (build `2133`)
+**Date:** 2026-03-27
+**Last released version:** `v2.1.37` (build `2137`)
+
+## Addendum (2026-03-27 release 2.1.37)
+
+- `v2.1.37` is live.
+- Verified live channels:
+  - GitHub release: `https://github.com/sane-apps/SaneBar/releases/tag/v2.1.37`
+  - direct ZIP: `https://dist.sanebar.com/updates/SaneBar-2.1.37.zip`
+  - appcast top entry: `https://sanebar.com/appcast.xml`
+  - website download links and `softwareVersion` now point to `2.1.37`
+  - Homebrew cask is live at `52c470c`
+  - email worker download config now serves `SaneBar-2.1.37.zip`
+- Release notes shipped:
+  - keeps the SaneBar icon and hidden layout in place more reliably after login, wake, and display changes
+  - reduces cases where the layout resets itself or the icon disappears
+  - improves recovery on crowded and notched menu bars
+- Why this release was allowed:
+  - the signed Mini runtime lane was green on the targeted layout/disappearing-icon hotfix
+  - manual override was used for open-regression / unconfirmed-close policy gates because unrelated open issues were still present
+  - separate bugs still open and not claimed fixed by this build:
+    - `#117` wrong icon mapped during hidden→visible move
+    - `#122` dark tint turns black
+- Follow-up completed:
+  - standard retest replies posted on `#130 #129 #128 #126 #125 #124 #115 #114 #111`
+- Operational note:
+  - the main release script failed only at the email-worker deploy step because local `sane-email-automation` had unrelated dirty changes
+  - fixed by deploying the worker from a clean temporary clone instead of touching the dirty local checkout
 
 ## Addendum (2026-03-26 website refresh deployed live)
 
