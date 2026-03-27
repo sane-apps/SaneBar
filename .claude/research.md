@@ -3049,3 +3049,61 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 2. **The issue cluster is now in “waiting for reporter retest,” not “maintainer has not answered.”**
    - `#129`, `#126`, and `#111` all have fresh post-ship maintainer replies.
    - Inbox is at `0` action-needed after replying to the matching customer threads.
+
+## 2026-03-27 Release Smoke Hardening Pass | Updated: 2026-03-27 14:05 ET | Status: runtime green, policy-blocked | TTL: 14d
+
+### Fresh sources used
+
+1. **Mini signed-runtime evidence**
+   - `./Scripts/SaneMaster.rb verify`
+   - `./Scripts/SaneMaster.rb release_preflight`
+   - direct Mini `osascript` probes against `/Applications/SaneBar.app` in `--sane-no-keychain` Pro mode
+
+2. **Product/script paths**
+   - `Core/Services/AppleScriptCommands.swift`
+   - `Scripts/live_zone_smoke.rb`
+   - `Scripts/live_zone_smoke_test.rb`
+   - `Tests/AppleScriptCommandsTests.swift`
+   - `Tests/RuntimeGuardXCTests.swift`
+
+### What changed
+
+1. **AppleScript zone listing now prefers fresher zone data when it is clearly richer.**
+   - `preferredScriptListingZones(...)` no longer treats any non-empty cached zone list as automatically trustworthy.
+   - If the refreshed read exposes more `alwaysHidden` rows, more precise identities, or more total rows, the refreshed snapshot wins.
+   - This hardens scripted reads against cold-start cache snapshots that flatten always-hidden rows into generic `hidden`.
+
+2. **Generic browse smoke now uses stable curated fixtures first.**
+   - `Scripts/live_zone_smoke.rb` now prefers curated Apple browse fixtures before arbitrary precise third-party rows.
+   - `com.yujitach.MenuMeters` is explicitly denylisted for generic browse activation.
+   - The browse smoke still keeps the pre-open candidate pool so active-session relayout cannot reintroduce off-panel IDs.
+
+3. **Each smoke pass now normalizes the app back to a hidden baseline before checking layout.**
+   - `prepare_layout_baseline` closes panels and sends `hide` before `wait_for_stable_layout_snapshot`.
+   - This fixes the previous false failure where pass 1 left the app expanded and pass 2 timed out before it had a chance to re-hide.
+
+### Proof
+
+1. **Local verification is green after the harness and AppleScript fixes.**
+   - `ruby Scripts/live_zone_smoke_test.rb` passed.
+   - `./Scripts/SaneMaster.rb verify` passed with `1049 tests`.
+
+2. **The signed Mini release lane is technically green again.**
+   - `release_preflight` passed:
+     - staged release browse smoke `x2`
+     - focused shared-bundle smoke (`com.apple.menuextra.display`)
+     - startup layout probe
+   - The previous runtime blockers were cleared:
+     - second-menu-bar browse activation no longer burns the budget on `MenuMeters`
+     - pass 2 no longer starts from a stale expanded layout
+
+### Current interpretation
+
+1. **Runtime evidence is no longer the reason to hold the patch.**
+   - The signed app on the Mini now clears the exact runtime smoke lane that was red at the start of this pass.
+
+2. **Release is still blocked, but by policy gates, not by the binary.**
+   - Remaining `release_preflight` blockers are:
+     - release cadence `<24h since v2.1.36`
+     - open regression issues: `#130`, `#129`, `#128`, `#126`, `#122`, `#117`, `#115`
+     - unconfirmed closed regression issues: `#123`, `#120`, `#119`, `#116`, `#113`

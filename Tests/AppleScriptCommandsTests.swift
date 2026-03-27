@@ -485,8 +485,8 @@ struct AppleScriptCommandsTests {
         #expect(match?.zone == .hidden)
     }
 
-    @Test("Script icon zone listing prefers cached zones when available")
-    func preferredScriptListingZonesUsesCachedZonesBeforeRefreshing() {
+    @Test("Script icon zone listing keeps cached zones when refreshed lanes are not richer")
+    func preferredScriptListingZonesKeepsCachedZonesWhenRefreshedLanesAreNotRicher() {
         let cachedApp = RunningApp(
             id: "com.example.cached",
             name: "Cached",
@@ -496,17 +496,21 @@ struct AppleScriptCommandsTests {
             xPosition: 220,
             width: 24
         )
-        var refreshCalled = false
+        let refreshedApp = RunningApp(
+            id: "com.example.refreshed",
+            name: "Refreshed",
+            icon: nil,
+            menuExtraIdentifier: "com.example.refreshed.extra",
+            statusItemIndex: nil,
+            xPosition: 180,
+            width: 22
+        )
 
         let zones = preferredScriptListingZones(
             cached: [(cachedApp, .hidden)],
-            refreshed: {
-                refreshCalled = true
-                return []
-            }()
+            refreshed: [(refreshedApp, .hidden)]
         )
 
-        #expect(!refreshCalled)
         #expect(zones.count == 1)
         #expect(zones.first?.app.bundleId == "com.example.cached")
         #expect(zones.first?.zone == .hidden)
@@ -537,6 +541,35 @@ struct AppleScriptCommandsTests {
         #expect(zones.count == 1)
         #expect(zones.first?.app.bundleId == "com.example.refreshed")
         #expect(zones.first?.zone == .visible)
+    }
+
+    @Test("Script icon zone listing prefers refreshed lanes when they expose always hidden rows")
+    func preferredScriptListingZonesPrefersRefreshedAlwaysHiddenLanes() {
+        let cachedApp = RunningApp(
+            id: "com.example.cached",
+            name: "Cached",
+            icon: nil,
+            xPosition: 240,
+            width: 22
+        )
+        let refreshedAlwaysHidden = RunningApp(
+            id: "com.example.refreshed.hidden",
+            name: "Pinned",
+            icon: nil,
+            menuExtraIdentifier: "com.example.refreshed.hidden.extra",
+            statusItemIndex: nil,
+            xPosition: 120,
+            width: 22
+        )
+
+        let zones = preferredScriptListingZones(
+            cached: [(cachedApp, .hidden)],
+            refreshed: [(refreshedAlwaysHidden, .alwaysHidden)]
+        )
+
+        #expect(zones.count == 1)
+        #expect(zones.first?.app.bundleId == "com.example.refreshed.hidden")
+        #expect(zones.first?.zone == .alwaysHidden)
     }
 
     @Test("Layout snapshot suppresses always-hidden geometry while hidden")

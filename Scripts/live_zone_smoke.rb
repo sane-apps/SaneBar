@@ -73,6 +73,7 @@ class LiveZoneSmoke
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
+      com.yujitach.MenuMeters
     ]
   ).freeze
   BROWSE_PANEL_COMMANDS = {
@@ -85,12 +86,12 @@ class LiveZoneSmoke
     'settings' => 'SaneBar Settings',
   }.freeze
   PREFERRED_BROWSE_ACTIVATION_IDS = %w[
+    com.apple.SSMenuAgent
     com.apple.menuextra.bluetooth
     com.apple.menuextra.display
     com.apple.menuextra.wifi
     com.apple.menuextra.clock
     com.apple.menuextra.spotlight
-    com.apple.SSMenuAgent
     com.apple.controlcenter
   ].freeze
   STANDARD_APP_MENU_TITLES = %w[
@@ -149,6 +150,7 @@ class LiveZoneSmoke
 
     verify_single_process
     start_resource_watchdog
+    prepare_layout_baseline
     snapshot = wait_for_stable_layout_snapshot
     check_layout_invariants(snapshot)
     check_always_hidden_preconditions(snapshot)
@@ -243,6 +245,20 @@ class LiveZoneSmoke
   end
 
   private
+
+  def prepare_layout_baseline
+    close_browse_panel_safely
+    close_settings_window_safely
+
+    snapshot = layout_snapshot
+    return if snapshot['hidingState'] == 'hidden'
+    return unless supports_applescript_command?('hide')
+
+    app_script('hide')
+    sleep_with_watchdog(0.35)
+  rescue StandardError
+    nil
+  end
 
   def verify_single_process
     out, status = sh('ps ax -o pid=,command=')
@@ -410,7 +426,7 @@ class LiveZoneSmoke
     raw_candidates = zones.select do |item|
       item[:movable] &&
         !item[:bundle].start_with?('com.sanebar.app') &&
-        %w[hidden visible alwaysHidden].include?(item[:zone])
+        %w[hidden visible].include?(item[:zone])
     end
     excluded_app_menu_bundles = app_menu_bundle_ids(raw_candidates)
     candidates = raw_candidates.reject do |item|
@@ -420,6 +436,22 @@ class LiveZoneSmoke
     precise_bundles = candidates.reject { |item| coarse_bundle_fallback?(item) }.map { |item| item[:bundle] }.uniq
     candidates.reject do |item|
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
+    end
+  end
+
+  def compact_precise_non_apple_bundle_candidates(candidates)
+    seen_precise_non_apple_bundles = {}
+
+    candidates.each_with_object([]) do |item, compacted|
+      bundle = item[:bundle].to_s
+      precise_non_apple = !bundle.start_with?('com.apple.') && !coarse_bundle_fallback?(item)
+
+      if precise_non_apple
+        next if seen_precise_non_apple_bundles[bundle]
+        seen_precise_non_apple_bundles[bundle] = true
+      end
+
+      compacted << item
     end
   end
 
@@ -524,6 +556,7 @@ class LiveZoneSmoke
         coarse_bundle_fallback?(item) ? 1 : 0,
       ]
     end
+    ordered_pool = compact_precise_non_apple_bundle_candidates(ordered_pool)
     precise_non_apple = ordered_pool.reject do |item|
       coarse_bundle_fallback?(item) || item[:bundle].start_with?('com.apple.')
     end
@@ -535,11 +568,11 @@ class LiveZoneSmoke
 
     fallback = ordered_pool.reject { |item| browse_activation_denied?(item) }
 
-    # Generic browse smoke should try a precise third-party icon first when one
-    # is available. Apple extras still get coverage elsewhere, and this avoids
-    # burning the generic runtime budget on slower Spotlight-style paths before
-    # we prove the common browse flow is healthy.
-    (precise_non_apple + preferred + fallback).uniq { |item| item[:unique_id] }.take(3)
+    # Generic browse smoke should prefer known-stable curated fixtures before
+    # arbitrary precise third-party rows, while still staying inside rows that
+    # are actually visible by default and only spending one slot per precise
+    # third-party bundle.
+    (preferred + precise_non_apple + fallback).uniq { |item| item[:unique_id] }.take(3)
   end
 
   def browse_zone_priority(zone)
@@ -575,19 +608,21 @@ class LiveZoneSmoke
 
     wait_for_browse_panel(expected_mode)
     assert_browse_panel_anchor!(expected_mode)
-    live_candidates = browse_activation_candidates(list_icon_zones)
-    raise "No browse activation candidate icon found in #{expected_mode} after panel open." if live_candidates.empty?
     screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
     puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
 
-    exercise_browse_activation('activate browse icon', expected_mode, live_candidates)
+    # Keep the candidate pool from the pre-open snapshot. Once the browse
+    # session is active, classification intentionally collapses always-hidden
+    # geometry back into the generic hidden lane, which can reintroduce
+    # off-panel IDs into the runtime smoke budget.
+    exercise_browse_activation('activate browse icon', expected_mode, candidates)
     # SearchService debounces duplicate activation of the same icon for 450ms.
     # Leave enough headroom before immediately retrying that tile with right-click.
     sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)
     exercise_browse_activation(
       'right click browse icon',
       expected_mode,
-      live_candidates,
+      candidates,
       prior_frontmost_state: focus_probe_prior_state
     )
     close_browse_panel
