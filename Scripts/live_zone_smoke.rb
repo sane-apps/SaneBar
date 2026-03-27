@@ -41,6 +41,7 @@ class LiveZoneSmoke
   ZONE_API_READY_POLL_SECONDS = 0.5
   APPLESCRIPT_TIMEOUT_SECONDS = 8
   APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20
+  APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS = 25
   APPLESCRIPT_MOVE_TIMEOUT_SECONDS = 25
   APPLESCRIPT_RETRIES = 2
   BROWSE_PANEL_READY_TIMEOUT_SECONDS = 10
@@ -63,6 +64,7 @@ class LiveZoneSmoke
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
       cc.ffitch.shottr
+      com.yujitach.MenuMeters
       com.yonilevy.cryptoticker
     ]
   ).freeze
@@ -402,7 +404,7 @@ class LiveZoneSmoke
     candidates.reject! do |item|
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
-    candidates.reject! { |item| MOVE_CANDIDATE_BUNDLE_DENYLIST.include?(item[:bundle]) } unless allow_denylisted
+    candidates.reject! { |item| move_candidate_denied?(item) } unless allow_denylisted
 
     # Prefer non-Apple extras first (typically more consistently movable),
     # then Apple fallbacks while avoiding known noisy bundles.
@@ -453,6 +455,11 @@ class LiveZoneSmoke
 
       compacted << item
     end
+  end
+
+  def move_candidate_denied?(item)
+    bundle = item[:bundle].to_s.strip.downcase
+    MOVE_CANDIDATE_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }
   end
 
   def preferred_move_candidate_rank(bundle)
@@ -528,9 +535,7 @@ class LiveZoneSmoke
       end
 
       if full_browse_activation_supported? && !focused_required_id_mode?
-        activation_candidates = browse_activation_candidates(zones)
-        raise 'No browse activation candidate icon found.' if activation_candidates.empty?
-        exercise_browse_mode(expected_mode: expected_mode, command: command, candidates: activation_candidates)
+        exercise_browse_mode(expected_mode: expected_mode, command: command, zones: zones)
       else
         reason = focused_required_id_mode? ? 'focused required-id smoke' : 'activation diagnostics unavailable in running app'
         puts "ℹ️ Compatibility browse check for #{expected_mode}: #{reason}"
@@ -549,7 +554,7 @@ class LiveZoneSmoke
     ].all? { |command| supports_applescript_command?(command) }
   end
 
-  def browse_activation_candidates(zones)
+  def browse_activation_candidates(zones, expected_mode:, activation_command:)
     ordered_pool = browse_activation_pool(zones).sort_by do |item|
       [
         browse_zone_priority(item[:zone]),
@@ -558,7 +563,9 @@ class LiveZoneSmoke
     end
     ordered_pool = compact_precise_non_apple_bundle_candidates(ordered_pool)
     precise_non_apple = ordered_pool.reject do |item|
-      coarse_bundle_fallback?(item) || item[:bundle].start_with?('com.apple.')
+      coarse_bundle_fallback?(item) ||
+        item[:bundle].start_with?('com.apple.') ||
+        browse_activation_denied?(item)
     end
 
     preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
@@ -568,11 +575,14 @@ class LiveZoneSmoke
 
     fallback = ordered_pool.reject { |item| browse_activation_denied?(item) }
 
-    # Generic browse smoke should prefer known-stable curated fixtures before
-    # arbitrary precise third-party rows, while still staying inside rows that
-    # are actually visible by default and only spending one slot per precise
-    # third-party bundle.
-    (preferred + precise_non_apple + fallback).uniq { |item| item[:unique_id] }.take(3)
+    # Generic browse smoke needs to prefer exact third-party identities first.
+    # They have been more stable on the Mini than Apple/system fixtures for the
+    # actual click paths we exercise, while the denylist still keeps known-bad
+    # rows like MenuMeters out of the pool. Curated Apple fixtures stay as
+    # fallback coverage, but they should not consume the main smoke budget.
+    candidate_order = precise_non_apple + preferred + fallback
+
+    candidate_order.uniq { |item| item[:unique_id] }.take(3)
   end
 
   def browse_zone_priority(zone)
@@ -596,10 +606,11 @@ class LiveZoneSmoke
   def browse_activation_denied?(item)
     return false if PREFERRED_BROWSE_ACTIVATION_IDS.any? { |preferred_id| browse_candidate_matches?(item, preferred_id) }
 
-    BROWSE_ACTIVATION_BUNDLE_DENYLIST.include?(item[:bundle])
+    bundle = item[:bundle].to_s.strip.downcase
+    BROWSE_ACTIVATION_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }
   end
 
-  def exercise_browse_mode(expected_mode:, command:, candidates:)
+  def exercise_browse_mode(expected_mode:, command:, zones:)
     focus_probe_prior_state = seed_focus_probe_prior_app
     result = app_script(command).strip.downcase
     unless %w[true 1].include?(result)
@@ -611,18 +622,30 @@ class LiveZoneSmoke
     screenshot_path = capture_browse_screenshot(expected_mode) if @capture_screenshots
     puts "📸 #{expected_mode} screenshot: #{screenshot_path}" if screenshot_path
 
-    # Keep the candidate pool from the pre-open snapshot. Once the browse
-    # session is active, classification intentionally collapses always-hidden
-    # geometry back into the generic hidden lane, which can reintroduce
-    # off-panel IDs into the runtime smoke budget.
-    exercise_browse_activation('activate browse icon', expected_mode, candidates)
+    # Keep candidate pools from the pre-open snapshot. Once the browse session
+    # is active, classification intentionally collapses always-hidden geometry
+    # back into the generic hidden lane, which can reintroduce off-panel IDs
+    # into the runtime smoke budget.
+    left_click_candidates = browse_activation_candidates(
+      zones,
+      expected_mode: expected_mode,
+      activation_command: 'activate browse icon'
+    )
+    right_click_candidates = browse_activation_candidates(
+      zones,
+      expected_mode: expected_mode,
+      activation_command: 'right click browse icon'
+    )
+    raise 'No browse activation candidate icon found.' if left_click_candidates.empty? && right_click_candidates.empty?
+
+    exercise_browse_activation('activate browse icon', expected_mode, left_click_candidates)
     # SearchService debounces duplicate activation of the same icon for 450ms.
     # Leave enough headroom before immediately retrying that tile with right-click.
     sleep_with_watchdog(BROWSE_ACTIVATION_COOLDOWN_SECONDS)
     exercise_browse_activation(
       'right click browse icon',
       expected_mode,
-      candidates,
+      right_click_candidates,
       prior_frontmost_state: focus_probe_prior_state
     )
     close_browse_panel
@@ -1264,14 +1287,25 @@ class LiveZoneSmoke
   end
 
   def app_script_timeout_for(statement)
+    return APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS if activation_app_script?(statement)
     return APPLESCRIPT_MOVE_TIMEOUT_SECONDS if move_app_script?(statement)
     return APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS if heavy_read_app_script?(statement)
 
     APPLESCRIPT_TIMEOUT_SECONDS
   end
 
+  def activation_app_script?(statement)
+    statement.start_with?('activate browse icon ') ||
+      statement.start_with?('right click browse icon ') ||
+      statement.start_with?('activate icon ') ||
+      statement.start_with?('right click icon ')
+  end
+
   def heavy_read_app_script?(statement)
-    statement == 'list icon zones' || statement == 'list icons'
+    statement == 'list icon zones' ||
+      statement == 'list icons' ||
+      statement == 'browse panel diagnostics' ||
+      statement == 'activation diagnostics'
   end
 
   def move_app_script?(statement)

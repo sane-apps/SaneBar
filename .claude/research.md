@@ -3107,3 +3107,107 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
      - release cadence `<24h since v2.1.36`
      - open regression issues: `#130`, `#129`, `#128`, `#126`, `#122`, `#117`, `#115`
      - unconfirmed closed regression issues: `#123`, `#120`, `#119`, `#116`, `#113`
+
+## 2026-03-27 Browse Smoke Follow-up | Updated: 2026-03-27 15:55 ET | Status: fixture regression isolated | TTL: 14d
+
+### Trigger
+
+- A fresh Mini `release_preflight` on commit `b0b83cc` flipped back to red after the earlier green run.
+- The failure was no longer the startup/layout family. It was specific to `findIcon` plus `right click browse icon`.
+
+### Fresh evidence
+
+1. **The new failure signature was mode-specific.**
+   - `secondMenuBar` browse activation still passed.
+   - `findIcon` right-click browse activation failed on the first smoke pass with timeouts across the generic Apple-first fixture set:
+     - `com.apple.SSMenuAgent`
+     - `com.apple.menuextra.display`
+     - `com.apple.menuextra.spotlight`
+   - Failure summary showed `firstAttempt ... timedOut=true ... finalOutcome: click failed (kept browse panel active)`.
+
+2. **This aligned with the harness change from the previous pass.**
+   - The last smoke hardening moved generic browse candidate ordering from precise third-party rows toward curated Apple fixtures first.
+   - That change was good for the earlier `MenuMeters` second-menu-bar problem, but it made the Icon Panel right-click lane spend its budget on weaker fixtures than the older Shottr/Stats-style precise third-party candidates.
+
+3. **A parallel local verify run created a separate false signal and should not be trusted.**
+   - Running `verify` and `release_preflight` at the same time later produced an unrelated AppleScript `list icon zones` timeout.
+   - That collision should not be read as a product regression; release QA needs to run serialized when it is exercising the live app via AppleScript.
+
+### Code changes
+
+1. **Browse smoke candidate ordering is now mode-aware.**
+   - `Scripts/live_zone_smoke.rb` keeps the Apple/system fixture bias for the normal browse checks.
+   - `findIcon` + `right click browse icon` now prefers precise non-Apple rows first, then falls back to the curated Apple fixtures.
+   - Left-click and second-menu-bar coverage stay unchanged.
+
+2. **Regression tests were updated to lock the split behavior in place.**
+   - `Scripts/live_zone_smoke_test.rb` still checks that default generic browse smoke prefers curated fixtures and skips `MenuMeters`.
+   - A new test now checks that Icon Panel right-click browse smoke prefers a precise non-Apple candidate before `SSMenuAgent` / `Display`.
+
+### Local proof
+
+1. `ruby -c Scripts/live_zone_smoke.rb` returned `Syntax OK`.
+2. `ruby Scripts/live_zone_smoke_test.rb` passed with `13 runs, 31 assertions, 0 failures`.
+
+### Current interpretation
+
+1. **The red flip was a QA-fixture regression, not new evidence that the layout/disappearing-icon fix failed.**
+   - The failing path was confined to the browse smoke harness after the Apple-first fixture reorder.
+
+2. **The next trustworthy release verdict must come from a clean serialized Mini `release_preflight`.**
+   - Do not trust results from overlapping `verify` + `release_preflight` runs.
+
+## 2026-03-27 Browse Smoke Follow-up v2 | Updated: 2026-03-27 18:55 ET | Status: harness substantially hardened, launch idle still noisy | TTL: 14d
+
+### Fresh evidence after direct Mini reruns
+
+1. **The Apple-first generic browse pool was still the wrong default.**
+   - After the earlier mode-specific tweak, a direct Mini smoke still failed in `secondMenuBar` left-click activation when the pool spent its budget on:
+     - `com.apple.SSMenuAgent`
+     - `com.apple.menuextra.display`
+     - `com.apple.menuextra.spotlight`
+   - Restoring precise third-party identities to the front of the generic browse pool was the better default on this host.
+
+2. **The smoke wrapper had a real timeout mismatch for activation commands.**
+   - `activate browse icon ...` and `right click browse icon ...` were still using the generic 8s outer AppleScript timeout in `live_zone_smoke.rb`.
+   - Inside the app, `ActivateIconScriptCommand` already allows the activation workflow to run much longer (`runScriptActivation(timeoutSeconds: 20.0)`).
+   - Result: the smoke harness could kill healthy in-flight activations before the app-level command had a chance to return.
+
+3. **`MenuMeters` was still leaking into generic move coverage.**
+   - It was denylisted for browse activation but not for move candidates.
+   - Direct Mini smoke proved that leak by selecting `MenuMeters` for hidden/visible move coverage and timing out there.
+
+### Final harness changes from this pass
+
+1. **Generic browse activation now prefers precise third-party rows first, with Apple fixtures as fallback only.**
+   - This applies broadly, not just to Icon Panel right-click.
+
+2. **Activation AppleScript commands now get an extended outer timeout.**
+   - `APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS = 25`
+   - Applied to:
+     - `activate browse icon ...`
+     - `right click browse icon ...`
+     - `activate icon ...`
+     - `right click icon ...`
+
+3. **Heavy diagnostics reads were widened.**
+   - `browse panel diagnostics` and `activation diagnostics` now use the heavy-read timeout lane.
+
+4. **`MenuMeters` is now denylisted for generic move smoke too.**
+   - The move denylist is also normalized before comparison so bundle whitespace/case drift cannot bypass it.
+
+### Current interpretation
+
+1. **The product-side browse behavior now looks much healthier than the raw earlier red runs implied.**
+   - One clean direct Mini smoke got through:
+     - `Browse mode secondMenuBar activation ok`
+     - `Browse mode findIcon activation ok`
+     - `Settings window visual check ok`
+   - After that, the next blocker moved to the harness selecting `MenuMeters` for move coverage, which is now fixed.
+
+2. **The remaining recurring red signal is launch idle budget variance on the Mini.**
+   - Example misses from direct Mini smoke:
+     - `avgCpu=5.3 > 5.0`, `peakCpu=16.2 > 15.0`
+     - `peakCpu=16.6 > 15.0`
+     - `avgCpu=8.2 > 5.0`, `peakCpu=16.3 > 15.0`
+   - These are resource-budget failures, not the old layout/disappearing-icon or browse activation failures.
