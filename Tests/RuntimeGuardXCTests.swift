@@ -490,7 +490,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 900,
                 mainX: 1100,
-                mainRightGap: 220,
+                mainRightGap: 300,
                 screenWidth: 1440
             )
         )
@@ -525,19 +525,19 @@ final class RuntimeGuardXCTests: XCTestCase {
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 900,
                 mainX: 1100,
-                mainRightGap: 300,
+                mainRightGap: 301,
                 screenWidth: 1440,
                 notchRightSafeMinX: nil
             )
         )
     }
 
-    func testStartupRecoveryTriggersForAirStyleRightGapDrift() {
-        XCTAssertTrue(
+    func testStartupRecoveryAllowsCrowdedNotchedRightZone() {
+        XCTAssertFalse(
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 1050,
                 mainX: 1219,
-                mainRightGap: 251,
+                mainRightGap: 290,
                 screenWidth: 1470,
                 notchRightSafeMinX: 825
             )
@@ -1728,6 +1728,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             alwaysHiddenSource.contains("getAlwaysHiddenSeparatorBoundaryX() ?? getAlwaysHiddenSeparatorOriginX()"),
             "Pin reconciliation should prefer AH boundary (right edge) so auto-pin/unpin decisions match zone classification"
         )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("StatusBarController.recoverStartupPositions(") &&
+                alwaysHiddenSource.contains("referenceScreen: self.currentRecoveryReferenceScreen()"),
+            "Always-hidden hard recovery should reuse the live status-item screen so fallback repair does not reseed against the wrong display"
+        )
     }
 
     func testHiddenOriginMovePathUsesDirectHideBeforeRestoreFallback() throws {
@@ -2266,7 +2271,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("captureCurrentDisplayBackupAfterStableValidation(") &&
-                source.contains("hasLaunchSafeCurrentDisplayBackupForCurrentDisplay()"),
+                source.contains("hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: statusItemScreen)"),
             "Stable validation should wait briefly for a safe current-width backup instead of assuming one exists immediately"
         )
         XCTAssertTrue(

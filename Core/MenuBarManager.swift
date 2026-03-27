@@ -87,6 +87,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             NSScreen.main
     }
 
+    func currentRecoveryReferenceScreen() -> NSScreen? {
+        statusItemScreen
+    }
+
     /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)
     var hasNotch: Bool {
         guard let screen = statusItemScreen else { return false }
@@ -163,6 +167,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Cached right edge of main separator when at visual size (not blocking).
     /// Used by getSeparatorRightEdgeX() when separator is in blocking mode.
     var lastKnownSeparatorRightEdgeX: CGFloat?
+    /// Cached main icon origin when WindowServer briefly reports stale geometry.
+    /// Cleared on sleep/display topology changes to avoid cross-screen reuse.
+    var lastKnownMainStatusItemX: CGFloat?
     /// Cached position of always-hidden separator when at visual size (not blocking).
     /// Used for classification when the separator is at 10,000 length (blocking mode).
     var lastKnownAlwaysHiddenSeparatorX: CGFloat?
@@ -572,7 +579,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 await self.warmSeparatorPositionCache()
 
                 // Stamp calibrated screen width now that positions are stable
-                if let w = NSScreen.main?.frame.width {
+                if let w = self.statusItemScreen?.frame.width {
                     UserDefaults.standard.set(w, forKey: "SaneBar_CalibratedScreenWidth")
                 }
                 let startupSnapshot = self.currentStatusItemRecoverySnapshot()
@@ -666,6 +673,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     @MainActor
     private func clearCachedSeparatorGeometry() {
+        lastKnownMainStatusItemX = nil
         lastKnownSeparatorX = nil
         lastKnownSeparatorRightEdgeX = nil
         lastKnownAlwaysHiddenSeparatorX = nil
@@ -690,12 +698,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         let separatorX = getSeparatorOriginX()
         let mainX = getMainStatusItemLeftEdgeX()
         let mainWindow = mainItem?.button?.window
-        let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
-        let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
-            ?? NSScreen.main?.auxiliaryTopRightArea?.minX
+        let runtimeScreen = mainWindow?.screen ?? statusItemScreen
+        let mainFrameIsLive: Bool = {
+            guard let frame = mainWindow?.frame else { return false }
+            return Self.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width)
+        }()
+        let screenWidth = runtimeScreen?.frame.width
+        let notchRightSafeMinX = runtimeScreen?.auxiliaryTopRightArea?.minX
         let mainRightGap: CGFloat? = {
-            guard let mainWindow else { return nil }
-            guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
+            guard mainFrameIsLive, let mainWindow else { return nil }
+            guard let rightEdge = runtimeScreen?.frame.maxX else { return nil }
             return rightEdge - mainWindow.frame.origin.x
         }()
         let alwaysHiddenSeparatorMisordered = Self.alwaysHiddenSeparatorNeedsRepair(
@@ -769,17 +781,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         delay: Duration = .milliseconds(150)
     ) async -> Bool {
         for attempt in 1 ... maxAttempts {
-            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible() {
+            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: statusItemScreen) {
                 return true
             }
-            if StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay() {
+            if StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: statusItemScreen) {
                 return true
             }
             if attempt < maxAttempts {
                 try? await Task.sleep(for: delay)
             }
         }
-        return StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay()
+        return StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: statusItemScreen)
     }
 
     @MainActor
@@ -821,7 +833,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         switch action {
         case .captureCurrentDisplayBackup:
             pendingRecoveryHideRestore = false
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible()
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: statusItemScreen)
 
         case .repairPersistedLayoutAndRecreate:
             guard !isExecutingStatusItemRecovery else {
@@ -836,7 +848,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
             StatusBarController.recoverStartupPositions(
-                alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()
+                alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
+                referenceScreen: statusItemScreen
             )
             clearCachedSeparatorGeometry()
             recreateStatusItemsFromPersistedLayout(reason: trigger)
@@ -873,7 +886,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
-            let (newMain, newSep) = statusBarController.recreateItemsWithBumpedVersion()
+            let (newMain, newSep) = statusBarController.recreateItemsWithBumpedVersion(referenceScreen: statusItemScreen)
             statusBarController.onItemsRecreated?(newMain, newSep)
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
@@ -1378,7 +1391,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         settingsController.resetToDefaults()
         settings = settingsController.settings
         StatusBarController.resetPersistentStatusItemState(
-            alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled()
+            alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
+            referenceScreen: statusItemScreen
         )
         clearCachedSeparatorGeometry()
         recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults")
