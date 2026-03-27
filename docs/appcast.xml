@@ -5,7 +5,28 @@
 
                                 
         
-                                                                <item>
+                                                                        <item>
+            <title>2.1.37</title>
+            <pubDate>Fri, 27 Mar 2026 19:44:41 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Keeps the SaneBar icon and hidden layout in place more reliably after login, wake, and display changes.</li>
+                <li>Reduces cases where the menu bar layout resets itself or the SaneBar icon disappears.</li>
+                <li>Improves recovery on crowded and notched menu bars so hidden apps stay easier to reach.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.37.zip"
+                       sparkle:version="2137"
+                       sparkle:shortVersionString="2.1.37"
+                       length="8582360"
+                       type="application/octet-stream"
+                       sparkle:edSignature="KyIPKxs/a0ox3MsszD4cRk1Wx9gc40EBs13TY4zSOTO32zYQ/99Bxu+6v1TzjQhQGhLqQ4h6wOc/s8wfdevfDg=="/>
+        </item>
+<item>
             <title>2.1.36</title>
             <pubDate>Thu, 26 Mar 2026 14:57:57 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
