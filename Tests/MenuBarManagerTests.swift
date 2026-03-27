@@ -706,15 +706,15 @@ struct MenuBarManagerTests {
         )
     }
 
-    @Test("Startup recovery right-gap boundary is strict-greater-than")
+    @Test("Startup recovery right-gap boundary is strict-greater-than on non-notched displays")
     @MainActor
     func startupRecoveryRightGapStrictBoundary() {
-        // maxAllowedRightGap = min(320, max(240, 1440*0.14)) = 240
+        // maxAllowedRightGap = min(480, max(300, 1440*0.18)) = 300
         #expect(
             !MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 910,
                 mainX: 1080,
-                mainRightGap: 240,
+                mainRightGap: 300,
                 screenWidth: 1440,
                 notchRightSafeMinX: nil
             )
@@ -723,21 +723,21 @@ struct MenuBarManagerTests {
             MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 910,
                 mainX: 1080,
-                mainRightGap: 241,
+                mainRightGap: 301,
                 screenWidth: 1440,
                 notchRightSafeMinX: nil
             )
         )
     }
 
-    @Test("Startup recovery catches one-extra-app drift near Control Center")
+    @Test("Startup recovery trusts the notch-safe right zone even when the legacy gap cap would fail")
     @MainActor
-    func startupRecoveryTriggersForAirGapDrift() {
+    func startupRecoveryAllowsCrowdedNotchedRightZone() {
         #expect(
-            MenuBarManager.shouldRecoverStartupPositions(
+            !MenuBarManager.shouldRecoverStartupPositions(
                 separatorX: 1050,
                 mainX: 1219,
-                mainRightGap: 251,
+                mainRightGap: 290,
                 screenWidth: 1470,
                 notchRightSafeMinX: 825
             )

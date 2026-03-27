@@ -37,6 +37,10 @@ extension MenuBarManager {
         originX > 0 && width > 0 && width < 1000
     }
 
+    nonisolated static func mainStatusItemFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
+        originX > 0 && width > 0 && width < 1000
+    }
+
     /// Normalize stale/misaligned separator right-edge cache using origin cache,
     /// main-icon estimate, and visible boundary guardrails.
     nonisolated static func normalizedSeparatorRightEdge(
@@ -435,11 +439,22 @@ extension MenuBarManager {
               let mainWindow = mainButton.window
         else {
             logger.error("🔧 getMainStatusItemLeftEdgeX: mainStatusItem or window is nil")
-            return nil
+            return lastKnownMainStatusItemX
         }
         let frame = mainWindow.frame
         logger.debug("🔧 getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
-        return frame.origin.x
+        if Self.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+            lastKnownMainStatusItemX = frame.origin.x
+            return frame.origin.x
+        }
+
+        if let cachedX = lastKnownMainStatusItemX {
+            logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+            return cachedX
+        }
+
+        logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame and no fallback available")
+        return nil
     }
 
     @MainActor

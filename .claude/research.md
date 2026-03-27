@@ -699,6 +699,59 @@
 
 ### Verified Findings
 
+## Layout Drift + Disappearing Icon Cluster Re-Research (#130 / #126 / #124 / #114 / #111)
+
+**Updated:** 2026-03-27 | **Status:** verified | **TTL:** 7d
+**Source:** Apple docs (`NSStatusItem.autosaveName`, `NSScreen.auxiliaryTopRightArea`), GitHub issues `#130`, `#126`, `#124`, `#114`, `#111`, local diagnostics snapshots, local code/tests (`MenuBarManager`, `StatusBarController`, `MenuBarOperationCoordinator`)
+
+### Verified Findings
+
+1. **The active layout/reset/disappearance complaints are still one bug family, not scattered edge cases.**
+   - Fresh March 27 reports still say the same thing in different words:
+     - the SaneBar icon disappears
+     - the layout keeps changing or resetting
+     - hidden/visible sections do not stay stable
+   - The strongest live set remains `#130`, `#126`, `#124`, `#114`, and `#111`.
+
+2. **On notched Macs, the right-gap corruption heuristic was still double-counting healthy layouts.**
+   - Runtime validation already knows the notch-safe right zone via `NSScreen.auxiliaryTopRightArea`.
+   - But `MenuBarManager.shouldRecoverStartupPositions(...)` also applied a separate hard right-gap cap even when the main icon was already inside that safe zone.
+   - Fresh issue `#130` is the clearest example:
+     - main icon was still on the built-in display and in the safe right-side region
+     - but the old `240pt` cap still classified it as corrupted because the right gap measured `~290pt`
+   - That is buyer-visible on crowded menu bars because the app looks like it "fixes" a layout that is actually still usable.
+
+3. **Runtime validation and recovery were using different screen identities.**
+   - `MenuBarManager.currentRuntimeSnapshot(...)` measures the actual status-item screen from the main status-item window.
+   - `StatusBarController` recovery/backup helpers were still mostly using `NSScreen.main`.
+   - On external-monitor and wake/login paths, those can be different screens with different widths and different notch-safe rules.
+   - That mismatch explains why external-display users like `#124` and `#114` can see repeated layout churn even after a recovery path runs: validation is judging one screen while recovery seeds backup/replay for another.
+
+4. **The main icon path did not have the same stale-frame protection as the separator path.**
+   - Separator geometry already rejects stale/off-screen frames and falls back to cached or estimated values.
+   - The main icon reader (`getMainStatusItemLeftEdgeX`) was still trusting `button.window.frame.origin.x` directly with no live-frame guard.
+   - During WindowServer relayout after wake/startup, that lets validation compare:
+     - a guarded separator coordinate
+     - against an unguarded main-frame reading
+   - That can manufacture a false `invalidGeometry` result and trigger structural recovery when the real problem is just stale geometry during relayout.
+
+5. **The current recovery ladder amplifies bad samples into visible churn.**
+   - After four failed checks, the validator escalates to:
+     - persisted-layout repair + recreate
+     - then autosave namespace bump
+   - That is appropriate for real corruption.
+   - It is destructive when the underlying sample was wrong because of:
+     - a healthy crowded notch-safe layout
+     - wrong-screen recovery inputs
+     - or a stale main-frame read
+
+### Immediate Fix Direction
+
+- On notched displays, trust the notch-safe right zone first and stop applying the separate right-gap cap on top of it.
+- Relax the non-notched right-gap heuristic so it still catches true far-left drift (`#124`, `#114`) without tripping on smaller dense-layout gaps.
+- Route capture/recovery helpers through the actual status-item screen instead of blindly using `NSScreen.main`.
+- Give the main status-item frame the same stale-frame guard/cached fallback treatment the separator already has.
+
 1. **The current `#101` failure is not the old false-success click path.**
    - Fresh `2.1.25` diagnostics show `preferHardwareFirst=false`, `accepted=true`, and `verification=verified (windowServerWindowCount 0->1)`.
    - That means the click path is getting a real post-click reaction before the user-visible failure happens.

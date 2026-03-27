@@ -71,7 +71,10 @@ extension MenuBarManager {
             logger.error(
                 "Always-hidden separator still misordered after repair (ah=\(postAHX, privacy: .public), sep=\(postSepX, privacy: .public)) — applying hard position recovery"
             )
-            StatusBarController.recoverStartupPositions(alwaysHiddenEnabled: true)
+            StatusBarController.recoverStartupPositions(
+                alwaysHiddenEnabled: true,
+                referenceScreen: self.currentRecoveryReferenceScreen()
+            )
             self.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
             StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
             self.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
