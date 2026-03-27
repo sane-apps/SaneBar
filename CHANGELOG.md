@@ -6,6 +6,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.37] - 2026-03-27
+
+Keeps the SaneBar icon and hidden layout in place more reliably after login, wake, and display changes.
+Reduces cases where the menu bar layout resets itself or the SaneBar icon disappears.
+Improves recovery on crowded and notched menu bars so hidden apps stay easier to reach.
+
+---
+
 ## [2.1.36] - 2026-03-26
 
 Fixes missing menu bar icon recovery after drag-out and reset, makes Reset to Defaults rebuild the menu bar items safely, improves uninstall cleanup for stale status-item state, and updates the Ruby JSON dependency for security.
