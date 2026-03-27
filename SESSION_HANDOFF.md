@@ -3,6 +3,36 @@
 **Date:** 2026-03-23
 **Last released version:** `v2.1.33` (build `2133`)
 
+## Addendum (2026-03-26 website refresh deployed live)
+
+- The SaneBar website refresh is live on `https://sanebar.com`.
+- Live changes now on production:
+  - new live screenshot showcase in `docs/index.html`
+  - buyer-facing FAQ replacing the old compatibility-only FAQ
+  - cleaned SaneSales cross-sell card copy without the `Today is free` pill
+- Important deployment detail:
+  - production was deployed from a clean temporary `docs/` snapshot, not the dirty worktree directly
+  - this avoided shipping unrelated pending docs changes from the local checkout
+- Production verification:
+  - `https://sanebar.com` HTML contains `Hide the Apps.`, `Double-click any app to open it.`, `FAQ`, `What does SaneBar actually do?`, and the updated SaneSales card copy
+
+## Addendum (2026-03-26 website live screenshot refresh)
+
+- The website notch/showcase section in `docs/index.html` was refreshed to use the new live screenshots instead of the older staged carousel treatment.
+- New website/marketing assets added:
+  - `docs/images/second-menu-bar-live.png`
+  - `docs/images/icon-panel-live.png`
+  - `marketing/submission-images/sanebar-second-menu-bar-live.png`
+  - `marketing/submission-images/sanebar-icon-panel-live.png`
+- Design decision:
+  - the wide live Second Menu Bar shot is now the primary full-width proof card
+  - the portrait Icon Panel shot is the secondary card
+  - the existing `browse-settings.png` remains as the settings card
+- Local proof before any deploy:
+  - Safari desktop preview looked clean
+  - narrow-width preview collapsed to one column cleanly
+  - local preview served from `http://127.0.0.1:8012/index.html`
+
 ## Addendum (2026-03-23 release preflight fallback)
 
 - The signed mini release lane is technically green again on the current local tree:

@@ -17,7 +17,7 @@ Hide icons. Show them when you need them. That's it. Basic is $0, with optional 
 
 | | |
 |---|---|
-| ⚡ **Power** | Your data stays on your device. No cloud, no tracking. |
+| ⚡ **Power** | Your data stays on your device. No cloud account, no user-content upload. |
 | ❤️ **Love** | Built to serve you. No dark patterns or manipulation. |
 | 🧠 **Sound Mind** | Calm, focused design. No clutter or anxiety. |
 
@@ -82,7 +82,7 @@ Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **A
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
 - **Crowded menu bar handling** — Inline reveal can temporarily hide app menus to make room when your menu bar is full
-- **On-device by default** — No user-content upload. Network use is limited to updates, license checks, and anonymous aggregate product-health counts.
+- **On-device by default** — No user-content upload. Network use is limited to updates, license checks, and a few simple anonymous app counts.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
@@ -121,7 +121,7 @@ A first-run walkthrough gets you set up in under a minute:
 5. **Permissions** — Grant Accessibility access (required for menu bar management)
 6. **Basic vs Pro** — See what's included and what Pro unlocks
 
-Works perfectly on Macs with Notch. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and anonymous aggregate product-health counts.
+Works perfectly on Macs with Notch. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and a few simple anonymous app counts.
 
 ---
 
@@ -205,7 +205,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ## Privacy
 
-**Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates, license validation, and anonymous aggregate product-health counts such as app version, build, OS version, channel, and update availability.
+**Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates, license validation, and a few simple anonymous app counts such as app version, build, OS version, channel, and update availability.
 
 ![100% On-Device](docs/images/settings-about.png)
 
@@ -311,6 +311,9 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 | Document | Purpose |
 |----------|---------|
+| [README.md](README.md) | Product overview and doc map |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, runtime model, and key decisions |
+| [PRIVACY.md](PRIVACY.md) | Privacy practices and limited network behavior |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | Security policy and reporting |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |

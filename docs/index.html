@@ -467,6 +467,136 @@
             object-fit: contain;
         }
 
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: var(--phi-lg);
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        .showcase-card {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.45),
+                0 0 0 1px var(--border);
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .showcase-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(79, 143, 250, 0.45);
+            box-shadow:
+                0 28px 60px -18px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(79, 143, 250, 0.28);
+        }
+
+        .showcase-card-wide {
+            grid-column: 1 / -1;
+            padding: 22px 22px 18px;
+            gap: 14px;
+        }
+
+        .showcase-copy {
+            max-width: 620px;
+        }
+
+        .showcase-card-wide .showcase-copy {
+            max-width: 760px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .showcase-eyebrow {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .showcase-card h3 {
+            font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .showcase-card-wide h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            margin-bottom: 10px;
+        }
+
+        .showcase-card p:last-child {
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        .showcase-card img {
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 14px;
+            object-fit: contain;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            background: linear-gradient(180deg, rgba(11, 22, 44, 0.92), rgba(11, 22, 44, 0.68));
+        }
+
+        .showcase-card-wide img {
+            width: min(100%, 822px);
+            border: 1px solid rgba(79, 143, 250, 0.14);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+            background: transparent;
+        }
+
+        .showcase-card:not(.showcase-card-wide) img {
+            max-height: 420px;
+            margin-top: auto;
+        }
+
+        .showcase-card-support {
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(180deg, rgba(22, 24, 36, 0.94), rgba(19, 20, 31, 0.92));
+            border-color: rgba(255, 255, 255, 0.07);
+        }
+
+        .showcase-card-support .showcase-copy {
+            max-width: 340px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .showcase-card-support .showcase-eyebrow {
+            color: rgba(120, 160, 255, 0.88);
+        }
+
+        .showcase-card-support h3 {
+            font-size: clamp(1.05rem, 2.1vw, 1.3rem);
+        }
+
+        .showcase-card.showcase-card-support img {
+            width: min(100%, 360px);
+            max-height: 340px;
+            margin-top: 10px;
+            opacity: 0.94;
+        }
+
+        .showcase-line {
+            display: block;
+        }
+
         .carousel-caption {
             background: var(--accent);
             color: white;
@@ -1490,6 +1620,19 @@
     line-height: 1.6;
 }
 
+.faq-list {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.faq-list .crypto-faq {
+    margin-top: 16px;
+}
+
+.faq-list .crypto-faq:first-child {
+    margin-top: 0;
+}
+
 
         /* Cross-Sell Section */
         .more-apps {
@@ -1914,6 +2057,16 @@
                 height: 300px !important;
             }
 
+            .showcase-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .showcase-card,
+            .showcase-card-wide {
+                grid-column: auto;
+                padding: 20px;
+            }
+
             /* Buttons */
             .cta-buttons {
                 flex-direction: column;
@@ -2272,40 +2425,43 @@
                     </div>
                 </div>
             </div>
-            <!-- Showcase Carousel - two ways to view hidden icons -->
-            <h2 class="hero-section-heading" style="font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-top: 64px; margin-bottom: 16px;">How We Handle the Mac Notch</h2>
-            <div class="hero-carousel animate-in delay-5" style="max-width: 520px; margin-top: 0;">
-                <div class="carousel-container" style="height: 420px;">
-                    <div class="carousel-progress">
-                        <div class="carousel-progress-bar" id="carouselProgress"></div>
+            <div class="showcase-grid animate-in delay-5">
+                <a href="javascript:void(0)" onclick="openLightbox('images/second-menu-bar-live.png', 'Second Menu Bar — Hide 20+ icons without losing access')" class="showcase-card showcase-card-wide">
+                    <div class="showcase-copy">
+                        <p class="showcase-eyebrow">Second Menu Bar</p>
+                        <h3>
+                            <span class="showcase-line">Hide the Apps.</span>
+                            <span class="showcase-line">Keep the Access.</span>
+                        </h3>
+                        <p>
+                            <span class="showcase-line">Drag apps between Visible, Hidden, and Always Hidden.</span>
+                            <span class="showcase-line">Double-click any app to open it.</span>
+                        </p>
                     </div>
-                    <div class="carousel-slide active">
-                        <div class="carousel-inner">
-                            <p class="carousel-label">Option 1: Icon Panel</p>
-                            <p class="carousel-desc">Icon Panel: Click and drag an icon onto a zone tab: Visible, Hidden, or Always Hidden.</p>
-                            <img src="images/icon-panel.png" alt="Icon Panel">
-                        </div>
+                    <img src="images/second-menu-bar-live-tight.png" alt="SaneBar second menu bar showing many hidden icons">
+                </a>
+                <a href="javascript:void(0)" onclick="openLightbox('images/icon-panel-live.png', 'Icon Panel — Search, filter, and drag icons between zones')" class="showcase-card">
+                    <div class="showcase-copy">
+                        <p class="showcase-eyebrow">Icon Panel</p>
+                        <h3>Find and open apps fast</h3>
+                        <p>
+                            <span class="showcase-line">Search by name, filter by section, and</span>
+                            <span class="showcase-line">double-click to open any hidden app.</span>
+                        </p>
                     </div>
-                    <div class="carousel-slide">
-                        <div class="carousel-inner">
-                            <p class="carousel-label">Option 2: Second Menu Bar</p>
-                            <p class="carousel-desc">Second Menu Bar: Click and drag an icon into the destination row: Visible, Hidden, or Always Hidden.</p>
-                            <img src="images/second-menu-bar.png" alt="Second Menu Bar">
-                        </div>
+                    <img src="images/icon-panel-live.png" alt="SaneBar icon panel with hidden icons, categories, and search">
+                </a>
+                <a href="javascript:void(0)" onclick="openLightbox('images/browse-settings.png', 'Choose Your View — Switch between Icon Panel and Second Menu Bar anytime')" class="showcase-card showcase-card-support">
+                    <div class="showcase-copy">
+                        <p class="showcase-eyebrow">Settings</p>
+                        <h3>Pick the view you like</h3>
+                        <p>
+                            <span class="showcase-line">Use the Icon Panel or the Second Menu Bar.</span>
+                            <span class="showcase-line">Switch anytime in Settings.</span>
+                        </p>
                     </div>
-                    <div class="carousel-slide">
-                        <div class="carousel-inner">
-                            <p class="carousel-label">Choose Your View</p>
-                            <p class="carousel-desc">Choose your view in Settings → General → Browse Icons. Switch between Icon Panel and Second Menu Bar anytime.</p>
-                            <img src="images/browse-settings.png" alt="Settings">
-                        </div>
-                    </div>
-                </div>
-                <div class="carousel-dots">
-                    <span class="dot active" onclick="goToSlide(0)"></span>
-                    <span class="dot" onclick="goToSlide(1)"></span>
-                    <span class="dot" onclick="goToSlide(2)"></span>
-                </div>
+                    <img src="images/browse-settings.png" alt="SaneBar browse icon settings">
+                </a>
             </div>
         </div>
     </section>
@@ -2868,15 +3024,60 @@
 
     <section class="compatibility-faq" id="faq">
         <div class="container">
-            <h2 class="section-title">Compatibility FAQ</h2>
-            <p class="section-subtitle">Why some menu bar apps are edge cases.</p>
-            <details class="crypto-faq" id="faq-edge-case-apps">
-                <summary>Why doesn’t SaneBar work with every menu bar app?</summary>
-                <p>SaneBar is built around Apple’s supported menu bar APIs and the standard macOS behavior they produce.</p>
-                <p>Most Apple menu extras and normal third-party menu bar apps should work well. Some apps use unusual helper-host, window-backed, or other custom menu bar models instead.</p>
-                <p>When those apps misbehave, the compatibility limit comes from that app’s implementation rather than from SaneBar ignoring the supported macOS path.</p>
-                <p>I avoid risky heuristics that could make common menu bar apps less reliable just to chase a small number of outliers.</p>
-            </details>
+            <h2 class="section-title">FAQ</h2>
+            <p class="section-subtitle">Simple answers about how SaneBar works, what Basic includes, and what stays on your Mac.</p>
+            <div class="faq-list">
+                <details class="crypto-faq" open>
+                    <summary>What does SaneBar actually do?</summary>
+                    <p>SaneBar hides menu bar apps you do not need right now, keeps the important ones visible, and lets you quickly open hidden apps when you need them.</p>
+                    <p>You can use it to clean up a crowded menu bar, stop icons from disappearing behind the notch, and keep your menu bar easier to use every day.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>How do I hide apps?</summary>
+                    <p>Click the SaneBar icon to reveal your hidden apps, then drag apps between <strong>Visible</strong>, <strong>Hidden</strong>, and <strong>Always Hidden</strong>.</p>
+                    <p>Most people can start with one click to show or hide and a quick drag to decide what stays visible.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>How do I open a hidden app?</summary>
+                    <p>Open the <strong>Icon Panel</strong> or <strong>Second Menu Bar</strong>, then double-click the app you want to open.</p>
+                    <p>You can also search for an app by name and open it without hunting through a crowded menu bar.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>What is the difference between Icon Panel and Second Menu Bar?</summary>
+                    <p><strong>Icon Panel</strong> is a compact floating view that is great for searching, filtering, and opening apps fast.</p>
+                    <p><strong>Second Menu Bar</strong> gives you a full-width row of hidden apps below the real menu bar, which is better when you want to see more apps at once and drag them between sections.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>Does SaneBar work with the MacBook notch?</summary>
+                    <p>Yes. SaneBar is built for crowded menu bars, including Macs where apps can get pushed behind the notch or off-screen.</p>
+                    <p>If an app is hard to reach in the real menu bar, SaneBar gives you another way to find it, open it, and organize it.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>What is included in Basic?</summary>
+                    <p>Basic includes the core experience: hide and show apps, use the Icon Panel, use the Second Menu Bar, search for apps, and open hidden apps quickly.</p>
+                    <p>For many people, Basic is enough to make the menu bar feel clean and usable again.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>What does Pro add?</summary>
+                    <p>Pro adds Touch ID or password lock, the Always Hidden section, drag moves between sections, smart triggers, profiles, appearance controls, per-app shortcuts, and AppleScript automation.</p>
+                    <p>Basic covers hide, show, find, and open. Pro adds more control, privacy, and automation.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>Is SaneBar private?</summary>
+                    <p>SaneBar runs on-device by default. It does not upload your files or your menu bar contents.</p>
+                    <p>Network activity is limited to practical things like app updates, license checks, and a few simple anonymous app-health counts.</p>
+                </details>
+                <details class="crypto-faq">
+                    <summary>Do I need to grant Accessibility access?</summary>
+                    <p>Yes. macOS requires Accessibility access for apps that organize and interact with menu bar items.</p>
+                    <p>SaneBar needs that permission so it can hide apps, reveal them again, move them between sections, and open them for you.</p>
+                </details>
+                <details class="crypto-faq" id="faq-edge-case-apps">
+                    <summary>Will every menu bar app work perfectly?</summary>
+                    <p>Most Apple menu extras and normal third-party menu bar apps work well.</p>
+                    <p>A small number of unusual apps use custom menu bar behavior that can make them edge cases. That is not the normal case, and I avoid risky hacks that would make the common apps less reliable just to chase a few outliers.</p>
+                </details>
+            </div>
         </div>
     </section>
 
@@ -2967,9 +3168,8 @@
                         <img src="images/sanesales-icon.png" alt="SaneSales" class="app-card-icon">
                         <div class="app-card-name">SaneSales</div>
                     </div>
-                    <div class="app-card-kicker">Today is free</div>
-                    <p class="app-card-tagline">Track today's revenue and orders for free. Unlock trends, full history, CSV export, and multi-provider tracking when you need them.</p>
-                    <span class="app-card-cta">Track sales free &rarr;</span>
+                    <p class="app-card-tagline">See sales history at a glance. Track revenue, orders, and trends in one clean view.</p>
+                    <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
             </div>
             <div class="more-apps-hub">
@@ -3036,12 +3236,14 @@
         const progressBar = document.getElementById('carouselProgress');
 
         function resetProgressBar() {
+            if (!progressBar) return;
             progressBar.style.animation = 'none';
             progressBar.offsetHeight; // Trigger reflow
             progressBar.style.animation = 'carouselProgress 5s linear';
         }
 
         function goToSlide(n) {
+            if (!slides.length || !dots.length) return;
             slides[currentSlide].classList.remove('active');
             dots[currentSlide].classList.remove('active');
             currentSlide = n;
@@ -3058,8 +3260,10 @@
         }
 
         // Auto-rotate every 5 seconds
-        setInterval(nextSlide, 5000);
-        resetProgressBar(); // Start progress bar on load
+        if (slides.length && dots.length && progressBar) {
+            setInterval(nextSlide, 5000);
+            resetProgressBar(); // Start progress bar on load
+        }
 
         // Demo toggle - mimics SaneBar's click-to-hide behavior
         // Structure: [Hidden apps] [/] [Visible apps] [SaneBar icon]
