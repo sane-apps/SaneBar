@@ -100,7 +100,7 @@ The hotkey will reveal hidden icons and activate that app.";
 "About" = "About";
 "Version %@ (%@)" = "Version %@ (%@)";
 "100% On-Device" = "On-Device by Default";
-"No analytics. No telemetry. No network requests. Everything stays on your Mac." = "No personal data. Limited network use for updates, license checks, and anonymous product-health counts.";
+"No analytics. No telemetry. No network requests. Everything stays on your Mac." = "No user-content upload. Limited network use for updates, license checks, and a few simple anonymous app counts.";
 "GitHub" = "GitHub";
 "Licenses" = "Licenses";
 "Reset to Defaults" = "Reset to Defaults";

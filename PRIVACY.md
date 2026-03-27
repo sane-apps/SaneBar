@@ -1,14 +1,16 @@
 # Privacy & Permissions
 
+> [README](README.md) · [ARCHITECTURE](ARCHITECTURE.md) · [DEVELOPMENT](DEVELOPMENT.md) · [PRIVACY](PRIVACY.md) · [SECURITY](SECURITY.md)
+
 SaneBar is built with privacy as the foundation. This document explains every permission the app requests and exactly what it does with that access.
 
 ## The Short Version
 
-- **No personal data** - No names, emails, files, icon names, or menu bar contents are uploaded
-- **Anonymous aggregate product-health counts only** - We count things like app version, build, OS version, channel, and update availability
-- **No user identifiers** - We don't know who you are
+- **Your menu bar setup stays on your Mac** - No files, icon names, or menu bar contents are uploaded
+- **A few simple anonymous app counts** - We count things like app version, update status, and whether the app opened in Free or Pro
+- **No user identifiers** - We do not tie those counts to your identity
 - **Local storage only** - Settings saved to `~/Library/Application Support/SaneBar/`
-- **Limited network use** - Update checks, license validation, and anonymous aggregate product-health counts
+- **Limited network use** - Update checks, license validation, and those simple app counts
 
 ---
 
@@ -125,9 +127,9 @@ rm ~/Library/Preferences/com.sanebar.app.plist
 
 ---
 
-## Anonymous Product Health Metrics
+## Simple Anonymous App Counts
 
-SaneBar sends a small number of anonymous aggregate product-health events to help manage releases responsibly.
+SaneBar sends a few simple anonymous app counts so we can see which versions are in use and whether updates are working as expected.
 
 These events may include:
 
@@ -147,7 +149,7 @@ These events do **not** include:
 - menu bar contents, icon names, screenshots, or files
 - any persistent user identifier
 
-Storage is daily aggregate counts only. SaneApps does not store raw per-user event histories for this telemetry.
+Storage is daily aggregate counts only. SaneApps does not store raw per-user histories for these counts.
 
 ---
 
@@ -160,7 +162,7 @@ Want to verify SaneBar's network behavior? Run this while the app is open:
 sudo lsof -i -P | grep SaneBar
 ```
 
-You'll only see traffic for update checks, license validation, or anonymous aggregate product-health events.
+You'll only see traffic for update checks, license validation, or simple anonymous app counts.
 
 ---
 

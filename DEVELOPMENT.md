@@ -1,5 +1,7 @@
 # SaneBar Development Guide (SOP)
 
+> [README](README.md) · [ARCHITECTURE](ARCHITECTURE.md) · [DEVELOPMENT](DEVELOPMENT.md) · [PRIVACY](PRIVACY.md) · [SECURITY](SECURITY.md)
+
 **Version 1.1** | Last updated: 2026-02-02
 
 ---

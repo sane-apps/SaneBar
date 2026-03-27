@@ -1,5 +1,7 @@
 # Security Policy
 
+> [README](README.md) · [ARCHITECTURE](ARCHITECTURE.md) · [DEVELOPMENT](DEVELOPMENT.md) · [PRIVACY](PRIVACY.md) · [SECURITY](SECURITY.md)
+
 ## Supported Versions
 
 | Version | Supported          |
@@ -31,7 +33,7 @@ SaneBar is a **menu bar utility** that:
 
 1. **Requires Accessibility permissions** to read and manipulate menu bar items
 2. **Stores settings locally** in `~/Library/Application Support/SaneBar/`
-3. **Uses limited network requests only when needed** — Sparkle update checks, direct-license validation, and anonymous aggregate product-health counts
+3. **Uses limited network requests only when needed** — Sparkle update checks, direct-license validation, and a few simple anonymous app counts
 
 ### Known Limitations
 
@@ -101,7 +103,7 @@ Minor concerns (all documented with mitigations above):
 SaneBar implements:
 
 - **Hardened Runtime** — Required for notarization
-- **No special network entitlements** — Standard outbound macOS networking only for updates, direct-license checks, and anonymous aggregate product-health counts
+- **No special network entitlements** — Standard outbound macOS networking only for updates, direct-license checks, and a few simple anonymous app counts
 - **Notarized by Apple** — Scanned for malware before distribution
 - **100% transparent code** — Full source available for inspection on GitHub
 
@@ -114,6 +116,6 @@ SaneBar does **not** upload personal content:
 - No names, emails, files, icon names, or menu bar contents
 - No crash reporting to external services
 - No account required
-- Only anonymous aggregate product-health counts for release management
+- Only a few simple anonymous app counts for release management
 
 See [PRIVACY.md](PRIVACY.md) for our full privacy policy.

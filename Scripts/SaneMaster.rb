@@ -236,7 +236,11 @@ load_headless_secrets_env || true
 if [[ "${SANEBAR_PREFER_USER_APP:-0}" == "1" ]] && [[ -z "${SANEMASTER_CANONICAL_APP_PATH:-}" ]]; then
   case "${1:-}" in
   launch | test_mode | tm)
-    export SANEMASTER_CANONICAL_APP_PATH="${HOME}/Applications/SaneBar.app"
+    if [[ -d "/Applications/SaneBar.app" ]]; then
+      export SANEMASTER_CANONICAL_APP_PATH="/Applications/SaneBar.app"
+    else
+      export SANEMASTER_CANONICAL_APP_PATH="${HOME}/Applications/SaneBar.app"
+    fi
     ;;
   esac
 fi
