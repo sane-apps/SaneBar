@@ -1,5 +1,56 @@
 # SaneBar Research Cache
 
+## Sparkle Header Cache Mismatch After Package Pin Changes
+
+**Updated:** 2026-03-28 22:31 ET | **Status:** verified | **TTL:** 7d
+**Source:** mini `./scripts/SaneMaster.rb verify --quiet` failure on 2026-03-28; local code audit of `SaneBar.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`; `SaneMaster.rb` command help for `verify --clean` and `clean --nuclear`; Apple/Xcode search for `has been modified since the module file`
+
+### Verified Findings
+
+1. The post-pin Mini failure was a build-cache mismatch, not a source regression in the settings UI work.
+   - Xcode failed with `SPUStandardUserDriverDelegate.h has been modified since the module file ... was built`.
+   - The failing header belonged to `Sparkle.framework`, which had just moved from `2.8.1` to `2.9.0` in `Package.resolved`.
+2. The failure pattern matches stale Explicit Precompiled Module / DerivedData state after a package header changes underneath an existing build cache.
+   - The failing path was under `DerivedData/.../SwiftExplicitPrecompiledModules/`.
+   - The framework header size changed between the old cached module build and the new resolved package contents.
+3. The safe recovery path is already part of SaneProcess.
+   - `./scripts/SaneMaster.rb verify --clean` cleans before the test run.
+   - `./scripts/SaneMaster.rb clean --nuclear` also removes DerivedData and resets Xcode state.
+4. When package pins change on the Mini, prefer the nuclear clean first if the first verify run reports `has been modified since the module file`.
+   - That avoids wasting time on source-level debugging for a cache-state problem.
+
+## 2.1.37 Runtime + Settings Sweep Refresh
+
+**Updated:** 2026-03-28 21:55 ET | **Status:** verified | **TTL:** 7d
+**Source:** Apple docs for `NSStatusBar`, `NSStatusItem`, and `NSStatusItem.Behavior`; Bartender public help/release notes; live GitHub issues `#130`, `#129`, `#126`, `#122`, `#117`; local code audit of `Core/Controllers/StatusBarController.swift`, `Core/MenuBarManager.swift`, `UI/Settings/AboutSettingsView.swift`, and `UI/SettingsView.swift`
+
+### Verified Findings
+
+1. Apple still does not expose a new first-party API for managing other apps' menu bar items.
+   - `NSStatusBar` and `NSStatusItem` remain app-owned status-item APIs.
+   - `NSStatusItem.Behavior` still includes removal behaviors, which matters because SaneBar currently opts into `.removalAllowed` for its own items.
+2. Competitor public docs still treat missing or inaccessible menu bar icons as a real category, not a solved platform problem.
+   - Bartender still documents relaunching from Applications as a recovery path if the main icon is hidden or inaccessible.
+   - Bartender release notes still carry fixes for dock-icon persistence, menu bar gaps, and hidden-bar visibility/recovery seams, which matches the same class of fragility SaneBar is fighting.
+3. The live GitHub queue says the current SaneBar red cluster is still runtime disappearance/reset behavior, not settings UI.
+   - `#129` is still open on `2.1.37` after reset-to-defaults did not restore the icon.
+   - `#130` is still the wake/hover/reset family with stale separator geometry and move verification errors in diagnostics.
+   - `#126` now has one fresh field clue: the reporter eventually found the SaneBar icon disabled in system menu bar visibility settings, which means at least one “icon disappeared” report was really “system-level icon visibility got turned off”.
+   - `#122` remains a separate tint/appearance issue, and `#117` remains the separate hidden→visible wrong-target/move-instability issue.
+4. Current local code does not intentionally hide the main SaneBar icon anymore.
+   - `MenuBarManager` still force-clears deprecated `hideMainIcon` on launch and logs `hideMainIcon is deprecated - forcing visible main icon`.
+   - That means new “icon vanished” reports are more likely to be status-item removal/system visibility/recovery failures than a persisted in-app “hide the icon” preference.
+5. Current local code still leaves one real disappearance-risk seam open.
+   - `StatusBarController` still enables `.removalAllowed`, so the app is explicitly allowing the system/user to remove the status item from the menu bar.
+   - That aligns with the fresh `#126` clue and means any future recovery UX should account for the icon being absent because the system stopped showing it, not only because layout persistence drifted.
+6. The settings/About standardization pass is orthogonal to the runtime cluster.
+   - `SettingsView` already uses shared `SaneSettingsContainer`.
+   - `AboutSettingsView` is still an app-local UI fork and needs standardization, but changing that screen is not itself evidence that disappearance/move runtime bugs are fixed.
+7. Current PR state is unrelated to the runtime cluster.
+   - Open PR `#127` is only a Sparkle package bump.
+   - Open PR `#131` is only an `mcp` gem bump.
+   - Neither PR should be treated as a fix for the disappearance/reset/move issue family.
+
 ## 2.1.35 Browse UX + Move Cluster Refresh
 
 **Updated:** 2026-03-26 | **Status:** verified | **TTL:** 7d

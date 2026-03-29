@@ -22,15 +22,15 @@ struct SettingsView: View {
         var iconColor: Color {
             switch self {
             case .general:
-                SaneBarChrome.accentHighlight
+                SaneSettingsIconSemantic.general.color
             case .rules:
-                SaneBarChrome.accentTeal
+                SaneSettingsIconSemantic.rules.color
             case .appearance:
-                Color(red: 0.66, green: 0.82, blue: 1.00)
+                SaneSettingsIconSemantic.appearance.color
             case .shortcuts:
-                Color(red: 0.50, green: 0.74, blue: 1.00)
+                SaneSettingsIconSemantic.shortcuts.color
             case .about:
-                Color(red: 0.76, green: 0.88, blue: 1.00)
+                SaneSettingsIconSemantic.about.color
             }
         }
     }

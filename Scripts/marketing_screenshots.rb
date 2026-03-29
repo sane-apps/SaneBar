@@ -59,9 +59,9 @@ SHOTS = {
     description: 'Shortcuts tab (hotkeys + automation)'
   },
   'settings-help' => {
-    title: 'Help',
+    title: 'About',
     filename: 'settings-about.png',
-    description: 'Help tab (links, licenses, bug report, donate)'
+    description: 'About tab (GitHub, licenses, bug report, issues)'
   },
   'browse-settings' => {
     title: 'General',

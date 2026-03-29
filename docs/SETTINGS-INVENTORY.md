@@ -1,14 +1,14 @@
 # SaneBar Settings Inventory (Current)
 
 > Source of truth for current settings UI and labels.
-> Last updated: 2026-02-25
+> Last updated: 2026-03-28
 
 ## Sidebar Tabs
 - `General`
 - `Rules`
 - `Appearance`
 - `Shortcuts`
-- `Help`
+- `About`
 
 Code: `UI/SettingsView.swift`
 
@@ -131,23 +131,22 @@ Code: `UI/Settings/ShortcutsSettingsView.swift`
 
 ---
 
-## Help
+## About
 
 ### Identity + Trust
 - App icon, version
-- `Made with ❤️ in 🇺🇸 · 100% On-Device · No Analytics`
+- `Made with ❤️ in 🇺🇸`
+- `On-Device by Default`
+- `No Personal Data`
 
 ### Actions
 - GitHub
 - Licenses
-- Donate
 - Report a Bug
 - View Issues
-- Questions
 
-### Popovers
+### Sheets
 - Third-party license text
-- Donation/support panel
 - Feedback form
 
 Code: `UI/Settings/AboutSettingsView.swift`

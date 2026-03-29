@@ -26,7 +26,7 @@
 | `docs/images/settings-rules.png` | Rules | Must show triggers/rehide controls |
 | `docs/images/settings-appearance.png` | Appearance | Must show icon + style + layout controls |
 | `docs/images/settings-shortcuts.png` | Shortcuts | Must show hotkeys + automation |
-| `docs/images/settings-about.png` | Help | Help tab (formerly About) |
+| `docs/images/settings-about.png` | About | About tab |
 
 ## Onboarding Assets (App Bundle)
 

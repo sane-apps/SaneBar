@@ -347,59 +347,7 @@ struct GeneralSettingsView: View {
                 }
 
                 // 4. Updates
-                CompactSection("Software Updates") {
-                    if licenseService.distributionChannel.supportsInAppUpdates {
-                        CompactToggle(
-                            label: "Check for updates automatically",
-                            isOn: $menuBarManager.settings.checkForUpdatesAutomatically
-                        )
-                        .help("Periodically check for new versions")
-
-                        CompactDivider()
-
-                        CompactRow("Check frequency") {
-                            HStack(spacing: 6) {
-                                ForEach(UpdateCheckFrequency.allCases) { frequency in
-                                    ChromeSegmentedChoiceButton(
-                                        title: frequency.title,
-                                        isSelected: updateCheckFrequency == frequency
-                                    ) {
-                                        updateCheckFrequency = frequency
-                                    }
-                                }
-                            }
-                            .frame(width: 170)
-                            .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
-                            .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
-                        }
-                        .help("Choose how often automatic update checks run")
-
-                        CompactDivider()
-
-                        CompactRow("Actions") {
-                            Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
-                                guard !isCheckingForUpdates else { return }
-                                isCheckingForUpdates = true
-                                menuBarManager.userDidClickCheckForUpdates()
-
-                                Task { @MainActor in
-                                    try? await Task.sleep(for: .seconds(5))
-                                    isCheckingForUpdates = false
-                                }
-                            }
-                            .buttonStyle(ChromeActionButtonStyle())
-                            .controlSize(.small)
-                            .disabled(isCheckingForUpdates)
-                            .help("Check for updates right now")
-                        }
-                    } else {
-                        CompactRow("Status") {
-                            Text(licenseService.distributionChannel.managementLabel ?? "Managed externally")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.white.opacity(0.82))
-                        }
-                    }
-                }
+                softwareUpdatesSection
 
                 // 5. Profiles — Pro
                 CompactSection("Saved Profiles") {
@@ -487,7 +435,7 @@ struct GeneralSettingsView: View {
                 }
 
                 // 7. Pro License
-                CompactSection("Pro License") {
+                CompactSection("License") {
                     if licenseService.isPro {
                         CompactRow("Status") {
                             HStack(spacing: 6) {
@@ -508,25 +456,22 @@ struct GeneralSettingsView: View {
                         }
                         CompactDivider()
                         CompactRow("Actions") {
-                            if let managementLabel = licenseService.distributionChannel.managementLabel {
-                                HStack(spacing: 10) {
-                                    Text(managementLabel)
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(.white.opacity(0.82))
-                                    if licenseService.usesAppStorePurchase {
-                                        Button("Restore Purchases") {
-                                            Task { await licenseService.restorePurchases() }
-                                        }
-                                        .buttonStyle(ChromeActionButtonStyle())
-                                        .controlSize(.small)
-                                        .disabled(licenseService.isPurchasing)
-                                    }
+                            if licenseService.usesAppStorePurchase {
+                                Button("Restore Purchases") {
+                                    Task { await licenseService.restorePurchases() }
                                 }
+                                .buttonStyle(ChromeActionButtonStyle())
+                                .controlSize(.small)
+                                .disabled(licenseService.isPurchasing)
+                            } else if licenseService.usesSetappDistribution {
+                                Text("Managed by Setapp")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
                             } else {
                                 Button(LicenseService.deactivateLicenseLabel()) {
                                     licenseService.deactivate()
                                 }
-                                .buttonStyle(ChromeActionButtonStyle())
+                                .buttonStyle(ChromeActionButtonStyle(destructive: true))
                                 .controlSize(.small)
                             }
                         }
@@ -539,7 +484,7 @@ struct GeneralSettingsView: View {
                             }
                         }
                         CompactDivider()
-                        CompactRow("Upgrade") {
+                        CompactRow("Actions") {
                             if licenseService.usesAppStorePurchase {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack(spacing: 8) {
@@ -565,9 +510,9 @@ struct GeneralSettingsView: View {
                                     }
                                 }
                             } else if licenseService.usesSetappDistribution {
-                                Text("Included with Setapp")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.9))
+                                Text("Managed by Setapp")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
                             } else {
                                 HStack(spacing: 8) {
                                     Button("Unlock Pro — $6.99") {
@@ -636,6 +581,56 @@ struct GeneralSettingsView: View {
     }
 
     // MARK: - Pro Gating Helper
+
+    @ViewBuilder
+    private var softwareUpdatesSection: some View {
+        CompactSection("Software Updates") {
+            if licenseService.distributionChannel.supportsInAppUpdates {
+                CompactToggle(
+                    label: "Check for updates automatically",
+                    isOn: $menuBarManager.settings.checkForUpdatesAutomatically
+                )
+                .help("Periodically check for new versions")
+
+                CompactDivider()
+
+                CompactRow("Check frequency") {
+                    HStack(spacing: 6) {
+                        ForEach(UpdateCheckFrequency.allCases) { frequency in
+                            ChromeSegmentedChoiceButton(
+                                title: frequency.title,
+                                isSelected: updateCheckFrequency == frequency
+                            ) {
+                                updateCheckFrequency = frequency
+                            }
+                        }
+                    }
+                    .frame(width: 170)
+                    .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
+                    .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
+                }
+                .help("Choose how often automatic update checks run")
+
+                CompactDivider()
+
+                CompactRow("Actions") {
+                    Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
+                        triggerManualUpdateCheck()
+                    }
+                    .buttonStyle(ChromeActionButtonStyle())
+                    .controlSize(.small)
+                    .disabled(isCheckingForUpdates)
+                    .help("Check for updates right now")
+                }
+            } else {
+                CompactRow("Status") {
+                    Text(licenseService.distributionChannel.managementLabel ?? "Managed externally")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.82))
+                }
+            }
+        }
+    }
 
     private func segmentedChoiceButton(
         _ title: String,
@@ -712,6 +707,17 @@ struct GeneralSettingsView: View {
                 ChromeBadge(title: "Pro", systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private func triggerManualUpdateCheck() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        menuBarManager.userDidClickCheckForUpdates()
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            isCheckingForUpdates = false
         }
     }
 
