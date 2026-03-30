@@ -11,21 +11,26 @@
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
-**Your menu bar. Not theirs.**
+**Hide the apps. Keep the access.**
 
-Hide icons. Show them when you need them. That's it. Basic is $0, with optional Pro features for power users.
+Hide menu bar apps you do not need right now, keep the important ones visible, and quickly open hidden apps when you need them. Basic is $0. Pro adds Touch ID lock, smart triggers, profiles, and more.
 
 | | |
 |---|---|
-| ⚡ **Power** | Your data stays on your device. No cloud account, no user-content upload. |
+| ⚡ **Power** | Your data stays on your Mac. No cloud account, no user-content upload. |
 | ❤️ **Love** | Built to serve you. No dark patterns or manipulation. |
 | 🧠 **Sound Mind** | Calm, focused design. No clutter or anxiety. |
+
+![SaneBar Second Menu Bar](docs/images/second-menu-bar-live-tight.png)
+
+| Icon Panel | Pick the view you like |
+|---|---|
+| ![SaneBar Icon Panel](docs/images/icon-panel-live.png) | ![SaneBar Browse Settings](docs/images/browse-settings.png) |
+| Search by name, filter by section, and double-click to open hidden apps fast. | Use the Icon Panel or the Second Menu Bar. Switch anytime in Settings. |
 
 ▶️ **[Watch the demo](https://www.youtube.com/watch?v=I6U3APV-998)** (30 seconds)
 
 [![SaneBar Demo - Hide Icons & Lock with Touch ID](https://img.youtube.com/vi/I6U3APV-998/maxresdefault.jpg)](https://www.youtube.com/watch?v=I6U3APV-998)
-
-![SaneBar Find Hidden Icon](docs/images/find-icon.png)
 
 ---
 
@@ -55,19 +60,20 @@ SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if yo
 
 ## How It Works
 
-1. **Click** the SaneBar icon to show/hide your hidden menu bar icons
-2. **⌘+drag** icons to choose which ones hide
-3. That's it. Most people stop here.
+1. **Click** the SaneBar icon to show or hide your hidden apps
+2. **⌘+drag** in the menu bar to choose which apps stay visible
+3. **Browse** hidden apps in the Icon Panel or the Second Menu Bar
+4. **Double-click** any hidden app to open it fast
 
 ### Two Ways to View Hidden Icons
 
 Choose the style that suits you — set it during onboarding or change anytime in Settings:
 
-- **Icon Panel** — A floating panel appears below the menu bar showing your hidden icons. Clean, compact, click to dismiss.
-- **Second Menu Bar** — A full secondary bar stretches across the screen below your menu bar, showing all hidden icons in their natural order.
+- **Icon Panel** — A compact floating view that is great for searching, filtering, and opening hidden apps fast.
+- **Second Menu Bar** — A full-width row below the real menu bar, which is better when you want to see more apps at once.
 
-Both modes support left-click icon activation in Basic.
-Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **Always-Hidden**, plus right-click quick move actions.
+Both modes let you browse hidden apps and open them in Basic.
+Pro adds drag reordering, drag moves between **Visible**, **Hidden**, and **Always Hidden**, plus right-click quick move actions.
 
 ---
 
@@ -78,7 +84,8 @@ Pro unlocks drag reordering, drag moves between **Visible**, **Hidden**, and **A
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
 - **⌘+drag to organize** — Choose which icons hide and which stay visible
 - **Icon Panel or Second Menu Bar** — Two ways to view hidden icons (see above)
-- **Find Icon search** — Search any menu bar app by name, even behind the Notch
+- **Open hidden apps fast** — Double-click apps from the Icon Panel or Second Menu Bar
+- **Find Icon search** — Search any menu bar app by name, even behind the notch
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
 - **Crowded menu bar handling** — Inline reveal can temporarily hide app menus to make room when your menu bar is full
