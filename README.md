@@ -98,7 +98,7 @@ Pro adds drag reordering, drag moves between **Visible**, **Hidden**, and **Alwa
 Everything in Basic, plus:
 
 - **Touch ID / Password Lock** — The *only* menu bar manager that locks hidden icons behind biometrics. Protect crypto wallets, messaging tools, VPNs.
-- **Always-Hidden Zone** — A dedicated zone for icons you rarely need, only accessible via Find Icon or Second Menu Bar
+- **Always Hidden** — A dedicated section for icons you rarely need, only accessible via Find Icon or Second Menu Bar
 - **Icon Activation & Zone Moves** — Click icons from panels to open their menus, move icons between Visible, Hidden, and Always-Hidden zones
 - **Smart Triggers** — Auto-show on Focus Mode, Wi-Fi network, app launch, low battery, external monitor, or custom scripts
 - **Profiles** — Save different setups for work, home, or presentations
@@ -135,11 +135,11 @@ Works perfectly on Macs with Notch. **Private by default** — no account, no us
 ## Feature Details
 
 ### Find Icon Search
-Search for any menu bar app by name and activate it — even if it's behind the Notch.
+Search for any menu bar app by name and activate it — even if it's behind the notch.
 1. **Option-click** the SaneBar icon, or use **Find Icon…** (default hotkey: ⌘⇧Space)
 2. Type an app name and press **Return**
 3. SaneBar will **virtually click** the app's menu bar item
-4. Works even if the icon is physically hidden behind the Notch or off-screen
+4. Works even if the icon is physically hidden behind the notch or off-screen
 
 ### Crowded Menu Bars
 If your menu bar is completely full, inline reveal can temporarily hide the front app's File/Edit/View menus to make room for hidden icons.
@@ -152,7 +152,7 @@ If your menu bar is completely full, inline reveal can temporarily hide the fron
 Assign a global hotkey to any menu bar app — press it and SaneBar instantly opens that app's menu.
 1. Open **Find Icon…** → select an app → click **Record Shortcut** → press your key combo
 
-### Always-Hidden Zone *(Pro)*
+### Always Hidden *(Pro)*
 Icons pinned here never show automatically — only accessible via Find Icon or Second Menu Bar.
 - Right-click any icon → **Pin in Always Hidden**
 - Unpin anytime from the same menu
@@ -176,13 +176,13 @@ Organize your menu bar apps in the Find Icon window.
 
 ## The Notch & 50+ Apps
 
-**Worried about losing icons behind the Notch?**
+**Worried about losing icons behind the notch?**
 
 If you have 50+ apps, macOS might hide some of them behind the camera housing (the "Notch") or off-screen. SaneBar handles this gracefully:
 
 1. **Hiding**: SaneBar pushes unused icons safely off-screen so your menu bar looks clean
 2. **Safety Lock**: If SaneBar itself would get pushed off-screen, it refuses to hide to ensure you never lose control
-3. **Find Hidden Icon**: Can't see an icon because it's behind the Notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible
+3. **Find Icon**: Can't see an icon because it's behind the notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible
 4. **Tighter Icon Spacing**: Reduce system-wide menu bar spacing to fit more icons. Go to **Settings → Appearance** and enable "Reduce space between icons" (requires logout)
 
 ---
@@ -339,7 +339,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Smart Triggers** | Yes | No | No | No |
 | **Guided Onboarding** | Yes | No | No | No |
 | **Import from Bartender/Ice** | Bartender layout + Ice settings | No | No | No |
-| **Always-Hidden Zone** | Yes | No | Yes | No |
+| **Always Hidden** | Yes | No | Yes | No |
 | **Gesture Controls** | Yes | Yes | Yes | No |
 | **Second Menu Bar** | Yes | Yes | Yes | No |
 | **Find Icon Search** | Yes | Yes | Yes | No |
