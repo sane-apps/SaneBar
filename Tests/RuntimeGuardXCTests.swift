@@ -2261,9 +2261,14 @@ final class RuntimeGuardXCTests: XCTestCase {
     func testStartupPositionValidationRetriesBeforeAutosaveRecovery() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
+        let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let maxAttempts = 4"),
+            source.contains("statusItemValidationMaxAttempts(context: context)") &&
+                source.contains("statusItemValidationRetryDelaySeconds(context: context)") &&
+                source.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 6") &&
+                source.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 0.5"),
             "Startup position validation should retry before escalating to autosave recovery"
         )
         XCTAssertTrue(
@@ -2277,6 +2282,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("geometry drift detected"),
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
+        )
+        XCTAssertTrue(
+            coordinatorSource.contains("if validationContext == .startupFollowUp,") &&
+                coordinatorSource.contains("return .stop(recoveryReason)"),
+            "Wake and screen-change invalid geometry should stay bounded instead of bumping autosave after one failed repair"
         )
         XCTAssertTrue(
             source.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
@@ -2299,9 +2309,36 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
             "Geometry drift validation should repair persisted positions before recreating live items"
         )
+        XCTAssertTrue(
+            source.contains("lastKnownStatusItemDisplayID") &&
+                source.contains("screenDisplayID(_ screen: NSScreen?)") &&
+                source.contains("let cachedScreen = NSScreen.screens.first(where: { screenDisplayID($0) == lastKnownStatusItemDisplayID })"),
+            "Status-item recovery should preserve the last live display identity so stale windows do not reseed against the wrong monitor"
+        )
+        XCTAssertTrue(
+            source.contains("guard let resolvedScreen = statusItemScreen else") &&
+                source.contains("guard let displayID = screenDisplayID(resolvedScreen) else"),
+            "External-monitor policy should use the same status-item screen source as startup recovery"
+        )
+        let controllerSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Controllers/StatusBarController.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(
+            controllerSource.contains("resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil)") &&
+                controllerSource.contains("if let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) })") &&
+                controllerSource.contains("return NSScreen.main ?? NSScreen.screens.first"),
+            "StatusBarController should share one pointer-aware fallback screen resolver instead of scattering raw NSScreen.main fallbacks"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("Self.resolvedReferenceScreen(referenceScreen)") &&
+                controllerSource.contains("let screenFrame = window?.screen?.frame ?? Self.resolvedReferenceScreen()?.frame"),
+            "Startup validation and backup recovery should route through the shared reference-screen resolver"
+        )
     }
 
     func testStartupRecoveryRecreatesLiveItemsImmediately() throws {
+
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
@@ -2415,13 +2452,15 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("Skipping stale status item recovery action") &&
                 source.contains("Skipping overlapping status item recovery action") &&
                 source.contains("positionValidationGeneration += 1") &&
-                source.contains("Restored hidden state after status item recovery") &&
-                source.contains("await self.hidingService.hide()"),
+                source.contains("let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state") &&
+                source.contains("self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)") &&
+                source.contains("Preserved hidden state during status item recovery"),
             "Structural status-item recovery should reject stale validation escalations, preserve hidden-state rebuild intent, and avoid leaving the bar permanently expanded after a wake/display repair"
         )
     }
 
     func testInlineAppMenuSuppressionDoesNotForceDockIconVisible() throws {
+
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
