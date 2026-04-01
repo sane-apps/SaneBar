@@ -918,8 +918,13 @@ class ProjectQA
   def retryable_shared_bundle_runtime_smoke_failure?(smoke_output)
     return true if retryable_runtime_smoke_failure?(smoke_output)
 
-    smoke_output.include?('Candidate failures:') &&
-      smoke_output.include?('to reach zone alwaysHidden')
+    return true if smoke_output.include?('Candidate failures:') &&
+                   smoke_output.include?('to reach zone alwaysHidden')
+
+    smoke_output.include?("Candidate failed: com.apple.controlcenter") &&
+      smoke_output.include?("Hidden/Visible move actions ok") &&
+      smoke_output.include?("Icon 'com.apple.menuextra.") &&
+      smoke_output.include?("not found")
   end
 
   def retryable_active_budget_overrun?(smoke_output)
