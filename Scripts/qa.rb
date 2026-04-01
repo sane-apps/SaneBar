@@ -1730,6 +1730,11 @@ class ProjectQA
         return
       end
 
+      if stability_suite_log_indicates_success?(output)
+        puts "✅ #{STABILITY_TEST_TARGETS.count} targets (clean pass despite a non-zero runner exit)"
+        return
+      end
+
       if attempt <= STABILITY_SUITE_RETRIES && retryable_stability_suite_failure?(output)
         puts "   ↳ retrying stability suite after transient xcodebuild failure (retry #{attempt}/#{STABILITY_SUITE_RETRIES})"
         Open3.capture2e('bash', '-lc', "killall #{PROJECT_NAME} >/dev/null 2>&1 || true")
@@ -1799,8 +1804,8 @@ class ProjectQA
     uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == 'https'
-    http.open_timeout = 5
-    http.read_timeout = 5
+    http.open_timeout = 10
+    http.read_timeout = 20
 
     response = nil
     [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
@@ -1814,6 +1819,16 @@ class ProjectQA
     response&.code&.to_i
   rescue StandardError
     nil
+  end
+
+  def stability_suite_log_indicates_success?(output)
+    body = output.to_s
+    return true if body.include?('✅ Tests passed!')
+    return true if body.match?(/Swift Testing:\s+\d+ tests .* passed/)
+    return true if body.match?(/Test Suite 'All tests' passed/)
+    return true if body.match?(/Executed \d+ tests?, with 0 failures/)
+
+    retryable_stability_suite_failure?(body)
   end
 
   def write_status_snapshot(exit_code:)

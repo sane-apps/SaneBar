@@ -116,6 +116,15 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
         logger.info("HidingService configured with delimiter")
     }
 
+    /// Re-wire the delimiter after status-item recreation without losing the
+    /// current hidden/expanded state.
+    func reconfigure(delimiterItem: StatusItemProtocol, preserving preservedState: HidingState) {
+        self.delimiterItem = delimiterItem
+        state = preservedState
+        applyDelimiterStateToLiveItems()
+        logger.info("HidingService reconfigured with delimiter while preserving \(preservedState.rawValue)")
+    }
+
     /// Set or clear the always-hidden delimiter item.
     /// When the hidden section is expanded (revealed), this delimiter stays large
     /// to keep always-hidden items pushed off-screen.
@@ -126,8 +135,43 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
             return
         }
 
-        // Always start at visual length. show() will set the blocking length.
-        item.length = Self.alwaysHiddenVisualLength
+        applyAlwaysHiddenDelimiterState(item)
+    }
+
+    private func applyDelimiterStateToLiveItems() {
+        guard let delimiterItem else { return }
+
+        switch state {
+        case .hidden:
+            delimiterItem.length = StatusItemLength.collapsed
+        case .expanded:
+            delimiterItem.length = StatusItemLength.expanded
+        }
+
+        if let alwaysHiddenDelimiterItem {
+            applyAlwaysHiddenDelimiterState(alwaysHiddenDelimiterItem)
+        }
+    }
+
+    private func applyAlwaysHiddenDelimiterState(_ item: StatusItemProtocol) {
+        switch state {
+        case .hidden:
+            item.length = Self.alwaysHiddenVisualLength
+            if let nsItem = item as? NSStatusItem, let button = nsItem.button {
+                button.title = "┊"
+                button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .light)
+                button.cell?.isEnabled = true
+                button.alphaValue = 0.5
+                button.image = nil
+            }
+        case .expanded:
+            item.length = StatusItemLength.collapsed
+            if let nsItem = item as? NSStatusItem, let button = nsItem.button {
+                button.image = nil
+                button.title = ""
+                button.cell?.isEnabled = false
+            }
+        }
     }
 
     // MARK: - Show/Hide Operations

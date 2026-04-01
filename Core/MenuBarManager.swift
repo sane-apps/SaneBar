@@ -80,11 +80,36 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     // MARK: - Screen Detection
 
+    private var lastKnownStatusItemDisplayID: CGDirectDisplayID?
+
+    private func screenDisplayID(_ screen: NSScreen?) -> CGDirectDisplayID? {
+        screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+    }
+
+    private func cachedStatusItemScreen() -> NSScreen? {
+        if let liveScreen = mainStatusItem?.button?.window?.screen ??
+            separatorItem?.button?.window?.screen {
+            lastKnownStatusItemDisplayID = screenDisplayID(liveScreen)
+            return liveScreen
+        }
+
+        if let lastKnownStatusItemDisplayID,
+           let cachedScreen = NSScreen.screens.first(where: { screenDisplayID($0) == lastKnownStatusItemDisplayID }) {
+            return cachedScreen
+        }
+
+        if let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) {
+            lastKnownStatusItemDisplayID = screenDisplayID(pointerScreen)
+            return pointerScreen
+        }
+
+        let mainScreen = NSScreen.main
+        lastKnownStatusItemDisplayID = screenDisplayID(mainScreen)
+        return mainScreen
+    }
+
     private var statusItemScreen: NSScreen? {
-        mainStatusItem?.button?.window?.screen ??
-            separatorItem?.button?.window?.screen ??
-            NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) ??
-            NSScreen.main
+        cachedStatusItemScreen()
     }
 
     func currentRecoveryReferenceScreen() -> NSScreen? {
@@ -100,16 +125,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Returns true if the mouse cursor is currently on an external (non-built-in) monitor
     var isOnExternalMonitor: Bool {
-        // Find the screen containing the mouse cursor
-        let mouseLocation = NSEvent.mouseLocation
-        guard let screenWithMouse = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) else {
-            // Safe mode: assume external when screen state is uncertain (hot-plug, sleep wake)
+        guard let resolvedScreen = statusItemScreen else {
             return true
         }
 
-        // Get the display ID for the screen with the mouse
-        guard let displayID = screenWithMouse.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
-            // Safe mode: assume external when lookup fails (unusual display config)
+        guard let displayID = screenDisplayID(resolvedScreen) else {
             return true
         }
 
@@ -224,13 +244,35 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     ) -> TimeInterval {
         switch context {
         case .startupFollowUp:
-            return recoveryCount == 0 ? 0.5 : 1.0
+            return recoveryCount == 0 ? 1.5 : 2.0
         case .manualLayoutRestore:
             return recoveryCount == 0 ? 0.35 : 0.75
         case .screenParametersChanged:
-            return recoveryCount == 0 ? 1.5 : 2.0
+            return recoveryCount == 0 ? 2.0 : 2.5
         case .wakeResume:
             return recoveryCount == 0 ? 2.0 : 2.5
+        }
+    }
+
+    nonisolated static func statusItemValidationRetryDelaySeconds(
+        context: MenuBarOperationCoordinator.PositionValidationContext
+    ) -> TimeInterval {
+        switch context {
+        case .startupFollowUp, .screenParametersChanged, .wakeResume:
+            return 0.5
+        case .manualLayoutRestore:
+            return 0.25
+        }
+    }
+
+    nonisolated static func statusItemValidationMaxAttempts(
+        context: MenuBarOperationCoordinator.PositionValidationContext
+    ) -> Int {
+        switch context {
+        case .startupFollowUp, .screenParametersChanged, .wakeResume:
+            return 6
+        case .manualLayoutRestore:
+            return 4
         }
     }
 
@@ -536,6 +578,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.separatorItem = separator
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
             let shouldRestoreHidden = self.pendingRecoveryHideRestore
+            let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state
             self.pendingRecoveryHideRestore = false
 
             if let button = main.button {
@@ -544,7 +587,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             }
 
-            self.hidingService.configure(delimiterItem: separator)
+            self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)
             self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
             self.clearStatusItemMenus()
             self.updateMainIconVisibility()
@@ -554,11 +597,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateSpacers()
 
             if shouldRestoreHidden {
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    await self.hidingService.hide()
-                    logger.info("Restored hidden state after status item recovery")
-                }
+                logger.info("Preserved hidden state during status item recovery")
             }
 
             logger.info("Re-wired status items after autosave recovery")
@@ -777,11 +816,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     @MainActor
     private func captureCurrentDisplayBackupAfterStableValidation(
+        snapshot: MenuBarRuntimeSnapshot,
         maxAttempts: Int = 6,
         delay: Duration = .milliseconds(150)
     ) async -> Bool {
         for attempt in 1 ... maxAttempts {
-            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: statusItemScreen) {
+            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+                referenceScreen: statusItemScreen,
+                mainPosition: snapshot.mainX.map(Double.init),
+                separatorPosition: snapshot.separatorX.map(Double.init)
+            ) {
                 return true
             }
             if StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: statusItemScreen) {
@@ -833,7 +877,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         switch action {
         case .captureCurrentDisplayBackup:
             pendingRecoveryHideRestore = false
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: statusItemScreen)
+            let snapshot = currentStatusItemRecoverySnapshot()
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+                referenceScreen: statusItemScreen,
+                mainPosition: snapshot.mainX.map(Double.init),
+                separatorPosition: snapshot.separatorX.map(Double.init)
+            )
 
         case .repairPersistedLayoutAndRecreate:
             guard !isExecutingStatusItemRecovery else {
@@ -919,8 +968,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 recoveryCount: recoveryCount
             )
             let initialDelayDuration: Duration = .milliseconds(Int(initialDelay * 1000))
-            let retryDelay: Duration = .milliseconds(250)
-            let maxAttempts = 4
+            let retryDelaySeconds = Self.statusItemValidationRetryDelaySeconds(context: context)
+            let retryDelay: Duration = .milliseconds(Int(retryDelaySeconds * 1000))
+            let maxAttempts = Self.statusItemValidationMaxAttempts(context: context)
 
             try? await Task.sleep(for: initialDelayDuration)
             guard self.positionValidationGeneration == validationGeneration else {
@@ -945,7 +995,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 lastAlwaysHiddenNeedsRepair = alwaysHiddenNeedsRepair
 
                 if recoveryReason == nil, !alwaysHiddenNeedsRepair {
-                    let capturedBackup = await self.captureCurrentDisplayBackupAfterStableValidation()
+                    let capturedBackup = await self.captureCurrentDisplayBackupAfterStableValidation(snapshot: snapshot)
                     if !capturedBackup {
                         logger.warning(
                             "Status item validation reached a healthy layout without a current-width backup for \(context.rawValue, privacy: .public)"

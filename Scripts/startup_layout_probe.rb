@@ -127,8 +127,11 @@ class StartupLayoutProbe
     separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
     backup_main_key = "SaneBar_Position_Backup_#{width_bucket}_main"
     backup_separator_key = "SaneBar_Position_Backup_#{width_bucket}_separator"
-    backup_main = numeric_default(backup_main_key)
-    backup_separator = numeric_default(backup_separator_key)
+    backup_main, backup_separator = wait_for_current_width_backup(
+      width_bucket: width_bucket,
+      main_key: backup_main_key,
+      separator_key: backup_separator_key
+    )
     raise "Missing current-width backup for width #{width_bucket}" unless backup_main && backup_separator
 
     quit_app
@@ -200,6 +203,29 @@ class StartupLayoutProbe
         t5: t5
       }
     }
+  end
+
+  def wait_for_current_width_backup(width_bucket:, main_key:, separator_key:, timeout: 8.0)
+    deadline = Time.now + timeout
+    last_snapshot = nil
+
+    loop do
+      main = numeric_default(main_key)
+      separator = numeric_default(separator_key)
+      return [main, separator] if main && separator
+
+      break if Time.now >= deadline
+
+      begin
+        last_snapshot = read_layout_snapshot!
+      rescue StandardError
+        last_snapshot = nil
+      end
+      sleep 0.25
+    end
+
+    log("Timed out waiting for current-width backup width=#{width_bucket} snapshot=#{last_snapshot}")
+    [nil, nil]
   end
 
   def bundle_identifier

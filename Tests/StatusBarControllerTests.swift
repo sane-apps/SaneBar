@@ -2085,4 +2085,53 @@ struct StatusBarControllerTests {
         #expect(storedBackupMain == safeMainLimit, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
         #expect(storedBackupSeparator == safeMainLimit + 34.0, "Reanchored separator backup should preserve the live gap while staying launch-safe")
     }
+
+    @Test("Stable live positions can backfill the current-width backup when preferred positions are still missing")
+    @MainActor
+    func captureCurrentDisplayPositionBackupFromLiveFallbackPositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for live fallback display backup capture test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.removeObject(forKey: mainKey)
+        defaults.removeObject(forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        let liveMain = 1692.0
+        let liveSeparator = 1662.0
+
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+                mainPosition: liveMain,
+                separatorPosition: liveSeparator
+            ),
+            "Healthy live positions should seed a current-width backup even before preferred-position keys exist"
+        )
+
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(storedBackupMain == liveMain, "Live fallback main position should seed the current-width backup")
+        #expect(storedBackupSeparator == liveSeparator, "Live fallback separator position should seed the current-width backup")
+    }
 }

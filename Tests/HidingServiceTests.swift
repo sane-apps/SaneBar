@@ -218,6 +218,23 @@ struct HidingServiceTests {
         #expect(service.state == .expanded,
                 "State should remain expanded when hide fails gracefully")
     }
+
+    @Test("Reconfiguring the delimiter preserves hidden state")
+    @MainActor
+    func reconfigurePreservesHiddenState() async {
+        let service = HidingService()
+        let originalItem = RecordingMockStatusItem()
+        let replacementItem = RecordingMockStatusItem()
+
+        service.configure(delimiterItem: originalItem)
+        await service.hide()
+        service.reconfigure(delimiterItem: replacementItem, preserving: .hidden)
+
+        #expect(service.state == .hidden,
+                "Reconfiguring after recovery should not force the service back to expanded")
+        #expect(replacementItem.length == 10000,
+                "Replacement delimiter should stay collapsed when the service was hidden")
+    }
 }
 
 // MARK: - Always-Hidden Regression Tests
@@ -230,16 +247,24 @@ struct HidingServiceTests {
 struct AlwaysHiddenRegressionTests {
     // MARK: - Configure
 
-    @Test("configureAlwaysHiddenDelimiter starts at visual length")
+    @Test("configureAlwaysHiddenDelimiter follows the current hiding state")
     @MainActor
-    func ahDelimiterStartsAtVisualLength() {
+    func ahDelimiterTracksCurrentState() async {
         let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
         let ahItem = RecordingMockStatusItem()
 
+        service.configure(delimiterItem: mainItem)
+        service.configureAlwaysHiddenDelimiter(ahItem)
+
+        #expect(ahItem.length == 10000,
+                "AH delimiter should stay collapsed while hidden items are expanded")
+
+        await service.hide()
         service.configureAlwaysHiddenDelimiter(ahItem)
 
         #expect(ahItem.length == 14,
-                "AH delimiter must start at visual length (14), not collapsed")
+                "AH delimiter should return to visual length once hidden state is restored")
     }
 
     @Test("configureAlwaysHiddenDelimiter can be cleared with nil")
@@ -252,7 +277,7 @@ struct AlwaysHiddenRegressionTests {
         service.configureAlwaysHiddenDelimiter(nil)
 
         // Should not crash, AH item was cleared
-        #expect(ahItem.length == 14, "AH length unchanged after clearing")
+        #expect(ahItem.length == 10000, "AH length stays at its last applied state after clearing")
     }
 
     // MARK: - Hide/Show Cycle with AH
