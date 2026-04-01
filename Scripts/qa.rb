@@ -832,8 +832,8 @@ class ProjectQA
 
           if !shared_bundle_status.success? &&
              shared_bundle_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
-             retryable_runtime_smoke_failure?(shared_bundle_out)
-            puts "   ↳ relaunching after transient shared-bundle runtime smoke budget blip (retry #{shared_bundle_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+             retryable_shared_bundle_runtime_smoke_failure?(shared_bundle_out)
+            puts "   ↳ relaunching after transient shared-bundle runtime smoke failure (retry #{shared_bundle_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
             unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
               File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
               @errors << "Focused shared-bundle smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}."
@@ -913,6 +913,13 @@ class ProjectQA
     return true if smoke_output.include?('launch_idle_budget_exceeded')
 
     retryable_active_budget_overrun?(smoke_output)
+  end
+
+  def retryable_shared_bundle_runtime_smoke_failure?(smoke_output)
+    return true if retryable_runtime_smoke_failure?(smoke_output)
+
+    smoke_output.include?('Candidate failures:') &&
+      smoke_output.include?('to reach zone alwaysHidden')
   end
 
   def retryable_active_budget_overrun?(smoke_output)
