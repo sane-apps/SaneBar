@@ -1161,37 +1161,58 @@ class ProjectQA
     modes
   end
 
-  def runtime_smoke_available_required_candidate_ids(target, required_ids:)
-    available_ids = runtime_smoke_list_icon_zone_ids(target)
-    required_ids.select { |required_id| available_ids.include?(required_id) }
+def runtime_smoke_available_required_candidate_ids(target, required_ids:)
+  snapshot = runtime_smoke_layout_snapshot(target) || {}
+  allow_always_hidden = snapshot['licenseIsPro'] == true
+  zones = runtime_smoke_list_icon_zones(target)
+  required_ids.select do |required_id|
+    zone = zones.find { |item| item[:unique_id] == required_id }
+    next false unless zone
+
+    allow_always_hidden || zone[:zone] != 'alwaysHidden'
   end
+end
 
-  def runtime_smoke_list_icon_zone_ids(target)
-    return [] unless ensure_runtime_smoke_target_running!(target)
+def runtime_smoke_list_icon_zone_ids(target)
+  runtime_smoke_list_icon_zones(target).map { |item| item[:unique_id] }
+end
 
-    expected_bundle_id = 'com.sanebar.app'
-    output, status = Open3.capture2e(
-      'osascript',
-      '-e',
-      %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
-      '-e',
-      %(using terms from application id "#{expected_bundle_id}"),
-      '-e',
-      'tell application appTarget to list icon zones',
-      '-e',
-      'end using terms from'
-    )
-    return [] unless status.success?
+def runtime_smoke_list_icon_zones(target)
+  return [] unless ensure_runtime_smoke_target_running!(target)
 
-    output.lines.map do |line|
-      _zone, _movable, _bundle, unique_id, _name = line.strip.split("\t", 5)
-      unique_id
-    end.compact
-  rescue StandardError
-    []
-  end
+  expected_bundle_id = 'com.sanebar.app'
+  output, status = Open3.capture2e(
+    'osascript',
+    '-e',
+    %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
+    '-e',
+    %(using terms from application id "#{expected_bundle_id}"),
+    '-e',
+    'tell application appTarget to list icon zones',
+    '-e',
+    'end using terms from'
+  )
+  return [] unless status.success?
 
-  def applescript_commands_for_app(app_path)
+  output.lines.map do |line|
+    zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
+    next nil if unique_id.nil? || unique_id.empty?
+
+    {
+      zone: zone,
+      movable: movable == 'true',
+      bundle: bundle,
+      unique_id: unique_id,
+      name: name
+    }
+  end.compact
+rescue StandardError
+  []
+end
+
+def applescript_commands_for_app(app_path)
+
+
     sdef_path = File.join(app_path, 'Contents', 'Resources', "#{PROJECT_NAME}.sdef")
     return [] unless File.exist?(sdef_path)
 

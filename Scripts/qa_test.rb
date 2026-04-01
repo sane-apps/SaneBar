@@ -131,6 +131,44 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "persist_log!"
   end
 
+  def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => false } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      { zone: 'hidden', unique_id: 'com.apple.menuextra.focusmode' },
+      { zone: 'alwaysHidden', unique_id: 'com.apple.menuextra.display' }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_required_candidate_ids,
+    target,
+    required_ids: ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display']
+  )
+
+  assert_equal ['com.apple.menuextra.focusmode'], ids
+end
+
+  def test_runtime_smoke_keeps_always_hidden_required_ids_when_runtime_is_pro
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      { zone: 'hidden', unique_id: 'com.apple.menuextra.focusmode' },
+      { zone: 'alwaysHidden', unique_id: 'com.apple.menuextra.display' }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_required_candidate_ids,
+    target,
+    required_ids: ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display']
+  )
+
+  assert_equal ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display'], ids
+end
+
   def test_runtime_smoke_list_icon_zones_targets_exact_app_path
     source = File.read(File.join(__dir__, 'qa.rb'))
 
