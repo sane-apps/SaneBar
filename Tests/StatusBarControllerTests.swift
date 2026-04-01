@@ -2117,8 +2117,14 @@ struct StatusBarControllerTests {
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
 
-        let liveMain = 1692.0
-        let liveSeparator = 1662.0
+        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let liveMain = screenHasTopSafeAreaInset
+            ? 180.0
+            : StatusBarController.launchSafePreferredMainPositionLimit(
+                for: currentWidth,
+                screenHasTopSafeAreaInset: false
+            )
+        let liveSeparator = screenHasTopSafeAreaInset ? 300.0 : liveMain + 120.0
 
         #expect(
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
