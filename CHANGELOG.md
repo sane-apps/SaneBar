@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.38] - 2026-04-01
+
+Improves startup, wake, and display-change layout recovery so menu bar icons stay more stable and easier to recover.
+
+---
+
 ## [2.1.37] - 2026-03-27
 
 Keeps the SaneBar icon and hidden layout in place more reliably after login, wake, and display changes.
