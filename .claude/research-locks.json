@@ -7,7 +7,7 @@
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
-    "match_count": 21,
+    "match_count": 20,
     "matches": [
       {
         "kind": "email",
@@ -26,12 +26,6 @@
         "id": 216,
         "subject": "[sane-apps/SaneBar] Not possible to start any hidden app and can not move them to visible (Issue #94)",
         "created_at": "2026-03-05 13:41:07"
-      },
-      {
-        "kind": "email",
-        "id": 167,
-        "subject": "Sanebar installer problem v2.1.11",
-        "created_at": "2026-03-01 04:59:21"
       },
       {
         "kind": "github",
@@ -88,18 +82,25 @@
         "title": "after installation 2.1.6 all visible become hidden",
         "state": "CLOSED",
         "updated_at": "2026-02-20T02:10:59Z"
+      },
+      {
+        "kind": "github",
+        "id": 77,
+        "title": "still no drag and drop and some applications are mot responding from second bar",
+        "state": "CLOSED",
+        "updated_at": "2026-02-19T19:24:34Z"
       }
     ]
   },
   {
     "slug": "sanebar-browse-move",
     "reason": "Repeated icon move / visibility mismatch reports. Fresh runtime research is required before more fixes in this cluster.",
-    "created_at": "2026-03-26T19:06:27Z",
-    "source_updated_at": "2026-03-26T19:06:27Z",
+    "created_at": "2026-03-28T05:40:38Z",
+    "source_updated_at": "2026-03-28T05:40:38Z",
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
-    "match_count": 31,
+    "match_count": 30,
     "matches": [
       {
         "kind": "email",
@@ -156,23 +157,25 @@
         "created_at": "2026-03-05 07:31:29"
       },
       {
-        "kind": "email",
-        "id": 167,
-        "subject": "Sanebar installer problem v2.1.11",
-        "created_at": "2026-03-01 04:59:21"
-      },
-      {
-        "kind": "email",
-        "id": 164,
-        "subject": "Adding items to visible fails",
-        "created_at": "2026-02-28 11:06:41"
+        "kind": "github",
+        "id": 130,
+        "title": "icon disappeared again after getting on computer this mornin",
+        "state": "OPEN",
+        "updated_at": "2026-03-27T23:47:31Z"
       },
       {
         "kind": "github",
         "id": 129,
         "title": "[Bug]: Menu bar icon permanently lost after dragging icon and divider out of menu bar",
         "state": "OPEN",
-        "updated_at": "2026-03-26T19:06:27Z"
+        "updated_at": "2026-03-28T05:40:38Z"
+      },
+      {
+        "kind": "github",
+        "id": 123,
+        "title": "[Bug]: all icons moved to visible",
+        "state": "CLOSED",
+        "updated_at": "2026-03-26T12:40:10Z"
       }
     ]
   }
