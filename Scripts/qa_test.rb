@@ -93,6 +93,16 @@ class ProjectQATest < Minitest::Test
     )
   end
 
+  def test_shared_bundle_runtime_smoke_retryable_failure_matches_identifier_miss_after_first_move
+    output = <<~LOG
+      ✅ Hidden/Visible move actions ok
+      ⚠️ Candidate failed: com.apple.controlcenter (AppleScript failed (move icon to visible "com.apple.menuextra.display"): 146:196: execution error: SaneBar got an error: Icon 'com.apple.menuextra.display' not found. Use 'list icon zones' to see available identifiers. (-2700))
+      ❌ Live zone smoke failed: Candidate failures: com.apple.menuextra.display: AppleScript failed (move icon to visible "com.apple.menuextra.display"): 146:196: execution error: SaneBar got an error: Icon 'com.apple.menuextra.display' not found. Use 'list icon zones' to see available identifiers. (-2700)
+    LOG
+
+    assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
+  end
+
   def test_runtime_smoke_requires_startup_layout_probe
     source = File.read(File.join(__dir__, 'qa.rb'))
 
