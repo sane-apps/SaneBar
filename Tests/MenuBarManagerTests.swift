@@ -148,6 +148,57 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Unexpected visibility loss only recovers when item is invisible and not rate-limited")
+    func unexpectedVisibilityLossRecoveryDecisionMatrix() {
+        let now = Date()
+
+        #expect(
+            !MenuBarManager.shouldRecoverUnexpectedVisibilityLoss(
+                isVisible: true,
+                isExecutingRecovery: false,
+                lastRecoveryAt: nil,
+                now: now,
+                minimumInterval: 1.0
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldRecoverUnexpectedVisibilityLoss(
+                isVisible: false,
+                isExecutingRecovery: true,
+                lastRecoveryAt: nil,
+                now: now,
+                minimumInterval: 1.0
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldRecoverUnexpectedVisibilityLoss(
+                isVisible: false,
+                isExecutingRecovery: false,
+                lastRecoveryAt: now.addingTimeInterval(-0.5),
+                now: now,
+                minimumInterval: 1.0
+            )
+        )
+        #expect(
+            MenuBarManager.shouldRecoverUnexpectedVisibilityLoss(
+                isVisible: false,
+                isExecutingRecovery: false,
+                lastRecoveryAt: now.addingTimeInterval(-2.0),
+                now: now,
+                minimumInterval: 1.0
+            )
+        )
+        #expect(
+            MenuBarManager.shouldRecoverUnexpectedVisibilityLoss(
+                isVisible: false,
+                isExecutingRecovery: false,
+                lastRecoveryAt: nil,
+                now: now,
+                minimumInterval: 1.0
+            )
+        )
+    }
+
     @Test("Runtime snapshot is safe before deferred status-item setup")
     @MainActor
     func currentRuntimeSnapshotBeforeDeferredSetupDoesNotCrash() {
