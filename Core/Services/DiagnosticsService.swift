@@ -165,6 +165,7 @@ private func collectSaneBarSettings() -> String {
       showDockIcon: \(settings.showDockIcon)
       hideMainIcon: \(settings.hideMainIcon)
       dividerStyle: \(settings.dividerStyle.rawValue)
+      dividerColor: \(settings.dividerColor.rawValue)
       menuBarSpacing: \(settings.menuBarSpacing.map { String($0) } ?? "default")
       iconGroups: \(settings.iconGroups.count)
       iconHotkeys: \(settings.iconHotkeys.count)

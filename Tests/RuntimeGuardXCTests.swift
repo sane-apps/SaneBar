@@ -89,6 +89,35 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("lastKnownSeparatorRightEdgeX = nil"),
             "Recreating status items from persisted layout should invalidate cached separator edges first"
         )
+        XCTAssertTrue(
+            source.contains("var statusBarControllerIfReady: StatusBarController?"),
+            "MenuBarManager should expose a non-crashing optional status bar controller accessor for startup-safe probes"
+        )
+        XCTAssertTrue(
+            source.contains("self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)") &&
+                source.contains("Preserved hidden state during status item recovery"),
+            "Status item recovery should preserve the prior hidden state instead of forcing the delimiter open during wake/display repairs"
+        )
+    }
+
+    func testLayoutSnapshotAvoidsStatusBarControllerPreconditionBeforeDeferredSetup() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("fileprivate static func safeDividerSnapshotPayload(from manager: MenuBarManager)"),
+            "AppleScript snapshot commands should use a startup-safe divider payload helper"
+        )
+        XCTAssertTrue(
+            source.contains("guard let controller = manager.statusBarControllerIfReady else") &&
+                source.contains("\"dividerHasLiveWindow\": false") &&
+                source.contains("\"dividerHasLiveBounds\": false"),
+            "Startup-safe divider snapshots should return a non-crashing fallback payload until deferred UI setup finishes"
+        )
+        XCTAssertFalse(
+            source.contains("MenuBarManager.shared.statusBarController.dividerRenderSnapshotPayload()"),
+            "AppleScript snapshot commands should not crash by forcing the deferred status bar controller during relaunch"
+        )
     }
 
     func testResetToDefaultsAlsoResetsPersistentStatusItemState() throws {
@@ -2261,9 +2290,14 @@ final class RuntimeGuardXCTests: XCTestCase {
     func testStartupPositionValidationRetriesBeforeAutosaveRecovery() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
+        let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let maxAttempts = 4"),
+            source.contains("statusItemValidationMaxAttempts(context: context)") &&
+                source.contains("statusItemValidationRetryDelaySeconds(context: context)") &&
+                source.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 6") &&
+                source.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 0.5"),
             "Startup position validation should retry before escalating to autosave recovery"
         )
         XCTAssertTrue(
@@ -2277,6 +2311,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("geometry drift detected"),
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
+        )
+        XCTAssertTrue(
+            coordinatorSource.contains("if validationContext == .startupFollowUp,") &&
+                coordinatorSource.contains("return .stop(recoveryReason)"),
+            "Wake and screen-change invalid geometry should stay bounded instead of bumping autosave after one failed repair"
         )
         XCTAssertTrue(
             source.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
@@ -2298,6 +2337,32 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("StatusBarController.recoverStartupPositions(") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
             "Geometry drift validation should repair persisted positions before recreating live items"
+        )
+        XCTAssertTrue(
+            source.contains("lastKnownStatusItemDisplayID") &&
+                source.contains("screenDisplayID(_ screen: NSScreen?)") &&
+                source.contains("let cachedScreen = NSScreen.screens.first(where: { screenDisplayID($0) == lastKnownStatusItemDisplayID })"),
+            "Status-item recovery should preserve the last live display identity so stale windows do not reseed against the wrong monitor"
+        )
+        XCTAssertTrue(
+            source.contains("guard let resolvedScreen = statusItemScreen else") &&
+                source.contains("guard let displayID = screenDisplayID(resolvedScreen) else"),
+            "External-monitor policy should use the same status-item screen source as startup recovery"
+        )
+        let controllerSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Controllers/StatusBarController.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(
+            controllerSource.contains("resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil)") &&
+                controllerSource.contains("if let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) })") &&
+                controllerSource.contains("return NSScreen.main ?? NSScreen.screens.first"),
+            "StatusBarController should share one pointer-aware fallback screen resolver instead of scattering raw NSScreen.main fallbacks"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("Self.resolvedReferenceScreen(referenceScreen)") &&
+                controllerSource.contains("let screenFrame = window?.screen?.frame ?? Self.resolvedReferenceScreen()?.frame"),
+            "Startup validation and backup recovery should route through the shared reference-screen resolver"
         )
     }
 
@@ -2415,8 +2480,9 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("Skipping stale status item recovery action") &&
                 source.contains("Skipping overlapping status item recovery action") &&
                 source.contains("positionValidationGeneration += 1") &&
-                source.contains("Restored hidden state after status item recovery") &&
-                source.contains("await self.hidingService.hide()"),
+                source.contains("let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state") &&
+                source.contains("self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)") &&
+                source.contains("Preserved hidden state during status item recovery"),
             "Structural status-item recovery should reject stale validation escalations, preserve hidden-state rebuild intent, and avoid leaving the bar permanently expanded after a wake/display repair"
         )
     }

@@ -77,32 +77,52 @@ struct MenuBarManagerTests {
         )
     }
 
-    @Test("Status-item validation waits longer after a failed startup recovery")
+    @Test("Status-item validation timing stays more conservative for wake and screen changes")
     func statusItemValidationDelayBackoff() {
         #expect(MenuBarManager.maxStatusItemRecoveryCount == 2)
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .startupFollowUp,
                 recoveryCount: 0
-            ) == 0.5
+            ) == 1.5
         )
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .startupFollowUp,
                 recoveryCount: 1
-            ) == 1.0
+            ) == 2.0
         )
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .startupFollowUp,
                 recoveryCount: 2
-            ) == 1.0
+            ) == 2.0
         )
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .wakeResume,
                 recoveryCount: 0
             ) == 2.0
+        )
+        #expect(
+            MenuBarManager.statusItemValidationRetryDelaySeconds(
+                context: .startupFollowUp
+            ) == 0.5
+        )
+        #expect(
+            MenuBarManager.statusItemValidationRetryDelaySeconds(
+                context: .screenParametersChanged
+            ) == 0.5
+        )
+        #expect(
+            MenuBarManager.statusItemValidationMaxAttempts(
+                context: .startupFollowUp
+            ) == 6
+        )
+        #expect(
+            MenuBarManager.statusItemValidationMaxAttempts(
+                context: .wakeResume
+            ) == 6
         )
     }
 

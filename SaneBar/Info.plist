@@ -37,6 +37,8 @@
 	<string>SaneBar needs to control other applications to manage your menu bar items.</string>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
+	<key>UIPrefersShowingLanguageSettings</key>
+	<true/>
 	<key>OSAScriptingDefinition</key>
 	<string>SaneBar.sdef</string>
 	<key>SUEnableAutomaticChecks</key>

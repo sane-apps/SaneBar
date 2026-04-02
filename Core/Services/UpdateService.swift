@@ -17,8 +17,8 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .daily: "Daily"
-        case .weekly: "Weekly"
+        case .daily: SaneBarSettingsCopy.dailyTitle
+        case .weekly: SaneBarSettingsCopy.weeklyTitle
         }
     }
 

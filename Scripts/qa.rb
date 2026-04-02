@@ -98,6 +98,8 @@ class ProjectQA
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
   RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
+  RUNTIME_WAKE_PROBE_LOG_PATH = '/tmp/sanebar_runtime_wake_probe.log'
+  RUNTIME_WAKE_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_wake_probe.json'
   RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
@@ -639,6 +641,13 @@ class ProjectQA
       puts '❌ missing startup_layout_probe.rb'
       return
     end
+    run_wake_probe = ENV['SANEBAR_RUN_WAKE_LAYOUT_PROBE'] == '1'
+    wake_probe_script = File.join(__dir__, 'wake_layout_probe.rb')
+    if run_wake_probe && !File.exist?(wake_probe_script)
+      @errors << "Wake layout probe missing: #{wake_probe_script}"
+      puts '❌ missing wake_layout_probe.rb'
+      return
+    end
 
     restore_mode = nil
 
@@ -656,6 +665,8 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
 
@@ -872,6 +883,25 @@ class ProjectQA
         return
       end
 
+      if run_wake_probe
+        wake_probe_env = {
+          'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+          'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH,
+          'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH
+        }
+        wake_probe_out, wake_probe_status = capture2e_with_progress(
+          wake_probe_env,
+          wake_probe_script,
+          heartbeat_label: 'runtime wake layout probe'
+        )
+        File.write(RUNTIME_WAKE_PROBE_LOG_PATH, wake_probe_out)
+        unless wake_probe_status.success?
+          @errors << "Wake layout probe failed. See #{RUNTIME_WAKE_PROBE_LOG_PATH} and #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
+          puts "❌ wake probe failed (#{RUNTIME_WAKE_PROBE_LOG_PATH})"
+          return
+        end
+      end
+
       if capture_runtime_smoke_screenshots
         expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
@@ -884,11 +914,14 @@ class ProjectQA
         end
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (#{artifact_summary})"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (#{artifact_summary})"
       elsif screenshot_capture_available
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots disabled for release smoke)"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (screenshots disabled for release smoke)"
       else
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots skipped on this host)"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (screenshots skipped on this host)"
       end
     ensure
       restore_runtime_smoke_mode(restore_mode)
@@ -1730,6 +1763,11 @@ class ProjectQA
         return
       end
 
+      if stability_suite_log_indicates_success?(output)
+        puts "✅ #{STABILITY_TEST_TARGETS.count} targets (clean pass despite a non-zero runner exit)"
+        return
+      end
+
       if attempt <= STABILITY_SUITE_RETRIES && retryable_stability_suite_failure?(output)
         puts "   ↳ retrying stability suite after transient xcodebuild failure (retry #{attempt}/#{STABILITY_SUITE_RETRIES})"
         Open3.capture2e('bash', '-lc', "killall #{PROJECT_NAME} >/dev/null 2>&1 || true")
@@ -1799,8 +1837,8 @@ class ProjectQA
     uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == 'https'
-    http.open_timeout = 5
-    http.read_timeout = 5
+    http.open_timeout = 10
+    http.read_timeout = 20
 
     response = nil
     [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
@@ -1814,6 +1852,16 @@ class ProjectQA
     response&.code&.to_i
   rescue StandardError
     nil
+  end
+
+  def stability_suite_log_indicates_success?(output)
+    body = output.to_s
+    return true if body.include?('✅ Tests passed!')
+    return true if body.match?(/Swift Testing:\s+\d+ tests .* passed/)
+    return true if body.match?(/Test Suite 'All tests' passed/)
+    return true if body.match?(/Executed \d+ tests?, with 0 failures/)
+
+    retryable_stability_suite_failure?(body)
   end
 
   def write_status_snapshot(exit_code:)

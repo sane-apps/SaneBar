@@ -146,6 +146,26 @@ struct AppearanceSettingsView: View {
 
                     CompactDivider()
 
+                    CompactRow("Color") {
+                        HStack(spacing: 8) {
+                            dividerPreview(
+                                style: menuBarManager.settings.dividerStyle,
+                                color: menuBarManager.settings.dividerColor
+                            )
+
+                            Picker("", selection: $menuBarManager.settings.dividerColor) {
+                                ForEach(SaneBarSettings.DividerColor.allCases, id: \.self) { color in
+                                    Text(color.displayName).tag(color)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 140)
+                            .help("Accent color for the main divider")
+                        }
+                    }
+
+                    CompactDivider()
+
                     if licenseService.isPro {
                         CompactRow("Extra Dividers") {
                             HStack {
@@ -376,6 +396,33 @@ struct AppearanceSettingsView: View {
             Text(title)
                 .foregroundStyle(Color.white)
         }
+    }
+
+    private func dividerPreview(
+        style: SaneBarSettings.DividerStyle,
+        color: SaneBarSettings.DividerColor
+    ) -> some View {
+        ZStack {
+            Capsule()
+                .fill(.white.opacity(0.08))
+            Capsule()
+                .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+
+            if style == .dot {
+                Circle()
+                    .fill(Color(nsColor: color.nsColor))
+                    .frame(width: 7, height: 7)
+                    .opacity(color.preferredAlpha)
+            } else {
+                Text(style.previewText)
+                    .font(style == .pipeThin
+                        ? .system(size: 13, weight: .light, design: .monospaced)
+                        : .system(size: 13, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color(nsColor: color.nsColor))
+                    .opacity(color.preferredAlpha)
+            }
+        }
+        .frame(width: 30, height: 22)
     }
 
     private func popupSymbolImage(_ systemImage: String) -> NSImage {

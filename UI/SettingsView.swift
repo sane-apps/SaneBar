@@ -9,6 +9,16 @@ struct SettingsView: View {
         case shortcuts = "Shortcuts"
         case about = "About"
 
+        var title: String {
+            switch self {
+            case .general: SaneSettingsStrings.generalTabTitle
+            case .rules: SaneSettingsStrings.rulesTabTitle
+            case .appearance: SaneSettingsStrings.appearanceTabTitle
+            case .shortcuts: SaneSettingsStrings.shortcutsTabTitle
+            case .about: SaneSettingsStrings.aboutTabTitle
+            }
+        }
+
         var icon: String {
             switch self {
             case .general: "gear"
@@ -40,19 +50,19 @@ struct SettingsView: View {
             switch tab {
             case .general:
                 GeneralSettingsView()
-                    .navigationTitle("General")
+                    .navigationTitle(SaneSettingsStrings.generalTabTitle)
             case .rules:
                 RulesSettingsView()
-                    .navigationTitle("Rules")
+                    .navigationTitle(SaneSettingsStrings.rulesTabTitle)
             case .appearance:
                 AppearanceSettingsView()
-                    .navigationTitle("Appearance")
+                    .navigationTitle(SaneSettingsStrings.appearanceTabTitle)
             case .shortcuts:
                 ShortcutsSettingsView()
-                    .navigationTitle("Shortcuts")
+                    .navigationTitle(SaneSettingsStrings.shortcutsTabTitle)
             case .about:
                 AboutSettingsView()
-                    .navigationTitle("About")
+                    .navigationTitle(SaneSettingsStrings.aboutTabTitle)
             }
         }
     }
