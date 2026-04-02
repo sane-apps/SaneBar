@@ -89,6 +89,35 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("lastKnownSeparatorRightEdgeX = nil"),
             "Recreating status items from persisted layout should invalidate cached separator edges first"
         )
+        XCTAssertTrue(
+            source.contains("var statusBarControllerIfReady: StatusBarController?"),
+            "MenuBarManager should expose a non-crashing optional status bar controller accessor for startup-safe probes"
+        )
+        XCTAssertTrue(
+            source.contains("self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)") &&
+                source.contains("Preserved hidden state during status item recovery"),
+            "Status item recovery should preserve the prior hidden state instead of forcing the delimiter open during wake/display repairs"
+        )
+    }
+
+    func testLayoutSnapshotAvoidsStatusBarControllerPreconditionBeforeDeferredSetup() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("fileprivate static func safeDividerSnapshotPayload(from manager: MenuBarManager)"),
+            "AppleScript snapshot commands should use a startup-safe divider payload helper"
+        )
+        XCTAssertTrue(
+            source.contains("guard let controller = manager.statusBarControllerIfReady else") &&
+                source.contains("\"dividerHasLiveWindow\": false") &&
+                source.contains("\"dividerHasLiveBounds\": false"),
+            "Startup-safe divider snapshots should return a non-crashing fallback payload until deferred UI setup finishes"
+        )
+        XCTAssertFalse(
+            source.contains("MenuBarManager.shared.statusBarController.dividerRenderSnapshotPayload()"),
+            "AppleScript snapshot commands should not crash by forcing the deferred status bar controller during relaunch"
+        )
     }
 
     func testResetToDefaultsAlsoResetsPersistentStatusItemState() throws {
@@ -2338,7 +2367,6 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testStartupRecoveryRecreatesLiveItemsImmediately() throws {
-
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
@@ -2460,7 +2488,6 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testInlineAppMenuSuppressionDoesNotForceDockIconVisible() throws {
-
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 

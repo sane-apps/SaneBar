@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 @testable import SaneBar
 import Testing
 
@@ -45,6 +46,55 @@ struct StatusBarControllerTests {
 
         #expect(iconName == StatusBarController.iconHidden)
         #expect(!iconName.isEmpty, "Icon name should not be empty")
+    }
+
+    @Test("Separator style applies divider tint to text styles")
+    @MainActor
+    func separatorStyleAppliesDividerTintToTextStyles() {
+        let controller = StatusBarController()
+        let expectedColor = SaneBarSettings.DividerColor.red.nsColor.usingColorSpace(.deviceRGB)
+
+        controller.updateSeparatorStyle(.pipeThin, color: .red)
+
+        let button = controller.separatorItem.button
+        let actualColor = button?.contentTintColor?.usingColorSpace(.deviceRGB)
+        #expect(button?.title == "❘")
+        #expect(actualColor == expectedColor)
+        #expect(button?.alphaValue == SaneBarSettings.DividerColor.red.preferredAlpha)
+        #expect(controller.separatorItem.length == 12)
+    }
+
+    @Test("Separator style applies divider tint to dot style")
+    @MainActor
+    func separatorStyleAppliesDividerTintToDotStyle() {
+        let controller = StatusBarController()
+        let expectedColor = SaneBarSettings.DividerColor.blue.nsColor.usingColorSpace(.deviceRGB)
+
+        controller.updateSeparatorStyle(.dot, color: .blue)
+
+        let button = controller.separatorItem.button
+        let actualColor = button?.contentTintColor?.usingColorSpace(.deviceRGB)
+        #expect(button?.image != nil)
+        #expect(button?.image?.isTemplate == true)
+        #expect(actualColor == expectedColor)
+        #expect(button?.alphaValue == SaneBarSettings.DividerColor.blue.preferredAlpha)
+        #expect(controller.separatorItem.length == 12)
+    }
+
+    @Test("Divider strip snapshot writes a PNG")
+    @MainActor
+    func dividerStripSnapshotWritesPNG() throws {
+        let controller = StatusBarController()
+        controller.updateSeparatorStyle(.dot, color: .orange)
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sanebar-divider-strip-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        #expect(controller.captureDividerStripSnapshotPNG(to: outputURL.path))
+        #expect(FileManager.default.fileExists(atPath: outputURL.path))
+        let data = try Data(contentsOf: outputURL)
+        #expect(!data.isEmpty)
     }
 
     // MARK: - Static Constants Tests
@@ -2117,14 +2167,8 @@ struct StatusBarControllerTests {
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
 
-        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
-        let liveMain = screenHasTopSafeAreaInset
-            ? 180.0
-            : StatusBarController.launchSafePreferredMainPositionLimit(
-                for: currentWidth,
-                screenHasTopSafeAreaInset: false
-            )
-        let liveSeparator = screenHasTopSafeAreaInset ? 300.0 : liveMain + 120.0
+        let liveMain = 1692.0
+        let liveSeparator = 1662.0
 
         #expect(
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible(

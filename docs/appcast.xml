@@ -5,26 +5,7 @@
 
                                 
         
-                                                                                <item>
-            <title>2.1.38</title>
-            <pubDate>Wed, 01 Apr 2026 01:29:44 -0400</pubDate>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description>
-                <![CDATA[
-                <h2>What's New</h2>
-                <ul>
-                <li>Improves startup, wake, and display-change layout recovery so menu bar icons stay more stable and easier to recover.</li>
-                </ul>
-                ]]>
-            </description>
-            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.38.zip"
-                       sparkle:version="2138"
-                       sparkle:shortVersionString="2.1.38"
-                       length="8641712"
-                       type="application/octet-stream"
-                       sparkle:edSignature="B50ALww/UGbyjegiat9ul4+mZiK6TvIXfCe0aYMDXouv0V78HuHnNCIOzqTeGjxiLVcKgBKJap5g8xPygRT8Aw=="/>
-        </item>
-<item>
+                                                                        <item>
             <title>2.1.37</title>
             <pubDate>Fri, 27 Mar 2026 19:44:41 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>

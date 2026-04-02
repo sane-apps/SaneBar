@@ -130,6 +130,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
 
         guard let displayID = screenDisplayID(resolvedScreen) else {
+            // Safe mode: assume external when lookup fails (unusual display config)
             return true
         }
 
@@ -213,6 +214,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return controller
     }
 
+    var statusBarControllerIfReady: StatusBarController? {
+        statusBarControllerStorage
+    }
+
     @discardableResult
     private func ensureStatusBarController() -> StatusBarController {
         if let controller = statusBarControllerStorage {
@@ -248,7 +253,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         case .manualLayoutRestore:
             return recoveryCount == 0 ? 0.35 : 0.75
         case .screenParametersChanged:
-            return recoveryCount == 0 ? 2.0 : 2.5
+            return recoveryCount == 0 ? 1.5 : 2.0
         case .wakeResume:
             return recoveryCount == 0 ? 2.0 : 2.5
         }
@@ -877,12 +882,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         switch action {
         case .captureCurrentDisplayBackup:
             pendingRecoveryHideRestore = false
-            let snapshot = currentStatusItemRecoverySnapshot()
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
-                referenceScreen: statusItemScreen,
-                mainPosition: snapshot.mainX.map(Double.init),
-                separatorPosition: snapshot.separatorX.map(Double.init)
-            )
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: statusItemScreen)
 
         case .repairPersistedLayoutAndRecreate:
             guard !isExecutingStatusItemRecovery else {
@@ -1267,7 +1267,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     private func updateDividerStyle() {
         let isHidden = hidingService.state == .hidden
-        statusBarController.updateSeparatorStyle(settings.dividerStyle, isHidden: isHidden)
+        statusBarController.updateSeparatorStyle(
+            settings.dividerStyle,
+            color: settings.dividerColor,
+            isHidden: isHidden
+        )
     }
 
     private func updateIconStyle() {
@@ -1457,6 +1461,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     private func updateStatusItemAppearance() {
         statusBarController.updateAppearance(for: hidingState)
+        updateDividerStyle()
     }
 
     // MARK: - Spacers

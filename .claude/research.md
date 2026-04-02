@@ -3262,3 +3262,52 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
      - `peakCpu=16.6 > 15.0`
      - `avgCpu=8.2 > 5.0`, `peakCpu=16.3 > 15.0`
    - These are resource-budget failures, not the old layout/disappearing-icon or browse activation failures.
+
+## Startup snapshot crash on deferred status-bar init | Updated: 2026-03-31 | Status: verified | TTL: 7d
+
+**Sources:** Apple docs for `NSStatusBar` / `NSStatusItem` availability expectations, GitHub issues `#114` and `#129`, local Mini crash reports `SaneBar-2026-03-31-124921.ips` and `SaneBar-2026-03-31-125004.ips`, local Mini startup probe logs, local code audit of `Core/MenuBarManager.swift` and `Core/Services/AppleScriptCommands.swift`
+
+### What happened
+
+1. **The Mini startup probe found a real relaunch crash, not just flaky automation.**
+   - After staging `/Applications/SaneBar.app` and poisoning startup positions, `startup_layout_probe.rb` relaunched the app and immediately lost AppleScript connectivity with `Connection is invalid (-609)`.
+   - Crash reports showed `EXC_BREAKPOINT / SIGTRAP` on the main thread.
+
+2. **The crash was inside the AppleScript layout snapshot path.**
+   - Both crash reports point to:
+     - `LayoutSnapshotCommand.buildSnapshotPayload(from:)`
+     - `MenuBarManager.statusBarController.getter`
+   - The getter intentionally does `preconditionFailure("StatusBarController accessed before deferred UI setup")`.
+
+3. **This lined up with the current deferred-startup architecture.**
+   - `MenuBarManager` now defers `StatusBarController` creation until later startup.
+   - But `layout snapshot` was still forcing `manager.statusBarController.dividerRenderSnapshotPayload()` before deferred setup had finished.
+   - That means any early startup AppleScript snapshot could crash the app before runtime stabilization.
+
+4. **Apple’s own status-item guidance matches the failure mode.**
+   - `NSStatusBar` / `NSStatusItem` are system-managed menu bar objects, so callers should not assume they are synchronously available at every early-launch moment.
+   - The safe app behavior is to return “not ready yet” style snapshot data until the status items exist, not to trap.
+
+### Why it matters for the live bug cluster
+
+1. **It does not fully explain `#114` or `#129`, but it blocks trustworthy startup verification for that cluster.**
+   - `#114` is still the strongest external-display live issue on `2.1.37`.
+   - `#129` is still the strongest “main icon permanently lost / reset did not restore it” signal on `2.1.37`.
+   - If the startup probe itself can crash the app during relaunch, then we cannot trust a green startup lane until this is fixed.
+
+2. **It is adjacent to the same startup/reset family.**
+   - The crash only showed up when startup state was intentionally stressed with poisoned persisted positions.
+   - That makes it part of the same recovery surface, even though the immediate fault is in diagnostics/AppleScript rather than the core recovery planner.
+
+### Current fix direction
+
+1. **Snapshot callers must use an optional, non-crashing status-bar-controller path.**
+   - `MenuBarManager` should expose a safe `statusBarControllerIfReady`.
+   - `AppleScriptCommands` should use a fallback divider snapshot payload until the controller exists instead of forcing the precondition getter.
+
+2. **After this fix, rerun on the Mini in order:**
+   - `./scripts/SaneMaster.rb test_mode --release --no-logs`
+   - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./scripts/startup_layout_probe.rb`
+   - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./scripts/wake_layout_probe.rb`
+
+3. **Do not bless the layout/reset fix for release until that Mini startup probe is green again.**

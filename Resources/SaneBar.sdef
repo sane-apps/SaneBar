@@ -62,6 +62,24 @@
             <result type="boolean" description="True if the snapshot was written"/>
         </command>
 
+        <command name="capture divider strip snapshot" code="SBarcdss" description="Save the current divider and main icon strip as a PNG image">
+            <cocoa class="CaptureDividerStripSnapshotCommand"/>
+            <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>
+            <result type="boolean" description="True if the snapshot was written"/>
+        </command>
+
+        <command name="set divider style" code="SBarsets" description="Set the main divider style using the live settings path">
+            <cocoa class="SetDividerStyleCommand"/>
+            <direct-parameter type="text" description="Divider style raw value"/>
+            <result type="boolean" description="True if the style was accepted"/>
+        </command>
+
+        <command name="set divider color" code="SBarsetc" description="Set the main divider color using the live settings path">
+            <cocoa class="SetDividerColorCommand"/>
+            <direct-parameter type="text" description="Divider color raw value"/>
+            <result type="boolean" description="True if the color was accepted"/>
+        </command>
+
         <command name="capture appearance overlay snapshot" code="SBarcaos" description="Save the current menu bar appearance overlay as a PNG image">
             <cocoa class="CaptureAppearanceOverlaySnapshotCommand"/>
             <direct-parameter type="text" description="Absolute filesystem path for the PNG snapshot"/>

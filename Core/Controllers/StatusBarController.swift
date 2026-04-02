@@ -1405,6 +1405,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Current icon style (updated via updateIconStyle)
     private(set) var currentIconStyle: SaneBarSettings.MenuBarIconStyle = .filter
 
+    private(set) var currentDividerStyle: SaneBarSettings.DividerStyle = .slash
+    private(set) var currentDividerColor: SaneBarSettings.DividerColor = .white
+
     /// Cached custom icon image (loaded from disk)
     private var customIconImage: NSImage?
 
@@ -1458,11 +1461,19 @@ final class StatusBarController: StatusBarControllerProtocol {
     // MARK: - Separator Style (Settings Feature)
 
     /// Update separator visual style. Only sets length if not hidden (to avoid overriding HidingService's collapsed length)
-    func updateSeparatorStyle(_ style: SaneBarSettings.DividerStyle, isHidden: Bool = false) {
+    func updateSeparatorStyle(
+        _ style: SaneBarSettings.DividerStyle,
+        color: SaneBarSettings.DividerColor = .white,
+        isHidden: Bool = false
+    ) {
         guard let button = separatorItem.button else { return }
+        currentDividerStyle = style
+        currentDividerColor = color
 
         button.image = nil
         button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+        button.contentTintColor = color.nsColor
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
         // Determine the visual length for this style (only applies when expanded)
@@ -1484,7 +1495,18 @@ final class StatusBarController: StatusBarControllerProtocol {
         case .dot:
             button.image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Separator")
             button.image?.size = NSSize(width: 6, height: 6)
+            button.image?.isTemplate = true
             styleLength = 12
+        }
+
+        if button.image == nil {
+            button.attributedTitle = NSAttributedString(
+                string: button.title,
+                attributes: [
+                    .font: button.font ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: color.nsColor
+                ]
+            )
         }
 
         // IMPORTANT: Only set length if NOT hidden!
@@ -1494,7 +1516,28 @@ final class StatusBarController: StatusBarControllerProtocol {
             separatorItem.length = styleLength
         }
 
-        button.alphaValue = 0.7
+        button.alphaValue = color.preferredAlpha
+    }
+
+    func dividerRenderSnapshotPayload() -> [String: Any] {
+        let button = separatorItem.button
+        let liveBounds = button?.bounds.integral ?? .zero
+        let tintColor = button?.contentTintColor?.usingColorSpace(.deviceRGB)
+        let title = button?.title.isEmpty == false ? button?.title : button?.attributedTitle.string
+        return [
+            "dividerAppliedStyle": currentDividerStyle.rawValue,
+            "dividerAppliedColor": currentDividerColor.rawValue,
+            "dividerUsesImage": button?.image != nil,
+            "dividerRenderedTitle": title ?? "",
+            "dividerRenderedAlpha": Double(button?.alphaValue ?? 0),
+            "dividerHasLiveWindow": button?.window != nil,
+            "dividerHasLiveBounds": liveBounds.width > 0 && liveBounds.height > 0,
+            "dividerBoundsWidth": Double(liveBounds.width),
+            "dividerBoundsHeight": Double(liveBounds.height),
+            "dividerTintRed": Double(tintColor?.redComponent ?? 0),
+            "dividerTintGreen": Double(tintColor?.greenComponent ?? 0),
+            "dividerTintBlue": Double(tintColor?.blueComponent ?? 0),
+        ]
     }
 
     // MARK: - Menu Creation
@@ -1572,6 +1615,177 @@ final class StatusBarController: StatusBarControllerProtocol {
         case .line: button.title = "│"
         case .dot: button.title = "•"
         }
+    }
+
+    func captureDividerStripSnapshotPNG(to path: String) -> Bool {
+        guard let separatorButton = separatorItem.button,
+              let mainButton = mainItem.button,
+              let separatorImage = snapshotImage(for: separatorButton),
+              let mainImage = snapshotImage(for: mainButton)
+        else {
+            return false
+        }
+
+        let separatorFrame = separatorButton.window?.frame ?? .zero
+        let mainFrame = mainButton.window?.frame ?? .zero
+        let measuredGap = max(0, Int(round(mainFrame.minX - separatorFrame.maxX)))
+        let gap = CGFloat(max(6, measuredGap))
+        let horizontalPadding: CGFloat = 6
+        let height = max(separatorImage.size.height, mainImage.size.height)
+        let size = NSSize(
+            width: separatorImage.size.width + gap + mainImage.size.width + (horizontalPadding * 2),
+            height: height
+        )
+        let scale = max(1.0, separatorButton.window?.screen?.backingScaleFactor ?? mainButton.window?.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0)
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: max(1, Int(ceil(size.width * scale))),
+            pixelsHigh: max(1, Int(ceil(size.height * scale))),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return false
+        }
+        bitmap.size = size
+
+        NSGraphicsContext.saveGraphicsState()
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            NSGraphicsContext.restoreGraphicsState()
+            return false
+        }
+        NSGraphicsContext.current = context
+        NSColor.clear.set()
+        NSRect(origin: .zero, size: size).fill()
+
+        let separatorY = (height - separatorImage.size.height) / 2
+        separatorImage.draw(at: NSPoint(x: horizontalPadding, y: separatorY), from: .zero, operation: .sourceOver, fraction: 1.0)
+
+        let mainY = (height - mainImage.size.height) / 2
+        let mainX = horizontalPadding + separatorImage.size.width + gap
+        mainImage.draw(at: NSPoint(x: mainX, y: mainY), from: .zero, operation: .sourceOver, fraction: 1.0)
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+
+        guard let pngData = bitmap.representation(using: .png, properties: [:])
+        else {
+            return false
+        }
+
+        do {
+            try pngData.write(to: URL(fileURLWithPath: path), options: .atomic)
+            return true
+        } catch {
+            logger.error("Failed to write divider strip snapshot: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    private func snapshotImage(for button: NSStatusBarButton) -> NSImage? {
+        let bounds = snapshotBounds(for: button)
+        guard bounds.width > 0, bounds.height > 0 else {
+            return nil
+        }
+
+        let image = NSImage(size: bounds.size)
+        image.lockFocus()
+        defer { image.unlockFocus() }
+
+        if let symbol = button.image {
+            let symbolSize = NSSize(
+                width: max(6, symbol.size.width),
+                height: max(6, symbol.size.height)
+            )
+            let symbolRect = CGRect(
+                x: (bounds.width - symbolSize.width) / 2,
+                y: (bounds.height - symbolSize.height) / 2,
+                width: symbolSize.width,
+                height: symbolSize.height
+            )
+
+            if let tintedSymbol = tintedImage(symbol, color: button.contentTintColor ?? .white) {
+                tintedSymbol.draw(
+                    in: symbolRect,
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: button.alphaValue
+                )
+            } else {
+                symbol.draw(
+                    in: symbolRect,
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: button.alphaValue
+                )
+            }
+        } else {
+            let title = resolvedSnapshotTitle(for: button)
+            let titleSize = title.size()
+            let titleRect = CGRect(
+                x: (bounds.width - titleSize.width) / 2,
+                y: (bounds.height - titleSize.height) / 2,
+                width: titleSize.width,
+                height: titleSize.height
+            )
+            title.draw(in: titleRect)
+        }
+
+        return image
+    }
+
+    private func snapshotBounds(for button: NSStatusBarButton) -> CGRect {
+        let liveBounds = button.bounds.integral
+        if liveBounds.width > 0, liveBounds.height > 0 {
+            return liveBounds
+        }
+
+        if let image = button.image {
+            return CGRect(origin: .zero, size: NSSize(width: max(18, image.size.width + 12), height: max(18, image.size.height + 12)))
+        }
+
+        let title = resolvedSnapshotTitle(for: button)
+        let titleSize = title.size()
+        return CGRect(
+            origin: .zero,
+            size: NSSize(
+                width: max(18, ceil(titleSize.width) + 10),
+                height: max(18, ceil(titleSize.height) + 8)
+            )
+        )
+    }
+
+    private func resolvedSnapshotTitle(for button: NSStatusBarButton) -> NSAttributedString {
+        let color = (button.contentTintColor ?? .white).withAlphaComponent(button.alphaValue)
+        let text = button.title.isEmpty ? button.attributedTitle.string : button.title
+        let attributedFont: NSFont? = if !button.attributedTitle.string.isEmpty {
+            button.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        } else {
+            nil
+        }
+        let font = attributedFont ?? button.font ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        return NSAttributedString(
+            string: text,
+            attributes: [
+                .font: font,
+                .foregroundColor: color
+            ]
+        )
+    }
+
+    private func tintedImage(_ image: NSImage, color: NSColor) -> NSImage? {
+        let tinted = NSImage(size: image.size)
+        tinted.lockFocus()
+        defer { tinted.unlockFocus() }
+
+        let imageRect = CGRect(origin: .zero, size: image.size)
+        image.draw(in: imageRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        color.set()
+        imageRect.fill(using: .sourceAtop)
+        return tinted
     }
 
     // MARK: - Click Event Helpers

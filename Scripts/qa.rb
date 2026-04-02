@@ -98,6 +98,8 @@ class ProjectQA
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
   RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
+  RUNTIME_WAKE_PROBE_LOG_PATH = '/tmp/sanebar_runtime_wake_probe.log'
+  RUNTIME_WAKE_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_wake_probe.json'
   RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
@@ -639,6 +641,13 @@ class ProjectQA
       puts '❌ missing startup_layout_probe.rb'
       return
     end
+    run_wake_probe = ENV['SANEBAR_RUN_WAKE_LAYOUT_PROBE'] == '1'
+    wake_probe_script = File.join(__dir__, 'wake_layout_probe.rb')
+    if run_wake_probe && !File.exist?(wake_probe_script)
+      @errors << "Wake layout probe missing: #{wake_probe_script}"
+      puts '❌ missing wake_layout_probe.rb'
+      return
+    end
 
     restore_mode = nil
 
@@ -656,6 +665,8 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
 
@@ -832,7 +843,7 @@ class ProjectQA
 
           if !shared_bundle_status.success? &&
              shared_bundle_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
-             retryable_shared_bundle_runtime_smoke_failure?(shared_bundle_out)
+             retryable_runtime_smoke_failure?(shared_bundle_out)
             puts "   ↳ relaunching after transient shared-bundle runtime smoke budget blip (retry #{shared_bundle_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
             unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
               File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
@@ -872,6 +883,25 @@ class ProjectQA
         return
       end
 
+      if run_wake_probe
+        wake_probe_env = {
+          'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+          'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH,
+          'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH
+        }
+        wake_probe_out, wake_probe_status = capture2e_with_progress(
+          wake_probe_env,
+          wake_probe_script,
+          heartbeat_label: 'runtime wake layout probe'
+        )
+        File.write(RUNTIME_WAKE_PROBE_LOG_PATH, wake_probe_out)
+        unless wake_probe_status.success?
+          @errors << "Wake layout probe failed. See #{RUNTIME_WAKE_PROBE_LOG_PATH} and #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
+          puts "❌ wake probe failed (#{RUNTIME_WAKE_PROBE_LOG_PATH})"
+          return
+        end
+      end
+
       if capture_runtime_smoke_screenshots
         expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
@@ -884,11 +914,14 @@ class ProjectQA
         end
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (#{artifact_summary})"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (#{artifact_summary})"
       elsif screenshot_capture_available
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots disabled for release smoke)"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (screenshots disabled for release smoke)"
       else
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots skipped on this host)"
+        extra_probe = run_wake_probe ? ' + wake layout probe' : ''
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe#{extra_probe} (screenshots skipped on this host)"
       end
     ensure
       restore_runtime_smoke_mode(restore_mode)
@@ -913,18 +946,6 @@ class ProjectQA
     return true if smoke_output.include?('launch_idle_budget_exceeded')
 
     retryable_active_budget_overrun?(smoke_output)
-  end
-
-  def retryable_shared_bundle_runtime_smoke_failure?(smoke_output)
-    return true if retryable_runtime_smoke_failure?(smoke_output)
-
-    return true if smoke_output.include?('Candidate failures:') &&
-                   smoke_output.include?('to reach zone alwaysHidden')
-
-    smoke_output.include?("Candidate failed: com.apple.controlcenter") &&
-      smoke_output.include?("Hidden/Visible move actions ok") &&
-      smoke_output.include?("Icon 'com.apple.menuextra.") &&
-      smoke_output.include?("not found")
   end
 
   def retryable_active_budget_overrun?(smoke_output)
@@ -1173,58 +1194,37 @@ class ProjectQA
     modes
   end
 
-def runtime_smoke_available_required_candidate_ids(target, required_ids:)
-  snapshot = runtime_smoke_layout_snapshot(target) || {}
-  allow_always_hidden = snapshot['licenseIsPro'] == true
-  zones = runtime_smoke_list_icon_zones(target)
-  required_ids.select do |required_id|
-    zone = zones.find { |item| item[:unique_id] == required_id }
-    next false unless zone
-
-    allow_always_hidden || zone[:zone] != 'alwaysHidden'
+  def runtime_smoke_available_required_candidate_ids(target, required_ids:)
+    available_ids = runtime_smoke_list_icon_zone_ids(target)
+    required_ids.select { |required_id| available_ids.include?(required_id) }
   end
-end
 
-def runtime_smoke_list_icon_zone_ids(target)
-  runtime_smoke_list_icon_zones(target).map { |item| item[:unique_id] }
-end
+  def runtime_smoke_list_icon_zone_ids(target)
+    return [] unless ensure_runtime_smoke_target_running!(target)
 
-def runtime_smoke_list_icon_zones(target)
-  return [] unless ensure_runtime_smoke_target_running!(target)
+    expected_bundle_id = 'com.sanebar.app'
+    output, status = Open3.capture2e(
+      'osascript',
+      '-e',
+      %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
+      '-e',
+      %(using terms from application id "#{expected_bundle_id}"),
+      '-e',
+      'tell application appTarget to list icon zones',
+      '-e',
+      'end using terms from'
+    )
+    return [] unless status.success?
 
-  expected_bundle_id = 'com.sanebar.app'
-  output, status = Open3.capture2e(
-    'osascript',
-    '-e',
-    %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
-    '-e',
-    %(using terms from application id "#{expected_bundle_id}"),
-    '-e',
-    'tell application appTarget to list icon zones',
-    '-e',
-    'end using terms from'
-  )
-  return [] unless status.success?
+    output.lines.map do |line|
+      _zone, _movable, _bundle, unique_id, _name = line.strip.split("\t", 5)
+      unique_id
+    end.compact
+  rescue StandardError
+    []
+  end
 
-  output.lines.map do |line|
-    zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
-    next nil if unique_id.nil? || unique_id.empty?
-
-    {
-      zone: zone,
-      movable: movable == 'true',
-      bundle: bundle,
-      unique_id: unique_id,
-      name: name
-    }
-  end.compact
-rescue StandardError
-  []
-end
-
-def applescript_commands_for_app(app_path)
-
-
+  def applescript_commands_for_app(app_path)
     sdef_path = File.join(app_path, 'Contents', 'Resources', "#{PROJECT_NAME}.sdef")
     return [] unless File.exist?(sdef_path)
 

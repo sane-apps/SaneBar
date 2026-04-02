@@ -95,8 +95,8 @@
   {
     "slug": "sanebar-browse-move",
     "reason": "Repeated icon move / visibility mismatch reports. Fresh runtime research is required before more fixes in this cluster.",
-    "created_at": "2026-03-28T05:40:38Z",
-    "source_updated_at": "2026-03-28T05:40:38Z",
+    "created_at": "2026-04-01T05:36:07Z",
+    "source_updated_at": "2026-04-01T05:36:07Z",
     "source": "issue-cluster-sync",
     "app": "SaneBar",
     "threshold": 3,
@@ -161,14 +161,14 @@
         "id": 130,
         "title": "icon disappeared again after getting on computer this mornin",
         "state": "OPEN",
-        "updated_at": "2026-03-27T23:47:31Z"
+        "updated_at": "2026-04-01T05:35:59Z"
       },
       {
         "kind": "github",
         "id": 129,
         "title": "[Bug]: Menu bar icon permanently lost after dragging icon and divider out of menu bar",
         "state": "OPEN",
-        "updated_at": "2026-03-28T05:40:38Z"
+        "updated_at": "2026-04-01T05:36:07Z"
       },
       {
         "kind": "github",

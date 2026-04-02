@@ -24,8 +24,7 @@ packages:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.8.0
   SaneUI:
-    url: https://github.com/sane-apps/SaneUI.git
-    branch: main
+    path: ../../infra/SaneUI
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -135,8 +134,8 @@ targets:
       base:
         PRODUCT_NAME: SaneBar
         PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-        MARKETING_VERSION: "2.1.38"
-        CURRENT_PROJECT_VERSION: "2138"
+        MARKETING_VERSION: "2.1.37"
+        CURRENT_PROJECT_VERSION: "2137"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: NO
         ENABLE_XOJIT_PREVIEWS: NO
