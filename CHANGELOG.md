@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.39] - 2026-04-02
+
+Improves menu bar layout reliability, makes hidden items behave more consistently, and keeps Basic and Pro features behaving as expected.
+
+---
+
 ## [2.1.38] - 2026-04-01
 
 Improves startup, wake, and display-change layout recovery so menu bar icons stay more stable and easier to recover.
