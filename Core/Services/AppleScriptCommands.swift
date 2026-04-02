@@ -7,6 +7,12 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "AppleScript
 // MARK: - AppleScript Commands
 /// Base class for SaneBar AppleScript commands
 class SaneBarScriptCommand: NSScriptCommand {
+    private static let allowedSnapshotRoots: [URL] = [
+        FileManager.default.temporaryDirectory.resolvingSymlinksInPath(),
+        URL(fileURLWithPath: "/tmp", isDirectory: true).resolvingSymlinksInPath(),
+        URL(fileURLWithPath: "/private/tmp", isDirectory: true).resolvingSymlinksInPath(),
+    ]
+
     /// Set AppleScript error when auth blocks the command
     func setAuthBlockedError() {
         scriptErrorNumber = errOSAGeneralError
@@ -44,6 +50,49 @@ class SaneBarScriptCommand: NSScriptCommand {
                 MenuBarManager.shared.hidingService.state == .hidden
             }
         }
+    }
+
+    func validatedSnapshotOutputPath() -> String? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        let fileURL = URL(fileURLWithPath: path).standardizedFileURL
+        let parentURL = fileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+        let parentPath = parentURL.path
+        let isAllowedRoot = Self.allowedSnapshotRoots.contains { root in
+            let rootPath = root.path
+            return parentPath == rootPath || parentPath.hasPrefix(rootPath + "/")
+        }
+        guard isAllowedRoot else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Snapshot output must be written under a temporary directory."
+            return nil
+        }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: parentPath, isDirectory: &isDirectory), isDirectory.boolValue else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Snapshot output directory does not exist."
+            return nil
+        }
+
+        if let values = try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Snapshot output path cannot be a symbolic link."
+            return nil
+        }
+
+        return fileURL.path
     }
 }
 
@@ -171,16 +220,7 @@ final class CloseSettingsWindowCommand: SaneBarScriptCommand {
 @objc(CaptureBrowsePanelSnapshotCommand)
 final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+        guard let path = validatedSnapshotOutputPath() else {
             return nil
         }
 
@@ -209,16 +249,7 @@ final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
 @objc(CaptureSettingsWindowSnapshotCommand)
 final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+        guard let path = validatedSnapshotOutputPath() else {
             return nil
         }
 
@@ -264,19 +295,59 @@ final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     }
 }
 
-@objc(CaptureAppearanceOverlaySnapshotCommand)
-final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
+@objc(CaptureDividerStripSnapshotCommand)
+final class CaptureDividerStripSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
+        guard let path = validatedSnapshotOutputPath() else {
+            return nil
+        }
+        let dividerIsLiveReady: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                let snapshot = LayoutSnapshotCommand.safeDividerSnapshotPayload(from: MenuBarManager.shared)
+                return (snapshot["dividerHasLiveWindow"] as? Bool) == true &&
+                    (snapshot["dividerHasLiveBounds"] as? Bool) == true
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    let snapshot = LayoutSnapshotCommand.safeDividerSnapshotPayload(from: MenuBarManager.shared)
+                    return (snapshot["dividerHasLiveWindow"] as? Bool) == true &&
+                        (snapshot["dividerHasLiveBounds"] as? Bool) == true
+                }
+            }
+        }
+        guard dividerIsLiveReady else {
             scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+            scriptErrorString = "Divider strip snapshot requires live menu bar bounds."
             return nil
         }
 
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
+        let didCapture: Bool = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                MenuBarManager.shared.statusBarController.captureDividerStripSnapshotPNG(to: path)
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    MenuBarManager.shared.statusBarController.captureDividerStripSnapshotPNG(to: path)
+                }
+            }
+        }
+
+        guard didCapture else {
             scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+            scriptErrorString = "Divider strip snapshot failed. Make sure the menu bar items are visible first."
+            return nil
+        }
+
+        return true
+    }
+}
+
+@objc(CaptureAppearanceOverlaySnapshotCommand)
+final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let path = validatedSnapshotOutputPath() else {
             return nil
         }
 
@@ -302,19 +373,56 @@ final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
     }
 }
 
-@objc(QueueBrowsePanelSnapshotCommand)
-final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
+@objc(SetDividerStyleCommand)
+final class SetDividerStyleCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
+        guard let rawStyle = directParameter as? String else {
             scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+            scriptErrorString = "Expected a divider style string."
             return nil
         }
 
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
+        let styleKey = rawStyle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let style = SaneBarSettings.DividerStyle(rawValue: styleKey) else {
             scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+            scriptErrorString = "Unknown divider style '\(styleKey)'."
+            return nil
+        }
+
+        Task { @MainActor in
+            MenuBarManager.shared.settings.dividerStyle = style
+        }
+        return true
+    }
+}
+
+@objc(SetDividerColorCommand)
+final class SetDividerColorCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let rawColor = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a divider color string."
+            return nil
+        }
+
+        let colorKey = rawColor.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let color = SaneBarSettings.DividerColor(rawValue: colorKey) else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Unknown divider color '\(colorKey)'."
+            return nil
+        }
+
+        Task { @MainActor in
+            MenuBarManager.shared.settings.dividerColor = color
+        }
+        return true
+    }
+}
+
+@objc(QueueBrowsePanelSnapshotCommand)
+final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let path = validatedSnapshotOutputPath() else {
             return nil
         }
 
@@ -329,16 +437,7 @@ final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
 @objc(QueueSettingsWindowSnapshotCommand)
 final class QueueSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
+        guard let path = validatedSnapshotOutputPath() else {
             return nil
         }
 
@@ -898,6 +997,8 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
 
         var payload: [String: Any] = [
             "hidingState": manager.hidingService.state.rawValue,
+            "dividerRequestedStyle": manager.settings.dividerStyle.rawValue,
+            "dividerRequestedColor": manager.settings.dividerColor.rawValue,
             "separatorBeforeMain": separatorBeforeMain,
             "alwaysHiddenBeforeSeparator": alwaysHiddenBeforeSeparator,
             "alwaysHiddenGeometryReliable": alwaysHiddenGeometry.isReliable,
@@ -921,6 +1022,9 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "shouldSkipHideForExternalMonitor": manager.shouldSkipHideForExternalMonitor,
             "isOnExternalMonitor": manager.isOnExternalMonitor
         ]
+        safeDividerSnapshotPayload(from: manager).forEach { key, value in
+            payload[key] = value
+        }
         SearchWindowController.shared.browseWindowPositionSnapshot().forEach { key, value in
             payload[key] = value
         }
@@ -941,6 +1045,28 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         setOptional("mainRightGap", rightGap)
         payload["geometryAvailable"] = (mainX != nil) || (separatorX != nil) || (separatorRightEdgeX != nil)
         return payload
+    }
+
+    @MainActor
+    fileprivate static func safeDividerSnapshotPayload(from manager: MenuBarManager) -> [String: Any] {
+        guard let controller = manager.statusBarControllerIfReady else {
+            return [
+                "dividerAppliedStyle": manager.settings.dividerStyle.rawValue,
+                "dividerAppliedColor": manager.settings.dividerColor.rawValue,
+                "dividerUsesImage": false,
+                "dividerRenderedTitle": "",
+                "dividerRenderedAlpha": 0.0,
+                "dividerHasLiveWindow": false,
+                "dividerHasLiveBounds": false,
+                "dividerBoundsWidth": 0.0,
+                "dividerBoundsHeight": 0.0,
+                "dividerTintRed": 0.0,
+                "dividerTintGreen": 0.0,
+                "dividerTintBlue": 0.0,
+            ]
+        }
+
+        return controller.dividerRenderSnapshotPayload()
     }
 
     private static func geometryAvailable(in payload: [String: Any]) -> Bool {

@@ -31,6 +31,54 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case pipe // |
         case pipeThin // ❘
         case dot // •
+
+        var previewText: String {
+            switch self {
+            case .slash: "/"
+            case .backslash: "\\"
+            case .pipe: "|"
+            case .pipeThin: "❘"
+            case .dot: "•"
+            }
+        }
+    }
+
+    enum DividerColor: String, Codable, CaseIterable, Sendable {
+        case white
+        case blue
+        case green
+        case orange
+        case red
+        case pink
+
+        var displayName: String {
+            switch self {
+            case .white: "White"
+            case .blue: "Blue"
+            case .green: "Green"
+            case .orange: "Orange"
+            case .red: "Red"
+            case .pink: "Pink"
+            }
+        }
+
+        var nsColor: NSColor {
+            switch self {
+            case .white: .white
+            case .blue: .systemBlue
+            case .green: .systemGreen
+            case .orange: .systemOrange
+            case .red: .systemRed
+            case .pink: .systemPink
+            }
+        }
+
+        var preferredAlpha: CGFloat {
+            switch self {
+            case .white: 0.82
+            case .blue, .green, .orange, .red, .pink: 0.92
+            }
+        }
     }
 
     enum MenuBarIconStyle: String, Codable, CaseIterable, Sendable {
@@ -243,6 +291,9 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Style of the main divider (/, \, |, etc.)
     var dividerStyle: DividerStyle = .slash
 
+    /// Accent color for the main divider.
+    var dividerColor: DividerColor = .white
+
     /// Style of the main SaneBar menu bar icon
     var menuBarIconStyle: MenuBarIconStyle = .filter
 
@@ -335,7 +386,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         checkForUpdatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? true
         lastUpdateCheck = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)
         hideMainIcon = try container.decodeIfPresent(Bool.self, forKey: .hideMainIcon) ?? false
-        dividerStyle = try container.decodeIfPresent(DividerStyle.self, forKey: .dividerStyle) ?? .slash
+        let dividerStyleRaw = try container.decodeIfPresent(String.self, forKey: .dividerStyle)
+        dividerStyle = dividerStyleRaw.flatMap(DividerStyle.init(rawValue:)) ?? .slash
+        let dividerColorRaw = try container.decodeIfPresent(String.self, forKey: .dividerColor)
+        dividerColor = dividerColorRaw.flatMap(DividerColor.init(rawValue:)) ?? .white
         menuBarIconStyle = try container.decodeIfPresent(MenuBarIconStyle.self, forKey: .menuBarIconStyle) ?? .filter
         alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
         alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
@@ -363,7 +417,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor
         case menuBarSpacing, menuBarSelectionPadding
         case checkForUpdatesAutomatically, lastUpdateCheck
-        case hideMainIcon, dividerStyle, menuBarIconStyle
+        case hideMainIcon, dividerStyle, dividerColor, menuBarIconStyle
         case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible, secondMenuBarShowAlwaysHidden, leftClickOpensBrowseIcons
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }

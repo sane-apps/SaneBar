@@ -1,5 +1,56 @@
 # SaneBar Research Cache
 
+## Sparkle Header Cache Mismatch After Package Pin Changes
+
+**Updated:** 2026-03-28 22:31 ET | **Status:** verified | **TTL:** 7d
+**Source:** mini `./scripts/SaneMaster.rb verify --quiet` failure on 2026-03-28; local code audit of `SaneBar.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`; `SaneMaster.rb` command help for `verify --clean` and `clean --nuclear`; Apple/Xcode search for `has been modified since the module file`
+
+### Verified Findings
+
+1. The post-pin Mini failure was a build-cache mismatch, not a source regression in the settings UI work.
+   - Xcode failed with `SPUStandardUserDriverDelegate.h has been modified since the module file ... was built`.
+   - The failing header belonged to `Sparkle.framework`, which had just moved from `2.8.1` to `2.9.0` in `Package.resolved`.
+2. The failure pattern matches stale Explicit Precompiled Module / DerivedData state after a package header changes underneath an existing build cache.
+   - The failing path was under `DerivedData/.../SwiftExplicitPrecompiledModules/`.
+   - The framework header size changed between the old cached module build and the new resolved package contents.
+3. The safe recovery path is already part of SaneProcess.
+   - `./scripts/SaneMaster.rb verify --clean` cleans before the test run.
+   - `./scripts/SaneMaster.rb clean --nuclear` also removes DerivedData and resets Xcode state.
+4. When package pins change on the Mini, prefer the nuclear clean first if the first verify run reports `has been modified since the module file`.
+   - That avoids wasting time on source-level debugging for a cache-state problem.
+
+## 2.1.37 Runtime + Settings Sweep Refresh
+
+**Updated:** 2026-03-28 21:55 ET | **Status:** verified | **TTL:** 7d
+**Source:** Apple docs for `NSStatusBar`, `NSStatusItem`, and `NSStatusItem.Behavior`; Bartender public help/release notes; live GitHub issues `#130`, `#129`, `#126`, `#122`, `#117`; local code audit of `Core/Controllers/StatusBarController.swift`, `Core/MenuBarManager.swift`, `UI/Settings/AboutSettingsView.swift`, and `UI/SettingsView.swift`
+
+### Verified Findings
+
+1. Apple still does not expose a new first-party API for managing other apps' menu bar items.
+   - `NSStatusBar` and `NSStatusItem` remain app-owned status-item APIs.
+   - `NSStatusItem.Behavior` still includes removal behaviors, which matters because SaneBar currently opts into `.removalAllowed` for its own items.
+2. Competitor public docs still treat missing or inaccessible menu bar icons as a real category, not a solved platform problem.
+   - Bartender still documents relaunching from Applications as a recovery path if the main icon is hidden or inaccessible.
+   - Bartender release notes still carry fixes for dock-icon persistence, menu bar gaps, and hidden-bar visibility/recovery seams, which matches the same class of fragility SaneBar is fighting.
+3. The live GitHub queue says the current SaneBar red cluster is still runtime disappearance/reset behavior, not settings UI.
+   - `#129` is still open on `2.1.37` after reset-to-defaults did not restore the icon.
+   - `#130` is still the wake/hover/reset family with stale separator geometry and move verification errors in diagnostics.
+   - `#126` now has one fresh field clue: the reporter eventually found the SaneBar icon disabled in system menu bar visibility settings, which means at least one “icon disappeared” report was really “system-level icon visibility got turned off”.
+   - `#122` remains a separate tint/appearance issue, and `#117` remains the separate hidden→visible wrong-target/move-instability issue.
+4. Current local code does not intentionally hide the main SaneBar icon anymore.
+   - `MenuBarManager` still force-clears deprecated `hideMainIcon` on launch and logs `hideMainIcon is deprecated - forcing visible main icon`.
+   - That means new “icon vanished” reports are more likely to be status-item removal/system visibility/recovery failures than a persisted in-app “hide the icon” preference.
+5. Current local code still leaves one real disappearance-risk seam open.
+   - `StatusBarController` still enables `.removalAllowed`, so the app is explicitly allowing the system/user to remove the status item from the menu bar.
+   - That aligns with the fresh `#126` clue and means any future recovery UX should account for the icon being absent because the system stopped showing it, not only because layout persistence drifted.
+6. The settings/About standardization pass is orthogonal to the runtime cluster.
+   - `SettingsView` already uses shared `SaneSettingsContainer`.
+   - `AboutSettingsView` is still an app-local UI fork and needs standardization, but changing that screen is not itself evidence that disappearance/move runtime bugs are fixed.
+7. Current PR state is unrelated to the runtime cluster.
+   - Open PR `#127` is only a Sparkle package bump.
+   - Open PR `#131` is only an `mcp` gem bump.
+   - Neither PR should be treated as a fix for the disappearance/reset/move issue family.
+
 ## 2.1.35 Browse UX + Move Cluster Refresh
 
 **Updated:** 2026-03-26 | **Status:** verified | **TTL:** 7d
@@ -3211,3 +3262,111 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
      - `peakCpu=16.6 > 15.0`
      - `avgCpu=8.2 > 5.0`, `peakCpu=16.3 > 15.0`
    - These are resource-budget failures, not the old layout/disappearing-icon or browse activation failures.
+
+## Startup snapshot crash on deferred status-bar init | Updated: 2026-03-31 | Status: verified | TTL: 7d
+
+**Sources:** Apple docs for `NSStatusBar` / `NSStatusItem` availability expectations, GitHub issues `#114` and `#129`, local Mini crash reports `SaneBar-2026-03-31-124921.ips` and `SaneBar-2026-03-31-125004.ips`, local Mini startup probe logs, local code audit of `Core/MenuBarManager.swift` and `Core/Services/AppleScriptCommands.swift`
+
+### What happened
+
+1. **The Mini startup probe found a real relaunch crash, not just flaky automation.**
+   - After staging `/Applications/SaneBar.app` and poisoning startup positions, `startup_layout_probe.rb` relaunched the app and immediately lost AppleScript connectivity with `Connection is invalid (-609)`.
+   - Crash reports showed `EXC_BREAKPOINT / SIGTRAP` on the main thread.
+
+2. **The crash was inside the AppleScript layout snapshot path.**
+   - Both crash reports point to:
+     - `LayoutSnapshotCommand.buildSnapshotPayload(from:)`
+     - `MenuBarManager.statusBarController.getter`
+   - The getter intentionally does `preconditionFailure("StatusBarController accessed before deferred UI setup")`.
+
+3. **This lined up with the current deferred-startup architecture.**
+   - `MenuBarManager` now defers `StatusBarController` creation until later startup.
+   - But `layout snapshot` was still forcing `manager.statusBarController.dividerRenderSnapshotPayload()` before deferred setup had finished.
+   - That means any early startup AppleScript snapshot could crash the app before runtime stabilization.
+
+4. **Apple’s own status-item guidance matches the failure mode.**
+   - `NSStatusBar` / `NSStatusItem` are system-managed menu bar objects, so callers should not assume they are synchronously available at every early-launch moment.
+   - The safe app behavior is to return “not ready yet” style snapshot data until the status items exist, not to trap.
+
+### Why it matters for the live bug cluster
+
+1. **It does not fully explain `#114` or `#129`, but it blocks trustworthy startup verification for that cluster.**
+   - `#114` is still the strongest external-display live issue on `2.1.37`.
+   - `#129` is still the strongest “main icon permanently lost / reset did not restore it” signal on `2.1.37`.
+   - If the startup probe itself can crash the app during relaunch, then we cannot trust a green startup lane until this is fixed.
+
+2. **It is adjacent to the same startup/reset family.**
+   - The crash only showed up when startup state was intentionally stressed with poisoned persisted positions.
+   - That makes it part of the same recovery surface, even though the immediate fault is in diagnostics/AppleScript rather than the core recovery planner.
+
+### Current fix direction
+
+1. **Snapshot callers must use an optional, non-crashing status-bar-controller path.**
+   - `MenuBarManager` should expose a safe `statusBarControllerIfReady`.
+   - `AppleScriptCommands` should use a fallback divider snapshot payload until the controller exists instead of forcing the precondition getter.
+
+2. **After this fix, rerun on the Mini in order:**
+   - `./scripts/SaneMaster.rb test_mode --release --no-logs`
+   - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./scripts/startup_layout_probe.rb`
+   - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./scripts/wake_layout_probe.rb`
+
+3. **Do not bless the layout/reset fix for release until that Mini startup probe is green again.**
+
+
+## Wake/display hidden-state regression and stale runtime guard | Updated: 2026-03-31 | Status: in_progress | TTL: 7d
+
+**Sources:** Apple docs for `NSWorkspace.didWakeNotification`, `NSWorkspace.screensDidWakeNotification`, and `NSScreen.main`; live GitHub issues `#114`, `#129`, `#130`, `#111`; local Mini wake probe artifacts `/tmp/sanebar_wake_layout_probe.log` and `/tmp/sanebar_wake_layout_probe.json`; local code audit of `Core/MenuBarManager.swift`, `Core/Services/HidingService.swift`, and `Tests/RuntimeGuardXCTests.swift`
+
+### Fresh findings
+
+1. **Apple's screen/wake semantics support the live-screen approach, not `NSScreen.main` fallback as a source of truth.**
+   - Apple documents `didWakeNotification` and `screensDidWakeNotification` as environment notifications with no `userInfo`; callers have to re-resolve live screen state after wake instead of trusting stale cached focus context.
+   - Apple also documents that `NSScreen.main` is the screen containing the window with keyboard focus and is *not necessarily* the screen with the menu bar.
+   - For a menu bar app, that means wake/display repair should anchor to the actual status-item screen, not the focused-window screen.
+
+2. **The Mini reproduced a real transient wake regression even after the earlier screen-anchor fixes.**
+   - `startup_layout_probe.rb` was green.
+   - `wake_layout_probe.rb` was red at the hidden baseline on wake: at `1.0s` after wake, `hidingState` flipped to `expanded`, `mainRightGap` jumped to `1920`, `separatorBeforeMain` became false, and the bar later self-healed by `5s` to `15s`.
+   - This matches the still-active field complaints that the layout "changes on its own" or the icon disappears after sleep/login/external-display churn.
+
+3. **The immediate trigger was status-item recovery rebuilding the delimiter in expanded mode.**
+   - `statusBarController.onItemsRecreated` previously rewired the delimiter through a path that could force `HidingService` back to `.expanded`, then optionally issue a later async hide.
+   - That is exactly the wrong shape for wake/display repair: it creates a visible transient, depends on a later task, and can race with validation/recovery work.
+
+4. **The product fix direction is still correct: preserve hidden state synchronously during status-item recovery.**
+   - `HidingService.reconfigure(delimiterItem:preserving:)` now reapplies the current hidden/expanded state to the live delimiter instead of resetting to expanded.
+   - `MenuBarManager` now captures `preservedHidingState` and rewires via `reconfigure(...)` during item recreation, logging `Preserved hidden state during status item recovery` instead of scheduling a delayed `hide()` repair.
+
+5. **The latest Mini verify failure was not a new product regression; it was a stale runtime guard.**
+   - `Tests/RuntimeGuardXCTests.swift` still expected the older strings `Restored hidden state after status item recovery` and `await self.hidingService.hide()`.
+   - That no longer matches the implementation because the fix is now synchronous hidden-state preservation.
+   - The runtime guard needs to assert the new preserved-state path, not the removed delayed-hide path.
+
+### What this means for the live issues
+
+1. **`#114` is still the strongest real-world proof target.**
+   - The latest external report still says the login/external-display placement issue remains on `2.1.37`.
+   - The Mini wake probe reproduced the same class of instability locally, so this is not just user confusion.
+
+2. **`#129` is still not fully proven fixed yet.**
+   - We have better reset/recovery code now, but no dedicated Mini runtime proof yet that the `Reset to Defaults` / reinstall path always restores the main icon after a hard-loss scenario.
+
+### Required next lane
+
+1. Update the stale runtime guard to the preserved-state implementation.
+2. Rerun Mini `./scripts/SaneMaster.rb verify`.
+3. Rerun Mini `./scripts/SaneMaster.rb test_mode --release --no-logs`.
+4. Rerun Mini `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby ./Scripts/wake_layout_probe.rb`.
+5. Only after those are green should we decide whether `#114` is truly addressed enough for a customer-facing retest reply.
+
+
+### 2026-03-31 follow-up verification
+
+- Mini `./scripts/SaneMaster.rb verify` is green again after updating the stale runtime guards to the preserved-state implementation and current always-hidden delimiter semantics (`1061 tests`).
+- Mini signed runtime lane is green: `./scripts/SaneMaster.rb test_mode --release --no-logs` rebuilt, staged, and launched `/Applications/SaneBar.app` successfully.
+- Mini `wake_layout_probe.rb` is now green: `hidden state survives display sleep wake, expanded state stays stable through display sleep wake`.
+- Direct `#129`-style reinstall proof is also green on the Mini:
+  - `Scripts/uninstall_sanebar.sh` removed the installed app, prefs, current-host NSStatusItem keys, caches, and TCC state.
+  - rebuilding/restaging via `test_mode --release --no-logs` restored `/Applications/SaneBar.app` and relaunched successfully.
+  - post-reinstall layout snapshot was healthy: `hidingState=hidden`, `mainRightGap=228`, `separatorBeforeMain=true`, `mainNearControlCenter=true`, `screenWidth=1920`.
+- This does **not** prove the exact drag-out sequence from `#129` is reproduced end to end, but it does prove the recovery/reset/uninstall lane is no longer dead on the Mini.

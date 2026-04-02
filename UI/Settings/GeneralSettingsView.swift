@@ -30,8 +30,8 @@ struct GeneralSettingsView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .toggleHidden: "Toggle Hidden"
-            case .openBrowseIcons: "Open Browse"
+            case .toggleHidden: SaneBarSettingsCopy.toggleHiddenModeTitle
+            case .openBrowseIcons: SaneBarSettingsCopy.openBrowseModeTitle
             }
         }
     }
@@ -44,9 +44,9 @@ struct GeneralSettingsView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .minimal: "Hidden Row"
-            case .balanced: "Hidden + Visible"
-            case .power: "All Rows"
+            case .minimal: SaneBarSettingsCopy.hiddenRowOnlyTitle
+            case .balanced: SaneBarSettingsCopy.rowsShownInSecondMenuBarSummary
+            case .power: SaneBarSettingsCopy.allRowsTitle
             }
         }
     }
@@ -86,7 +86,7 @@ struct GeneralSettingsView: View {
     }
 
     private var browseDestinationLabel: String {
-        menuBarManager.settings.useSecondMenuBar ? "Second Menu Bar" : "Icon Panel"
+        SaneBarSettingsCopy.browseDestinationLabel(useSecondMenuBar: menuBarManager.settings.useSecondMenuBar)
     }
 
     private var isBasicSecondMenuBar: Bool {
@@ -94,25 +94,25 @@ struct GeneralSettingsView: View {
     }
 
     private var browseOpenActionLabel: String {
-        menuBarManager.settings.useSecondMenuBar ? "Open Second Menu Bar" : "Open Icon Panel"
+        SaneBarSettingsCopy.browseOpenActionLabel(useSecondMenuBar: menuBarManager.settings.useSecondMenuBar)
     }
 
     private func leftClickModeTitle(_ mode: BrowseLeftClickMode) -> String {
         switch mode {
         case .toggleHidden:
-            "Toggle Hidden"
+            SaneBarSettingsCopy.toggleHiddenModeTitle
         case .openBrowseIcons:
             browseOpenActionLabel
         }
     }
 
     private var secondMenuBarRowsSummary: String {
-        var rows = ["Hidden"]
+        var rows = [SaneBarSettingsCopy.hiddenRowTitle]
         if menuBarManager.settings.secondMenuBarShowVisible {
-            rows.append("Visible")
+            rows.append(SaneBarSettingsCopy.visibleRowTitle)
         }
         if menuBarManager.settings.secondMenuBarShowAlwaysHidden {
-            rows.append("Always Hidden")
+            rows.append(SaneBarSettingsCopy.alwaysHiddenRowTitle)
         }
         return rows.joined(separator: " + ")
     }
@@ -120,37 +120,39 @@ struct GeneralSettingsView: View {
     private func browseIconsViewOptionHelp(useSecondMenuBar: Bool) -> String {
         if useSecondMenuBar {
             if licenseService.isPro {
-                return "Open a row-based strip under the menu bar."
+                return SaneBarSettingsCopy.secondMenuBarViewHelp
             }
-            return "Open a row-based strip under the menu bar. Basic includes browsing and clicking there. Pro adds moving icons and Always Hidden."
+            return SaneBarSettingsCopy.secondMenuBarViewHelpBasic
         }
 
         if licenseService.isPro {
-            return "Open the Icon Panel window with search and icon actions."
+            return SaneBarSettingsCopy.browseIconsViewHelp
         }
-        return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and Always Hidden."
+        return SaneBarSettingsCopy.browseIconsViewHelpBasic
     }
 
     private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
         switch preset {
         case .minimal:
-            "Show only the Hidden row in the Second Menu Bar."
+            String(localized: "sanebar.settings.help.second_menu_bar_minimal", defaultValue: "Show only the Hidden row in the Second Menu Bar.")
         case .balanced:
-            "Show Hidden and Visible rows in the Second Menu Bar."
+            String(localized: "sanebar.settings.help.second_menu_bar_balanced", defaultValue: "Show Hidden and Visible rows in the Second Menu Bar.")
         case .power:
-            "Show Hidden, Visible, and Always Hidden rows in the Second Menu Bar."
+            String(localized: "sanebar.settings.help.second_menu_bar_power", defaultValue: "Show Hidden, Visible, and Always Hidden rows in the Second Menu Bar.")
         }
     }
 
     private func leftClickModeHelp(_ mode: BrowseLeftClickMode) -> String {
         switch mode {
         case .toggleHidden:
-            return "Left-click the SaneBar icon to show or hide icons."
+            return String(localized: "sanebar.settings.help.left_click_toggle_hidden", defaultValue: "Left-click the SaneBar icon to show or hide icons.")
         case .openBrowseIcons:
             if licenseService.isPro {
-                return "Left-click the SaneBar icon to open \(browseDestinationLabel)."
+                return String(localized: "sanebar.settings.help.left_click_open_destination", defaultValue: "Left-click the SaneBar icon to open %@.")
+                    .replacingOccurrences(of: "%@", with: browseDestinationLabel)
             }
-            return "Left-click the SaneBar icon to open \(browseDestinationLabel) for browsing and clicking icons."
+            return String(localized: "sanebar.settings.help.left_click_open_destination_basic", defaultValue: "Left-click the SaneBar icon to open %@ for browsing and clicking icons.")
+                .replacingOccurrences(of: "%@", with: browseDestinationLabel)
         }
     }
 
@@ -187,7 +189,7 @@ struct GeneralSettingsView: View {
 
     private func authenticateToDisable() async -> Bool {
         let context = LAContext()
-        context.localizedCancelTitle = "Cancel"
+        context.localizedCancelTitle = SaneBarSettingsCopy.cancelTitle
 
         var error: NSError?
         let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
@@ -195,7 +197,7 @@ struct GeneralSettingsView: View {
             : .deviceOwnerAuthenticationWithBiometrics
 
         return await withCheckedContinuation { continuation in
-            context.evaluatePolicy(policy, localizedReason: "Disable password protection for hidden icons") { success, _ in
+            context.evaluatePolicy(policy, localizedReason: SaneBarSettingsCopy.authReasonDisableHiddenIcons) { success, _ in
                 continuation.resume(returning: success)
             }
         }
@@ -205,11 +207,11 @@ struct GeneralSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // 1. Browse Icons
-                CompactSection("Browse Icons") {
-                    CompactRow("Browse Icons view") {
+                CompactSection(SaneBarSettingsCopy.browseIconsSectionTitle) {
+                    CompactRow(SaneBarSettingsCopy.browseIconsViewLabel) {
                         HStack(spacing: 6) {
                             segmentedChoiceButton(
-                                "Icon Panel",
+                                SaneBarSettingsCopy.iconPanelTitle,
                                 isSelected: !menuBarManager.settings.useSecondMenuBar
                             ) {
                                 applyBrowseIconsViewSelection(false)
@@ -217,7 +219,7 @@ struct GeneralSettingsView: View {
                             .help(browseIconsViewOptionHelp(useSecondMenuBar: false))
 
                             segmentedChoiceButton(
-                                "Second Menu Bar",
+                                SaneBarSettingsCopy.secondMenuBarTitle,
                                 isSelected: menuBarManager.settings.useSecondMenuBar
                             ) {
                                 applyBrowseIconsViewSelection(true)
@@ -231,7 +233,7 @@ struct GeneralSettingsView: View {
                         CompactDivider()
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 5) {
-                                Text("Rows shown in Second Menu Bar")
+                                Text(SaneBarSettingsCopy.rowsShownInSecondMenuBarLabel)
                                     .foregroundStyle(.white.opacity(0.94))
 
                                 Image(systemName: "questionmark.circle.fill")
@@ -260,54 +262,54 @@ struct GeneralSettingsView: View {
                         .padding(.vertical, 10)
                         if secondMenuBarPresetBinding.wrappedValue == .power {
                             CompactDivider()
-                            CompactRow("Custom rows") {
-                                Button(showBrowseRowCustomization ? "Hide" : "Show") {
+                            CompactRow(SaneBarSettingsCopy.customRowsLabel) {
+                                Button(showBrowseRowCustomization ? SaneBarSettingsCopy.hideButtonTitle : SaneBarSettingsCopy.showHideButtonTitle) {
                                     withAnimation(.easeInOut(duration: 0.18)) {
                                         showBrowseRowCustomization.toggle()
                                     }
                                 }
                                 .buttonStyle(ChromeActionButtonStyle())
-                                .help("Show or hide row-level options.")
+                                .help(SaneBarSettingsCopy.showOrHideRowOptionsHelp)
                             }
 
                             if showBrowseRowCustomization {
                                 CompactDivider()
                                 CompactToggle(
-                                    label: "Show Visible row",
+                                    label: SaneBarSettingsCopy.showVisibleRowLabel,
                                     isOn: $menuBarManager.settings.secondMenuBarShowVisible
                                 )
-                                .help("Show the Visible destination row in the Second Menu Bar.")
+                                .help(SaneBarSettingsCopy.visibleRowHelp)
 
                                 CompactDivider()
                                 CompactToggle(
-                                    label: "Show Always Hidden row",
+                                    label: SaneBarSettingsCopy.showAlwaysHiddenRowLabel,
                                     isOn: $menuBarManager.settings.secondMenuBarShowAlwaysHidden
                                 )
-                                .help("Show the Always Hidden destination row in the Second Menu Bar.")
+                                .help(SaneBarSettingsCopy.alwaysHiddenRowHelp)
                             }
                         }
                     } else if isBasicSecondMenuBar {
                         CompactDivider()
-                        CompactRow("Rows shown in Second Menu Bar") {
-                                Text("Hidden + Visible")
+                        CompactRow(SaneBarSettingsCopy.rowsShownInSecondMenuBarLabel) {
+                                Text(SaneBarSettingsCopy.rowsShownInSecondMenuBarSummary)
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.94))
                         }
                         CompactDivider()
-                        proGatedRow(feature: .alwaysHidden, label: "Always Hidden row")
+                        proGatedRow(feature: .alwaysHidden, label: SaneBarSettingsCopy.alwaysHiddenRowTitle)
                     } else if !licenseService.isPro {
                         CompactDivider()
-                        proGatedRow(feature: .zoneMoves, label: "Move icons between Visible, Hidden, and Always Hidden")
+                        proGatedRow(feature: .zoneMoves, label: SaneBarSettingsCopy.moveIconsUpsellLabel)
                     }
                     CompactDivider()
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             HStack(spacing: 5) {
-                                Text("Left-click SaneBar icon")
+                                Text(SaneBarSettingsCopy.leftClickIconLabel)
                                 Image(systemName: "questionmark.circle.fill")
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(SaneBarChrome.accentHighlight.opacity(0.86))
-                                    .help("Right-click the SaneBar icon to open the app menu.")
+                                    .help(SaneBarSettingsCopy.rightClickIconHelp)
                             }
                             Spacer()
                         }
@@ -330,83 +332,31 @@ struct GeneralSettingsView: View {
                 }
 
                 // 2. Security — Pro
-                CompactSection("Security") {
+                CompactSection(SaneBarSettingsCopy.securitySectionTitle) {
                     if licenseService.isPro {
-                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
-                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
+                        CompactToggle(label: SaneBarSettingsCopy.touchIDLabel, isOn: requireAuthBinding)
+                            .help(SaneBarSettingsCopy.touchIDHelp)
                     } else {
-                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
+                        proGatedRow(feature: .touchIDProtection, label: SaneBarSettingsCopy.touchIDLabel)
                     }
                 }
 
                 // 3. Startup Status
-                CompactSection("Startup") {
+                CompactSection(SaneBarSettingsCopy.startupSectionTitle) {
                     SaneLoginItemToggle()
                     CompactDivider()
                     SaneDockIconToggle(showDockIcon: showDockIconBinding)
                 }
 
                 // 4. Updates
-                CompactSection("Software Updates") {
-                    if licenseService.distributionChannel.supportsInAppUpdates {
-                        CompactToggle(
-                            label: "Check for updates automatically",
-                            isOn: $menuBarManager.settings.checkForUpdatesAutomatically
-                        )
-                        .help("Periodically check for new versions")
-
-                        CompactDivider()
-
-                        CompactRow("Check frequency") {
-                            HStack(spacing: 6) {
-                                ForEach(UpdateCheckFrequency.allCases) { frequency in
-                                    ChromeSegmentedChoiceButton(
-                                        title: frequency.title,
-                                        isSelected: updateCheckFrequency == frequency
-                                    ) {
-                                        updateCheckFrequency = frequency
-                                    }
-                                }
-                            }
-                            .frame(width: 170)
-                            .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
-                            .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
-                        }
-                        .help("Choose how often automatic update checks run")
-
-                        CompactDivider()
-
-                        CompactRow("Actions") {
-                            Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
-                                guard !isCheckingForUpdates else { return }
-                                isCheckingForUpdates = true
-                                menuBarManager.userDidClickCheckForUpdates()
-
-                                Task { @MainActor in
-                                    try? await Task.sleep(for: .seconds(5))
-                                    isCheckingForUpdates = false
-                                }
-                            }
-                            .buttonStyle(ChromeActionButtonStyle())
-                            .controlSize(.small)
-                            .disabled(isCheckingForUpdates)
-                            .help("Check for updates right now")
-                        }
-                    } else {
-                        CompactRow("Status") {
-                            Text(licenseService.distributionChannel.managementLabel ?? "Managed externally")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.white.opacity(0.82))
-                        }
-                    }
-                }
+                softwareUpdatesSection
 
                 // 5. Profiles — Pro
-                CompactSection("Saved Profiles") {
+                CompactSection(SaneBarSettingsCopy.savedProfilesSectionTitle) {
                     if licenseService.isPro {
                         if savedProfiles.isEmpty {
-                            CompactRow("Saved") {
-                                Text("No saved profiles")
+                            CompactRow(SaneBarSettingsCopy.savedProfilesSectionTitle) {
+                                Text(SaneBarSettingsCopy.savedProfilesEmptyState)
                                     .foregroundStyle(.white.opacity(0.92))
                             }
                         } else {
@@ -417,7 +367,7 @@ struct GeneralSettingsView: View {
                                             .font(.system(size: 13))
                                             .foregroundStyle(.white.opacity(0.92))
 
-                                        Button("Load") { loadProfile(profile) }
+                                        Button(SaneBarSettingsCopy.loadButtonTitle) { loadProfile(profile) }
                                             .buttonStyle(ChromeActionButtonStyle())
                                             .controlSize(.small)
 
@@ -436,31 +386,31 @@ struct GeneralSettingsView: View {
 
                         CompactDivider()
 
-                        CompactRow("Current Settings") {
-                            Button("Save as Profile…") {
+                        CompactRow(SaneBarSettingsCopy.currentSettingsLabel) {
+                            Button(SaneBarSettingsCopy.saveAsProfileButtonTitle) {
                                 newProfileName = SaneBarProfile.generateName(basedOn: savedProfiles.map(\.name))
                                 showingSaveProfileAlert = true
                             }
                             .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
-                            .help("Save your current settings, layout, and custom icon as a named profile")
+                            .help(SaneBarSettingsCopy.saveAsProfileHelp)
                         }
                     } else {
-                        proGatedRow(feature: .settingsProfiles, label: "Save and load configurations")
+                        proGatedRow(feature: .settingsProfiles, label: SaneBarSettingsCopy.saveAndLoadConfigurationsUpsellLabel)
                     }
                 }
 
                 // 6. Data — Pro
-                CompactSection("Data") {
+                CompactSection(SaneBarSettingsCopy.dataSectionTitle) {
                     if licenseService.isPro {
-                        CompactRow("Settings") {
-                            Button("Export Settings...") {
+                        CompactRow(SaneBarSettingsCopy.settingsLabel) {
+                            Button(SaneBarSettingsCopy.exportSettingsButtonTitle) {
                                 exportSettings()
                             }
                             .buttonStyle(ChromeActionButtonStyle())
                             .controlSize(.small)
 
-                            Button("Import Settings...") {
+                            Button(SaneBarSettingsCopy.importSettingsButtonTitle) {
                                 importSettings()
                             }
                             .buttonStyle(ChromeActionButtonStyle())
@@ -469,12 +419,12 @@ struct GeneralSettingsView: View {
 
                         CompactDivider()
 
-                        CompactRow("Migration") {
+                        CompactRow(SaneBarSettingsCopy.migrationLabel) {
                             HStack(spacing: 8) {
-                                Button("Import Bartender...") {
+                                Button(SaneBarSettingsCopy.importBartenderButtonTitle) {
                                     importBartenderSettings()
                                 }
-                                Button("Import Ice...") {
+                                Button(SaneBarSettingsCopy.importIceButtonTitle) {
                                     importIceSettings()
                                 }
                             }
@@ -482,75 +432,72 @@ struct GeneralSettingsView: View {
                             .controlSize(.small)
                         }
                     } else {
-                        proGatedRow(feature: .exportImport, label: "Export, import, and migrate settings")
+                        proGatedRow(feature: .exportImport, label: SaneBarSettingsCopy.exportImportUpsellLabel)
                     }
                 }
 
                 // 7. Pro License
-                CompactSection("Pro License") {
+                CompactSection(SaneBarSettingsCopy.licenseSectionTitle) {
                     if licenseService.isPro {
-                        CompactRow("Status") {
+                        CompactRow(SaneBarSettingsCopy.statusLabel) {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.seal.fill")
                                     .foregroundStyle(SaneBarChrome.accentHighlight)
-                                Text("Pro")
+                                Text(SaneBarSettingsCopy.proLabel)
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(SaneBarChrome.accentHighlight)
                             }
                         }
                         if let email = licenseService.licenseEmail {
                             CompactDivider()
-                            CompactRow("Licensed to") {
+                            CompactRow(SaneBarSettingsCopy.licensedToLabel) {
                                 Text(email)
                                     .font(.system(size: 13))
                                     .foregroundStyle(.white.opacity(0.92))
                             }
                         }
                         CompactDivider()
-                        CompactRow("Actions") {
-                            if let managementLabel = licenseService.distributionChannel.managementLabel {
-                                HStack(spacing: 10) {
-                                    Text(managementLabel)
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(.white.opacity(0.82))
-                                    if licenseService.usesAppStorePurchase {
-                                        Button("Restore Purchases") {
-                                            Task { await licenseService.restorePurchases() }
-                                        }
-                                        .buttonStyle(ChromeActionButtonStyle())
-                                        .controlSize(.small)
-                                        .disabled(licenseService.isPurchasing)
-                                    }
+                        CompactRow(SaneBarSettingsCopy.actionsLabel) {
+                            if licenseService.usesAppStorePurchase {
+                                Button(SaneBarSettingsCopy.restorePurchasesButtonTitle) {
+                                    Task { await licenseService.restorePurchases() }
                                 }
+                                .buttonStyle(ChromeActionButtonStyle())
+                                .controlSize(.small)
+                                .disabled(licenseService.isPurchasing)
+                            } else if licenseService.usesSetappDistribution {
+                                Text(SaneBarSettingsCopy.managedBySetappLabel)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
                             } else {
                                 Button(LicenseService.deactivateLicenseLabel()) {
                                     licenseService.deactivate()
                                 }
-                                .buttonStyle(ChromeActionButtonStyle())
+                                .buttonStyle(ChromeActionButtonStyle(destructive: true))
                                 .controlSize(.small)
                             }
                         }
                     } else {
-                        CompactRow("Status") {
+                        CompactRow(SaneBarSettingsCopy.statusLabel) {
                             HStack(spacing: 6) {
-                                Text("Basic")
+                                Text(SaneBarSettingsCopy.basicLabel)
                                     .font(.system(size: 13))
                                     .foregroundStyle(.white.opacity(0.92))
                             }
                         }
                         CompactDivider()
-                        CompactRow("Upgrade") {
+                        CompactRow(SaneBarSettingsCopy.actionsLabel) {
                             if licenseService.usesAppStorePurchase {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack(spacing: 8) {
-                                        Button("Unlock Pro — \(licenseService.appStoreDisplayPrice ?? "$6.99")") {
+                                        Button(SaneBarSettingsCopy.unlockProButtonTitle(price: licenseService.appStoreDisplayPrice ?? "$6.99")) {
                                             Task { await licenseService.purchasePro() }
                                         }
                                         .buttonStyle(ChromeActionButtonStyle(prominent: true))
                                         .controlSize(.small)
                                         .disabled(licenseService.isPurchasing)
 
-                                        Button("Restore Purchases") {
+                                        Button(SaneBarSettingsCopy.restorePurchasesButtonTitle) {
                                             Task { await licenseService.restorePurchases() }
                                         }
                                         .buttonStyle(ChromeActionButtonStyle())
@@ -565,12 +512,12 @@ struct GeneralSettingsView: View {
                                     }
                                 }
                             } else if licenseService.usesSetappDistribution {
-                                Text("Included with Setapp")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.9))
+                                Text(SaneBarSettingsCopy.managedBySetappLabel)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
                             } else {
                                 HStack(spacing: 8) {
-                                    Button("Unlock Pro — $6.99") {
+                                    Button(SaneBarSettingsCopy.unlockProDefaultButtonTitle(price: "$6.99")) {
                                         NSWorkspace.shared.open(LicenseService.checkoutURL())
                                     }
                                     .buttonStyle(ChromeActionButtonStyle(prominent: true))
@@ -588,14 +535,14 @@ struct GeneralSettingsView: View {
                 }
 
                 // 8. Troubleshooting
-                CompactSection("Maintenance") {
-                    CompactRow("Reset App") {
-                        Button("Reset to Defaults…") {
+                CompactSection(SaneBarSettingsCopy.resetAppSectionTitle) {
+                    CompactRow(SaneBarSettingsCopy.resetAppLabel) {
+                        Button(SaneBarSettingsCopy.resetToDefaultsButtonTitle) {
                             showingResetAlert = true
                         }
                         .buttonStyle(ChromeActionButtonStyle(destructive: true))
                         .controlSize(.small)
-                        .help("Reset all settings to factory defaults")
+                        .help(SaneBarSettingsCopy.resetAppHelp)
                     }
                 }
             }
@@ -612,20 +559,20 @@ struct GeneralSettingsView: View {
         .onChange(of: updateCheckFrequency) { _, newValue in
             menuBarManager.updateService.updateCheckFrequency = newValue
         }
-        .alert("Save Profile", isPresented: $showingSaveProfileAlert) {
-            TextField("Name", text: $newProfileName)
-            Button("Save") { saveCurrentProfile() }
-            Button("Cancel", role: .cancel) {}
+        .alert(SaneBarSettingsCopy.saveProfileAlertTitle, isPresented: $showingSaveProfileAlert) {
+            TextField(SaneBarSettingsCopy.saveProfileNamePlaceholder, text: $newProfileName)
+            Button(SaneBarSettingsCopy.saveButtonTitle) { saveCurrentProfile() }
+            Button(SaneBarSettingsCopy.cancelButtonTitle, role: .cancel) {}
         } message: {
-            Text("Save your current settings, layout, and icon to restore later.")
+            Text(SaneBarSettingsCopy.saveProfileAlertMessage)
         }
-        .alert("Reset Settings?", isPresented: $showingResetAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
+        .alert(SaneBarSettingsCopy.resetSettingsAlertTitle, isPresented: $showingResetAlert) {
+            Button(SaneBarSettingsCopy.cancelButtonTitle, role: .cancel) {}
+            Button(SaneBarSettingsCopy.resetButtonTitle, role: .destructive) {
                 menuBarManager.resetToDefaults()
             }
         } message: {
-            Text("This will reset all settings to their defaults. This cannot be undone.")
+            Text(SaneBarSettingsCopy.resetSettingsAlertMessage)
         }
         .sheet(item: $proUpsellFeature) { feature in
             ProUpsellView(feature: feature)
@@ -636,6 +583,56 @@ struct GeneralSettingsView: View {
     }
 
     // MARK: - Pro Gating Helper
+
+    @ViewBuilder
+    private var softwareUpdatesSection: some View {
+        CompactSection(SaneBarSettingsCopy.updatesSectionTitle) {
+            if licenseService.distributionChannel.supportsInAppUpdates {
+                CompactToggle(
+                    label: SaneBarSettingsCopy.checkForUpdatesAutomaticallyLabel,
+                    isOn: $menuBarManager.settings.checkForUpdatesAutomatically
+                )
+                .help(SaneBarSettingsCopy.checkForUpdatesAutomaticallyHelp)
+
+                CompactDivider()
+
+                CompactRow(SaneBarSettingsCopy.checkFrequencyLabel) {
+                    HStack(spacing: 6) {
+                        ForEach(UpdateCheckFrequency.allCases) { frequency in
+                            ChromeSegmentedChoiceButton(
+                                title: frequency.title,
+                                isSelected: updateCheckFrequency == frequency
+                            ) {
+                                updateCheckFrequency = frequency
+                            }
+                        }
+                    }
+                    .frame(width: 170)
+                    .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
+                    .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
+                }
+                .help(SaneBarSettingsCopy.checkFrequencyHelp)
+
+                CompactDivider()
+
+                CompactRow(SaneBarSettingsCopy.actionsLabel) {
+                    Button(isCheckingForUpdates ? SaneBarSettingsCopy.checkingButtonTitle : SaneBarSettingsCopy.checkNowButtonTitle) {
+                        triggerManualUpdateCheck()
+                    }
+                    .buttonStyle(ChromeActionButtonStyle())
+                    .controlSize(.small)
+                    .disabled(isCheckingForUpdates)
+                    .help(SaneBarSettingsCopy.checkNowHelp)
+                }
+            } else {
+                CompactRow(SaneBarSettingsCopy.statusLabel) {
+                    Text(licenseService.distributionChannel.managementLabel ?? SaneBarSettingsCopy.managedExternallyLabel)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.82))
+                }
+            }
+        }
+    }
 
     private func segmentedChoiceButton(
         _ title: String,
@@ -709,9 +706,20 @@ struct GeneralSettingsView: View {
             Button {
                 proUpsellFeature = feature
             } label: {
-                ChromeBadge(title: "Pro", systemImage: "lock.fill")
+                ChromeBadge(title: SaneBarSettingsCopy.proBadgeTitle, systemImage: "lock.fill")
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private func triggerManualUpdateCheck() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        menuBarManager.userDidClickCheckForUpdates()
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            isCheckingForUpdates = false
         }
     }
 
@@ -767,7 +775,7 @@ struct GeneralSettingsView: View {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "SaneBar-settings.json"
-        panel.title = "Export Settings"
+        panel.title = SaneBarSettingsCopy.exportPanelTitle
 
         guard panel.runModal() == .OK, let url = panel.url else {
             settingsLogger.log("📤 Export cancelled")
@@ -792,7 +800,7 @@ struct GeneralSettingsView: View {
             settingsLogger.log("📤 Exported settings to \(url.lastPathComponent, privacy: .public)")
         } catch {
             settingsLogger.error("📤 Export failed: \(error.localizedDescription, privacy: .public)")
-            showError(title: "Export Failed", error: error)
+            showError(title: SaneBarSettingsCopy.exportFailedTitle, error: error)
         }
     }
 
@@ -801,7 +809,7 @@ struct GeneralSettingsView: View {
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.title = "Import Settings"
+        panel.title = SaneBarSettingsCopy.importPanelTitle
 
         guard panel.runModal() == .OK, let url = panel.url else {
             settingsLogger.log("📥 Import cancelled")
@@ -835,7 +843,7 @@ struct GeneralSettingsView: View {
             }
         } catch {
             settingsLogger.error("📥 Import failed: \(error.localizedDescription, privacy: .public)")
-            showError(title: "Import Failed", error: error)
+            showError(title: SaneBarSettingsCopy.importFailedTitle, error: error)
         }
     }
 
@@ -904,7 +912,7 @@ struct GeneralSettingsView: View {
             settingsLogger.log("\(successLog, privacy: .public)")
         } catch {
             settingsLogger.error("📥 Configuration apply failed: \(error.localizedDescription, privacy: .public)")
-            showError(title: "Import Failed", error: error)
+            showError(title: SaneBarSettingsCopy.importFailedTitle, error: error)
         }
     }
 
@@ -915,9 +923,9 @@ struct GeneralSettingsView: View {
         panel.allowedContentTypes = [.propertyList]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.title = "Import Bartender Settings"
-        panel.message = "Select your Bartender plist (usually com.surteesstudios.Bartender.plist in ~/Library/Preferences)"
-        panel.prompt = "Import"
+        panel.title = SaneBarSettingsCopy.bartenderImportPanelTitle
+        panel.message = SaneBarSettingsCopy.bartenderImportPanelMessage
+        panel.prompt = SaneBarSettingsCopy.bartenderImportPrompt
         if let prefsURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?.appendingPathComponent("Preferences") {
             panel.directoryURL = prefsURL
         }
@@ -930,9 +938,9 @@ struct GeneralSettingsView: View {
         Task { @MainActor in
             do {
                 let summary = try await BartenderImportService.importSettings(from: url, menuBarManager: menuBarManager)
-                showInfo(title: "Bartender Import Complete", message: summary.description)
+                showInfo(title: SaneBarSettingsCopy.bartenderImportCompleteTitle, message: summary.description)
             } catch {
-                showError(title: "Bartender Import Failed", error: error)
+                showError(title: SaneBarSettingsCopy.bartenderImportFailedTitle, error: error)
             }
         }
     }
@@ -947,9 +955,9 @@ struct GeneralSettingsView: View {
         panel.allowedContentTypes = [.propertyList]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.title = "Import Ice Settings"
-        panel.message = "Select your Ice plist (usually com.jordanbaird.Ice.plist in ~/Library/Preferences)"
-        panel.prompt = "Import"
+        panel.title = SaneBarSettingsCopy.iceImportPanelTitle
+        panel.message = SaneBarSettingsCopy.iceImportPanelMessage
+        panel.prompt = SaneBarSettingsCopy.iceImportPrompt
         if FileManager.default.fileExists(atPath: defaultPath.path) {
             panel.directoryURL = defaultPath.deletingLastPathComponent()
             panel.nameFieldStringValue = defaultPath.lastPathComponent
@@ -964,9 +972,9 @@ struct GeneralSettingsView: View {
 
         do {
             let summary = try IceImportService.importSettings(from: url, menuBarManager: menuBarManager)
-            showInfo(title: "Ice Import Complete", message: summary.description)
+            showInfo(title: SaneBarSettingsCopy.iceImportCompleteTitle, message: summary.description)
         } catch {
-            showError(title: "Ice Import Failed", error: error)
+            showError(title: SaneBarSettingsCopy.iceImportFailedTitle, error: error)
         }
     }
 

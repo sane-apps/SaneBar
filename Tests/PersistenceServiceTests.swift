@@ -620,6 +620,60 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertNil(settings.menuBarSelectionPadding)
     }
 
+    // MARK: - Divider Color
+
+    func testDividerColorDefaultsToWhite() throws {
+        let settings = SaneBarSettings()
+
+        XCTAssertEqual(settings.dividerColor, .white)
+    }
+
+    func testDividerColorEncodesAndDecodes() throws {
+        var settings = SaneBarSettings()
+        settings.dividerColor = .red
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let data = try encoder.encode(settings)
+        let decoded = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertEqual(decoded.dividerColor, .red)
+    }
+
+    func testDividerColorBackwardsCompatibility() throws {
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "dividerStyle": "dot"
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let data = oldJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertEqual(settings.dividerStyle, .dot)
+        XCTAssertEqual(settings.dividerColor, .white)
+    }
+
+    func testInvalidDividerColorFallsBackToWhite() throws {
+        let invalidJSON = """
+        {
+            "dividerStyle": "slash",
+            "dividerColor": "chartreuse"
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let data = invalidJSON.data(using: .utf8)!
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertEqual(settings.dividerStyle, .slash)
+        XCTAssertEqual(settings.dividerColor, .white)
+    }
+
     // MARK: - Icon Groups
 
     func testIconGroupsDefaultsToEmptyArray() throws {

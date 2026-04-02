@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 @testable import SaneBar
 import Testing
 
@@ -45,6 +46,55 @@ struct StatusBarControllerTests {
 
         #expect(iconName == StatusBarController.iconHidden)
         #expect(!iconName.isEmpty, "Icon name should not be empty")
+    }
+
+    @Test("Separator style applies divider tint to text styles")
+    @MainActor
+    func separatorStyleAppliesDividerTintToTextStyles() {
+        let controller = StatusBarController()
+        let expectedColor = SaneBarSettings.DividerColor.red.nsColor.usingColorSpace(.deviceRGB)
+
+        controller.updateSeparatorStyle(.pipeThin, color: .red)
+
+        let button = controller.separatorItem.button
+        let actualColor = button?.contentTintColor?.usingColorSpace(.deviceRGB)
+        #expect(button?.title == "❘")
+        #expect(actualColor == expectedColor)
+        #expect(button?.alphaValue == SaneBarSettings.DividerColor.red.preferredAlpha)
+        #expect(controller.separatorItem.length == 12)
+    }
+
+    @Test("Separator style applies divider tint to dot style")
+    @MainActor
+    func separatorStyleAppliesDividerTintToDotStyle() {
+        let controller = StatusBarController()
+        let expectedColor = SaneBarSettings.DividerColor.blue.nsColor.usingColorSpace(.deviceRGB)
+
+        controller.updateSeparatorStyle(.dot, color: .blue)
+
+        let button = controller.separatorItem.button
+        let actualColor = button?.contentTintColor?.usingColorSpace(.deviceRGB)
+        #expect(button?.image != nil)
+        #expect(button?.image?.isTemplate == true)
+        #expect(actualColor == expectedColor)
+        #expect(button?.alphaValue == SaneBarSettings.DividerColor.blue.preferredAlpha)
+        #expect(controller.separatorItem.length == 12)
+    }
+
+    @Test("Divider strip snapshot writes a PNG")
+    @MainActor
+    func dividerStripSnapshotWritesPNG() throws {
+        let controller = StatusBarController()
+        controller.updateSeparatorStyle(.dot, color: .orange)
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sanebar-divider-strip-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        #expect(controller.captureDividerStripSnapshotPNG(to: outputURL.path))
+        #expect(FileManager.default.fileExists(atPath: outputURL.path))
+        let data = try Data(contentsOf: outputURL)
+        #expect(!data.isEmpty)
     }
 
     // MARK: - Static Constants Tests
@@ -2084,5 +2134,54 @@ struct StatusBarControllerTests {
 
         #expect(storedBackupMain == safeMainLimit, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
         #expect(storedBackupSeparator == safeMainLimit + 34.0, "Reanchored separator backup should preserve the live gap while staying launch-safe")
+    }
+
+    @Test("Stable live positions can backfill the current-width backup when preferred positions are still missing")
+    @MainActor
+    func captureCurrentDisplayPositionBackupFromLiveFallbackPositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for live fallback display backup capture test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.removeObject(forKey: mainKey)
+        defaults.removeObject(forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        let liveMain = 1692.0
+        let liveSeparator = 1662.0
+
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+                mainPosition: liveMain,
+                separatorPosition: liveSeparator
+            ),
+            "Healthy live positions should seed a current-width backup even before preferred-position keys exist"
+        )
+
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(storedBackupMain == liveMain, "Live fallback main position should seed the current-width backup")
+        #expect(storedBackupSeparator == liveSeparator, "Live fallback separator position should seed the current-width backup")
     }
 }

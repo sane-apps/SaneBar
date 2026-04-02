@@ -20,15 +20,15 @@ final class LicenseService: ObservableObject {
     }
 
     static func keyEntryButtonLabel() -> String {
-        ["Enter", "Key"].joined(separator: " ")
+        ["Enter", "License", "Key"].joined(separator: " ")
     }
 
     static func existingCustomerButtonLabel() -> String {
-        ["I Have", "a Key"].joined(separator: " ")
+        ["I Have", "a License Key"].joined(separator: " ")
     }
 
     static func deactivateLicenseLabel() -> String {
-        ["Deactivate", "License"].joined(separator: " ")
+        ["Deactivate", "Pro"].joined(separator: " ")
     }
 
     static func licenseEmailInstruction() -> String {

@@ -9,6 +9,16 @@ struct SettingsView: View {
         case shortcuts = "Shortcuts"
         case about = "About"
 
+        var title: String {
+            switch self {
+            case .general: SaneSettingsStrings.generalTabTitle
+            case .rules: SaneSettingsStrings.rulesTabTitle
+            case .appearance: SaneSettingsStrings.appearanceTabTitle
+            case .shortcuts: SaneSettingsStrings.shortcutsTabTitle
+            case .about: SaneSettingsStrings.aboutTabTitle
+            }
+        }
+
         var icon: String {
             switch self {
             case .general: "gear"
@@ -22,15 +32,15 @@ struct SettingsView: View {
         var iconColor: Color {
             switch self {
             case .general:
-                SaneBarChrome.accentHighlight
+                SaneSettingsIconSemantic.general.color
             case .rules:
-                SaneBarChrome.accentTeal
+                SaneSettingsIconSemantic.rules.color
             case .appearance:
-                Color(red: 0.66, green: 0.82, blue: 1.00)
+                SaneSettingsIconSemantic.appearance.color
             case .shortcuts:
-                Color(red: 0.50, green: 0.74, blue: 1.00)
+                SaneSettingsIconSemantic.shortcuts.color
             case .about:
-                Color(red: 0.76, green: 0.88, blue: 1.00)
+                SaneSettingsIconSemantic.about.color
             }
         }
     }
@@ -40,19 +50,19 @@ struct SettingsView: View {
             switch tab {
             case .general:
                 GeneralSettingsView()
-                    .navigationTitle("General")
+                    .navigationTitle(SaneSettingsStrings.generalTabTitle)
             case .rules:
                 RulesSettingsView()
-                    .navigationTitle("Rules")
+                    .navigationTitle(SaneSettingsStrings.rulesTabTitle)
             case .appearance:
                 AppearanceSettingsView()
-                    .navigationTitle("Appearance")
+                    .navigationTitle(SaneSettingsStrings.appearanceTabTitle)
             case .shortcuts:
                 ShortcutsSettingsView()
-                    .navigationTitle("Shortcuts")
+                    .navigationTitle(SaneSettingsStrings.shortcutsTabTitle)
             case .about:
                 AboutSettingsView()
-                    .navigationTitle("About")
+                    .navigationTitle(SaneSettingsStrings.aboutTabTitle)
             }
         }
     }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "b3df9b8c88ae30cabd7f887a20ed40492b05865488b06c20f13a44d51b669f92",
+  "originHash" : "8dfa4d23233c47e0bc16ecbab4e9390ae443d25cb711a23cab1ab0677b7812d1",
   "pins" : [
     {
       "identity" : "keyboardshortcuts",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
         "version" : "2.4.0"
-      }
-    },
-    {
-      "identity" : "saneui",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sane-apps/SaneUI.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "f93a53864e7e865c394ed38c2f85838c8da748d2"
       }
     },
     {
@@ -33,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sparkle-project/Sparkle",
       "state" : {
-        "revision" : "5581748cef2bae787496fe6d61139aebe0a451f6",
-        "version" : "2.8.1"
+        "revision" : "21d8df80440b1ca3b65fa82e40782f1e5a9e6ba2",
+        "version" : "2.9.0"
       }
     }
   ],
