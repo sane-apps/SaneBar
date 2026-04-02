@@ -86,6 +86,13 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Runtime position validation should route startup, validation, and restore through one typed recovery snapshot plus one recovery executor"
         )
         XCTAssertTrue(
+            source.contains("observe(\\.isVisible") &&
+                source.contains("handleUnexpectedStatusItemVisibilityChange(") &&
+                source.contains("unexpected-visibility-loss-") &&
+                source.contains(".repairPersistedLayoutAndRecreate(.invalidStatusItems)"),
+            "MenuBarManager should observe unexpected status-item visibility loss and route it through the existing structural recovery path"
+        )
+        XCTAssertTrue(
             source.contains("lastKnownSeparatorRightEdgeX = nil"),
             "Recreating status items from persisted layout should invalidate cached separator edges first"
         )

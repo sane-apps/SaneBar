@@ -63,6 +63,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Prevent overlapping structural recovery passes from tearing down and
     /// rebuilding the status items multiple times inside one launch.
     var isExecutingStatusItemRecovery = false
+    /// Debounce unexpected status-item visibility recovery so one removal or
+    /// WindowServer blip cannot trigger multiple structural recreates in a row.
+    var lastUnexpectedVisibilityRecoveryAt: Date?
 
     /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0
@@ -181,6 +184,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var separatorItem: NSStatusItem?
     /// Optional separator for always-hidden zone (experimental)
     var alwaysHiddenSeparatorItem: NSStatusItem?
+    private var mainStatusItemVisibilityObservation: NSKeyValueObservation?
+    private var separatorItemVisibilityObservation: NSKeyValueObservation?
+    private var alwaysHiddenSeparatorVisibilityObservation: NSKeyValueObservation?
     /// Cached position of main separator when at visual size (not blocking).
     /// Used when separator is in blocking mode (length > 1000) and live position is off-screen.
     var lastKnownSeparatorX: CGFloat?
@@ -237,6 +243,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     nonisolated static let maxStatusItemRecoveryCount = 2
+    nonisolated static let unexpectedVisibilityRecoveryDebounceSeconds: TimeInterval = 1.0
+
+    private enum StatusItemVisibilityRole: String {
+        case mainIcon = "main-icon"
+        case separator = "separator"
+        case alwaysHiddenSeparator = "always-hidden-separator"
+    }
 
     nonisolated static func statusItemValidationInitialDelaySeconds(
         context: MenuBarOperationCoordinator.PositionValidationContext,
@@ -274,6 +287,19 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         case .manualLayoutRestore:
             return 4
         }
+    }
+
+    nonisolated static func shouldRecoverUnexpectedVisibilityLoss(
+        isVisible: Bool,
+        isExecutingRecovery: Bool,
+        lastRecoveryAt: Date?,
+        now: Date,
+        minimumInterval: TimeInterval
+    ) -> Bool {
+        guard !isVisible else { return false }
+        guard !isExecutingRecovery else { return false }
+        guard let lastRecoveryAt else { return true }
+        return now.timeIntervalSince(lastRecoveryAt) >= minimumInterval
     }
 
     init(
@@ -542,6 +568,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         separatorItem = statusBarController.separatorItem
         statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
+        installStatusItemVisibilityObservers()
 
         // Setup menu using controller (shown via right-click on main icon)
         statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
@@ -577,6 +604,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.mainStatusItem = main
             self.separatorItem = separator
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
+            self.installStatusItemVisibilityObservers()
             let shouldRestoreHidden = self.pendingRecoveryHideRestore
             let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state
             self.pendingRecoveryHideRestore = false
@@ -717,6 +745,73 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         lastKnownSeparatorRightEdgeX = nil
         lastKnownAlwaysHiddenSeparatorX = nil
         lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+    }
+
+    @MainActor
+    private func installStatusItemVisibilityObservers() {
+        mainStatusItemVisibilityObservation = makeVisibilityObservation(
+            for: mainStatusItem,
+            role: .mainIcon
+        )
+        separatorItemVisibilityObservation = makeVisibilityObservation(
+            for: separatorItem,
+            role: .separator
+        )
+        alwaysHiddenSeparatorVisibilityObservation = makeVisibilityObservation(
+            for: alwaysHiddenSeparatorItem,
+            role: .alwaysHiddenSeparator
+        )
+    }
+
+    @MainActor
+    private func makeVisibilityObservation(
+        for item: NSStatusItem?,
+        role: StatusItemVisibilityRole
+    ) -> NSKeyValueObservation? {
+        guard let item else { return nil }
+
+        return item.observe(\.isVisible, options: [.new]) { [weak self] _, change in
+            guard let self,
+                  let isVisible = change.newValue
+            else { return }
+
+            Task { @MainActor in
+                self.handleUnexpectedStatusItemVisibilityChange(
+                    role: role,
+                    isVisible: isVisible
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private func handleUnexpectedStatusItemVisibilityChange(
+        role: StatusItemVisibilityRole,
+        isVisible: Bool
+    ) {
+        guard role != .alwaysHiddenSeparator || currentEffectiveAlwaysHiddenSectionEnabled() else { return }
+
+        let now = Date()
+        guard Self.shouldRecoverUnexpectedVisibilityLoss(
+            isVisible: isVisible,
+            isExecutingRecovery: isExecutingStatusItemRecovery,
+            lastRecoveryAt: lastUnexpectedVisibilityRecoveryAt,
+            now: now,
+            minimumInterval: Self.unexpectedVisibilityRecoveryDebounceSeconds
+        ) else {
+            return
+        }
+
+        lastUnexpectedVisibilityRecoveryAt = now
+        logger.error(
+            "Observed unexpected invisible status item for \(role.rawValue, privacy: .public) — triggering structural recovery"
+        )
+        executeStatusItemRecoveryAction(
+            .repairPersistedLayoutAndRecreate(.invalidStatusItems),
+            trigger: "unexpected-visibility-loss-\(role.rawValue)",
+            validationContext: .manualLayoutRestore,
+            recoveryCount: 0
+        )
     }
 
     @MainActor
@@ -946,7 +1041,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             logger.error(
                 "Status item recovery stopped after \(recoveryCount, privacy: .public) attempt(s) for \(trigger, privacy: .public); last reason=\(reason?.rawValue ?? "none", privacy: .public)"
             )
-            case .keepExpanded, .performInitialHide:
+
+        case .keepExpanded, .performInitialHide:
             pendingRecoveryHideRestore = false
         }
     }
@@ -1284,6 +1380,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+        installStatusItemVisibilityObservers()
     }
 
     func updateAlwaysHiddenSeparatorIfReady(forceRecreateIfMissing: Bool = false) {
