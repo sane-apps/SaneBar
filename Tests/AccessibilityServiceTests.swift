@@ -243,6 +243,45 @@ struct AccessibilityServiceTests {
         #expect(resolved != nil)
     }
 
+    @Test("Fresh visible-geometry recheck accepts a materially left-shifted separator")
+    func testVisibleMoveFreshGeometryAcceptance() {
+        let accepted = AccessibilityService.shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
+            staleSeparatorX: 2344,
+            staleFrame: CGRect(x: 2090, y: 0, width: 276, height: 24),
+            freshSeparatorX: 2070,
+            freshVisibleBoundaryX: 2346,
+            refreshedFrame: CGRect(x: 2090, y: 0, width: 276, height: 24)
+        )
+
+        #expect(accepted)
+    }
+
+    @Test("Fresh visible-geometry recheck rejects tiny separator drift")
+    func testVisibleMoveFreshGeometryRejectsTinyShift() {
+        let accepted = AccessibilityService.shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
+            staleSeparatorX: 1700,
+            staleFrame: CGRect(x: 1660, y: 0, width: 24, height: 24),
+            freshSeparatorX: 1692,
+            freshVisibleBoundaryX: 1725,
+            refreshedFrame: CGRect(x: 1660, y: 0, width: 24, height: 24)
+        )
+
+        #expect(accepted == false)
+    }
+
+    @Test("Fresh visible-geometry recheck rejects large unresolved shortfalls")
+    func testVisibleMoveFreshGeometryRejectsHugeShortfall() {
+        let accepted = AccessibilityService.shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
+            staleSeparatorX: 2100,
+            staleFrame: CGRect(x: 1820, y: 0, width: 40, height: 24),
+            freshSeparatorX: 1960,
+            freshVisibleBoundaryX: 2200,
+            refreshedFrame: CGRect(x: 1820, y: 0, width: 40, height: 24)
+        )
+
+        #expect(accepted == false)
+    }
+
     @Test("Raw spatial fallback is disabled for browse or reveal flows after frame polling fails")
     func testShouldUseRawSpatialFallbackRejectsStaleBrowseCenter() {
         #expect(

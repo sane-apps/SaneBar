@@ -651,6 +651,36 @@ extension AccessibilityService {
         return deltaX < -tolerance
     }
 
+    nonisolated static func shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
+        staleSeparatorX: CGFloat,
+        staleFrame: CGRect,
+        freshSeparatorX: CGFloat,
+        freshVisibleBoundaryX: CGFloat,
+        refreshedFrame: CGRect
+    ) -> Bool {
+        guard staleSeparatorX.isFinite,
+              freshSeparatorX.isFinite,
+              freshVisibleBoundaryX.isFinite,
+              staleSeparatorX > 0,
+              freshSeparatorX > 0,
+              freshVisibleBoundaryX > freshSeparatorX else {
+            return false
+        }
+
+        let staleShortfall = staleSeparatorX - staleFrame.midX
+        guard staleShortfall > 0, staleShortfall <= 160 else { return false }
+
+        // Fresh geometry must move materially left before we trust it as a real
+        // post-drag re-layout rather than the same stale separator snapshot.
+        guard freshSeparatorX + 12 < staleSeparatorX else { return false }
+
+        return frameIsInTargetZone(
+            afterFrame: refreshedFrame,
+            separatorX: freshSeparatorX,
+            toHidden: false
+        )
+    }
+
     /// Shared target X selection for Cmd+drag moves.
     /// Each lane uses its own insertion policy so we do not conflate regular
     /// hidden drags with always-hidden drags.

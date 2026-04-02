@@ -1560,6 +1560,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke relaunches should preserve no-keychain launch mode so Pro-only checks do not silently downgrade to free mode"
         )
         XCTAssertTrue(
+            source.contains("Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)."),
+            "Runtime smoke should fail loudly when the relaunch target still comes up in free mode"
+        )
+        XCTAssertTrue(
             source.contains("def runtime_smoke_available_required_candidate_ids") &&
                 source.contains("'osascript'") &&
                 source.contains("list icon zones"),
@@ -1739,6 +1743,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             alwaysHiddenSource.contains("StatusBarController.recoverStartupPositions(") &&
                 alwaysHiddenSource.contains("referenceScreen: self.currentRecoveryReferenceScreen()"),
             "Always-hidden hard recovery should reuse the live status-item screen so fallback repair does not reseed against the wrong display"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("clearCachedSeparatorGeometry()") &&
+                alwaysHiddenSource.contains("await self.warmSeparatorPositionCache(maxAttempts: 16)") &&
+                alwaysHiddenSource.contains("await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)"),
+            "Always-hidden separator repair should clear stale geometry caches and re-warm live separator coordinates before judging the relayout"
         )
     }
 
@@ -2440,6 +2450,7 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("NSWorkspace.screensDidSleepNotification") &&
                 source.contains("NSWorkspace.didWakeNotification") &&
                 source.contains("NSWorkspace.screensDidWakeNotification") &&
+                source.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
                 source.contains("self.schedulePositionValidation(context: .wakeResume)") &&
                 source.contains("positionValidationGeneration += 1") &&
                 source.contains("guard self.positionValidationGeneration == validationGeneration else"),
@@ -2904,6 +2915,24 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("scriptErrorOperationTimedOut(self)"),
             "ListIconsCommand should report a real timeout instead of silently returning an empty result"
+        )
+    }
+
+    func testAppleScriptMoveCommandsRequireProBeforeRunning() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("func setProRequiredError()"),
+            "AppleScript commands should expose a shared Pro-required scripting error"
+        )
+        XCTAssertTrue(
+            source.contains("guard LicenseService.shared.isPro else {"),
+            "MoveIconScriptCommand should block Basic mode before attempting any icon move"
+        )
+        XCTAssertTrue(
+            source.contains("Basic can browse and click icons, but moving icons is Pro-only."),
+            "The AppleScript move gate should explain the exact Basic vs Pro boundary"
         )
     }
 

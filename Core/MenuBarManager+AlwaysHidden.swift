@@ -48,20 +48,23 @@ extension MenuBarManager {
             "Always-hidden separator misordered (ah=\(alwaysHiddenX, privacy: .public), sep=\(separatorX, privacy: .public)) — repairing (\(reason, privacy: .public))"
         )
 
+        clearCachedSeparatorGeometry()
         statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
         statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
 
-        lastKnownAlwaysHiddenSeparatorX = nil
-        lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+        clearCachedSeparatorGeometry()
         AccessibilityService.shared.invalidateMenuBarItemCache()
 
         // Validate after macOS settles the relayout. If still misordered, apply
         // a stronger seed reset so the next scene pass cannot reuse stale state.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            await self.warmSeparatorPositionCache(maxAttempts: 16)
+            await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
             guard let postSepX = self.getSeparatorOriginX(),
                   let postAHX = self.getAlwaysHiddenSeparatorOriginX(),
                   postSepX > 1,
@@ -75,13 +78,15 @@ extension MenuBarManager {
                 alwaysHiddenEnabled: true,
                 referenceScreen: self.currentRecoveryReferenceScreen()
             )
+            self.clearCachedSeparatorGeometry()
             self.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
             StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
             self.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
             self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
-            self.lastKnownAlwaysHiddenSeparatorX = nil
-            self.lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
+            self.clearCachedSeparatorGeometry()
+            await self.warmSeparatorPositionCache(maxAttempts: 16)
+            await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
             AccessibilityService.shared.invalidateMenuBarItemCache()
         }
     }

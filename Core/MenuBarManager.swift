@@ -739,7 +739,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @MainActor
-    private func clearCachedSeparatorGeometry() {
+    func clearCachedSeparatorGeometry() {
         lastKnownMainStatusItemX = nil
         lastKnownSeparatorX = nil
         lastKnownSeparatorRightEdgeX = nil
@@ -1316,6 +1316,18 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 guard let self else { return }
                 self.clearCachedSeparatorGeometry()
                 logger.debug("Screens did wake — invalidated cached separator positions")
+                self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
+                self.schedulePositionValidation(context: .wakeResume)
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.sessionDidBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.clearCachedSeparatorGeometry()
+                logger.debug("Session became active — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
                 self.schedulePositionValidation(context: .wakeResume)
             }

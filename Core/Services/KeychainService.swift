@@ -19,6 +19,7 @@ struct KeychainError: LocalizedError {
 
 final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     static let shared = KeychainService()
+    static let legacyFallbackSuiteNameSuffix = ".no-keychain"
 
     private let service: String
 
@@ -28,10 +29,12 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     private let isKeychainBypassed: Bool
     /// Fallback storage for no-keychain automation mode.
     private let fallbackDefaults: UserDefaults
+    private let legacyFallbackDefaults: UserDefaults?
 
     init(service: String = Bundle.main.bundleIdentifier ?? "com.sanebar.app") {
         self.service = service
-        self.fallbackDefaults = UserDefaults(suiteName: "\(service).no-keychain") ?? .standard
+        self.fallbackDefaults = .standard
+        self.legacyFallbackDefaults = UserDefaults(suiteName: "\(service)\(Self.legacyFallbackSuiteNameSuffix)")
         let debugBypass: Bool = {
 #if DEBUG
             return ProcessInfo.processInfo.environment["SANEAPPS_ENABLE_KEYCHAIN_IN_DEBUG"] != "1"
@@ -49,8 +52,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     func bool(forKey key: String) throws -> Bool? {
         guard !isTestEnvironment else { return nil }
         if isKeychainBypassed {
-            guard fallbackDefaults.object(forKey: fallbackKey(key)) != nil else { return nil }
-            return fallbackDefaults.bool(forKey: fallbackKey(key))
+            return fallbackString(forKey: fallbackKey(key)).flatMap { fallbackBool(for: $0) }
         }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -71,7 +73,8 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     func set(_ value: Bool, forKey key: String) throws {
         guard !isTestEnvironment else { return }
         if isKeychainBypassed {
-            fallbackDefaults.set(value, forKey: fallbackKey(key))
+            fallbackDefaults.set(value ? "1" : "0", forKey: fallbackKey(key))
+            legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
         }
         let data = Data([value ? 1 : 0])
@@ -102,7 +105,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     func string(forKey key: String) throws -> String? {
         guard !isTestEnvironment else { return nil }
         if isKeychainBypassed {
-            return fallbackDefaults.string(forKey: fallbackKey(key))
+            return fallbackString(forKey: fallbackKey(key))
         }
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -124,6 +127,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         guard !isTestEnvironment else { return }
         if isKeychainBypassed {
             fallbackDefaults.set(value, forKey: fallbackKey(key))
+            legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
         }
         guard let data = value.data(using: .utf8) else { return }
@@ -155,6 +159,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         guard !isTestEnvironment else { return }
         if isKeychainBypassed {
             fallbackDefaults.removeObject(forKey: fallbackKey(key))
+            legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
         }
         let query: [CFString: Any] = [
@@ -170,5 +175,27 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     private func fallbackKey(_ key: String) -> String {
         "sane.no-keychain.\(service).\(key)"
+    }
+
+    private func fallbackString(forKey key: String) -> String? {
+        if let value = fallbackDefaults.string(forKey: key) {
+            return value
+        }
+        guard let legacyValue = legacyFallbackDefaults?.string(forKey: key) else { return nil }
+
+        fallbackDefaults.set(legacyValue, forKey: key)
+        legacyFallbackDefaults?.removeObject(forKey: key)
+        return legacyValue
+    }
+
+    private func fallbackBool(for value: String) -> Bool? {
+        switch value.lowercased() {
+        case "1", "true", "yes":
+            return true
+        case "0", "false", "no":
+            return false
+        default:
+            return nil
+        }
     }
 }
