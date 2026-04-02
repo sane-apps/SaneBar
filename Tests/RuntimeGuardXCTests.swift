@@ -1560,7 +1560,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke relaunches should preserve no-keychain launch mode so Pro-only checks do not silently downgrade to free mode"
         )
         XCTAssertTrue(
-            source.contains("Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)."),
+            source.contains("Runtime smoke requires a Pro-enabled target for Always Hidden checks; the mini runtime target stayed in free mode") &&
+                source.contains("licenseIsPro=#{snapshot['licenseIsPro'].inspect}"),
             "Runtime smoke should fail loudly when the relaunch target still comes up in free mode"
         )
         XCTAssertTrue(
@@ -2927,8 +2928,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AppleScript commands should expose a shared Pro-required scripting error"
         )
         XCTAssertTrue(
-            source.contains("guard LicenseService.shared.isPro else {"),
-            "MoveIconScriptCommand should block Basic mode before attempting any icon move"
+            source.contains("guard checkIsProUnlocked() else {") &&
+                source.contains("func checkIsProUnlocked() -> Bool"),
+            "MoveIconScriptCommand should block Basic mode before attempting any icon move through the shared Pro-check helper"
         )
         XCTAssertTrue(
             source.contains("Basic can browse and click icons, but moving icons is Pro-only."),
