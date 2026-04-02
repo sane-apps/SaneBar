@@ -17,6 +17,11 @@ class SaneBarScriptCommand: NSScriptCommand {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Accessibility permission is required. Grant SaneBar access in System Settings > Privacy & Security > Accessibility."
     }
+    /// Set AppleScript error when a command requires Pro.
+    func setProRequiredError() {
+        scriptErrorNumber = errOSAGeneralError
+        scriptErrorString = "This command requires SaneBar Pro. Basic can browse and click icons, but moving icons is Pro-only."
+    }
     /// Check if Accessibility permission is granted (safe to call from any thread)
     func checkAccessibilityTrusted() -> Bool {
         AXIsProcessTrusted()
@@ -30,6 +35,18 @@ class SaneBarScriptCommand: NSScriptCommand {
         } else {
             DispatchQueue.main.sync {
                 MenuBarManager.shared.settings.requireAuthToShowHiddenIcons
+            }
+        }
+    }
+    /// Check whether Pro is unlocked (main-thread safe).
+    func checkIsProUnlocked() -> Bool {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                LicenseService.shared.isPro
+            }
+        } else {
+            DispatchQueue.main.sync {
+                LicenseService.shared.isPro
             }
         }
     }
@@ -1128,6 +1145,11 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
         guard let trimmedId = parseIconIdentifier(directParameter) else {
             scriptErrorIconIdMissing(self)
+            return false
+        }
+
+        guard checkIsProUnlocked() else {
+            setProRequiredError()
             return false
         }
 

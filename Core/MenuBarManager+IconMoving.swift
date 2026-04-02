@@ -803,15 +803,11 @@ extension MenuBarManager {
             return false
         }
 
-        let staleShortfall = staleSeparatorX - staleFrame.midX
-        guard staleShortfall > 0, staleShortfall <= 48 else { return false }
-
         try? await Task.sleep(for: .milliseconds(120))
-        await warmSeparatorPositionCache(maxAttempts: 8)
+        await warmSeparatorPositionCache(maxAttempts: 16)
 
         guard let freshSeparatorX = getSeparatorRightEdgeX(),
-              freshSeparatorX > 0,
-              freshSeparatorX + 2 < staleSeparatorX else {
+              freshSeparatorX > 0 else {
             return false
         }
         guard let freshVisibleBoundaryX = getMainStatusItemLeftEdgeX(),
@@ -827,10 +823,12 @@ extension MenuBarManager {
             return false
         }
 
-        guard AccessibilityService.frameIsInTargetZone(
-            afterFrame: refreshedFrame,
-            separatorX: freshSeparatorX,
-            toHidden: false
+        guard AccessibilityService.shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
+            staleSeparatorX: staleSeparatorX,
+            staleFrame: staleFrame,
+            freshSeparatorX: freshSeparatorX,
+            freshVisibleBoundaryX: freshVisibleBoundaryX,
+            refreshedFrame: refreshedFrame
         ) else {
             return false
         }
