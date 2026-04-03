@@ -294,8 +294,12 @@ class WakeLayoutProbe
   end
 
   def launch_app
-    out, status = capture('open', @app_path)
-    raise "Failed to launch #{@app_path}: #{out}" unless status.success?
+    if no_keychain_launch?
+      launch_app_direct
+    else
+      out, status = capture('open', @app_path)
+      raise "Failed to launch #{@app_path}: #{out}" unless status.success?
+    end
 
     deadline = Time.now + 20
     until Time.now >= deadline
@@ -304,6 +308,28 @@ class WakeLayoutProbe
     end
 
     raise "Timed out waiting for #{@app_name} launch" unless app_running? && layout_snapshot_available?
+  end
+
+  def no_keychain_launch?
+    ENV['SANEAPPS_DISABLE_KEYCHAIN'] == '1' || ENV['SANEBAR_PROBE_FORCE_NO_KEYCHAIN'] == '1'
+  end
+
+  def launch_app_direct
+    binary = File.join(@app_path, 'Contents', 'MacOS', @app_name)
+    raise "Executable missing for #{@app_path}" unless File.executable?(binary)
+
+    log("Launching #{@app_name} directly with --sane-no-keychain")
+    Process.detach(
+      Process.spawn(
+        { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
+        binary,
+        '--sane-no-keychain',
+        out: '/tmp/sanebar_wake_probe_launch.log',
+        err: '/tmp/sanebar_wake_probe_launch.log'
+      )
+    )
+  rescue StandardError => e
+    raise "Failed to launch #{@app_path} directly: #{e.message}"
   end
 
   def layout_snapshot_available?
