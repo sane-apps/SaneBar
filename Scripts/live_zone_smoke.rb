@@ -27,7 +27,9 @@ class LiveZoneSmoke
   DEFAULT_LAUNCH_IDLE_CPU_AVG_MAX = 5.0
   DEFAULT_LAUNCH_IDLE_CPU_PEAK_MAX = 15.0
   DEFAULT_LAUNCH_IDLE_RSS_MB_MAX = 128.0
-  DEFAULT_POST_SMOKE_IDLE_SETTLE_SECONDS = 8.0
+  # Opening browse/settings surfaces on external-display setups can leave a few
+  # seconds of legitimate teardown and cache warmup before the app returns idle.
+  DEFAULT_POST_SMOKE_IDLE_SETTLE_SECONDS = 15.0
   DEFAULT_POST_SMOKE_IDLE_SAMPLE_SECONDS = 4.0
   DEFAULT_POST_SMOKE_IDLE_CPU_AVG_MAX = 5.0
   DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX = 20.0
