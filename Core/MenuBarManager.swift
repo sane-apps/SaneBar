@@ -302,6 +302,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return now.timeIntervalSince(lastRecoveryAt) >= minimumInterval
     }
 
+    nonisolated static func shouldResetPersistentStateForStatusItemRecovery(
+        reason: MenuBarOperationCoordinator.StartupRecoveryReason?
+    ) -> Bool {
+        switch reason {
+        case .invalidStatusItems, .missingCoordinates:
+            return true
+        case .invalidGeometry, nil:
+            return false
+        }
+    }
+
     init(
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
@@ -979,7 +990,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 separatorPosition: snapshot.separatorX.map(Double.init)
             )
 
-        case .repairPersistedLayoutAndRecreate:
+        case let .repairPersistedLayoutAndRecreate(reason):
             guard !isExecutingStatusItemRecovery else {
                 logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
                 return
@@ -991,10 +1002,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
-            StatusBarController.recoverStartupPositions(
-                alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
-                referenceScreen: statusItemScreen
-            )
+            if Self.shouldResetPersistentStateForStatusItemRecovery(reason: reason) {
+                StatusBarController.resetPersistentStatusItemState(
+                    alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
+                    referenceScreen: statusItemScreen
+                )
+            } else {
+                StatusBarController.recoverStartupPositions(
+                    alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
+                    referenceScreen: statusItemScreen
+                )
+            }
             clearCachedSeparatorGeometry()
             recreateStatusItemsFromPersistedLayout(reason: trigger)
             if let validationContext {

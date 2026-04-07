@@ -2322,10 +2322,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Persistent always-hidden separator drift should escalate through the shared bounded recovery policy instead of repeating same-version repairs forever"
         )
         XCTAssertTrue(
-            source.contains("case .repairPersistedLayoutAndRecreate:") &&
+            source.contains("case let .repairPersistedLayoutAndRecreate(reason):") &&
+                source.contains("shouldResetPersistentStateForStatusItemRecovery(reason: reason)") &&
+                source.contains("StatusBarController.resetPersistentStatusItemState(") &&
                 source.contains("StatusBarController.recoverStartupPositions(") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
-            "Geometry drift validation should repair persisted positions before recreating live items"
+            "Status-item recovery should hard-reset poisoned startup state while still using position-only recovery for pure geometry drift"
         )
         XCTAssertTrue(
             source.contains("lastKnownStatusItemDisplayID") &&

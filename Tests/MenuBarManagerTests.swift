@@ -148,6 +148,30 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Startup recovery hard-resets only for missing or invalid status items")
+    func statusItemRecoveryResetDecisionMatrix() {
+        #expect(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidStatusItems
+            )
+        )
+        #expect(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .missingCoordinates
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidGeometry
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: nil
+            )
+        )
+    }
+
     @Test("Unexpected visibility loss only recovers when item is invisible and not rate-limited")
     func unexpectedVisibilityLossRecoveryDecisionMatrix() {
         let now = Date()
