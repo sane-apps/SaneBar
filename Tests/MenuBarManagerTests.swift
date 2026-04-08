@@ -148,7 +148,7 @@ struct MenuBarManagerTests {
         )
     }
 
-    @Test("Startup recovery hard-resets only for missing or invalid status items")
+    @Test("Startup recovery hard-resets poisoned startup geometry but not general geometry drift")
     func statusItemRecoveryResetDecisionMatrix() {
         #expect(
             MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
@@ -161,8 +161,21 @@ struct MenuBarManagerTests {
             )
         )
         #expect(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidGeometry,
+                isStartupRecovery: true
+            )
+        )
+        #expect(
             !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
-                reason: .invalidGeometry
+                reason: .invalidGeometry,
+                validationContext: .wakeResume
+            )
+        )
+        #expect(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidGeometry,
+                validationContext: .startupFollowUp
             )
         )
         #expect(

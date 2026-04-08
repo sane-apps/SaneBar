@@ -2323,11 +2323,14 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("case let .repairPersistedLayoutAndRecreate(reason):") &&
-                source.contains("shouldResetPersistentStateForStatusItemRecovery(reason: reason)") &&
+                source.contains("shouldResetPersistentStateForStatusItemRecovery(") &&
+                source.contains("reason: reason,") &&
+                source.contains("isStartupRecovery: trigger.hasPrefix(\"startup-\")") &&
+                source.contains("validationContext: validationContext") &&
                 source.contains("StatusBarController.resetPersistentStatusItemState(") &&
                 source.contains("StatusBarController.recoverStartupPositions(") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
-            "Status-item recovery should hard-reset poisoned startup state while still using position-only recovery for pure geometry drift"
+            "Status-item recovery should hard-reset poisoned startup geometry while keeping non-startup geometry recovery on the lighter path"
         )
         XCTAssertTrue(
             source.contains("lastKnownStatusItemDisplayID") &&

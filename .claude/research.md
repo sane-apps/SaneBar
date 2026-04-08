@@ -3263,54 +3263,52 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
      - `avgCpu=8.2 > 5.0`, `peakCpu=16.3 > 15.0`
    - These are resource-budget failures, not the old layout/disappearing-icon or browse activation failures.
 
-## 2026-04-07 19:19 EDT lost-icon already-broken-state follow-up
+## 2026-04-08 17:45 EDT lost-icon invalid-geometry startup reset refinement
 
-**Updated:** 2026-04-07 19:19 EDT | **Status:** verified code-level gap for GitHub `#129`; candidate fix prepared, Mini verify pending rerun | **TTL:** 7d
-**Sources:** Apple docs for `NSStatusItem.autosaveName`, `NSStatusItem.isVisible`, and `NSStatusItem.behavior`; live GitHub issue `#129`; web search for `NSStatusItem isVisible autosaveName` persistence behavior (low-signal beyond Apple’s docs); local code audit of `Core/MenuBarManager.swift`, `Core/Services/MenuBarOperationCoordinator.swift`, and `Core/Controllers/StatusBarController.swift`
+**Updated:** 2026-04-08 17:45 EDT | **Status:** verified code-level gap for GitHub `#129`; refined fix patched, Mini verify rerun in progress | **TTL:** 7d
+**Sources:** Apple docs for `NSStatusItem.autosaveName`, `NSStatusItem.isVisible`, and `NSStatusItem.behavior`; Stack Overflow thread on removed `NSStatusItem` visibility persistence; live GitHub issue `#129`; local code audit of `Core/MenuBarManager.swift`, `Core/Services/MenuBarOperationCoordinator.swift`, and `Core/Controllers/StatusBarController.swift`; Mini defaults snapshot on 2026-04-08
 
 ### Apple docs notes
 
-1. **Apple treats `autosaveName` as the persistence identity for each status item.**
-   - `autosaveName` is the unique name used for saving and restoring status-item information.
-   - Apple explicitly says apps with multiple status items should set an autosave name for each item.
+1. **Apple still only gives us autosave-backed persistence for status items.**
+   - `autosaveName` is the unique name for saving and restoring status-item information.
+   - `isVisible` persists and restores automatically based on `autosaveName`, and Apple explicitly says visibility can change when the user removes the item manually.
 
-2. **Apple documents that `isVisible` changes when the user removes the item and that the visibility state persists off the autosave name.**
-   - `isVisible` can change when the user manually removes the item.
-   - Apple explicitly says you can observe that change with KVO.
-   - Apple explicitly says the visibility state persists and restores automatically based on `autosaveName`.
-
-3. **`behavior` does not provide a richer system recovery contract.**
+2. **`behavior` still does not give us a richer repair contract.**
    - It only controls allowed status-item behaviors.
-   - There is no documented system API that would repair a poisoned persisted layout for us.
+   - There is no documented system API that repairs a poisoned `NSStatusItem Preferred Position ...` layout for us.
 
-### Fresh GitHub evidence
+### Web / GitHub notes
 
-1. **`#129` is now specifically an already-broken-state recovery bug, not just the original drag-out trigger.**
-   - The reporter upgraded to `2.1.39` after the icon was already gone.
-   - The lost state survived upgrade, `Reset to Defaults`, settings deletion, uninstall, and reinstall.
-   - The reporter is willing to run diagnostics, which means the next patch should target persisted-state recovery directly rather than the original drag-out event alone.
+1. **Low-signal web evidence still lines up with Apple’s contract, not a hidden system recovery path.**
+   - The Stack Overflow `NSStatusItem` removal thread points back to the same Apple behavior: removal flips `isVisible`, and autosave-backed preferences restore that state later.
+   - That is consistent with treating persistent status-item defaults as the real recovery surface.
+
+2. **`#129` now points at bad startup geometry with valid saved coordinates, not missing coordinates.**
+   - The reporter’s current-host keys still had `main=180` and `separator=300`, plus matching `SaneBar_Position_Backup_2056_*` values.
+   - That means the state is present but bad, which routes through `.invalidGeometry` rather than `.missingCoordinates` or `.invalidStatusItems`.
 
 ### Fresh local findings
 
-1. **The runtime observer fix covers new unexpected visibility loss, but startup recovery still had a weaker path for already-broken state.**
-   - `MenuBarManager` now observes `NSStatusItem.isVisible` and routes unexpected disappearance through shared recovery.
-   - That addresses the live “user drags it out now” path.
+1. **The current `48a8015` fix was still too narrow for the latest `#129` evidence.**
+   - `MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(...)` hard-reset only `.invalidStatusItems` and `.missingCoordinates`.
+   - Pure `.invalidGeometry` still used `recoverStartupPositions(...)`, which reuses persisted layout state instead of fully scrubbing it.
 
-2. **Startup recovery for invalid or missing status items was not using the same hard scrub as `Reset to Defaults`.**
-   - `resetToDefaults()` calls `StatusBarController.resetPersistentStatusItemState(...)`, which clears visibility overrides, historical autosave namespaces, and display backups before recreating status items.
-   - `executeStatusItemRecoveryAction(.repairPersistedLayoutAndRecreate)` did not do that.
-   - It only called `StatusBarController.recoverStartupPositions(...)`, which reuses persisted layout state rather than fully scrubbing it.
+2. **The first startup repair path was the real gap.**
+   - `.startupInitial` invalid geometry immediately returns `.repairPersistedLayoutAndRecreate(.invalidGeometry)`.
+   - `executeStatusItemRecoveryAction(...)` runs that startup repair with `validationContext: nil`.
+   - That means a startup-follow-up-only reset rule would still miss the first poisoned launch, which matches the reporter’s “already broken after reinstall” shape.
 
-3. **That difference is a plausible explanation for `#129`.**
-   - If the app is already in a poisoned startup namespace after a past drag-out, the startup follow-up recovery can keep replaying the bad persisted state.
-   - A full persisted-state reset is more appropriate for `.invalidStatusItems` and `.missingCoordinates` than for pure `.invalidGeometry`.
+3. **The Mini still stores the exact same persisted key families the reporter showed.**
+   - Current Mini defaults include `NSStatusItem Preferred Position SaneBar_Main_v8`, `...Separator_v8`, and `SaneBar_Position_Backup_1920_*`.
+   - So the hard-reset target is still the right persisted surface to scrub when startup geometry is already poisoned.
 
 ### Action from this pass
 
-1. **Candidate fix prepared.**
-   - Startup recovery now hard-resets persisted status-item state for `.invalidStatusItems` and `.missingCoordinates`.
-   - Pure geometry drift still uses the lighter `recoverStartupPositions(...)` path.
+1. **Refined fix patched.**
+   - Startup geometry now hard-resets persisted status-item state when the recovery action is the initial startup repair or a `.startupFollowUp` validation repair.
+   - Wake, screen-change, and manual-layout invalid geometry still keep the lighter `recoverStartupPositions(...)` path.
 
-2. **Coverage added at the decision level.**
-   - Added a `MenuBarManager` recovery-mode decision test.
-   - Updated the runtime guard so source-level regression checks now require both the hard-reset path and the lighter geometry-only path.
+2. **Coverage updated for the narrower policy.**
+   - `MenuBarManagerTests` now asserts that startup invalid geometry resets, startup-follow-up invalid geometry resets, and wake invalid geometry does not.
+   - `RuntimeGuardXCTests` now require the startup-sensitive reset decision in the manager source.
