@@ -303,12 +303,16 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     nonisolated static func shouldResetPersistentStateForStatusItemRecovery(
-        reason: MenuBarOperationCoordinator.StartupRecoveryReason?
+        reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
+        isStartupRecovery: Bool = false,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
     ) -> Bool {
         switch reason {
         case .invalidStatusItems, .missingCoordinates:
             return true
-        case .invalidGeometry, nil:
+        case .invalidGeometry:
+            return isStartupRecovery || validationContext == .startupFollowUp
+        case nil:
             return false
         }
     }
@@ -1002,7 +1006,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
-            if Self.shouldResetPersistentStateForStatusItemRecovery(reason: reason) {
+            if Self.shouldResetPersistentStateForStatusItemRecovery(
+                reason: reason,
+                isStartupRecovery: trigger.hasPrefix("startup-"),
+                validationContext: validationContext
+            ) {
                 StatusBarController.resetPersistentStatusItemState(
                     alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
                     referenceScreen: statusItemScreen
