@@ -7,6 +7,7 @@ struct SettingsView: View {
         case rules = "Rules"
         case appearance = "Appearance"
         case shortcuts = "Shortcuts"
+        case license = "License"
         case about = "About"
 
         var icon: String {
@@ -15,6 +16,7 @@ struct SettingsView: View {
             case .rules: "wand.and.stars"
             case .appearance: "paintpalette"
             case .shortcuts: "keyboard"
+            case .license: "key.fill"
             case .about: "questionmark.circle"
             }
         }
@@ -29,6 +31,8 @@ struct SettingsView: View {
                 SaneSettingsIconSemantic.appearance.color
             case .shortcuts:
                 SaneSettingsIconSemantic.shortcuts.color
+            case .license:
+                SaneSettingsIconSemantic.license.color
             case .about:
                 SaneSettingsIconSemantic.about.color
             }
@@ -50,6 +54,21 @@ struct SettingsView: View {
             case .shortcuts:
                 ShortcutsSettingsView()
                     .navigationTitle("Shortcuts")
+            case .license:
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        LicenseSettingsView<SaneBarLicenseSettingsAdapter>(
+                            licenseService: SaneBarLicenseSettingsAdapter.shared,
+                            style: .panel
+                        )
+                            .frame(maxWidth: 420, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(20)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .navigationTitle("License")
             case .about:
                 AboutSettingsView()
                     .navigationTitle("About")

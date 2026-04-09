@@ -1,4 +1,6 @@
+import Combine
 import Foundation
+import Observation
 import os.log
 import SaneUI
 #if canImport(StoreKit)
@@ -455,4 +457,79 @@ final class LicenseService: ObservableObject {
         }
     }
 
+}
+
+@MainActor
+@Observable
+final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
+    static let shared = SaneBarLicenseSettingsAdapter()
+
+    @ObservationIgnored private let base: LicenseService
+    @ObservationIgnored private var observation: AnyCancellable?
+
+    private(set) var isPro: Bool = false
+    private(set) var licenseEmail: String?
+    private(set) var isValidating: Bool = false
+    private(set) var isPurchasing: Bool = false
+    var validationError: String?
+    var purchaseError: String?
+    private(set) var appStoreDisplayPrice: String?
+
+    var alternateEntryLabel: String { LicenseService.keyEntryButtonLabel() }
+    var accessManagementLabel: String { LicenseService.deactivateLicenseLabel() }
+    var alternateEntryInstruction: String { LicenseService.licenseEmailInstruction() }
+    var checkoutURL: URL? { base.distributionChannel == .direct ? LicenseService.checkoutURL() : nil }
+    var distributionChannel: SaneDistributionChannel { base.distributionChannel }
+    var usesAppStorePurchase: Bool { base.usesAppStorePurchase }
+    var usesSetappPurchase: Bool { base.usesSetappDistribution }
+
+    init(base: LicenseService = .shared) {
+        self.base = base
+        syncFromBase()
+        observation = base.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.syncFromBase()
+            }
+        }
+    }
+
+    func checkCachedLicense() {
+        base.checkCachedLicense()
+        syncFromBase()
+    }
+
+    func preloadAppStoreProduct() async {
+        await base.preloadAppStoreProduct()
+        syncFromBase()
+    }
+
+    func purchasePro() async {
+        await base.purchasePro()
+        syncFromBase()
+    }
+
+    func restorePurchases() async {
+        await base.restorePurchases()
+        syncFromBase()
+    }
+
+    func activate(key: String) async {
+        await base.activate(key: key)
+        syncFromBase()
+    }
+
+    func deactivate() {
+        base.deactivate()
+        syncFromBase()
+    }
+
+    private func syncFromBase() {
+        isPro = base.isPro
+        licenseEmail = base.licenseEmail
+        isValidating = base.isValidating
+        isPurchasing = base.isPurchasing
+        validationError = base.validationError
+        purchaseError = base.purchaseError
+        appStoreDisplayPrice = base.appStoreDisplayPrice
+    }
 }
