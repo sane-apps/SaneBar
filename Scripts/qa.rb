@@ -74,12 +74,12 @@ class ProjectQA
     'Migration preserves healthy custom positions on upgrade',
     'Migration reanchors positions when legacy always-hidden position is corrupted',
     'Upgrade matrix handles healthy and corrupted states safely',
-    'Real upgrade snapshots from 2.1.2 and 2.1.5 preserve layout',
+    'Real upgrade snapshots from 2.1.2 and 2.1.5 preserve layout'
   ].freeze
   REQUIRED_STATUS_RECOVERY_TEST_TITLES = [
     'Autosave names use stored autosave version',
     'Recreate with bumped version updates autosave namespace',
-    'Init clears persisted status-item visibility overrides',
+    'Init clears persisted status-item visibility overrides'
   ].freeze
   STABILITY_TEST_TARGETS = [
     'SaneBarTests/StatusBarControllerTests',
@@ -88,7 +88,7 @@ class ProjectQA
     'SaneBarTests/SecondMenuBarDropXCTests',
     'SaneBarTests/MenuBarSearchDropXCTests',
     'SaneBarTests/RuntimeGuardXCTests',
-    'SaneBarTests/MenuExtraIdentifierNormalizationTests',
+    'SaneBarTests/MenuExtraIdentifierNormalizationTests'
   ].freeze
   STABILITY_SUITE_RETRIES = 1
   EXPECTED_TEST_MODE_APPS = %w[
@@ -128,25 +128,25 @@ class ProjectQA
     'Tests/IconMovingTests.swift' => [
       'REGRESSION: #93-style geometry avoids boundary-hugging target',
       'REGRESSION: Hidden→visible must use showAll(), not show()',
-      'REGRESSION: Drag uses 20 steps, not 6',
+      'REGRESSION: Drag uses 20 steps, not 6'
     ],
     'Tests/MenuBarSearchDropXCTests.swift' => [
       'testAllTabBoundaryPrefersSeparatorRightEdge',
-      'testSourceResolutionUsesAllModeZoneClassifierOnFallback',
+      'testSourceResolutionUsesAllModeZoneClassifierOnFallback'
     ],
     'Tests/RuntimeGuardXCTests.swift' => [
       'testStartupHideContinuesWhenAccessibilityPermissionIsMissing',
-      'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers',
+      'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers'
     ],
     'Tests/SecondMenuBarTests.swift' => [
       'Each item belongs to exactly one zone',
       'Duplicate pin is idempotent',
-      'Item at separator edge respects margin',
+      'Item at separator edge respects margin'
     ],
     'Tests/ReleaseRegressionTests.swift' => [
       'Blocked versions are never offered in appcast',
-      'Appcast newest entry matches current project marketing version',
-    ],
+      'Appcast newest entry matches current project marketing version'
+    ]
   }.freeze
   RELEASE_SOAK_HOURS = 24
   REGRESSION_CONFIRMATION_WINDOW_HOURS = 48
@@ -158,9 +158,9 @@ class ProjectQA
   end
 
   def run
-    puts "═══════════════════════════════════════════════════════════════"
+    puts '═══════════════════════════════════════════════════════════════'
     puts "                  #{PROJECT_NAME} QA Check"
-    puts "═══════════════════════════════════════════════════════════════"
+    puts '═══════════════════════════════════════════════════════════════'
     puts
 
     check_sanemaster_wrapper
@@ -182,10 +182,10 @@ class ProjectQA
     check_urls
 
     puts
-    puts "═══════════════════════════════════════════════════════════════"
+    puts '═══════════════════════════════════════════════════════════════'
 
     exit_code = if @errors.empty? && @warnings.empty?
-      puts "✅ All checks passed!"
+      puts '✅ All checks passed!'
       0
     else
       unless @warnings.empty?
@@ -250,9 +250,7 @@ class ProjectQA
     env_override = manual_override_from_env(gate)
     return [true, phrase] if env_override == phrase
 
-    unless $stdin.tty? && $stdout.tty?
-      return [false, phrase]
-    end
+    return [false, phrase] unless $stdin.tty? && $stdout.tty?
 
     puts
     puts "⚠️  Manual approval required: #{summary}"
@@ -278,27 +276,27 @@ class ProjectQA
   end
 
   def check_sanemaster_wrapper
-    print "Checking SaneMaster wrapper... "
+    print 'Checking SaneMaster wrapper... '
 
     unless File.exist?(SANEMASTER_CLI)
-      @errors << "SaneMaster.rb not found"
-      puts "❌ Missing"
+      @errors << 'SaneMaster.rb not found'
+      puts '❌ Missing'
       return
     end
 
     # Verify wrapper syntax (it's a bash script)
     result = `bash -n #{SANEMASTER_CLI} 2>&1`
     unless $?.success?
-      @errors << "SaneMaster.rb has invalid bash syntax"
-      puts "❌ Invalid syntax"
+      @errors << 'SaneMaster.rb has invalid bash syntax'
+      puts '❌ Invalid syntax'
       return
     end
 
     # Verify it references SaneProcess infra
     content = File.read(SANEMASTER_CLI)
     unless content.include?('SaneProcess')
-      @errors << "SaneMaster.rb does not reference SaneProcess infra"
-      puts "❌ Missing SaneProcess delegation"
+      @errors << 'SaneMaster.rb does not reference SaneProcess infra'
+      puts '❌ Missing SaneProcess delegation'
       return
     end
 
@@ -306,29 +304,29 @@ class ProjectQA
     infra_path = File.expand_path(INFRA_SANEMASTER)
     unless File.exist?(infra_path)
       @warnings << "SaneProcess infra not found at #{infra_path}"
-      puts "⚠️  Infra not found (standalone mode only)"
+      puts '⚠️  Infra not found (standalone mode only)'
       return
     end
 
     # Verify standalone fallback exists
     unless File.exist?(SANEMASTER_STANDALONE)
-      @errors << "SaneMaster_standalone.rb not found"
-      puts "❌ Missing standalone"
+      @errors << 'SaneMaster_standalone.rb not found'
+      puts '❌ Missing standalone'
       return
     end
 
     result = `ruby -c #{SANEMASTER_STANDALONE} 2>&1`
     unless $?.success?
-      @errors << "SaneMaster_standalone.rb has invalid syntax"
-      puts "❌ Standalone invalid"
+      @errors << 'SaneMaster_standalone.rb has invalid syntax'
+      puts '❌ Standalone invalid'
       return
     end
 
-    puts "✅ Wrapper + standalone + infra delegation OK"
+    puts '✅ Wrapper + standalone + infra delegation OK'
   end
 
   def check_script_syntax_rb
-    print "Checking Ruby script syntax... "
+    print 'Checking Ruby script syntax... '
 
     rb_files = Dir.glob(File.join(__dir__, '*.rb'))
     # Skip SaneMaster.rb — it's a bash wrapper (already checked in check_sanemaster_wrapper)
@@ -349,11 +347,11 @@ class ProjectQA
   end
 
   def check_script_syntax_swift
-    print "Checking Swift script syntax... "
+    print 'Checking Swift script syntax... '
 
     swift_files = Dir.glob(File.join(__dir__, '*.swift'))
     if swift_files.empty?
-      puts "⚠️  No Swift scripts found"
+      puts '⚠️  No Swift scripts found'
       return
     end
 
@@ -373,11 +371,11 @@ class ProjectQA
   end
 
   def check_script_syntax_sh
-    print "Checking shell script syntax... "
+    print 'Checking shell script syntax... '
 
     sh_files = Dir.glob(File.join(__dir__, '*.sh'))
     if sh_files.empty?
-      puts "⚠️  No shell scripts found"
+      puts '⚠️  No shell scripts found'
       return
     end
 
@@ -396,11 +394,11 @@ class ProjectQA
   end
 
   def check_code_rules
-    print "Checking .claude/rules/ ... "
+    print 'Checking .claude/rules/ ... '
 
     unless Dir.exist?(RULES_DIR)
-      @warnings << ".claude/rules/ directory not found"
-      puts "⚠️  Not found"
+      @warnings << '.claude/rules/ directory not found'
+      puts '⚠️  Not found'
       return
     end
 
@@ -416,7 +414,7 @@ class ProjectQA
   end
 
   def check_version_consistency
-    print "Checking version consistency... "
+    print 'Checking version consistency... '
 
     versions = {}
 
@@ -437,8 +435,8 @@ class ProjectQA
     end
 
     if versions.empty?
-      @warnings << "No version strings found in project.yml or README.md"
-      puts "⚠️  No versions found"
+      @warnings << 'No version strings found in project.yml or README.md'
+      puts '⚠️  No versions found'
       return
     end
 
@@ -453,11 +451,11 @@ class ProjectQA
   end
 
   def check_appcast_guardrails
-    print "Checking appcast guardrails... "
+    print 'Checking appcast guardrails... '
 
     unless File.exist?(APPCAST_XML)
       @warnings << "Appcast file not found at #{APPCAST_XML}"
-      puts "⚠️  appcast.xml missing"
+      puts '⚠️  appcast.xml missing'
       return
     end
 
@@ -465,8 +463,8 @@ class ProjectQA
     versions = content.scan(/sparkle:shortVersionString="(\d+\.\d+\.\d+)"/).flatten
 
     if versions.empty?
-      @warnings << "No sparkle:shortVersionString entries found in appcast.xml"
-      puts "⚠️  no versions found"
+      @warnings << 'No sparkle:shortVersionString entries found in appcast.xml'
+      puts '⚠️  no versions found'
       return
     end
 
@@ -481,11 +479,11 @@ class ProjectQA
   end
 
   def check_appcast_download_urls
-    print "Checking appcast download URLs... "
+    print 'Checking appcast download URLs... '
 
     unless File.exist?(APPCAST_XML)
       @warnings << "Appcast file not found at #{APPCAST_XML}"
-      puts "⚠️  appcast.xml missing"
+      puts '⚠️  appcast.xml missing'
       return
     end
 
@@ -494,7 +492,7 @@ class ProjectQA
 
     if urls.empty?
       @warnings << "No appcast enclosure URLs found in #{APPCAST_XML}"
-      puts "⚠️  no enclosure URLs found"
+      puts '⚠️  no enclosure URLs found'
       return
     end
 
@@ -502,6 +500,7 @@ class ProjectQA
     urls.each do |url|
       response_code = url_status(url)
       next if response_code && response_code < 400
+
       failures << "#{url} (#{response_code || 'error'})"
     end
 
@@ -514,11 +513,11 @@ class ProjectQA
   end
 
   def check_migration_guardrails
-    print "Checking migration guardrails... "
+    print 'Checking migration guardrails... '
 
     unless File.exist?(STATUS_BAR_CONTROLLER_SWIFT) && File.exist?(STATUS_BAR_CONTROLLER_TESTS)
-      @errors << "Migration guardrail files missing (StatusBarController or tests)"
-      puts "❌ missing source/test file"
+      @errors << 'Migration guardrail files missing (StatusBarController or tests)'
+      puts '❌ missing source/test file'
       return
     end
 
@@ -548,19 +547,13 @@ class ProjectQA
 
     legacy_keys = source.scan(/"SaneBar_PositionMigration_v\d+"/).map { |value| value.delete('"') }.uniq
     missing_legacy = legacy_keys.reject { |key| tests.include?(key) }
-    unless missing_legacy.empty?
-      failures << "Tests missing legacy migration keys: #{missing_legacy.join(', ')}"
-    end
+    failures << "Tests missing legacy migration keys: #{missing_legacy.join(', ')}" unless missing_legacy.empty?
 
     missing_titles = REQUIRED_MIGRATION_TEST_TITLES.reject { |title| tests.include?(title) }
-    unless missing_titles.empty?
-      failures << "Missing required migration regression test titles: #{missing_titles.join(' | ')}"
-    end
+    failures << "Missing required migration regression test titles: #{missing_titles.join(' | ')}" unless missing_titles.empty?
 
     missing_recovery_titles = REQUIRED_STATUS_RECOVERY_TEST_TITLES.reject { |title| tests.include?(title) }
-    unless missing_recovery_titles.empty?
-      failures << "Missing required status-item recovery test titles: #{missing_recovery_titles.join(' | ')}"
-    end
+    failures << "Missing required status-item recovery test titles: #{missing_recovery_titles.join(' | ')}" unless missing_recovery_titles.empty?
 
     if failures.empty?
       puts '✅ migration key changes are guarded by corruption + preservation tests'
@@ -721,7 +714,7 @@ class ProjectQA
         'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
-        'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
+        'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path]
       }
       if capture_runtime_smoke_screenshots
         puts '   ↳ smoke screenshots enabled by SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1'
@@ -921,10 +914,10 @@ class ProjectQA
     return true if smoke_output.include?('Candidate failures:') &&
                    smoke_output.include?('to reach zone alwaysHidden')
 
-    smoke_output.include?("Candidate failed: com.apple.controlcenter") &&
-      smoke_output.include?("Hidden/Visible move actions ok") &&
+    smoke_output.include?('Candidate failed: com.apple.controlcenter') &&
+      smoke_output.include?('Hidden/Visible move actions ok') &&
       smoke_output.include?("Icon 'com.apple.menuextra.") &&
-      smoke_output.include?("not found")
+      smoke_output.include?('not found')
   end
 
   def retryable_active_budget_overrun?(smoke_output)
@@ -1058,13 +1051,9 @@ class ProjectQA
 
   def runtime_smoke_relaunch_command(target)
     command = ['open']
-    if target[:no_keychain]
-      command += ['--env', 'SANEAPPS_DISABLE_KEYCHAIN=1']
-    end
+    command += ['--env', 'SANEAPPS_DISABLE_KEYCHAIN=1'] if target[:no_keychain]
     command << target[:app_path]
-    if target[:no_keychain]
-      command += ['--args', '--sane-no-keychain']
-    end
+    command += ['--args', '--sane-no-keychain'] if target[:no_keychain]
     command
   end
 
@@ -1083,7 +1072,7 @@ class ProjectQA
         process_path: File.join(launched_path, 'Contents', 'MacOS', PROJECT_NAME),
         relaunch: false,
         no_keychain: no_keychain,
-        note: 'using the app that test_mode just launched',
+        note: 'using the app that test_mode just launched'
       }
     end
 
@@ -1098,7 +1087,7 @@ class ProjectQA
             process_path: system_process_path,
             relaunch: true,
             no_keychain: no_keychain,
-            note: "using installed signed app for smoke because unsigned fallback build #{format_bundle_metadata(launched_meta)} matches /Applications/#{PROJECT_NAME}.app",
+            note: "using installed signed app for smoke because unsigned fallback build #{format_bundle_metadata(launched_meta)} matches /Applications/#{PROJECT_NAME}.app"
           }
         end
 
@@ -1111,7 +1100,7 @@ class ProjectQA
         process_path: system_process_path,
         relaunch: true,
         no_keychain: no_keychain,
-        note: 'using installed signed app for smoke because test_mode did not report a launched app path',
+        note: 'using installed signed app for smoke because test_mode did not report a launched app path'
       }
     end
 
@@ -1247,7 +1236,7 @@ def applescript_commands_for_app(app_path)
     {
       short_version: plist_value(info_plist, 'CFBundleShortVersionString'),
       build_version: plist_value(info_plist, 'CFBundleVersion'),
-      bundle_id: plist_value(info_plist, 'CFBundleIdentifier'),
+      bundle_id: plist_value(info_plist, 'CFBundleIdentifier')
     }
   end
 
@@ -1598,7 +1587,9 @@ def applescript_commands_for_app(app_path)
   def reporter_confirmation_text?(body)
     text = body.to_s.strip
     return false if text.empty?
-    return false if text.match?(/not working|still broken|still not|does not work|doesn't work|doesnt work|fails?|issue persists|still seeing|same problem|still buggy/i)
+    if text.match?(/not working|still broken|still not|does not work|doesn't work|doesnt work|fails?|issue persists|still seeing|same problem|still buggy/i)
+      return false
+    end
 
     text.match?(/fixed|works|it'?s working|working now|resolved|confirmed|looks good|thank you/i)
   end
@@ -1784,7 +1775,7 @@ def applescript_commands_for_app(app_path)
   end
 
   def check_urls
-    print "Checking URLs in docs... "
+    print 'Checking URLs in docs... '
 
     urls_to_check = []
 
@@ -1806,7 +1797,7 @@ def applescript_commands_for_app(app_path)
     end
 
     if urls_to_check.empty?
-      puts "⚠️  No URLs found"
+      puts '⚠️  No URLs found'
       return
     end
 
@@ -1817,9 +1808,7 @@ def applescript_commands_for_app(app_path)
         reachable = response_code < 400
         reachable ||= response_code == 404 && entry[:url].include?('raw.githubusercontent')
         reachable ||= [401, 403, 405].include?(response_code)
-        unless reachable
-          bad_urls << "#{entry[:url]} (#{response_code || 'error'}) in #{entry[:file]}"
-        end
+        bad_urls << "#{entry[:url]} (#{response_code || 'error'}) in #{entry[:file]}" unless reachable
       rescue StandardError => e
         bad_urls << "#{entry[:url]} (#{e.class.name}) in #{entry[:file]}"
       end
@@ -1879,7 +1868,7 @@ def applescript_commands_for_app(app_path)
         emergencyCpuPercent: RUNTIME_SMOKE_EMERGENCY_CPU_PERCENT,
         maxRssMB: RUNTIME_SMOKE_MAX_RSS_MB,
         maxRssBreachSamples: RUNTIME_SMOKE_MAX_RSS_BREACH_SAMPLES,
-        emergencyRssMB: RUNTIME_SMOKE_EMERGENCY_RSS_MB,
+        emergencyRssMB: RUNTIME_SMOKE_EMERGENCY_RSS_MB
       },
       runtimeSmokePerformanceBudget: {
         launchIdleCpuAvgMax: RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX,
@@ -1891,12 +1880,12 @@ def applescript_commands_for_app(app_path)
         postSmokeIdleCpuPeakMax: RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX,
         postSmokeIdleRssMBMax: RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX,
         activeAvgCpuMax: RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX,
-        activeAvgRssMBMax: RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX,
+        activeAvgRssMBMax: RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX
       },
       errorCount: @errors.count,
       warningCount: @warnings.count,
       errors: @errors,
-      warnings: @warnings,
+      warnings: @warnings
     }
 
     FileUtils.mkdir_p(File.dirname(QA_STATUS_PATH))

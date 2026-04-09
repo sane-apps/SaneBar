@@ -21,13 +21,14 @@ WALLETS = {
   zec: 't1PaQ7LSoRDVvXLaQTWmy5tKUAiKxuE9hBN'
 }.freeze
 
-MIN_USD_VALUE = 4.50  # Allow slight variance for fees
+MIN_USD_VALUE = 4.50 # Allow slight variance for fees
 
 # === Helpers ===
 def fetch_json(url)
   uri = URI(url)
   response = Net::HTTP.get_response(uri)
   return nil unless response.is_a?(Net::HTTPSuccess)
+
   JSON.parse(response.body)
 rescue StandardError => e
   warn "API error: #{e.message}"
@@ -36,17 +37,17 @@ end
 
 def get_btc_price
   data = fetch_json('https://api.coinbase.com/v2/prices/BTC-USD/spot')
-  data&.dig('data', 'amount')&.to_f || 43000.0  # Fallback
+  data&.dig('data', 'amount')&.to_f || 43_000.0 # Fallback
 end
 
 def get_sol_price
   data = fetch_json('https://api.coinbase.com/v2/prices/SOL-USD/spot')
-  data&.dig('data', 'amount')&.to_f || 100.0  # Fallback
+  data&.dig('data', 'amount')&.to_f || 100.0 # Fallback
 end
 
 def get_zec_price
   data = fetch_json('https://api.coinbase.com/v2/prices/ZEC-USD/spot')
-  data&.dig('data', 'amount')&.to_f || 30.0  # Fallback
+  data&.dig('data', 'amount')&.to_f || 30.0 # Fallback
 end
 
 # === Blockchain Verification ===
@@ -157,9 +158,7 @@ def detect_and_verify(tx_hash)
   tx_hash = tx_hash.strip
 
   # SOL uses Base58, typically 88 chars, contains non-hex chars
-  if tx_hash.length > 70 && tx_hash.match?(/[^0-9a-fA-F]/)
-    return verify_sol(tx_hash)
-  end
+  return verify_sol(tx_hash) if tx_hash.length > 70 && tx_hash.match?(/[^0-9a-fA-F]/)
 
   # BTC and ZEC both use 64-char hex
   if tx_hash.length == 64 && tx_hash.match?(/^[0-9a-fA-F]+$/)
@@ -183,7 +182,7 @@ def generate_signed_url
   return nil if signing_secret.empty?
 
   file_name = 'SaneBar-1.0.16.dmg'
-  expires = (Time.now + 48 * 3600).to_i
+  expires = (Time.now + (48 * 3600)).to_i
   message = "#{file_name}:#{expires}"
   token = OpenSSL::HMAC.hexdigest('SHA256', signing_secret, message)
 
@@ -240,8 +239,8 @@ end
 # === Main ===
 if ARGV.length < 2
   puts "Usage: #{$PROGRAM_NAME} <tx_hash> <customer_email>"
-  puts ""
-  puts "Example:"
+  puts ''
+  puts 'Example:'
   puts "  #{$PROGRAM_NAME} abc123def456... customer@example.com"
   exit 1
 end
@@ -250,30 +249,30 @@ tx_hash = ARGV[0]
 customer_email = ARGV[1]
 
 puts "🔍 Verifying transaction: #{tx_hash[0..20]}..."
-puts ""
+puts ''
 
 result = detect_and_verify(tx_hash)
 
 if result[:valid]
-  puts "✅ Payment verified!"
+  puts '✅ Payment verified!'
   puts "   Crypto: #{result[:crypto]}"
   puts "   Amount: #{result[:amount]} #{result[:crypto]}"
   puts "   Value:  $#{result[:usd_value]} USD"
   puts "   Confirmations: #{result[:confirmations]}"
-  puts ""
+  puts ''
   puts "📧 Sending download link to #{customer_email}..."
 
   email_result = send_download_email(customer_email, result[:crypto], result[:amount], result[:usd_value])
 
   if email_result[:success]
-    puts "✅ Email sent successfully!"
+    puts '✅ Email sent successfully!'
     puts "   Email ID: #{email_result[:email_id]}"
   else
     puts "❌ Email failed: #{email_result[:error]}"
     exit 1
   end
 else
-  puts "❌ Payment verification failed"
+  puts '❌ Payment verification failed'
   puts "   Error: #{result[:error]}"
   exit 1
 end
