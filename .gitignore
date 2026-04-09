@@ -85,6 +85,7 @@ releases/
 .claude/sanetrack.log.old
 .claude/sanetools.log.old
 .claude/research_*.json*
+.claude/research-locks.json
 .claude/enforcement_*.json
 .claude/memory_checked.json
 .claude/recent_actions.json
