@@ -1,12 +1,25 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-04-09
-**Current public release:** `v2.1.39` (build `2139`)
+**Current public release:** `v2.1.40` (build `2140`)
 
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
-- The current public build is `2.1.39`; newer `#129` startup-recovery hardening is on `main` and verified on Mini, but it is not part of the old `2.1.37` notes below.
+- `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email webhook.
+- `#129` shipped in `2.1.40` and is now closed with a shipped-build retest note.
+- `#133` is the only open SaneBar GitHub issue left. Keep treating it as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
+- Fresh Mini release proof for `2.1.40`:
+  - `release_preflight` was technically green; the only gate failure was the known open-regression policy check on `#129`
+  - signed staged release launch passed
+  - startup layout probe passed
+  - wake layout probe passed
+  - release runtime smoke passed
+  - full `verify` passed (`1062` tests)
+- `2.1.40` shipped these customer-visible fixes:
+  - hard reset for already-broken missing-icon startup state carried across upgrade/reinstall/reset
+  - hard reset for invalid persisted startup geometry on initial startup + startup follow-up
+  - `Advanced Workflow` onboarding page now fits cleanly with the footer controls fully visible
 - Treat the older entries in this file as archival notes only.
 
 ## Archived Notes

@@ -1,5 +1,40 @@
 # SaneBar Research Cache
 
+## 2.1.40 Release Clearance + Post-Ship State
+
+**Updated:** 2026-04-09 19:45 ET | **Status:** verified | **TTL:** 14d
+**Source:** Mini `./scripts/SaneMaster.rb release_preflight`, Mini `./scripts/SaneMaster.rb test_mode --release --no-logs`, Mini `ruby scripts/startup_layout_probe.rb`, Mini `ruby scripts/wake_layout_probe.rb`, Mini staged-app `ruby scripts/live_zone_smoke.rb`, shipped `./scripts/SaneMaster.rb release --full --deploy --version 2.1.40`, live appcast/site/Homebrew checks, GitHub issue `#129`
+
+### Verified Findings
+
+1. `2.1.40` is the first public build that actually ships the two unreleased `#129` startup-recovery fixes from `main`.
+   - `48a8015` hard-resets persisted startup state for invalid status items / missing coordinates.
+   - `3f27ce8` extends that hard reset to the invalid-geometry startup path and `.startupFollowUp`.
+2. The technical release lane was clean on Mini before the policy override.
+   - `release_preflight` passed runtime smoke, startup layout probe, recurring-regression coverage, and stability checks.
+   - The only blocking failure was the expected open-regression guard on `#129`.
+3. The shipped build was verified more than one way on the canonical `/Applications/SaneBar.app` path.
+   - signed staged launch passed
+   - startup layout probe passed
+   - wake layout probe passed
+   - staged-app `live_zone_smoke.rb` passed and captured browse/settings screenshots
+   - full `verify` passed with `1062` tests inside the release lane
+4. The `Advanced Workflow` onboarding layout fix is part of `2.1.40` and was visually rechecked before ship.
+   - the footer buttons remain fully visible on the updated onboarding screen
+   - the final plan screen still clears the wider `Get Started` button cleanly
+5. Post-release surfaces were all verified live.
+   - direct ZIP: `https://dist.sanebar.com/updates/SaneBar-2.1.40.zip`
+   - appcast: `https://sanebar.com/appcast.xml`
+   - website/download page: `https://sanebar.com/download`
+   - Homebrew cask: `sane-apps/homebrew-tap` `sanebar.rb`
+   - email webhook live config: `SaneBar-2.1.40.zip`
+6. `#129` should no longer stay open as a release blocker after 2026-04-09.
+   - it was closed after `2.1.40` shipped with a retest note
+   - `#133` remains the only open SaneBar issue and is still the Apple-side Tahoe supplemental-build tracker
+7. One tooling caveat surfaced during pre-ship visual proof:
+   - `scripts/marketing_screenshots.rb --shot settings-general` can return exit `0` even when the underlying `screenshot` tool says `Window with parent SaneBar and title General not found`
+   - do not treat that script alone as release-grade visual proof until its exit handling is tightened
+
 ## Sparkle Header Cache Mismatch After Package Pin Changes
 
 **Updated:** 2026-03-28 22:31 ET | **Status:** verified | **TTL:** 7d
