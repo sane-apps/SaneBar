@@ -1,7 +1,15 @@
 # Session Handoff — SaneBar
 
-**Date:** 2026-03-27
-**Last released version:** `v2.1.37` (build `2137`)
+**Last updated:** 2026-04-09
+**Current public release:** `v2.1.39` (build `2139`)
+
+## Current State
+
+- Use `CHANGELOG.md` for release history and GitHub for live issue state.
+- The current public build is `2.1.39`; newer `#129` startup-recovery hardening is on `main` and verified on Mini, but it is not part of the old `2.1.37` notes below.
+- Treat the older entries in this file as archival notes only.
+
+## Archived Notes
 
 ## Addendum (2026-03-27 release 2.1.37)
 
