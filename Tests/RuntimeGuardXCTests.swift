@@ -2663,6 +2663,35 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testAdvancedWorkflowOnboardingPageUsesCompactLayoutWithinFixedWindow() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/Onboarding/WelcomeView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains(".frame(width: 700, height: 520)"),
+            "Onboarding still uses a fixed-size window, so the Advanced Workflow page must stay compact enough to fit it"
+        )
+        XCTAssertTrue(
+            source.contains("HStack(alignment: .top, spacing: 16)") &&
+                source.contains("browseStyleCard") &&
+                source.contains("zoneSummaryCard"),
+            "Advanced Workflow should use a compact two-column layout instead of stacking the screenshot and zone guide vertically"
+        )
+        XCTAssertTrue(
+            source.contains("workflowTipsCard") &&
+                source.contains("frame(maxWidth: .infinity, maxHeight: 142"),
+            "Advanced Workflow should keep a compact footer and constrain the settings screenshot height so the bottom navigation stays visible"
+        )
+        XCTAssertFalse(
+            source.contains("• Icon Panel: browse and click icons. Pro lets you drag an icon onto the Visible, Hidden, or Always Hidden tab."),
+            "Advanced Workflow should not regress to the old long bullet stack that overflowed the onboarding window"
+        )
+        XCTAssertFalse(
+            source.contains("• Second Menu Bar: browse and click icons in the Hidden and Visible rows. Pro lets you move icons between the Visible, Hidden, and Always Hidden rows."),
+            "Advanced Workflow should not reintroduce the oversized second-menu-bar paragraph that pushed the bottom buttons off-screen"
+        )
+    }
+
     func testSearchWindowWindowWillCloseRestoresRehide() throws {
         let fileURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
