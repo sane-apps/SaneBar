@@ -82,12 +82,12 @@ class LiveZoneSmoke
   ).freeze
   BROWSE_PANEL_COMMANDS = {
     'secondMenuBar' => 'show second menu bar',
-    'findIcon' => 'open icon panel',
+    'findIcon' => 'open icon panel'
   }.freeze
   WINDOW_SCREENSHOT_TITLES = {
     'findIcon' => 'Icon Panel',
     'secondMenuBar' => nil,
-    'settings' => 'SaneBar Settings',
+    'settings' => 'SaneBar Settings'
   }.freeze
   PREFERRED_BROWSE_ACTIVATION_IDS = %w[
     com.apple.SSMenuAgent
@@ -150,7 +150,7 @@ class LiveZoneSmoke
 
   def run
     started_at = Time.now.utc
-    puts "🔎 --- [ LIVE ZONE SMOKE ] ---"
+    puts '🔎 --- [ LIVE ZONE SMOKE ] ---'
 
     verify_single_process
     start_resource_watchdog
@@ -174,7 +174,7 @@ class LiveZoneSmoke
     candidates = selected_candidates(zones)
     if candidates.empty?
       if move_candidates_required?
-        raise "No movable candidate icon found (need at least one hidden/visible icon)."
+        raise 'No movable candidate icon found (need at least one hidden/visible icon).'
       else
         puts 'ℹ️ No movable candidate icon found on this setup; skipping move checks for this default smoke run.'
       end
@@ -214,6 +214,7 @@ class LiveZoneSmoke
           raise "Candidate failures: #{summary}"
         end
         raise 'No candidates passed move action checks.' if passed_candidates.empty?
+
         puts "✅ Candidate set passed: #{passed_candidates.map { |candidate| candidate[:unique_id] }.join(', ')}"
       else
         last_failure = failures.last&.last
@@ -277,6 +278,7 @@ class LiveZoneSmoke
     end
 
     raise "#{@app_name} is not running at #{expected_process_path || @app_name}." if matches.empty?
+
     if matches.length == 1
       @app_pid = matches.first.split(/\s+/, 2).first.to_i
       return
@@ -312,6 +314,7 @@ class LiveZoneSmoke
         next
       end
       return last_snapshot if layout_invariants_satisfied?(last_snapshot)
+
       sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
     end
 
@@ -323,11 +326,9 @@ class LiveZoneSmoke
   end
 
   def check_layout_invariants(snapshot)
-    unless layout_invariants_satisfied?(snapshot)
-      raise "Layout invariant failed after stabilization (snapshot=#{snapshot})"
-    end
+    raise "Layout invariant failed after stabilization (snapshot=#{snapshot})" unless layout_invariants_satisfied?(snapshot)
 
-    puts "✅ Layout invariants ok: separator/main order and launch proximity"
+    puts '✅ Layout invariants ok: separator/main order and launch proximity'
   end
 
   def check_always_hidden_preconditions(snapshot)
@@ -358,7 +359,7 @@ class LiveZoneSmoke
         movable: movable == 'true',
         bundle: bundle.to_s,
         unique_id: unique_id,
-        name: name.to_s,
+        name: name.to_s
       }
     end.compact
 
@@ -452,6 +453,7 @@ class LiveZoneSmoke
 
       if precise_non_apple
         next if seen_precise_non_apple_bundles[bundle]
+
         seen_precise_non_apple_bundles[bundle] = true
       end
 
@@ -511,7 +513,7 @@ class LiveZoneSmoke
         preferred_move_candidate_rank(item[:bundle]),
         item[:bundle].start_with?('com.apple.') ? 1 : 0,
         coarse_bundle_fallback?(item) ? 1 : 0,
-        item[:name].to_s.downcase,
+        item[:name].to_s.downcase
       ]
     end
   end
@@ -552,7 +554,7 @@ class LiveZoneSmoke
     [
       'browse panel diagnostics',
       'activate browse icon',
-      'right click browse icon',
+      'right click browse icon'
     ].all? { |command| supports_applescript_command?(command) }
   end
 
@@ -560,7 +562,7 @@ class LiveZoneSmoke
     ordered_pool = browse_activation_pool(zones).sort_by do |item|
       [
         browse_zone_priority(item[:zone]),
-        coarse_bundle_fallback?(item) ? 1 : 0,
+        coarse_bundle_fallback?(item) ? 1 : 0
       ]
     end
     ordered_pool = compact_precise_non_apple_bundle_candidates(ordered_pool)
@@ -621,9 +623,7 @@ class LiveZoneSmoke
   def exercise_browse_mode(expected_mode:, command:, zones:)
     focus_probe_prior_state = seed_focus_probe_prior_app
     result = app_script(command).strip.downcase
-    unless %w[true 1].include?(result)
-      raise "#{command} returned '#{result}'"
-    end
+    raise "#{command} returned '#{result}'" unless %w[true 1].include?(result)
 
     wait_for_browse_panel(expected_mode)
     assert_browse_panel_anchor!(expected_mode)
@@ -664,9 +664,7 @@ class LiveZoneSmoke
 
   def exercise_compatibility_browse_mode(expected_mode:, command:)
     result = app_script(command).strip.downcase
-    unless %w[true 1].include?(result)
-      raise "#{command} returned '#{result}'"
-    end
+    raise "#{command} returned '#{result}'" unless %w[true 1].include?(result)
 
     wait_for_browse_panel(expected_mode)
     assert_browse_panel_anchor!(expected_mode)
@@ -710,9 +708,7 @@ class LiveZoneSmoke
     return unless supports_applescript_command?('open settings window')
 
     result = app_script('open settings window').strip.downcase
-    unless %w[true 1].include?(result)
-      raise "open settings window returned '#{result}'"
-    end
+    raise "open settings window returned '#{result}'" unless %w[true 1].include?(result)
 
     screenshot_path = capture_settings_screenshot if @capture_screenshots
     puts "📸 settings screenshot: #{screenshot_path}" if screenshot_path
@@ -724,8 +720,8 @@ class LiveZoneSmoke
   def browse_activation_succeeded?(diagnostics, expected_mode)
     expected_visible = expected_mode == 'secondMenuBar' ? 'windowVisible: true' : nil
 
-    diagnostics.include?("origin: browsePanel") &&
-      diagnostics.include?("finalOutcome: click succeeded") &&
+    diagnostics.include?('origin: browsePanel') &&
+      diagnostics.include?('finalOutcome: click succeeded') &&
       browse_activation_observably_verified?(diagnostics) &&
       diagnostics.include?("currentMode: #{expected_mode}") &&
       (expected_visible.nil? || diagnostics.include?(expected_visible))
@@ -767,6 +763,7 @@ class LiveZoneSmoke
 
   def assert_frontmost_did_not_revert_to(prior_frontmost_state, command)
     return if prior_frontmost_state.nil?
+
     prior_bundle = prior_frontmost_state['bundleId'].to_s
     return if prior_bundle.empty?
 
@@ -880,9 +877,7 @@ class LiveZoneSmoke
 
   def close_browse_panel
     result = app_script('close browse panel').strip.downcase
-    unless %w[true 1].include?(result)
-      raise "close browse panel returned '#{result}'"
-    end
+    raise "close browse panel returned '#{result}'" unless %w[true 1].include?(result)
 
     unless supports_applescript_command?('browse panel diagnostics')
       sleep_with_watchdog(0.5)
@@ -1105,6 +1100,7 @@ class LiveZoneSmoke
     puts '✅ Always Hidden move actions ok'
   rescue StandardError => e
     raise if @require_always_hidden
+
     if always_hidden_optional_failure?(e)
       puts "ℹ️ Skipping always-hidden move check (likely free mode): #{e.message}"
       return
@@ -1129,9 +1125,7 @@ class LiveZoneSmoke
     icon = escape_quotes(icon_unique_id)
     begin
       result = app_script("#{command} \"#{icon}\"").strip.downcase
-      unless %w[true 1].include?(result)
-        raise "#{command} returned '#{result}' for #{candidate[:unique_id]}"
-      end
+      raise "#{command} returned '#{result}' for #{candidate[:unique_id]}" unless %w[true 1].include?(result)
     rescue StandardError => e
       raise unless timed_out_move_command?(command, e)
 
@@ -1162,6 +1156,7 @@ class LiveZoneSmoke
 
       matched = matched_move_candidate(zones, icon_unique_id, candidate)
       return true if matched && matched[:zone] == expected_zone
+
       sleep_with_watchdog(POLL_SECONDS)
     end
 
@@ -1239,6 +1234,7 @@ class LiveZoneSmoke
         timeout: timeout
       )
       raise "AppleScript failed (#{statement}): #{out.strip}" unless code.success?
+
       out
     rescue StandardError => e
       retryable = e.message.include?('timeout') || e.message.include?('failed')
@@ -1365,8 +1361,11 @@ class LiveZoneSmoke
     reset_resource_watchdog_state
     FileUtils.rm_f(@resource_sample_path)
     puts format(
-      "🫀 Resource watchdog armed: cpu<=%.1f%% for %d sample(s), rss<=%.1fMB for %d sample(s)",
-      @max_cpu_percent, @max_cpu_breach_samples, @max_rss_mb, @max_rss_breach_samples
+      '🫀 Resource watchdog armed: cpu<=%<cpu_limit>.1f%% for %<cpu_samples>d sample(s), rss<=%<rss_limit>.1fMB for %<rss_samples>d sample(s)',
+      cpu_limit: @max_cpu_percent,
+      cpu_samples: @max_cpu_breach_samples,
+      rss_limit: @max_rss_mb,
+      rss_samples: @max_rss_breach_samples
     )
     @resource_watchdog_thread = Thread.new do
       loop do
@@ -1467,8 +1466,18 @@ class LiveZoneSmoke
   end
 
   def format_resource_watchdog_failure(failure, sample, sample_path)
-    current_value = failure[:key] == 'peak_cpu_exceeded' ? format('%.1f%%', sample[:cpu]) : format('%.1fMB', sample[:rss_mb])
-    limit_value = failure[:key] == 'peak_cpu_exceeded' ? format('%.1f%%', failure[:limit]) : format('%.1fMB', failure[:limit])
+    current_value =
+      if failure[:key] == 'peak_cpu_exceeded'
+        format('%<value>.1f%%', value: sample[:cpu])
+      else
+        format('%<value>.1fMB', value: sample[:rss_mb])
+      end
+    limit_value =
+      if failure[:key] == 'peak_cpu_exceeded'
+        format('%<value>.1f%%', value: failure[:limit])
+      else
+        format('%<value>.1fMB', value: failure[:limit])
+      end
     sample_label = sample_path && File.exist?(sample_path) ? sample_path : 'unavailable'
     "#{failure[:key]} mode=#{failure[:mode]} current=#{current_value} limit=#{limit_value} "\
       "sustainedSamples=#{failure[:samples]} pid=#{sample[:pid]} elapsed=#{sample[:elapsed]} sample=#{sample_label}"
@@ -1578,12 +1587,12 @@ class LiveZoneSmoke
     averages = resource_watchdog_averages(state)
 
     base = format(
-      "🫀 Resource watchdog: samples=%d avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB",
-      state[:sample_count],
-      averages[:avg_cpu],
-      state[:peak_cpu],
-      averages[:avg_rss_mb],
-      state[:peak_rss_mb]
+      '🫀 Resource watchdog: samples=%<samples>d avgCpu=%<avg_cpu>.1f%% peakCpu=%<peak_cpu>.1f%% avgRss=%<avg_rss>.1fMB peakRss=%<peak_rss>.1fMB',
+      samples: state[:sample_count],
+      avg_cpu: averages[:avg_cpu],
+      peak_cpu: state[:peak_cpu],
+      avg_rss: averages[:avg_rss_mb],
+      peak_rss: state[:peak_rss_mb]
     )
     return "#{base} failure=#{state[:failure]}" if state[:failure]
 
@@ -1607,10 +1616,10 @@ class LiveZoneSmoke
     averages = resource_watchdog_averages(state)
     failures = []
     if averages[:avg_cpu] > @active_avg_cpu_max
-      failures << format('avgCpu=%.1f%% > %.1f%%', averages[:avg_cpu], @active_avg_cpu_max)
+      failures << format('avgCpu=%<actual>.1f%% > %<limit>.1f%%', actual: averages[:avg_cpu], limit: @active_avg_cpu_max)
     end
     if averages[:avg_rss_mb] > @active_avg_rss_mb_max
-      failures << format('avgRss=%.1fMB > %.1fMB', averages[:avg_rss_mb], @active_avg_rss_mb_max)
+      failures << format('avgRss=%<actual>.1fMB > %<limit>.1fMB', actual: averages[:avg_rss_mb], limit: @active_avg_rss_mb_max)
     end
     return if failures.empty?
 
@@ -1621,38 +1630,37 @@ class LiveZoneSmoke
     sleep_with_watchdog(settle_seconds) if settle_seconds.positive?
     report = capture_resource_window(sample_seconds: sample_seconds, interval_seconds: @idle_sample_interval_seconds)
     puts format(
-      "📉 Idle budget %s: avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB",
-      label,
-      report[:avg_cpu],
-      report[:peak_cpu],
-      report[:avg_rss_mb],
-      report[:peak_rss_mb]
+      '📉 Idle budget %<label>s: avgCpu=%<avg_cpu>.1f%% peakCpu=%<peak_cpu>.1f%% avgRss=%<avg_rss>.1fMB peakRss=%<peak_rss>.1fMB',
+      label: label,
+      avg_cpu: report[:avg_cpu],
+      peak_cpu: report[:peak_cpu],
+      avg_rss: report[:avg_rss_mb],
+      peak_rss: report[:peak_rss_mb]
     )
 
     failures = []
     if report[:avg_cpu] > cpu_avg_max
-      failures << format('avgCpu=%.1f%% > %.1f%%', report[:avg_cpu], cpu_avg_max)
+      failures << format('avgCpu=%<actual>.1f%% > %<limit>.1f%%', actual: report[:avg_cpu], limit: cpu_avg_max)
     end
     if report[:peak_cpu] > cpu_peak_max
-      failures << format('peakCpu=%.1f%% > %.1f%%', report[:peak_cpu], cpu_peak_max)
+      failures << format('peakCpu=%<actual>.1f%% > %<limit>.1f%%', actual: report[:peak_cpu], limit: cpu_peak_max)
     end
-    if report[:peak_rss_mb] > rss_mb_max
-      failures << format('peakRss=%.1fMB > %.1fMB', report[:peak_rss_mb], rss_mb_max)
-    end
-    if failures == [format('peakRss=%.1fMB > %.1fMB', report[:peak_rss_mb], rss_mb_max)]
+    peak_rss_failure = format('peakRss=%<actual>.1fMB > %<limit>.1fMB', actual: report[:peak_rss_mb], limit: rss_mb_max)
+    failures << peak_rss_failure if report[:peak_rss_mb] > rss_mb_max
+    if failures == [peak_rss_failure]
       physical_footprint_mb = current_physical_footprint_mb
       if physical_footprint_mb
         puts format(
-          "🧠 Idle budget %s physical footprint: %.1fMB",
-          label,
-          physical_footprint_mb
+          '🧠 Idle budget %<label>s physical footprint: %<footprint>.1fMB',
+          label: label,
+          footprint: physical_footprint_mb
         )
         if physical_footprint_mb <= rss_mb_max
           puts format(
-            "ℹ️ Idle budget %s: accepting RSS-only breach because physical footprint settled at %.1fMB <= %.1fMB",
-            label,
-            physical_footprint_mb,
-            rss_mb_max
+            'ℹ️ Idle budget %<label>s: accepting RSS-only breach because physical footprint settled at %<footprint>.1fMB <= %<limit>.1fMB',
+            label: label,
+            footprint: physical_footprint_mb,
+            limit: rss_mb_max
           )
           return
         end
