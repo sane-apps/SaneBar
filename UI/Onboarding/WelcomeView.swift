@@ -506,97 +506,133 @@ private struct ZoneGuidePage: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             (Text("Advanced ").foregroundStyle(.white) + Text("Workflow").foregroundStyle(saneAccentGradient))
                 .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Move icons between Visible, Hidden, and Always Hidden, and pick the browse style you like.")
+            Text("Choose your browse style, then organize icons across Visible, Hidden, and Always Hidden.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.9))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("• Icon Panel: browse and click icons. Pro lets you drag an icon onto the Visible, Hidden, or Always Hidden tab.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
+            HStack(alignment: .top, spacing: 16) {
+                browseStyleCard
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("• Second Menu Bar: browse and click icons in the Hidden and Visible rows. Pro lets you move icons between the Visible, Hidden, and Always Hidden rows.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text("• In the macOS menu bar itself, rearranging uses ⌘ + drag.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text("• Basic includes browsing and clicking. Pro adds icon moves, reordering, and Always Hidden.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                zoneSummaryCard
+                    .frame(width: 222, alignment: .topLeading)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Browse style")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+            workflowTipsCard
 
-                Text("Settings → General → Browse Icons. You can switch between Icon Panel and Second Menu Bar anytime.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Image("OnboardingBrowseSettings")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .cornerRadius(8)
-                    .shadow(color: .black.opacity(0.3), radius: 7, x: 0, y: 4)
-            }
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.04))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-            )
-
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                    HStack(alignment: .center, spacing: 10) {
-                        Image(systemName: row.icon)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(row.accent)
-                            .frame(width: 18)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(row.title)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-
-                            Text(row.detail)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.9))
-                        }
-                    }
-                    .padding(.vertical, 9)
-                    .padding(.horizontal, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.06))
-                    )
-                }
-            }
-            .padding(.top, 8)
-
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 38)
+        .padding(.horizontal, 34)
         .padding(.vertical, 16)
+    }
+
+    private var browseStyleCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Browse style")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+
+            Text("Settings → General → Browse Icons. Switch between Icon Panel and Second Menu Bar anytime.")
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Image("OnboardingBrowseSettings")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: 142, alignment: .topLeading)
+                .clipped()
+                .cornerRadius(8)
+                .shadow(color: .black.opacity(0.3), radius: 7, x: 0, y: 4)
+        }
+        .padding(10)
+        .background(onboardingCardBackground)
+    }
+
+    private var zoneSummaryCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Zones")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: row.icon)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(row.accent)
+                        .frame(width: 18)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+
+                        Text(row.detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.white.opacity(0.92))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.06))
+                )
+            }
+        }
+        .padding(10)
+        .background(onboardingCardBackground)
+    }
+
+    private var workflowTipsCard: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            workflowTipRow(
+                icon: "cursorarrow.click.2",
+                text: "Basic lets you browse and click icons in either layout."
+            )
+            workflowTipRow(
+                icon: "arrow.left.arrow.right.circle",
+                text: "Pro adds icon moves, reordering, and Always Hidden."
+            )
+            workflowTipRow(
+                icon: "command",
+                text: "In the macOS menu bar itself, rearranging uses ⌘ + drag."
+            )
+        }
+        .padding(12)
+        .background(onboardingCardBackground)
+    }
+
+    private var onboardingCardBackground: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color.white.opacity(0.04))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+    }
+
+    @ViewBuilder
+    private func workflowTipRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(saneAccentSoft)
+                .frame(width: 18, alignment: .center)
+
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 // MARK: - Page 6: Permissions
