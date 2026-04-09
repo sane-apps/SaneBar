@@ -14,7 +14,6 @@
 
 require 'fileutils'
 
-OUTPUT_DIR = File.expand_path('../docs/images', __dir__)
 APP_NAME = 'SaneBar'
 
 def resolve_screenshot_tool
@@ -34,8 +33,6 @@ def resolve_screenshot_tool
 
   candidates.find { |path| File.executable?(path) }
 end
-
-SCREENSHOT_TOOL = resolve_screenshot_tool
 
 SHOTS = {
   'settings-general' => {
@@ -89,11 +86,13 @@ ONBOARDING_SYNC = {
 }.freeze
 
 def ensure_prereqs
-  unless SCREENSHOT_TOOL && File.executable?(SCREENSHOT_TOOL)
+  tool = screenshot_tool
+  unless tool && File.executable?(tool)
     warn "❌ screenshot tool not found (checked PATH and ~/Library/Python/*/bin/screenshot)"
-    exit 1
+    return false
   end
-  FileUtils.mkdir_p(OUTPUT_DIR)
+  FileUtils.mkdir_p(output_dir)
+  true
 end
 
 def list_shots
@@ -105,11 +104,11 @@ def list_shots
 end
 
 def capture(name, config)
-  output = File.join(OUTPUT_DIR, config[:filename])
+  output = File.join(output_dir, config[:filename])
   temp_output = "#{output}.tmp.png"
   FileUtils.rm_f(temp_output)
 
-  cmd = [SCREENSHOT_TOOL, APP_NAME, '-s']
+  cmd = [screenshot_tool, APP_NAME, '-s']
   cmd += ['-t', config[:title]] if config[:title]
   cmd += ['-f', temp_output]
 
@@ -142,14 +141,17 @@ def read_dimensions(path)
 end
 
 def sync_onboarding
+  return true unless onboarding_sync_enabled?
+
   ONBOARDING_SYNC.each do |src_name, dest_rel|
-    src = File.join(OUTPUT_DIR, src_name)
+    src = File.join(output_dir, src_name)
     dest = File.expand_path("../#{dest_rel}", __dir__)
     next unless File.exist?(src)
 
     FileUtils.cp(src, dest)
     warn "🔁 Synced #{src_name} -> #{dest_rel}"
   end
+  true
 end
 
 def capture_all
@@ -159,6 +161,7 @@ def capture_all
   end
   sync_onboarding
   warn "\nDone: #{success}/#{SHOTS.size} captured"
+  success == SHOTS.size
 end
 
 def capture_one(name)
@@ -166,20 +169,46 @@ def capture_one(name)
   unless config
     warn "❌ Unknown shot: #{name}"
     list_shots
-    exit 1
+    return false
   end
 
-  capture(name, config)
+  result = capture(name, config)
   sync_onboarding
+  result
 end
 
-ensure_prereqs
+def output_dir
+  @output_dir = nil if ENV['SANEBAR_SCREENSHOT_RESET_CACHE'] == '1'
+  @output_dir ||= begin
+    override = ENV['SANEBAR_SCREENSHOT_OUTPUT_DIR']
+    base = override && !override.empty? ? override : File.expand_path('../docs/images', __dir__)
+    File.expand_path(base)
+  end
+end
 
-case ARGV[0]
-when '--list', '-l'
-  list_shots
-when '--shot', '-s'
-  capture_one(ARGV[1])
-else
-  capture_all
+def screenshot_tool
+  @screenshot_tool = nil if ENV['SANEBAR_SCREENSHOT_RESET_CACHE'] == '1'
+  @screenshot_tool ||= resolve_screenshot_tool
+end
+
+def onboarding_sync_enabled?
+  ENV['SANEBAR_SCREENSHOT_SKIP_SYNC'] != '1'
+end
+
+def run_cli(argv)
+  return 1 unless ensure_prereqs
+
+  case argv[0]
+  when '--list', '-l'
+    list_shots
+    0
+  when '--shot', '-s'
+    capture_one(argv[1]) ? 0 : 1
+  else
+    capture_all ? 0 : 1
+  end
+end
+
+if $PROGRAM_NAME == __FILE__
+  exit(run_cli(ARGV))
 end
