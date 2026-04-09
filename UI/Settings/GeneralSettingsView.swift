@@ -20,7 +20,6 @@ struct GeneralSettingsView: View {
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
     @State private var showingResetAlert = false
-    @State private var showingLicenseEntry = false
     @State private var showBrowseRowCustomization = false
 
     enum BrowseLeftClickMode: String, CaseIterable, Identifiable {
@@ -434,105 +433,7 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 7. Pro License
-                CompactSection("License") {
-                    if licenseService.isPro {
-                        CompactRow("Status") {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(SaneBarChrome.accentHighlight)
-                                Text("Pro")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(SaneBarChrome.accentHighlight)
-                            }
-                        }
-                        if let email = licenseService.licenseEmail {
-                            CompactDivider()
-                            CompactRow("Licensed to") {
-                                Text(email)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            }
-                        }
-                        CompactDivider()
-                        CompactRow("Actions") {
-                            if licenseService.usesAppStorePurchase {
-                                Button("Restore Purchases") {
-                                    Task { await licenseService.restorePurchases() }
-                                }
-                                .buttonStyle(ChromeActionButtonStyle())
-                                .controlSize(.small)
-                                .disabled(licenseService.isPurchasing)
-                            } else if licenseService.usesSetappDistribution {
-                                Text("Managed by Setapp")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            } else {
-                                Button(LicenseService.deactivateLicenseLabel()) {
-                                    licenseService.deactivate()
-                                }
-                                .buttonStyle(ChromeActionButtonStyle(destructive: true))
-                                .controlSize(.small)
-                            }
-                        }
-                    } else {
-                        CompactRow("Status") {
-                            HStack(spacing: 6) {
-                                Text("Basic")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            }
-                        }
-                        CompactDivider()
-                        CompactRow("Actions") {
-                            if licenseService.usesAppStorePurchase {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 8) {
-                                        Button("Unlock Pro — \(licenseService.appStoreDisplayPrice ?? "$6.99")") {
-                                            Task { await licenseService.purchasePro() }
-                                        }
-                                        .buttonStyle(ChromeActionButtonStyle(prominent: true))
-                                        .controlSize(.small)
-                                        .disabled(licenseService.isPurchasing)
-
-                                        Button("Restore Purchases") {
-                                            Task { await licenseService.restorePurchases() }
-                                        }
-                                        .buttonStyle(ChromeActionButtonStyle())
-                                        .controlSize(.small)
-                                        .disabled(licenseService.isPurchasing)
-                                    }
-
-                                    if let purchaseError = licenseService.purchaseError {
-                                        Text(purchaseError)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.red)
-                                    }
-                                }
-                            } else if licenseService.usesSetappDistribution {
-                                Text("Managed by Setapp")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.92))
-                            } else {
-                                HStack(spacing: 8) {
-                                    Button("Unlock Pro — $6.99") {
-                                        NSWorkspace.shared.open(LicenseService.checkoutURL())
-                                    }
-                                    .buttonStyle(ChromeActionButtonStyle(prominent: true))
-                                    .controlSize(.small)
-
-                                    Button(LicenseService.keyEntryButtonLabel()) {
-                                        showingLicenseEntry = true
-                                    }
-                                    .buttonStyle(ChromeActionButtonStyle())
-                                    .controlSize(.small)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 8. Troubleshooting
+                // 7. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
@@ -550,9 +451,6 @@ struct GeneralSettingsView: View {
             normalizeBrowseModeSettingsForCurrentPlan()
             loadProfiles()
             updateCheckFrequency = menuBarManager.updateService.updateCheckFrequency
-            if licenseService.usesAppStorePurchase {
-                Task { await licenseService.preloadAppStoreProduct() }
-            }
         }
         .onChange(of: updateCheckFrequency) { _, newValue in
             menuBarManager.updateService.updateCheckFrequency = newValue
@@ -574,9 +472,6 @@ struct GeneralSettingsView: View {
         }
         .sheet(item: $proUpsellFeature) { feature in
             ProUpsellView(feature: feature)
-        }
-        .sheet(isPresented: $showingLicenseEntry) {
-            LicenseEntryView()
         }
     }
 

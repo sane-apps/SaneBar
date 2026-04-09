@@ -1895,6 +1895,11 @@ final class RuntimeGuardXCTests: XCTestCase {
                 secondMenuBarSource.contains("SaneGradientBackground(style: .panel)"),
             "Settings should use the shared SaneUI container, and both browse surfaces should use the calmer shared panel background"
         )
+        XCTAssertTrue(
+            settingsSource.contains("case license = \"License\"") &&
+                settingsSource.contains("LicenseSettingsView<SaneBarLicenseSettingsAdapter>("),
+            "SaneBar settings should expose a dedicated shared License tab instead of keeping an app-local inline license block"
+        )
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: projectRootURL().appendingPathComponent("UI/Components/Backgrounds.swift").path
@@ -2810,6 +2815,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertFalse(
             source.contains("grantEarlyAdopterPro()"),
             "MenuBarManager should not auto-grant Pro based only on local settings flags"
+        )
+    }
+
+    func testGeneralSettingsNoLongerCarryInlineLicenseChrome() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertFalse(
+            source.contains("CompactSection(\"License\")"),
+            "General settings should defer license management to the shared dedicated License tab"
+        )
+        XCTAssertFalse(
+            source.contains("showingLicenseEntry"),
+            "General settings should not keep a private license-entry sheet once the shared License tab owns that flow"
         )
     }
 
