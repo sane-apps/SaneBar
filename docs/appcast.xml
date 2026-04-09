@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                        <item>
+                                                                                                <item>
+            <title>2.1.40</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 09 Apr 2026 19:41:37 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes recovery when SaneBar was already stuck in a missing-icon state after an upgrade, reinstall, or reset. Improves startup recovery when saved menu bar geometry is invalid. Fixes the Advanced Workflow setup screen so all controls fit cleanly in the window.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.40.zip"
+                       sparkle:version="2140"
+                       sparkle:shortVersionString="2.1.40"
+                       length="8699479"
+                       type="application/octet-stream"
+                       sparkle:edSignature="IIGF1Q6SmvSe+AnWiYYXDd2+UxlutMLdxQQgiPnWm4wCypVw5llidjMFIIRafBzglILLhUxb0cpmVf3eyKaZAA=="/>
+        </item>
+<item>
             <title>2.1.39</title>
             <pubDate>Thu, 02 Apr 2026 18:43:47 -0400</pubDate>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
