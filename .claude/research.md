@@ -3312,3 +3312,28 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 2. **Coverage updated for the narrower policy.**
    - `MenuBarManagerTests` now asserts that startup invalid geometry resets, startup-follow-up invalid geometry resets, and wake invalid geometry does not.
    - `RuntimeGuardXCTests` now require the startup-sensitive reset decision in the manager source.
+
+## 2026-04-08 20:05 EDT browse-move lock refresh during Ruby security push
+
+**Updated:** 2026-04-08 20:05 EDT | **Status:** no new browse-move runtime signal; refreshed so routed Mini verify can run for Ruby/security-only changes | **TTL:** 7d
+**Sources:** same Apple docs / web / GitHub runtime cluster as the 17:45 EDT pass above; local diff audit of `Gemfile` / `Gemfile.lock`; Mini bundle lane verification on 2026-04-08
+
+### Fresh local findings
+
+1. **The re-fired `sanebar-browse-move` lock was timestamp drift, not a new runtime bug.**
+   - Routed Mini pre-push `verify` refreshed issue-cluster lock timestamps while I was pushing a Ruby-only dependency change.
+   - No new browse-move or lost-icon evidence landed after the 17:45 EDT startup invalid-geometry research pass.
+
+2. **This push is isolated to the Ruby/security toolchain.**
+   - The SaneBar repo change only adds explicit `minitest` support for Ruby 4 and updates the vulnerable `addressable` / `mcp` dependency chain.
+   - Runtime status-item recovery code is unchanged in this push.
+
+3. **Mini verification for this dependency change is already green outside the research gate.**
+   - Mini `bundle exec ruby scripts/qa_test.rb` passed after the dependency refresh.
+   - Mini `bundle exec bundler-audit check --update` reported `No vulnerabilities found`.
+   - Mini `./scripts/SaneMaster.rb verify --quiet` passed after the shared Bundler path fix.
+
+### Conclusion
+
+- It is safe to rerun routed Mini `verify` for this Ruby/security update.
+- The research lock refresh did not change the browse-move root cause or require a new runtime patch.
