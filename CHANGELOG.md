@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.40] - 2026-04-09
+
+Fixes recovery when SaneBar was already stuck in a missing-icon state after an upgrade, reinstall, or reset. Improves startup recovery when saved menu bar geometry is invalid. Fixes the Advanced Workflow setup screen so all controls fit cleanly in the window.
+
+---
+
 ## [2.1.39] - 2026-04-02
 
 Improves menu bar layout reliability, makes hidden items behave more consistently, and keeps Basic and Pro features behaving as expected.
