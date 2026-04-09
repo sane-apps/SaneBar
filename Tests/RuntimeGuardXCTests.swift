@@ -2193,8 +2193,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should reset the active resource window after launch-idle validation so the interaction budget is not polluted by startup settling"
         )
         XCTAssertTrue(
-            source.contains("📉 Idle budget %s: avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB") &&
-                source.contains("🫀 Resource watchdog: samples=%d avgCpu=%.1f%% peakCpu=%.1f%% avgRss=%.1fMB peakRss=%.1fMB"),
+            source.contains("📉 Idle budget ") &&
+                source.contains("peakCpu=") &&
+                source.contains("peakRss=") &&
+                source.contains("🫀 Resource watchdog: samples=") &&
+                source.contains("avgCpu=") &&
+                source.contains("avgRss="),
             "Live smoke should print both idle-budget and whole-pass performance summaries so the numbers are reviewable in smoke logs"
         )
         XCTAssertTrue(

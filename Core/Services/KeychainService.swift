@@ -27,6 +27,8 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     private let isTestEnvironment: Bool
     /// True when running automation with explicit keychain bypass.
     private let isKeychainBypassed: Bool
+    /// True when reads/writes should use defaults instead of touching the real Keychain.
+    private let usesFallbackStorage: Bool
     /// Fallback storage for no-keychain automation mode.
     private let fallbackDefaults: UserDefaults
     private let legacyFallbackDefaults: UserDefaults?
@@ -47,11 +49,11 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         isKeychainBypassed = debugBypass
             || ProcessInfo.processInfo.environment["SANEAPPS_DISABLE_KEYCHAIN"] == "1"
             || ProcessInfo.processInfo.arguments.contains("--sane-no-keychain")
+        usesFallbackStorage = isTestEnvironment || isKeychainBypassed
     }
 
     func bool(forKey key: String) throws -> Bool? {
-        guard !isTestEnvironment else { return nil }
-        if isKeychainBypassed {
+        if usesFallbackStorage {
             return fallbackString(forKey: fallbackKey(key)).flatMap { fallbackBool(for: $0) }
         }
         let query: [CFString: Any] = [
@@ -71,8 +73,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func set(_ value: Bool, forKey key: String) throws {
-        guard !isTestEnvironment else { return }
-        if isKeychainBypassed {
+        if usesFallbackStorage {
             fallbackDefaults.set(value ? "1" : "0", forKey: fallbackKey(key))
             legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
@@ -103,8 +104,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func string(forKey key: String) throws -> String? {
-        guard !isTestEnvironment else { return nil }
-        if isKeychainBypassed {
+        if usesFallbackStorage {
             return fallbackString(forKey: fallbackKey(key))
         }
         let query: [CFString: Any] = [
@@ -124,8 +124,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func set(_ value: String, forKey key: String) throws {
-        guard !isTestEnvironment else { return }
-        if isKeychainBypassed {
+        if usesFallbackStorage {
             fallbackDefaults.set(value, forKey: fallbackKey(key))
             legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
@@ -156,8 +155,7 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
     }
 
     func delete(_ key: String) throws {
-        guard !isTestEnvironment else { return }
-        if isKeychainBypassed {
+        if usesFallbackStorage {
             fallbackDefaults.removeObject(forKey: fallbackKey(key))
             legacyFallbackDefaults?.removeObject(forKey: fallbackKey(key))
             return
