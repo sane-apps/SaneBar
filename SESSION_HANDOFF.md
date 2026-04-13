@@ -1,14 +1,23 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-04-09
+**Last updated:** 2026-04-13
 **Current public release:** `v2.1.40` (build `2140`)
 
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
 - `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email webhook.
-- `#129` shipped in `2.1.40` and is now closed with a shipped-build retest note.
-- `#133` is the only open SaneBar GitHub issue left. Keep treating it as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
+- `#129` has been reopened after fresh post-`2.1.40` reporter evidence. Current `main` now carries a guarded `MenuBarManager.IconMoving` fallback that derives the main icon edge from the separator only when the separator is still present in visual mode; keep the issue open until a shipped build gets field confirmation.
+- `#133` is still open, but it is no longer the only live SaneBar GitHub issue. Keep treating `#133` as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
+- 2026-04-13 appearance overlay follow-up:
+  - fixed a real `MenuBarAppearanceService` lifecycle bug where turning off Custom Appearance only hid the overlay window, but later app/space changes could re-show it
+  - `refreshOverlayVisibility()` now keeps the overlay hidden when appearance is disabled instead of reviving stale state
+  - overlay suppression now covers true fullscreen content windows, including Apple apps, instead of only narrow third-party top-host strips
+  - fresh Mini proof passed after the fix: `./scripts/SaneMaster.rb verify` (`1066` tests) and signed `./scripts/SaneMaster.rb test_mode --release --no-logs`
+- 2026-04-13 icon-moving follow-up for `#129`:
+  - fixed the asymmetric stale-frame fallback in `MenuBarManager.IconMoving`: separator recovery could estimate itself from the main icon, but the main icon had no reciprocal fallback when its own frame stayed stale
+  - `getMainStatusItemLeftEdgeX()` now falls back to the separator's right edge only when the separator is still visually present, instead of dropping straight to `nil`
+  - fresh Mini proof passed after the fix: `./scripts/SaneMaster.rb verify --quiet` (`1067` tests), signed `./scripts/SaneMaster.rb test_mode --release --no-logs`, and `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/startup_layout_probe.rb`
 - Fresh Mini release proof for `2.1.40`:
   - `release_preflight` was technically green; the only gate failure was the known open-regression policy check on `#129`
   - signed staged release launch passed

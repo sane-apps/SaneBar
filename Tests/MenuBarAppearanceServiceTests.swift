@@ -1,4 +1,5 @@
 import Testing
+import AppKit
 import Foundation
 import SwiftUI
 @testable import SaneBar
@@ -8,6 +9,9 @@ import SwiftUI
 @Suite("MenuBarAppearanceService Tests")
 @MainActor
 struct MenuBarAppearanceServiceTests {
+    private func currentOverlayWindow(for service: MenuBarAppearanceService) -> NSWindow? {
+        Mirror(reflecting: service).children.first { $0.label == "overlayWindow" }?.value as? NSWindow
+    }
 
     // MARK: - Settings Initialization Tests
 
@@ -186,6 +190,26 @@ struct MenuBarAppearanceServiceTests {
         #expect(true, "Disabled settings should hide overlay")
     }
 
+    @Test("Disabled appearance stays hidden across later refreshes")
+    func testDisabledAppearanceDoesNotReshowOnRefresh() throws {
+        let service = MenuBarAppearanceService()
+
+        var enabled = MenuBarAppearanceSettings()
+        enabled.isEnabled = true
+        service.updateAppearance(enabled)
+
+        let window = try #require(currentOverlayWindow(for: service))
+        #expect(window.isVisible, "Enabled appearance should create a visible overlay")
+
+        var disabled = enabled
+        disabled.isEnabled = false
+        service.updateAppearance(disabled)
+        #expect(!window.isVisible, "Disabling appearance should hide the overlay")
+
+        service.show()
+        #expect(!window.isVisible, "Later refreshes should not re-show a disabled overlay")
+    }
+
     @Test("show and hide are safe to call without setup")
     func testShowHideWithoutSetup() {
         let service = MenuBarAppearanceService()
@@ -214,6 +238,52 @@ struct MenuBarAppearanceServiceTests {
                 frontmostPID: 5151,
                 frontmostBundleID: "com.blizzard.worldofwarcraft",
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay suppresses for fullscreen content windows")
+    func testSuppressOverlayForFullscreenContentWindow() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.google.Chrome",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay suppresses for Apple fullscreen content windows")
+    func testSuppressOverlayForAppleFullscreenContentWindow() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1728),
+                "Height": NSNumber(value: 1117)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.Safari",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
                 windowInfos: infos,
                 selfPID: 9999
             )

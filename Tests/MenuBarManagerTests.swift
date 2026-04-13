@@ -248,6 +248,42 @@ struct MenuBarManagerTests {
         #expect(snapshot.startupItemsValid == false)
     }
 
+    @Test("Main icon fallback can derive its left edge from a visible separator")
+    func estimatedMainStatusItemLeftEdgeUsesSeparatorGeometry() {
+        #expect(
+            MenuBarManager.estimatedMainStatusItemLeftEdge(
+                separatorIsPresentInVisualMode: true,
+                separatorRightEdge: 320,
+                separatorOrigin: 300
+            ) == 320
+        )
+        #expect(
+            MenuBarManager.estimatedMainStatusItemLeftEdge(
+                separatorIsPresentInVisualMode: true,
+                separatorRightEdge: nil,
+                separatorOrigin: 300
+            ) == 320
+        )
+    }
+
+    @Test("Main icon fallback refuses separator caches when the separator is not visually present")
+    func estimatedMainStatusItemLeftEdgeRequiresVisibleSeparator() {
+        #expect(
+            MenuBarManager.estimatedMainStatusItemLeftEdge(
+                separatorIsPresentInVisualMode: false,
+                separatorRightEdge: 320,
+                separatorOrigin: 300
+            ) == nil
+        )
+        #expect(
+            MenuBarManager.estimatedMainStatusItemLeftEdge(
+                separatorIsPresentInVisualMode: true,
+                separatorRightEdge: nil,
+                separatorOrigin: nil
+            ) == nil
+        )
+    }
+
     @Test("Always-hidden separator repair only triggers for a real misordered divider")
     func alwaysHiddenSeparatorRepairGuard() {
         #expect(
