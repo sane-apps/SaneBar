@@ -3372,3 +3372,48 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 
 - It is safe to rerun routed Mini `verify` for this Ruby/security update.
 - The research lock refresh did not change the browse-move root cause or require a new runtime patch.
+
+## 2026-04-13 16:58 EDT lost-icon stale-main-frame fallback follow-up
+
+**Updated:** 2026-04-13 16:58 EDT | **Status:** verified new post-`2.1.40` `#129` path, patched locally, Mini proof green | **TTL:** 7d
+**Sources:** Apple docs for [`NSStatusItem`](https://developer.apple.com/documentation/appkit/nsstatusitem), [`button`](https://developer.apple.com/documentation/appkit/nsstatusitem/button), and [`autosaveName`](https://developer.apple.com/documentation/appkit/nsstatusitem/autosavename-swift.property); Apple Developer search for `NSStatusItem button` / `NSStatusItem length` (no direct stale-frame guidance); live GitHub issue `#129`; local code audit of `Core/MenuBarManager+IconMoving.swift`; Mini `verify`, signed `test_mode`, and `startup_layout_probe.rb` on 2026-04-13
+
+### Docs / web notes
+
+1. **Apple still documents only the basic status-item contract here.**
+   - `NSStatusItem` is just the menu-bar element created by `NSStatusBar.statusItem(withLength:)`.
+   - `button` is the customization surface Apple exposes for the visible control.
+   - `autosaveName` is the documented persistence surface for restoring status-item information.
+
+2. **I still do not have an Apple-documented system repair path for stale status-item geometry.**
+   - Apple Developer search did not surface any direct guidance for stale/off-screen `NSStatusItem` window frames or a system-level recovery API.
+   - That keeps the recovery burden inside SaneBar's own geometry/cache logic.
+
+### GitHub notes
+
+1. **`#129` is no longer just the startup-reset path fixed in `2.1.40`.**
+   - The reporter retested on `2.1.40` and came back with repeated `getMainStatusItemLeftEdgeX: stale frame and no fallback available`.
+   - Their fresh defaults still show persisted `NSStatusItem Preferred Position ...` and `SaneBar_Position_Backup_2056_*` keys, so this is not simply a total state wipe.
+
+2. **The reporter explicitly identified a different code path than the one shipped.**
+   - Their comment correctly points at `MenuBarManager.IconMoving`, not the earlier `.invalidStatusItems` / `.missingCoordinates` recovery path.
+
+### Fresh local findings
+
+1. **The geometry fallback was asymmetric.**
+   - Separator recovery could estimate itself from the main icon edge.
+   - Main-icon recovery had only `lastKnownMainStatusItemX`; if that cache was empty, the stale-frame path fell straight to `nil`.
+
+2. **A guarded reciprocal fallback is the smallest defensible fix.**
+   - `getMainStatusItemLeftEdgeX()` now falls back to the separator's right edge only when the separator still exists in visual mode.
+   - This avoids blindly inventing geometry from old separator caches when the separator itself is gone or still in blocking mode.
+
+3. **Fresh Mini proof is green after the patch.**
+   - `./scripts/SaneMaster.rb verify --quiet` passed (`1067` tests).
+   - Signed `./scripts/SaneMaster.rb test_mode --release --no-logs` passed.
+   - `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/startup_layout_probe.rb` passed.
+
+### Conclusion
+
+- The reopened `#129` is a real post-`2.1.40` regression path, not just stale user state.
+- The current fix direction is to keep recovery local to geometry fallback, not widen persisted-state scrubs again.
