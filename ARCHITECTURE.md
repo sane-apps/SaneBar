@@ -88,6 +88,15 @@ The app itself is a single process with modular services that all route through 
 3. If auth is required, event will be blocked.
 4. Auto-rehide scheduled unless pinned.
 
+### Menu Bar Appearance Overlay
+1. `MenuBarManager` pushes `settings.menuBarAppearance` into `MenuBarAppearanceService`.
+2. If Custom Appearance is off, the overlay stays hidden even when app, space, screen, or accessibility-display observers fire later.
+3. If Custom Appearance is on, the overlay tracks the active menu bar screen and re-evaluates visibility on app activation, space changes, screen changes, and transparency changes.
+4. The overlay is suppressed for:
+   - true fullscreen content windows on the active screen
+   - narrow third-party full-width top-host strips that occupy the menu bar region
+5. The overlay is never supposed to re-enable itself; fullscreen/app-switch events may hide or show an already-enabled overlay, but they must not override the saved setting.
+
 ## State Machines
 
 ### App Lifecycle
@@ -320,6 +329,11 @@ NSStatusItems grow **leftward** — right edge stays fixed, left edge extends. W
 6. **Verify** — Re-read AX frame, check icon landed on expected side of separator.
 7. **Retry** — If verification fails, one retry with updated grab point.
 8. **Restore** — `restoreFromShowAll()` + `hide()` to collapse separators back.
+
+#### Geometry fallback guardrails:
+- Separator recovery may estimate the main icon edge from the separator's right edge, but only when the separator is still present in visual mode.
+- Do not reuse separator caches to invent a main-icon boundary when the separator itself is gone or still in blocking mode.
+- The stale-frame `getMainStatusItemLeftEdgeX()` path should degrade to `nil` only after cached main geometry and guarded separator-backed fallback are both unavailable.
 
 #### Key files:
 

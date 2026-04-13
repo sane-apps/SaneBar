@@ -273,6 +273,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             updateWindowLevel()
             refreshOverlayVisibility()
         } else {
+            overlayViewModel?.settings = settings
             hide()
         }
     }
@@ -287,6 +288,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
     private func refreshOverlayVisibility() {
         guard let window = overlayWindow else { return }
+        guard overlayViewModel?.settings.isEnabled == true else {
+            window.orderOut(nil)
+            return
+        }
 
         if Self.shouldSuppressOverlay(
             frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
@@ -321,7 +326,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
 
         guard frontmostPID != selfPID else { return false }
-        guard !bundleID.hasPrefix("com.apple.") else { return false }
 
         func number(_ value: Any?) -> CGFloat? {
             switch value {
@@ -340,8 +344,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
         let targetFrame = targetScreenFrame.standardized
         let minimumCoveredWidth = targetFrame.width * 0.97
+        let minimumCoveredHeight = targetFrame.height * 0.92
         let maximumHorizontalDrift: CGFloat = 8
         let maximumTopDrift: CGFloat = 2
+        let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
 
         for info in windowInfos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
@@ -357,10 +363,18 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             }
 
             let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            guard height >= 20, height <= 26 else { continue }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
-            guard rect.intersection(targetFrame).width >= minimumCoveredWidth else { continue }
+            let coveredRect = rect.intersection(targetFrame)
+
+            if coveredRect.width >= minimumCoveredWidth,
+               coveredRect.height >= minimumCoveredHeight {
+                return true
+            }
+
+            guard suppressThinTopHost else { continue }
+            guard height >= 20, height <= 26 else { continue }
+            guard coveredRect.width >= minimumCoveredWidth else { continue }
             return true
         }
 

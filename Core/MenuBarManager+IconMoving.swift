@@ -74,6 +74,22 @@ extension MenuBarManager {
         return resolved
     }
 
+    /// Estimate the main icon's left edge from a visible separator.
+    /// The separator's right edge should align with the main icon's left edge.
+    nonisolated static func estimatedMainStatusItemLeftEdge(
+        separatorIsPresentInVisualMode: Bool,
+        separatorRightEdge: CGFloat?,
+        separatorOrigin: CGFloat?
+    ) -> CGFloat? {
+        guard separatorIsPresentInVisualMode else { return nil }
+        return normalizedSeparatorRightEdge(
+            cachedRightEdge: separatorRightEdge,
+            cachedOrigin: separatorOrigin,
+            estimatedRightEdge: nil,
+            mainLeftEdge: nil
+        )
+    }
+
     /// Normalize always-hidden separator boundary against its origin cache and the
     /// main separator boundary. Returns nil when the candidate is stale/inverted.
     nonisolated static func normalizedAlwaysHiddenBoundary(
@@ -154,6 +170,34 @@ extension MenuBarManager {
         let originX = max(1, mainLeftEdgeX - visualWidth)
         let rightEdgeX = originX + visualWidth
         return (originX, rightEdgeX)
+    }
+
+    /// Fallback estimate for the main icon edge when its own window is stale but the
+    /// separator still exists in visual mode. This avoids dropping to a nil visible
+    /// boundary when the separator frame is live (or its recent cache is still sane).
+    private func estimatedMainStatusItemLeftEdgeFromSeparator() -> CGFloat? {
+        guard let separatorItem, separatorItem.length <= 1000 else { return nil }
+
+        if let frame = currentLiveSeparatorFrame() {
+            lastKnownSeparatorX = frame.origin.x
+            let rightEdge = Self.estimatedMainStatusItemLeftEdge(
+                separatorIsPresentInVisualMode: true,
+                separatorRightEdge: frame.origin.x + frame.width,
+                separatorOrigin: frame.origin.x
+            ) ?? (frame.origin.x + frame.width)
+            lastKnownSeparatorRightEdgeX = rightEdge
+            return rightEdge
+        }
+
+        let estimated = Self.estimatedMainStatusItemLeftEdge(
+            separatorIsPresentInVisualMode: true,
+            separatorRightEdge: lastKnownSeparatorRightEdgeX,
+            separatorOrigin: lastKnownSeparatorX
+        )
+        if let estimated {
+            lastKnownSeparatorRightEdgeX = estimated
+        }
+        return estimated
     }
 
     private func currentLiveSeparatorFrame() -> CGRect? {
@@ -438,8 +482,19 @@ extension MenuBarManager {
         guard let mainButton = mainStatusItem?.button,
               let mainWindow = mainButton.window
         else {
+            if let cachedX = lastKnownMainStatusItemX {
+                logger.error("🔧 getMainStatusItemLeftEdgeX: mainStatusItem or window is nil, using cached \(cachedX)")
+                return cachedX
+            }
+
+            if let estimated = estimatedMainStatusItemLeftEdgeFromSeparator() {
+                lastKnownMainStatusItemX = estimated
+                logger.warning("🔧 getMainStatusItemLeftEdgeX: mainStatusItem or window is nil, using separator fallback \(estimated)")
+                return estimated
+            }
+
             logger.error("🔧 getMainStatusItemLeftEdgeX: mainStatusItem or window is nil")
-            return lastKnownMainStatusItemX
+            return nil
         }
         let frame = mainWindow.frame
         logger.debug("🔧 getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
@@ -451,6 +506,12 @@ extension MenuBarManager {
         if let cachedX = lastKnownMainStatusItemX {
             logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
             return cachedX
+        }
+
+        if let estimated = estimatedMainStatusItemLeftEdgeFromSeparator() {
+            lastKnownMainStatusItemX = estimated
+            logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using separator fallback \(estimated)")
+            return estimated
         }
 
         logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame and no fallback available")
