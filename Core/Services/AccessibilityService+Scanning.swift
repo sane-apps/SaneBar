@@ -421,13 +421,26 @@ extension AccessibilityService {
         }
 
         let axResolvedPIDs = Set(results.map(\.pid))
-        let windowBackedItems = Self.windowBackedMenuBarItems(
-            candidatePIDs: Set(candidateApps.map(\.processIdentifier))
+        let candidatePIDs = Set(candidateApps.map(\.processIdentifier))
+        let knownNoExtrasPIDs = Set(candidateApps.compactMap { app -> pid_t? in
+            guard let bundleID = Self.resolvedBundleIdentifier(for: app),
+                  likelyLacksExtrasMenuBar(bundleID: bundleID) else {
+                return nil
+            }
+            return app.processIdentifier
+        })
+        let windowBackedItems = Self.windowBackedMenuBarItems(candidatePIDs: candidatePIDs)
+        let windowBackedPIDs = Set(windowBackedItems.map(\.pid))
+        let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: candidatePIDs)
+        let systemWideCandidatePIDs = Self.systemWideFallbackCandidatePIDs(
+            axResolvedPIDs: axResolvedPIDs,
+            knownNoExtrasPIDs: knownNoExtrasPIDs,
+            windowBackedPIDs: windowBackedPIDs,
+            topBarHostPIDs: topBarHostPIDs
         )
-        let systemWideItems = Self.systemWideVisibleMenuBarItems(
-            candidatePIDs: Set(candidateApps.map(\.processIdentifier))
-        )
-        let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: Set(candidateApps.map(\.processIdentifier)))
+        let systemWideItems = systemWideCandidatePIDs.isEmpty
+            ? []
+            : Self.systemWideVisibleMenuBarItems(candidatePIDs: systemWideCandidatePIDs)
 
         logger.debug("Scanned candidate apps in parallel, found \(results.count) menu bar items")
 
@@ -702,6 +715,18 @@ extension AccessibilityService {
         }
 
         appPositions[key] = item
+    }
+
+    internal nonisolated static func systemWideFallbackCandidatePIDs(
+        axResolvedPIDs: Set<pid_t>,
+        knownNoExtrasPIDs: Set<pid_t>,
+        windowBackedPIDs: Set<pid_t>,
+        topBarHostPIDs: Set<pid_t>
+    ) -> Set<pid_t> {
+        knownNoExtrasPIDs
+            .union(windowBackedPIDs)
+            .union(topBarHostPIDs)
+            .subtracting(axResolvedPIDs)
     }
 
     internal nonisolated static func windowBackedMenuBarItems(

@@ -1,5 +1,33 @@
 # SaneBar Research Cache
 
+## Release Runtime Smoke Active-CPU Overrun From Overbroad System-Wide Fallback
+
+**Updated:** 2026-04-14 12:25 ET | **Status:** verified fixed | **TTL:** 14d
+**Source:** Mini `./scripts/SaneMaster.rb release_preflight`; Mini signed `./scripts/SaneMaster.rb test_mode --release --no-logs`; Mini signed `ruby scripts/live_zone_smoke.rb`; Mini `/usr/bin/sample` captures during the active smoke path; local code audit of `Core/Services/AccessibilityService+Scanning.swift`; Mini `xcodebuild test -only-testing:SaneBarTests/AccessibilityServiceTests`; Mini `./scripts/SaneMaster.rb verify`
+
+### Verified Findings
+
+1. The release-lane CPU blocker was real and reproducible on the signed Mini app.
+   - Before the fix, the exact release smoke path failed repeatedly at roughly `16.1%` to `16.8%` active average CPU even after the pass-2 relaunch bug was fixed.
+   - Idle launch and post-smoke settle were already fine; the overrun lived inside the active browse/move flow.
+2. Live stack samples all pointed at the same hot path.
+   - During second-menu-bar open and browse activation, the app spent most of its time in `AccessibilityService.refreshMenuBarItemsWithPositions()` → `listMenuBarItemsWithPositions()` → `systemWideVisibleMenuBarItems(...)` and `enumerateMenuExtraItems(...)`.
+   - The same family is a plausible crossover with the earlier Zoom slowdown complaint because it is real menu-bar scanning work inside normal browse/move interactions, not a release-only fake.
+3. The expensive work was over-broad, not wholly unjustified.
+   - The system-wide scan exists for real fallback cases such as AX-poor menu extras.
+   - The bug was that `listMenuBarItemsWithPositions()` always paid for that full-width system-wide hit-test sweep across the whole menu bar for *all* running candidate apps, even when AX results had already resolved the app or the host only needed narrower fallback handling.
+4. Current main now narrows that fallback to unresolved owners only.
+   - `systemWideFallbackCandidatePIDs(...)` limits the system-wide scan to the union of known `AXExtrasMenuBar`-poor bundles, WindowServer-backed fallback owners, and top-bar-host fallback owners, minus PIDs already resolved through normal AX results.
+   - This keeps Little Snitch-style fallback coverage while skipping unnecessary whole-bar hit-testing for ordinary already-resolved apps.
+5. Fresh Mini proof is green.
+   - Targeted `AccessibilityServiceTests` passed after the change.
+   - Signed standalone `live_zone_smoke.rb` passed with `avgCpu=10.4%` and `peakCpu=31.1%`.
+   - Full Mini `./scripts/SaneMaster.rb verify` passed with `1071` tests.
+   - `release_preflight` runtime smoke now passes both main passes and the focused shared-bundle pass; the remaining blockers are governance/release-state only (`#129` still open, and live email worker drift until the next real release updates it).
+6. The earlier Zoom complaint is still worth grouping with this family, but current Mini evidence is reassuring.
+   - With the official Zoom app launched beside the signed Mini build, the same browse/settings smoke path stayed at `avgCpu=6.0%` and `peakCpu=40.1%` before a known free-mode move fixture stopped the run.
+   - That does not fully prove “during a real conference” behavior, but it does show the fixed scan path stays bounded with Zoom live on the box instead of exploding on sight.
+
 ## 2.1.40 Issue #135 Current-Width Backup Override Clobber
 
 **Updated:** 2026-04-14 10:45 ET | **Status:** verified | **TTL:** 14d
