@@ -2326,6 +2326,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Stable validation should wait briefly for a safe current-width backup instead of assuming one exists immediately"
         )
         XCTAssertTrue(
+            source.contains("StatusBarController.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: statusItemScreen\n            )") &&
+                !source.contains("mainPosition: snapshot.mainX.map(Double.init)") &&
+                !source.contains("separatorPosition: snapshot.separatorX.map(Double.init)"),
+            "Stable backup capture should use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
+        )
+        XCTAssertTrue(
             source.contains("MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(") &&
                 source.contains("trigger: \"always-hidden-position-validation-\\(context.rawValue)\""),
             "Persistent always-hidden separator drift should escalate through the shared bounded recovery policy instead of repeating same-version repairs forever"

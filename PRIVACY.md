@@ -64,18 +64,20 @@ Updates are signed with an **EdDSA signature**. This means:
 
 ---
 
-### Screen Recording (Optional)
+### Screen Recording
 
-**What it does:** Captures menu bar icon images for display.
+**What it does:** SaneBar does not require Screen Recording permission for normal use.
 
-**Why it's needed:** When showing hidden icons in the SaneBar drawer, we display icon thumbnails. The Screen Recording permission lets us capture these images.
+**Why:** SaneBar's product behavior is driven by the Accessibility API. That is how it detects, hides, shows, and rearranges menu bar items.
 
 **What it doesn't do:**
-- Record your screen
-- Capture window contents
-- Save screenshots anywhere
+- Inspect other apps' window contents
+- Inspect Zoom video frames
+- Inspect network packets
 
-**The code:** See `Core/Services/IconCaptureService.swift`
+**Repository note:** The repo still contains a narrow ScreenCaptureKit self-snapshot path for SaneBar's own visible settings window during internal snapshot tooling. It is not used to inspect other apps.
+
+**The code:** See `SaneBarApp.swift` and `Core/Services/AppleScriptCommands.swift`
 
 ---
 

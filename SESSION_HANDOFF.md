@@ -1,14 +1,22 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-04-14
 **Current public release:** `v2.1.40` (build `2140`)
 
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
 - `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email webhook.
+- 2026-04-14 `#135` current-width backup follow-up:
+  - root cause was two-part: `MenuBarManager` had been feeding raw live screen coordinates into current-width backup capture, and `StatusBarController` was still treating any pixel-like override pair as “restorable” even when the pair was reversed and could not actually seed a valid backup
+  - `captureCurrentDisplayPositionBackupIfPossible(...)` now ignores explicit override pairs unless they are launch-safe as-is or can be reanchored toward Control Center; if the override pair cannot seed a backup but the persisted preferred-position pair can, the helper keeps the persisted pair instead of collapsing to the generic launch-safe anchor
+  - fresh Mini proof passed after the hardening: `./scripts/SaneMaster.rb verify` (`1069` tests), signed `./scripts/SaneMaster.rb test_mode --release --no-logs`, `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/startup_layout_probe.rb`, `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/wake_layout_probe.rb`, and signed `live_zone_smoke.rb` in Pro mode
 - `#129` has been reopened after fresh post-`2.1.40` reporter evidence. Current `main` now carries a guarded `MenuBarManager.IconMoving` fallback that derives the main icon edge from the separator only when the separator is still present in visual mode; keep the issue open until a shipped build gets field confirmation.
 - `#133` is still open, but it is no longer the only live SaneBar GitHub issue. Keep treating `#133` as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
+- 2026-04-14 permissions/privacy doc correction:
+  - `PRIVACY.md` previously described an old optional Screen Recording thumbnail flow and referenced a non-existent `IconCaptureService`
+  - current implementation uses Accessibility for product behavior and does not require Screen Recording permission for normal use
+  - the only ScreenCaptureKit path left in the repo is a narrow self-snapshot helper for SaneBar's own settings window used by internal snapshot tooling
 - 2026-04-13 appearance overlay follow-up:
   - fixed a real `MenuBarAppearanceService` lifecycle bug where turning off Custom Appearance only hid the overlay window, but later app/space changes could re-show it
   - `refreshOverlayVisibility()` now keeps the overlay hidden when appearance is disabled instead of reviving stale state

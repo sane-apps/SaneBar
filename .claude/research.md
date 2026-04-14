@@ -1,5 +1,31 @@
 # SaneBar Research Cache
 
+## 2.1.40 Issue #135 Current-Width Backup Override Clobber
+
+**Updated:** 2026-04-14 10:45 ET | **Status:** verified | **TTL:** 14d
+**Source:** GitHub issue `#135`; local code audit of `Core/MenuBarManager.swift` and `Core/Controllers/StatusBarController.swift`; Mini `./scripts/SaneMaster.rb verify`; Mini signed `./scripts/SaneMaster.rb test_mode --release --no-logs`; Mini signed `ruby scripts/startup_layout_probe.rb`; Mini signed `ruby scripts/wake_layout_probe.rb`; Mini signed `ruby scripts/live_zone_smoke.rb`
+
+### Verified Findings
+
+1. `#135` was a real current-width backup clobber on relaunch and wake, not just a reporting mix-up.
+   - Reporter logs showed `Display validation: refusing to save unsafe current-width backup for width 1470.000000 (main=191.000000, separator=511.000000)`.
+   - The same diagnostics snapshot showed the live persisted preferred positions had already collapsed to the generic backup anchor (`main: 160`, `separator: 280`) instead of the user’s wider visible lane.
+2. One caller bug and one helper bug combined to cause the collapse.
+   - `MenuBarManager` had been passing raw runtime screen coordinates (`snapshot.mainX` / `snapshot.separatorX`) into `captureCurrentDisplayPositionBackupIfPossible(...)` even though that helper expects `NSStatusItem` preferred-position values where `separator > main`.
+   - Even after removing those raw-coordinate override arguments from the `MenuBarManager` call sites, `StatusBarController` still treated a reversed override pair as “restorable” if both numbers merely looked pixel-like.
+3. The adjacent helper bug was the real trap.
+   - `hasRestorableDisplayBackup(...)` only means “both values look like pixels,” not “this pair can safely seed a current-width backup.”
+   - A reversed raw-screen pair like `main=1698, separator=1561` therefore bypassed the first guard, failed launch-safe validation, failed reanchoring, and then fell all the way back to the generic launch-safe recovery pair (`144/264` on the Mini’s 1920-wide screen, `160/280` on wider displays).
+4. Current main now blocks both failure paths.
+   - `MenuBarManager` stable-validation and recovery capture paths no longer pass raw snapshot coordinates into `captureCurrentDisplayPositionBackupIfPossible(...)`.
+   - `StatusBarController` now ignores explicit override pairs unless they can actually seed the current-width backup (launch-safe as-is or reanchorable). If the override pair cannot seed a backup but the persisted preferred-position pair can, the helper keeps the persisted pair instead of collapsing to the generic anchor.
+5. Fresh Mini proof is green on the signed app lane.
+   - `./scripts/SaneMaster.rb verify` passed with `1069` tests.
+   - Signed `./scripts/SaneMaster.rb test_mode --release --no-logs` staged `/Applications/SaneBar.app` successfully.
+   - Signed `ruby scripts/startup_layout_probe.rb` passed.
+   - Signed `ruby scripts/wake_layout_probe.rb` passed.
+   - Signed `ruby scripts/live_zone_smoke.rb` passed in Pro mode with hidden/visible and always-hidden move checks green and resource watchdog averages around `10.6%` CPU / `128.1MB` RSS.
+
 ## 2.1.40 Release Clearance + Post-Ship State
 
 **Updated:** 2026-04-09 19:45 ET | **Status:** verified | **TTL:** 14d

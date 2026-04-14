@@ -932,9 +932,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     ) async -> Bool {
         for attempt in 1 ... maxAttempts {
             if StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
-                referenceScreen: statusItemScreen,
-                mainPosition: snapshot.mainX.map(Double.init),
-                separatorPosition: snapshot.separatorX.map(Double.init)
+                referenceScreen: statusItemScreen
             ) {
                 return true
             }
@@ -987,11 +985,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         switch action {
         case .captureCurrentDisplayBackup:
             pendingRecoveryHideRestore = false
-            let snapshot = currentStatusItemRecoverySnapshot()
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
-                referenceScreen: statusItemScreen,
-                mainPosition: snapshot.mainX.map(Double.init),
-                separatorPosition: snapshot.separatorX.map(Double.init)
+                referenceScreen: statusItemScreen
             )
 
         case let .repairPersistedLayoutAndRecreate(reason):

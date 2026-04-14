@@ -638,6 +638,25 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
     }
 
+    private nonisolated static func canSeedCurrentDisplayBackup(
+        mainPosition: Double?,
+        separatorPosition: Double?,
+        screenWidth: Double,
+        screenHasTopSafeAreaInset: Bool
+    ) -> Bool {
+        isLaunchSafeDisplayBackup(
+            mainBackup: mainPosition,
+            separatorBackup: separatorPosition,
+            screenWidth: screenWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        ) || reanchoredPreferredPositionsTowardControlCenter(
+            mainPosition: mainPosition,
+            separatorPosition: separatorPosition,
+            screenWidth: screenWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        ) != nil
+    }
+
     nonisolated static func reanchoredPreferredPositionsTowardControlCenter(
         mainPosition: Double?,
         separatorPosition: Double?,
@@ -818,8 +837,30 @@ final class StatusBarController: StatusBarControllerProtocol {
         guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
         let currentWidth = resolvedReferenceScreen.frame.width
         let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(resolvedReferenceScreen)
-        let mainPosition = overrideMainPosition ?? resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
-        let separatorPosition = overrideSeparatorPosition ?? resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
+        let persistedMainPosition = resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
+        let persistedSeparatorPosition = resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
+        let hasExplicitOverride = overrideMainPosition != nil || overrideSeparatorPosition != nil
+        let overridePairCanSeedBackup = canSeedCurrentDisplayBackup(
+            mainPosition: overrideMainPosition,
+            separatorPosition: overrideSeparatorPosition,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+        )
+        let persistedPairCanSeedBackup = canSeedCurrentDisplayBackup(
+            mainPosition: persistedMainPosition,
+            separatorPosition: persistedSeparatorPosition,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+        )
+        let shouldIgnoreOverridePair = hasExplicitOverride && !overridePairCanSeedBackup && persistedPairCanSeedBackup
+        let mainPosition = shouldIgnoreOverridePair ? persistedMainPosition : (overrideMainPosition ?? persistedMainPosition)
+        let separatorPosition = shouldIgnoreOverridePair ? persistedSeparatorPosition : (overrideSeparatorPosition ?? persistedSeparatorPosition)
+
+        if shouldIgnoreOverridePair {
+            logger.warning(
+                "Display validation: ignoring invalid override positions during current-width backup capture (main=\(overrideMainPosition ?? -1, privacy: .public), separator=\(overrideSeparatorPosition ?? -1, privacy: .public))"
+            )
+        }
 
         if isLaunchSafeDisplayBackup(
             mainBackup: mainPosition,
