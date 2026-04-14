@@ -729,6 +729,15 @@ class ProjectQA
         pass_number = index + 1
         puts "   ↳ smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}"
 
+        if pass_number > 1
+          unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+            File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+            @errors << "Runtime smoke could not relaunch target #{target[:app_path]} before pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}."
+            puts "❌ relaunch failed before pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
+            return
+          end
+        end
+
         attempt = 0
         loop do
           attempt += 1
