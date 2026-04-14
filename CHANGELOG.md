@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.41] - 2026-04-14
+
+Fixes the remaining current-width backup capture bug behind issue 135. Improves stale-frame recovery when the main icon edge has to fall back from the separator. Reduces menu bar scanning overhead during browse and release smoke so runtime behavior stays faster and more stable.
+
+---
+
 ## [2.1.40] - 2026-04-09
 
 Fixes recovery when SaneBar was already stuck in a missing-icon state after an upgrade, reinstall, or reset. Improves startup recovery when saved menu bar geometry is invalid. Fixes the Advanced Workflow setup screen so all controls fit cleanly in the window.
