@@ -2140,4 +2140,56 @@ struct StatusBarControllerTests {
         #expect(storedBackupMain == liveMain, "Live fallback main position should seed the current-width backup")
         #expect(storedBackupSeparator == liveSeparator, "Live fallback separator position should seed the current-width backup")
     }
+
+    @Test("Invalid override positions do not clobber a restorable current-width backup source")
+    @MainActor
+    func captureCurrentDisplayPositionBackupIgnoresInvalidOverridePositions() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for invalid override display backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let persistedMain = StatusBarController.launchSafePreferredMainPositionLimit(
+            for: currentWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        )
+        let persistedSeparator = persistedMain + 196.0
+        defaults.set(persistedMain, forKey: mainKey)
+        defaults.set(persistedSeparator, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+                mainPosition: currentWidth - 222.0,
+                separatorPosition: currentWidth - 359.0
+            ),
+            "Invalid override positions should fall back to the persisted preferred-position pair instead of shrinking the backup to a generic launch-safe anchor"
+        )
+
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(storedBackupMain == persistedMain, "Invalid override positions should leave the current-width main backup anchored to the persisted preferred-position value")
+        #expect(storedBackupSeparator == persistedSeparator, "Invalid override positions should leave the current-width separator backup anchored to the persisted preferred-position value")
+    }
 }
