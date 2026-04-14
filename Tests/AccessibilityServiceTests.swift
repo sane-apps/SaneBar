@@ -642,6 +642,30 @@ struct AccessibilityServiceTests {
         #expect(pids.isEmpty)
     }
 
+    @Test("System-wide fallback candidates stay limited to unresolved fallback owners")
+    func testSystemWideFallbackCandidatePIDsStayNarrow() {
+        let candidates = AccessibilityService.systemWideFallbackCandidatePIDs(
+            axResolvedPIDs: Set([100, 101]),
+            knownNoExtrasPIDs: Set([100, 200]),
+            windowBackedPIDs: Set([300]),
+            topBarHostPIDs: Set([101, 400])
+        )
+
+        #expect(candidates == Set([200, 300, 400]))
+    }
+
+    @Test("System-wide fallback candidates empty when AX already resolved everything")
+    func testSystemWideFallbackCandidatePIDsEmptyWhenResolved() {
+        let candidates = AccessibilityService.systemWideFallbackCandidatePIDs(
+            axResolvedPIDs: Set([100, 200, 300]),
+            knownNoExtrasPIDs: Set([100, 200]),
+            windowBackedPIDs: Set([300]),
+            topBarHostPIDs: Set([100, 200, 300])
+        )
+
+        #expect(candidates.isEmpty)
+    }
+
     @Test("Third-party top-bar fallback allowlist stays narrow")
     func testThirdPartyTopBarFallbackAllowlistStaysNarrow() {
         #expect(AccessibilityService.shouldAllowThirdPartyTopBarFallback(bundleID: "at.obdev.littlesnitch.networkmonitor"))
