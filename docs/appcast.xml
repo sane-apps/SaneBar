@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                <item>
+                                                                                                        <item>
+            <title>2.1.41</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 14 Apr 2026 14:48:00 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes the remaining current-width backup capture bug behind issue 135. Improves stale-frame recovery when the main icon edge has to fall back from the separator. Reduces menu bar scanning overhead during browse and release smoke so runtime behavior stays faster and more stable.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.41.zip"
+                       sparkle:version="2141"
+                       sparkle:shortVersionString="2.1.41"
+                       length="8700558"
+                       type="application/octet-stream"
+                       sparkle:edSignature="h57EDqSYG6WDFDf9LfbnyK30//Pr+bcmQceIhNGHwmli6LxfklJgya/krEVkJQjUxLUkd4i5RNXfFZxsvw3YBA=="/>
+        </item>
+<item>
             <title>2.1.40</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 09 Apr 2026 19:41:37 -0400</pubDate>
