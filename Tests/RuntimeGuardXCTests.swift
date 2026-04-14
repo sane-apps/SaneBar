@@ -1510,6 +1510,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should record a per-pass process sample path alongside the smoke transcript"
         )
         XCTAssertTrue(
+            source.contains("if pass_number > 1") &&
+                source.contains("Runtime smoke could not relaunch target") &&
+                source.contains("relaunch failed before pass"),
+            "Project QA runtime smoke should relaunch between passes so every launch-idle budget check measures a fresh app launch"
+        )
+        XCTAssertTrue(
             source.contains("retryable_runtime_smoke_failure?(smoke_out)") &&
                 source.contains("relaunching after transient runtime smoke budget blip"),
             "Project QA runtime smoke should retry exactly the narrow transient budget-blip path before failing the release"

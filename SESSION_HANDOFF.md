@@ -6,11 +6,17 @@
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
-- `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email webhook.
+- `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, and Homebrew.
+- The live email webhook is still drifting behind at `2.1.38` / build `2138`; `release_preflight` currently blocks on that customer-facing mismatch until the next clean release updates and redeploys the worker.
 - 2026-04-14 `#135` current-width backup follow-up:
   - root cause was two-part: `MenuBarManager` had been feeding raw live screen coordinates into current-width backup capture, and `StatusBarController` was still treating any pixel-like override pair as “restorable” even when the pair was reversed and could not actually seed a valid backup
   - `captureCurrentDisplayPositionBackupIfPossible(...)` now ignores explicit override pairs unless they are launch-safe as-is or can be reanchored toward Control Center; if the override pair cannot seed a backup but the persisted preferred-position pair can, the helper keeps the persisted pair instead of collapsing to the generic launch-safe anchor
   - fresh Mini proof passed after the hardening: `./scripts/SaneMaster.rb verify` (`1069` tests), signed `./scripts/SaneMaster.rb test_mode --release --no-logs`, `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/startup_layout_probe.rb`, `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/wake_layout_probe.rb`, and signed `live_zone_smoke.rb` in Pro mode
+- 2026-04-14 release-lane follow-up:
+  - fixed a real QA harness bug where release smoke pass 2 reused the same live process but still enforced a fresh `launch` idle budget, causing false pass-2 regressions instead of a true relaunch check
+  - `Scripts/qa.rb` now relaunches the staged target before every smoke pass after pass 1, so each `launch` idle budget measures a real fresh launch
+  - routed `release_preflight` no longer blocks on unrelated dirty/out-of-sync local `sane-email-automation` state; only real `release` runs sync a clean worker checkout to the Mini
+  - after the routing + smoke harness fixes, standard `release_preflight` now reaches the true blockers: active runtime smoke average CPU at `16.1%` > `15.0%`, open regression `#129`, and live email worker drift (`2.1.38` vs appcast `2.1.40`)
 - `#129` has been reopened after fresh post-`2.1.40` reporter evidence. Current `main` now carries a guarded `MenuBarManager.IconMoving` fallback that derives the main icon edge from the separator only when the separator is still present in visual mode; keep the issue open until a shipped build gets field confirmation.
 - `#133` is still open, but it is no longer the only live SaneBar GitHub issue. Keep treating `#133` as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
 - 2026-04-14 permissions/privacy doc correction:
