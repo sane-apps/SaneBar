@@ -8,7 +8,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.41] - 2026-04-14
 
-Fixes the remaining current-width backup capture bug behind issue 135. Improves stale-frame recovery when the main icon edge has to fall back from the separator. Reduces menu bar scanning overhead during browse and release smoke so runtime behavior stays faster and more stable.
+Browse Icons and the second menu bar now feel lighter and use less CPU on busy menu bars. Improves layout recovery after restart and wake so your icon setup stays where you put it. Full-screen video now hides Custom Appearance correctly, and turning it off stays off.
 
 ---
 
