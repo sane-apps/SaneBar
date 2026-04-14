@@ -1,13 +1,22 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-04-14
-**Current public release:** `v2.1.40` (build `2140`)
+**Current public release:** `v2.1.41` (build `2141`)
 
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
-- `v2.1.40` is live on direct ZIP, appcast, website/download page, GitHub release, and Homebrew.
-- The live email webhook is still drifting behind at `2.1.38` / build `2138`; `release_preflight` currently blocks on that customer-facing mismatch until the next clean release updates and redeploys the worker.
+- `v2.1.41` is live on direct ZIP, appcast, website/download page, GitHub release, and the email/download worker.
+- 2026-04-14 post-release note repair:
+  - the initial `2.1.41` binary release was good, but the GitHub release body and live appcast still carried overly technical note text
+  - `origin/main` was corrected in commit `295b774` (`docs: soften 2.1.41 release notes`)
+  - a clean Mini temp clone then ran `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project <clone> --website-only` successfully, which republished the softened appcast/site note text without rebuilding the app
+  - the GitHub release body for `v2.1.41` was then edited to match the same customer-facing wording
+  - live final state is aligned: binary, appcast, website/download page, GitHub release body, and email worker all point to `2.1.41`
+- `2.1.41` shipped these customer-visible fixes:
+  - Browse Icons and the second menu bar use less CPU on busy menu bars
+  - layout recovery after restart and wake is more stable
+  - full-screen video now hides Custom Appearance correctly, and turning it off stays off
 - 2026-04-14 `#135` current-width backup follow-up:
   - root cause was two-part: `MenuBarManager` had been feeding raw live screen coordinates into current-width backup capture, and `StatusBarController` was still treating any pixel-like override pair as “restorable” even when the pair was reversed and could not actually seed a valid backup
   - `captureCurrentDisplayPositionBackupIfPossible(...)` now ignores explicit override pairs unless they are launch-safe as-is or can be reanchored toward Control Center; if the override pair cannot seed a backup but the persisted preferred-position pair can, the helper keeps the persisted pair instead of collapsing to the generic launch-safe anchor
@@ -20,7 +29,7 @@
   - current `main` now narrows the system-wide scan to unresolved fallback owners only (`knownNoExtras + windowBacked + topBarHost - axResolved`), which dropped the signed Mini smoke back under budget
   - fresh Mini proof after the scan narrowing: targeted `AccessibilityServiceTests` passed, signed standalone `live_zone_smoke.rb` passed at `avgCpu=10.4%`, full `./scripts/SaneMaster.rb verify` passed (`1071` tests), and `release_preflight` runtime smoke x2 plus focused shared-bundle smoke all passed
   - Zoom crossover check: with the official Zoom app launched on the Mini, the same browse/settings smoke path stayed bounded at `avgCpu=6.0%` / `peakCpu=40.1%` before a known free-mode move fixture ended the direct smoke; treat the earlier Zoom slowdown complaint as plausible same-family history, but not as a currently reproducible runaway on fixed `main`
-  - current remaining `release_preflight` blockers are now release-governance only: open regression `#129` and live email worker drift (`2.1.38` vs appcast `2.1.40`) until the next shipped build updates the worker
+  - `2.1.41` was shipped after the required open-regression override phrase was explicitly approved for still-open `#129`
 - `#129` has been reopened after fresh post-`2.1.40` reporter evidence. Current `main` now carries a guarded `MenuBarManager.IconMoving` fallback that derives the main icon edge from the separator only when the separator is still present in visual mode; keep the issue open until a shipped build gets field confirmation.
 - `#133` is still open, but it is no longer the only live SaneBar GitHub issue. Keep treating `#133` as the Tahoe supplemental-build Apple-side tracker unless fresh non-25D771280a evidence appears.
 - 2026-04-14 permissions/privacy doc correction:
@@ -36,17 +45,12 @@
   - fixed the asymmetric stale-frame fallback in `MenuBarManager.IconMoving`: separator recovery could estimate itself from the main icon, but the main icon had no reciprocal fallback when its own frame stayed stale
   - `getMainStatusItemLeftEdgeX()` now falls back to the separator's right edge only when the separator is still visually present, instead of dropping straight to `nil`
   - fresh Mini proof passed after the fix: `./scripts/SaneMaster.rb verify --quiet` (`1067` tests), signed `./scripts/SaneMaster.rb test_mode --release --no-logs`, and `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby scripts/startup_layout_probe.rb`
-- Fresh Mini release proof for `2.1.40`:
-  - `release_preflight` was technically green; the only gate failure was the known open-regression policy check on `#129`
-  - signed staged release launch passed
-  - startup layout probe passed
-  - wake layout probe passed
-  - release runtime smoke passed
-  - full `verify` passed (`1062` tests)
-- `2.1.40` shipped these customer-visible fixes:
-  - hard reset for already-broken missing-icon startup state carried across upgrade/reinstall/reset
-  - hard reset for invalid persisted startup geometry on initial startup + startup follow-up
-  - `Advanced Workflow` onboarding page now fits cleanly with the footer controls fully visible
+- Fresh Mini release proof for `2.1.41`:
+  - signed targeted `AccessibilityServiceTests` passed
+  - signed standalone `live_zone_smoke.rb` passed at `avgCpu=10.4%`
+  - full `./scripts/SaneMaster.rb verify` passed (`1071` tests)
+  - clean routed `release_preflight` passed tests, runtime smoke x2, focused shared-bundle smoke, startup layout probe, git clean, and branch sync
+  - live post-release checks now pass across direct ZIP, appcast, website, GitHub release, and email worker config
 - Treat the older entries in this file as archival notes only.
 
 ## Archived Notes

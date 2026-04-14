@@ -1,5 +1,26 @@
 # SaneBar Research Cache
 
+## 2.1.41 Live Notes Repair And Final Public-State Alignment
+
+**Updated:** 2026-04-14 14:56 ET | **Status:** verified | **TTL:** 14d
+**Source:** local `origin/main` audit at commit `295b774`; Mini clean temp clone `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project <clone> --website-only`; live `https://sanebar.com/appcast.xml`; GitHub release `v2.1.41`; email worker debug download config
+
+### Verified Findings
+
+1. The initial `2.1.41` binary release was technically good, but two public note surfaces were stale.
+   - The live appcast and GitHub release body still used the internal/technical wording about current-width backup capture and separator fallback.
+   - `origin/main` itself was already corrected in commit `295b774` (`docs: soften 2.1.41 release notes`).
+2. The correct repair path was a website-only republish, not a new binary release.
+   - A clean Mini temp clone at `origin/main` successfully ran `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project <clone> --website-only`.
+   - That republished the softened `docs/appcast.xml` contents to the live site without rebuilding, re-signing, or re-uploading the app archive.
+3. The GitHub release body had to be corrected separately.
+   - Editing the `v2.1.41` release body through `gh release edit` brought it in line with the softened customer-facing wording already in `CHANGELOG.md` / `docs/appcast.xml`.
+4. Final public release state is aligned.
+   - Live appcast now says: “Browse Icons and the second menu bar now feel lighter and use less CPU on busy menu bars...” and still points to `https://dist.sanebar.com/updates/SaneBar-2.1.41.zip`.
+   - GitHub release `v2.1.41` now uses the same softened wording.
+   - Email worker debug config serves `SaneBar-2.1.41.zip` / `2.1.41`.
+   - No further worker or binary release action was required.
+
 ## Release Runtime Smoke Active-CPU Overrun From Overbroad System-Wide Fallback
 
 **Updated:** 2026-04-14 12:25 ET | **Status:** verified fixed | **TTL:** 14d
