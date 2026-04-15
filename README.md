@@ -7,7 +7,7 @@
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-open--source--mac--os--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
-> **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $6.99](https://sanebar.com)** · Keeps development alive
+> **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $14.99 once](https://sanebar.com)** · Keeps development alive
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
@@ -38,7 +38,7 @@ Hide menu bar apps you do not need right now, keep the important ones visible, a
 
 **SaneBar Basic is $0.** Hide and show icons, browse your menu bar, search for any icon — all included.
 
-Want more? **[Upgrade to Pro ($6.99 once)](https://sanebar.com)** for Touch ID lock, smart triggers, profiles, custom styling, and more. One-time purchase, no subscriptions.
+Want more? **[Upgrade to Pro ($14.99 once)](https://sanebar.com)** for Touch ID lock, smart triggers, profiles, custom styling, and more. One-time purchase, no subscriptions.
 
 ### Install
 
@@ -93,7 +93,7 @@ Pro adds drag reordering, drag moves between **Visible**, **Hidden**, and **Alwa
 
 ![Privacy Settings](docs/images/settings-general.png)
 
-### Pro — Power User Features ($6.99 once)
+### Pro — Power User Features ($14.99 once)
 
 Everything in Basic, plus:
 
@@ -346,7 +346,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **AppleScript** | Yes | Yes | No | No |
 | **100% Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
 | **On-Device by Default** | Yes | No (telemetry) | Yes | Yes |
-| **Pricing** | Basic ($0) / Pro $6.99 | $16 | Free | Free |
+| **Pricing** | Basic ($0) / Pro $14.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |
 
 ## License

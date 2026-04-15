@@ -24,7 +24,7 @@ It's free, works on macOS 15 Sequoia and the upcoming Tahoe with Liquid Glass su
 **Links:**
 - Website: https://sanebar.com
 - GitHub: https://github.com/sane-apps/SaneBar (100% Transparent Code, build from source free)
-- Purchase: $6.99 at sanebar.com (notarized download)
+- Purchase: $14.99 at sanebar.com (notarized download)
 
 Happy to provide screenshots, promo codes, or answer any questions.
 

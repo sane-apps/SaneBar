@@ -27,7 +27,7 @@ Don't just dump code here. Treat the README as a landing page for developers and
 * **Privacy Pledge:**  
   * Include the content from the "About" screen: *"No analytics. No telemetry. No network requests."* This is a massive selling point against competitors who have recently faced privacy backlashes.  
 * **Installation:**  
-  * Purchase at sanebar.com ($6.99) or build from source on GitHub (free).  
+  * Purchase at sanebar.com ($14.99) or build from source on GitHub (free).
 * **Issues/Roadmap:**  
   * Keep a pinned issue of "Coming Soon" features to show the project is alive.
 

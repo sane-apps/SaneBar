@@ -23,7 +23,7 @@
 
 ### 2. Normies (Regular Mac Users)
 **Who:** Anyone with a cluttered menu bar who googles "hide menu bar icons mac"
-**Why SaneBar:** It just works, $6.99, no subscription
+**Why SaneBar:** It just works, $14.99, no subscription
 **Payment:** Credit card via Lemon Squeezy
 **Where to find them:**
 - Google SEO ("Bartender alternative", "hide menu bar mac")
@@ -77,7 +77,7 @@
 ### 1. Lemon Squeezy (Already Done ✅)
 - **Status:** Active, Revenue Streaming
 - **Access:** Full API Access (Legacy Key) - Can create products, manage orders, and check sales.
-- **Current Offering:** $6.99 one-time purchase
+- **Current Offering:** $14.99 one-time purchase
 - **Stats:** 115 sales, $575 revenue
 
 ### 2. Crypto Payments (TODO)
@@ -93,7 +93,7 @@
 **Option B: Coinbase Commerce (Easier, 1% fee)**
 ```
 1. Sign up at commerce.coinbase.com
-2. Create a $6.99 checkout for SaneBar
+2. Create a $14.99 checkout for SaneBar
 3. Embed button on website
 4. Webhook delivers license
 ```
@@ -114,7 +114,7 @@ Just like SaneBar itself - private by default."
 - $1/month - Entry level
 
 **Growth ideas:**
-- Add higher tiers ($6.99, $10, $25) with perks
+- Add higher tiers ($14.99, $25, $50) with perks
 - Mention in release notes: "If SaneBar saves you time, consider sponsoring"
 - Email existing customers asking for sponsorship
 - Add sponsor shoutouts in README
@@ -210,7 +210,7 @@ When you say "opportunities" or "how are we doing", I check:
 - Touch ID to reveal hidden icons
 - Zero network calls (verify with Little Snitch)
 - Works on macOS Tahoe
-- $6.99 one-time, or build from source
+- $14.99 one-time, or build from source
 
 4/ It's been 3 weeks since launch:
 - XXX GitHub stars
@@ -232,7 +232,7 @@ Built a menu bar manager for macOS that doesn't spy on you.
 
 Verify yourself: `sudo lsof -i -n -P | grep SaneBar` returns nothing.
 
-$6.99 or build from source: https://sanebar.com
+$14.99 or build from source: https://sanebar.com
 
 #macOS #privacy #indiedev
 ```

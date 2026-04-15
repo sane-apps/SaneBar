@@ -54,7 +54,7 @@ Quick facts:
 - Hides/shows menu bar icons with a click or keyboard shortcut
 - 100% on-device, no analytics, no cloud
 - Works on macOS Tahoe (15.0+) while competitors break
-- $6.99 one-time purchase (100% Transparent Code on GitHub)
+- $14.99 one-time purchase (100% Transparent Code on GitHub)
 
 SaneBar emerged as a privacy-focused alternative after the Bartender
 acquisition raised trust concerns in 2024. Would love to share more

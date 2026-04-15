@@ -840,7 +840,7 @@ private struct FreeVsProPage: View {
         HStack(alignment: .top, spacing: 14) {
             selectableTierCard(
                 tier: .pro,
-                title: licenseService.usesSetappDistribution ? "Pro — Setapp" : "Pro — $6.99",
+                title: licenseService.usesSetappDistribution ? "Pro — Setapp" : "Pro — \(licenseService.displayPriceLabel)",
                 price: licenseService.usesSetappDistribution ? "Included with your Setapp install" : "One-time — yours forever",
                 features: [
                     ("checkmark", "Everything in Basic, plus:"),
@@ -861,7 +861,7 @@ private struct FreeVsProPage: View {
                             Button {
                                 Task { await licenseService.purchasePro() }
                             } label: {
-                                Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro")
+                                Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro — \(licenseService.displayPriceLabel)")
                                     .font(.system(size: 13, weight: .semibold))
                                     .frame(maxWidth: .infinity)
                             }
@@ -883,7 +883,7 @@ private struct FreeVsProPage: View {
                             Button {
                                 NSWorkspace.shared.open(LicenseService.checkoutURL())
                             } label: {
-                                Text("Unlock Pro")
+                                Text("Unlock Pro — \(licenseService.displayPriceLabel)")
                                     .font(.system(size: 13, weight: .semibold))
                                     .frame(maxWidth: .infinity)
                             }

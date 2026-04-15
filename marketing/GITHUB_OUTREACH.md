@@ -80,7 +80,7 @@ Hope you find something that works!
 ### Template B: Feature Exists Response
 ```markdown
 Just wanted to mention - if you're still looking for this, [SaneBar](https://sanebar.com)
-has [feature] built in. I switched after running into similar issues. It's $6.99 or free
+has [feature] built in. I switched after running into similar issues. It's $14.99 or free
 to build from source.
 ```
 

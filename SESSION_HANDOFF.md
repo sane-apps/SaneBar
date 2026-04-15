@@ -7,6 +7,9 @@
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
 - `v2.1.41` is live on direct ZIP, appcast, website/download page, GitHub release, and the email/download worker.
+- Pricing rollout source of truth for current customer-facing surfaces: `Basic = free`, `Pro = $14.99 once`, `direct download only`.
+- Do not reintroduce App Store or Setapp positioning in customer-facing copy unless the distribution strategy is intentionally changed again.
+- Track pricing impact with `ruby ~/SaneApps/infra/SaneProcess/scripts/SaneMaster.rb sales --products`, `downloads --app SaneBar --days 30`, and `events --app SaneBar --days 30` before and after rollout windows.
 - 2026-04-14 post-release note repair:
   - the initial `2.1.41` binary release was good, but the GitHub release body and live appcast still carried overly technical note text
   - `origin/main` was corrected in commit `295b774` (`docs: soften 2.1.41 release notes`)
@@ -282,14 +285,10 @@
 
 ## Addendum (2026-03-17)
 
-- Setapp single-app distribution is now documented as SaneBar's likely third channel alongside direct download.
+- Historical note only: this session documented a possible Setapp lane.
+- Current strategy has since settled on direct download only unless distribution is deliberately revisited.
 - Direct Lemon Squeezy + Sparkle remains the website/direct business path.
 - The current full-featured Mac App Store lane stays intentionally disabled.
-- Setapp-specific blockers/gotchas are now captured in `ARCHITECTURE.md` and `.claude/research.md`:
-  - separate `-setapp` bundle ID
-  - no Sparkle / no direct licensing UI / no donate UI in the Setapp build
-  - explicit Setapp `.userInteraction` reporting because SaneBar is a menu bar app
-  - universal-binary readiness and real `setappPublicKey.pem` still need proof
 
 ---
 

@@ -32,7 +32,7 @@ Currently you only have $1 tier. You're leaving money on the table.
 ### 2. Create Twitter @SaneApps (5 min)
 Go to: https://twitter.com/signup
 - Handle: @SaneApps (or @MrSaneApps)
-- Bio: "Menu bar manager for macOS. Touch ID lock. Zero telemetry. $5."
+- Bio: "Menu bar manager for macOS. Touch ID lock. Zero telemetry. $14.99 once."
 - Pin your Product Hunt launch
 
 ### 3. Share Product Hunt Link (2 min)

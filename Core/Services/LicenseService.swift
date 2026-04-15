@@ -97,6 +97,10 @@ final class LicenseService: ObservableObject {
         distributionChannel == .setapp
     }
 
+    var displayPriceLabel: String {
+        appStoreDisplayPrice ?? "$14.99"
+    }
+
     var distributionChannel: SaneDistributionChannel {
         Self.resolvedDistributionChannel(
             appStoreProductIDPresent: Self.appStoreProductIDFromBundle() != nil,
@@ -475,6 +479,7 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
     var purchaseError: String?
     private(set) var appStoreDisplayPrice: String?
 
+    var displayPriceLabel: String { base.displayPriceLabel }
     var alternateEntryLabel: String { LicenseService.keyEntryButtonLabel() }
     var accessManagementLabel: String { LicenseService.deactivateLicenseLabel() }
     var alternateEntryInstruction: String { LicenseService.licenseEmailInstruction() }
