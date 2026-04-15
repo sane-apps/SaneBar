@@ -71,7 +71,7 @@ struct ProUpsellView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.92))
                 } else {
-                    Text(licenseService.appStoreDisplayPrice ?? "$6.99")
+                    Text(licenseService.displayPriceLabel)
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.saneAccentSoft)
 
@@ -84,7 +84,7 @@ struct ProUpsellView: View {
                     Button {
                         Task { await licenseService.purchasePro() }
                     } label: {
-                        Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro")
+                        Text(licenseService.isPurchasing ? "Processing..." : "Unlock Pro — \(licenseService.displayPriceLabel)")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -110,7 +110,7 @@ struct ProUpsellView: View {
                     Button {
                         NSWorkspace.shared.open(LicenseService.checkoutURL())
                     } label: {
-                        Text("Unlock Pro")
+                        Text("Unlock Pro — \(licenseService.displayPriceLabel)")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

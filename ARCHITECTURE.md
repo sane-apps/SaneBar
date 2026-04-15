@@ -242,15 +242,11 @@ See `PRIVACY.md` for details and rationale.
   - Sparkle is used for updates (appcast in Info.plist)
   - update feed: `https://sanebar.com/appcast.xml`
   - release builds produce a notarized DMG hosted via Cloudflare R2 and `dist.sanebar.com`
+- The current public channel is direct download only.
+- Basic stays free and Pro is a one-time `$14.99` unlock on direct surfaces.
 - The current full-featured Mac App Store lane is intentionally disabled.
-- Planned Setapp lane is a third distribution channel, not a repackaged direct build:
-  - separate `-setapp` bundle ID
-  - Setapp-managed entitlement/update path
-  - no Sparkle
-  - no Lemon Squeezy key-entry / purchase UI
-  - no donate/sponsorship UI in the Setapp build
-  - same core feature set where Setapp policy allows it
-- Direct Lemon Squeezy sales stay in place for the website/direct channel. Setapp using Stripe does not replace that business flow.
+- Experimental Setapp artifacts still exist in the repo, but Setapp is not an active distribution lane and should not be described as current strategy until a dedicated lane is deliberately revived and re-validated.
+- Direct Lemon Squeezy sales stay in place for the website/direct channel.
 
 ## Build and Release Infrastructure
 
@@ -259,11 +255,11 @@ See `PRIVACY.md` for details and rationale.
 - **Appcast**: Sparkle reads `SUFeedURL` from `SaneBar/Info.plist` → `https://sanebar.com/appcast.xml`.
 - **Sparkle key**: `7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=` (shared across all SaneApps).
 - **Release workflow**: see DEVELOPMENT.md § Release Process and ARCHITECTURE.md § Operations & Scripts Reference.
-- **Setapp-specific gotchas**:
+- **Dormant Setapp notes**:
   - menu bar apps must report Setapp `.userInteraction` events on real menu bar activation
   - Setapp macOS 13+ updates require `NSUpdateSecurityPolicy` authorizing `com.setapp.DesktopClient.SetappAgent`
   - if the Setapp build is sandboxed, it needs the `com.setapp.ProvisioningService` Mach lookup exception
-  - current project settings are `arm64` only, so Setapp universal-binary readiness must be verified deliberately instead of assumed
+  - current project settings are `arm64` only, so Setapp universal-binary readiness must be re-verified instead of assumed
 
 ## Error Handling and Recovery
 

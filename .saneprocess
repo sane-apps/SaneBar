@@ -50,9 +50,9 @@ website_domain: sanebar.com
 
 appstore:
   enabled: false
-  # Current strategy: direct-download + possible future Setapp build.
+  # Current strategy: direct-download only.
   # Do not route the current full-featured build through App Store release automation.
-  # Create/register SaneBar in App Store Connect, then set its numeric app_id.
+  # App Store metadata below is retained only as dormant reference and is not an active lane.
   app_id: "6759464256"
   product_id: "com.sanebar.app.pro.unlock"
   configuration: Release-AppStore
@@ -73,7 +73,7 @@ appstore:
       keywords: "menu bar,hide icons,status bar,productivity,notch,mac utility,focus,desktop"
       whats_new: "Improved icon move reliability, faster refresh, and stronger stability around launch and permissions."
       marketing_url: "https://sanebar.com"
-  review_notes: "SaneBar manages menu bar icon visibility and positioning. The feature uses Accessibility APIs (AXIsProcessTrusted, AXUIElement) and CGEvent-based interactions to inspect and move status items exactly where users place them. The app also supports optional AppleScript automation for user-triggered workflows. These capabilities cannot work without Accessibility or automation permissions because macOS does not provide a lower-privilege API to read or reposition third-party menu bar items. Basic is free. Pro is a one-time in-app purchase. No external checkout links or license keys are used in the App Store build."
+  review_notes: "SaneBar's current public strategy is direct download only. The Mac App Store lane is intentionally inactive for the current full-featured build and should not be submitted from this repo state. If an App Store-safe variant is revisited later, re-validate sandbox-safe behavior, pricing, and reviewer guidance from scratch."
   accessibility_declarations:
     publish: true
     mac:
