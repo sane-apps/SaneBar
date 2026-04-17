@@ -6,6 +6,13 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.42] - 2026-04-17
+
+Browse Icons now re-hides more reliably after you close it.
+Auto-hide is more consistent when you reveal hidden icons from the menu bar.
+
+---
+
 ## [2.1.41] - 2026-04-14
 
 Browse Icons and the second menu bar now feel lighter and use less CPU on busy menu bars. Improves layout recovery after restart and wake so your icon setup stays where you put it. Full-screen video now hides Custom Appearance correctly, and turning it off stays off.
