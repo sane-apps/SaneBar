@@ -1,6 +1,25 @@
 import AppKit
 import SwiftUI
 
+enum BrowsePanelRestrictedAction {
+    case rightClick
+    case zoneMove
+    case perIconHotkey
+
+    static func upsellFeature(for action: BrowsePanelRestrictedAction, isPro: Bool) -> ProFeature? {
+        guard !isPro else { return nil }
+
+        switch action {
+        case .rightClick:
+            return .rightClickFromPanels
+        case .zoneMove:
+            return .zoneMoves
+        case .perIconHotkey:
+            return .perIconHotkeys
+        }
+    }
+}
+
 // MARK: - Zone Classification, Action Factories & Keyboard Navigation
 
 extension MenuBarSearchView {
@@ -214,8 +233,8 @@ extension MenuBarSearchView {
     }
 
     func handleGridReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
-        guard LicenseService.shared.isPro else {
-            proUpsellFeature = .zoneMoves
+        if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: LicenseService.shared.isPro) {
+            proUpsellFeature = feature
             return false
         }
 
