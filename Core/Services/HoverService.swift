@@ -361,14 +361,14 @@ final class HoverService: HoverServiceProtocol {
         )
     }
 
-    static func screenFrameContainingPoint(
+    nonisolated static func screenFrameContainingPoint(
         _ point: NSPoint,
         screenFrames: [CGRect]
     ) -> CGRect? {
         screenFrames.first(where: { NSMouseInRect(point, $0, false) })
     }
 
-    static func isPointInMenuBarInteractionRegion(
+    nonisolated static func isPointInMenuBarInteractionRegion(
         _ point: NSPoint,
         screens: [NSScreen],
         detectionZoneHeight: CGFloat = 24,
@@ -382,7 +382,7 @@ final class HoverService: HoverServiceProtocol {
         )
     }
 
-    static func isPointInMenuBarInteractionRegion(
+    nonisolated static func isPointInMenuBarInteractionRegion(
         _ point: NSPoint,
         screenFrames: [CGRect],
         detectionZoneHeight: CGFloat = 24,
@@ -405,7 +405,7 @@ final class HoverService: HoverServiceProtocol {
         return distanceBelowMenuBar > 0 && distanceBelowMenuBar <= leaveThreshold
     }
 
-    static func isPointInMenuBarStrip(
+    nonisolated static func isPointInMenuBarStrip(
         _ point: NSPoint,
         screens: [NSScreen],
         detectionZoneHeight: CGFloat = 24
@@ -417,7 +417,7 @@ final class HoverService: HoverServiceProtocol {
         )
     }
 
-    static func isPointInMenuBarStrip(
+    nonisolated static func isPointInMenuBarStrip(
         _ point: NSPoint,
         screenFrames: [CGRect],
         detectionZoneHeight: CGFloat = 24
@@ -431,7 +431,7 @@ final class HoverService: HoverServiceProtocol {
         return point.y >= menuBarBottom && point.y <= menuBarTop
     }
 
-    static func distanceFromMenuBarTop(
+    nonisolated static func distanceFromMenuBarTop(
         _ point: NSPoint,
         screenFrames: [CGRect]
     ) -> CGFloat? {
