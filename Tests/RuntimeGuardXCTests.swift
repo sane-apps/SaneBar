@@ -1219,6 +1219,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("if hoverService.isSuspended"),
             "Rehide guard should explicitly allow auto-rehide while Browse Icons intentionally suspends hover monitoring"
         )
+        XCTAssertTrue(
+            source.contains("shouldBlockRehideForMouseLocation"),
+            "Fire-time rehide should distinguish the top strip from the real below-strip menu interaction zone"
+        )
     }
 
     func testAppChangeRehideRequiresAutoRehideEnabled() throws {
@@ -1810,44 +1814,181 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testBrowsePanelRestrictedActionsMapBasicUsersToUpsells() {
+        XCTAssertEqual(
+            BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: false),
+            .rightClickFromPanels
+        )
+        XCTAssertEqual(
+            BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: false),
+            .zoneMoves
+        )
+        XCTAssertEqual(
+            BrowsePanelRestrictedAction.upsellFeature(for: .perIconHotkey, isPro: false),
+            .perIconHotkeys
+        )
+        XCTAssertNil(BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: true))
+        XCTAssertNil(BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: true))
+        XCTAssertNil(BrowsePanelRestrictedAction.upsellFeature(for: .perIconHotkey, isPro: true))
+    }
+
     func testBrowsePanelsKeepTierGatesAligned() throws {
         let iconPanelURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift")
         let iconPanelSource = try String(contentsOf: iconPanelURL, encoding: .utf8)
         let secondMenuBarURL = projectRootURL().appendingPathComponent("UI/SearchWindow/SecondMenuBarView.swift")
         let secondMenuBarSource = try String(contentsOf: secondMenuBarURL, encoding: .utf8)
+        let navigationURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let navigationSource = try String(contentsOf: navigationURL, encoding: .utf8)
 
         XCTAssertTrue(
-            iconPanelSource.contains("if isRightClick, !isPro {"),
-            "Icon panel should keep right-click gated behind Pro"
+            navigationSource.contains("enum BrowsePanelRestrictedAction"),
+            "Browse panel restrictions should stay centralized so icon panel and second menu bar gates stay aligned"
         )
         XCTAssertTrue(
-            iconPanelSource.contains("proUpsellFeature = .rightClickFromPanels"),
-            "Icon panel should surface the right-click upsell instead of falling through"
+            iconPanelSource.contains("BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: isPro)"),
+            "Icon panel should keep right-click gating on the shared browse-panel restriction map"
         )
         XCTAssertTrue(
-            iconPanelSource.contains("onToggleHidden: isPro ? makeToggleHiddenAction(for: app) : { proUpsellFeature = .zoneMoves }"),
-            "Icon panel should keep hidden/visible moves gated behind Pro"
+            iconPanelSource.contains("BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: isPro)"),
+            "Icon panel should keep move actions gated through the shared browse-panel restriction map"
         )
         XCTAssertTrue(
-            iconPanelSource.contains("onMoveToAlwaysHidden: isPro ? makeMoveToAlwaysHiddenAction(for: app) : { proUpsellFeature = .zoneMoves }"),
-            "Icon panel should keep always-hidden moves gated behind Pro"
-        )
-        XCTAssertTrue(
-            iconPanelSource.contains("onMoveToHidden: isPro ? makeMoveToHiddenAction(for: app) : { proUpsellFeature = .zoneMoves }"),
-            "Icon panel should keep always-hidden exit moves gated behind Pro"
+            iconPanelSource.contains("BrowsePanelRestrictedAction.upsellFeature(for: .perIconHotkey, isPro: isPro)"),
+            "Icon panel should keep per-icon hotkey gating on the shared browse-panel restriction map"
         )
 
         XCTAssertTrue(
-            secondMenuBarSource.contains("if isRightClick, !licenseService.isPro {"),
-            "Second menu bar should keep right-click gated behind Pro"
+            secondMenuBarSource.contains("BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: licenseService.isPro)"),
+            "Second menu bar should keep right-click gating on the shared browse-panel restriction map"
         )
         XCTAssertTrue(
-            secondMenuBarSource.contains("guard licenseService.isPro else {"),
-            "Second menu bar should block drag/drop move paths for free users"
+            secondMenuBarSource.contains("BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro)"),
+            "Second menu bar should surface the shared zone-move upsell instead of attempting restricted moves"
+        )
+    }
+
+    func testSettingsSurfacesKeepExplicitProUpsells() throws {
+        let generalURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
+        let generalSource = try String(contentsOf: generalURL, encoding: .utf8)
+        let appearanceURL = projectRootURL().appendingPathComponent("UI/Settings/AppearanceSettingsView.swift")
+        let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
+        let rulesURL = projectRootURL().appendingPathComponent("UI/Settings/RulesSettingsView.swift")
+        let rulesSource = try String(contentsOf: rulesURL, encoding: .utf8)
+        let shortcutsURL = projectRootURL().appendingPathComponent("UI/Settings/ShortcutsSettingsView.swift")
+        let shortcutsSource = try String(contentsOf: shortcutsURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            generalSource.contains("proGatedRow(feature: .zoneMoves, label: \"Move icons between Visible, Hidden, and Always Hidden\")"),
+            "General settings should keep the Basic plan on an explicit zone-moves upsell instead of a dead-end row"
         )
         XCTAssertTrue(
-            secondMenuBarSource.contains("proUpsellFeature = .zoneMoves"),
-            "Second menu bar should surface the zone-move upsell instead of attempting restricted moves"
+            generalSource.contains("proGatedRow(feature: .touchIDProtection, label: \"Touch ID to unlock hidden icons\")"),
+            "General settings should keep Touch ID protection behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            generalSource.contains("proGatedRow(feature: .settingsProfiles, label: \"Save and load configurations\")"),
+            "General settings should keep saved profiles behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            generalSource.contains("proGatedRow(feature: .exportImport, label: \"Export, import, and migrate settings\")"),
+            "General settings should keep data import/export behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            generalSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
+            "General settings should still present a Pro upsell sheet for gated rows"
+        )
+
+        XCTAssertTrue(
+            appearanceSource.contains("proUpsellFeature = .customIcon"),
+            "Appearance settings should route custom icon selection to the Pro upsell instead of silently resetting"
+        )
+        XCTAssertTrue(
+            appearanceSource.contains("proGatedRow(feature: .spacersConfig, label: \"Extra Dividers\")"),
+            "Appearance settings should keep extra dividers behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Custom tint, glass, borders, and shadows\")"),
+            "Appearance settings should keep menu bar styling behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            appearanceSource.contains("proGatedRow(feature: .iconSpacing, label: \"Reduce space between icons\")"),
+            "Appearance settings should keep icon spacing behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            appearanceSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
+            "Appearance settings should still present a Pro upsell sheet for gated rows"
+        )
+
+        XCTAssertTrue(
+            rulesSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Customize auto-hide timing\")"),
+            "Rules settings should keep auto-rehide tuning behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            rulesSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Always show on external monitors\")"),
+            "Rules settings should keep external-monitor behavior behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            rulesSource.contains("proGatedRow(feature: .gestureCustomization, label: \"Customize gesture behavior\")"),
+            "Rules settings should keep gesture customization behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            rulesSource.contains("proGatedRow(feature: .advancedTriggers, label: \"Battery, schedule, Wi-Fi, Focus, app, and script triggers\")"),
+            "Rules settings should keep advanced triggers behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            rulesSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
+            "Rules settings should still present a Pro upsell sheet for gated rows"
+        )
+
+        XCTAssertTrue(
+            shortcutsSource.contains("proGatedRow(feature: .additionalShortcuts, label: \"Show, Hide, Open Settings shortcuts\")"),
+            "Shortcuts settings should keep extra global shortcuts behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            shortcutsSource.contains("proGatedRow(feature: .appleScript, label: \"AppleScript automation commands\")"),
+            "Shortcuts settings should keep automation commands behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            shortcutsSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
+            "Shortcuts settings should still present a Pro upsell sheet for gated rows"
+        )
+    }
+
+    func testDirectLicenseEntryCopyStaysAlignedWithSupportInstructions() throws {
+        let licenseServiceURL = projectRootURL().appendingPathComponent("Core/Services/LicenseService.swift")
+        let licenseServiceSource = try String(contentsOf: licenseServiceURL, encoding: .utf8)
+        let settingsURL = projectRootURL().appendingPathComponent("UI/SettingsView.swift")
+        let settingsSource = try String(contentsOf: settingsURL, encoding: .utf8)
+        let upsellURL = projectRootURL().appendingPathComponent("UI/Pro/ProUpsellView.swift")
+        let upsellSource = try String(contentsOf: upsellURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            licenseServiceSource.contains("[\"I Have\", \"a License Key\"].joined(separator: \" \")"),
+            "Direct builds should keep the existing-customer CTA wording stable for support instructions"
+        )
+        XCTAssertTrue(
+            licenseServiceSource.contains("[\"Enter\", \"License\", \"Key\"].joined(separator: \" \")"),
+            "Direct builds should keep the shared license-entry button wording stable for support instructions"
+        )
+        XCTAssertTrue(
+            licenseServiceSource.contains("Paste the\", licenseKeyLabel().lowercased(), \"from your purchase confirmation email."),
+            "Direct builds should keep the license-entry helper copy aligned with purchase-email instructions"
+        )
+        XCTAssertTrue(
+            settingsSource.contains("case license = \"License\""),
+            "Settings should keep the dedicated License tab available for direct activation guidance"
+        )
+        XCTAssertTrue(
+            settingsSource.contains("LicenseSettingsView<SaneBarLicenseSettingsAdapter>("),
+            "Settings should keep activation flowing through the shared License tab surface"
+        )
+        XCTAssertTrue(
+            upsellSource.contains("Button(LicenseService.existingCustomerButtonLabel())"),
+            "Upsell windows should keep the existing-customer escape hatch visible"
+        )
+        XCTAssertTrue(
+            upsellSource.contains("Button(\"Activate\")"),
+            "The direct license-entry sheet should still expose an explicit Activate action"
         )
     }
 

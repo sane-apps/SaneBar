@@ -13,6 +13,30 @@ extension MenuBarManager {
         3_000_000_000
     ]
 
+    nonisolated static func shouldBlockRehideForMouseLocation(
+        _ point: NSPoint,
+        screenFrames: [CGRect],
+        detectionZoneHeight: CGFloat = 24,
+        leaveThreshold: CGFloat = 200
+    ) -> Bool {
+        guard HoverService.isPointInMenuBarInteractionRegion(
+            point,
+            screenFrames: screenFrames,
+            detectionZoneHeight: detectionZoneHeight,
+            leaveThreshold: leaveThreshold
+        ) else {
+            return false
+        }
+
+        // Hovering in the top strip alone should not keep the bar open forever.
+        // The real "user is still in a menu/panel interaction" zone is below the strip.
+        return !HoverService.isPointInMenuBarStrip(
+            point,
+            screenFrames: screenFrames,
+            detectionZoneHeight: detectionZoneHeight
+        )
+    }
+
     // MARK: - Visibility Control
 
     func canAutoRehideAtFireTime() -> Bool {
@@ -44,7 +68,10 @@ extension MenuBarManager {
             return true
         }
 
-        return !hoverService.isMouseInMenuBar
+        return !Self.shouldBlockRehideForMouseLocation(
+            NSEvent.mouseLocation,
+            screenFrames: NSScreen.screens.map(\.frame)
+        )
     }
 
     enum RevealTrigger: String, Sendable {

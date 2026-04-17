@@ -822,6 +822,35 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Fire-time rehide only blocks for interaction space below the menu bar strip")
+    func fireTimeRehideMousePolicy() {
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+
+        #expect(
+            !MenuBarManager.shouldBlockRehideForMouseLocation(
+                NSPoint(x: 1500, y: 1075),
+                screenFrames: [screen]
+            ),
+            "The top menu bar strip alone should not hold auto-rehide open"
+        )
+
+        #expect(
+            MenuBarManager.shouldBlockRehideForMouseLocation(
+                NSPoint(x: 1500, y: 980),
+                screenFrames: [screen]
+            ),
+            "Pointer positions below the strip but still near the bar should keep rehide blocked for active menu interaction"
+        )
+
+        #expect(
+            !MenuBarManager.shouldBlockRehideForMouseLocation(
+                NSPoint(x: 1500, y: 700),
+                screenFrames: [screen]
+            ),
+            "Pointer positions outside the menu interaction zone should allow rehide"
+        )
+    }
+
     @Test("Startup recovery triggers when main icon drifts left of notch-safe boundary")
     @MainActor
     func startupRecoveryTriggersForNotchBoundaryDrift() {
