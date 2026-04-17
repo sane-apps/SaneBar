@@ -5,7 +5,28 @@
 
                                 
         
-                                                                                                        <item>
+                                                                                                                <item>
+            <title>2.1.42</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Fri, 17 Apr 2026 19:05:16 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Browse Icons now re-hides more reliably after you close it.</li>
+                <li>Auto-hide is more consistent when you reveal hidden icons from the menu bar.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.42.zip"
+                       sparkle:version="2142"
+                       sparkle:shortVersionString="2.1.42"
+                       length="8700489"
+                       type="application/octet-stream"
+                       sparkle:edSignature="bNRxiqmT42FGiWHyXl5Dkl6amKFEQc5MAEDY2NqmRuIpuDxtQe0EZlReXrYw++ZegMmWd+EMSosuLOQnAML5Cg=="/>
+        </item>
+<item>
             <title>2.1.41</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 14 Apr 2026 14:48:00 -0400</pubDate>
