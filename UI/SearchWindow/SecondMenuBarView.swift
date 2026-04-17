@@ -445,8 +445,9 @@ struct SecondMenuBarView: View {
             duplicateMarker: duplicateMarkers[app.uniqueId],
             onInteraction: notePanelInteraction,
             onActivate: { isRightClick in
-                if isRightClick, !licenseService.isPro {
-                    proUpsellFeature = .rightClickFromPanels
+                if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: licenseService.isPro),
+                   isRightClick {
+                    proUpsellFeature = feature
                     return
                 }
                 onActivate(app, isRightClick)
@@ -455,21 +456,21 @@ struct SecondMenuBarView: View {
                 if licenseService.isPro {
                     _ = moveIcon(app, from: zone, to: .visible)
                 } else {
-                    proUpsellFeature = .zoneMoves
+                    proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro)
                 }
             } : nil,
             onMoveToHidden: zone != .hidden ? {
                 if licenseService.isPro {
                     _ = moveIcon(app, from: zone, to: .hidden)
                 } else {
-                    proUpsellFeature = .zoneMoves
+                    proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro)
                 }
             } : nil,
             onMoveToAlwaysHidden: (menuBarManager.settings.alwaysHiddenSectionEnabled && zone != .alwaysHidden) ? {
                 if licenseService.isPro {
                     _ = moveIcon(app, from: zone, to: .alwaysHidden)
                 } else {
-                    proUpsellFeature = .zoneMoves
+                    proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro)
                 }
             } : nil
         )
@@ -555,8 +556,8 @@ struct SecondMenuBarView: View {
 
     private func handleZoneDrop(_ payloads: [String], targetZone: IconZone) -> Bool {
         notePanelInteraction()
-        guard licenseService.isPro else {
-            proUpsellFeature = .zoneMoves
+        if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro) {
+            proUpsellFeature = feature
             return false
         }
 
@@ -572,8 +573,8 @@ struct SecondMenuBarView: View {
 
     private func handleTileDrop(_ payloads: [String], targetApp: RunningApp, targetZone: IconZone) -> Bool {
         notePanelInteraction()
-        guard licenseService.isPro else {
-            proUpsellFeature = .zoneMoves
+        if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro) {
+            proUpsellFeature = feature
             return false
         }
 
@@ -593,8 +594,8 @@ struct SecondMenuBarView: View {
 
     private func handleReorderDrop(_ payloads: [String], targetApp: RunningApp) -> Bool {
         notePanelInteraction()
-        guard licenseService.isPro else {
-            proUpsellFeature = .zoneMoves
+        if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: licenseService.isPro) {
+            proUpsellFeature = feature
             return false
         }
 

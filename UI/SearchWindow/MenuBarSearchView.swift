@@ -1425,26 +1425,33 @@ struct MenuBarSearchView: View {
             iconSize: grid.iconSize,
             tileSize: grid.tileSize,
             onActivate: { isRightClick in
-                if isRightClick, !isPro {
-                    proUpsellFeature = .rightClickFromPanels
+                if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .rightClick, isPro: isPro),
+                   isRightClick {
+                    proUpsellFeature = feature
                     return
                 }
                 activateApp(app, isRightClick: isRightClick)
             },
             onSetHotkey: {
-                if isPro {
-                    hotkeyApp = app
+                if let feature = BrowsePanelRestrictedAction.upsellFeature(for: .perIconHotkey, isPro: isPro) {
+                    proUpsellFeature = feature
                 } else {
-                    proUpsellFeature = .perIconHotkeys
+                    hotkeyApp = app
                 }
             },
             onRemoveFromGroup: selectedGroupId.map { groupId in
                 { removeAppFromGroup(bundleId: app.bundleId, groupId: groupId) }
             },
             isHidden: mode == .hidden || mode == .alwaysHidden || (mode == .all && appZone(for: app) != .visible),
-            onToggleHidden: isPro ? makeToggleHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
-            onMoveToAlwaysHidden: isPro ? makeMoveToAlwaysHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
-            onMoveToHidden: isPro ? makeMoveToHiddenAction(for: app) : { proUpsellFeature = .zoneMoves },
+            onToggleHidden: isPro ? makeToggleHiddenAction(for: app) : {
+                proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: isPro)
+            },
+            onMoveToAlwaysHidden: isPro ? makeMoveToAlwaysHiddenAction(for: app) : {
+                proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: isPro)
+            },
+            onMoveToHidden: isPro ? makeMoveToHiddenAction(for: app) : {
+                proUpsellFeature = BrowsePanelRestrictedAction.upsellFeature(for: .zoneMove, isPro: isPro)
+            },
             isMoving: movingAppId == app.uniqueId,
             isSelected: selectedAppIndex == index,
             isPro: isPro,
