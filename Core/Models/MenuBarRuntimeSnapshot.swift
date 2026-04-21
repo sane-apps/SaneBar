@@ -15,6 +15,25 @@ enum MenuBarGeometryConfidence: String, Sendable {
     case missing
 }
 
+enum MenuBarStructuralState: String, Sendable {
+    case ready
+    case missingItems
+    case invisibleItems
+    case unattachedWindows
+}
+
+enum MenuBarAnchorSource: String, Sendable {
+    case live
+    case cached
+    case estimated
+    case missing
+}
+
+enum MenuBarBootstrapPhase: String, Sendable {
+    case steady
+    case awaitingAnchor
+}
+
 enum MenuBarVisibilityPhase: String, Sendable {
     case hidden
     case expanded
@@ -31,12 +50,19 @@ enum MenuBarBrowsePhase: String, Sendable {
 struct MenuBarRuntimeSnapshot: Sendable {
     var identityPrecision: MenuBarIdentityPrecision
     var geometryConfidence: MenuBarGeometryConfidence
+    var structuralState: MenuBarStructuralState
+    var separatorAnchorSource: MenuBarAnchorSource
+    var mainAnchorSource: MenuBarAnchorSource
+    var bootstrapPhase: MenuBarBootstrapPhase
     var visibilityPhase: MenuBarVisibilityPhase
     var browsePhase: MenuBarBrowsePhase
     var startupItemsValid: Bool
     var hasAlwaysHiddenSeparator: Bool
     var hasActiveMoveTask: Bool
     var hasAnyScreens: Bool
+    var mainItemVisible: Bool?
+    var separatorItemVisible: Bool?
+    var alwaysHiddenSeparatorVisible: Bool?
     var separatorX: CGFloat?
     var alwaysHiddenSeparatorX: CGFloat?
     var mainX: CGFloat?
@@ -47,12 +73,19 @@ struct MenuBarRuntimeSnapshot: Sendable {
     init(
         identityPrecision: MenuBarIdentityPrecision = .unknown,
         geometryConfidence: MenuBarGeometryConfidence = .missing,
+        structuralState: MenuBarStructuralState? = nil,
+        separatorAnchorSource: MenuBarAnchorSource = .missing,
+        mainAnchorSource: MenuBarAnchorSource = .missing,
+        bootstrapPhase: MenuBarBootstrapPhase = .steady,
         visibilityPhase: MenuBarVisibilityPhase = .expanded,
         browsePhase: MenuBarBrowsePhase = .idle,
         startupItemsValid: Bool = true,
         hasAlwaysHiddenSeparator: Bool = false,
         hasActiveMoveTask: Bool = false,
         hasAnyScreens: Bool = true,
+        mainItemVisible: Bool? = nil,
+        separatorItemVisible: Bool? = nil,
+        alwaysHiddenSeparatorVisible: Bool? = nil,
         separatorX: CGFloat? = nil,
         alwaysHiddenSeparatorX: CGFloat? = nil,
         mainX: CGFloat? = nil,
@@ -61,13 +94,30 @@ struct MenuBarRuntimeSnapshot: Sendable {
         notchRightSafeMinX: CGFloat? = nil
     ) {
         self.identityPrecision = identityPrecision
+        let inferredStructuralState = structuralState ?? {
+            if mainItemVisible == false || separatorItemVisible == false {
+                return .invisibleItems
+            }
+            if !startupItemsValid {
+                return .unattachedWindows
+            }
+            return .ready
+        }()
+
         self.geometryConfidence = geometryConfidence
+        self.structuralState = inferredStructuralState
+        self.separatorAnchorSource = separatorAnchorSource
+        self.mainAnchorSource = mainAnchorSource
+        self.bootstrapPhase = bootstrapPhase
         self.visibilityPhase = visibilityPhase
         self.browsePhase = browsePhase
         self.startupItemsValid = startupItemsValid
         self.hasAlwaysHiddenSeparator = hasAlwaysHiddenSeparator
         self.hasActiveMoveTask = hasActiveMoveTask
         self.hasAnyScreens = hasAnyScreens
+        self.mainItemVisible = mainItemVisible
+        self.separatorItemVisible = separatorItemVisible
+        self.alwaysHiddenSeparatorVisible = alwaysHiddenSeparatorVisible
         self.separatorX = separatorX
         self.alwaysHiddenSeparatorX = alwaysHiddenSeparatorX
         self.mainX = mainX
