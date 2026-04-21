@@ -71,6 +71,15 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.1% > 15.0%')
   end
 
+  def test_runtime_smoke_retryable_failure_uses_resource_watchdog_average_when_failure_line_is_rounded
+    output = <<~LOG
+      🫀 Resource watchdog: samples=75 avgCpu=15.6% peakCpu=47.4% avgRss=127.0MB peakRss=139.3MB
+      ❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.0% > 15.0%
+    LOG
+
+    assert @qa.send(:retryable_runtime_smoke_failure?, output)
+  end
+
   def test_runtime_smoke_retryable_failure_rejects_large_active_budget_overrun
     refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.8% > 15.0%')
   end

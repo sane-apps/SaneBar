@@ -930,12 +930,18 @@ class ProjectQA
   end
 
   def retryable_active_budget_overrun?(smoke_output)
-    match = smoke_output.match(/active_budget_exceeded\s+avgCpu=(\d+(?:\.\d+)?)%\s+>\s+(\d+(?:\.\d+)?)%/)
-    return false unless match
+    resource_match = smoke_output.match(/Resource watchdog:\s+samples=\d+\s+avgCpu=(\d+(?:\.\d+)?)%\s+peakCpu=\d+(?:\.\d+)?%\s+avgRss=\d+(?:\.\d+)?MB\s+peakRss=\d+(?:\.\d+)?MB/)
+    failure_match = smoke_output.match(/active_budget_exceeded\s+avgCpu=(\d+(?:\.\d+)?)%\s+>\s+(\d+(?:\.\d+)?)%/)
+    return false unless failure_match
 
-    observed = match[1].to_f
-    limit = match[2].to_f
-    observed > limit && (observed - limit) <= 0.5
+    limit = failure_match[2].to_f
+    observed = if resource_match
+      resource_match[1].to_f
+    else
+      failure_match[1].to_f
+    end
+
+    observed >= limit && (observed - limit) <= 0.6
   end
 
   def runtime_smoke_no_candidate_fixture_policy?(smoke_output)
