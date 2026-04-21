@@ -245,6 +245,10 @@ struct MenuBarManagerTests {
 
         #expect(snapshot.identityPrecision == .exact)
         #expect(snapshot.geometryConfidence == .missing)
+        #expect(snapshot.structuralState == .missingItems)
+        #expect(snapshot.separatorAnchorSource == .missing)
+        #expect(snapshot.mainAnchorSource == .missing)
+        #expect(snapshot.bootstrapPhase == .steady)
         #expect(snapshot.startupItemsValid == false)
     }
 

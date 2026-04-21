@@ -1,5 +1,41 @@
 # SaneBar Research Cache
 
+## 2026-04-20 20:05 ET visibility-first recovery-state architecture refresh
+
+**Updated:** 2026-04-20 20:05 ET | **Status:** verified research refresh; local refactor patched; Mini verify rerun pending after research gate | **TTL:** 14d
+**Sources:** Apple docs for [`NSStatusBar`](https://developer.apple.com/documentation/appkit/nsstatusbar), [`NSStatusItem`](https://developer.apple.com/documentation/appkit/nsstatusitem), [`isVisible`](https://developer.apple.com/documentation/appkit/nsstatusitem), and [`autosaveName`](https://developer.apple.com/documentation/appkit/nsstatusitem/autosavename-swift.property); external code/issues from Maccy (`AppDelegate.swift`) and Ice (`ControlItem.swift`, issues `#918`, `#416`, `#802`); Bartender public release notes (`6.2.1`, `4.1.21`); local audit of `Core/MenuBarManager.swift`, `Core/MenuBarManager+IconMoving.swift`, `Core/Models/MenuBarRuntimeSnapshot.swift`, `Core/Services/MenuBarOperationCoordinator.swift`, and `Tests/MenuBarOperationCoordinatorTests.swift`
+
+### Verified Findings
+
+1. Apple still exposes only a narrow contract for menu bar items.
+   - `NSStatusBar` explicitly warns that status items are not guaranteed to be available at all times.
+   - `NSStatusItem.isVisible` and `autosaveName` remain the only documented first-class state surfaces relevant to disappearance/reappearance.
+   - There is still no Apple-documented repair API for stale/off-screen status-item geometry.
+
+2. The strongest external implementations also treat visibility and persistence as first-class state, not as incidental geometry.
+   - Maccy observes `statusItem.isVisible` directly and keeps it synchronized with app state.
+   - Ice caches/restores preferred positions when hiding or removing control items and still has live issue traffic for disappearing items, right-edge menu pressure, and layout resets (`#918`, `#416`, `#802`).
+   - Bartender release notes continue shipping fixes for notch/right-edge disappearance, restart position drift, and multi-item identity stability.
+
+3. That external evidence matches our own issue-family history.
+   - `#129` was never only a bad-coordinate issue; the broader family also includes visibility loss, poisoned persisted state, stale bilateral geometry, and cold-start bootstrap failure.
+   - SaneBar already had a dedicated unexpected-visibility observer path, which means visibility loss was operationally real, but it was still not modeled inside the central runtime snapshot/coordinator state.
+
+4. The current refactor direction is correct, but visibility had to be promoted into the same model as anchor confidence and bootstrap.
+   - `MenuBarRuntimeSnapshot` now needs to distinguish structural absence, invisibility, unattached windows, and ready state.
+   - Recovery policy should key off that structural state first, then coordinates, then geometry confidence.
+   - Interactive move policy should reject non-ready structural states instead of trusting cached geometry after a visibility or attachment failure.
+
+5. Fresh local changes in this pass follow that simpler root-level direction.
+   - The runtime snapshot now carries structural state plus anchor-source/bootstrap information together.
+   - Required-item invisibility is promoted to structural state, not just a side-channel observer event.
+   - The move queue now rejects non-ready structural state instead of only checking “busy” and “awaiting anchor.”
+
+6. The Mini verify failures in this pass were mechanical, not a counterexample to the architecture.
+   - First failure: a `guard` branch in `currentRuntimeSnapshot()` could not legally fall through after switching on structural state.
+   - Second failure: `MenuBarRuntimeSnapshot(...)` test call sites had named arguments out of order relative to the initializer.
+   - Both were fixed locally before the research receipt was written; Mini verify, signed launch, and probe reruns are still pending.
+
 ## 2.1.41 Live Notes Repair And Final Public-State Alignment
 
 **Updated:** 2026-04-14 14:56 ET | **Status:** verified | **TTL:** 14d

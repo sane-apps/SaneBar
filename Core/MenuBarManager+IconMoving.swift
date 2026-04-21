@@ -228,6 +228,49 @@ extension MenuBarManager {
         return frame
     }
 
+    func currentSeparatorAnchorSource() -> MenuBarAnchorSource {
+        guard let separatorItem else {
+            if lastKnownSeparatorX != nil { return .cached }
+            if estimatedSeparatorEdgesFromMainIcon() != nil { return .estimated }
+            return .missing
+        }
+
+        if separatorItem.length > 1000 {
+            if lastKnownSeparatorX != nil { return .cached }
+            if estimatedSeparatorEdgesFromMainIcon() != nil { return .estimated }
+            return .missing
+        }
+
+        if let frame = currentLiveSeparatorFrame() {
+            lastKnownSeparatorX = frame.origin.x
+            lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
+            return .live
+        }
+
+        if lastKnownSeparatorX != nil { return .cached }
+        if estimatedSeparatorEdgesFromMainIcon() != nil { return .estimated }
+        return .missing
+    }
+
+    func currentMainStatusItemAnchorSource() -> MenuBarAnchorSource {
+        guard let mainButton = mainStatusItem?.button,
+              let mainWindow = mainButton.window else {
+            if lastKnownMainStatusItemX != nil { return .cached }
+            if estimatedMainStatusItemLeftEdgeFromSeparator() != nil { return .estimated }
+            return .missing
+        }
+
+        let frame = mainWindow.frame
+        if Self.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+            lastKnownMainStatusItemX = frame.origin.x
+            return .live
+        }
+
+        if lastKnownMainStatusItemX != nil { return .cached }
+        if estimatedMainStatusItemLeftEdgeFromSeparator() != nil { return .estimated }
+        return .missing
+    }
+
     @MainActor
     private func postVisibleLaneCrowdingHintCandidate(
         bundleID: String,
@@ -930,6 +973,12 @@ extension MenuBarManager {
             return true
         case .rejectBusy:
             logger.warning("🔧 \(operationName, privacy: .public) skipped — hiding service busy")
+            return false
+        case .rejectInvalidStatusItems:
+            logger.warning("🔧 \(operationName, privacy: .public) skipped — status items are not in a ready structural state")
+            return false
+        case .rejectAwaitingAnchor:
+            logger.warning("🔧 \(operationName, privacy: .public) skipped — status-item bootstrap still awaiting anchor")
             return false
         case .rejectMoveAlreadyInFlight:
             logger.warning("⚠️ \(operationName, privacy: .public) rejected: another move is in progress")

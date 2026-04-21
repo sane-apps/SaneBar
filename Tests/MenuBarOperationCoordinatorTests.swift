@@ -71,6 +71,55 @@ struct MenuBarOperationCoordinatorTests {
         }
     }
 
+    @Test("Startup repairs immediately when status-item windows are invalid and no coordinates survived")
+    func startupRepairsAnchorlessInvalidStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            startupItemsValid: false,
+            separatorX: nil,
+            mainX: nil
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .startupInitial(.init(
+                    hasCompletedOnboarding: true,
+                    autoRehideEnabled: true,
+                    shouldSkipHideForExternalMonitor: false,
+                    hasConnectedExternalMonitorWithAlwaysShow: false
+                )),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
+        )
+    }
+
+    @Test("Startup repairs immediately when a required status item is invisible")
+    func startupRepairsInvisibleStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            mainItemVisible: false,
+            separatorItemVisible: true,
+            separatorX: 160,
+            mainX: 180
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .startupInitial(.init(
+                    hasCompletedOnboarding: true,
+                    autoRehideEnabled: true,
+                    shouldSkipHideForExternalMonitor: false,
+                    hasConnectedExternalMonitorWithAlwaysShow: false
+                )),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
+        )
+    }
+
     @Test("Startup follow-up repairs persisted geometry before recreating live items")
     func startupValidationRepairsGeometryBeforeRecreate() {
         let snapshot = MenuBarRuntimeSnapshot(
@@ -351,6 +400,7 @@ struct MenuBarOperationCoordinatorTests {
         )
 
         let missingSeparatorSnapshot = MenuBarRuntimeSnapshot(
+            bootstrapPhase: .steady,
             visibilityPhase: .expanded,
             hasAlwaysHiddenSeparator: false,
             hasActiveMoveTask: false,
@@ -364,6 +414,7 @@ struct MenuBarOperationCoordinatorTests {
         )
 
         let activeMoveSnapshot = MenuBarRuntimeSnapshot(
+            bootstrapPhase: .steady,
             visibilityPhase: .expanded,
             hasAlwaysHiddenSeparator: true,
             hasActiveMoveTask: true,
@@ -377,6 +428,7 @@ struct MenuBarOperationCoordinatorTests {
         )
 
         let missingScreenSnapshot = MenuBarRuntimeSnapshot(
+            bootstrapPhase: .steady,
             visibilityPhase: .expanded,
             hasAlwaysHiddenSeparator: true,
             hasActiveMoveTask: false,
@@ -389,9 +441,26 @@ struct MenuBarOperationCoordinatorTests {
             ) == .rejectMissingScreenGeometry
         )
 
+        let invisibleStatusItemSnapshot = MenuBarRuntimeSnapshot(
+            bootstrapPhase: .steady,
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true,
+            mainItemVisible: false,
+            separatorItemVisible: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: invisibleStatusItemSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .rejectInvalidStatusItems
+        )
+
         let staleGeometrySnapshot = MenuBarRuntimeSnapshot(
             identityPrecision: .exact,
             geometryConfidence: .stale,
+            bootstrapPhase: .steady,
             visibilityPhase: .expanded,
             hasAlwaysHiddenSeparator: true,
             hasActiveMoveTask: false,
@@ -407,6 +476,7 @@ struct MenuBarOperationCoordinatorTests {
         let coarseCachedGeometrySnapshot = MenuBarRuntimeSnapshot(
             identityPrecision: .coarse,
             geometryConfidence: .cached,
+            bootstrapPhase: .steady,
             visibilityPhase: .expanded,
             hasAlwaysHiddenSeparator: true,
             hasActiveMoveTask: false,
@@ -417,6 +487,22 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: coarseCachedGeometrySnapshot,
                 requiresAlwaysHiddenSeparator: false
             ) == .ready
+        )
+
+        let bootstrappingSnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .cached,
+            bootstrapPhase: .awaitingAnchor,
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: bootstrappingSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .rejectAwaitingAnchor
         )
     }
 }

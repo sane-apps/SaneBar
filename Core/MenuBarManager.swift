@@ -205,6 +205,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Recovery rebuilds temporarily reconfigure the delimiter in expanded mode.
     /// Preserve a prior hidden state so wake/display recovery can restore it.
     var pendingRecoveryHideRestore = false
+    /// Explicitly tracks the post-create/recreate bootstrap window where status
+    /// items exist but live geometry is still settling.
+    var statusItemBootstrapPhase: MenuBarBootstrapPhase = .steady
     var statusMenu: NSMenu?
     // MARK: - Subscriptions
 
@@ -583,6 +586,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         separatorItem = statusBarController.separatorItem
         statusBarController.ensureAlwaysHiddenSeparator(enabled: currentEffectiveAlwaysHiddenSectionEnabled())
         alwaysHiddenSeparatorItem = statusBarController.alwaysHiddenSeparatorItem
+        markStatusItemsAwaitingAnchor(reason: "initial-setup")
         installStatusItemVisibilityObservers()
 
         // Setup menu using controller (shown via right-click on main icon)
@@ -619,6 +623,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.mainStatusItem = main
             self.separatorItem = separator
             self.alwaysHiddenSeparatorItem = self.statusBarController.alwaysHiddenSeparatorItem
+            self.markStatusItemsAwaitingAnchor(reason: "status-item-recreate")
             self.installStatusItemVisibilityObservers()
             let shouldRestoreHidden = self.pendingRecoveryHideRestore
             let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state
@@ -638,6 +643,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateIconStyle()
             self.updateAlwaysHiddenSeparator()
             self.updateSpacers()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.warmSeparatorPositionCache(maxAttempts: 24)
+                await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 24)
+                _ = self.getMainStatusItemLeftEdgeX()
+                _ = self.getSeparatorRightEdgeX()
+            }
 
             if shouldRestoreHidden {
                 logger.info("Preserved hidden state during status item recovery")
@@ -844,8 +856,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 separator: separator
             )
         }()
+        let mainItemVisible = mainItem?.isVisible
+        let separatorItemVisible = separator?.isVisible
+        let alwaysHiddenSeparatorVisible = alwaysHiddenSeparatorItem?.isVisible
         let separatorX = getSeparatorOriginX()
+        let separatorAnchorSource = currentSeparatorAnchorSource()
         let mainX = getMainStatusItemLeftEdgeX()
+        let mainAnchorSource = currentMainStatusItemAnchorSource()
         let mainWindow = mainItem?.button?.window
         let runtimeScreen = mainWindow?.screen ?? statusItemScreen
         let mainFrameIsLive: Bool = {
@@ -864,10 +881,34 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             separatorX: separatorX,
             alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
         )
+        let hasInvisibleRequiredItems =
+            mainItemVisible == false ||
+            separatorItemVisible == false ||
+            (
+                currentEffectiveAlwaysHiddenSectionEnabled() &&
+                alwaysHiddenSeparatorItem != nil &&
+                alwaysHiddenSeparatorVisible == false
+            )
+        let structuralState: MenuBarStructuralState = {
+            guard mainItem != nil, separator != nil else { return .missingItems }
+            guard !hasInvisibleRequiredItems else { return .invisibleItems }
+            guard startupItemsValid else { return .unattachedWindows }
+            return .ready
+        }()
 
         let geometryConfidence: MenuBarGeometryConfidence = {
-            guard mainItem != nil, separator != nil else { return .missing }
-            guard startupItemsValid else { return .stale }
+            if structuralState != .ready {
+                switch structuralState {
+                case .missingItems:
+                    return .missing
+                case .invisibleItems:
+                    return .missing
+                case .unattachedWindows:
+                    return .stale
+                case .ready:
+                    break
+                }
+            }
             guard separatorX != nil, mainX != nil else { return .missing }
             guard !alwaysHiddenSeparatorMisordered else { return .stale }
             if Self.shouldRecoverStartupPositions(
@@ -879,18 +920,36 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             ) {
                 return .stale
             }
-            return .live
+            if separatorAnchorSource == .live, mainAnchorSource == .live {
+                return .live
+            }
+            if separatorAnchorSource == .missing || mainAnchorSource == .missing {
+                return .missing
+            }
+            return .cached
         }()
+        let bootstrapPhase = resolveStatusItemBootstrapPhase(
+            structuralState: structuralState,
+            separatorAnchorSource: separatorAnchorSource,
+            mainAnchorSource: mainAnchorSource
+        )
 
         return MenuBarRuntimeSnapshot(
             identityPrecision: identityPrecision,
             geometryConfidence: geometryConfidence,
+            structuralState: structuralState,
+            separatorAnchorSource: separatorAnchorSource,
+            mainAnchorSource: mainAnchorSource,
+            bootstrapPhase: bootstrapPhase,
             visibilityPhase: hidingService.isAnimating || hidingService.isTransitioning ? .transitioning : (hidingService.state == .hidden ? .hidden : .expanded),
             browsePhase: SearchWindowController.shared.isMoveInProgress ? .moveInProgress : (SearchWindowController.shared.isBrowseSessionActive ? .open : .idle),
             startupItemsValid: startupItemsValid,
             hasAlwaysHiddenSeparator: alwaysHiddenSeparatorItem != nil,
             hasActiveMoveTask: activeMoveTask?.isCancelled == false,
             hasAnyScreens: !NSScreen.screens.isEmpty,
+            mainItemVisible: mainItemVisible,
+            separatorItemVisible: separatorItemVisible,
+            alwaysHiddenSeparatorVisible: alwaysHiddenSeparatorVisible,
             separatorX: separatorX,
             alwaysHiddenSeparatorX: alwaysHiddenSeparatorX,
             mainX: mainX,
@@ -898,6 +957,36 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             screenWidth: screenWidth,
             notchRightSafeMinX: notchRightSafeMinX
         )
+    }
+
+    @MainActor
+    private func markStatusItemsAwaitingAnchor(reason: String) {
+        if statusItemBootstrapPhase != .awaitingAnchor {
+            logger.info("Status-item bootstrap awaiting live anchor (\(reason, privacy: .public))")
+        }
+        statusItemBootstrapPhase = .awaitingAnchor
+    }
+
+    @MainActor
+    private func resolveStatusItemBootstrapPhase(
+        structuralState: MenuBarStructuralState,
+        separatorAnchorSource: MenuBarAnchorSource,
+        mainAnchorSource: MenuBarAnchorSource
+    ) -> MenuBarBootstrapPhase {
+        guard statusItemBootstrapPhase == .awaitingAnchor else { return .steady }
+        guard structuralState == .ready else { return .awaitingAnchor }
+        guard separatorAnchorSource != .missing, mainAnchorSource != .missing else {
+            return .awaitingAnchor
+        }
+
+        let hasTrustworthyAnchor = separatorAnchorSource != .estimated || mainAnchorSource != .estimated
+        guard hasTrustworthyAnchor else { return .awaitingAnchor }
+
+        statusItemBootstrapPhase = .steady
+        logger.info(
+            "Status-item bootstrap resolved (main=\(mainAnchorSource.rawValue, privacy: .public), separator=\(separatorAnchorSource.rawValue, privacy: .public))"
+        )
+        return .steady
     }
 
     @MainActor

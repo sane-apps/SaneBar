@@ -69,6 +69,8 @@ enum MenuBarOperationCoordinator {
     enum MoveQueueDecision: Equatable, Sendable {
         case ready
         case rejectBusy
+        case rejectInvalidStatusItems
+        case rejectAwaitingAnchor
         case rejectMoveAlreadyInFlight
         case rejectMissingAlwaysHiddenSeparator
         case rejectMissingScreenGeometry
@@ -77,7 +79,7 @@ enum MenuBarOperationCoordinator {
     static func startupRecoveryReason(
         snapshot: MenuBarRuntimeSnapshot
     ) -> StartupRecoveryReason? {
-        if !snapshot.startupItemsValid {
+        if snapshot.structuralState != .ready {
             return .invalidStatusItems
         }
 
@@ -203,7 +205,11 @@ enum MenuBarOperationCoordinator {
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
                 switch recoveryReason {
                 case .invalidStatusItems where inputs.hasCompletedOnboarding:
-                    return .keepExpanded(.waitingForLiveCoordinates)
+                    if snapshot.structuralState == .unattachedWindows,
+                       snapshot.separatorX != nil || snapshot.mainX != nil {
+                        return .keepExpanded(.waitingForLiveCoordinates)
+                    }
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
                 case .missingCoordinates where inputs.hasCompletedOnboarding:
                     return .keepExpanded(.waitingForLiveCoordinates)
                 default:
@@ -344,8 +350,16 @@ enum MenuBarOperationCoordinator {
             return .rejectMissingScreenGeometry
         }
 
+        if snapshot.structuralState != .ready {
+            return .rejectInvalidStatusItems
+        }
+
         if snapshot.visibilityPhase == .transitioning {
             return .rejectBusy
+        }
+
+        if snapshot.bootstrapPhase == .awaitingAnchor {
+            return .rejectAwaitingAnchor
         }
 
         if requiresAlwaysHiddenSeparator, !snapshot.hasAlwaysHiddenSeparator {
