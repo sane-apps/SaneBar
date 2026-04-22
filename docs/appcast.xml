@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                <item>
+                                                                                                                        <item>
+            <title>2.1.43</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 21 Apr 2026 22:01:59 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Harden menu bar recovery and reduce browse scan churn.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.43.zip"
+                       sparkle:version="2143"
+                       sparkle:shortVersionString="2.1.43"
+                       length="8716475"
+                       type="application/octet-stream"
+                       sparkle:edSignature="e1wIzkr9l5qs7oajDd9Gm+E6TKwLftO8AnbxL9dMR3g979vDOq3dgxMp8nOW5HKoJBM56poz3iqrA0LPaS+WCQ=="/>
+        </item>
+<item>
             <title>2.1.42</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Fri, 17 Apr 2026 19:05:16 -0400</pubDate>
