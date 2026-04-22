@@ -362,6 +362,15 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
     }
 
+    var refreshKnownClassifiedAppsHandler: (@Sendable () async -> ClassifiedResult)?
+
+    func refreshKnownClassifiedApps() async -> ClassifiedResult {
+        if let refreshKnownClassifiedAppsHandler {
+            return await refreshKnownClassifiedAppsHandler()
+        }
+        return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
+    }
+
     private let activateState = MockoloMutex(
         MockoloHandlerState<
             (RunningApp, Bool, SearchService.ActivationOrigin),

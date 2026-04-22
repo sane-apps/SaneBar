@@ -310,8 +310,36 @@ struct IconMovingIdentityProofTests {
 
 @Suite("AppleScript Move Resolution")
 struct AppleScriptMoveResolutionTests {
-    @Test("Precise identifiers prefer a fresh zone snapshot for moves")
-    func preciseIdentifiersPreferFreshSnapshot() {
+    @Test("Precise identifiers trust a fresh zone snapshot for moves")
+    func preciseIdentifiersTrustFreshSnapshot() {
+        let focus = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Focus",
+            identifier: "com.apple.menuextra.focusmode",
+            xPosition: 1400,
+            width: 24
+        )
+
+        #expect(
+            !shouldPreferFreshZonesForScriptMove(
+                identifier: "com.apple.menuextra.focusmode",
+                matchedApp: focus,
+                sameBundleCount: 2,
+                cacheIsFresh: true
+            )
+        )
+        #expect(
+            !shouldPreferFreshZonesForScriptMove(
+                identifier: focus.uniqueId,
+                matchedApp: focus,
+                sameBundleCount: 1,
+                cacheIsFresh: true
+            )
+        )
+    }
+
+    @Test("Precise identifiers still refresh when the zone cache is stale")
+    func preciseIdentifiersRefreshWhenCacheIsStale() {
         let focus = RunningApp.menuExtraItem(
             ownerBundleId: "com.apple.controlcenter",
             name: "Focus",
@@ -322,16 +350,10 @@ struct AppleScriptMoveResolutionTests {
 
         #expect(
             shouldPreferFreshZonesForScriptMove(
-                identifier: "com.apple.menuextra.focusmode",
-                matchedApp: focus,
-                sameBundleCount: 2
-            )
-        )
-        #expect(
-            shouldPreferFreshZonesForScriptMove(
                 identifier: focus.uniqueId,
                 matchedApp: focus,
-                sameBundleCount: 1
+                sameBundleCount: 1,
+                cacheIsFresh: false
             )
         )
     }
@@ -352,14 +374,16 @@ struct AppleScriptMoveResolutionTests {
             !shouldPreferFreshZonesForScriptMove(
                 identifier: "com.example.single",
                 matchedApp: coarse,
-                sameBundleCount: 1
+                sameBundleCount: 1,
+                cacheIsFresh: true
             )
         )
         #expect(
             shouldPreferFreshZonesForScriptMove(
                 identifier: "com.example.single",
                 matchedApp: coarse,
-                sameBundleCount: 2
+                sameBundleCount: 2,
+                cacheIsFresh: true
             )
         )
     }

@@ -245,6 +245,30 @@ struct SearchWindowTests {
         )
     }
 
+    @Test("Second menu bar initial sizing can reuse the current frame before a deferred refit")
+    func testSecondMenuBarSizeCanReuseCurrentFrame() {
+        let size = SearchWindowController.clampedSecondMenuBarSize(
+            currentWindowSize: CGSize(width: 400, height: 140),
+            fittingSize: CGSize(width: 620, height: 260),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
+            useContentFittingSize: false
+        )
+
+        #expect(size == CGSize(width: 400, height: 140))
+    }
+
+    @Test("Second menu bar refit still honors SwiftUI fitting size with clamping")
+    func testSecondMenuBarRefitUsesFittingSize() {
+        let size = SearchWindowController.clampedSecondMenuBarSize(
+            currentWindowSize: CGSize(width: 400, height: 140),
+            fittingSize: CGSize(width: 900, height: 40),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 860),
+            useContentFittingSize: true
+        )
+
+        #expect(size == CGSize(width: 800, height: 80))
+    }
+
     @Test("Search activation rejects unverified clicks for revealed or browse-session flows")
     func testSearchActivationRequiresObservableReactionForBrowseFlows() {
         #expect(
@@ -808,8 +832,27 @@ struct SearchWindowTests {
         let source = try String(contentsOf: viewFile, encoding: .utf8)
 
         #expect(source.contains("menuBarApps = service.cachedMenuBarApps()"))
-        #expect(source.contains("let allModeApps = effectiveMode == .all && !isSecondMenuBar ? await service.refreshMenuBarApps() : []"))
+        #expect(source.contains("classified = nil"))
+        #expect(source.contains("allModeApps = await service.refreshMenuBarApps()"))
         #expect(source.contains("menuBarApps = allModeApps"))
+        #expect(!source.contains("await service.refreshClassifiedApps()"))
+        #expect(source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()"))
+        #expect(!source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"))
+    }
+
+    @Test("All mode refresh uses known-owner positions before the owner merge")
+    func testAllModeRefreshUsesKnownOwnerPositions() throws {
+        let serviceFile = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: serviceFile, encoding: .utf8)
+
+        #expect(source.contains("let items = await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()"))
+        #expect(source.contains("let cachedOwners = await MainActor.run"))
+        #expect(source.contains("AccessibilityService.shared.cachedMenuBarItemOwners()"))
+        #expect(source.contains("let owners = if cachedOwners.isEmpty"))
+        #expect(source.contains("await AccessibilityService.shared.refreshMenuBarItemOwners()"))
     }
 
     // MARK: - Icon Groups Tests

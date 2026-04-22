@@ -1,5 +1,64 @@
 # SaneBar Research Cache
 
+## 2026-04-21 15:55 ET post-refresh hardening release-confidence sweep
+
+**Updated:** 2026-04-21 15:55 ET | **Status:** verified | **TTL:** 7d
+**Source:** local+Mini code audit of `Core/Services/AppleScriptCommands.swift`, `Core/Services/AccessibilityService+Cache.swift`, `Core/MenuBarManager+IconMoving.swift`, `Core/Services/AccessibilityService+Interaction.swift`; Mini `./scripts/SaneMaster.rb verify --quiet`; repeated direct `ruby Scripts/live_zone_smoke.rb` runs against `/Applications/SaneBar.app`; Mini `./scripts/SaneMaster.rb release_preflight`; Mini `ruby Scripts/wake_layout_probe.rb`; aligned `sample` captures `/tmp/sanebar_codex_phase{1,2,3}.sample`
+
+### Verified Findings
+
+1. A real unnecessary-refresh pattern was still present in the move/script path.
+   - Exact-ID AppleScript moves were still willing to force a fresh zone refresh even when the positioned-item cache was already fresh.
+   - Move/script invalidations were also clearing owner cache, even though interactive zone moves change positions, not owners.
+   - Current tree now gates move refreshes on real cache freshness and uses `invalidateMenuBarItemPositionsCache()` for move/script position churn.
+
+2. The official release lane is technically green again on the Mini.
+   - Mini `./scripts/SaneMaster.rb verify --quiet` passed with `1089` tests.
+   - Mini `./scripts/SaneMaster.rb release_preflight` passed runtime smoke pass `1/2` at `avgCpu=9.2%` and pass `2/2` at `avgCpu=5.8%`.
+   - The same preflight passed `startup_layout_probe`.
+   - Mini `ruby Scripts/wake_layout_probe.rb` passed.
+   - The only hard preflight blocker is still the normal open-regression gate for GitHub issue `#129`.
+
+3. The exact direct focused `Codex` smoke is improved but still noisy.
+   - A fresh direct focused smoke on `com.openai.codex` passed at `avgCpu=7.7%`.
+   - Two later fresh direct focused runs on the same path failed at `avgCpu=16.6%` and `avgCpu=17.5%`.
+   - A non-fresh immediate rerun also failed once on launch idle rather than on the active move path.
+
+4. Fresh aligned samples on the failing direct `Codex` path still point at full AX position refresh work, not logging noise.
+   - The stale-frame warning spam is no longer the issue; the one-time fallback logging guard worked.
+   - Failing direct `Codex` samples still show most active work under `AccessibilityService.refreshMenuBarItemsWithPositions()` and `systemWideVisibleMenuBarItems(...)`.
+   - `MoveIconScriptCommand.performDefaultImplementation()` remains on-stack during those samples, so the remaining cost is still tied to real move-path refresh work.
+
+5. The current best read is split confidence by lane.
+   - Release confidence is high for the actual routed release lane used by `release_preflight`.
+   - Confidence is not yet equally high for the extra direct focused `Codex` smoke, which remains more variable than the official lane.
+
+## 2026-04-21 14:10 ET runtime smoke confidence split after structural recovery patch
+
+**Updated:** 2026-04-21 14:10 ET | **Status:** verified | **TTL:** 7d
+**Source:** Mini `./scripts/SaneMaster.rb test_mode --release --no-logs`; direct Mini `ruby Scripts/live_zone_smoke.rb` against `/Applications/SaneBar.app` with screenshots disabled; direct Mini `ruby Scripts/startup_layout_probe.rb`; direct Mini `ruby Scripts/wake_layout_probe.rb`; routed Mini `./scripts/SaneMaster.rb release_preflight`
+
+### Verified Findings
+
+1. The recovery patch is not currently failing the startup/wake lane.
+   - Fresh Mini `startup_layout_probe.rb` passed.
+   - Fresh Mini `wake_layout_probe.rb` passed.
+   - Routed `release_preflight` also passed the startup probe after the runtime smoke section.
+
+2. The current release risk is active-smoke variance, not a clear startup/recovery regression.
+   - A fresh direct Mini `live_zone_smoke.rb` run with screenshots disabled still failed at `avgCpu=15.9% > 15.0%`.
+   - Another direct no-screenshot run failed at `avgCpu=17.2% > 15.0%`.
+   - Both failing direct runs used the default hidden candidate path on `com.mrsane.SaneHosts`.
+
+3. The full routed release lane is healthier than the direct standalone lane, but not consistent enough yet for high-confidence shipping.
+   - Routed Mini `release_preflight` on current `main` passed runtime smoke pass `1/2` at `avgCpu=11.3%` and pass `2/2` at `avgCpu=6.8%`.
+   - That same run passed the startup probe and only blocked on the open-regression policy gate for GitHub issue `#129`.
+
+4. The right current interpretation is "near-threshold and noisy," not "cleanly fixed" or "cleanly broken."
+   - The patch did not introduce a deterministic runtime failure: the official routed preflight can go green.
+   - But independent fresh direct smokes can still miss the active CPU budget on the same staged app and same host.
+   - Release confidence should stay capped until the active-smoke path is more repeatable or the variance is explained and intentionally accepted.
+
 ## 2026-04-20 20:05 ET visibility-first recovery-state architecture refresh
 
 **Updated:** 2026-04-20 20:05 ET | **Status:** verified research refresh; local refactor patched; Mini verify rerun pending after research gate | **TTL:** 14d
@@ -3528,3 +3587,49 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 
 - The reopened `#129` is a real post-`2.1.40` regression path, not just stale user state.
 - The current fix direction is to keep recovery local to geometry fallback, not widen persisted-state scrubs again.
+
+## 2026-04-21 19:15 EDT release-confidence follow-up after structural recovery refactor
+
+**Updated:** 2026-04-21 19:15 EDT | **Status:** official Mini release lane technically green again; one extra Codex-forced exact-id smoke remains specifically hot | **TTL:** 7d
+**Sources:** Mini `verify`, signed `test_mode --release --no-logs`, repeated direct `live_zone_smoke.rb` runs, cold/warm `sample` captures, `/usr/bin/log show` for SaneBar cache-warmup logs, and routed `./scripts/SaneMaster.rb release_preflight`
+
+### Fresh local findings
+
+1. **The patched tree is still correct on the Mini.**
+   - Mini `./scripts/SaneMaster.rb verify --quiet` passed repeatedly after the browse/cache and RunningApp metadata-cache changes.
+   - Current test count is `1100`.
+
+2. **The official release lane is technically green.**
+   - Routed Mini `release_preflight` passed release runtime smoke `2/2`.
+   - Smoke pass `1/2` finished at about `6.4%` avg CPU.
+   - Smoke pass `2/2` finished at about `6.0%` avg CPU.
+   - The startup layout probe passed inside preflight.
+   - Direct `wake_layout_probe.rb` also passed against `/Applications/SaneBar.app`.
+   - Preflight is still blocked only by policy/governance (`#129` open, dirty tree, evening release window), not by runtime failure.
+
+3. **The hot lane is narrower than it first looked.**
+   - A standalone direct smoke against the default candidate path (`SaneHosts`) passed at about `6.0%` avg CPU.
+   - The specifically forced `SANEBAR_SMOKE_REQUIRED_IDS=com.openai.codex` lane still missed active-budget thresholds in multiple runs (`~15.6%`, `~18.0%`, `~19.3%`, `~19.8%`).
+   - That means current risk is not “the app is broadly hot”; it is a more specific exact-id / candidate-path variance.
+
+4. **The first browse/cache tweak helped warm-path duplication, but it was not the whole problem.**
+   - `SearchService.refreshMenuBarApps()` now reuses the warmed owner cache after a known-owner positioned refresh and only falls back to `refreshMenuBarItemOwners()` when the owner cache is empty.
+   - That removed one obvious repeated owner rediscovery path during warm All-mode refreshes.
+   - Cold exact-id runs still showed real owner-refresh cost, which means the remaining variance is not just that one duplicate call.
+
+5. **`RunningApp` metadata construction is an important repeated cost center.**
+   - Cold/warm samples kept showing LaunchServices and `NSRunningApplication icon` work under owner refresh.
+   - `RunningApp` used to eagerly recompute name/icon/category from `NSRunningApplication` every time a scan rebuilt the model.
+   - The current tree now caches that metadata by resolved bundle key inside `RunningApp`, which is the right architectural direction even though it did not eliminate the Codex-forced hot lane by itself.
+
+6. **Launch prewarm overlap exists, but it is not the whole explanation.**
+   - SaneBar logs show launch cache prewarm overlapping the first direct smoke after `test_mode`.
+   - In the sampled run, launch prewarm took about `0.85s`, followed by a short conceal warmup of about `0.14s`.
+   - That overlap contributes to cold-lane noise, but it is too short to explain the whole exact-id variance by itself.
+
+### Conclusion
+
+- As of 2026-04-21 evening, I would classify the current build as **release-candidate quality on the official Mini ship lane**.
+- I do **not** have evidence of a broad current-tree runtime regression on startup, wake, or the default release smoke path.
+- The unresolved concern is a **specific forced `com.openai.codex` exact-id smoke lane** that still runs hot enough to fail the active average CPU budget.
+- If we want to keep pushing root-cause work after this pass, the next defensible target is not another startup/wake recovery patch. It is the remaining exact-id browse/owner-refresh cost on cold third-party candidate paths.

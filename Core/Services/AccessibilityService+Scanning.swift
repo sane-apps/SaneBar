@@ -293,10 +293,42 @@ extension AccessibilityService {
             return menuBarItemCache
         }
 
+        let apps = await scanMenuBarItemsWithPositions(
+            candidateApps: filteredMenuBarCandidateApps(),
+            includeSystemWideFallback: true
+        )
+        menuBarItemCache = apps
+        menuBarItemCacheTime = now
+        return apps
+    }
+
+    func listKnownMenuBarItemsWithPositions(owners: [RunningApp]) async -> [MenuBarItemPosition] {
+        guard isTrusted else {
+            logger.warning("listKnownMenuBarItemsWithPositions: Not trusted for Accessibility")
+            return []
+        }
+
+        let now = Date()
+        let apps = await scanKnownMenuBarItemsWithPositions(owners: owners)
+        menuBarItemCache = apps
+        menuBarItemCacheTime = now
+        return apps
+    }
+
+    func scopedMenuBarItemsWithPositions(for owners: [RunningApp]) async -> [MenuBarItemPosition] {
+        guard isTrusted else {
+            logger.warning("scopedMenuBarItemsWithPositions: Not trusted for Accessibility")
+            return []
+        }
+
+        return await scanKnownMenuBarItemsWithPositions(owners: owners)
+    }
+
+    // MARK: - Scanning Helpers
+
+    private func filteredMenuBarCandidateApps() -> [NSRunningApplication] {
         let selfPID = ProcessInfo.processInfo.processIdentifier
-        // Pre-filter: scan everything except ourselves. Some menu extras run from
-        // helper processes where bundleIdentifier is temporarily nil.
-        let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
+        return NSWorkspace.shared.runningApplications.filter { app in
             guard app.processIdentifier != selfPID else { return false }
             if let bundleID = app.bundleIdentifier,
                bundleID == Bundle.main.bundleIdentifier {
@@ -304,28 +336,58 @@ extension AccessibilityService {
             }
             return true
         }
+    }
 
-        logger.debug("Scanning \(candidateApps.count) candidate apps (filtered from \(NSWorkspace.shared.runningApplications.count) total)")
+    private func knownMenuBarCandidateApps(from owners: [RunningApp]) -> [NSRunningApplication] {
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+        var seenPIDs = Set<pid_t>()
+        var apps: [NSRunningApplication] = []
 
-        // Scan candidate applications for their menu bar extras in parallel
+        for owner in owners {
+            guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: owner.bundleId).first else {
+                continue
+            }
+            guard app.processIdentifier != selfPID else { continue }
+            guard seenPIDs.insert(app.processIdentifier).inserted else { continue }
+            apps.append(app)
+        }
+
+        return apps
+    }
+
+    private func scanKnownMenuBarItemsWithPositions(owners: [RunningApp]) async -> [MenuBarItemPosition] {
+        await scanMenuBarItemsWithPositions(
+            candidateApps: knownMenuBarCandidateApps(from: owners),
+            includeSystemWideFallback: false
+        )
+    }
+
+    private func scanMenuBarItemsWithPositions(
+        candidateApps: [NSRunningApplication],
+        includeSystemWideFallback: Bool
+    ) async -> [MenuBarItemPosition] {
+        guard !candidateApps.isEmpty else {
+            logger.debug("No candidate apps available for menu bar item scan")
+            return []
+        }
+
+        logger.debug(
+            "Scanning \(candidateApps.count) candidate apps for menu bar positions (systemWideFallback=\(includeSystemWideFallback, privacy: .public))"
+        )
+
         let results: [ScannedStatusItem] = await withTaskGroup(of: [ScannedStatusItem].self) { group in
             for runningApp in candidateApps {
                 group.addTask {
                     let pid = runningApp.processIdentifier
                     let appElement = AXUIElementCreateApplication(pid)
 
-                    // Try to get this app's extras menu bar (status items)
                     var extrasBar: CFTypeRef?
                     let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-
                     guard result == .success, let bar = extrasBar else { return [] }
-
-                    // Safe type checking using Core Foundation type IDs
                     guard let barElement = safeAXUIElement(bar) else { return [] }
 
                     var children: CFTypeRef?
                     let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-
                     guard childResult == .success, let items = children as? [AXUIElement] else { return [] }
 
                     func axString(_ value: CFTypeRef?) -> String? {
@@ -337,7 +399,6 @@ extension AccessibilityService {
                     let usesPerItemIdentity = items.count > 1
                     var localResults: [ScannedStatusItem] = []
 
-                    // Prefer stable AX identifiers when they exist and are unique within this app.
                     var identifiersByIndex: [Int: String] = [:]
                     if usesPerItemIdentity {
                         var identifiers: [String] = []
@@ -351,7 +412,6 @@ extension AccessibilityService {
                             }
                         }
 
-                        // Only use identifiers if we have at least one and they don't collide.
                         if !identifiers.isEmpty {
                             let uniqueCount = Set(identifiers).count
                             if uniqueCount != identifiers.count {
@@ -369,7 +429,6 @@ extension AccessibilityService {
                         AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
                         let rawDescription = axString(descValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-                        // Get Position
                         var positionValue: CFTypeRef?
                         let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
@@ -382,7 +441,6 @@ extension AccessibilityService {
                             }
                         }
 
-                        // Get Size (Width)
                         var sizeValue: CFTypeRef?
                         let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
 
@@ -395,7 +453,6 @@ extension AccessibilityService {
                             }
                         }
 
-                        // If the app exposes multiple status items, keep them distinct.
                         let itemIndex: Int? = usesPerItemIdentity ? index : nil
                         localResults.append(
                             ScannedStatusItem(
@@ -432,19 +489,33 @@ extension AccessibilityService {
         let windowBackedItems = Self.windowBackedMenuBarItems(candidatePIDs: candidatePIDs)
         let windowBackedPIDs = Set(windowBackedItems.map(\.pid))
         let topBarHostPIDs = Self.topBarHostPIDs(candidatePIDs: candidatePIDs)
-        let systemWideCandidatePIDs = Self.systemWideFallbackCandidatePIDs(
-            axResolvedPIDs: axResolvedPIDs,
-            knownNoExtrasPIDs: knownNoExtrasPIDs,
-            windowBackedPIDs: windowBackedPIDs,
-            topBarHostPIDs: topBarHostPIDs
-        )
-        let systemWideItems = systemWideCandidatePIDs.isEmpty
-            ? []
-            : Self.systemWideVisibleMenuBarItems(candidatePIDs: systemWideCandidatePIDs)
+        let systemWideItems: [MenuBarItemPosition]
+        if includeSystemWideFallback {
+            let systemWideCandidatePIDs = Self.systemWideFallbackCandidatePIDs(
+                axResolvedPIDs: axResolvedPIDs,
+                knownNoExtrasPIDs: knownNoExtrasPIDs,
+                windowBackedPIDs: windowBackedPIDs,
+                topBarHostPIDs: topBarHostPIDs
+            )
+            let totalScreenWidth = NSScreen.screens.reduce(CGFloat(0)) { partial, screen in
+                partial + screen.frame.width
+            }
+            let systemWideSampleStep = Self.recommendedSystemWideSampleStep(
+                candidateCount: systemWideCandidatePIDs.count,
+                totalScreenWidth: totalScreenWidth
+            )
+            systemWideItems = systemWideCandidatePIDs.isEmpty
+                ? []
+                : Self.systemWideVisibleMenuBarItems(
+                    candidatePIDs: systemWideCandidatePIDs,
+                    sampleStep: systemWideSampleStep
+                )
+        } else {
+            systemWideItems = []
+        }
 
         logger.debug("Scanned candidate apps in parallel, found \(results.count) menu bar items")
 
-        // Convert to RunningApps (unique by bundle ID or menuExtraIdentifier)
         var appPositions: [String: MenuBarItemPosition] = [:]
         var controlCenterPID: pid_t?
         var systemUIServerPID: pid_t?
@@ -460,16 +531,14 @@ extension AccessibilityService {
             guard let bundleID = Self.resolvedBundleIdentifier(for: app)
                 ?? Self.bundleIdentifierFallback(fromAXIdentifier: axIdentifier) else { continue }
 
-            // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
                 controlCenterPID = pid
-                continue  // Don't add the collapsed entry
+                continue
             }
 
-            // Special case: SystemUIServer - remember its PID for later expansion
             if bundleID == "com.apple.systemuiserver" {
                 systemUIServerPID = pid
-                continue  // Don't add the collapsed entry
+                continue
             }
 
             let appModel = RunningApp(
@@ -486,14 +555,11 @@ extension AccessibilityService {
                 xPosition: x,
                 width: width
             )
-            // Skip thumbnail pre-calculation - let UI render lazily for faster scanning with 50+ apps
             let key = appModel.uniqueId
 
-            // If we somehow see duplicate keys, keep the more-leftward X (stable sort).
             if let existing = appPositions[key] {
                 let newX = min(existing.x, x)
                 let newWidth = max(existing.width, width)
-                // Use the new position
                 let updatedApp = RunningApp(
                     app: app,
                     resolvedBundleId: bundleID,
@@ -582,8 +648,6 @@ extension AccessibilityService {
             Self.mergeSystemWideMenuBarItem(item, into: &appPositions)
         }
 
-        // Some macOS builds expose system extras through AXMenuBar instead of AXExtrasMenuBar.
-        // Ensure we still attempt targeted expansion for these owners.
         if controlCenterPID == nil {
             controlCenterPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.controlcenter").first?.processIdentifier
         }
@@ -591,15 +655,12 @@ extension AccessibilityService {
             systemUIServerPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systemuiserver").first?.processIdentifier
         }
 
-        // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
         if let ccPID = controlCenterPID {
             let ccItems = Self.enumerateControlCenterItems(pid: ccPID)
             logger.debug("Expanded Control Center into \(ccItems.count) individual items")
             for item in ccItems {
-                // Use uniqueId (menuExtraIdentifier) as the key for Control Center items
                 let key = item.app.uniqueId
-                
-                // Ensure xPosition and width are preserved in RunningApp
+
                 var appWithProps = item.app
                 if appWithProps.xPosition == nil || appWithProps.width == nil {
                     appWithProps = RunningApp(
@@ -617,7 +678,6 @@ extension AccessibilityService {
             }
         }
 
-        // Expand SystemUIServer into individual items (Wi‑Fi, Bluetooth, etc.)
         if let suPID = systemUIServerPID {
             let suItems = Self.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
             logger.debug("Expanded SystemUIServer into \(suItems.count) individual items")
@@ -643,18 +703,10 @@ extension AccessibilityService {
         }
 
         let apps = Array(appPositions.values).sorted { $0.x < $1.x }
-
-        // Update cache
-        menuBarItemCache = apps
-        menuBarItemCacheTime = now
-
         let hiddenCount = apps.filter { $0.x < 0 }.count
         logger.debug("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
-
         return apps
     }
-
-    // MARK: - Scanning Helpers
 
     internal nonisolated static func windowBackedMenuBarItems(candidatePIDs: Set<pid_t>) -> [WindowBackedStatusItem] {
         guard !candidatePIDs.isEmpty,

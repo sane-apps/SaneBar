@@ -92,6 +92,7 @@ final class AccessibilityService: ObservableObject {
 
     var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
+    var menuBarKnownItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
     var menuBarCacheWarmupTask: Task<Void, Never>?
     var menuBarCacheWarmupSuppressionDepth = 0
     var deferredMenuBarCacheWarmupReason: CacheWarmupReason?
@@ -104,6 +105,22 @@ final class AccessibilityService: ObservableObject {
         case structuralChange
     }
 
+    struct KnownOwnerRefreshDiagnostics: Sendable, Equatable {
+        var attemptCount = 0
+        var acceptedCount = 0
+        var fullFallbackCount = 0
+        var lastOutcome = "idle"
+        var lastSeededItemCount = 0
+        var lastSeededOwnerCount = 0
+        var lastFirstResultCount = 0
+        var lastFirstCoverage = 0.0
+        var lastRetryOwnerCount = 0
+        var lastRetryResultCount = 0
+        var lastRetryCoverage = 0.0
+    }
+
+    var knownOwnerRefreshDiagnostics = KnownOwnerRefreshDiagnostics()
+
     nonisolated static func cacheWarmupDelay(for reason: CacheWarmupReason) -> TimeInterval {
         switch reason {
         case .launch:
@@ -115,6 +132,15 @@ final class AccessibilityService: ObservableObject {
             return 0.1
         case .structuralChange:
             return 0.25
+        }
+    }
+
+    nonisolated static func cacheWarmupUsesKnownOwnerRefresh(for reason: CacheWarmupReason) -> Bool {
+        switch reason {
+        case .launch:
+            return false
+        case .reveal, .conceal, .structuralChange:
+            return true
         }
     }
 
@@ -141,6 +167,10 @@ final class AccessibilityService: ObservableObject {
 
     func bundlesWithoutExtrasMenuBarSnapshot() -> [String] {
         bundlesWithoutExtrasMenuBar.sorted()
+    }
+
+    func knownOwnerRefreshDiagnosticsSnapshot() -> KnownOwnerRefreshDiagnostics {
+        knownOwnerRefreshDiagnostics
     }
 
     // MARK: - Initialization

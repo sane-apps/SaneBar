@@ -2,6 +2,17 @@ import AppKit
 import ApplicationServices
 
 extension AccessibilityService {
+    internal nonisolated static func recommendedSystemWideSampleStep(
+        candidateCount: Int,
+        totalScreenWidth: CGFloat
+    ) -> CGFloat {
+        _ = candidateCount // reserved for future fallback-owner-specific tuning
+        if totalScreenWidth >= 3200 {
+            return 8
+        }
+        return 6
+    }
+
     internal struct SystemWideHitSample: Equatable, Sendable {
         let pid: pid_t
         let bundleID: String

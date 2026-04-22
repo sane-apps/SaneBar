@@ -763,20 +763,33 @@ struct MenuBarSearchView: View {
 
             if force {
                 await MainActor.run {
-                    AccessibilityService.shared.invalidateMenuBarItemCache()
+                    // Force-refresh browse surfaces for new geometry, but keep
+                    // the owner cache warm. Repeated panel opens usually do not
+                    // need to rediscover the entire owner set from scratch.
+                    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
                 }
             }
 
-            // Single-pass refresh for all modes — same backend, consistent results.
-            let classified = await service.refreshClassifiedApps()
-            let allModeApps = effectiveMode == .all && !isSecondMenuBar ? await service.refreshMenuBarApps() : []
+            let classified: SearchClassifiedApps?
+            let allModeApps: [RunningApp]
+            if isSecondMenuBar || effectiveMode != .all {
+                // Zone-only browse surfaces are typically reacting to relayouts
+                // or moves where the owner set is stable. Rebuild positions
+                // from the known owners first and keep All-mode discovery on
+                // its dedicated merged list path.
+                classified = await service.refreshKnownClassifiedApps()
+                allModeApps = []
+            } else {
+                classified = nil
+                allModeApps = await service.refreshMenuBarApps()
+            }
 
             await MainActor.run {
                 guard self.refreshGeneration == generation else { return }
                 defer { self.isRefreshing = false }
                 guard !Task.isCancelled else { return }
 
-                if isSecondMenuBar {
+                if isSecondMenuBar, let classified {
                     visibleApps = classified.visible
                     menuBarApps = classified.hidden
                     alwaysHiddenApps = classified.alwaysHidden
@@ -790,11 +803,11 @@ struct MenuBarSearchView: View {
                 } else {
                     switch effectiveMode {
                     case .hidden:
-                        menuBarApps = classified.hidden
+                        menuBarApps = classified?.hidden ?? []
                     case .visible:
-                        menuBarApps = classified.visible
+                        menuBarApps = classified?.visible ?? []
                     case .alwaysHidden:
-                        menuBarApps = classified.alwaysHidden
+                        menuBarApps = classified?.alwaysHidden ?? []
                     case .all:
                         menuBarApps = allModeApps
                     }

@@ -449,15 +449,7 @@ private func zones(from classified: ScriptClassifiedApps) -> [ScriptZonedIcon] {
 }
 @MainActor
 private func currentIconZones() -> [ScriptZonedIcon] {
-    var classified: ScriptClassifiedApps = SearchService.shared.cachedClassifiedApps()
-    if classified.visible.isEmpty, classified.hidden.isEmpty, classified.alwaysHidden.isEmpty {
-        Task { @MainActor in
-            _ = await SearchService.shared.refreshClassifiedApps()
-        }
-        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.35))
-        classified = SearchService.shared.cachedClassifiedApps()
-    }
-    return zones(from: classified)
+    zones(from: SearchService.shared.cachedClassifiedApps())
 }
 
 func sortedScriptZones(_ zones: [ScriptZonedIcon]) -> [ScriptZonedIcon] {
@@ -473,6 +465,25 @@ struct ScriptListingZoneQuality {
     let alwaysHiddenCount: Int
     let preciseIdentityCount: Int
     let totalCount: Int
+}
+
+func shouldRefreshScriptListingZones(
+    cachedIsEmpty: Bool,
+    cacheAge: TimeInterval,
+    cacheValiditySeconds: TimeInterval
+) -> Bool {
+    if cachedIsEmpty {
+        return true
+    }
+
+    return cacheAge >= cacheValiditySeconds
+}
+
+func scriptListingCacheValiditySeconds(
+    baseValiditySeconds: TimeInterval,
+    minimumValiditySeconds: TimeInterval = 15.0
+) -> TimeInterval {
+    max(baseValiditySeconds, minimumValiditySeconds)
 }
 
 func scriptListingZoneQuality(_ zones: [ScriptZonedIcon]) -> ScriptListingZoneQuality {
@@ -510,47 +521,29 @@ func shouldPreferRefreshedScriptListingZones(
 
 func preferredScriptListingZones(
     cached: [ScriptZonedIcon],
-    refreshed: @autoclosure () -> [ScriptZonedIcon]
+    refreshed: @autoclosure () -> [ScriptZonedIcon],
+    cacheAge: TimeInterval,
+    cacheValiditySeconds: TimeInterval
 ) -> [ScriptZonedIcon] {
-    guard !cached.isEmpty else {
-        return sortedScriptZones(refreshed())
+    let shouldRefresh = shouldRefreshScriptListingZones(
+        cachedIsEmpty: cached.isEmpty,
+        cacheAge: cacheAge,
+        cacheValiditySeconds: cacheValiditySeconds
+    )
+    guard shouldRefresh else {
+        return sortedScriptZones(cached)
     }
 
     // Cold-start cache snapshots can flatten always-hidden lanes into generic
-    // hidden rows. Prefer the refreshed read when it exposes richer lane or
-    // identity information, otherwise keep the cached snapshot for stability.
+    // hidden rows. Only pay for a refreshed read once the cache is empty or
+    // stale; otherwise trust the warmed snapshot and avoid re-scanning on
+    // every AppleScript listing call.
     let refreshedZones = refreshed()
     if shouldPreferRefreshedScriptListingZones(cached: cached, refreshed: refreshedZones) {
         return sortedScriptZones(refreshedZones)
     }
 
     return sortedScriptZones(cached)
-}
-
-func scriptZonesContainExpectedMatch(
-    _ zones: [ScriptZonedIcon],
-    iconUniqueID: String,
-    expected: ScriptIconZone
-) -> Bool {
-    zones.contains { $0.app.uniqueId == iconUniqueID && $0.zone == expected }
-}
-
-func shouldForceRefreshDuringScriptZoneWait(
-    pollCount: Int,
-    zonesAreEmpty: Bool,
-    lastRefreshAt: Date?,
-    now: Date,
-    refreshIntervalSeconds: TimeInterval = 0.8
-) -> Bool {
-    if zonesAreEmpty || pollCount == 0 {
-        return true
-    }
-
-    guard let lastRefreshAt else {
-        return true
-    }
-
-    return now.timeIntervalSince(lastRefreshAt) >= refreshIntervalSeconds
 }
 
 @MainActor
@@ -568,10 +561,13 @@ private func runScriptMove(timeoutSeconds: TimeInterval = 9.0, operation: @escap
 }
 
 @MainActor
-private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZonedIcon] {
+private func refreshedIconZones(
+    timeoutSeconds: TimeInterval = 2.5,
+    allowAuthoritativeFallback: Bool = true
+) -> [ScriptZonedIcon] {
     let result = ScriptResultBox<ScriptClassifiedApps?>(nil)
     Task { @MainActor in
-        result.value = await SearchService.shared.refreshClassifiedApps()
+        result.value = await SearchService.shared.refreshKnownClassifiedApps()
     }
 
     let deadline = Date().addingTimeInterval(timeoutSeconds)
@@ -583,9 +579,15 @@ private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZo
         return zones(from: classified)
     }
 
-    // If refresh timed out, invalidate AX cache and try once more before
-    // falling back to the cached classification snapshot.
-    AccessibilityService.shared.invalidateMenuBarItemCache()
+    let cached = currentIconZones()
+    guard allowAuthoritativeFallback else {
+        return cached
+    }
+
+    // If the lighter known-owner refresh timed out, invalidate AX cache and try
+    // once more with the authoritative full inventory refresh before falling
+    // back to the cached classification snapshot.
+    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     let retryResult = ScriptResultBox<ScriptClassifiedApps?>(nil)
     Task { @MainActor in
         retryResult.value = await SearchService.shared.refreshClassifiedApps()
@@ -600,7 +602,7 @@ private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZo
         return zones(from: retryClassified)
     }
 
-    return currentIconZones()
+    return cached
 }
 
 @MainActor
@@ -610,24 +612,29 @@ func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
         return cached
     }
 
-    AccessibilityService.shared.invalidateMenuBarItemCache()
+    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     return refreshedIconZones(timeoutSeconds: 1.2)
 }
 
 func shouldPreferFreshZonesForScriptMove(
     identifier: String,
     matchedApp: RunningApp,
-    sameBundleCount: Int
+    sameBundleCount: Int,
+    cacheIsFresh: Bool
 ) -> Bool {
-    if matchedApp.hasPreciseMenuBarIdentity, matchedApp.uniqueId == identifier {
+    guard cacheIsFresh else {
         return true
     }
+
+    if matchedApp.hasPreciseMenuBarIdentity, matchedApp.uniqueId == identifier {
+        return false
+    }
     if matchedApp.menuExtraIdentifier == identifier {
-        return true
+        return false
     }
     if let statusItemIndex = matchedApp.statusItemIndex,
        identifier == "\(matchedApp.bundleId)::statusItem:\(statusItemIndex)" {
-        return true
+        return false
     }
     return sameBundleCount > 1
 }
@@ -635,8 +642,10 @@ func shouldPreferFreshZonesForScriptMove(
 @MainActor
 func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
     let cached = currentIconZones()
+    let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
+    let cacheIsFresh = cacheAge < AccessibilityService.shared.menuBarItemCacheValiditySeconds
     guard let matched = resolveScriptIcon(identifier, from: cached) else {
-        AccessibilityService.shared.invalidateMenuBarItemCache()
+        AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
         return refreshedIconZones(timeoutSeconds: 1.8)
     }
 
@@ -649,12 +658,13 @@ func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
     guard shouldPreferFreshZonesForScriptMove(
         identifier: identifier,
         matchedApp: matched.app,
-        sameBundleCount: sameBundleCount
+        sameBundleCount: sameBundleCount,
+        cacheIsFresh: cacheIsFresh
     ) else {
         return cached
     }
 
-    AccessibilityService.shared.invalidateMenuBarItemCache()
+    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     let refreshed = refreshedIconZones(timeoutSeconds: 1.8)
     if resolveScriptIcon(identifier, from: refreshed) != nil {
         return refreshed
@@ -722,56 +732,6 @@ func resolveScriptIcon(_ identifier: String, from zones: [ScriptZonedIcon]) -> S
     return nil
 }
 
-@MainActor
-private func waitForScriptZone(
-    iconUniqueID: String,
-    expected: ScriptIconZone,
-    timeoutSeconds: TimeInterval = 12.0,
-    pollIntervalSeconds: TimeInterval = 0.25
-) -> Bool {
-    let deadline = Date().addingTimeInterval(timeoutSeconds)
-    var pollCount = 0
-    var lastRefreshAt: Date?
-
-    while Date() < deadline {
-        let cachedZones = currentIconZones()
-        if scriptZonesContainExpectedMatch(cachedZones, iconUniqueID: iconUniqueID, expected: expected) {
-            return true
-        }
-
-        let now = Date()
-        if shouldForceRefreshDuringScriptZoneWait(
-            pollCount: pollCount,
-            zonesAreEmpty: cachedZones.isEmpty,
-            lastRefreshAt: lastRefreshAt,
-            now: now
-        ) {
-            let refreshTimeout: TimeInterval = cachedZones.isEmpty ? 1.2 : 0.8
-            let refreshedZones = refreshedIconZones(timeoutSeconds: refreshTimeout)
-            lastRefreshAt = Date()
-            if scriptZonesContainExpectedMatch(refreshedZones, iconUniqueID: iconUniqueID, expected: expected) {
-                return true
-            }
-        }
-
-        pollCount += 1
-        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(pollIntervalSeconds))
-    }
-
-    // One final strict pass with explicit AX cache invalidation before
-    // declaring failure. Some menu-extra relayouts commit late.
-    for _ in 0 ..< 3 {
-        AccessibilityService.shared.invalidateMenuBarItemCache()
-        let zones = refreshedIconZones(timeoutSeconds: 2.0)
-        if scriptZonesContainExpectedMatch(zones, iconUniqueID: iconUniqueID, expected: expected) {
-            return true
-        }
-        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.2))
-    }
-
-    return false
-}
-
 // MARK: - List Icons Command
 
 @objc(ListIconsCommand)
@@ -823,16 +783,28 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
 
         let zones: [ScriptZonedIcon] = if Thread.isMainThread {
             MainActor.assumeIsolated {
-                preferredScriptListingZones(
+                let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
+                let cacheValiditySeconds = scriptListingCacheValiditySeconds(
+                    baseValiditySeconds: AccessibilityService.shared.menuBarItemCacheValiditySeconds
+                )
+                return preferredScriptListingZones(
                     cached: currentIconZones(),
-                    refreshed: refreshedIconZones(timeoutSeconds: 1.2)
+                    refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false),
+                    cacheAge: cacheAge,
+                    cacheValiditySeconds: cacheValiditySeconds
                 )
             }
         } else {
             DispatchQueue.main.sync {
-                preferredScriptListingZones(
+                let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
+                let cacheValiditySeconds = scriptListingCacheValiditySeconds(
+                    baseValiditySeconds: AccessibilityService.shared.menuBarItemCacheValiditySeconds
+                )
+                return preferredScriptListingZones(
                     cached: currentIconZones(),
-                    refreshed: refreshedIconZones(timeoutSeconds: 1.2)
+                    refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false),
+                    cacheAge: cacheAge,
+                    cacheValiditySeconds: cacheValiditySeconds
                 )
             }
         }
@@ -889,6 +861,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
         let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
             ?? NSScreen.main?.auxiliaryTopRightArea?.minX
+        let knownOwnerRefresh = AccessibilityService.shared.knownOwnerRefreshDiagnosticsSnapshot()
         let rightGap: CGFloat? = {
             guard let mainWindow else { return nil }
             guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
@@ -936,7 +909,18 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "hoverSuspended": manager.hoverService.isSuspended,
             "hoverMouseInMenuBar": manager.hoverService.isMouseInMenuBar,
             "shouldSkipHideForExternalMonitor": manager.shouldSkipHideForExternalMonitor,
-            "isOnExternalMonitor": manager.isOnExternalMonitor
+            "isOnExternalMonitor": manager.isOnExternalMonitor,
+            "knownOwnerRefreshAttempts": knownOwnerRefresh.attemptCount,
+            "knownOwnerRefreshAccepted": knownOwnerRefresh.acceptedCount,
+            "knownOwnerRefreshFullFallbacks": knownOwnerRefresh.fullFallbackCount,
+            "knownOwnerRefreshLastOutcome": knownOwnerRefresh.lastOutcome,
+            "knownOwnerRefreshLastSeededItems": knownOwnerRefresh.lastSeededItemCount,
+            "knownOwnerRefreshLastSeededOwners": knownOwnerRefresh.lastSeededOwnerCount,
+            "knownOwnerRefreshLastFirstResult": knownOwnerRefresh.lastFirstResultCount,
+            "knownOwnerRefreshLastFirstCoverage": knownOwnerRefresh.lastFirstCoverage,
+            "knownOwnerRefreshLastRetryOwners": knownOwnerRefresh.lastRetryOwnerCount,
+            "knownOwnerRefreshLastRetryResult": knownOwnerRefresh.lastRetryResultCount,
+            "knownOwnerRefreshLastRetryCoverage": knownOwnerRefresh.lastRetryCoverage
         ]
         SearchWindowController.shared.browseWindowPositionSnapshot().forEach { key, value in
             payload[key] = value
@@ -1160,7 +1144,6 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         let targetZone = self.targetZone
         var errorCode: String?
         var skipZoneWait = false
-        var movedUniqueID: String?
         let started: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
                 let manager = MenuBarManager.shared
@@ -1170,7 +1153,6 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     return false
                 }
                 let icon = source.app
-                movedUniqueID = icon.uniqueId
                 let sourceZone = source.zone
                 logger.info(
                     "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
@@ -1290,7 +1272,6 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                 }
 
                 let icon = source.app
-                movedUniqueID = icon.uniqueId
                 let sourceZone = source.zone
                 logger.info(
                     "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
@@ -1416,28 +1397,6 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
 
         if skipZoneWait {
             return true
-        }
-
-        guard let movedUniqueID else {
-            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
-            return false
-        }
-
-        let settled: Bool = if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                waitForScriptZone(iconUniqueID: movedUniqueID, expected: targetZone, timeoutSeconds: 4.0)
-            }
-        } else {
-            DispatchQueue.main.sync {
-                MainActor.assumeIsolated {
-                    waitForScriptZone(iconUniqueID: movedUniqueID, expected: targetZone, timeoutSeconds: 4.0)
-                }
-            }
-        }
-
-        guard settled else {
-            scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
-            return false
         }
 
         return true

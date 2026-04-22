@@ -492,21 +492,31 @@ extension MenuBarManager {
         // showAll() sets length=20 immediately but the window frame lags behind.
         if !Self.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) {
             if let cachedX = resolvedSeparatorRightEdgeFromCaches() {
-                logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+                if !hasLoggedStaleSeparatorRightEdgeFallback {
+                    logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+                    hasLoggedStaleSeparatorRightEdgeFallback = true
+                }
                 return cachedX
             }
 
             if let estimated = estimatedSeparatorEdgesFromMainIcon() {
-                logger.warning("🔧 getSeparatorRightEdgeX: stale frame with empty cache, using estimated \(estimated.rightEdgeX)")
+                if !hasLoggedStaleSeparatorRightEdgeFallback {
+                    logger.warning("🔧 getSeparatorRightEdgeX: stale frame with empty cache, using estimated \(estimated.rightEdgeX)")
+                    hasLoggedStaleSeparatorRightEdgeFallback = true
+                }
                 return estimated.rightEdgeX
             }
 
-            logger.warning("🔧 getSeparatorRightEdgeX: stale frame and no fallback available")
+            if !hasLoggedStaleSeparatorRightEdgeFallback {
+                logger.warning("🔧 getSeparatorRightEdgeX: stale frame and no fallback available")
+                hasLoggedStaleSeparatorRightEdgeFallback = true
+            }
             return nil
         }
 
         // Cache both origin and right edge when separator is at visual size.
         // These caches are used during blocking mode or stale frame fallback.
+        hasLoggedStaleSeparatorRightEdgeFallback = false
         lastKnownSeparatorX = frame.origin.x
         let rightEdge = Self.normalizedSeparatorRightEdge(
             cachedRightEdge: frame.origin.x + frame.width,
@@ -542,22 +552,32 @@ extension MenuBarManager {
         let frame = mainWindow.frame
         logger.debug("🔧 getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
         if Self.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+            hasLoggedStaleMainStatusItemFallback = false
             lastKnownMainStatusItemX = frame.origin.x
             return frame.origin.x
         }
 
         if let cachedX = lastKnownMainStatusItemX {
-            logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+            if !hasLoggedStaleMainStatusItemFallback {
+                logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
+                hasLoggedStaleMainStatusItemFallback = true
+            }
             return cachedX
         }
 
         if let estimated = estimatedMainStatusItemLeftEdgeFromSeparator() {
             lastKnownMainStatusItemX = estimated
-            logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using separator fallback \(estimated)")
+            if !hasLoggedStaleMainStatusItemFallback {
+                logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using separator fallback \(estimated)")
+                hasLoggedStaleMainStatusItemFallback = true
+            }
             return estimated
         }
 
-        logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame and no fallback available")
+        if !hasLoggedStaleMainStatusItemFallback {
+            logger.warning("🔧 getMainStatusItemLeftEdgeX: stale frame and no fallback available")
+            hasLoggedStaleMainStatusItemFallback = true
+        }
         return nil
     }
 
@@ -847,6 +867,51 @@ extension MenuBarManager {
         return true
     }
 
+    private func classifiedMoveVerificationMatchesTarget(
+        classified: SearchClassifiedApps,
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?,
+        expectedZone: MoveExpectedZone
+    ) -> Bool {
+        let matcher: (RunningApp) -> Bool = { app in
+            self.moveVerificationMatchesTarget(
+                app: app,
+                bundleID: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        }
+
+        return switch expectedZone {
+        case .visible:
+            classified.visible.contains(where: matcher)
+        case .hidden:
+            classified.hidden.contains(where: matcher)
+        case .alwaysHidden:
+            classified.alwaysHidden.contains(where: matcher)
+        }
+    }
+
+    private func moveVerificationOwners(bundleID: String) async -> [RunningApp] {
+        let accessibilityService = AccessibilityService.shared
+
+        let cachedOwners = accessibilityService.cachedMenuBarItemOwners().filter { $0.bundleId == bundleID }
+        if !cachedOwners.isEmpty {
+            return cachedOwners
+        }
+
+        let cachedPositionedOwners = accessibilityService.cachedMenuBarItemsWithPositions()
+            .map(\.app)
+            .filter { $0.bundleId == bundleID }
+        if !cachedPositionedOwners.isEmpty {
+            return cachedPositionedOwners
+        }
+
+        let refreshedOwners = await accessibilityService.refreshMenuBarItemOwners()
+        return refreshedOwners.filter { $0.bundleId == bundleID }
+    }
+
     private func verifyMoveByClassifiedZone(
         bundleID: String,
         menuExtraId: String?,
@@ -855,27 +920,36 @@ extension MenuBarManager {
         attempts: Int = 4
     ) async -> Bool {
         for attempt in 1 ... attempts {
-            let classified = await SearchService.shared.refreshClassifiedApps()
-            let matcher: (RunningApp) -> Bool = { app in
-                self.moveVerificationMatchesTarget(
-                    app: app,
+            let owners = await moveVerificationOwners(bundleID: bundleID)
+            if !owners.isEmpty {
+                let scopedItems = await AccessibilityService.shared.scopedMenuBarItemsWithPositions(for: owners)
+                if !scopedItems.isEmpty {
+                    let classified = await MainActor.run {
+                        SearchService.shared.classifyItemsForVerification(scopedItems)
+                    }
+                    if classifiedMoveVerificationMatchesTarget(
+                        classified: classified,
+                        bundleID: bundleID,
+                        menuExtraId: menuExtraId,
+                        statusItemIndex: statusItemIndex,
+                        expectedZone: expectedZone
+                    ) {
+                        return true
+                    }
+                }
+            }
+
+            if attempt == attempts {
+                let classified = await SearchService.shared.refreshClassifiedApps()
+                if classifiedMoveVerificationMatchesTarget(
+                    classified: classified,
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex
-                )
-            }
-
-            let matched: Bool = switch expectedZone {
-            case .visible:
-                classified.visible.contains(where: matcher)
-            case .hidden:
-                classified.hidden.contains(where: matcher)
-            case .alwaysHidden:
-                classified.alwaysHidden.contains(where: matcher)
-            }
-
-            if matched {
-                return true
+                    statusItemIndex: statusItemIndex,
+                    expectedZone: expectedZone
+                ) {
+                    return true
+                }
             }
 
             if attempt < attempts {
@@ -1339,7 +1413,7 @@ extension MenuBarManager {
                 }
 
                 await MainActor.run {
-                    AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
+                    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
                 }
 
                 let (fallbackSeparatorX, fallbackVisibleBoundaryX) = await manager.resolveMoveTargetsWithRetries(
@@ -1429,12 +1503,8 @@ extension MenuBarManager {
 
             // Allow positions to settle after re-hide, then refresh.
             try? await Task.sleep(for: .milliseconds(300))
-
-            await MainActor.run {
-                logger.debug("🔧 Triggering post-move refresh...")
-                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
+            logger.debug("🔧 Triggering post-move refresh...")
+            await manager.refreshAccessibilityCacheAfterMove()
 
             logger.debug("🔧 ========== MOVE ICON END ==========")
             return success
@@ -1615,10 +1685,7 @@ extension MenuBarManager {
 
             // 7. Refresh after positions settle
             try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
+            await manager.refreshAccessibilityCacheAfterMove()
 
             return success
         }
@@ -1807,7 +1874,7 @@ extension MenuBarManager {
             // 5. Refresh after positions settle
             try? await Task.sleep(for: .milliseconds(300))
             await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
+                AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
                 NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
             }
 
@@ -1900,12 +1967,19 @@ extension MenuBarManager {
             }
 
             try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
-            }
+            await manager.refreshAccessibilityCacheAfterMove()
 
             return success
+        }
+    }
+
+    private func refreshAccessibilityCacheAfterMove() async {
+        await MainActor.run {
+            AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
+        }
+        _ = await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()
+        await MainActor.run {
+            NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
         }
     }
 
@@ -1927,7 +2001,10 @@ extension MenuBarManager {
             defer {
                 Task { @MainActor [weak self] in
                     SearchWindowController.shared.setMoveInProgress(false)
-                    AccessibilityService.shared.endMenuBarCacheWarmupSuppression()
+                    // Move tasks already leave behind a fresh post-move cache.
+                    // Replaying deferred reveal/conceal warmups here just adds a
+                    // second AX refresh on top of the work we already finished.
+                    AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
                     self?.activeMoveTask = nil
                 }
             }
