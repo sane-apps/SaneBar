@@ -80,6 +80,15 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         case unknown
     }
 
+    private struct CachedMetadata {
+        let name: String
+        let icon: NSImage?
+        let category: AppCategory
+    }
+
+    private static nonisolated(unsafe) let metadataCacheLock = NSLock()
+    private static nonisolated(unsafe) var metadataCache: [String: CachedMetadata] = [:]
+
     /// Owning app/process bundle identifier (e.g. com.apple.systemuiserver).
     /// This is the identifier we should use for activation/move operations.
     let bundleId: String
@@ -272,8 +281,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
 
     init(app: NSRunningApplication, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = app.bundleIdentifier ?? UUID().uuidString
-        name = app.localizedName ?? "Unknown"
-        icon = app.icon
+        let metadata = Self.cachedMetadata(for: app, resolvedBundleId: bundleId)
+        name = metadata.name
+        icon = metadata.icon
         self.xPosition = xPosition
         self.width = width
 
@@ -289,7 +299,7 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         }
 
         // Detect category from app bundle
-        category = Self.detectCategory(for: app)
+        category = metadata.category
 
         // Regular apps may still provide a stable AX identifier per status item.
         self.menuExtraIdentifier = menuExtraIdentifier
@@ -298,8 +308,9 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
 
     init(app: NSRunningApplication, resolvedBundleId: String, statusItemIndex: Int? = nil, menuExtraIdentifier: String? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
         bundleId = resolvedBundleId
-        name = app.localizedName ?? "Unknown"
-        icon = app.icon
+        let metadata = Self.cachedMetadata(for: app, resolvedBundleId: resolvedBundleId)
+        name = metadata.name
+        icon = metadata.icon
         self.xPosition = xPosition
         self.width = width
 
@@ -314,15 +325,17 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             policy = .unknown
         }
 
-        category = Self.detectCategory(for: app)
+        category = metadata.category
         self.menuExtraIdentifier = menuExtraIdentifier
         self.statusItemIndex = statusItemIndex
     }
 
     /// Detect app category from bundle's Info.plist
-    private static func detectCategory(for app: NSRunningApplication) -> AppCategory {
-        let bundleId = app.bundleIdentifier ?? ""
-        let appName = app.localizedName?.lowercased() ?? ""
+    private static func detectCategory(
+        bundleId: String,
+        appName: String,
+        bundleURL: URL?
+    ) -> AppCategory {
 
         // MARK: - Apple System Apps
 
@@ -435,12 +448,59 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         }
 
         // Try to read LSApplicationCategoryType from bundle
-        if let bundleURL = app.bundleURL,
+        if let bundleURL,
            let bundle = Bundle(url: bundleURL),
            let categoryType = bundle.object(forInfoDictionaryKey: "LSApplicationCategoryType") as? String {
             return AppCategory.from(categoryType: categoryType)
         }
 
         return .other
+    }
+
+    private static func metadataCacheKey(
+        for app: NSRunningApplication,
+        resolvedBundleId: String?
+    ) -> String {
+        if let resolvedBundleId, !resolvedBundleId.isEmpty {
+            return resolvedBundleId
+        }
+        if let bundleId = app.bundleIdentifier, !bundleId.isEmpty {
+            return bundleId
+        }
+        return "pid:\(app.processIdentifier)"
+    }
+
+    private static func cachedMetadata(
+        for app: NSRunningApplication,
+        resolvedBundleId: String?
+    ) -> CachedMetadata {
+        let cacheKey = metadataCacheKey(for: app, resolvedBundleId: resolvedBundleId)
+
+        metadataCacheLock.lock()
+        if let cached = metadataCache[cacheKey] {
+            metadataCacheLock.unlock()
+            return cached
+        }
+        metadataCacheLock.unlock()
+
+        let bundleId = resolvedBundleId ?? app.bundleIdentifier ?? ""
+        let metadata = CachedMetadata(
+            name: app.localizedName ?? "Unknown",
+            icon: app.icon,
+            category: detectCategory(
+                bundleId: bundleId,
+                appName: (app.localizedName ?? "").lowercased(),
+                bundleURL: app.bundleURL
+            )
+        )
+
+        metadataCacheLock.lock()
+        if let cached = metadataCache[cacheKey] {
+            metadataCacheLock.unlock()
+            return cached
+        }
+        metadataCache[cacheKey] = metadata
+        metadataCacheLock.unlock()
+        return metadata
     }
 }

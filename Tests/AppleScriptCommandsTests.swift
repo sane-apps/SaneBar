@@ -257,58 +257,62 @@ struct AppleScriptCommandsTests {
         #expect(true, "Command safely dispatches to MainActor")
     }
 
-    @Test("Script zone wait refreshes on first poll and for empty caches")
-    func scriptZoneWaitRefreshesInitially() {
-        let now = Date()
-
+    @Test("Script listing refreshes when the cache is empty")
+    func scriptListingRefreshesWhenCacheIsEmpty() {
         #expect(
-            shouldForceRefreshDuringScriptZoneWait(
-                pollCount: 0,
-                zonesAreEmpty: false,
-                lastRefreshAt: now,
-                now: now
-            )
-        )
-        #expect(
-            shouldForceRefreshDuringScriptZoneWait(
-                pollCount: 3,
-                zonesAreEmpty: true,
-                lastRefreshAt: now,
-                now: now
+            shouldRefreshScriptListingZones(
+                cachedIsEmpty: true,
+                cacheAge: 0.2,
+                cacheValiditySeconds: 5.0
             )
         )
     }
 
-    @Test("Script zone wait skips redundant refreshes before the interval expires")
-    func scriptZoneWaitSkipsRedundantRefreshes() {
-        let now = Date()
-        let lastRefreshAt = now.addingTimeInterval(-0.25)
-
+    @Test("Script listing trusts a fresh warmed cache")
+    func scriptListingTrustsFreshCache() {
         #expect(
-            !shouldForceRefreshDuringScriptZoneWait(
-                pollCount: 2,
-                zonesAreEmpty: false,
-                lastRefreshAt: lastRefreshAt,
-                now: now,
-                refreshIntervalSeconds: 0.8
+            !shouldRefreshScriptListingZones(
+                cachedIsEmpty: false,
+                cacheAge: 0.8,
+                cacheValiditySeconds: 5.0
             )
         )
     }
 
-    @Test("Script zone wait refreshes again after the interval elapses")
-    func scriptZoneWaitRefreshesAfterInterval() {
-        let now = Date()
-        let lastRefreshAt = now.addingTimeInterval(-1.0)
-
+    @Test("Script listing refreshes again once the cache is stale")
+    func scriptListingRefreshesWhenCacheIsStale() {
         #expect(
-            shouldForceRefreshDuringScriptZoneWait(
-                pollCount: 2,
-                zonesAreEmpty: false,
-                lastRefreshAt: lastRefreshAt,
-                now: now,
-                refreshIntervalSeconds: 0.8
+            shouldRefreshScriptListingZones(
+                cachedIsEmpty: false,
+                cacheAge: 5.1,
+                cacheValiditySeconds: 5.0
             )
         )
+    }
+
+    @Test("Script zone listing widens short cache windows for repeated polling")
+    func scriptListingCacheValidityWidensShortWindows() {
+        #expect(
+            scriptListingCacheValiditySeconds(baseValiditySeconds: 5.0) == 15.0
+        )
+        #expect(
+            scriptListingCacheValiditySeconds(baseValiditySeconds: 20.0) == 20.0
+        )
+    }
+
+    @Test("Move commands trust the verified drag and do not add their own post-move settle work")
+    func moveCommandsDoNotAddPostMoveSettleWork() throws {
+        let fileURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        #expect(!source.contains("waitForScriptZone("))
+        #expect(!source.contains("settleScriptZoneAfterVerifiedMove("))
+        #expect(!source.contains("invalidateScriptMoveCachesAfterVerifiedDrag()"))
+        #expect(source.contains("if skipZoneWait {"))
+        #expect(source.contains("return true"))
     }
 
     // MARK: - SDEF Mapping Tests
@@ -508,7 +512,9 @@ struct AppleScriptCommandsTests {
 
         let zones = preferredScriptListingZones(
             cached: [(cachedApp, .hidden)],
-            refreshed: [(refreshedApp, .hidden)]
+            refreshed: [(refreshedApp, .hidden)],
+            cacheAge: 0.8,
+            cacheValiditySeconds: 5.0
         )
 
         #expect(zones.count == 1)
@@ -534,7 +540,9 @@ struct AppleScriptCommandsTests {
             refreshed: {
                 refreshCalled = true
                 return [(refreshedApp, .visible)]
-            }()
+            }(),
+            cacheAge: 0.1,
+            cacheValiditySeconds: 5.0
         )
 
         #expect(refreshCalled)
@@ -564,7 +572,9 @@ struct AppleScriptCommandsTests {
 
         let zones = preferredScriptListingZones(
             cached: [(cachedApp, .hidden)],
-            refreshed: [(refreshedAlwaysHidden, .alwaysHidden)]
+            refreshed: [(refreshedAlwaysHidden, .alwaysHidden)],
+            cacheAge: 5.5,
+            cacheValiditySeconds: 5.0
         )
 
         #expect(zones.count == 1)

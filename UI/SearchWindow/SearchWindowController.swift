@@ -328,7 +328,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         manager.hidingService.cancelRehide()
         logger.info("browse panel show (\(String(describing: desiredMode), privacy: .public)) suspended rehide while panel is visible")
 
-        positionWindow(window, mode: desiredMode)
+        positionWindow(
+            window,
+            mode: desiredMode,
+            useContentFittingSize: desiredMode != .secondMenuBar
+        )
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         lastSecondMenuBarDiagnostics.showRequestedAt = Self.diagnosticsTimestamp(Date())
@@ -624,7 +628,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func refitSecondMenuBarWindowIfNeeded() {
         guard currentMode == .secondMenuBar, let window else { return }
         guard window.isVisible else { return }
-        positionWindow(window, mode: .secondMenuBar)
+        positionWindow(window, mode: .secondMenuBar, useContentFittingSize: true)
         lastSecondMenuBarDiagnostics.windowVisible = window.isVisible
         lastSecondMenuBarDiagnostics.windowFrame = Self.diagnosticsRect(window.frame)
         lastSecondMenuBarDiagnostics.lastRelayoutAt = Self.diagnosticsTimestamp(Date())
@@ -673,7 +677,29 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Window Positioning
 
-    private func positionWindow(_ window: NSWindow, mode: SearchWindowMode) {
+    nonisolated static func clampedSecondMenuBarSize(
+        currentWindowSize: CGSize,
+        fittingSize: CGSize?,
+        visibleFrame: CGRect,
+        useContentFittingSize: Bool
+    ) -> CGSize {
+        let baseSize = if useContentFittingSize, let fittingSize {
+            fittingSize
+        } else {
+            currentWindowSize
+        }
+
+        return CGSize(
+            width: min(max(baseSize.width, 200), min(visibleFrame.width - 20, 800)),
+            height: min(max(baseSize.height, 80), 500)
+        )
+    }
+
+    private func positionWindow(
+        _ window: NSWindow,
+        mode: SearchWindowMode,
+        useContentFittingSize: Bool = true
+    ) {
         guard let screen = NSScreen.main else { return }
 
         switch mode {
@@ -690,11 +716,15 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             let visibleFrame = screen.visibleFrame
             let menuBarHeight = screenFrame.height - visibleFrame.height - visibleFrame.origin.y
 
-            // Intrinsic content size — let SwiftUI determine width from icon count
-            window.contentView?.layoutSubtreeIfNeeded()
-            let fittingSize = window.contentView?.fittingSize ?? NSSize(width: 400, height: 140)
-            let panelWidth = min(max(fittingSize.width, 200), visibleFrame.width - 20)
-            let panelHeight = min(max(fittingSize.height, 80), 500)
+            if useContentFittingSize {
+                window.contentView?.layoutSubtreeIfNeeded()
+            }
+            let panelSize = Self.clampedSecondMenuBarSize(
+                currentWindowSize: window.frame.size,
+                fittingSize: window.contentView?.fittingSize,
+                visibleFrame: visibleFrame,
+                useContentFittingSize: useContentFittingSize
+            )
 
             // Right-align to SaneBar's main status item (or fall back to right edge)
             let rightEdge: CGFloat = if let button = MenuBarManager.shared.mainStatusItem?.button,
@@ -703,11 +733,11 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             } else {
                 visibleFrame.maxX - 10
             }
-            let xPos = max(visibleFrame.origin.x + 10, rightEdge - panelWidth)
-            let yPos = screenFrame.maxY - menuBarHeight - panelHeight - 4 // 4pt gap below menu bar
+            let xPos = max(visibleFrame.origin.x + 10, rightEdge - panelSize.width)
+            let yPos = screenFrame.maxY - menuBarHeight - panelSize.height - 4 // 4pt gap below menu bar
 
             window.setFrame(
-                NSRect(x: xPos, y: yPos, width: panelWidth, height: panelHeight),
+                NSRect(x: xPos, y: yPos, width: panelSize.width, height: panelSize.height),
                 display: true
             )
         }

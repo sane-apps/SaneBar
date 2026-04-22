@@ -50,6 +50,8 @@ protocol SearchServiceProtocol: Sendable {
     func cachedClassifiedApps() -> SearchClassifiedApps
     /// Refresh and classify all menu bar items into zones in a single pass.
     func refreshClassifiedApps() async -> SearchClassifiedApps
+    /// Refresh and classify menu bar items using the current known owner set first.
+    func refreshKnownClassifiedApps() async -> SearchClassifiedApps
     /// Activate an app, revealing hidden items and attempting virtual click
     @MainActor
     func activate(app: RunningApp, isRightClick: Bool, origin: SearchService.ActivationOrigin) async
@@ -398,8 +400,15 @@ final class SearchService: SearchServiceProtocol {
     }
 
     func refreshMenuBarApps() async -> [RunningApp] {
-        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-        let owners = await AccessibilityService.shared.refreshMenuBarItemOwners()
+        let items = await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()
+        let cachedOwners = await MainActor.run {
+            AccessibilityService.shared.cachedMenuBarItemOwners()
+        }
+        let owners = if cachedOwners.isEmpty {
+            await AccessibilityService.shared.refreshMenuBarItemOwners()
+        } else {
+            cachedOwners
+        }
         return await MainActor.run {
             Self.mergedDiscoverableApps(positioned: items.map(\.app), owners: owners)
         }
@@ -551,6 +560,18 @@ final class SearchService: SearchServiceProtocol {
         return await MainActor.run {
             self.classifyItems(items)
         }
+    }
+
+    func refreshKnownClassifiedApps() async -> SearchClassifiedApps {
+        let items = await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()
+        return await MainActor.run {
+            self.classifyItems(items)
+        }
+    }
+
+    @MainActor
+    func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps {
+        classifyItems(items)
     }
 
     /// Single-pass classification for all items.

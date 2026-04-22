@@ -106,6 +106,14 @@ struct AccessibilityServiceTests {
         #expect(AccessibilityService.cacheWarmupDelay(for: .conceal) <= AccessibilityService.cacheWarmupDelay(for: .structuralChange))
     }
 
+    @Test("Geometry-only warmups prefer known-owner refreshes")
+    func testGeometryWarmupsUseKnownOwnerRefresh() {
+        #expect(!AccessibilityService.cacheWarmupUsesKnownOwnerRefresh(for: .launch))
+        #expect(AccessibilityService.cacheWarmupUsesKnownOwnerRefresh(for: .reveal))
+        #expect(AccessibilityService.cacheWarmupUsesKnownOwnerRefresh(for: .conceal))
+        #expect(AccessibilityService.cacheWarmupUsesKnownOwnerRefresh(for: .structuralChange))
+    }
+
     @Test("Deferred cache warmup keeps the strongest pending reason")
     func testMergedDeferredCacheWarmupReason() {
         #expect(
@@ -125,6 +133,83 @@ struct AccessibilityServiceTests {
                 current: nil,
                 new: .launch
             ) == .launch
+        )
+    }
+
+    @Test("Position-only cache invalidation keeps owner cache warm")
+    @MainActor
+    func testInvalidateMenuBarItemPositionsCacheKeepsOwnersWarm() {
+        let service = AccessibilityService.shared
+        let ownersTime = Date()
+        let itemsTime = ownersTime.addingTimeInterval(-1)
+
+        service.menuBarOwnersCacheTime = ownersTime
+        service.menuBarItemCacheTime = itemsTime
+
+        service.invalidateMenuBarItemPositionsCache()
+
+        #expect(service.menuBarOwnersCacheTime == ownersTime)
+        #expect(service.menuBarItemCacheTime == .distantPast)
+    }
+
+    @Test("Warmup suppression can drop deferred warmup when caller already refreshed")
+    @MainActor
+    func testEndMenuBarCacheWarmupSuppressionCanSkipDeferredWarmup() {
+        let service = AccessibilityService.shared
+        service.menuBarCacheWarmupTask?.cancel()
+        service.menuBarCacheWarmupTask = nil
+        service.menuBarCacheWarmupSuppressionDepth = 0
+        service.deferredMenuBarCacheWarmupReason = nil
+
+        service.beginMenuBarCacheWarmupSuppression()
+        service.deferredMenuBarCacheWarmupReason = .structuralChange
+
+        service.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
+
+        #expect(service.menuBarCacheWarmupSuppressionDepth == 0)
+        #expect(service.deferredMenuBarCacheWarmupReason == nil)
+        #expect(service.menuBarCacheWarmupTask == nil)
+    }
+
+    @Test("Known-owner position refresh accepts strong coverage")
+    func testKnownOwnerPositionRefreshAcceptsStrongCoverage() {
+        #expect(
+            AccessibilityService.shouldAcceptKnownOwnerPositionRefresh(
+                seededItemCount: 10,
+                refreshedItemCount: 8
+            )
+        )
+    }
+
+    @Test("Known-owner position refresh rejects empty or weak coverage")
+    func testKnownOwnerPositionRefreshRejectsWeakCoverage() {
+        #expect(
+            !AccessibilityService.shouldAcceptKnownOwnerPositionRefresh(
+                seededItemCount: 10,
+                refreshedItemCount: 0
+            )
+        )
+        #expect(
+            !AccessibilityService.shouldAcceptKnownOwnerPositionRefresh(
+                seededItemCount: 10,
+                refreshedItemCount: 6
+            )
+        )
+    }
+
+    @Test("Known-owner position refresh coverage handles empty seeded sets")
+    func testKnownOwnerPositionRefreshCoverageHandlesEmptySeededSets() {
+        #expect(
+            AccessibilityService.knownOwnerPositionRefreshCoverage(
+                seededItemCount: 0,
+                refreshedItemCount: 3
+            ) == 1
+        )
+        #expect(
+            AccessibilityService.knownOwnerPositionRefreshCoverage(
+                seededItemCount: 10,
+                refreshedItemCount: 0
+            ) == 0
         )
     }
 
@@ -847,6 +932,26 @@ struct AccessibilityServiceTests {
         #expect(segments[0].startX == 100)
         #expect(segments[0].endX == 104)
         #expect(segments[1].startX == 120)
+    }
+
+    @Test("System-wide scan step uses the lighter default on typical single-screen layouts")
+    func testRecommendedSystemWideSampleStepForTypicalLayout() {
+        #expect(
+            AccessibilityService.recommendedSystemWideSampleStep(
+                candidateCount: 2,
+                totalScreenWidth: 1728
+            ) == 6
+        )
+    }
+
+    @Test("System-wide scan step widens further on very wide layouts")
+    func testRecommendedSystemWideSampleStepForVeryWideLayout() {
+        #expect(
+            AccessibilityService.recommendedSystemWideSampleStep(
+                candidateCount: 8,
+                totalScreenWidth: 3200
+            ) == 8
+        )
     }
 
     @Test("System-wide resolver synthesizes third-party identifier from label")

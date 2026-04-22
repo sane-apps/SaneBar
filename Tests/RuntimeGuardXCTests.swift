@@ -738,30 +738,26 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testAppleScriptMoveVerificationUsesForcedRefreshFallback() throws {
+    func testAppleScriptMoveCommandsDoNotAddPostMoveSettleWork() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("private func refreshedIconZones(timeoutSeconds: TimeInterval = 2.5)"),
+            source.contains("private func refreshedIconZones(\n    timeoutSeconds: TimeInterval = 2.5,\n    allowAuthoritativeFallback: Bool = true"),
             "AppleScript move checks should use a longer classified-app refresh window before fallback"
         )
         XCTAssertTrue(
-            source.contains("let cachedZones = currentIconZones()") &&
-                source.contains("shouldForceRefreshDuringScriptZoneWait("),
-            "AppleScript move settle should prefer cached zones and rate-limit expensive refreshes"
+            !source.contains("waitForScriptZone(") &&
+                !source.contains("settleScriptZoneAfterVerifiedMove("),
+            "AppleScript move commands should not run a second script-layer zone settle loop after the move task already verified the drag"
         )
         XCTAssertTrue(
-            source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"),
-            "AppleScript move verification should invalidate AX cache before fallback refresh"
-        )
-        XCTAssertTrue(
-            source.contains("for _ in 0 ..< 3"),
-            "AppleScript move verification should run bounded forced-refresh retries before declaring failure"
+            !source.contains("invalidateScriptMoveCachesAfterVerifiedDrag()"),
+            "AppleScript move commands should leave post-drag cache invalidation to the shared move pipeline instead of duplicating it"
         )
     }
 
-    func testAppleScriptMoveResolutionPrefersFreshSnapshotsForExactIds() throws {
+    func testAppleScriptMoveResolutionAvoidsUnneededFreshSnapshots() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
@@ -771,15 +767,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("let startZones = zonesForScriptMoveResolution(trimmedId)"),
-            "AppleScript moves should prefer a fresh classified snapshot for exact or shared-bundle identifiers"
+            "AppleScript moves should resolve zones through the dedicated helper before dispatching drag work"
         )
         XCTAssertTrue(
             source.contains("shouldPreferFreshZonesForScriptMove("),
             "AppleScript move resolution should explicitly encode when cached zone snapshots are too stale to trust"
         )
         XCTAssertTrue(
-            source.contains("AccessibilityService.shared.invalidateMenuBarItemCache()"),
-            "AppleScript move resolution should invalidate the AX cache before the refreshed lookup"
+            source.contains("let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)") &&
+                source.contains("cacheIsFresh: cacheIsFresh"),
+            "AppleScript move resolution should gate fresh scans on real cache freshness instead of forcing them for every exact identifier"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()"),
+            "AppleScript move resolution should invalidate only positioned item state before the refreshed lookup"
         )
     }
 
@@ -808,8 +809,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AppleScript always-hidden exits to hidden should wait on the dedicated always-hidden helper task"
         )
         XCTAssertTrue(
-            source.contains("waitForScriptZone(iconUniqueID: movedUniqueID, expected: targetZone, timeoutSeconds: 4.0)"),
-            "AppleScript move commands should finish with an exact zone-settle proof instead of trusting the first async success alone"
+            !source.contains("invalidateScriptMoveCachesAfterVerifiedDrag()"),
+            "AppleScript move commands should trust the verified move helper and avoid duplicating post-move cache invalidation"
         )
         XCTAssertTrue(
             movingSource.contains("func moveIconAlwaysHiddenAndWait("),
@@ -865,6 +866,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Accessibility cache invalidation should have a dedicated warmup scheduler"
         )
         XCTAssertTrue(
+            cacheSource.contains("if Self.cacheWarmupUsesKnownOwnerRefresh(for: reason)") &&
+                cacheSource.contains("await self.refreshKnownMenuBarItemsWithPositions()"),
+            "Geometry-only warmups should rebuild positions from known owners instead of defaulting every relayout to a full inventory scan"
+        )
+        XCTAssertTrue(
             cacheSource.contains("cacheWarmupInFlight"),
             "Accessibility diagnostics should report whether a background cache warmup is running"
         )
@@ -875,8 +881,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             movingSource.contains("AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()") &&
-                movingSource.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression()"),
-            "Move tasks should suspend intermediate cache warmups and restore them only after the move finishes"
+                movingSource.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)"),
+            "Move tasks should suspend intermediate cache warmups and skip replaying them after the move's explicit cache refresh"
         )
     }
 
@@ -891,6 +897,114 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("!bundleID.hasPrefix(\"com.apple.controlcenter\") && unpinAlwaysHidden(bundleID: bundleID)"),
             "Always-hidden exit rollback should still include the non-Control-Center bundle fallback unpin"
+        )
+    }
+
+    func testMoveEngineLeavesReadersWithAWarmPostMoveCache() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let cacheURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Cache.swift")
+        let cacheSource = try String(contentsOf: cacheURL, encoding: .utf8)
+        let scanningURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+Scanning.swift")
+        let scanningSource = try String(contentsOf: scanningURL, encoding: .utf8)
+        let searchURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let searchSource = try String(contentsOf: searchURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func refreshAccessibilityCacheAfterMove() async"),
+            "The move engine should own one shared post-move cache refresh helper instead of pushing cache rebuilds onto the next reader"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()") &&
+                source.contains("await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()"),
+            "Post-move cache refresh should rebuild positions from the known owner set before scripts poll zones again"
+        )
+        XCTAssertTrue(
+            cacheSource.contains("func refreshKnownMenuBarItemsWithPositions() async") &&
+                cacheSource.contains("return await refreshMenuBarItemsWithPositions()"),
+            "Known-owner move refresh should keep a full-scan fallback when the lighter refresh cannot rebuild enough state"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)"),
+            "Move completion should skip deferred cache warmups after it already performed an explicit post-move refresh"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.refreshAccessibilityCacheAfterMove()"),
+            "Move completion should call the shared post-move refresh helper before returning success"
+        )
+        XCTAssertTrue(
+            source.contains("let scopedItems = await AccessibilityService.shared.scopedMenuBarItemsWithPositions(for: owners)") &&
+                source.contains("if attempt == attempts") &&
+                source.contains("let classified = await SearchService.shared.refreshClassifiedApps()"),
+            "Move verification should use scoped owner scans first and reserve the authoritative full classified refresh for the final fallback"
+        )
+        XCTAssertTrue(
+            scanningSource.contains("func scopedMenuBarItemsWithPositions(for owners: [RunningApp]) async -> [MenuBarItemPosition]"),
+            "AccessibilityService should expose a scoped positioned-item scan for targeted verification without clobbering the global cache"
+        )
+        XCTAssertTrue(
+            searchSource.contains("func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps"),
+            "SearchService should expose direct classification for targeted verification scans"
+        )
+    }
+
+    func testAppleScriptZoneRefreshPrefersKnownOwnerClassificationBeforeFullFallback() throws {
+        let commandsURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let commandsSource = try String(contentsOf: commandsURL, encoding: .utf8)
+        let searchURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let searchSource = try String(contentsOf: searchURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            commandsSource.contains("result.value = await SearchService.shared.refreshKnownClassifiedApps()"),
+            "AppleScript zone refresh should try the known-owner classified refresh before paying for a full inventory rebuild"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("refreshedIconZones(\n    timeoutSeconds: TimeInterval = 2.5,\n    allowAuthoritativeFallback: Bool = true") &&
+                commandsSource.contains("guard allowAuthoritativeFallback else {"),
+            "AppleScript zone refresh should be able to skip the authoritative fallback when a plain listing poll can safely wait for the lighter refresh"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("let cacheValiditySeconds = scriptListingCacheValiditySeconds("),
+            "Repeated AppleScript zone polling should widen the cache window instead of forcing a rebuild every few seconds"
+        )
+        XCTAssertFalse(
+            commandsSource.contains("Task { @MainActor in\n            _ = await SearchService.shared.refreshClassifiedApps()"),
+            "currentIconZones should stay a pure cached snapshot instead of secretly kicking off a second refresh before the explicit listing refresh path runs"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false)"),
+            "List icon zones should stay on the lighter known-owner refresh path instead of escalating to the authoritative full refresh during normal polling"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("retryResult.value = await SearchService.shared.refreshClassifiedApps()"),
+            "AppleScript zone refresh should still retain the authoritative full refresh as the fallback"
+        )
+        XCTAssertTrue(
+            searchSource.contains("func refreshKnownClassifiedApps() async -> SearchClassifiedApps"),
+            "SearchService should expose a lighter classified refresh path for repeated script zone polling"
+        )
+    }
+
+    func testStaleGeometryFallbackLogsAreDeduplicated() throws {
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
+        let movingURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let movingSource = try String(contentsOf: movingURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            managerSource.contains("var hasLoggedStaleSeparatorRightEdgeFallback = false") &&
+                managerSource.contains("var hasLoggedStaleMainStatusItemFallback = false"),
+            "MenuBarManager should track whether stale-frame fallback warnings were already emitted for the current recovery window"
+        )
+        XCTAssertTrue(
+            movingSource.contains("if !hasLoggedStaleSeparatorRightEdgeFallback {") &&
+                movingSource.contains("hasLoggedStaleSeparatorRightEdgeFallback = false"),
+            "Separator fallback logging should emit once per stale-frame window and reset when live geometry returns"
+        )
+        XCTAssertTrue(
+            movingSource.contains("if !hasLoggedStaleMainStatusItemFallback {") &&
+                movingSource.contains("hasLoggedStaleMainStatusItemFallback = false"),
+            "Main status-item fallback logging should emit once per stale-frame window and reset when live geometry returns"
         )
     }
 
@@ -2975,6 +3089,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             searchViewSource.contains("refreshApps(force: isSecondMenuBar)"),
             "Second menu bar show/reopen should force a fresh AX scan instead of trusting cached app lists"
+        )
+        XCTAssertTrue(
+            searchViewSource.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()") &&
+                searchViewSource.contains("await service.refreshKnownClassifiedApps()"),
+            "Zone-only browse refreshes should invalidate positions and rebuild from known owners instead of paying for a full inventory scan on every relayout"
         )
         XCTAssertTrue(
             searchViewSource.contains("SearchWindowController.shared.refitSecondMenuBarWindowIfNeeded()"),

@@ -1153,7 +1153,7 @@ extension AccessibilityService {
             result.value = true
 
             Task { @MainActor in
-                AccessibilityService.shared.invalidateMenuBarItemCache()
+                AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
             }
 
             semaphore.signal()

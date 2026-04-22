@@ -193,9 +193,15 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     /// Cached right edge of main separator when at visual size (not blocking).
     /// Used by getSeparatorRightEdgeX() when separator is in blocking mode.
     var lastKnownSeparatorRightEdgeX: CGFloat?
+    /// Avoid spamming the same stale-frame fallback warning while WindowServer
+    /// is still settling and cached separator geometry is already in use.
+    var hasLoggedStaleSeparatorRightEdgeFallback = false
     /// Cached main icon origin when WindowServer briefly reports stale geometry.
     /// Cleared on sleep/display topology changes to avoid cross-screen reuse.
     var lastKnownMainStatusItemX: CGFloat?
+    /// Avoid spamming the same stale main-icon fallback warning while cached
+    /// geometry is already carrying the recovery path.
+    var hasLoggedStaleMainStatusItemFallback = false
     /// Cached position of always-hidden separator when at visual size (not blocking).
     /// Used for classification when the separator is at 10,000 length (blocking mode).
     var lastKnownAlwaysHiddenSeparatorX: CGFloat?
