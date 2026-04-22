@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.43] - 2026-04-21
+
+Harden menu bar recovery and reduce browse scan churn.
+
+---
+
 ## [2.1.42] - 2026-04-17
 
 Browse Icons now re-hides more reliably after you close it.
