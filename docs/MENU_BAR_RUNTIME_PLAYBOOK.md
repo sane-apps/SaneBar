@@ -679,6 +679,11 @@ What it now proves before release:
 - when Mini can sign, a staged `Release` app is launched on Mini
 - when Mini cannot sign, QA falls back to the signed `/Applications/SaneBar.app` install for release-style smoke
 - `live_zone_smoke.rb` runs against the chosen release-style target, not whichever bundle happened to launch last
+- the default browse/move smoke still has to pass twice
+- when their exact IDs are present on the Mini, focused exact-ID lanes also have to pass:
+  - shared-bundle Apple extras: Wi-Fi / Battery / Focus / Display
+  - native Apple extras: Siri / Spotlight
+  - host exact-id sentinel: Codex
 - second-menu-bar browse activation now has to stay alive across both left-click and right-click smoke paths, including the AppleScript browse activation lane
 - the live smoke watchdog samples the actual SaneBar process and fails on runaway CPU or memory instead of silently passing functional checks
 - the live smoke now also enforces lightweight budgets: the app must settle to a low idle CPU/RSS budget after launch and again after the browse/move pass
@@ -691,6 +696,11 @@ Why the repeat pass matters:
 - a single pass can succeed while pass 2 still exposes second-menu-bar browse activation drift
 - the current failure shape is `finalOutcome: workspace activation fallback` plus `verification=failed (no observable menu/panel reaction)` while the browse panel still reports `currentMode: secondMenuBar`, `windowVisible: true`, and `lastRelayoutReason: refit`
 - another real failure shape we already hit: the UI path was fixed, but the AppleScript browse path still bypassed `noteBrowseActivationStarted()/Finished()`, so right-click smoke closed the second-menu-bar panel mid-activation until script/UI parity was restored on 2026-03-10
+
+Why the focused exact-ID lanes matter:
+- the default conservative move pool can look healthy while exact-ID Apple items still fail to move
+- the exact-ID Codex lane is a better CPU headroom sentinel than the generic default candidate pool on this host
+- these lanes catch real residual risk that the broad release smoke can miss
 
 Why the watchdog matters:
 - Ivan `#279` proved SaneBar can go pathological with `100%` CPU and about `14 GB` RSS without crashing cleanly
@@ -727,6 +737,15 @@ When to use it:
 - Focus / Siri / Spotlight regressions
 - reproducing a customer report on a specific Apple-native item
 - verifying a native-item move fix before deciding whether a third-party oddball should stay in the known-edge-case bucket
+
+### 2d. Manual external-display hot-plug check
+
+Keep one physical disconnect/reconnect cycle in the release checklist for arrangement / drag / display-recovery patches until we automate it.
+
+What it proves:
+- the app survives a real monitor detach/reattach cycle, not just a wake or software-only screen-parameter change
+- startup recovery, display backup restore, and post-change validation still converge on a healthy layout after the display topology actually changes
+- the release candidate does not only pass the simulated wake/startup lanes
 
 ### 3. Trusted app direct move round-trip
 

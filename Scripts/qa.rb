@@ -99,6 +99,8 @@ class ProjectQA
   RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
   RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
   RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
+  RUNTIME_NATIVE_APPLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_native_apple_smoke.log'
+  RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
   RUNTIME_SMOKE_PASSES = 2
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
@@ -107,6 +109,13 @@ class ProjectQA
     com.apple.menuextra.battery
     com.apple.menuextra.focusmode
     com.apple.menuextra.display
+  ].freeze
+  RUNTIME_NATIVE_APPLE_IDS = %w[
+    com.apple.menuextra.siri
+    com.apple.menuextra.spotlight
+  ].freeze
+  RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[
+    com.openai.codex
   ].freeze
   RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
   RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
@@ -782,12 +791,6 @@ class ProjectQA
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
-      unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
-        @errors << "Focused shared-bundle smoke could not relaunch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
-        puts "❌ shared-bundle relaunch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
-        return
-      end
-
       shared_bundle_ids = runtime_smoke_available_required_candidate_ids(
         target,
         required_ids: RUNTIME_SHARED_BUNDLE_IDS
@@ -808,53 +811,51 @@ class ProjectQA
         end
         puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
       else
-        puts "   ↳ shared-bundle focused smoke after relaunch: #{shared_bundle_ids.join(', ')}"
-        shared_bundle_env = smoke_env.merge(
-          'SANEBAR_SMOKE_REQUIRED_IDS' => shared_bundle_ids.join(','),
-          'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1',
-          'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'
+        return unless run_focused_runtime_smoke_exact_ids(
+          target: target,
+          smoke_env: smoke_env,
+          smoke_script: smoke_script,
+          exact_ids: shared_bundle_ids,
+          log_path: RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH,
+          lane_name: 'shared-bundle',
+          retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?
         )
-        shared_bundle_outputs = []
-        shared_bundle_attempt = 0
-        loop do
-          shared_bundle_attempt += 1
-          shared_bundle_sample_path = "/tmp/sanebar_runtime_shared_bundle_resource_sample-try#{shared_bundle_attempt}.txt"
-          FileUtils.rm_f(shared_bundle_sample_path)
-          shared_bundle_out, shared_bundle_status = capture2e_with_progress(
-            shared_bundle_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => shared_bundle_sample_path),
-            smoke_script,
-            heartbeat_label: "runtime smoke shared-bundle exact ids (try #{shared_bundle_attempt})"
-          )
-          shared_bundle_outputs << [
-            "required_ids=#{shared_bundle_ids.join(',')}",
-            "try=#{shared_bundle_attempt}",
-            "resource_sample=#{shared_bundle_sample_path}",
-            shared_bundle_out
-          ].join("\n")
+      end
 
-          if !shared_bundle_status.success? &&
-             shared_bundle_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
-             retryable_shared_bundle_runtime_smoke_failure?(shared_bundle_out)
-            puts "   ↳ relaunching after transient shared-bundle runtime smoke budget blip (retry #{shared_bundle_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
-            unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
-              File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
-              @errors << "Focused shared-bundle smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}."
-              puts "❌ shared-bundle retry relaunch failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
-              return
-            end
-            next
-          end
+      native_apple_ids = runtime_smoke_available_required_candidate_ids(
+        target,
+        required_ids: RUNTIME_NATIVE_APPLE_IDS
+      )
+      if native_apple_ids.empty?
+        puts '   ↳ native-apple exact-id smoke skipped (Siri/Spotlight not present on this host)'
+      else
+        return unless run_focused_runtime_smoke_exact_ids(
+          target: target,
+          smoke_env: smoke_env,
+          smoke_script: smoke_script,
+          exact_ids: native_apple_ids,
+          log_path: RUNTIME_NATIVE_APPLE_SMOKE_LOG_PATH,
+          lane_name: 'native-apple exact-id',
+          retryable_failure_method: :retryable_runtime_smoke_failure?
+        )
+      end
 
-          File.write(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH, shared_bundle_outputs.join("\n\n"))
-          unless shared_bundle_status.success?
-            sample_suffix = File.exist?(shared_bundle_sample_path) ? " Resource sample: #{shared_bundle_sample_path}" : ''
-            @errors << "Focused shared-bundle runtime smoke failed. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}.#{sample_suffix}"
-            puts "❌ shared-bundle smoke failed (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
-            return
-          end
-          break
-        end
-        puts "✅ focused shared-bundle smoke passed (#{shared_bundle_ids.join(', ')})"
+      host_exact_id_ids = runtime_smoke_available_required_candidate_ids(
+        target,
+        required_ids: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS
+      )
+      if host_exact_id_ids.empty?
+        puts '   ↳ host exact-id smoke skipped (Codex not present on this host)'
+      else
+        return unless run_focused_runtime_smoke_exact_ids(
+          target: target,
+          smoke_env: smoke_env,
+          smoke_script: smoke_script,
+          exact_ids: host_exact_id_ids,
+          log_path: RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH,
+          lane_name: 'host exact-id',
+          retryable_failure_method: :retryable_runtime_smoke_failure?
+        )
       end
 
       startup_probe_env = {
@@ -958,6 +959,65 @@ class ProjectQA
     return false if output.include?('failed -[')
     return false if output.include?('❌')
 
+    true
+  end
+
+  def run_focused_runtime_smoke_exact_ids(target:, smoke_env:, smoke_script:, exact_ids:, log_path:, lane_name:, retryable_failure_method:)
+    unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+      @errors << "Focused #{lane_name} smoke could not relaunch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
+      puts "❌ #{lane_name} relaunch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+      return false
+    end
+
+    puts "   ↳ #{lane_name} smoke after relaunch: #{exact_ids.join(', ')}"
+    focused_env = smoke_env.merge(
+      'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(','),
+      'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1',
+      'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'
+    )
+    focused_outputs = []
+    focused_attempt = 0
+
+    loop do
+      focused_attempt += 1
+      focused_sample_path = log_path.sub(/\.log\z/, "_resource_sample-try#{focused_attempt}.txt")
+      FileUtils.rm_f(focused_sample_path)
+      focused_out, focused_status = capture2e_with_progress(
+        focused_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => focused_sample_path),
+        smoke_script,
+        heartbeat_label: "runtime smoke #{lane_name} (try #{focused_attempt})"
+      )
+      focused_outputs << [
+        "required_ids=#{exact_ids.join(',')}",
+        "try=#{focused_attempt}",
+        "resource_sample=#{focused_sample_path}",
+        focused_out
+      ].join("\n")
+
+      if !focused_status.success? &&
+         focused_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
+         send(retryable_failure_method, focused_out)
+        puts "   ↳ relaunching after transient #{lane_name} runtime smoke budget blip (retry #{focused_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+        unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
+          File.write(log_path, focused_outputs.join("\n\n"))
+          @errors << "Focused #{lane_name} smoke retry could not relaunch target #{target[:app_path]}. See #{log_path}."
+          puts "❌ #{lane_name} retry relaunch failed (#{log_path})"
+          return false
+        end
+        next
+      end
+
+      File.write(log_path, focused_outputs.join("\n\n"))
+      unless focused_status.success?
+        sample_suffix = File.exist?(focused_sample_path) ? " Resource sample: #{focused_sample_path}" : ''
+        @errors << "Focused #{lane_name} runtime smoke failed. See #{log_path}.#{sample_suffix}"
+        puts "❌ #{lane_name} smoke failed (#{log_path})"
+        return false
+      end
+      break
+    end
+
+    puts "✅ focused #{lane_name} smoke passed (#{exact_ids.join(', ')})"
     true
   end
 
@@ -1897,6 +1957,23 @@ def applescript_commands_for_app(app_path)
         activeAvgCpuMax: RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX,
         activeAvgRssMBMax: RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX
       },
+      runtimeSmokeFocusedExactIdSets: [
+        {
+          lane: 'shared-bundle',
+          requiredIds: RUNTIME_SHARED_BUNDLE_IDS,
+          logPath: RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH
+        },
+        {
+          lane: 'native-apple',
+          requiredIds: RUNTIME_NATIVE_APPLE_IDS,
+          logPath: RUNTIME_NATIVE_APPLE_SMOKE_LOG_PATH
+        },
+        {
+          lane: 'host-exact-id',
+          requiredIds: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS,
+          logPath: RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH
+        }
+      ],
       errorCount: @errors.count,
       warningCount: @warnings.count,
       errors: @errors,

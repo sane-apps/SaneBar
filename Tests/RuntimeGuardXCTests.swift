@@ -1608,6 +1608,14 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should keep a stable focused shared-bundle candidate set for high-risk Apple menu extras"
         )
         XCTAssertTrue(
+            source.contains("RUNTIME_NATIVE_APPLE_IDS = %w[") &&
+                source.contains("com.apple.menuextra.siri") &&
+                source.contains("com.apple.menuextra.spotlight") &&
+                source.contains("RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[") &&
+                source.contains("com.openai.codex"),
+            "Project QA runtime smoke should also keep stable exact-id lanes for native Apple items and the higher-pressure host sentinel path"
+        )
+        XCTAssertTrue(
             source.contains("'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => '1'") &&
                 source.contains("'SANEBAR_SMOKE_WATCH_RESOURCES' => '1'") &&
                 source.contains("'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s") &&
@@ -1657,12 +1665,21 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("shared_bundle_ids = runtime_smoke_available_required_candidate_ids(") &&
-                source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => shared_bundle_ids.join(',')") &&
+                source.contains("run_focused_runtime_smoke_exact_ids(") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(',')") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'") &&
-                source.contains("runtime smoke shared-bundle exact ids (try") &&
-                source.contains("ensure_runtime_smoke_target_running!(target.merge(relaunch: true))") &&
-                source.contains("relaunching after transient shared-bundle runtime smoke budget blip"),
+                source.contains("lane_name: 'shared-bundle'") &&
+                source.contains("retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?"),
             "Project QA runtime smoke should run a dedicated focused pass for shared-bundle Apple extras when those exact IDs are present"
+        )
+        XCTAssertTrue(
+            source.contains("native_apple_ids = runtime_smoke_available_required_candidate_ids(") &&
+                source.contains("required_ids: RUNTIME_NATIVE_APPLE_IDS") &&
+                source.contains("lane_name: 'native-apple exact-id'") &&
+                source.contains("host_exact_id_ids = runtime_smoke_available_required_candidate_ids(") &&
+                source.contains("required_ids: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS") &&
+                source.contains("lane_name: 'host exact-id'"),
+            "Project QA runtime smoke should also run dedicated focused passes for native Apple items and the host exact-id sentinel when those IDs exist"
         )
         XCTAssertTrue(
             source.contains("runtime_smoke_no_candidate_fixture_policy?(smoke_out)") &&
@@ -1707,6 +1724,13 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("postSmokeIdleSampleSeconds: RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS") &&
                 source.contains("activeAvgCpuMax: RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX"),
             "Project QA status snapshots should record the runtime smoke performance budget"
+        )
+        XCTAssertTrue(
+            source.contains("runtimeSmokeFocusedExactIdSets: [") &&
+                source.contains("lane: 'shared-bundle'") &&
+                source.contains("lane: 'native-apple'") &&
+                source.contains("lane: 'host-exact-id'"),
+            "Project QA status snapshots should record every focused exact-id runtime lane that release preflight expects"
         )
     }
 

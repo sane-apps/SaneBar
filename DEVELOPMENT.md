@@ -518,6 +518,11 @@ ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
    - Enforces 24h soak window between releases
    - Runs project QA with regression close confirmation checks
    - Runs dedicated stability suite (upgrade-state + second-menu-bar paths)
+   - Runs the staged-app runtime lane plus focused exact-ID smokes when those IDs are present on the Mini:
+     - shared-bundle Apple extras: Wi-Fi / Battery / Focus / Display
+     - native Apple extras: Siri / Spotlight
+     - host exact-id sentinel: Codex
+   - For arrangement / drag / display-recovery patches, keep one manual external-monitor disconnect/reconnect cycle in the release checklist until that path is automated
    - If any guard fails: stop, fix root cause, verify, then rerun preflight (no workaround release)
 3. **Release** — `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project $(pwd) --full --version X.Y.Z --notes "..." --deploy`
 4. **Verify** — check appcast at https://sanebar.com/appcast.xml, confirm DMG on dist.sanebar.com

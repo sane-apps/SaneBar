@@ -252,6 +252,23 @@ struct MenuBarManagerTests {
         #expect(snapshot.startupItemsValid == false)
     }
 
+    @Test("Bootstrap trust requires a real separator anchor")
+    func bootstrapTrustRequiresNonEstimatedSeparatorAnchor() {
+        let estimatedSeparatorSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live
+        )
+        let cachedSeparatorSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .estimated
+        )
+
+        #expect(!estimatedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(cachedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
+    }
+
     @Test("Main icon fallback can derive its left edge from a visible separator")
     func estimatedMainStatusItemLeftEdgeUsesSeparatorGeometry() {
         #expect(

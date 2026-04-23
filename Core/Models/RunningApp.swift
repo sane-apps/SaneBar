@@ -86,7 +86,7 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         let category: AppCategory
     }
 
-    private static nonisolated(unsafe) let metadataCacheLock = NSLock()
+    private static let metadataCacheLock = NSLock()
     private static nonisolated(unsafe) var metadataCache: [String: CachedMetadata] = [:]
 
     /// Owning app/process bundle identifier (e.g. com.apple.systemuiserver).

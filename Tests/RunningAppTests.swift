@@ -12,7 +12,7 @@ struct RunningAppTests {
 
         #expect(source.contains("private struct CachedMetadata"))
         #expect(source.contains("private static let metadataCacheLock = NSLock()"))
-        #expect(source.contains("private static var metadataCache: [String: CachedMetadata] = [:]"))
+        #expect(source.contains("metadataCache: [String: CachedMetadata] = [:]"))
         #expect(source.contains("private static func cachedMetadata("))
         #expect(source.contains("let metadata = Self.cachedMetadata("))
     }

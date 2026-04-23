@@ -311,6 +311,30 @@ struct AccessibilityServiceTests {
         )
     }
 
+    @Test("Canonical Apple menu extra identifier falls back from visible Siri label")
+    func testCanonicalMenuExtraIdentifierUsesVisibleSiriLabelFallback() {
+        let identifier = AccessibilityService.canonicalMenuExtraIdentifier(
+            ownerBundleId: "com.apple.systemuiserver",
+            rawIdentifier: nil,
+            rawLabel: "Siri",
+            width: 24
+        )
+
+        #expect(identifier == "com.apple.menuextra.siri")
+    }
+
+    @Test("Canonical Apple menu extra identifier refuses hidden Siri label fallback")
+    func testCanonicalMenuExtraIdentifierRejectsHiddenSiriLabelFallback() {
+        let identifier = AccessibilityService.canonicalMenuExtraIdentifier(
+            ownerBundleId: "com.apple.systemuiserver",
+            rawIdentifier: nil,
+            rawLabel: "Siri",
+            width: 0
+        )
+
+        #expect(identifier == nil)
+    }
+
     @Test("Single status item falls back to sole item after identifier miss")
     @MainActor
     func testResolvedTargetStatusItemFallsBackToSingleItemAfterIdentifierMiss() {
