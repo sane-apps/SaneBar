@@ -766,7 +766,7 @@ class ProjectQA
           break if smoke_status.success?
 
           if attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS && retryable_runtime_smoke_failure?(smoke_out)
-            puts "   ↳ relaunching after transient runtime smoke budget blip (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+            puts "   ↳ relaunching after transient runtime smoke failure (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
             unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
               File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
               @errors << "Runtime smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SMOKE_LOG_PATH}."
@@ -914,6 +914,7 @@ class ProjectQA
 
   def retryable_runtime_smoke_failure?(smoke_output)
     return true if smoke_output.include?('launch_idle_budget_exceeded')
+    return true if smoke_output.include?('No icons returned from list icon zones.')
 
     retryable_active_budget_overrun?(smoke_output)
   end
@@ -997,7 +998,7 @@ class ProjectQA
       if !focused_status.success? &&
          focused_attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS &&
          send(retryable_failure_method, focused_out)
-        puts "   ↳ relaunching after transient #{lane_name} runtime smoke budget blip (retry #{focused_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
+        puts "   ↳ relaunching after transient #{lane_name} runtime smoke failure (retry #{focused_attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
         unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
           File.write(log_path, focused_outputs.join("\n\n"))
           @errors << "Focused #{lane_name} smoke retry could not relaunch target #{target[:app_path]}. See #{log_path}."

@@ -71,6 +71,10 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: active_budget_exceeded avgCpu=15.1% > 15.0%')
   end
 
+  def test_runtime_smoke_retryable_failure_matches_empty_zone_snapshot_after_relaunch
+    assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: No icons returned from list icon zones.')
+  end
+
   def test_runtime_smoke_retryable_failure_uses_resource_watchdog_average_when_failure_line_is_rounded
     output = <<~LOG
       🫀 Resource watchdog: samples=75 avgCpu=15.6% peakCpu=47.4% avgRss=127.0MB peakRss=139.3MB
