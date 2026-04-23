@@ -794,7 +794,8 @@ final class SearchService: SearchServiceProtocol {
         let initialAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
             baseAllowImmediateFallbackCenter: allowImmediateFallbackCenter,
             likelyNoExtrasMenuBar: initialLikelyNoExtras,
-            fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(initialFallbackCenter)
+            fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(initialFallbackCenter),
+            hasPreciseMenuBarIdentity: initialTarget.hasPreciseMenuBarIdentity
         )
         logger.info(
             "Activation start requested=\(Self.diagnosticsApp(app), privacy: .private) resolved=\(Self.diagnosticsApp(initialTarget), privacy: .private) didReveal=\(didReveal, privacy: .public) preferHardwareFirst=\(preferHardwareFirst, privacy: .public)"
@@ -859,7 +860,8 @@ final class SearchService: SearchServiceProtocol {
                 let refreshedAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
                     baseAllowImmediateFallbackCenter: false,
                     likelyNoExtrasMenuBar: refreshedLikelyNoExtras,
-                    fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(refreshedFallbackCenter)
+                    fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(refreshedFallbackCenter),
+                    hasPreciseMenuBarIdentity: refreshedTarget.hasPreciseMenuBarIdentity
                 )
                 let refreshedAttemptStart = Date()
                 let refreshedAttempt = await performClickAttempt(
