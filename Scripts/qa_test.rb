@@ -221,6 +221,20 @@ end
     assert_includes source, "lane: 'host-exact-id'"
   end
 
+  def test_live_zone_smoke_second_menu_bar_prefers_precise_non_apple_candidates
+    source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+
+    assert_includes source, "if expected_mode == 'secondMenuBar'"
+    assert_includes source, 'precise_non_apple + exact_apple + preferred + coarse_non_apple + fallback'
+  end
+
+  def test_live_zone_smoke_allows_exact_menumeters_fixture_for_browse_activation
+    source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+
+    assert_includes source, "item[:bundle].casecmp('com.yujitach.MenuMeters').zero?"
+    assert_includes source, 'Exact MenuMeters rows are stable browse fixtures on the Mini in both'
+  end
+
   def test_stability_suite_retryable_failure_matches_generic_xcodebuild_flake
     output = <<~LOG
       2026-03-13 15:16:31.112 xcodebuild[30284:7266800] [MT] IDETestOperationsObserverDebug: 16.440 elapsed -- Testing started completed.

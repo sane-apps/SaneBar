@@ -569,20 +569,25 @@ class LiveZoneSmoke
     precise_non_apple = ordered_pool.reject do |item|
       coarse_bundle_fallback?(item) ||
         item[:bundle].start_with?('com.apple.') ||
-        browse_activation_denied?(item)
+        browse_activation_denied?(item, expected_mode: expected_mode)
+    end
+    exact_apple = ordered_pool.select do |item|
+      !coarse_bundle_fallback?(item) &&
+        item[:bundle].start_with?('com.apple.') &&
+        !browse_activation_denied?(item, expected_mode: expected_mode)
     end
     coarse_non_apple = ordered_pool.select do |item|
       coarse_bundle_fallback?(item) &&
         !item[:bundle].start_with?('com.apple.') &&
-        !browse_activation_denied?(item)
+        !browse_activation_denied?(item, expected_mode: expected_mode)
     end
 
     preferred = PREFERRED_BROWSE_ACTIVATION_IDS.map do |preferred_id|
       ordered_pool.find { |item| browse_candidate_matches?(item, preferred_id) }
-    end.compact.reject { |item| browse_activation_denied?(item) }
+    end.compact.reject { |item| browse_activation_denied?(item, expected_mode: expected_mode) }
       .uniq { |item| item[:unique_id] }
 
-    fallback = ordered_pool.reject { |item| browse_activation_denied?(item) }
+    fallback = ordered_pool.reject { |item| browse_activation_denied?(item, expected_mode: expected_mode) }
 
     # Generic browse smoke needs to prefer third-party identities first.
     # Precise rows are best, but even coarse third-party bundle fallbacks have
@@ -590,7 +595,12 @@ class LiveZoneSmoke
     # click paths we exercise. Curated Apple fixtures stay as fallback
     # coverage, but they should not consume the main smoke budget when usable
     # non-Apple rows are available.
-    candidate_order = precise_non_apple + coarse_non_apple + preferred + fallback
+    candidate_order =
+      if expected_mode == 'secondMenuBar'
+        precise_non_apple + exact_apple + preferred + coarse_non_apple + fallback
+      else
+        precise_non_apple + coarse_non_apple + preferred + fallback
+      end
 
     candidate_order.uniq { |item| item[:unique_id] }.take(3)
   end
@@ -613,7 +623,15 @@ class LiveZoneSmoke
     values.any? { |value| value == target || value.include?(target) }
   end
 
-  def browse_activation_denied?(item)
+  def browse_activation_denied?(item, expected_mode: nil)
+    # Exact MenuMeters rows are stable browse fixtures on the Mini in both
+    # browse modes, even though the coarse bundle fallback is still too noisy
+    # to lead the generic activation pool.
+    if item[:bundle].casecmp('com.yujitach.MenuMeters').zero? &&
+       !coarse_bundle_fallback?(item)
+      return false
+    end
+
     return false if PREFERRED_BROWSE_ACTIVATION_IDS.any? { |preferred_id| browse_candidate_matches?(item, preferred_id) }
 
     bundle = item[:bundle].to_s.strip.downcase
