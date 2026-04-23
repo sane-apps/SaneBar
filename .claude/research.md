@@ -1,5 +1,130 @@
 # SaneBar Research Cache
 
+## 2026-04-23 16:03 ET extra regression-lane sweep after patch-candidate confidence review
+
+**Updated:** 2026-04-23 16:03 ET | **Status:** verified | **TTL:** 7d
+**Source:** Mini focused `xcodebuild test` runs for `SaneBarTests/StatusBarControllerTests`, `SaneBarTests/RuntimeGuardXCTests`, and `SaneBarTests/ReleaseRegressionTests`; Mini canonical release launch via `./scripts/SaneMaster.rb test_mode --release --no-logs`; Mini exact-ID `live_zone_smoke.rb` runs against `/Applications/SaneBar.app`
+
+### Verified Findings
+
+1. The persistence/migration/reset blind spot is green.
+   - Focused `StatusBarControllerTests` passed: `73` tests, `0` failures.
+   - This explicitly re-covered current-width backup restore, launch-safe fallback, autosave namespace recovery, backup capture, and explicit reset behavior.
+
+2. The runtime/source-shape guardrails are green.
+   - Focused `RuntimeGuardXCTests` passed: `118` tests, `0` failures.
+   - Focused `ReleaseRegressionTests` also passed: `8` tests, `0` failures.
+   - That means the repo-level invariants around startup recovery, reset-to-defaults persistence reset, screen-parameter rescheduling, and release smoke expectations still hold after the root-fix pass.
+
+3. A native Apple exact-ID move lane is still not clean.
+   - On the Mini, `list icon zones` exposed `com.apple.menuextra.siri` and `com.apple.menuextra.spotlight` as real exact-ID candidates.
+   - Focused smoke with `SANEBAR_SMOKE_REQUIRED_IDS=com.apple.menuextra.siri,com.apple.menuextra.spotlight` failed.
+   - `Siri` failed the move itself (`failed to move to visible`).
+   - The process then disappeared before `Spotlight` could complete, so that run is credible evidence of a native-item exact-ID blind spot, not just a no-candidate fixture case.
+
+4. The Codex exact-ID lane is functionally green but still over the active CPU budget.
+   - Focused smoke with `SANEBAR_SMOKE_REQUIRED_IDS=com.openai.codex` passed the actual move behavior twice:
+     - `Hidden/Visible move actions ok`
+     - `Always Hidden move actions ok`
+   - Both confirmation runs still failed the active CPU budget:
+     - run 1: `avgCpu=15.5% > 15.0%`
+     - run 2: `avgCpu=15.7% > 15.0%`
+   - So this is not a one-off blip anymore. The exact-ID Codex path remains a repeatable near-threshold performance risk even though the broader release lane is green.
+
+5. Current confidence is split by lane.
+   - Broad release readiness is still supported by `verify`, `release_preflight`, `startup_layout_probe`, `wake_layout_probe`, and the default live-zone smoke.
+   - The remaining uncovered risk is now narrower and better named:
+     - native Apple exact-ID move reliability
+     - Codex exact-ID active CPU headroom
+
+## 2026-04-23 15:29 ET post-fix verification sweep for arrangement-regression root fix
+
+**Updated:** 2026-04-23 15:29 ET | **Status:** verified | **TTL:** 7d
+**Source:** Mini `./scripts/SaneMaster.rb verify --quiet`; Mini `./scripts/SaneMaster.rb release_preflight`; Mini `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby Scripts/startup_layout_probe.rb`; Mini `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby Scripts/wake_layout_probe.rb`; Mini `./scripts/SaneMaster.rb test_mode --release --no-logs`; Mini `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby Scripts/live_zone_smoke.rb`
+
+### Verified Findings
+
+1. The root-fix branch is now green in the full compile/test lane.
+   - Mini `./scripts/SaneMaster.rb verify --quiet` passed with `1104` tests.
+   - The new coordinator/bootstrap regression tests are included in that passing count.
+
+2. The release-style runtime lane is green on behavior and blocked only by policy.
+   - `release_preflight` passed the staged browse smoke twice.
+   - Pass 1 resource watchdog: `avgCpu=6.0%`, `peakCpu=45.7%`, `avgRss=121.5MB`, `peakRss=132.9MB`.
+   - Pass 2 resource watchdog: `avgCpu=5.7%`, `peakCpu=57.4%`, `avgRss=101.0MB`, `peakRss=120.0MB`.
+   - `startup_layout_probe` passed inside `release_preflight`.
+   - The only hard error was still the open-regression policy gate on `#129`, not a failing runtime/probe condition.
+
+3. The focused recovery probes are green when run cleanly against `/Applications/SaneBar.app`.
+   - Standalone `startup_layout_probe.rb` passed.
+   - Standalone `wake_layout_probe.rb` passed.
+   - One earlier wake-probe failure happened only when it was launched in parallel with the startup probe, so it is not reliable evidence against the fix.
+
+4. The move/browse CPU path is also green in a separate standalone lane.
+   - After staging the release app with `test_mode --release --no-logs`, standalone `live_zone_smoke.rb` passed.
+   - Resource watchdog on that standalone run: `avgCpu=8.4%`, `peakCpu=39.7%`, `avgRss=105.6MB`, `peakRss=135.8MB`.
+
+5. Current risk is no longer “this patch is unproven.”
+   - We now have one broad test/build lane plus three runtime-focused confirmations.
+   - The remaining real risks are governance and field confirmation: `#129` is still open, and `#136` still needs confirmation from the fresh fix in the field.
+
+## 2026-04-23 15:18 ET verify-circuit-breaker follow-up for root-fix pass
+
+**Updated:** 2026-04-23 15:18 ET | **Status:** verified | **TTL:** 3d
+**Source:** Mini `./scripts/SaneMaster.rb verify --quiet` failure receipts, Mini `test_output.txt`, local audit of `Tests/MenuBarOperationCoordinatorTests.swift`, `Tests/RunningAppTests.swift`, and `Core/Models/RunningApp.swift`
+
+### Verified Findings
+
+1. The first two verify failures in this pass were test-shape drift, not new evidence against the root fix.
+   - The first failure was purely compile-time: new `MenuBarRuntimeSnapshot(...)` call sites used named arguments out of initializer order.
+   - The second failure was semantic: older coordinator tests still assumed geometry-only recovery and did not declare trustworthy anchor sources, so the stronger bootstrap model correctly reclassified those fixtures as `missingCoordinates`.
+
+2. The coordinator tests needed their fixtures made explicit.
+   - Any test that is meant to represent “invalid geometry with otherwise healthy anchors” now needs live/cached anchor sources set on the snapshot.
+   - Any test that is meant to represent a healthy manual-restore state also needs trustworthy anchor sources, otherwise the stronger model intentionally treats it as incomplete bootstrap geometry.
+
+3. `RunningAppTests` had one stale source-shape assertion.
+   - The implementation had moved to `nonisolated(unsafe)` cache declarations.
+   - The test still expected plain `private static let/var`.
+   - The cleaner fix is to use plain `private static` here anyway, which also removes the current Swift warning about the lock constant.
+
+## 2026-04-23 15:10 ET arrangement-regression root-cause refresh for #136
+
+**Updated:** 2026-04-23 15:10 ET | **Status:** verified research refresh; root fix patched locally and on Mini; Mini verify rerun pending after guard clear | **TTL:** 7d
+**Source:** Apple docs for [`NSStatusBar`](https://developer.apple.com/documentation/appkit/nsstatusbar), [`NSStatusItem`](https://developer.apple.com/documentation/appkit/nsstatusitem), and [`NSStatusItem.isVisible`](https://developer.apple.com/documentation/appkit/nsstatusitem/isvisible?language=objc); external web/GitHub references from Ice issue [`#344`](https://github.com/jordanbaird/Ice/issues/344), Maccy issue [`#789`](https://github.com/p0deje/Maccy/issues/789), and Bartender release/support pages about hidden-item gaps and menu bar item visibility; live GitHub issue [`#136`](https://github.com/sane-apps/SaneBar/issues/136); local+Mini audit of `Core/MenuBarManager.swift`, `Core/MenuBarManager+IconMoving.swift`, `Core/Models/MenuBarRuntimeSnapshot.swift`, `Core/Services/MenuBarOperationCoordinator.swift`, and related tests
+
+### Verified Findings
+
+1. Apple still does not give us a first-party repair primitive for bad menu bar geometry.
+   - `NSStatusBar` still warns that status items are not guaranteed to be available at all times.
+   - `NSStatusItem.isVisible` remains observable and its visibility persists through `autosaveName`.
+   - There is still no documented API for “repair this stale/off-screen status item frame,” which means apps like SaneBar still need their own recovery model.
+
+2. External evidence still says this is a bug family, not a solved one-off edge case.
+   - Ice still has public arrangement-reset reports where menu bar items jump sections after restart or display changes.
+   - Maccy still has public disappearance reports where the app stays alive but the icon becomes invisible or leaves a ghost slot behind.
+   - Bartender still documents gaps / hidden-item visibility recovery as real operational problems.
+
+3. The live `#136` diagnostics point at the same unfinished root seam in SaneBar.
+   - The logs repeatedly show `getSeparatorOriginX: blocking mode with empty cache, using estimated ...`.
+   - Recovery then restores the current-width backup, recreates the items, and marks bootstrap as awaiting a live anchor.
+   - The recreated separator still comes back with an oversized off-screen frame, so arrangement stays broken even though recovery technically ran.
+
+4. The current local root cause was that estimated separator geometry was still being treated as recoverable-enough state.
+   - `currentSeparatorAnchorSource()` can still return `.estimated` when the separator is in blocking mode with an empty cache and only the main icon can be used as a guess.
+   - Before this patch, `resolveStatusItemBootstrapPhase()` would resolve bootstrap as soon as not both anchors were estimated, so `live main + estimated separator` could exit bootstrap too early.
+   - `startupRecoveryReason()` also did not treat that estimated-separator state as a missing-coordinate problem, so position validation could incorrectly capture a “stable” backup and stop escalating.
+
+5. The patched root fix now tightens the trust boundary at the shared-model level instead of patching another downstream symptom.
+   - `MenuBarRuntimeSnapshot` now defines trustworthy bootstrap anchors explicitly and refuses to count an estimated separator as trustworthy.
+   - `MenuBarManager` now downgrades estimated-separator geometry to `stale` and keeps bootstrap in `awaitingAnchor` until the separator has a real cached/live anchor.
+   - `MenuBarOperationCoordinator` now treats “ready structure but untrustworthy separator anchor” as `missingCoordinates`, which keeps startup expanded and keeps validation escalating instead of silently accepting the layout.
+
+6. New regression coverage was added around the exact failing branch.
+   - Tests now cover “estimated separator still counts as missing coordinates.”
+   - Tests now cover “startup keeps waiting while separator anchor is only estimated.”
+   - Tests now cover “startup follow-up repairs estimated-separator state instead of treating it as stable.”
+
 ## 2026-04-21 15:55 ET post-refresh hardening release-confidence sweep
 
 **Updated:** 2026-04-21 15:55 ET | **Status:** verified | **TTL:** 7d
@@ -3633,3 +3758,130 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 - I do **not** have evidence of a broad current-tree runtime regression on startup, wake, or the default release smoke path.
 - The unresolved concern is a **specific forced `com.openai.codex` exact-id smoke lane** that still runs hot enough to fail the active average CPU budget.
 - If we want to keep pushing root-cause work after this pass, the next defensible target is not another startup/wake recovery patch. It is the remaining exact-id browse/owner-refresh cost on cold third-party candidate paths.
+
+## 2026-04-23 16:30 EDT exact-id lane automation follow-up
+
+**Updated:** 2026-04-23 16:30 EDT | **Status:** the extra exact-id lanes are now wired into project QA and release preflight; the native-Apple lane is immediately paying for itself by catching a Siri move failure on the Mini | **TTL:** 7d
+**Sources:** local edits in `Scripts/qa.rb`, `Scripts/qa_test.rb`, `Tests/RuntimeGuardXCTests.swift`, `Scripts/README.md`, `DEVELOPMENT.md`, `docs/MENU_BAR_RUNTIME_PLAYBOOK.md`; Mini `ruby Scripts/qa_test.rb`; Mini `xcodebuild test -only-testing:SaneBarTests/RuntimeGuardXCTests`; Mini `./scripts/SaneMaster.rb release_preflight`; direct Mini focused `ruby Scripts/live_zone_smoke.rb` with `SANEBAR_SMOKE_REQUIRED_IDS=com.openai.codex`
+
+### Fresh findings
+
+1. **The valuable extra lanes are now part of the automated harness, not just ad hoc notes.**
+   - `Scripts/qa.rb` now runs three focused exact-id lanes when those IDs are present:
+     - shared-bundle Apple extras
+     - native Apple (`Siri`, `Spotlight`)
+     - host sentinel exact-id (`Codex`)
+   - The project QA status snapshot now reports all three focused lane families so the release receipt exposes what was actually checked.
+
+2. **The SOP now explicitly carries the same lesson.**
+   - `Scripts/README.md`, `DEVELOPMENT.md`, and `docs/MENU_BAR_RUNTIME_PLAYBOOK.md` now describe the focused exact-id lanes as first-class release checks.
+   - The release playbook also now includes a manual external-display disconnect/reconnect lane for arrangement-family fixes until that path is automated.
+
+3. **The harness/tests are green on the Mini after the update.**
+   - `ruby Scripts/qa_test.rb` passed (`27 runs`, `78 assertions`).
+   - `RuntimeGuardXCTests` passed (`118 tests`).
+   - This matters because the exact-id lanes are now guarded by both Ruby tests and Swift runtime-guard assertions, which is the right SOP shape for release-critical harness behavior.
+
+4. **The new native-Apple lane exposed a real failure in the actual release path.**
+   - Fresh Mini `./scripts/SaneMaster.rb release_preflight` now reaches the new focused exact-id section.
+   - Shared-bundle exact-id smoke passed on `com.apple.menuextra.focusmode`.
+   - Native-Apple exact-id smoke failed on `Siri`:
+     - `Icon 'com.apple.menuextra.siri' failed to move to visible. (-2700)`
+   - `Spotlight` passed in the same lane.
+   - This is exactly why the lane belongs in preflight now: it caught a move-path hole that the broader release lane would otherwise have hidden.
+
+5. **The host exact-id sentinel lane is green in direct focused verification.**
+   - A fresh direct Mini run with `SANEBAR_SMOKE_REQUIRED_IDS=com.openai.codex` passed.
+   - Result:
+     - hidden/visible moves passed
+     - Always Hidden moves passed
+     - resource watchdog finished around `avgCpu=6.5%`, `peakCpu=50.0%`, `avgRss=60.1MB`, `peakRss=119.9MB`
+   - So the extra host-exact-id lane is now both automated and presently healthy on the Mini.
+
+6. **The new manual external-display hot-plug lane passed on the Mini.**
+   - User manually unplugged the external monitor from the Mini and plugged it back in after the SOP update.
+   - No visible arrangement break, missing icon, or obvious runtime instability showed up in that manual pass.
+   - That is a meaningful confidence signal for the external-display recovery path, even though it does not clear the separate native-Apple `Siri` exact-id failure.
+
+### Conclusion
+
+- The new exact-id checks were worth adding. They immediately surfaced a real native-Apple move regression shape that broad smoke alone was not forcing.
+- Current state after this change is more honest:
+  - shared-bundle exact-id: green
+  - host exact-id sentinel (`Codex`): green
+  - native-Apple exact-id: red on `Siri`
+- The next root-level work item is now clearer than before: native Apple exact-id move reliability, especially the `Siri` visible-move path.
+
+## 2026-04-23 16:55 EDT Siri exact-id root fix and final verification
+
+**Updated:** 2026-04-23 16:55 EDT | **Status:** root cause identified and fixed; the previously failing native-Apple exact-id lane is now green on the Mini | **TTL:** 7d
+**Sources:** local edits in `Core/Services/AccessibilityService+MenuExtras.swift` and `Tests/AccessibilityServiceTests.swift`; Mini targeted `AccessibilityServiceTests`; direct Mini AppleScript + zone-state verification against `/Applications/SaneBar.app`; Mini `./scripts/SaneMaster.rb release_preflight`; Mini `./scripts/SaneMaster.rb verify --quiet`; Mini `SANEBAR_SMOKE_APP_PATH=/Applications/SaneBar.app ruby Scripts/wake_layout_probe.rb`; local `/Users/sj/SaneApps/infra/scripts/check-inbox.sh status`
+
+### Fresh findings
+
+1. **The remaining Siri failure was a real identifier-resolution mismatch, not a mysterious Apple-only move bug.**
+   - `list icon zones` already surfaced `Siri` as `com.apple.menuextra.siri`.
+   - But the targeted move-resolution path still looked for a raw AX identifier on the status item.
+   - On the Mini, direct logs showed the exact failure shape:
+     - `Could not find status item with identifier`
+     - `Single status item available ... using it after identifier miss`
+   - That meant scanning and moving were not using the same notion of identity for Apple menu extras that only expose a visible-label fallback.
+
+2. **The fix was to make the move path use the same canonical Apple identifier logic as the scanner.**
+   - `AccessibilityService+MenuExtras.swift` now reads AX metadata once and uses `canonicalMenuExtraIdentifier(...)` in:
+     - menu-extra enumeration
+     - `resolvedTargetStatusItem(...)`
+     - `actionableMoveResolutionSafety(...)`
+   - This removes the raw-identifier-only branch that let `Siri` miss exact-id resolution even though the scanner already knew how to name it.
+
+3. **The signed-app behavior changed in the way that matters.**
+   - On the Mini, before the fix:
+     - `Siri` was `hidden`
+     - `move icon to visible "com.apple.menuextra.siri"` returned success
+     - zone state still showed `Siri` as `hidden`
+   - After the fix, against `/Applications/SaneBar.app`:
+     - `Siri` started `hidden`
+     - the same AppleScript move returned `true`
+     - zone state changed to `visible`
+   - That is the clearest proof that the exact-id path is now actually resolving and moving the correct Apple menu extra.
+
+4. **The previously failing native-Apple exact-id lane is now green in release preflight.**
+   - Fresh Mini `release_preflight` results:
+     - regular release smoke pass 1: passed at about `7.0%` avg CPU
+     - regular release smoke pass 2: passed at about `6.1%` avg CPU
+     - focused native-Apple exact-id smoke: passed (`Siri` + `Spotlight`) at about `7.6%` avg CPU
+     - focused host exact-id smoke: passed (`Codex`) at about `6.4%` avg CPU
+     - startup layout probe: passed
+   - The only blocking failure left in `release_preflight` was the expected open-regression policy gate for `#129`.
+
+5. **Broad regression coverage is still green after the Siri fix.**
+   - Mini targeted `AccessibilityServiceTests`: passed (`72 tests`)
+   - Mini full `./scripts/SaneMaster.rb verify --quiet`: passed (`1106 tests`)
+   - Mini wake probe: passed (`hidden state survives display sleep wake, expanded state stays stable`)
+   - Both local and Mini `git diff --check` are clean.
+
+6. **Standalone direct smoke still needs the proper Pro-capable lane to be meaningful.**
+   - Relaunching `/Applications/SaneBar.app` directly and running focused smokes without the normal test-mode Pro setup fails fast with:
+     - `Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)`
+   - That is an operational harness detail, not new product evidence.
+   - For current release judgment, the correct source of truth is the Pro-capable Mini release lane, which is now green.
+
+7. **Customer-signal risk is low right now, but not zero.**
+   - Fresh inbox status shows `Action needed: 0`.
+   - Open GitHub issues remain:
+     - `#129` waiting on reporter confirmation
+     - `#136` arrangement-family regression report on `2.1.43`
+   - So remaining risk is field confirmation, not a missing local verification lane.
+
+### Conclusion
+
+- As of 2026-04-23 late afternoon, the patch candidate now clears the high-confidence engineering bar on the Mini.
+- The important gaps are closed:
+  - startup recovery: green
+  - wake recovery: green
+  - host exact-id smoke: green
+  - native-Apple exact-id smoke (`Siri`/`Spotlight`): green
+  - full verify suite: green
+- The remaining blockers are operational/governance:
+  - open regression issues `#129` and `#136`
+  - uncommitted local worktree that needs the normal release prep once shipping is approved

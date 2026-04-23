@@ -926,6 +926,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             ) {
                 return .stale
             }
+            guard separatorAnchorSource.isTrustworthySeparatorAnchor else {
+                return .stale
+            }
             if separatorAnchorSource == .live, mainAnchorSource == .live {
                 return .live
             }
@@ -981,12 +984,12 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     ) -> MenuBarBootstrapPhase {
         guard statusItemBootstrapPhase == .awaitingAnchor else { return .steady }
         guard structuralState == .ready else { return .awaitingAnchor }
-        guard separatorAnchorSource != .missing, mainAnchorSource != .missing else {
-            return .awaitingAnchor
-        }
-
-        let hasTrustworthyAnchor = separatorAnchorSource != .estimated || mainAnchorSource != .estimated
-        guard hasTrustworthyAnchor else { return .awaitingAnchor }
+        let snapshot = MenuBarRuntimeSnapshot(
+            structuralState: structuralState,
+            separatorAnchorSource: separatorAnchorSource,
+            mainAnchorSource: mainAnchorSource
+        )
+        guard snapshot.hasTrustworthyBootstrapAnchors else { return .awaitingAnchor }
 
         statusItemBootstrapPhase = .steady
         logger.info(

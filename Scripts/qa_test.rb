@@ -196,6 +196,27 @@ end
     assert_includes source, "tell application appTarget to list icon zones"
   end
 
+  def test_runtime_smoke_tracks_native_apple_and_host_exact_id_lanes
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, 'RUNTIME_NATIVE_APPLE_IDS = %w['
+    assert_includes source, 'com.apple.menuextra.siri'
+    assert_includes source, 'com.apple.menuextra.spotlight'
+    assert_includes source, 'RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w['
+    assert_includes source, 'com.openai.codex'
+    assert_includes source, "lane_name: 'native-apple exact-id'"
+    assert_includes source, "lane_name: 'host exact-id'"
+  end
+
+  def test_runtime_smoke_status_snapshot_records_all_exact_id_lanes
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, 'runtimeSmokeFocusedExactIdSets: ['
+    assert_includes source, "lane: 'shared-bundle'"
+    assert_includes source, "lane: 'native-apple'"
+    assert_includes source, "lane: 'host-exact-id'"
+  end
+
   def test_stability_suite_retryable_failure_matches_generic_xcodebuild_flake
     output = <<~LOG
       2026-03-13 15:16:31.112 xcodebuild[30284:7266800] [MT] IDETestOperationsObserverDebug: 16.440 elapsed -- Testing started completed.

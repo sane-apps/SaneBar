@@ -7,6 +7,8 @@ struct MenuBarOperationCoordinatorTests {
     func startupRecoveryTriggersForInvalidGeometry() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 120,
             mainX: 100,
@@ -40,6 +42,54 @@ struct MenuBarOperationCoordinatorTests {
 
         guard case .keepExpanded(.waitingForLiveCoordinates) = action else {
             Issue.record("Expected startup to hold expanded while waiting for live coordinates")
+            return
+        }
+    }
+
+    @Test("Estimated separator anchor still counts as missing coordinates")
+    func startupTreatsEstimatedSeparatorAsMissingCoordinates() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: 160,
+            mainX: 180,
+            mainRightGap: 640,
+            screenWidth: 1440
+        )
+
+        #expect(MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) == .missingCoordinates)
+    }
+
+    @Test("Startup waits while the separator anchor is only estimated")
+    func startupHoldsExpandedWhenSeparatorAnchorIsEstimated() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live,
+            bootstrapPhase: .awaitingAnchor,
+            startupItemsValid: true,
+            separatorX: 160,
+            mainX: 180,
+            mainRightGap: 640,
+            screenWidth: 1440
+        )
+
+        let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .startupInitial(.init(
+                hasCompletedOnboarding: true,
+                autoRehideEnabled: true,
+                shouldSkipHideForExternalMonitor: false,
+                hasConnectedExternalMonitorWithAlwaysShow: false
+            )),
+            recoveryCount: 0,
+            maxRecoveryCount: 2
+        )
+
+        guard case .keepExpanded(.waitingForLiveCoordinates) = action else {
+            Issue.record("Expected startup to keep waiting while separator geometry is only estimated")
             return
         }
     }
@@ -124,6 +174,8 @@ struct MenuBarOperationCoordinatorTests {
     func startupValidationRepairsGeometryBeforeRecreate() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 956,
             mainX: 976,
@@ -189,6 +241,8 @@ struct MenuBarOperationCoordinatorTests {
     func runtimeValidationBoundsGeometryDriftForScreenChanges() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 956,
             mainX: 976,
@@ -218,6 +272,8 @@ struct MenuBarOperationCoordinatorTests {
     func wakeValidationBoundsGeometryDrift() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 956,
             mainX: 976,
@@ -278,6 +334,25 @@ struct MenuBarOperationCoordinatorTests {
                 maxRecoveryCount: 2
             ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
+        let estimatedSeparatorSnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live,
+            bootstrapPhase: .awaitingAnchor,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: estimatedSeparatorSnapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: missingCoordinateSnapshot,
@@ -300,6 +375,8 @@ struct MenuBarOperationCoordinatorTests {
     func manualRestoreUsesDirectReplayWhenHealthy() {
         let healthySnapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .live,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 160,
             mainX: 180,
@@ -321,6 +398,8 @@ struct MenuBarOperationCoordinatorTests {
     func manualRestoreUsesRepairPathWhenSnapshotIsUnhealthy() {
         let unhealthySnapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
             startupItemsValid: true,
             separatorX: 956,
             mainX: 976,

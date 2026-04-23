@@ -83,6 +83,10 @@ enum MenuBarOperationCoordinator {
             return .invalidStatusItems
         }
 
+        if !snapshot.hasTrustworthyBootstrapAnchors {
+            return .missingCoordinates
+        }
+
         guard let separatorX = snapshot.separatorX, let mainX = snapshot.mainX else {
             return .missingCoordinates
         }
@@ -210,7 +214,7 @@ enum MenuBarOperationCoordinator {
                         return .keepExpanded(.waitingForLiveCoordinates)
                     }
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
-                case .missingCoordinates where inputs.hasCompletedOnboarding:
+                case .missingCoordinates:
                     return .keepExpanded(.waitingForLiveCoordinates)
                 default:
                     return .repairPersistedLayoutAndRecreate(recoveryReason)

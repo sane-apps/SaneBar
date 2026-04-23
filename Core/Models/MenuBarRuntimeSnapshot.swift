@@ -29,6 +29,17 @@ enum MenuBarAnchorSource: String, Sendable {
     case missing
 }
 
+extension MenuBarAnchorSource {
+    var isTrustworthySeparatorAnchor: Bool {
+        switch self {
+        case .live, .cached:
+            return true
+        case .estimated, .missing:
+            return false
+        }
+    }
+}
+
 enum MenuBarBootstrapPhase: String, Sendable {
     case steady
     case awaitingAnchor
@@ -124,5 +135,11 @@ struct MenuBarRuntimeSnapshot: Sendable {
         self.mainRightGap = mainRightGap
         self.screenWidth = screenWidth
         self.notchRightSafeMinX = notchRightSafeMinX
+    }
+
+    var hasTrustworthyBootstrapAnchors: Bool {
+        guard structuralState == .ready else { return false }
+        guard separatorAnchorSource.isTrustworthySeparatorAnchor else { return false }
+        return mainAnchorSource != .missing
     }
 }

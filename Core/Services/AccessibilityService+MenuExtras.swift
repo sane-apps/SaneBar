@@ -6,6 +6,14 @@ private let menuExtrasLogger = Logger(subsystem: "com.sanebar.app", category: "A
 
 extension AccessibilityService {
 
+    private struct StatusItemAXMetadata {
+        let rawIdentifier: String?
+        let rawLabel: String?
+        let rawSubrole: String?
+        let xPos: CGFloat
+        let width: CGFloat
+    }
+
     // MARK: - Control Center & Menu Extra Enumeration
 
     /// Enumerates individual Control Center items (Battery, WiFi, Clock, etc.)
@@ -37,76 +45,35 @@ extension AccessibilityService {
         guard !items.isEmpty else { return results }
 
         for item in items {
-            func axString(_ value: CFTypeRef?) -> String? {
-                if let s = value as? String { return s }
-                if let attributed = value as? NSAttributedString { return attributed.string }
-                return nil
-            }
-
-            // Get AXIdentifier (e.g., "com.apple.menuextra.wifi"). Some menu extras
-            // (notably Siri on some macOS builds) may not provide a canonical identifier.
-            var identifierValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-            let rawIdentifier = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Prefer stable, human labels. Title is often more useful than Description.
-            var titleValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
-
-            var descValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
-
-            var subroleValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(item, kAXSubroleAttribute as CFString, &subroleValue)
-
-            let rawLabel = axString(titleValue) ?? axString(descValue) ?? rawIdentifier?.components(separatedBy: ".").last ?? "Unknown"
-            let rawSubrole = axString(subroleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Get position
-            var positionValue: CFTypeRef?
-            let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
-            var xPos: CGFloat = 0
-            if posResult == .success, let posValue = positionValue,
-               let axPosValue = safeAXValue(posValue) {
-                var point = CGPoint.zero
-                if AXValueGetValue(axPosValue, .cgPoint, &point) {
-                    xPos = point.x
-                }
-            }
-
-            // Get Size (Width)
-            var sizeValue: CFTypeRef?
-            let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
-            var width: CGFloat = 0
-            if sizeResult == .success, let sValue = sizeValue,
-               let axSizeValue = safeAXValue(sValue) {
-                var size = CGSize.zero
-                if AXValueGetValue(axSizeValue, .cgSize, &size) {
-                    width = size.width
-                }
-            }
+            let metadata = statusItemAXMetadata(for: item)
 
             if allowThirdPartyMenuBarFallback,
                !ownerBundleId.hasPrefix("com.apple."),
                !shouldAcceptThirdPartyTopBarFallbackItem(
-                   rawIdentifier: rawIdentifier,
-                   rawSubrole: rawSubrole
+                   rawIdentifier: metadata.rawIdentifier,
+                   rawSubrole: metadata.rawSubrole
                ) {
                 continue
             }
 
             guard let identifier = canonicalMenuExtraIdentifier(
                 ownerBundleId: ownerBundleId,
-                rawIdentifier: rawIdentifier,
-                rawLabel: rawLabel,
-                width: width,
+                rawIdentifier: metadata.rawIdentifier,
+                rawLabel: metadata.rawLabel,
+                width: metadata.width,
                 allowThirdPartyLabelFallback: allowThirdPartyMenuBarFallback
             ) else {
                 continue
             }
 
-            let virtualApp = RunningApp.menuExtraItem(ownerBundleId: ownerBundleId, name: rawLabel, identifier: identifier, xPosition: xPos, width: width)
-            results.append(MenuBarItemPosition(app: virtualApp, x: xPos, width: width))
+            let virtualApp = RunningApp.menuExtraItem(
+                ownerBundleId: ownerBundleId,
+                name: metadata.rawLabel ?? "Unknown",
+                identifier: identifier,
+                xPosition: metadata.xPos,
+                width: metadata.width
+            )
+            results.append(MenuBarItemPosition(app: virtualApp, x: metadata.xPos, width: metadata.width))
         }
 
         return results
@@ -505,9 +472,13 @@ extension AccessibilityService {
     ) -> AXUIElement? {
         if let extraId = menuExtraId {
             for item in items {
-                var identifierValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                if let identifier = identifierValue as? String, identifier == extraId {
+                let metadata = Self.statusItemAXMetadata(for: item)
+                if Self.canonicalMenuExtraIdentifier(
+                    ownerBundleId: bundleID,
+                    rawIdentifier: metadata.rawIdentifier,
+                    rawLabel: metadata.rawLabel,
+                    width: metadata.width
+                ) == extraId {
                     return item
                 }
             }
@@ -556,11 +527,14 @@ extension AccessibilityService {
         let resolvedIndex = candidates[bestCandidateIndex].index
         if menuExtraId != nil, items.count > 1 {
             let candidateSummary = items.enumerated().compactMap { index, item -> String? in
-                guard let frame = frameForStatusItem(item) else { return nil }
-                var identifierValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                let identifier = (identifierValue as? String) ?? "nil"
-                return "\(index):\(identifier)@\(frame.midX)"
+                let metadata = Self.statusItemAXMetadata(for: item)
+                let resolvedIdentifier = Self.canonicalMenuExtraIdentifier(
+                    ownerBundleId: bundleID,
+                    rawIdentifier: metadata.rawIdentifier,
+                    rawLabel: metadata.rawLabel,
+                    width: metadata.width
+                ) ?? metadata.rawIdentifier ?? "nil"
+                return "\(index):\(resolvedIdentifier)@\(metadata.xPos + (metadata.width / 2))"
             }.joined(separator: ",")
             menuExtrasLogger.error(
                 "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
@@ -620,9 +594,13 @@ extension AccessibilityService {
 
         if let extraId = menuExtraId {
             let hasExactIdentifier = items.contains { item in
-                var identifierValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                return (identifierValue as? String) == extraId
+                let metadata = Self.statusItemAXMetadata(for: item)
+                return Self.canonicalMenuExtraIdentifier(
+                    ownerBundleId: bundleID,
+                    rawIdentifier: metadata.rawIdentifier,
+                    rawLabel: metadata.rawLabel,
+                    width: metadata.width
+                ) == extraId
             }
             if hasExactIdentifier {
                 return (true, true)
@@ -683,6 +661,63 @@ extension AccessibilityService {
         }
 
         return (true, false)
+    }
+
+    private nonisolated static func axString(_ value: CFTypeRef?) -> String? {
+        if let s = value as? String { return s }
+        if let attributed = value as? NSAttributedString { return attributed.string }
+        return nil
+    }
+
+    private nonisolated static func statusItemAXMetadata(for item: AXUIElement) -> StatusItemAXMetadata {
+        var identifierValue: CFTypeRef?
+        AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+        let rawIdentifier = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var titleValue: CFTypeRef?
+        AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
+
+        var descValue: CFTypeRef?
+        AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
+
+        var subroleValue: CFTypeRef?
+        AXUIElementCopyAttributeValue(item, kAXSubroleAttribute as CFString, &subroleValue)
+
+        let rawLabel = axString(titleValue) ??
+            axString(descValue) ??
+            rawIdentifier?.components(separatedBy: ".").last ??
+            "Unknown"
+        let rawSubrole = axString(subroleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var positionValue: CFTypeRef?
+        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+        var xPos: CGFloat = 0
+        if posResult == .success, let posValue = positionValue,
+           let axPosValue = safeAXValue(posValue) {
+            var point = CGPoint.zero
+            if AXValueGetValue(axPosValue, .cgPoint, &point) {
+                xPos = point.x
+            }
+        }
+
+        var sizeValue: CFTypeRef?
+        let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+        var width: CGFloat = 0
+        if sizeResult == .success, let sValue = sizeValue,
+           let axSizeValue = safeAXValue(sValue) {
+            var size = CGSize.zero
+            if AXValueGetValue(axSizeValue, .cgSize, &size) {
+                width = size.width
+            }
+        }
+
+        return StatusItemAXMetadata(
+            rawIdentifier: rawIdentifier,
+            rawLabel: rawLabel,
+            rawSubrole: rawSubrole,
+            xPos: xPos,
+            width: width
+        )
     }
 
     internal nonisolated static func shouldContinueStatusItemResolutionAfterIdentifierMiss(
