@@ -2367,18 +2367,20 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("%w[hidden visible].include?(item[:zone])") &&
             source.contains("compact_precise_non_apple_bundle_candidates") &&
             source.contains("precise_non_apple") &&
+            source.contains("exact_apple") &&
             source.contains("coarse_non_apple") &&
             source.contains("prepare_layout_baseline") &&
             source.contains("browse_activation_pool(zones)") &&
             source.contains("com.yujitach.MenuMeters") &&
-            source.contains("candidate_order = precise_non_apple + coarse_non_apple + preferred + fallback") &&
+            source.contains("if expected_mode == 'secondMenuBar'") &&
+            source.contains("precise_non_apple + exact_apple + preferred + coarse_non_apple + fallback") &&
+            source.contains("precise_non_apple + coarse_non_apple + preferred + fallback") &&
             source.contains("com.apple.menuextra.bluetooth") &&
-            source.contains("browse_activation_denied?(item)") &&
+            source.contains("browse_activation_denied?(item, expected_mode: expected_mode)") &&
             source.contains("item[:bundle].start_with?('com.apple.')") &&
-            source.contains("Generic browse smoke needs to prefer third-party identities first.") &&
-            source.contains("non-Apple rows are available.") &&
+            source.contains("Exact MenuMeters rows are stable browse fixtures on the Mini in both") &&
             source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
-            "Live smoke should prioritize third-party browse fixtures ahead of Apple/system fallbacks and avoid known noisy browse candidates"
+            "Live smoke should prioritize precise non-Apple browse fixtures, keep second-menu-bar exact Apple coverage behind them, and avoid noisy coarse browse candidates until later fallback"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&
