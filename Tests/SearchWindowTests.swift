@@ -409,18 +409,36 @@ struct SearchWindowTests {
             SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: true,
-                fallbackCenterOnScreen: true
+                fallbackCenterOnScreen: true,
+                hasPreciseMenuBarIdentity: true
             )
         )
         #expect(
             !SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: true,
-                fallbackCenterOnScreen: false
+                fallbackCenterOnScreen: false,
+                hasPreciseMenuBarIdentity: true
             )
         )
         #expect(
-            !SearchService.shouldPreferHardwareFirst(
+            SearchService.resolvedAllowImmediateFallbackCenter(
+                baseAllowImmediateFallbackCenter: false,
+                likelyNoExtrasMenuBar: false,
+                fallbackCenterOnScreen: true,
+                hasPreciseMenuBarIdentity: false
+            )
+        )
+        #expect(
+            !SearchService.resolvedAllowImmediateFallbackCenter(
+                baseAllowImmediateFallbackCenter: false,
+                likelyNoExtrasMenuBar: false,
+                fallbackCenterOnScreen: true,
+                hasPreciseMenuBarIdentity: true
+            )
+        )
+        #expect(
+            SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
                 app: RunningApp(id: "offscreen.app", name: "Offscreen", icon: nil, xPosition: -4300, width: 24)
@@ -430,7 +448,13 @@ struct SearchWindowTests {
             !SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
-                app: RunningApp(id: "visible.app", name: "Visible", icon: nil, xPosition: 631, width: 24)
+                app: RunningApp.menuExtraItem(
+                    ownerBundleId: "com.apple.controlcenter",
+                    name: "Wi-Fi",
+                    identifier: "com.apple.menuextra.wifi",
+                    xPosition: 631,
+                    width: 24
+                )
             )
         )
         #expect(

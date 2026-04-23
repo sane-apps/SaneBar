@@ -197,9 +197,12 @@ extension SearchService {
     nonisolated static func resolvedAllowImmediateFallbackCenter(
         baseAllowImmediateFallbackCenter: Bool,
         likelyNoExtrasMenuBar: Bool,
-        fallbackCenterOnScreen: Bool
+        fallbackCenterOnScreen: Bool,
+        hasPreciseMenuBarIdentity: Bool
     ) -> Bool {
-        baseAllowImmediateFallbackCenter || (likelyNoExtrasMenuBar && fallbackCenterOnScreen)
+        let coarseBrowseIdentityNeedsSpatialFallback = !hasPreciseMenuBarIdentity && fallbackCenterOnScreen
+        let noExtrasNeedsSpatialFallback = likelyNoExtrasMenuBar && fallbackCenterOnScreen
+        return baseAllowImmediateFallbackCenter || coarseBrowseIdentityNeedsSpatialFallback || noExtrasNeedsSpatialFallback
     }
 
     nonisolated static func shouldUsePinnedAlwaysHiddenFallback(
@@ -244,12 +247,11 @@ extension SearchService {
             return true
         }
 
-        // Browse panel clicks should use AX first by default. If the target is
-        // still off-screen after a reveal, clickSystemWideItem will detect that
-        // and fall back to a hardware click without burning the hardware-first
-        // verification budget upfront.
+        // Precise browse rows can stay on the stricter AX-first path, but
+        // bundle-only fallback rows do not have a stable AX identity and are
+        // markedly more reliable through the hardware path.
         if origin == .browsePanel {
-            return false
+            return !app.hasPreciseMenuBarIdentity
         }
 
         if app.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {

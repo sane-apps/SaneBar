@@ -646,8 +646,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if origin == .browsePanel {") &&
-                diagnosticsSource.contains("clickSystemWideItem will detect that"),
-            "Browse-panel left clicks should prefer AX first by default so Spotlight-like items do not burn the timeout budget on failed hardware attempts"
+                diagnosticsSource.contains("bundle-only fallback rows do not have a stable AX identity") &&
+                diagnosticsSource.contains("return !app.hasPreciseMenuBarIdentity"),
+            "Browse-panel hardware-vs-AX policy should route coarse rows through hardware-first while keeping precise rows on the stricter AX path"
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if app.menuExtraIdentifier == nil"),
@@ -3214,8 +3215,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if origin == .browsePanel {") &&
-                diagnosticsSource.contains("Browse panel clicks should use AX first by default."),
-            "Browse activation should prefer AX first for left-click browse flows instead of burning the hardware-first path on stale menu-bar coordinates"
+                diagnosticsSource.contains("bundle-only fallback rows do not have a stable AX identity") &&
+                diagnosticsSource.contains("return !app.hasPreciseMenuBarIdentity"),
+            "Browse activation should keep precise left-click browse flows on AX while routing coarse browse rows through the hardware path"
         )
         XCTAssertTrue(
             searchSource.contains("Rejecting unverified click success for revealed/browse-session activation"),

@@ -447,6 +447,38 @@ struct MenuBarOperationCoordinatorTests {
         #expect(plan.preferHardwareFirst)
     }
 
+    @Test("Browse panel coarse left click prefers hardware-first activation")
+    func browsePanelCoarseLeftClickPlanPrefersHardwareFirst() {
+        let app = RunningApp(
+            id: "com.openai.codex",
+            name: "Codex",
+            icon: nil,
+            policy: .accessory,
+            category: .developerTools,
+            xPosition: 1490,
+            width: 36
+        )
+
+        let plan = MenuBarOperationCoordinator.browseActivationPlan(
+            snapshot: MenuBarRuntimeSnapshot(
+                identityPrecision: .coarse,
+                geometryConfidence: .live,
+                visibilityPhase: .expanded,
+                browsePhase: .activationInFlight
+            ),
+            origin: .browsePanel,
+            isRightClick: false,
+            didReveal: false,
+            requestedApp: app
+        )
+
+        #expect(plan.requireObservableReaction)
+        #expect(plan.forceFreshTargetResolution)
+        #expect(plan.allowImmediateFallbackCenter == false)
+        #expect(plan.allowWorkspaceActivationFallback)
+        #expect(plan.preferHardwareFirst)
+    }
+
     @Test("Same-bundle fallback is rejected when the original identity was precise")
     func sameBundleFallbackRejectsPreciseIdentityLoss() {
         #expect(

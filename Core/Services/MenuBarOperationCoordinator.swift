@@ -315,7 +315,7 @@ enum MenuBarOperationCoordinator {
             }
 
             if origin == .browsePanel {
-                return false
+                return !requestedApp.hasPreciseMenuBarIdentity
             }
 
             if requestedApp.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {
