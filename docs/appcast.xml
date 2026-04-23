@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                        <item>
+                                                                                                                                <item>
+            <title>2.1.44</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 23 Apr 2026 19:46:22 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves recovery when menu bar items drift or disappear after dragging, restart, wake, or display changes. Tightens browse and move stability on busy menu bars.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.44.zip"
+                       sparkle:version="2144"
+                       sparkle:shortVersionString="2.1.44"
+                       length="8717619"
+                       type="application/octet-stream"
+                       sparkle:edSignature="BvsXYXu7METlVlzssE2D7/8HF4cZxK/NQVXGDExKt2rETZhsKOfRuhnHKPxcRqyEz7UjE6vSiqx1AHgaad2NAA=="/>
+        </item>
+<item>
             <title>2.1.43</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 21 Apr 2026 22:01:59 -0400</pubDate>
