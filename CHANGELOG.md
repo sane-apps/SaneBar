@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.44] - 2026-04-23
+
+Improves recovery when menu bar items drift or disappear after dragging, restart, wake, or display changes. Tightens browse and move stability on busy menu bars.
+
+---
+
 ## [2.1.43] - 2026-04-21
 
 Harden menu bar recovery and reduce browse scan churn.
