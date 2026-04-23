@@ -1643,8 +1643,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("retryable_runtime_smoke_failure?(smoke_out)") &&
-                source.contains("relaunching after transient runtime smoke budget blip"),
-            "Project QA runtime smoke should retry exactly the narrow transient budget-blip path before failing the release"
+                source.contains("relaunching after transient runtime smoke failure"),
+            "Project QA runtime smoke should retry the narrow transient relaunch flake path before failing the release"
         )
         XCTAssertTrue(
             source.contains("Runtime smoke failed on pass"),
