@@ -1,12 +1,26 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-04-14
-**Current public release:** `v2.1.41` (build `2141`)
+**Last updated:** 2026-04-24
+**Current public release:** `v2.1.45` (build `2145`)
 
 ## Current State
 
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
-- `v2.1.41` is live on direct ZIP, appcast, website/download page, GitHub release, and the email/download worker.
+- `v2.1.45` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email/download worker.
+- 2026-04-24 `2.1.45` post-release proof:
+  - live ZIP: `https://dist.sanebar.com/updates/SaneBar-2.1.45.zip`
+  - appcast latest item: `2.1.45` / build `2145`
+  - GitHub release: `v2.1.45`
+  - Homebrew cask: `2.1.45`
+  - downloaded live ZIP extracts to `2.1.45` / build `2145`
+  - `spctl` reports the live app as accepted, Notarized Developer ID
+- `2.1.45` shipped the wake/display arrangement fix for `#136`:
+  - estimated separator positions are no longer promoted into trusted cache
+  - wake/display-change validation now waits for a live separator anchor when the menu bar structure is ready but the separator source is estimated
+  - startup/manual missing-coordinate repair paths still repair instead of waiting
+- Fresh 2026-04-24 issue state:
+  - `#136` remains open until the reporter confirms the shipped `2.1.45` fix
+  - `#129` remains a separate open drag-out / missing-icon regression family; do not close it based on the `#136` arrangement fix
 - Pricing rollout source of truth for current customer-facing surfaces: `Basic = free`, `Pro = $14.99 once`, `direct download only`.
 - Do not reintroduce App Store or Setapp positioning in customer-facing copy unless the distribution strategy is intentionally changed again.
 - Track pricing impact with `ruby ~/SaneApps/infra/SaneProcess/scripts/SaneMaster.rb sales --products`, `downloads --app SaneBar --days 30`, and `events --app SaneBar --days 30` before and after rollout windows.
