@@ -5,7 +5,28 @@
 
                                 
         
-                                                                                                                                <item>
+                                                                                                                                        <item>
+            <title>2.1.45</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 23 Apr 2026 23:34:02 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Keeps the SaneBar icon and hidden layout stable after wake and display changes.</li>
+                <li>Improves layout checks so SaneBar waits for fresh menu bar positions before adjusting items.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.45.zip"
+                       sparkle:version="2145"
+                       sparkle:shortVersionString="2.1.45"
+                       length="8718818"
+                       type="application/octet-stream"
+                       sparkle:edSignature="THaHli+pTadiQ29j7DNJWT6J2JlkMvRUXs03EQ3VvDgtQyh6ma49ykClDz2v5Si/iBMYath+GBHwdN3KUVz8Bg=="/>
+        </item>
+<item>
             <title>2.1.44</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 23 Apr 2026 19:46:22 -0400</pubDate>
