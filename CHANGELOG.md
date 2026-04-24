@@ -6,6 +6,13 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.45] - 2026-04-23
+
+Keeps the SaneBar icon and hidden layout stable after wake and display changes.
+Improves layout checks so SaneBar waits for fresh menu bar positions before adjusting items.
+
+---
+
 ## [2.1.44] - 2026-04-23
 
 Improves recovery when menu bar items drift or disappear after dragging, restart, wake, or display changes. Tightens browse and move stability on busy menu bars.
