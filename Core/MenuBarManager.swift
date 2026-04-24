@@ -701,6 +701,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 )
 
                 switch startupAction {
+                case .waitForLiveAnchor:
+                    logger.warning("Startup separator anchor is still estimated — skipping initial hide and relying on position validation")
+                    self.scheduleInitialPositionValidationAfterStartup()
+                    return
+
                 case let .repairPersistedLayoutAndRecreate(reason):
                     self.logStatusItemRecoveryReason(
                         reason,
@@ -1087,6 +1092,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 referenceScreen: statusItemScreen
             )
 
+        case .waitForLiveAnchor:
+            pendingRecoveryHideRestore = false
+            logger.warning("Waiting for a live status-item anchor before running \(trigger, privacy: .public) recovery")
+
         case let .repairPersistedLayoutAndRecreate(reason):
             guard !isExecutingStatusItemRecovery else {
                 logger.warning("Skipping overlapping status item recovery action for \(trigger, privacy: .public)")
@@ -1265,9 +1274,6 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 return
             }
 
-            logger.error(
-                "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
-            )
             let snapshot = lastSnapshot ?? self.currentStatusItemRecoverySnapshot()
             let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
@@ -1275,6 +1281,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 recoveryCount: recoveryCount,
                 maxRecoveryCount: Self.maxStatusItemRecoveryCount
             )
+
+            if action == .waitForLiveAnchor {
+                logger.warning(
+                    "Status item validation is still waiting for a live anchor after \(maxAttempts, privacy: .public) checks for \(context.rawValue, privacy: .public) — deferring recovery"
+                )
+            } else {
+                logger.error(
+                    "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
+                )
+            }
+
             self.executeStatusItemRecoveryAction(
                 action,
                 trigger: "position-validation-\(context.rawValue)",

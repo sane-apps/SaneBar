@@ -29,6 +29,7 @@ enum MenuBarOperationCoordinator {
 
     enum PositionValidationAction: Equatable, Sendable {
         case stable
+        case waitForLiveAnchor
         case repairPersistedLayoutAndRecreate
         case recreateFromPersistedLayout
         case bumpAutosaveVersion
@@ -52,6 +53,7 @@ enum MenuBarOperationCoordinator {
         case keepExpanded(StartupHoldReason)
         case performInitialHide
         case captureCurrentDisplayBackup
+        case waitForLiveAnchor
         case repairPersistedLayoutAndRecreate(StartupRecoveryReason?)
         case recreateFromPersistedLayout(StartupRecoveryReason?)
         case bumpAutosaveVersion(StartupRecoveryReason?)
@@ -140,6 +142,8 @@ enum MenuBarOperationCoordinator {
             return .recoverAndKeepExpanded(reason ?? .invalidStatusItems)
         case .captureCurrentDisplayBackup, .stop:
             return .performInitialHide
+        case .waitForLiveAnchor:
+            return .keepExpanded(.waitingForLiveCoordinates)
         }
     }
 
@@ -157,6 +161,8 @@ enum MenuBarOperationCoordinator {
         ) {
         case .captureCurrentDisplayBackup:
             return .stable
+        case .waitForLiveAnchor:
+            return .waitForLiveAnchor
         case .repairPersistedLayoutAndRecreate:
             return .repairPersistedLayoutAndRecreate
         case .recreateFromPersistedLayout:
@@ -196,6 +202,19 @@ enum MenuBarOperationCoordinator {
         }
 
         return .stop(.invalidGeometry)
+    }
+
+    static func shouldWaitForLiveSeparatorAnchor(
+        snapshot: MenuBarRuntimeSnapshot,
+        validationContext: PositionValidationContext,
+        recoveryReason: StartupRecoveryReason
+    ) -> Bool {
+        guard recoveryReason == .missingCoordinates else { return false }
+        guard validationContext == .screenParametersChanged || validationContext == .wakeResume else { return false }
+        guard snapshot.structuralState == .ready else { return false }
+        guard snapshot.separatorAnchorSource == .estimated else { return false }
+        guard snapshot.mainAnchorSource != .missing else { return false }
+        return snapshot.separatorX != nil && snapshot.mainX != nil
     }
 
     static func statusItemRecoveryAction(
@@ -238,6 +257,14 @@ enum MenuBarOperationCoordinator {
         case let .positionValidation(validationContext):
             guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
                 return .captureCurrentDisplayBackup
+            }
+
+            if shouldWaitForLiveSeparatorAnchor(
+                snapshot: snapshot,
+                validationContext: validationContext,
+                recoveryReason: recoveryReason
+            ) {
+                return .waitForLiveAnchor
             }
 
             if validationContext == .manualLayoutRestore {

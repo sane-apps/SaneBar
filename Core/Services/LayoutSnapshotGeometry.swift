@@ -7,6 +7,32 @@ struct SnapshotAlwaysHiddenGeometry {
 }
 
 extension LayoutSnapshotCommand {
+    nonisolated static func resolvedSnapshotMainRightGap(
+        referenceScreenRightEdge: CGFloat?,
+        liveFrameOriginX: CGFloat?,
+        liveFrameWidth: CGFloat?,
+        cachedMainX: CGFloat?
+    ) -> CGFloat? {
+        guard let referenceScreenRightEdge,
+              referenceScreenRightEdge.isFinite,
+              referenceScreenRightEdge > 0 else {
+            return nil
+        }
+
+        if let liveFrameOriginX,
+           let liveFrameWidth,
+           MenuBarManager.mainStatusItemFrameLooksLive(originX: liveFrameOriginX, width: liveFrameWidth) {
+            return referenceScreenRightEdge - liveFrameOriginX
+        }
+
+        guard let cachedMainX,
+              cachedMainX.isFinite,
+              cachedMainX > 0 else {
+            return nil
+        }
+        return referenceScreenRightEdge - cachedMainX
+    }
+
     nonisolated static func normalizedSnapshotAlwaysHiddenGeometry(
         hidingState: HidingState,
         separatorX: CGFloat?,

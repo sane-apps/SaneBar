@@ -623,4 +623,40 @@ struct AppleScriptCommandsTests {
         #expect(geometry.boundaryX == 1218)
         #expect(geometry.isReliable)
     }
+
+    @Test("Layout snapshot main right gap prefers live frame")
+    func layoutSnapshotMainRightGapPrefersLiveFrame() {
+        let gap = LayoutSnapshotCommand.resolvedSnapshotMainRightGap(
+            referenceScreenRightEdge: 1920,
+            liveFrameOriginX: 1692,
+            liveFrameWidth: 24,
+            cachedMainX: 1691
+        )
+
+        #expect(gap == 228)
+    }
+
+    @Test("Layout snapshot main right gap falls back to cached anchor for stale frame")
+    func layoutSnapshotMainRightGapFallsBackToCachedAnchorForStaleFrame() {
+        let gap = LayoutSnapshotCommand.resolvedSnapshotMainRightGap(
+            referenceScreenRightEdge: 1920,
+            liveFrameOriginX: -4047,
+            liveFrameWidth: 24,
+            cachedMainX: 1691
+        )
+
+        #expect(gap == 229)
+    }
+
+    @Test("Layout snapshot main right gap stays nil for stale unanchored frame")
+    func layoutSnapshotMainRightGapRejectsStaleUnanchoredFrame() {
+        let gap = LayoutSnapshotCommand.resolvedSnapshotMainRightGap(
+            referenceScreenRightEdge: 1920,
+            liveFrameOriginX: -4047,
+            liveFrameWidth: 24,
+            cachedMainX: nil
+        )
+
+        #expect(gap == nil)
+    }
 }
