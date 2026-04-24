@@ -316,8 +316,6 @@ extension MenuBarManager {
             }
 
             if let estimated = estimatedSeparatorEdgesFromMainIcon() {
-                lastKnownSeparatorX = estimated.originX
-                lastKnownSeparatorRightEdgeX = estimated.rightEdgeX
                 logger.warning("🔧 getSeparatorOriginX: blocking mode with empty cache, using estimated \(estimated.originX)")
                 return estimated.originX
             }

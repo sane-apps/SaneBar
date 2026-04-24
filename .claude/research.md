@@ -3885,3 +3885,25 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 - The remaining blockers are operational/governance:
   - open regression issues `#129` and `#136`
   - uncommitted local worktree that needs the normal release prep once shipping is approved
+
+## 2026-04-23 23:20 EDT arrangement wake/display release patch
+
+**Updated:** 2026-04-23 23:20 EDT | **Status:** patched and Mini-verified; ready for 2.1.45 release command | **TTL:** 7d
+**Sources:** local/Mini diff; Mini focused `xcodebuild` for `MenuBarOperationCoordinatorTests`, `AppleScriptCommandsTests`, `RuntimeGuardXCTests`; Mini `./scripts/SaneMaster.rb verify`; Mini signed `./scripts/SaneMaster.rb test_mode --release --no-logs`; Mini `startup_layout_probe.rb`; Mini `wake_layout_probe.rb`; Mini `SANEBAR_RUN_RUNTIME_SMOKE=1 ./scripts/qa.rb`.
+
+### Findings
+
+1. The prior handoff said the arrangement patch was dirty locally, but both Air and Mini were clean at `a4577cf5` and still had the old blocking-mode separator cache writes. The patch had to be restored before release.
+2. The restored fix keeps a main-icon-derived blocking separator estimate temporary. `getSeparatorOriginX()` no longer writes that estimate into `lastKnownSeparatorX` or `lastKnownSeparatorRightEdgeX`.
+3. Wake/display validation now treats an estimated separator plus live main anchor as a transient anchor wait, not a destructive recovery signal. Startup follow-up and manual restore still repair real missing geometry.
+4. Layout snapshot `mainRightGap` now rejects stale status-item frames and falls back to the cached main anchor, so stale frame origins like `-4047` no longer produce bogus huge gaps.
+5. Tests added real value/policy coverage for wake/screen wait behavior, true-missing repair behavior, and live/stale/unanchored `mainRightGap` calculations. One source guard remains only as a tripwire for the private separator cache path.
+
+### Verification
+
+- Focused Mini `xcodebuild` passed for the changed test suites.
+- Mini `./scripts/SaneMaster.rb verify` passed `1114` tests.
+- Signed Mini Release staging passed and launched `/Applications/SaneBar.app`.
+- Startup layout probe passed.
+- Wake layout probe passed for hidden and expanded states.
+- QA runtime smoke passed: normal browse/move smoke x2, native Apple exact-id smoke for Siri/Spotlight, and startup layout probe. Existing warnings were only the known Swift helper-script parse warnings.

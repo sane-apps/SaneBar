@@ -299,6 +299,75 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
+    @Test("Wake validation waits when only the separator anchor is estimated")
+    func wakeValidationWaitsForLiveEstimatedSeparatorAnchor() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .waitForLiveAnchor
+        )
+    }
+
+    @Test("Screen-change validation waits when only the separator anchor is estimated")
+    func screenChangeValidationWaitsForLiveEstimatedSeparatorAnchor() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .estimated,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .waitForLiveAnchor
+        )
+    }
+
+    @Test("Screen-change validation still repairs when coordinates are truly missing")
+    func screenChangeValidationRepairsTrulyMissingCoordinates() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: nil,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
+        )
+    }
+
     @Test("Startup follow-up escalates persistent missing coordinates and invalid items after the retry window")
     func startupValidationEscalatesPersistentMissingCoordinateState() {
         let missingCoordinateSnapshot = MenuBarRuntimeSnapshot(

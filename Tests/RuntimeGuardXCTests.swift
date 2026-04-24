@@ -2620,6 +2620,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Stable backup capture should use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
         )
         XCTAssertTrue(
+            coordinatorSource.contains("case waitForLiveAnchor") &&
+                coordinatorSource.contains("shouldWaitForLiveSeparatorAnchor(") &&
+                source.contains("Status item validation is still waiting for a live anchor"),
+            "Wake/display validation should defer recovery while the separator is only estimated from the main icon"
+        )
+        XCTAssertTrue(
             source.contains("MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(") &&
                 source.contains("trigger: \"always-hidden-position-validation-\\(context.rawValue)\""),
             "Persistent always-hidden separator drift should escalate through the shared bounded recovery policy instead of repeating same-version repairs forever"
@@ -2660,6 +2666,35 @@ final class RuntimeGuardXCTests: XCTestCase {
             controllerSource.contains("Self.resolvedReferenceScreen(referenceScreen)") &&
                 controllerSource.contains("let screenFrame = window?.screen?.frame ?? Self.resolvedReferenceScreen()?.frame"),
             "Startup validation and backup recovery should route through the shared reference-screen resolver"
+        )
+    }
+
+    func testBlockingSeparatorEstimateDoesNotBecomeTrustedCache() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        guard let blockingStart = source.range(of: "if separatorItem.length > 1000 {"),
+              let blockingEnd = source.range(
+                of: "guard let separatorButton = separatorItem.button",
+                range: blockingStart.upperBound..<source.endIndex
+              )
+        else {
+            XCTFail("Blocking-mode separator path not found")
+            return
+        }
+
+        let blockingPath = String(source[blockingStart.lowerBound..<blockingEnd.lowerBound])
+        XCTAssertTrue(
+            blockingPath.contains("estimatedSeparatorEdgesFromMainIcon()"),
+            "Blocking mode should still estimate a temporary separator edge when no cache exists"
+        )
+        XCTAssertFalse(
+            blockingPath.contains("lastKnownSeparatorX = estimated.originX"),
+            "Main-icon-derived separator estimates must not become trusted separator origin cache"
+        )
+        XCTAssertFalse(
+            blockingPath.contains("lastKnownSeparatorRightEdgeX = estimated.rightEdgeX"),
+            "Main-icon-derived separator estimates must not become trusted separator right-edge cache"
         )
     }
 

@@ -862,11 +862,12 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
             ?? NSScreen.main?.auxiliaryTopRightArea?.minX
         let knownOwnerRefresh = AccessibilityService.shared.knownOwnerRefreshDiagnosticsSnapshot()
-        let rightGap: CGFloat? = {
-            guard let mainWindow else { return nil }
-            guard let rightEdge = mainWindow.screen?.frame.maxX ?? NSScreen.main?.frame.maxX else { return nil }
-            return rightEdge - mainWindow.frame.origin.x
-        }()
+        let rightGap = resolvedSnapshotMainRightGap(
+            referenceScreenRightEdge: mainWindow?.screen?.frame.maxX ?? NSScreen.main?.frame.maxX,
+            liveFrameOriginX: mainWindow?.frame.origin.x,
+            liveFrameWidth: mainWindow?.frame.width,
+            cachedMainX: mainX
+        )
 
         let separatorBeforeMain: Bool = {
             guard let separatorX, let mainX else { return false }
