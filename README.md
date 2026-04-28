@@ -128,7 +128,7 @@ A first-run walkthrough gets you set up in under a minute:
 5. **Permissions** — Grant Accessibility access (required for menu bar management)
 6. **Basic vs Pro** — See what's included and what Pro unlocks
 
-Works perfectly on Macs with Notch. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and a few simple anonymous app counts.
+Designed for Macs with a notch and crowded menu bars. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and a few simple anonymous app counts.
 
 ---
 
@@ -182,7 +182,7 @@ If you have 50+ apps, macOS might hide some of them behind the camera housing (t
 
 1. **Hiding**: SaneBar pushes unused icons safely off-screen so your menu bar looks clean
 2. **Safety Lock**: If SaneBar itself would get pushed off-screen, it refuses to hide to ensure you never lose control
-3. **Find Icon**: Can't see an icon because it's behind the notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it's invisible
+3. **Find Icon**: Can't see an icon because it's behind the notch? Open **Find Icon…**, type the app name and hit Enter. SaneBar will find it and click it for you, even if it is not visible in the menu bar
 4. **Tighter Icon Spacing**: Reduce system-wide menu bar spacing to fit more icons. Go to **Settings → Appearance** and enable "Reduce space between icons" (requires logout)
 
 ---

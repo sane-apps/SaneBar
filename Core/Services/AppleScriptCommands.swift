@@ -858,9 +858,33 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         )
 
         let mainWindow = manager.mainStatusItem?.button?.window
+        let separatorWindow = manager.separatorItem?.button?.window
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
         let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
             ?? NSScreen.main?.auxiliaryTopRightArea?.minX
+        let mainScreenFrame = mainWindow?.screen?.frame ?? NSScreen.main?.frame
+        let separatorScreenFrame = separatorWindow?.screen?.frame ?? mainScreenFrame
+        let mainWindowValid = StatusBarController.isStatusItemWindowFrameValid(
+            windowFrame: mainWindow?.frame,
+            screenFrame: mainScreenFrame
+        )
+        let separatorWindowValid = StatusBarController.isStatusItemWindowFrameValid(
+            windowFrame: separatorWindow?.frame,
+            screenFrame: separatorScreenFrame
+        )
+        let suppressionHint = StatusBarController.systemMenuBarSuppressionHint(
+            main: .init(
+                isVisibleFlag: manager.mainStatusItem?.isVisible,
+                windowFrame: mainWindow?.frame,
+                screenFrame: mainScreenFrame
+            ),
+            separator: .init(
+                isVisibleFlag: manager.separatorItem?.isVisible,
+                windowFrame: separatorWindow?.frame,
+                screenFrame: separatorScreenFrame
+            )
+        )
+        let missionControlSpaces = StatusBarController.missionControlSpacesDiagnostic()
         let knownOwnerRefresh = AccessibilityService.shared.knownOwnerRefreshDiagnosticsSnapshot()
         let rightGap = resolvedSnapshotMainRightGap(
             referenceScreenRightEdge: mainWindow?.screen?.frame.maxX ?? NSScreen.main?.frame.maxX,
@@ -921,7 +945,16 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "knownOwnerRefreshLastFirstCoverage": knownOwnerRefresh.lastFirstCoverage,
             "knownOwnerRefreshLastRetryOwners": knownOwnerRefresh.lastRetryOwnerCount,
             "knownOwnerRefreshLastRetryResult": knownOwnerRefresh.lastRetryResultCount,
-            "knownOwnerRefreshLastRetryCoverage": knownOwnerRefresh.lastRetryCoverage
+            "knownOwnerRefreshLastRetryCoverage": knownOwnerRefresh.lastRetryCoverage,
+            "mainStatusItemVisibleFlag": manager.mainStatusItem?.isVisible ?? false,
+            "separatorStatusItemVisibleFlag": manager.separatorItem?.isVisible ?? false,
+            "mainStatusItemWindowValid": mainWindowValid,
+            "separatorStatusItemWindowValid": separatorWindowValid,
+            "startupItemsValid": mainWindowValid && separatorWindowValid,
+            "systemMenuBarSuppressionHint": suppressionHint,
+            "possibleSystemMenuBarSuppression": suppressionHint != "none",
+            "missionControlDisplaysHaveSeparateSpaces": missionControlSpaces.displaysHaveSeparateSpaces.map(String.init) ?? "unknown",
+            "missionControlSpansDisplaysRaw": missionControlSpaces.spansDisplays.map(String.init) ?? "unknown"
         ]
         SearchWindowController.shared.browseWindowPositionSnapshot().forEach { key, value in
             payload[key] = value
@@ -1124,8 +1157,19 @@ final class ShowIconCommand: SaneBarScriptCommand {
 
 /// Shared move-icon implementation for AppleScript commands.
 class MoveIconScriptCommand: SaneBarScriptCommand {
+    private enum MoveFailure {
+        case notFound
+        case timedOut
+        case failed
+    }
+
+    private struct MoveOutcome {
+        var succeeded: Bool
+        var skipZoneWait: Bool = false
+        var failure: MoveFailure?
+    }
+
     var targetZone: ScriptIconZone { .visible }
-    var reasonLabel: String { "AppleScript move icon" }
 
     override func performDefaultImplementation() -> Any? {
         guard let trimmedId = parseIconIdentifier(directParameter) else {
@@ -1143,252 +1187,22 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             return false
         }
         let targetZone = self.targetZone
-        var errorCode: String?
-        var skipZoneWait = false
-        let started: Bool = if Thread.isMainThread {
+        let outcome: MoveOutcome = if Thread.isMainThread {
             MainActor.assumeIsolated {
-                let manager = MenuBarManager.shared
-                let startZones = zonesForScriptMoveResolution(trimmedId)
-                guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
-                    errorCode = "notFound"
-                    return false
-                }
-                let icon = source.app
-                let sourceZone = source.zone
-                logger.info(
-                    "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
-                )
-                if sourceZone == targetZone {
-                    if targetZone == .alwaysHidden {
-                        if !manager.settings.alwaysHiddenSectionEnabled {
-                            manager.settings.alwaysHiddenSectionEnabled = true
-                        }
-                        manager.pinAlwaysHidden(app: icon)
-                        manager.saveSettings()
-                    }
-                    skipZoneWait = true
-                    return true
-                }
-
-                switch targetZone {
-                case .alwaysHidden:
-                    if !manager.settings.alwaysHiddenSectionEnabled {
-                        manager.settings.alwaysHiddenSectionEnabled = true
-                    }
-                    manager.saveSettings()
-                    let moved = runScriptMove {
-                        await manager.moveIconAlwaysHiddenAndWait(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            preferredCenterX: icon.preferredCenterX,
-                            toAlwaysHidden: true
-                        )
-                    }
-                    guard let moved else {
-                        errorCode = "timedOut"
-                        return false
-                    }
-                    return moved
-
-                case .hidden:
-                    switch sourceZone {
-                    case .alwaysHidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconFromAlwaysHiddenToHiddenAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .visible:
-                        let moved = runScriptMove {
-                            await manager.moveIconAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toHidden: true
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .hidden:
-                        return true
-                    }
-
-                case .visible:
-                    switch sourceZone {
-                    case .alwaysHidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconAlwaysHiddenAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toAlwaysHidden: false
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .hidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toHidden: false
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .visible:
-                        return true
-                    }
-                }
+                Self.performMove(trimmedId: trimmedId, targetZone: targetZone)
             }
         } else {
             DispatchQueue.main.sync {
-                let manager = MenuBarManager.shared
-                let startZones = zonesForScriptMoveResolution(trimmedId)
-                guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
-                    errorCode = "notFound"
-                    return false
-                }
-
-                let icon = source.app
-                let sourceZone = source.zone
-                logger.info(
-                    "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
-                )
-
-                if sourceZone == targetZone {
-                    if targetZone == .alwaysHidden {
-                        if !manager.settings.alwaysHiddenSectionEnabled {
-                            manager.settings.alwaysHiddenSectionEnabled = true
-                        }
-                        manager.pinAlwaysHidden(app: icon)
-                        manager.saveSettings()
-                    }
-                    skipZoneWait = true
-                    return true
-                }
-
-                switch targetZone {
-                case .alwaysHidden:
-                    if !manager.settings.alwaysHiddenSectionEnabled {
-                        manager.settings.alwaysHiddenSectionEnabled = true
-                    }
-                    manager.saveSettings()
-                    let moved = runScriptMove {
-                        await manager.moveIconAlwaysHiddenAndWait(
-                            bundleID: icon.bundleId,
-                            menuExtraId: icon.menuExtraIdentifier,
-                            statusItemIndex: icon.statusItemIndex,
-                            preferredCenterX: icon.preferredCenterX,
-                            toAlwaysHidden: true
-                        )
-                    }
-                    guard let moved else {
-                        errorCode = "timedOut"
-                        return false
-                    }
-                    return moved
-
-                case .hidden:
-                    switch sourceZone {
-                    case .alwaysHidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconFromAlwaysHiddenToHiddenAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .visible:
-                        let moved = runScriptMove {
-                            await manager.moveIconAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toHidden: true
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .hidden:
-                        return true
-                    }
-
-                case .visible:
-                    switch sourceZone {
-                    case .alwaysHidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconAlwaysHiddenAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toAlwaysHidden: false
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .hidden:
-                        let moved = runScriptMove {
-                            await manager.moveIconAndWait(
-                                bundleID: icon.bundleId,
-                                menuExtraId: icon.menuExtraIdentifier,
-                                statusItemIndex: icon.statusItemIndex,
-                                preferredCenterX: icon.preferredCenterX,
-                                toHidden: false
-                            )
-                        }
-                        guard let moved else {
-                            errorCode = "timedOut"
-                            return false
-                        }
-                        return moved
-                    case .visible:
-                        return true
-                    }
+                MainActor.assumeIsolated {
+                    Self.performMove(trimmedId: trimmedId, targetZone: targetZone)
                 }
             }
         }
 
-        guard started else {
-            if errorCode == "notFound" {
+        guard outcome.succeeded else {
+            if outcome.failure == .notFound {
                 scriptErrorIconNotFound(self, iconId: trimmedId)
-            } else if errorCode == "timedOut" {
+            } else if outcome.failure == .timedOut {
                 scriptErrorOperationTimedOut(self)
             } else {
                 scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
@@ -1396,30 +1210,135 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             return false
         }
 
-        if skipZoneWait {
+        if outcome.skipZoneWait {
             return true
         }
 
         return true
+    }
+
+    @MainActor
+    private static func performMove(trimmedId: String, targetZone: ScriptIconZone) -> MoveOutcome {
+        let manager = MenuBarManager.shared
+        let startZones = zonesForScriptMoveResolution(trimmedId)
+        guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
+            return MoveOutcome(succeeded: false, failure: .notFound)
+        }
+
+        let icon = source.app
+        let sourceZone = source.zone
+        logger.info(
+            "AppleScript move request id=\(trimmedId, privacy: .private) sourceZone=\(sourceZone.rawValue, privacy: .public) targetZone=\(targetZone.rawValue, privacy: .public)"
+        )
+
+        if sourceZone == targetZone {
+            if targetZone == .alwaysHidden {
+                if !manager.settings.alwaysHiddenSectionEnabled {
+                    manager.settings.alwaysHiddenSectionEnabled = true
+                }
+                manager.pinAlwaysHidden(app: icon)
+                manager.saveSettings()
+            }
+            return MoveOutcome(succeeded: true, skipZoneWait: true)
+        }
+
+        guard let moved = performMove(icon: icon, from: sourceZone, to: targetZone, manager: manager) else {
+            return MoveOutcome(succeeded: false, failure: .timedOut)
+        }
+
+        return MoveOutcome(succeeded: moved, failure: moved ? nil : .failed)
+    }
+
+    @MainActor
+    private static func performMove(
+        icon: RunningApp,
+        from sourceZone: ScriptIconZone,
+        to targetZone: ScriptIconZone,
+        manager: MenuBarManager
+    ) -> Bool? {
+        switch targetZone {
+        case .alwaysHidden:
+            if !manager.settings.alwaysHiddenSectionEnabled {
+                manager.settings.alwaysHiddenSectionEnabled = true
+            }
+            manager.saveSettings()
+            return runScriptMove {
+                await manager.moveIconAlwaysHiddenAndWait(
+                    bundleID: icon.bundleId,
+                    menuExtraId: icon.menuExtraIdentifier,
+                    statusItemIndex: icon.statusItemIndex,
+                    preferredCenterX: icon.preferredCenterX,
+                    toAlwaysHidden: true
+                )
+            }
+
+        case .hidden:
+            switch sourceZone {
+            case .alwaysHidden:
+                return runScriptMove {
+                    await manager.moveIconFromAlwaysHiddenToHiddenAndWait(
+                        bundleID: icon.bundleId,
+                        menuExtraId: icon.menuExtraIdentifier,
+                        statusItemIndex: icon.statusItemIndex,
+                        preferredCenterX: icon.preferredCenterX
+                    )
+                }
+            case .visible:
+                return runScriptMove {
+                    await manager.moveIconAndWait(
+                        bundleID: icon.bundleId,
+                        menuExtraId: icon.menuExtraIdentifier,
+                        statusItemIndex: icon.statusItemIndex,
+                        preferredCenterX: icon.preferredCenterX,
+                        toHidden: true
+                    )
+                }
+            case .hidden:
+                return true
+            }
+
+        case .visible:
+            switch sourceZone {
+            case .alwaysHidden:
+                return runScriptMove {
+                    await manager.moveIconAlwaysHiddenAndWait(
+                        bundleID: icon.bundleId,
+                        menuExtraId: icon.menuExtraIdentifier,
+                        statusItemIndex: icon.statusItemIndex,
+                        preferredCenterX: icon.preferredCenterX,
+                        toAlwaysHidden: false
+                    )
+                }
+            case .hidden:
+                return runScriptMove {
+                    await manager.moveIconAndWait(
+                        bundleID: icon.bundleId,
+                        menuExtraId: icon.menuExtraIdentifier,
+                        statusItemIndex: icon.statusItemIndex,
+                        preferredCenterX: icon.preferredCenterX,
+                        toHidden: false
+                    )
+                }
+            case .visible:
+                return true
+            }
+        }
     }
 }
 
 @objc(MoveIconToHiddenCommand)
 final class MoveIconToHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .hidden }
-    override var reasonLabel: String { "AppleScript move icon to hidden" }
 }
 
 @objc(MoveIconToVisibleCommand)
 final class MoveIconToVisibleCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .visible }
-    override var reasonLabel: String { "AppleScript move icon to visible" }
 }
 
 @objc(MoveIconToAlwaysHiddenCommand)
 final class MoveIconToAlwaysHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .alwaysHidden }
-    override var reasonLabel: String { "AppleScript move icon to always hidden" }
 }
 
 // swiftlint:enable file_length

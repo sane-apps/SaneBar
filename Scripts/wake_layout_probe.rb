@@ -10,6 +10,7 @@ require 'time'
 class WakeLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
   SNAPSHOT_DELAYS = [1.0, 5.0, 15.0].freeze
+  DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
   BLOCKED_LOG_PATTERNS = [
     /Status item remained off-menu-bar/i,
     /Bumping autosave version .*status item recovery/i,
@@ -27,6 +28,10 @@ class WakeLayoutProbe
     @artifact_path = ENV.fetch('SANEBAR_WAKE_PROBE_ARTIFACT_PATH', '/tmp/sanebar_wake_layout_probe.json')
     @display_sleep_seconds = ENV.fetch('SANEBAR_WAKE_PROBE_DISPLAY_SLEEP_SECONDS', '3').to_f
     @wake_assertion_seconds = ENV.fetch('SANEBAR_WAKE_PROBE_WAKE_ASSERTION_SECONDS', '2').to_i
+    @main_right_gap_tolerance = ENV.fetch(
+      'SANEBAR_WAKE_PROBE_MAIN_RIGHT_GAP_TOLERANCE',
+      DEFAULT_MAIN_RIGHT_GAP_TOLERANCE.to_s
+    ).to_f
     @workspace = Dir.mktmpdir('sanebar-wake-probe')
     @settings_backup_path = File.join(@workspace, 'settings.json')
     @lines = []
@@ -129,6 +134,7 @@ class WakeLayoutProbe
     snapshots = snapshots_after_wake(wake_time, label: 'hidden')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'hidden', label: "hidden #{entry[:delay]}s")
+      assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "hidden #{entry[:delay]}s")
     end
     log_scan = scan_logs_since(case_started_at)
 
@@ -157,6 +163,7 @@ class WakeLayoutProbe
     snapshots = snapshots_after_wake(wake_time, label: 'expanded')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'expanded', label: "expanded #{entry[:delay]}s")
+      assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "expanded #{entry[:delay]}s")
     end
     log_scan = scan_logs_since(case_started_at)
 
@@ -202,7 +209,8 @@ class WakeLayoutProbe
       snapshot = read_layout_snapshot!
       log(
         "#{label} snapshot after #{delay}s: hidingState=#{snapshot['hidingState']} " \
-        "mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']}"
+        "mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']} " \
+        "startupItemsValid=#{snapshot['startupItemsValid']}"
       )
       { delay: delay, snapshot: snapshot }
     end
@@ -257,10 +265,25 @@ class WakeLayoutProbe
     raise "#{label}: unexpected hidingState #{snapshot['hidingState'].inspect}" unless snapshot['hidingState'] == expected_state
     raise "#{label}: autoRehide flag missing" unless snapshot.key?('autoRehideEnabled')
     raise "#{label}: geometry unavailable" unless snapshot_healthy?(snapshot)
+    raise "#{label}: status items are not attached to valid menu bar windows" if snapshot.key?('startupItemsValid') && !truthy?(snapshot['startupItemsValid'])
+    if truthy?(snapshot['possibleSystemMenuBarSuppression'])
+      raise "#{label}: macOS may be suppressing SaneBar in System Settings > Menu Bar > Allow in Menu Bar"
+    end
   end
 
   def snapshot_healthy?(snapshot)
     snapshot['geometryAvailable'] && snapshot['separatorBeforeMain'] && snapshot['mainNearControlCenter']
+  end
+
+  def assert_main_right_gap_stable!(baseline, current, label:)
+    baseline_gap = numeric_snapshot_value(baseline, 'mainRightGap')
+    current_gap = numeric_snapshot_value(current, 'mainRightGap')
+    return unless baseline_gap && current_gap
+
+    drift = (current_gap - baseline_gap).abs
+    return if drift <= @main_right_gap_tolerance
+
+    raise "#{label}: mainRightGap drifted by #{drift.round(2)}px (#{baseline_gap} → #{current_gap})"
   end
 
   def bundle_identifier
@@ -366,6 +389,20 @@ class WakeLayoutProbe
   def save_settings_json(payload)
     FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
     File.write(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def numeric_snapshot_value(snapshot, key)
+    value = snapshot[key]
+    return value.to_f if value.is_a?(Numeric)
+    return Float(value) if value.is_a?(String)
+
+    nil
+  rescue ArgumentError
+    nil
+  end
+
+  def truthy?(value)
+    value == true || value.to_s.downcase == 'true'
   end
 
   def capture(*cmd)

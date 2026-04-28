@@ -172,7 +172,7 @@ extension SearchService {
         origin: ActivationOrigin,
         isRightClick: Bool
     ) -> Bool {
-        !(origin == .browsePanel && isRightClick)
+        origin != .browsePanel
     }
 
     nonisolated static func shouldAllowSameBundleActivationFallback(
@@ -247,11 +247,8 @@ extension SearchService {
             return true
         }
 
-        // Precise browse rows can stay on the stricter AX-first path, but
-        // bundle-only fallback rows do not have a stable AX identity and are
-        // markedly more reliable through the hardware path.
         if origin == .browsePanel {
-            return !app.hasPreciseMenuBarIdentity
+            return true
         }
 
         if app.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {
@@ -298,6 +295,15 @@ extension SearchService {
         guard let menuExtraIdentifier = app.menuExtraIdentifier?.lowercased() else { return false }
         guard !menuExtraIdentifier.hasPrefix("com.apple.menuextra.") else { return false }
         return menuExtraIdentifier.contains(".menuextra.")
+    }
+
+    nonisolated static func isCompatibilityLimitedMenuBarActionItem(_ app: RunningApp) -> Bool {
+        switch app.bundleId.lowercased() {
+        case "theboringteam.boringnotch":
+            return true
+        default:
+            return false
+        }
     }
 
     nonisolated static func helperHostedAliasBundlePriority(_ bundleID: String) -> Int {

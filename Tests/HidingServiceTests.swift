@@ -30,34 +30,22 @@ struct HidingServiceTests {
                 "Should start in expanded state for safe position validation")
     }
 
-    @Test("HidingState enum cases are correct")
-    func hidingStateEnumCases() {
-        // Verify the enum values exist and can be compared
-        let hidden = HidingState.hidden
-        let expanded = HidingState.expanded
-
-        #expect(hidden == .hidden,
-                "Hidden state should equal .hidden")
-        #expect(expanded == .expanded,
-                "Expanded state should equal .expanded")
-        #expect(hidden != expanded,
-                "States should not be equal")
-    }
-
     // MARK: - Rehide Tests
 
-    @Test("Schedule rehide can be cancelled")
+    @Test("Canceling a scheduled rehide preserves expanded state")
     @MainActor
-    func scheduleRehideCanBeCancelled() async throws {
+    func cancelScheduledRehidePreservesExpandedState() async throws {
         let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        service.configure(delimiterItem: mainItem)
 
-        // Note: Without a real NSStatusItem, show() will return early
-        // This tests the cancel logic in isolation
-        service.scheduleRehide(after: 1.0)
+        service.scheduleRehide(after: 0.05)
         service.cancelRehide()
+        try await Task.sleep(nanoseconds: 150_000_000)
 
-        // Should not crash
-        #expect(true, "Should cancel rehide without error")
+        #expect(service.state == .expanded)
+        #expect(mainItem.length == 20,
+                "Canceled rehide should not collapse the delimiter after its original deadline")
     }
 
     @Test("Cancel rehide is no-op when nothing scheduled")

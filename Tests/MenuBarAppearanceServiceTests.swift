@@ -80,32 +80,27 @@ struct MenuBarAppearanceServiceTests {
 
     @Test("Hex color parsing handles 6-digit format")
     func testHexColor6Digit() {
-        _ = Color(hex: "#FF5500")  // Verify no crash
-        #expect(true, "6-digit hex should parse")
+        #expect(Color(hex: "#FF5500").toHex() == "#FF5500")
     }
 
     @Test("Hex color parsing handles 3-digit format")
     func testHexColor3Digit() {
-        _ = Color(hex: "#F50")  // Verify no crash
-        #expect(true, "3-digit hex should parse")
+        #expect(Color(hex: "#F50").toHex() == "#FF5500")
     }
 
     @Test("Hex color parsing handles 8-digit ARGB format")
     func testHexColor8Digit() {
-        _ = Color(hex: "#80FF5500")  // Verify no crash
-        #expect(true, "8-digit ARGB hex should parse")
+        #expect(Color(hex: "#80FF5500").toHex() == "#FF5500")
     }
 
     @Test("Hex color parsing handles missing hash")
     func testHexColorNoHash() {
-        _ = Color(hex: "FF5500")  // Verify no crash
-        #expect(true, "Hex without # should parse")
+        #expect(Color(hex: "FF5500").toHex() == "#FF5500")
     }
 
     @Test("Invalid hex color defaults to black")
     func testHexColorInvalid() {
-        _ = Color(hex: "not-a-color")  // Should not crash, defaults to black
-        #expect(true, "Invalid hex should not crash")
+        #expect(Color(hex: "not-a-color").toHex() == "#000000")
     }
 
     // MARK: - Opacity Range Tests
@@ -172,12 +167,6 @@ struct MenuBarAppearanceServiceTests {
 
     // MARK: - Service API Tests
 
-    @Test("MenuBarAppearanceService can be initialized")
-    func testServiceInitialization() {
-        _ = MenuBarAppearanceService()  // Verify no crash
-        #expect(true, "Service should initialize without crash")
-    }
-
     @Test("updateAppearance with disabled settings hides overlay")
     func testUpdateAppearanceDisabled() {
         let service = MenuBarAppearanceService()
@@ -185,9 +174,8 @@ struct MenuBarAppearanceServiceTests {
         settings.isEnabled = false
 
         service.updateAppearance(settings)
-        // Should not crash, overlay should be hidden
 
-        #expect(true, "Disabled settings should hide overlay")
+        #expect(currentOverlayWindow(for: service)?.isVisible != true)
     }
 
     @Test("Disabled appearance stays hidden across later refreshes")
@@ -210,15 +198,14 @@ struct MenuBarAppearanceServiceTests {
         #expect(!window.isVisible, "Later refreshes should not re-show a disabled overlay")
     }
 
-    @Test("show and hide are safe to call without setup")
-    func testShowHideWithoutSetup() {
+    @Test("show and hide without setup do not create a visible overlay")
+    func testShowHideWithoutSetupDoesNotCreateVisibleOverlay() {
         let service = MenuBarAppearanceService()
 
-        // These should not crash even without prior updateAppearance
         service.show()
         service.hide()
 
-        #expect(true, "show/hide should be safe without setup")
+        #expect(currentOverlayWindow(for: service)?.isVisible != true)
     }
 
     @Test("Appearance overlay suppresses for active third-party full-width top host")
@@ -431,19 +418,6 @@ struct MenuBarAppearanceServiceTests {
     @Test("Overlay appearance keeps nil when no appearance is available")
     func testResolvedOverlayAppearanceNil() {
         #expect(MenuBarAppearanceService.resolvedOverlayAppearance(from: nil) == nil)
-    }
-
-    // MARK: - Protocol Conformance Tests
-
-    @Test("MenuBarAppearanceService conforms to protocol")
-    func testProtocolConformance() {
-        let service: MenuBarAppearanceServiceProtocol = MenuBarAppearanceService()
-
-        service.updateAppearance(MenuBarAppearanceSettings())
-        service.show()
-        service.hide()
-
-        #expect(true, "Service conforms to protocol")
     }
 
     // MARK: - Mock Tests

@@ -79,7 +79,7 @@ struct MenuBarManagerTests {
 
     @Test("Status-item validation timing stays more conservative for wake and screen changes")
     func statusItemValidationDelayBackoff() {
-        #expect(MenuBarManager.maxStatusItemRecoveryCount == 2)
+        #expect(MenuBarManager.maxStatusItemRecoveryCount == 3)
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .startupFollowUp,

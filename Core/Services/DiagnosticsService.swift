@@ -27,6 +27,37 @@ private func collectSaneBarSettings() -> String {
     let mainButton = manager.mainStatusItem?.button
     let separatorButton = manager.separatorItem?.button
     let alwaysHiddenButton = manager.alwaysHiddenSeparatorItem?.button
+    let mainWindowFrame = mainButton?.window?.frame
+    let mainScreenFrame = mainButton?.window?.screen?.frame ?? NSScreen.main?.frame
+    let separatorWindowFrame = separatorButton?.window?.frame
+    let separatorScreenFrame = separatorButton?.window?.screen?.frame ?? mainScreenFrame
+    let mainWindowValid = StatusBarController.isStatusItemWindowFrameValid(
+        windowFrame: mainWindowFrame,
+        screenFrame: mainScreenFrame
+    )
+    let separatorWindowValid = StatusBarController.isStatusItemWindowFrameValid(
+        windowFrame: separatorWindowFrame,
+        screenFrame: separatorScreenFrame
+    )
+    let menuBarSuppressionHint = StatusBarController.systemMenuBarSuppressionHint(
+        main: .init(
+            isVisibleFlag: manager.mainStatusItem?.isVisible,
+            windowFrame: mainWindowFrame,
+            screenFrame: mainScreenFrame
+        ),
+        separator: .init(
+            isVisibleFlag: manager.separatorItem?.isVisible,
+            windowFrame: separatorWindowFrame,
+            screenFrame: separatorScreenFrame
+        )
+    )
+    let missionControlSpaces = StatusBarController.missionControlSpacesDiagnostic()
+    let visibilityOverrideSnapshots = StatusBarController.statusItemVisibilityOverrideSnapshots()
+    let visibilityOverrideSummary = visibilityOverrideSnapshots.isEmpty
+        ? "none"
+        : visibilityOverrideSnapshots
+            .map { "\($0.scope): \($0.key)=\($0.value)" }
+            .joined(separator: "\n      ")
 
     let mainPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)")
     let separatorPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)")
@@ -105,6 +136,17 @@ private func collectSaneBarSettings() -> String {
 
     mainStatusItemVisible: \(manager.mainStatusItem?.isVisible ?? false)
     statusMenuItemCount: \(manager.statusMenu?.items.count ?? 0)
+
+    statusItemForensics:
+      startupItemsValid: \(mainWindowValid && separatorWindowValid)
+      mainWindowValid: \(mainWindowValid)
+      separatorWindowValid: \(separatorWindowValid)
+      systemMenuBarSuppressionHint: \(menuBarSuppressionHint)
+      visibilityOverrideCount: \(visibilityOverrideSnapshots.count)
+      visibilityOverrides: \(visibilityOverrideSummary)
+      missionControlDisplaysHaveSeparateSpaces: \(missionControlSpaces.displaysHaveSeparateSpaces.map(String.init) ?? "unknown")
+      missionControlSpansDisplaysRaw: \(missionControlSpaces.spansDisplays.map(String.init) ?? "unknown")
+      missionControlSummary: \(missionControlSpaces.summary)
 
     mainButton:
       identifier: \(mainButton?.identifier?.rawValue ?? "nil")

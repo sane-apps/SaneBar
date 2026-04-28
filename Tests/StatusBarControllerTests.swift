@@ -216,6 +216,75 @@ struct StatusBarControllerTests {
         #expect(!newSeparator.behavior.contains(.terminationOnRemoval))
     }
 
+    @Test("Recreate from persisted positions can reseed after removing old items")
+    @MainActor
+    func recreatePersistedPositionsRunsResetBeforeNewAutosaveNames() {
+        let defaults = UserDefaults.standard
+        let key = "SaneBar_AutosaveVersion"
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original {
+                defaults.set(original, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(30, forKey: key)
+        let controller = StatusBarController()
+        let (newMain, newSeparator) = controller.recreateItemsFromPersistedPositions {
+            defaults.set(31, forKey: key)
+        }
+
+        #expect(newMain.autosaveName == "SaneBar_Main_v31")
+        #expect(newSeparator.autosaveName == "SaneBar_Separator_v31")
+    }
+
+    @Test("Diagnostics detect visible status items suppressed by missing menu bar window")
+    func likelySystemSuppressedStatusItemRequiresVisibleFlagAndInvalidWindow() {
+        let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        let validWindow = CGRect(x: 1600, y: 1084, width: 30, height: 33)
+        let invalidWindow = CGRect(x: 1600, y: 200, width: 30, height: 33)
+
+        #expect(!StatusBarController.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: validWindow,
+            screenFrame: screen
+        ))
+        #expect(StatusBarController.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: invalidWindow,
+            screenFrame: screen
+        ))
+        #expect(!StatusBarController.likelySystemSuppressedStatusItem(
+            isVisibleFlag: false,
+            windowFrame: invalidWindow,
+            screenFrame: screen
+        ))
+    }
+
+    @Test("Diagnostics collect SaneBar VisibleCC override keys")
+    func visibilityOverrideKeyFilteringIncludesTahoeVisibleCC() {
+        let keys = StatusBarController.visibilityOverrideKeys(from: [
+            "NSStatusItem Visible SaneBar_Main_v7",
+            "NSStatusItem VisibleCC SaneBar_Main_v7",
+            "NSStatusItem Visible OtherApp",
+            "NSStatusItem Preferred Position SaneBar_Main_v7"
+        ])
+
+        #expect(keys == [
+            "NSStatusItem Visible SaneBar_Main_v7",
+            "NSStatusItem VisibleCC SaneBar_Main_v7"
+        ])
+    }
+
+    @Test("Mission Control spaces summary keeps raw spans-displays polarity visible")
+    func missionControlSpacesSummaryShowsRawPolarity() {
+        #expect(StatusBarController.missionControlSpacesSummary(spansDisplays: nil) == "unknown")
+        #expect(StatusBarController.missionControlSpacesSummary(spansDisplays: true).contains("spans-displays=true"))
+        #expect(StatusBarController.missionControlSpacesSummary(spansDisplays: false).contains("spans-displays=false"))
+    }
+
     @Test("Always-hidden separator disables interactive removal behaviors")
     @MainActor
     func alwaysHiddenSeparatorDisablesInteractiveRemoval() {
@@ -1170,21 +1239,6 @@ struct StatusBarControllerTests {
         #expect(rightClick != optionClick)
     }
 
-    // MARK: - Protocol Conformance Tests
-
-    @Test("StatusBarController conforms to StatusBarControllerProtocol")
-    @MainActor
-    func protocolConformance() {
-        let controller: StatusBarControllerProtocol = StatusBarController()
-
-        // Protocol requires these
-        _ = controller.mainItem
-        _ = controller.separatorItem
-        _ = controller.iconName(for: .hidden)
-
-        #expect(true, "Should conform to protocol")
-    }
-
     // MARK: - Initialization Tests
 
     @Test("StatusBarController creates status items during initialization")
@@ -1312,6 +1366,34 @@ struct StatusBarControllerTests {
 
         #expect(keyA == keyB)
         #expect(keyA != separatorKey)
+    }
+
+    @Test("Display backup scoped keys separate same-width screens")
+    func displayBackupScopedKeysSeparateSameWidthScreens() {
+        let keyA = StatusBarController.displayPositionBackupKey(
+            for: 1728,
+            screenSignature: "d111-h1117-plain",
+            slot: "main"
+        )
+        let keyB = StatusBarController.displayPositionBackupKey(
+            for: 1728,
+            screenSignature: "d222-h1117-plain",
+            slot: "main"
+        )
+
+        #expect(keyA != keyB)
+        #expect(
+            !StatusBarController.shouldAllowLegacyDisplayBackupFallback(
+                widthBucket: 1728,
+                activeWidthBuckets: [1728, 1728]
+            )
+        )
+        #expect(
+            StatusBarController.shouldAllowLegacyDisplayBackupFallback(
+                widthBucket: 1728,
+                activeWidthBuckets: [1728, 1920]
+            )
+        )
     }
 
     @Test("Display backup restore requires pixel-like values for both separators")

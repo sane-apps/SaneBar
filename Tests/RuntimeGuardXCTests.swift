@@ -104,7 +104,7 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("StatusBarController.resetPersistentStatusItemState(") &&
-                source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\")") &&
+                source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\") {") &&
                 source.contains("schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)"),
             "Reset to Defaults should reset status-item persistence and recreate live menu bar items immediately"
         )
@@ -341,11 +341,13 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Fresh geometry acceptance should stay explicit in source so stale-separator fixes do not silently regress"
         )
         XCTAssertTrue(
-            source.contains("if !success, !toHidden {\n                success = await manager.verifyVisibleMoveWithFreshGeometry("),
+            source.contains("if !success, !toHidden {\n                let identity = MoveSourceIdentity(") &&
+                source.contains("success = await manager.verifyVisibleMoveWithFreshGeometry(\n                    identity: identity,"),
             "Regular visible returns should attempt the fresh-geometry recheck before the retry drag"
         )
         XCTAssertTrue(
-            source.contains("if !success, !toAlwaysHidden {\n                success = await manager.verifyVisibleMoveWithFreshGeometry("),
+            source.contains("if !success, !toAlwaysHidden {\n                let identity = MoveSourceIdentity(") &&
+                source.contains("success = await manager.verifyVisibleMoveWithFreshGeometry(\n                    identity: identity,"),
             "Always-hidden visible returns should attempt the same fresh-geometry recheck before retrying"
         )
     }
@@ -404,11 +406,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         """
 
         XCTAssertTrue(
-            source.contains("var skipZoneWait = false"),
+            source.contains("var skipZoneWait: Bool = false"),
             "AppleScript move routing should track no-op moves and skip zone wait when no move is needed"
         )
         XCTAssertTrue(
-            source.contains("if skipZoneWait {"),
+            source.contains("if outcome.skipZoneWait {"),
             "No-op move requests should return success without polling for zone convergence"
         )
         XCTAssertTrue(
@@ -448,8 +450,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden and browse-session classification should centralize the pinned-ID fallback policy"
         )
         XCTAssertTrue(
-            source.contains("return (separatorX, nil)"),
-            "Pinned-ID fallback should force two-zone split before the always-hidden post-pass"
+            source.contains("MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX() == nil") &&
+                source.contains("return (separatorX, nil)"),
+            "Pinned-ID fallback should force two-zone split only when live always-hidden geometry is unavailable"
         )
         XCTAssertTrue(
             source.contains("post-pass moved"),
@@ -646,9 +649,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if origin == .browsePanel {") &&
-                diagnosticsSource.contains("bundle-only fallback rows do not have a stable AX identity") &&
-                diagnosticsSource.contains("return !app.hasPreciseMenuBarIdentity"),
-            "Browse-panel hardware-vs-AX policy should route coarse rows through hardware-first while keeping precise rows on the stricter AX path"
+                diagnosticsSource.contains("return true"),
+            "Browse-panel hardware-vs-AX policy should route all panel clicks through hardware-first so unverified AXPress successes get a real click attempt"
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if app.menuExtraIdentifier == nil"),
@@ -794,7 +796,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("let moved = runScriptMove {"),
+            source.contains("return runScriptMove {"),
             "AppleScript move commands should block on the real move task instead of fire-and-forget polling"
         )
         XCTAssertTrue(
@@ -1613,7 +1615,8 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("com.apple.menuextra.siri") &&
                 source.contains("com.apple.menuextra.spotlight") &&
                 source.contains("RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[") &&
-                source.contains("com.openai.codex"),
+                source.contains("at.obdev.littlesnitch.networkmonitor") &&
+                source.contains("at.obdev.littlesnitch.agent"),
             "Project QA runtime smoke should also keep stable exact-id lanes for native Apple items and the higher-pressure host sentinel path"
         )
         XCTAssertTrue(
@@ -1684,15 +1687,15 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("runtime_smoke_no_candidate_fixture_policy?(smoke_out)") &&
-                source.contains("default move pool empty on this host; keeping browse/layout result and deferring move coverage to shared-bundle exact-id smoke") &&
+                source.contains("default runtime fixture pool empty on this host; keeping browse/layout result and deferring coverage to shared-bundle exact-id smoke") &&
                 source.contains("default_move_coverage_deferred = true"),
-            "Project QA runtime smoke should treat an empty default move pool as fixture-policy fallout and hand move coverage to the shared-bundle exact-id pass"
+            "Project QA runtime smoke should treat an empty default fixture pool as fixture-policy fallout and hand coverage to focused exact-id passes"
         )
         XCTAssertTrue(
-            source.contains("if default_move_coverage_deferred") &&
-                source.contains("Runtime smoke had no default move candidates and no shared-bundle fallback candidates.") &&
-                source.contains("no shared-bundle fallback candidates after default move-pool miss"),
-            "Project QA runtime smoke should still fail when the default move pool is empty and no focused shared-bundle fallback exists"
+            source.contains("if default_move_coverage_deferred && !focused_runtime_smoke_ran") &&
+                source.contains("Runtime smoke had no default fixture candidates and no focused exact-id fallback candidates.") &&
+                source.contains("no focused exact-id fallback candidates after default fixture miss"),
+            "Project QA runtime smoke should still fail when the default fixture pool is empty and no focused exact-id fallback lane exists"
         )
         XCTAssertTrue(
             source.contains("def runtime_smoke_relaunch_command(target)") &&
@@ -2373,7 +2376,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("browse_activation_pool(zones)") &&
             source.contains("com.yujitach.MenuMeters") &&
             source.contains("if expected_mode == 'secondMenuBar'") &&
-            source.contains("precise_non_apple + exact_apple + preferred + coarse_non_apple + fallback") &&
+            source.contains("precise_non_apple + coarse_non_apple + exact_apple + preferred + fallback") &&
             source.contains("precise_non_apple + coarse_non_apple + preferred + fallback") &&
             source.contains("com.apple.menuextra.bluetooth") &&
             source.contains("browse_activation_denied?(item, expected_mode: expected_mode)") &&
@@ -3252,9 +3255,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             diagnosticsSource.contains("if origin == .browsePanel {") &&
-                diagnosticsSource.contains("bundle-only fallback rows do not have a stable AX identity") &&
-                diagnosticsSource.contains("return !app.hasPreciseMenuBarIdentity"),
-            "Browse activation should keep precise left-click browse flows on AX while routing coarse browse rows through the hardware path"
+                diagnosticsSource.contains("return true"),
+            "Browse activation should prefer hardware-first for precise and coarse panel rows"
         )
         XCTAssertTrue(
             searchSource.contains("Rejecting unverified click success for revealed/browse-session activation"),

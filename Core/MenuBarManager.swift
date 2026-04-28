@@ -251,7 +251,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return majorOSVersion >= 26 ? 0.35 : 0.1
     }
 
-    nonisolated static let maxStatusItemRecoveryCount = 2
+    nonisolated static let maxStatusItemRecoveryCount = 3
     nonisolated static let unexpectedVisibilityRecoveryDebounceSeconds: TimeInterval = 1.0
 
     private enum StatusItemVisibilityRole: String {
@@ -1108,23 +1108,26 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             isExecutingStatusItemRecovery = true
             positionValidationGeneration += 1
             defer { isExecutingStatusItemRecovery = false }
-            if Self.shouldResetPersistentStateForStatusItemRecovery(
+            let shouldResetPersistentState = Self.shouldResetPersistentStateForStatusItemRecovery(
                 reason: reason,
                 isStartupRecovery: trigger.hasPrefix("startup-"),
                 validationContext: validationContext
-            ) {
-                StatusBarController.resetPersistentStatusItemState(
-                    alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
-                    referenceScreen: statusItemScreen
-                )
-            } else {
+            )
+            if !shouldResetPersistentState {
                 StatusBarController.recoverStartupPositions(
                     alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
                     referenceScreen: statusItemScreen
                 )
             }
             clearCachedSeparatorGeometry()
-            recreateStatusItemsFromPersistedLayout(reason: trigger)
+            recreateStatusItemsFromPersistedLayout(reason: trigger) {
+                if shouldResetPersistentState {
+                    StatusBarController.resetPersistentStatusItemState(
+                        alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled(),
+                        referenceScreen: self.statusItemScreen
+                    )
+                }
+            }
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
             }
@@ -1284,7 +1287,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             if action == .waitForLiveAnchor {
                 logger.warning(
-                    "Status item validation is still waiting for a live anchor after \(maxAttempts, privacy: .public) checks for \(context.rawValue, privacy: .public) — deferring recovery"
+                    "Status item validation is still waiting for a live anchor after \(maxAttempts, privacy: .public) checks for \(context.rawValue, privacy: .public) — retrying before recovery escalation"
                 )
             } else {
                 logger.error(
@@ -1299,6 +1302,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 recoveryCount: recoveryCount,
                 validationGeneration: validationGeneration
             )
+
+            if action == .waitForLiveAnchor {
+                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
+            }
         }
     }
 
@@ -1685,12 +1692,13 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     func resetToDefaults() {
         settingsController.resetToDefaults()
         settings = settingsController.settings
-        StatusBarController.resetPersistentStatusItemState(
-            alwaysHiddenEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
-            referenceScreen: statusItemScreen
-        )
         clearCachedSeparatorGeometry()
-        recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults")
+        recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults") {
+            StatusBarController.resetPersistentStatusItemState(
+                alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled(),
+                referenceScreen: self.statusItemScreen
+            )
+        }
         schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)
         updateSpacers()
         updateAppearance()
@@ -1732,12 +1740,17 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         )
     }
 
-    private func recreateStatusItemsFromPersistedLayout(reason: String) {
+    private func recreateStatusItemsFromPersistedLayout(
+        reason: String,
+        afterRemovingExistingItems: (() -> Void)? = nil
+    ) {
         lastKnownSeparatorX = nil
         lastKnownSeparatorRightEdgeX = nil
         lastKnownAlwaysHiddenSeparatorX = nil
         lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
-        let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions()
+        let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions(
+            afterRemovingExistingItems: afterRemovingExistingItems
+        )
         statusBarController.onItemsRecreated?(newMain, newSeparator)
         logger.info("Recreated status items from persisted layout (\(reason, privacy: .public))")
     }

@@ -102,6 +102,19 @@ class LiveZoneSmokeTest < Minitest::Test
     assert smoke.send(:move_candidates_required?)
   end
 
+  def test_default_smoke_does_not_require_browse_activation_candidates
+    smoke = build_smoke
+
+    refute smoke.send(:browse_activation_candidates_required?)
+  end
+
+  def test_required_candidate_smoke_requires_browse_activation_candidates
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_candidate, true)
+
+    assert smoke.send(:browse_activation_candidates_required?)
+  end
+
   def test_browse_activation_candidates_prefer_precise_non_apple_before_apple_fixtures
     smoke = build_smoke
     zones = [
@@ -132,6 +145,13 @@ class LiveZoneSmokeTest < Minitest::Test
         bundle: 'com.apple.controlcenter',
         unique_id: 'com.apple.menuextra.display',
         name: 'Display'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.apple.Spotlight',
+        unique_id: 'com.apple.menuextra.spotlight',
+        name: 'Spotlight'
       }
     ]
 
@@ -144,9 +164,10 @@ class LiveZoneSmokeTest < Minitest::Test
     candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
 
     assert_equal 'com.example.precise::statusItem:2', candidate_ids.first
-    assert_includes candidate_ids, 'com.apple.SSMenuAgent'
+    assert_includes candidate_ids, 'com.yujitach.MenuMeters::statusItem:3'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
-    refute_includes candidate_ids, 'com.yujitach.MenuMeters::statusItem:3'
+    refute_includes candidate_ids, 'com.apple.SSMenuAgent'
+    refute_includes candidate_ids, 'com.apple.menuextra.spotlight'
   end
 
   def test_find_icon_right_click_candidates_prefer_precise_non_apple_before_apple_fixtures
@@ -184,7 +205,7 @@ class LiveZoneSmokeTest < Minitest::Test
     candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
 
     assert_equal 'com.example.precise::statusItem:2', candidate_ids.first
-    assert_includes candidate_ids, 'com.apple.SSMenuAgent'
+    refute_includes candidate_ids, 'com.apple.SSMenuAgent'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
@@ -223,8 +244,33 @@ class LiveZoneSmokeTest < Minitest::Test
     candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
 
     assert_equal 'org.p0deje.Maccy', candidate_ids.first
-    assert_includes candidate_ids, 'com.apple.SSMenuAgent'
+    refute_includes candidate_ids, 'com.apple.SSMenuAgent'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
+  def test_browse_activation_pool_drops_coarse_duplicate_when_precise_rows_exist
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.widget',
+        unique_id: 'com.example.widget',
+        name: 'Widget'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.widget',
+        unique_id: 'com.example.widget::statusItem:1',
+        name: 'Widget'
+      }
+    ]
+
+    candidates = smoke.send(:browse_activation_pool, zones)
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    assert_equal ['com.example.widget::statusItem:1'], candidate_ids
   end
 
   def test_prepare_layout_baseline_hides_expanded_runtime

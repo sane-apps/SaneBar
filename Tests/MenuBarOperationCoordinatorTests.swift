@@ -299,7 +299,7 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
-    @Test("Wake validation waits when only the separator anchor is estimated")
+    @Test("Wake validation waits twice when only the separator anchor is estimated")
     func wakeValidationWaitsForLiveEstimatedSeparatorAnchor() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .cached,
@@ -317,12 +317,28 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 0,
-                maxRecoveryCount: 2
+                maxRecoveryCount: 3
             ) == .waitForLiveAnchor
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 1,
+                maxRecoveryCount: 3
+            ) == .waitForLiveAnchor
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 2,
+                maxRecoveryCount: 3
+            ) == .bumpAutosaveVersion(.missingCoordinates)
         )
     }
 
-    @Test("Screen-change validation waits when only the separator anchor is estimated")
+    @Test("Screen-change validation waits twice when only the separator anchor is estimated")
     func screenChangeValidationWaitsForLiveEstimatedSeparatorAnchor() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .cached,
@@ -340,8 +356,24 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 0,
-                maxRecoveryCount: 2
+                maxRecoveryCount: 3
             ) == .waitForLiveAnchor
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 1,
+                maxRecoveryCount: 3
+            ) == .waitForLiveAnchor
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 2,
+                maxRecoveryCount: 3
+            ) == .bumpAutosaveVersion(.missingCoordinates)
         )
     }
 
@@ -516,8 +548,8 @@ struct MenuBarOperationCoordinatorTests {
         #expect(plan.preferHardwareFirst)
     }
 
-    @Test("Browse panel coarse left click prefers hardware-first activation")
-    func browsePanelCoarseLeftClickPlanPrefersHardwareFirst() {
+    @Test("Browse panel left click uses hardware-first activation and no workspace fallback")
+    func browsePanelLeftClickPlanPrefersHardwareFirstWithoutWorkspaceFallback() {
         let app = RunningApp(
             id: "com.openai.codex",
             name: "Codex",
@@ -544,7 +576,7 @@ struct MenuBarOperationCoordinatorTests {
         #expect(plan.requireObservableReaction)
         #expect(plan.forceFreshTargetResolution)
         #expect(plan.allowImmediateFallbackCenter == false)
-        #expect(plan.allowWorkspaceActivationFallback)
+        #expect(plan.allowWorkspaceActivationFallback == false)
         #expect(plan.preferHardwareFirst)
     }
 

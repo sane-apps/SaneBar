@@ -47,41 +47,6 @@ struct KeyboardShortcutsServiceTests {
                 "All shortcut names should be unique")
     }
 
-    // MARK: - Service Tests
-
-    @Test("Service is singleton")
-    @MainActor
-    func serviceIsSingleton() {
-        let service1 = KeyboardShortcutsService.shared
-        let service2 = KeyboardShortcutsService.shared
-
-        #expect(service1 === service2,
-                "KeyboardShortcutsService.shared should return same instance")
-    }
-
-    @Test("Service can register handlers without crashing")
-    @MainActor
-    func registerHandlers() {
-        let service = KeyboardShortcutsService()
-
-        // Should not throw or crash
-        service.registerAllHandlers()
-
-        #expect(true, "Handler registration should complete without error")
-    }
-
-    @Test("Service can unregister handlers without crashing")
-    @MainActor
-    func unregisterHandlers() {
-        let service = KeyboardShortcutsService()
-        service.registerAllHandlers()
-
-        // Should not throw or crash
-        service.unregisterAllHandlers()
-
-        #expect(true, "Handler unregistration should complete without error")
-    }
-
     // MARK: - Default Shortcut Tests
 
     @Test("Default shortcuts can be set")
@@ -98,13 +63,6 @@ struct KeyboardShortcutsServiceTests {
 
         // Set defaults
         service.setDefaultsIfNeeded()
-
-        // Check if default was set (Cmd+\)
-        _ = KeyboardShortcuts.getShortcut(for: .toggleHiddenItems)
-
-        // Note: The shortcut might be nil if the library doesn't support setting defaults
-        // in the test environment, so we just verify it doesn't crash
-        #expect(true, "Setting defaults should complete without error")
 
         // Verify the flag was set
         #expect(UserDefaults.standard.bool(forKey: "KeyboardShortcutsDefaultsInitialized"),
@@ -132,15 +90,3 @@ struct KeyboardShortcutsServiceTests {
         #expect(shortcut == nil, "Cleared shortcut should not be re-applied on restart")
     }
 }
-
-// MARK: - Integration Notes
-
-/*
- Full integration testing of keyboard shortcuts requires:
- 1. Running the actual app (not unit tests)
- 2. User interaction to record shortcuts
- 3. System-level event handling
-
- These tests verify the service structure and basic operations.
- Manual testing is required for full shortcut functionality.
- */

@@ -676,7 +676,7 @@ private struct PermissionPage: View {
                         .font(.system(size: 20))
                         .foregroundStyle(saneAccent)
                         .frame(width: 28)
-                    Text("No data collected.")
+                    Text("No menu bar contents uploaded.")
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(.white)
                 }

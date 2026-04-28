@@ -133,11 +133,13 @@ final class SearchService: SearchServiceProtocol {
 
         // During collapsed hidden mode and active browse sessions, WindowServer
         // geometry can temporarily place regular hidden items left of the AH
-        // separator. Use pinned IDs instead of trusting live AH coordinates.
+        // separator. Use pinned IDs only when live AH geometry is unavailable
+        // or stale; otherwise browse panels should reflect the real separator.
         if Self.shouldUsePinnedAlwaysHiddenFallback(
             hidingState: MenuBarManager.shared.hidingService.state,
             isBrowseSessionActive: SearchWindowController.shared.isBrowseSessionActive
-        ) {
+        ),
+           MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX() == nil {
             return (separatorX, nil)
         }
 
@@ -672,13 +674,14 @@ final class SearchService: SearchServiceProtocol {
     nonisolated static func zonedMenuBarItems(
         from items: [AccessibilityService.MenuBarItemPosition]
     ) -> [AccessibilityService.MenuBarItemPosition] {
+        let actionItems = items.filter { !Self.isCompatibilityLimitedMenuBarActionItem($0.app) }
         let preciseBundleIds = Set(
-            items
+            actionItems
                 .filter { $0.app.hasPreciseMenuBarIdentity }
                 .map(\.app.bundleId)
         )
 
-        let filtered = items.filter { item in
+        let filtered = actionItems.filter { item in
             item.app.hasPreciseMenuBarIdentity || !preciseBundleIds.contains(item.app.bundleId)
         }
 

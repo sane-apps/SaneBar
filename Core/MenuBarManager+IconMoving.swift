@@ -137,11 +137,13 @@ extension MenuBarManager {
     nonisolated static func shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
         visibleBoundaryX: CGFloat?,
         sourceFrameIsOnScreen: Bool,
-        hasPreciseIdentity: Bool
+        hasPreciseIdentity: Bool,
+        hasLiveSeparatorAnchor: Bool
     ) -> Bool {
         guard let visibleBoundaryX, visibleBoundaryX > 0 else { return false }
         guard sourceFrameIsOnScreen else { return false }
         return hasPreciseIdentity
+            && hasLiveSeparatorAnchor
     }
 
     private func resolvedSeparatorRightEdgeFromCaches() -> CGFloat? {
@@ -719,7 +721,10 @@ extension MenuBarManager {
         }
 
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
+        return AccessibilityService.isAccessibilityPointOnAnyScreen(
+            center,
+            screenFrames: NSScreen.screens.map(\.frame)
+        )
     }
 
     private func resolveMoveTargetsWithRetries(
@@ -752,7 +757,8 @@ extension MenuBarManager {
                         hasPreciseIdentity: Self.hasPreciseMoveIdentity(
                             menuExtraId: sourceIdentity.menuExtraId,
                             statusItemIndex: sourceIdentity.statusItemIndex
-                        )
+                        ),
+                        hasLiveSeparatorAnchor: liveSeparatorReady
                     )
 
                     if liveSeparatorReady || canUseCachedVisibleTarget || attempt == maxAttempts {
@@ -959,10 +965,7 @@ extension MenuBarManager {
     }
 
     private func verifyVisibleMoveWithFreshGeometry(
-        bundleID: String,
-        menuExtraId: String?,
-        statusItemIndex: Int?,
-        preferredCenterX: CGFloat?,
+        identity: MoveSourceIdentity,
         staleSeparatorX: CGFloat,
         allowsGeometryRecheck: Bool
     ) async -> Bool {
@@ -971,10 +974,10 @@ extension MenuBarManager {
 
         let accessibilityService = AccessibilityService.shared
         guard let staleFrame = accessibilityService.getMenuBarIconFrame(
-            bundleID: bundleID,
-            menuExtraId: menuExtraId,
-            statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX
+            bundleID: identity.bundleID,
+            menuExtraId: identity.menuExtraId,
+            statusItemIndex: identity.statusItemIndex,
+            preferredCenterX: identity.preferredCenterX
         ) else {
             return false
         }
@@ -991,10 +994,10 @@ extension MenuBarManager {
             return false
         }
         guard let refreshedFrame = accessibilityService.getMenuBarIconFrame(
-            bundleID: bundleID,
-            menuExtraId: menuExtraId,
-            statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX
+            bundleID: identity.bundleID,
+            menuExtraId: identity.menuExtraId,
+            statusItemIndex: identity.statusItemIndex,
+            preferredCenterX: identity.preferredCenterX
         ) else {
             return false
         }
@@ -1261,6 +1264,7 @@ extension MenuBarManager {
             }
 
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let referenceScreenFrame = await MainActor.run { manager.currentRecoveryReferenceScreen()?.frame }
             let sourceIdentity = MoveSourceIdentity(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
@@ -1351,16 +1355,20 @@ extension MenuBarManager {
                 toHidden: toHidden,
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
-                originalMouseLocation: originalCGPoint
+                originalMouseLocation: originalCGPoint,
+                referenceScreenFrame: referenceScreenFrame
             )
             logger.debug("🔧 moveMenuBarIcon returned: \(success, privacy: .public)")
 
             if !success, !toHidden {
-                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                let identity = MoveSourceIdentity(
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX,
+                    preferredCenterX: preferredCenterX
+                )
+                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                    identity: identity,
                     staleSeparatorX: activeSeparatorX,
                     allowsGeometryRecheck: actionableMoveSafety.allowsClassifiedZoneFallback
                 )
@@ -1393,7 +1401,8 @@ extension MenuBarManager {
                     separatorX: activeSeparatorX,
                     visibleBoundaryX: activeVisibleBoundaryX,
                     eventTap: .cgSessionEventTap,
-                    originalMouseLocation: originalCGPoint
+                    originalMouseLocation: originalCGPoint,
+                    referenceScreenFrame: referenceScreenFrame
                 )
                 logger.debug("🔧 Retry returned: \(success, privacy: .public)")
             }
@@ -1434,7 +1443,8 @@ extension MenuBarManager {
                             separatorX: fallbackSeparatorX,
                             visibleBoundaryX: fallbackVisibleBoundaryX,
                             eventTap: .cgSessionEventTap,
-                            originalMouseLocation: originalCGPoint
+                            originalMouseLocation: originalCGPoint,
+                            referenceScreenFrame: referenceScreenFrame
                         )
                         logger.info("🔧 Shield fallback returned: \(success, privacy: .public)")
                     }
@@ -1575,6 +1585,7 @@ extension MenuBarManager {
 
             // 4. Cmd+drag (icon and separator are both on-screen)
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let referenceScreenFrame = await MainActor.run { manager.currentRecoveryReferenceScreen()?.frame }
             let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
@@ -1597,15 +1608,19 @@ extension MenuBarManager {
                 targetLane: toAlwaysHidden ? .alwaysHidden : .visible,
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
-                originalMouseLocation: originalCGPoint
+                originalMouseLocation: originalCGPoint,
+                referenceScreenFrame: referenceScreenFrame
             )
 
             if !success, !toAlwaysHidden {
-                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                let identity = MoveSourceIdentity(
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX,
+                    preferredCenterX: preferredCenterX
+                )
+                success = await manager.verifyVisibleMoveWithFreshGeometry(
+                    identity: identity,
                     staleSeparatorX: activeSeparatorX,
                     allowsGeometryRecheck: actionableMoveSafety.allowsClassifiedZoneFallback
                 )
@@ -1634,7 +1649,8 @@ extension MenuBarManager {
                     separatorX: activeSeparatorX,
                     visibleBoundaryX: activeVisibleBoundaryX,
                     eventTap: .cgSessionEventTap,
-                    originalMouseLocation: originalCGPoint
+                    originalMouseLocation: originalCGPoint,
+                    referenceScreenFrame: referenceScreenFrame
                 )
                 logger.info("🔧 Always-hidden retry returned: \(success, privacy: .public)")
             }
@@ -1785,6 +1801,7 @@ extension MenuBarManager {
 
             // 3. Cmd+drag: move RIGHT of AH separator, clamped LEFT of main separator
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let referenceScreenFrame = await MainActor.run { manager.currentRecoveryReferenceScreen()?.frame }
             let actionableMoveSafety = accessibilityService.actionableMoveResolutionSafety(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
@@ -1806,7 +1823,8 @@ extension MenuBarManager {
                 toHidden: false, // Move RIGHT of the AH separator (into hidden zone)
                 separatorX: activeAHSepRightEdge,
                 visibleBoundaryX: activeMainSepOriginX, // Clamp: stay LEFT of main separator
-                originalMouseLocation: originalCGPoint
+                originalMouseLocation: originalCGPoint,
+                referenceScreenFrame: referenceScreenFrame
             )
 
             if !success {
@@ -1837,7 +1855,8 @@ extension MenuBarManager {
                     separatorX: activeAHSepRightEdge,
                     visibleBoundaryX: activeMainSepOriginX,
                     eventTap: .cgSessionEventTap,
-                    originalMouseLocation: originalCGPoint
+                    originalMouseLocation: originalCGPoint,
+                    referenceScreenFrame: referenceScreenFrame
                 )
             }
 
@@ -1927,6 +1946,7 @@ extension MenuBarManager {
             }
 
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
+            let referenceScreenFrame = await MainActor.run { manager.currentRecoveryReferenceScreen()?.frame }
             var success = accessibilityService.reorderMenuBarIcon(
                 sourceBundleID: sourceBundleID,
                 sourceMenuExtraID: sourceMenuExtraID,
@@ -1935,7 +1955,8 @@ extension MenuBarManager {
                 targetMenuExtraID: targetMenuExtraID,
                 targetStatusItemIndex: targetStatusItemIndex,
                 placeAfterTarget: placeAfterTarget,
-                originalMouseLocation: originalCGPoint
+                originalMouseLocation: originalCGPoint,
+                referenceScreenFrame: referenceScreenFrame
             )
 
             if !success {
@@ -1949,7 +1970,8 @@ extension MenuBarManager {
                     targetMenuExtraID: targetMenuExtraID,
                     targetStatusItemIndex: targetStatusItemIndex,
                     placeAfterTarget: placeAfterTarget,
-                    originalMouseLocation: originalCGPoint
+                    originalMouseLocation: originalCGPoint,
+                    referenceScreenFrame: referenceScreenFrame
                 )
             }
 
