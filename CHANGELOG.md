@@ -8,6 +8,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.46] - 2026-04-28
 
+Makes SaneBar more reliable when moving hidden icons, waking your Mac, or switching displays.
+
+---
+
+## [2.1.46] - 2026-04-28
+
 Improves hidden-to-visible drag reliability on multi-display setups.
 Improves startup, wake, and display-change recovery when menu bar items attach slowly or saved positions drift.
 Adds clearer diagnostics for macOS menu bar visibility edge cases.
