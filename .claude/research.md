@@ -1,5 +1,94 @@
 # SaneBar Research Cache
 
+## 2026-04-28 17:56 ET root-cause release-readiness audit and final gate
+
+**Updated:** 2026-04-28 17:56 ET | **Status:** verified release-preflight green with warnings | **TTL:** 7d
+**Source:** GitHub issue reviews for `#138`, `#137`, `#136`, `#129`, and closed `#133`; read-only GPT release-blocker/test-quality audits; local code audit; local `ruby Scripts/qa_test.rb`; local `ruby Scripts/live_zone_smoke_test.rb`; Mini `./scripts/SaneMaster.rb verify --timeout 900`; Mini `./scripts/SaneMaster.rb release_preflight`; live GitHub blocker-gate check after release-disposition labels; `check-inbox.sh check`; `check-inbox.sh healthcheck`; BoringNotch source research from `TheBoredTeam/boring.notch`; OSS cross-reference against Ice, Thaw, Stats, Maccy, Hidden Bar, Vanilla, Dozer, OnlySwitch, and SketchyBar.
+
+### Verified Findings
+
+1. The latest customer evidence is a real SaneBar bug family, not just user misunderstanding of Apple limits.
+   - Apple does not expose a public API to reorder or repair arbitrary third-party menu extras, so SaneBar cannot promise universal control.
+   - `#138` diagnostics show SaneBar itself aborting hidden-to-visible drags because menu-bar points such as `(1199, 16.5)` were treated as off-screen.
+   - `#136` and `#129` still point at recovery/anchor trust and persisted status-item state, not a purely Apple-policy limitation.
+
+2. Root hardening added in this pass targets the shared failure seams instead of another narrow symptom patch.
+   - Cmd-drag normalization now accepts a preferred status-item screen frame so display-local AX X coordinates can be rebased to the owning display before posting CGEvents.
+   - Wake/screen-change validation now has two bounded live-anchor wait cycles before autosave recovery escalation; the old path could defer once and dead-end.
+   - Cached visible move targets are still rejected unless the source is on-screen, the identity is precise, and a live separator anchor exists.
+   - Same-width display backups are scoped by screen signature so one 1728/2560-wide display does not poison another display's recovery backup.
+
+3. Test quality improved, but raw test count is still not the right confidence metric.
+   - Mini verify now passes with `1,084` tests, and local QA helper tests pass (`36/110` and `20/47`).
+   - `IconMovingTests` target calculations now call production `AccessibilityService.moveTargetX(...)` for the highest-risk early cases instead of restating old formulas.
+   - `RuntimeGuardXCTests.swift` remains oversized and source-string heavy; the meaningful release evidence is the Mini runtime/preflight lanes plus focused behavior helpers.
+
+4. Release preflight is technically green, and the blocker gate now uses explicit release dispositions instead of trapping open issues in a catch-22.
+   - Latest preflight passed tests, native Apple exact-ID smoke for Siri and Spotlight, startup layout probe, appcast, monetization, Homebrew, webhook, and PR checks.
+   - The startup layout probe now includes a currentHost visibility-override poisoning case and `mainRightGap` drift assertions.
+   - Wake/startup probes now fail if status items are not attached to valid menu-bar windows or if diagnostics suggest macOS is suppressing SaneBar via System Settings > Menu Bar.
+   - `Scripts/qa.rb` now treats `release:blocker` as an explicit hard stop and treats triaged `release:patched-pending`, `release:compat-limited`, `release:needs-evidence`, and `release:deferred` issues as non-blocking unless `release:blocker` is also present.
+   - Current issue dispositions: `#138`, `#136`, and `#129` are `release:patched-pending`; `#137` and closed `#133` are `release:compat-limited`.
+   - A follow-up QA guard also checks closed regression issues that receive fresh negative reporter evidence after closure; it now permits `#133` only because it is explicitly classified compatibility-limited.
+   - Do not claim the FrontBoard reconnect-loop in `#133` is fixed in release notes; the patch only improves diagnostics and app-owned recovery around adjacent status-item failures.
+   - `#137` is now classified as compatibility-limited rather than a normal SaneBar regression: BoringNotch can be discovered, but it is excluded from zoned/actionable views because its primary UI is a custom notch overlay, not a standard Apple menu extra control surface.
+
+5. Support/inbox health is not the current blocker.
+   - `check-inbox.sh check` reports `Action needed: 0`.
+   - `check-inbox.sh healthcheck` passes with only expected warnings for no attachment sample and no live outbound send.
+   - Release preflight still warns about `1 pending`; `check-inbox` identifies it as replied thread `#633` that can be resolved with approval, not a customer reply blocker.
+
+6. Competitor research changes the strategy for broad Tahoe hardening but not for BoringNotch.
+   - Ice has one BoringNotch conflict issue (`jordanbaird/Ice#430`) and it was closed as not planned; there is no public Ice/Thaw BoringNotch-specific fix to copy.
+   - Ice `#711` and Thaw follow-up work show the same broad Tahoe menu-bar management problem family: active menu-bar display ambiguity, source-PID ambiguity, duplicate generic item identities, slow startup scans, dual-display hit testing, and click races after reveal.
+   - Ice PR `#839` is the clearest directly reusable pattern found: when the private active-menu-bar display lookup fails, fall back to `CGMainDisplayID()` instead of returning nil; users confirmed this helped the “Unable to display menu bar items” path when “Displays have separate Spaces” was disabled.
+   - Stats `#3120/#3036` and Maccy `#1224` show a separate Tahoe OS-level failure mode: the app can create an `NSStatusItem` while macOS visually suppresses it until the user enables it in System Settings > Menu Bar.
+   - Hidden Bar / Vanilla / Dozer reports reinforce the same notch/crowding constraints: reducing spacing, reclaiming app-menu width, and offering a below-bar/second-row surface are the practical workarounds. SaneBar already has those surfaces.
+   - Useful competitor patterns: Thaw's `SourcePIDCache` uses AX extras-menu-bar children plus CG menu-bar window spatial matching; PR `#209` adds negative caching/autorelease pools/early exit; PR `#241` adds instance-index identity; PR `#421` adds startup no-PID fast path, async XPC timeout, geometric mouse-screen resolution, and a click guard.
+   - Current SaneBar patch already adopted the relevant equivalents for this release: display-local coordinate rebasing, stricter live-anchor trust, safer same-width backups, single unlabelled status-item identity, and hardware-first browse-panel clicks. SaneBar does not currently call Ice's private active-menu-bar display API, so PR `#839` is an audit pattern rather than a direct patch. A larger Thaw-style SourcePID/XPC architecture can be a future hardening project, not a same-day BoringNotch detour.
+
+7. Implementation added after the OSS cross-reference.
+   - `StatusBarController+Diagnostics.swift` now centralizes SaneBar status-item visibility override forensics, Tahoe `VisibleCC` key detection, Mission Control `spans-displays` diagnostics, and a support hint for possible macOS menu-bar allow-list suppression.
+   - Diagnostics and AppleScript layout snapshots now report `startupItemsValid`, status-item window validity, possible system suppression, visibility override counts, and Mission Control display-spaces state.
+   - Reset/recreate recovery now removes the old status items before reseeding persistent state, so old autosave/currentHost keys cannot be reintroduced between reset and new item creation.
+   - Startup/wake probes now assert status-item attachment, possible system suppression, and bounded `mainRightGap` drift. Startup probe also seeds and verifies cleanup of currentHost SaneBar visibility overrides.
+
+## 2026-04-28 14:24 ET browse/move audit refresh before cleanup verify
+
+**Updated:** 2026-04-28 14:24 ET | **Status:** verified guard refresh | **TTL:** 7d
+**Source:** local audit of `Core/Services/AppleScriptCommands.swift`, `scripts/live_zone_smoke.rb`, `scripts/live_zone_smoke_test.rb`, and test cleanup diff; GitHub open issue sweep via `gh issue list --repo sane-apps/SaneBar`; Apple Developer docs/web search for `NSStatusItem.isVisible` and `NSStatusBar`; Mini-routed `./scripts/SaneMaster.rb test_scan`; local `ruby scripts/qa_test.rb`; local `ruby scripts/live_zone_smoke_test.rb`.
+
+### Verified Findings
+
+1. The current open customer signal still clusters around the same runtime families, not a brand-new unrelated subsystem.
+   - Open GitHub issues as of this refresh: `#138` hidden-to-visible drag failure, `#137` BoringNotch interaction/performance, `#136` arrangement bug, and `#129` lost icon after dragging divider/icon out.
+   - These keep the active risk centered on browse/move identity, status-item geometry, and interaction with crowded/notched menu bars.
+
+2. Apple still does not expose a documented first-party move/repair primitive for SaneBar's core problem.
+   - The current Apple docs surface `NSStatusItem.isVisible` and visibility persistence through `autosaveName`, but no public API to reorder arbitrary third-party/system menu extras or repair stale/off-screen status-item frames.
+   - That keeps SaneBar's root fix direction in app-owned trust boundaries, diagnostics, and replayable runtime probes rather than relying on a missing AppKit call.
+
+3. The cleanup pass removed test bloat instead of weakening runtime coverage.
+   - Deleted placeholder/source-shape/no-signal tests: `SaneBarTests.swift`, `TriggerServiceTests.swift`, `RunningAppTests.swift`, and `NetworkTriggerServiceTests.swift`.
+   - Removed remaining `#expect(true)` / `XCTAssertTrue(true)` tests from active Swift tests, then removed additional tautological enum/AppleScript/permission-dialog claims found in final review.
+   - The rehide-cancel regression test now waits past the canceled timer's original deadline and verifies the delimiter did not collapse.
+   - Mini `./scripts/SaneMaster.rb test_scan` now reports no test anti-patterns.
+
+4. A stale smoke-test expectation exposed real drift in the harness policy.
+   - `scripts/live_zone_smoke.rb` said generic browse smoke should prefer third-party identities before Apple fixtures, but second-menu-bar candidate ordering still put exact Apple fixtures before coarse third-party fallbacks.
+   - The harness now orders second-menu-bar activation candidates as precise non-Apple, coarse non-Apple, exact Apple, preferred fixtures, then fallback.
+   - `scripts/live_zone_smoke_test.rb` now documents the exact MenuMeters exception and the coarse non-Apple-before-Apple policy.
+
+5. The AppleScript move command had duplicated main-thread/background-thread move routing.
+   - `MoveIconScriptCommand` now uses one main-actor move implementation and one outcome model, removing the duplicated target-zone switch without changing command behavior.
+   - Full Mini `./scripts/SaneMaster.rb verify --timeout 900` passed after the final cleanup; latest pass: `1068` tests.
+
+6. The post-audit lint cleanup removed several maintenance warnings without changing product behavior.
+   - `AccessibilityService+MenuExtras.swift` no longer owns the bottom frame-resolution helpers; those live in `AccessibilityService+MenuExtraFrames.swift`.
+   - `MenuBarManager+IconMoving.swift` now passes a source-identity value object into the visible-move recheck instead of a long parameter list.
+   - `UpdateService` Setapp-disabled setters now consume `newValue`, clearing unused-setter warnings.
+   - The remaining verify warning is `UI/SearchWindow/SearchWindowController.swift` file length at `862` lines; that split remains tracked because it is more UI-invasive.
+
 ## 2026-04-23 16:03 ET extra regression-lane sweep after patch-candidate confidence review
 
 **Updated:** 2026-04-23 16:03 ET | **Status:** verified | **TTL:** 7d
@@ -3907,3 +3996,21 @@ I tested a narrower follow-up hypothesis: keep the drag layer unchanged, but in 
 - Startup layout probe passed.
 - Wake layout probe passed for hidden and expanded states.
 - QA runtime smoke passed: normal browse/move smoke x2, native Apple exact-id smoke for Siri/Spotlight, and startup layout probe. Existing warnings were only the known Swift helper-script parse warnings.
+## 2026-04-28 release readiness + GitHub gate | Updated: 2026-04-28 | Status: verified | TTL: 7d
+
+Decision: do not publish yet. Engineering verification is green, but GitHub open-regression governance is still blocking release.
+
+Evidence:
+- GitHub audit: no open PRs; no current Actions release blocker; open customer issues are `#129`, `#136`, `#137`, and `#138`.
+- `#138` is a fresh `2.1.45` hidden-to-visible drag regression.
+- `#129` remains open and is part of the preflight open-regression blocker.
+- `#136` remains high-priority/open after a `2.1.45` follow-up.
+- `#137` is a fresh BoringNotch interaction report.
+- `#133` is closed but has fresh contradictory evidence from April 23, 2026.
+- Mini `release_preflight` clears tests, runtime smoke, native Apple exact-ID smoke, startup layout probe, appcast, monetization, webhook, Homebrew, and PR checks.
+- Final preflight blocker: open-regression gate for `#138` and `#129`; manual override phrase shown by preflight is required if shipping anyway.
+
+Implementation notes:
+- Generic browse activation smoke no longer spends its budget on known-unreliable Apple activation fixtures (`SSMenuAgent`, Focus, Spotlight activation).
+- When the Mini has no safe generic browse activation fixture, QA defers to focused exact-ID lanes; native Apple exact-ID smoke passed for Siri and Spotlight in the final preflight.
+- Shared SaneProcess verifier now accepts the Swift Testing clean-pass plus trailing `** TEST FAILED **` runner-marker shape only when no real assertion/failure markers are present.

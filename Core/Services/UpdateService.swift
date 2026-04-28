@@ -256,12 +256,12 @@ extension UpdateService: SPUUpdaterDelegate {
 
         var automaticallyChecksForUpdates: Bool {
             get { false }
-            set {}
+            set { _ = newValue }
         }
 
         var updateCheckFrequency: UpdateCheckFrequency {
             get { .daily }
-            set {}
+            set { _ = newValue }
         }
 
         var isUpdateChannelEnabled: Bool { false }

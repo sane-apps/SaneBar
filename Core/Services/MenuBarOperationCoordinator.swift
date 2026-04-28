@@ -207,10 +207,12 @@ enum MenuBarOperationCoordinator {
     static func shouldWaitForLiveSeparatorAnchor(
         snapshot: MenuBarRuntimeSnapshot,
         validationContext: PositionValidationContext,
-        recoveryReason: StartupRecoveryReason
+        recoveryReason: StartupRecoveryReason,
+        recoveryCount: Int
     ) -> Bool {
         guard recoveryReason == .missingCoordinates else { return false }
         guard validationContext == .screenParametersChanged || validationContext == .wakeResume else { return false }
+        guard recoveryCount < 2 else { return false }
         guard snapshot.structuralState == .ready else { return false }
         guard snapshot.separatorAnchorSource == .estimated else { return false }
         guard snapshot.mainAnchorSource != .missing else { return false }
@@ -262,7 +264,8 @@ enum MenuBarOperationCoordinator {
             if shouldWaitForLiveSeparatorAnchor(
                 snapshot: snapshot,
                 validationContext: validationContext,
-                recoveryReason: recoveryReason
+                recoveryReason: recoveryReason,
+                recoveryCount: recoveryCount
             ) {
                 return .waitForLiveAnchor
             }
@@ -342,7 +345,7 @@ enum MenuBarOperationCoordinator {
             }
 
             if origin == .browsePanel {
-                return !requestedApp.hasPreciseMenuBarIdentity
+                return true
             }
 
             if requestedApp.menuExtraIdentifier?.hasPrefix("com.apple.menuextra.") == true {
@@ -360,7 +363,7 @@ enum MenuBarOperationCoordinator {
             requireObservableReaction: requiresStrictVerification,
             forceFreshTargetResolution: requiresStrictVerification,
             allowImmediateFallbackCenter: !requiresStrictVerification,
-            allowWorkspaceActivationFallback: !(origin == .browsePanel && isRightClick),
+            allowWorkspaceActivationFallback: origin != .browsePanel,
             preferHardwareFirst: preferHardwareFirst
         )
     }

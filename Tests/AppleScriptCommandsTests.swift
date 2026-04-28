@@ -189,14 +189,13 @@ struct AppleScriptCommandsTests {
     func multipleInstantiation() {
         let toggle1 = ToggleCommand()
         let toggle2 = ToggleCommand()
-        _ = ShowCommand() // Verify can instantiate
-        _ = HideCommand() // Verify can instantiate
+        let show = ShowCommand()
+        let hide = HideCommand()
 
         #expect(toggle1 !== toggle2, "Each instantiation creates new object")
-        #expect(true, "Multiple commands can coexist")
+        #expect(toggle1 !== show, "Toggle and show commands are distinct objects")
+        #expect(show !== hide, "Show and hide commands are distinct objects")
     }
-
-    // MARK: - Base Class Tests
 
     // MARK: - Base Class Tests
 
@@ -210,51 +209,6 @@ struct AppleScriptCommandsTests {
         #expect(toggleSuper.contains("NSScriptCommand") || toggleSuper.contains("SaneBarScriptCommand"))
         #expect(showSuper.contains("NSScriptCommand") || showSuper.contains("SaneBarScriptCommand"))
         #expect(hideSuper.contains("NSScriptCommand") || hideSuper.contains("SaneBarScriptCommand"))
-    }
-
-    // MARK: - Command Semantics Tests
-
-    @Test("Each command type has distinct purpose")
-    func commandSemantics() {
-        // Document the expected behavior of each command
-        let commandPurposes: [String: String] = [
-            "ToggleCommand": "Toggles hidden items visibility",
-            "ShowCommand": "Shows hidden items",
-            "HideCommand": "Hides items",
-        ]
-
-        #expect(commandPurposes.count == 3, "Three distinct commands")
-        #expect(commandPurposes["ToggleCommand"] != commandPurposes["ShowCommand"])
-        #expect(commandPurposes["ShowCommand"] != commandPurposes["HideCommand"])
-    }
-
-    // MARK: - AppleScript Integration Path Tests
-
-    @Test("Commands follow NSScriptCommand pattern")
-    func nSScriptCommandPattern() {
-        let command = ToggleCommand()
-
-        // NSScriptCommand has these key methods
-        _ = command.performDefaultImplementation()
-        _ = command.scriptErrorNumber
-        _ = command.scriptErrorString
-
-        #expect(true, "Command follows NSScriptCommand pattern")
-    }
-
-    // MARK: - Thread Safety Consideration Tests
-
-    @Test("Commands dispatch to MainActor")
-    func mainActorDispatch() {
-        // The commands use Task { @MainActor in ... } internally
-        // This test documents that expectation
-
-        let command = ToggleCommand()
-
-        // Calling perform should not crash even from test thread
-        _ = command.performDefaultImplementation()
-
-        #expect(true, "Command safely dispatches to MainActor")
     }
 
     @Test("Script listing refreshes when the cache is empty")
@@ -311,7 +265,7 @@ struct AppleScriptCommandsTests {
         #expect(!source.contains("waitForScriptZone("))
         #expect(!source.contains("settleScriptZoneAfterVerifiedMove("))
         #expect(!source.contains("invalidateScriptMoveCachesAfterVerifiedDrag()"))
-        #expect(source.contains("if skipZoneWait {"))
+        #expect(source.contains("if outcome.skipZoneWait {"))
         #expect(source.contains("return true"))
     }
 

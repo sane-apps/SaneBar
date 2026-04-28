@@ -115,7 +115,24 @@ class ProjectQA
     com.apple.menuextra.spotlight
   ].freeze
   RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[
-    com.openai.codex
+    at.obdev.littlesnitch.networkmonitor
+    at.obdev.littlesnitch.agent
+  ].freeze
+  OPEN_RELEASE_BLOCKING_LABELS = %w[
+    bug
+    high-priority
+  ].freeze
+  OPEN_RELEASE_BLOCKING_LABEL_PREFIXES = %w[
+    root:
+  ].freeze
+  OPEN_RELEASE_BLOCKING_DISPOSITION_LABELS = %w[
+    release:blocker
+  ].freeze
+  OPEN_RELEASE_NONBLOCKING_DISPOSITION_LABELS = %w[
+    release:patched-pending
+    release:compat-limited
+    release:needs-evidence
+    release:deferred
   ].freeze
   RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
   RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
@@ -159,7 +176,7 @@ class ProjectQA
   }.freeze
   RELEASE_SOAK_HOURS = 24
   REGRESSION_CONFIRMATION_WINDOW_HOURS = 48
-  STALE_REGRESSION_SILENCE_DAYS = 5
+  POST_CLOSE_REGRESSION_COMMENT_WINDOW_DAYS = 30
 
   def initialize
     @errors = []
@@ -187,6 +204,7 @@ class ProjectQA
     check_release_cadence_guardrails
     check_open_regression_guardrails
     check_regression_confirmation_guardrails
+    check_customer_facing_copy_guardrails
     run_stability_suite
     check_urls
 
@@ -279,6 +297,8 @@ class ProjectQA
       ENV['SANEPROCESS_APPROVE_OPEN_REGRESSION_RELEASE'] || ENV['SANEBAR_APPROVE_OPEN_REGRESSION_RELEASE']
     when :unconfirmed_regression_close
       ENV['SANEPROCESS_APPROVE_UNCONFIRMED_REGRESSION_CLOSE'] || ENV['SANEBAR_APPROVE_UNCONFIRMED_REGRESSION_CLOSE']
+    when :post_closure_regression_evidence
+      ENV['SANEPROCESS_APPROVE_POST_CLOSURE_REGRESSION_EVIDENCE'] || ENV['SANEBAR_APPROVE_POST_CLOSURE_REGRESSION_EVIDENCE']
     else
       nil
     end
@@ -778,7 +798,7 @@ class ProjectQA
 
           if runtime_smoke_no_candidate_fixture_policy?(smoke_out)
             default_move_coverage_deferred = true
-            puts '   ↳ default move pool empty on this host; keeping browse/layout result and deferring move coverage to shared-bundle exact-id smoke'
+            puts '   ↳ default runtime fixture pool empty on this host; keeping browse/layout result and deferring coverage to shared-bundle exact-id smoke'
             break
           end
 
@@ -791,6 +811,7 @@ class ProjectQA
       end
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+      focused_runtime_smoke_ran = false
       shared_bundle_ids = runtime_smoke_available_required_candidate_ids(
         target,
         required_ids: RUNTIME_SHARED_BUNDLE_IDS
@@ -805,12 +826,12 @@ class ProjectQA
               'default_move_pool_empty=1'
             ].join("\n")
           )
-          @errors << "Runtime smoke had no default move candidates and no shared-bundle fallback candidates. See #{RUNTIME_SMOKE_LOG_PATH} and #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH}."
-          puts "❌ no shared-bundle fallback candidates after default move-pool miss (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
-          return
+          puts "   ↳ shared-bundle focused smoke unavailable after default fixture miss; checking native/host exact-id lanes"
+        else
+          puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
         end
-        puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
       else
+        focused_runtime_smoke_ran = true
         return unless run_focused_runtime_smoke_exact_ids(
           target: target,
           smoke_env: smoke_env,
@@ -829,6 +850,7 @@ class ProjectQA
       if native_apple_ids.empty?
         puts '   ↳ native-apple exact-id smoke skipped (Siri/Spotlight not present on this host)'
       else
+        focused_runtime_smoke_ran = true
         return unless run_focused_runtime_smoke_exact_ids(
           target: target,
           smoke_env: smoke_env,
@@ -845,8 +867,9 @@ class ProjectQA
         required_ids: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS
       )
       if host_exact_id_ids.empty?
-        puts '   ↳ host exact-id smoke skipped (Codex not present on this host)'
+        puts '   ↳ host exact-id smoke skipped (top-bar host sentinel not present on this host)'
       else
+        focused_runtime_smoke_ran = true
         return unless run_focused_runtime_smoke_exact_ids(
           target: target,
           smoke_env: smoke_env,
@@ -856,6 +879,12 @@ class ProjectQA
           lane_name: 'host exact-id',
           retryable_failure_method: :retryable_runtime_smoke_failure?
         )
+      end
+
+      if default_move_coverage_deferred && !focused_runtime_smoke_ran
+        @errors << "Runtime smoke had no default fixture candidates and no focused exact-id fallback candidates. See #{RUNTIME_SMOKE_LOG_PATH}."
+        puts "❌ no focused exact-id fallback candidates after default fixture miss (#{RUNTIME_SMOKE_LOG_PATH})"
+        return
       end
 
       startup_probe_env = {
@@ -947,7 +976,8 @@ class ProjectQA
   end
 
   def runtime_smoke_no_candidate_fixture_policy?(smoke_output)
-    smoke_output.include?('No movable candidate icon found (need at least one hidden/visible icon).')
+    smoke_output.include?('No movable candidate icon found (need at least one hidden/visible icon).') ||
+      smoke_output.include?('No browse activation candidate icon found.')
   end
 
   def retryable_stability_suite_failure?(output)
@@ -1538,7 +1568,7 @@ def applescript_commands_for_app(app_path)
       '--repo', 'sane-apps/SaneBar',
       '--state', 'open',
       '--limit', '100',
-      '--json', 'number,title,url,createdAt,updatedAt'
+      '--json', 'number,title,url,labels,createdAt,updatedAt'
     )
 
     unless list_status.success?
@@ -1548,24 +1578,16 @@ def applescript_commands_for_app(app_path)
     end
 
     issues = JSON.parse(issues_json) rescue []
-    regression_issues = issues.select { |issue| regression_like_title?(issue['title']) }
-    latest_release = latest_published_release
-    blocking = regression_issues
-    stale = []
-
-    if latest_release
-      stale, blocking = regression_issues.partition do |issue|
-        stale_open_regression_after_release?(issue, latest_release)
-      end
-    end
+    blocking = issues.select { |issue| open_issue_blocks_release?(issue) }
+    classified_nonblocking = issues.select { |issue| release_nonblocking_disposition?(issue['labels']) }
 
     if blocking.empty?
-      if stale.empty?
-        puts '✅ no open regression-like issues'
+      if classified_nonblocking.empty?
+        puts '✅ no open release-blocking issues'
       else
-        summary = stale.first(5).map { |issue| "##{issue['number']}" }.join(', ')
-        @warnings << "Stale open regression issue(s) eligible for closure after #{latest_release['tagName']}: #{summary}"
-        puts "✅ no active open regression-like issues (stale after release: #{summary})"
+        summary = classified_nonblocking.first(5).map { |issue| issue_release_disposition_summary(issue) }.join(', ')
+        @warnings << "Open regression issue(s) classified non-blocking for release: #{summary}"
+        puts "✅ no unclassified open release-blocking issues (classified: #{summary})"
       end
       return
     end
@@ -1581,43 +1603,51 @@ def applescript_commands_for_app(app_path)
       puts "⚠️  open regression issues present (manual approval): #{summary}"
     else
       details = blocking.map { |issue| "##{issue['number']} #{issue['title']}" }.join(' | ')
-      @errors << "Open regression issue(s) block release: #{details}. Manual approval phrase required: \"#{phrase}\"."
+      dispositions = (OPEN_RELEASE_NONBLOCKING_DISPOSITION_LABELS + OPEN_RELEASE_BLOCKING_DISPOSITION_LABELS).join(', ')
+      @errors << "Open regression issue(s) block release: #{details}. Add a release disposition label if triaged (#{dispositions}) or use manual approval phrase: \"#{phrase}\"."
       puts "❌ blocking issue(s): #{summary}"
     end
   end
 
-  def published_releases
-    return @published_releases if defined?(@published_releases)
+  def open_issue_blocks_release?(issue)
+    return true if release_blocker_disposition?(issue['labels'])
+    return false if release_nonblocking_disposition?(issue['labels'])
 
-    gh_available = system('command -v gh >/dev/null 2>&1')
-    unless gh_available
-      @published_releases = []
-      return @published_releases
-    end
+    regression_like_title?(issue['title']) || release_blocking_issue_labels?(issue['labels'])
+  end
 
-    releases_json, status = Open3.capture2e(
-      'gh', 'release', 'list',
-      '--repo', 'sane-apps/SaneBar',
-      '--limit', '20',
-      '--json', 'tagName,publishedAt,isDraft,isPrerelease'
-    )
-
-    unless status.success?
-      @published_releases = []
-      return @published_releases
-    end
-
-    releases = JSON.parse(releases_json) rescue []
-    @published_releases = releases.reject do |release|
-      release['isDraft'] || release['isPrerelease'] || release['publishedAt'].to_s.empty?
+  def release_blocking_issue_labels?(labels)
+    normalized_issue_label_names(labels).any? do |label|
+      OPEN_RELEASE_BLOCKING_LABELS.include?(label) ||
+        OPEN_RELEASE_BLOCKING_LABEL_PREFIXES.any? { |prefix| label.start_with?(prefix) }
     end
   end
 
-  def latest_published_release
-    releases = published_releases
-    return nil if releases.empty?
+  def release_blocker_disposition?(labels)
+    (normalized_issue_label_names(labels) & OPEN_RELEASE_BLOCKING_DISPOSITION_LABELS).any?
+  end
 
-    releases.max_by { |release| Time.parse(release.fetch('publishedAt')) }
+  def release_nonblocking_disposition?(labels)
+    normalized = normalized_issue_label_names(labels)
+    (normalized & OPEN_RELEASE_NONBLOCKING_DISPOSITION_LABELS).any? &&
+      (normalized & OPEN_RELEASE_BLOCKING_DISPOSITION_LABELS).empty?
+  end
+
+  def release_nonblocking_disposition_label(labels)
+    (normalized_issue_label_names(labels) & OPEN_RELEASE_NONBLOCKING_DISPOSITION_LABELS).first
+  end
+
+  def issue_release_disposition_summary(issue)
+    label = release_nonblocking_disposition_label(issue['labels']) || 'release:unknown'
+    "##{issue['number']}(#{label})"
+  end
+
+  def normalized_issue_label_names(labels)
+    Array(labels).map do |label|
+      name = label.is_a?(Hash) ? label['name'] : label
+      normalized = name.to_s.strip.downcase
+      normalized.empty? ? nil : normalized
+    end.compact
   end
 
   def regression_like_title?(title)
@@ -1628,6 +1658,7 @@ def applescript_commands_for_app(app_path)
       /disappear/,
       /appearance|tint|turns black|black bar|bar turns black/,
       /icons? gone/,
+      /invisible|status items? invisible|menu ?bar icon|menubar icon/,
       /visible.*hidden|hidden.*visible/,
       /move.*visible|visible.*move/,
       /move.*hidden|hidden.*move/,
@@ -1670,23 +1701,76 @@ def applescript_commands_for_app(app_path)
     text.match?(/fixed|works|it'?s working|working now|resolved|confirmed|looks good|thank you/i)
   end
 
-  def stale_open_regression_after_release?(issue, latest_release, now: Time.now.utc)
-    return false if issue.nil? || latest_release.nil?
+  def reporter_negative_regression_text?(body)
+    text = body.to_s.strip
+    return false if text.empty?
 
-    release_time = Time.parse(latest_release.fetch('publishedAt')).utc
-    stale_cutoff = release_time + (STALE_REGRESSION_SILENCE_DAYS * 24 * 3600)
-    return false if now.utc < stale_cutoff
-
-    updated_raw = issue['updatedAt'] || issue['createdAt']
-    return false if updated_raw.to_s.empty?
-
-    Time.parse(updated_raw).utc <= release_time
-  rescue StandardError
-    false
+    patterns = [
+      /reopen(?:ing)?/i,
+      /still (?:broken|failing|missing|not|reproduc|seeing)/i,
+      /same (?:failure|bug|issue|problem|invisible-icon)/i,
+      /reproduc(?:e|es|ed|ing|ible)/i,
+      /fresh (?:trace|traces|diagnostics|log|logs)/i,
+      /not resolved/i,
+      /does(?:n'?t| not) (?:work|resolve)/i,
+      /status-item windows are invalid/i,
+      /scene-reconnection-loop|reconnection loop|reconnect loop/i
+    ]
+    patterns.any? { |pattern| text.match?(pattern) }
   end
 
   def trusted_issue_author_associations
     %w[MEMBER OWNER COLLABORATOR]
+  end
+
+  def post_closure_negative_reporter_comments(comments, closed_at)
+    closed_time = Time.parse(closed_at.to_s).utc
+    Array(comments).select do |comment|
+      association = comment['authorAssociation'].to_s.upcase
+      next false if trusted_issue_author_associations.include?(association)
+
+      created_at = comment['createdAt'].to_s
+      next false if created_at.empty?
+
+      Time.parse(created_at).utc > closed_time &&
+        reporter_negative_regression_text?(comment['body'])
+    rescue StandardError
+      false
+    end
+  rescue StandardError
+    []
+  end
+
+  def check_customer_facing_copy_guardrails
+    puts 'Checking customer-facing copy guardrails...'
+    files = [
+      README,
+      File.join(PROJECT_ROOT, 'docs', 'index.html'),
+      File.join(PROJECT_ROOT, 'UI', 'Onboarding', 'WelcomeView.swift')
+    ]
+    blocked_phrases = [
+      /works perfectly/i,
+      /double-click any app/i,
+      /any app to open/i,
+      /drag apps between/i,
+      /no data collected/i,
+      /even if (it'?s|it is) invisible/i
+    ]
+
+    violations = files.flat_map do |path|
+      next [] unless File.exist?(path)
+
+      File.readlines(path).each_with_index.each_with_object([]) do |(line, index), matches|
+        matches << "#{path.sub("#{PROJECT_ROOT}/", '')}:#{index + 1}" if blocked_phrases.any? { |pattern| line.match?(pattern) }
+      end
+    end
+
+    if violations.empty?
+      puts '✅ customer-facing copy avoids absolute/ambiguous release claims'
+    else
+      @errors << "Customer-facing copy contains absolute or tier-ambiguous claims: #{violations.join(', ')}"
+      puts '❌ customer-facing copy guardrail failed'
+    end
   end
 
   def closed_regression_confirmation_exemption_reason(comments)
@@ -1741,6 +1825,7 @@ def applescript_commands_for_app(app_path)
     regression_issues = issues.select { |issue| regression_like_title?(issue['title']) }
     if regression_issues.empty?
       puts '✅ no recently closed regression-like issues'
+      check_post_closure_regression_evidence_guardrails
       return
     end
 
@@ -1770,6 +1855,7 @@ def applescript_commands_for_app(app_path)
       else
         puts "✅ #{regression_issues.count - exempt.count} closed regression issue(s) have reporter confirmation; #{exempt.count} exempt historical closure(s)"
       end
+      check_post_closure_regression_evidence_guardrails
       return
     end
 
@@ -1785,6 +1871,82 @@ def applescript_commands_for_app(app_path)
     else
       @errors << "Closed regression issue(s) without reporter confirmation: #{unconfirmed.join(', ')}. Manual approval phrase required: \"#{phrase}\"."
       puts "❌ #{details}"
+    end
+
+    check_post_closure_regression_evidence_guardrails
+  end
+
+  def check_post_closure_regression_evidence_guardrails
+    cutoff_date = (Time.now.utc - (POST_CLOSE_REGRESSION_COMMENT_WINDOW_DAYS * 24 * 3600)).strftime('%Y-%m-%d')
+    issues_json, list_status = Open3.capture2e(
+      'gh', 'issue', 'list',
+      '--repo', 'sane-apps/SaneBar',
+      '--state', 'closed',
+      '--search', "updated:>=#{cutoff_date}",
+      '--limit', '100',
+      '--json', 'number,title,closedAt,updatedAt,url,labels'
+    )
+
+    unless list_status.success?
+      @warnings << 'Post-closure regression evidence check skipped (failed to query closed issues)'
+      puts '⚠️  post-closure evidence query failed'
+      return
+    end
+
+    issues = JSON.parse(issues_json) rescue []
+    candidates = issues.select do |issue|
+      next false unless regression_like_title?(issue['title'])
+      closed_at = issue['closedAt'].to_s
+      updated_at = issue['updatedAt'].to_s
+      next false if closed_at.empty? || updated_at.empty?
+
+      Time.parse(updated_at).utc > Time.parse(closed_at).utc
+    rescue StandardError
+      false
+    end
+
+    reopened_evidence = []
+    classified_nonblocking = []
+    candidates.each do |issue|
+      details_json, details_status = Open3.capture2e(
+        'gh', 'issue', 'view', issue['number'].to_s,
+        '--repo', 'sane-apps/SaneBar',
+        '--json', 'comments'
+      )
+      next unless details_status.success?
+
+      comments = (JSON.parse(details_json)['comments'] rescue []) || []
+      next if post_closure_negative_reporter_comments(comments, issue['closedAt']).empty?
+
+      if release_nonblocking_disposition?(issue['labels'])
+        classified_nonblocking << issue_release_disposition_summary(issue)
+        next
+      end
+
+      reopened_evidence << issue['number']
+    end
+
+    if reopened_evidence.empty?
+      if classified_nonblocking.empty?
+        puts '✅ no closed regression issues with fresh negative reporter evidence'
+      else
+        @warnings << "Closed regression issue(s) with fresh negative evidence classified non-blocking for release: #{classified_nonblocking.join(', ')}"
+        puts "✅ no unclassified closed regression issues with fresh negative reporter evidence (classified: #{classified_nonblocking.join(', ')})"
+      end
+      return
+    end
+
+    approved, phrase = request_manual_override(
+      gate: :post_closure_regression_evidence,
+      summary: "Closed regression issue(s) have fresh negative reporter evidence (#{reopened_evidence.join(', ')})"
+    )
+
+    if approved
+      @warnings << "Manual override approved for post-closure regression evidence: #{reopened_evidence.join(', ')}"
+      puts "⚠️  post-closure negative evidence: #{reopened_evidence.join(', ')} (manual approval)"
+    else
+      @errors << "Closed regression issue(s) have fresh negative reporter evidence: #{reopened_evidence.join(', ')}. Reopen/respond or use manual approval phrase: \"#{phrase}\"."
+      puts "❌ post-closure negative evidence: #{reopened_evidence.join(', ')}"
     end
   end
 

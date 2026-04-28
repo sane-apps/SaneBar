@@ -105,28 +105,6 @@ struct IconHotkeysServiceTests {
         #expect(settings.iconHotkeys.isEmpty, "Default should have no hotkeys")
     }
 
-    // MARK: - Registration Logic Tests
-
-    @Test("unregisterAllHotkeys is safe when no hotkeys registered")
-    func testUnregisterEmpty() {
-        let service = IconHotkeysService.shared
-
-        // Should not crash when nothing is registered
-        service.unregisterAllHotkeys()
-
-        #expect(true, "Unregister with no hotkeys should be safe")
-    }
-
-    @Test("registerHotkeys with empty settings is safe")
-    func testRegisterEmptySettings() {
-        let service = IconHotkeysService.shared
-        let settings = SaneBarSettings() // No hotkeys
-
-        service.registerHotkeys(from: settings)
-
-        #expect(true, "Register with no hotkeys should be safe")
-    }
-
     // MARK: - BundleID Validation Tests
 
     @Test("BundleID format validation examples")

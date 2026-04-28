@@ -99,6 +99,18 @@ extension AccessibilityService {
         guard trimmed.contains(".") else { return false }
         return trimmed.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil
     }
+
+    internal nonisolated static func scannedStatusItemIndex(
+        itemCount: Int,
+        itemIndex: Int,
+        axIdentifier: String?
+    ) -> Int? {
+        let hasIdentifier = axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        if itemCount > 1 || !hasIdentifier {
+            return itemIndex
+        }
+        return nil
+    }
     
     // MARK: - System Wide Search
 
@@ -396,27 +408,24 @@ extension AccessibilityService {
                         return nil
                     }
 
-                    let usesPerItemIdentity = items.count > 1
                     var localResults: [ScannedStatusItem] = []
 
                     var identifiersByIndex: [Int: String] = [:]
-                    if usesPerItemIdentity {
-                        var identifiers: [String] = []
-                        identifiers.reserveCapacity(items.count)
-                        for (index, item) in items.enumerated() {
-                            var identifierValue: CFTypeRef?
-                            AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                            if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
-                                identifiers.append(id)
-                                identifiersByIndex[index] = id
-                            }
+                    var identifiers: [String] = []
+                    identifiers.reserveCapacity(items.count)
+                    for (index, item) in items.enumerated() {
+                        var identifierValue: CFTypeRef?
+                        AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                        if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+                            identifiers.append(id)
+                            identifiersByIndex[index] = id
                         }
+                    }
 
-                        if !identifiers.isEmpty {
-                            let uniqueCount = Set(identifiers).count
-                            if uniqueCount != identifiers.count {
-                                identifiersByIndex.removeAll(keepingCapacity: true)
-                            }
+                    if items.count > 1, !identifiers.isEmpty {
+                        let uniqueCount = Set(identifiers).count
+                        if uniqueCount != identifiers.count {
+                            identifiersByIndex.removeAll(keepingCapacity: true)
                         }
                     }
 
@@ -453,7 +462,11 @@ extension AccessibilityService {
                             }
                         }
 
-                        let itemIndex: Int? = usesPerItemIdentity ? index : nil
+                        let itemIndex = Self.scannedStatusItemIndex(
+                            itemCount: items.count,
+                            itemIndex: index,
+                            axIdentifier: identifiersByIndex[index]
+                        )
                         localResults.append(
                             ScannedStatusItem(
                                 pid: pid,

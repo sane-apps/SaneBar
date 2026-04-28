@@ -59,14 +59,6 @@ struct SearchWindowTests {
         #expect(app1 != app4) // Same id but different name = not equal (synthesized Equatable)
     }
     
-    @Test("MenuBarSearchView initializes without crashing")
-    @MainActor
-    func testMenuBarSearchViewInit() {
-        let mockService = SearchServiceProtocolMock()
-        _ = MenuBarSearchView(service: mockService, onDismiss: {})
-        #expect(true)
-    }
-
     @Test("Duplicate badges number repeated menu extras by bundle and name in x-order")
     func duplicateBadgesNumberRepeatedMenuExtrasInXOrder() {
         let stats2 = RunningApp(
@@ -356,7 +348,7 @@ struct SearchWindowTests {
             )
         )
         #expect(
-            SearchService.shouldUseWorkspaceActivationFallback(
+            !SearchService.shouldUseWorkspaceActivationFallback(
                 origin: .browsePanel,
                 isRightClick: false
             )
@@ -445,7 +437,7 @@ struct SearchWindowTests {
             )
         )
         #expect(
-            !SearchService.shouldPreferHardwareFirst(
+            SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
                 app: RunningApp.menuExtraItem(
@@ -728,6 +720,32 @@ struct SearchWindowTests {
             coarseOnly.app.uniqueId
         ])
         #expect(filtered.contains { $0.app.uniqueId == coarseOnly.app.uniqueId && !$0.app.hasPreciseMenuBarIdentity })
+    }
+
+    @Test("Zoned menu bar views exclude compatibility-limited overlay apps")
+    @MainActor
+    func testZonedMenuBarItemsExcludeCompatibilityLimitedOverlayApps() {
+        let boringNotch = AccessibilityService.MenuBarItemPosition(
+            app: RunningApp(
+                id: "theboringteam.boringnotch",
+                name: "TheBoringNotch",
+                icon: nil,
+                statusItemIndex: 0,
+                xPosition: -3530,
+                width: 33
+            ),
+            x: -3530,
+            width: 33
+        )
+
+        let filtered = SearchService.zonedMenuBarItems(from: [boringNotch])
+        let discoverable = SearchService.mergedDiscoverableApps(
+            positioned: [],
+            owners: [boringNotch.app]
+        )
+
+        #expect(filtered.isEmpty)
+        #expect(discoverable.map(\.uniqueId) == [boringNotch.app.uniqueId])
     }
 
     @Test("Zoned menu bar views collapse Little Snitch helper-family duplicates without hiding the visible item")

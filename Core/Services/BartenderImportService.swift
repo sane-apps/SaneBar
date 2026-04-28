@@ -256,13 +256,15 @@ enum BartenderImportService {
         }
 
         guard let separatorX else { return false }
+        let referenceScreenFrame = menuBarManager.currentRecoveryReferenceScreen()?.frame
 
         var success = AccessibilityService.shared.moveMenuBarIcon(
             fromKnownFrame: frame,
             toHidden: toHidden,
             separatorX: separatorX,
             visibleBoundaryX: visibleBoundaryX,
-            originalMouseLocation: originalCGPoint
+            originalMouseLocation: originalCGPoint,
+            referenceScreenFrame: referenceScreenFrame
         )
 
         if !success {
@@ -272,7 +274,8 @@ enum BartenderImportService {
                 toHidden: toHidden,
                 separatorX: separatorX,
                 visibleBoundaryX: visibleBoundaryX,
-                originalMouseLocation: originalCGPoint
+                originalMouseLocation: originalCGPoint,
+                referenceScreenFrame: referenceScreenFrame
             )
         }
 

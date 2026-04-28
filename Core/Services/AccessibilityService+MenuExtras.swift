@@ -537,7 +537,7 @@ extension AccessibilityService {
                 return "\(index):\(resolvedIdentifier)@\(metadata.xPos + (metadata.width / 2))"
             }.joined(separator: ",")
             menuExtrasLogger.error(
-                "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
+                "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(preferredCenterX, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
             )
         }
         menuExtrasLogger.info("🔧 Resolved nearest status item for \(bundleID, privacy: .private) at index \(resolvedIndex, privacy: .public)")
@@ -730,80 +730,4 @@ extension AccessibilityService {
         preferredCenterX != nil
     }
 
-    nonisolated static func resolvedStatusItemIndex(
-        midXs: [CGFloat],
-        statusItemIndex: Int?,
-        preferredCenterX: CGFloat?,
-        hintTolerance: CGFloat = 18
-    ) -> Int? {
-        guard !midXs.isEmpty else { return nil }
-
-        if let statusItemIndex, midXs.indices.contains(statusItemIndex) {
-            guard let preferredCenterX else {
-                return statusItemIndex
-            }
-
-            let hintedMidX = midXs[statusItemIndex]
-            if abs(hintedMidX - preferredCenterX) <= hintTolerance {
-                return statusItemIndex
-            }
-        }
-
-        return preferredStatusItemIndex(midXs: midXs, preferredCenterX: preferredCenterX)
-    }
-
-    nonisolated static func preferredStatusItemIndex(midXs: [CGFloat], preferredCenterX: CGFloat?) -> Int? {
-        guard !midXs.isEmpty else { return nil }
-        guard let preferredCenterX else { return 0 }
-        return midXs.enumerated().min { lhs, rhs in
-            let lhsDistance = abs(lhs.element - preferredCenterX)
-            let rhsDistance = abs(rhs.element - preferredCenterX)
-            if lhsDistance == rhsDistance {
-                return lhs.offset < rhs.offset
-            }
-            return lhsDistance < rhsDistance
-        }?.offset
-    }
-
-    nonisolated func getMenuBarIconFrameOnScreen(
-        bundleID: String,
-        menuExtraId: String?,
-        statusItemIndex: Int?,
-        preferredCenterX: CGFloat? = nil,
-        attempts: Int = 20,
-        interval: TimeInterval = 0.05
-    ) -> CGRect? {
-        for attempt in 1 ... attempts {
-            guard let frame = getMenuBarIconFrame(
-                bundleID: bundleID,
-                menuExtraId: menuExtraId,
-                statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
-            ) else {
-                return nil
-            }
-
-            let center = CGPoint(x: frame.midX, y: frame.midY)
-            let isOnScreen = NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
-
-            if isOnScreen {
-                Thread.sleep(forTimeInterval: 0.08)
-                if let recheck = getMenuBarIconFrame(
-                    bundleID: bundleID,
-                    menuExtraId: menuExtraId,
-                    statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX
-                ),
-                   abs(recheck.origin.x - frame.origin.x) < 2 {
-                    return recheck
-                }
-                menuExtrasLogger.debug("getMenuBarIconFrameOnScreen: position unstable (attempt \(attempt))")
-                continue
-            }
-
-            menuExtrasLogger.debug("getMenuBarIconFrameOnScreen: frame off-screen (attempt \(attempt), x=\(frame.origin.x, privacy: .public), y=\(frame.origin.y, privacy: .public))")
-            Thread.sleep(forTimeInterval: interval)
-        }
-        return nil
-    }
 }

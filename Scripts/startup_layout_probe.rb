@@ -10,11 +10,16 @@ require 'time'
 class StartupLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
   SNAPSHOT_DELAYS = [2.0, 5.0].freeze
+  DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
 
   def initialize
     @app_path = ENV.fetch('SANEBAR_SMOKE_APP_PATH', '').strip
     @log_path = ENV.fetch('SANEBAR_STARTUP_PROBE_LOG_PATH', '/tmp/sanebar_startup_layout_probe.log')
     @artifact_path = ENV.fetch('SANEBAR_STARTUP_PROBE_ARTIFACT_PATH', '/tmp/sanebar_startup_layout_probe.json')
+    @main_right_gap_tolerance = ENV.fetch(
+      'SANEBAR_STARTUP_PROBE_MAIN_RIGHT_GAP_TOLERANCE',
+      DEFAULT_MAIN_RIGHT_GAP_TOLERANCE.to_s
+    ).to_f
     @workspace = Dir.mktmpdir('sanebar-startup-probe')
     @defaults_backup_path = File.join(@workspace, 'defaults.plist')
     @settings_backup_path = File.join(@workspace, 'settings.json')
@@ -36,9 +41,11 @@ class StartupLayoutProbe
     backup_state!
 
     poisoned_backup_case = run_poisoned_backup_restore_case
+    current_host_visibility_case = run_current_host_visibility_override_case
     auto_rehide_case = run_auto_rehide_false_case
 
     @cases << poisoned_backup_case
+    @cases << current_host_visibility_case
     @cases << auto_rehide_case
 
     restore_state!
@@ -150,6 +157,7 @@ class StartupLayoutProbe
     assert_close!(restored_separator, backup_separator, label: 'restored separator preferred position')
     assert_snapshot_healthy!(t2, label: 'poisoned-startup T+2s')
     assert_snapshot_healthy!(t5, label: 'poisoned-startup T+5s')
+    assert_main_right_gap_stable!(t2, t5, label: 'poisoned-startup T+2s→T+5s')
 
     quit_app
     launch_app
@@ -160,6 +168,7 @@ class StartupLayoutProbe
     assert_close!(replay_main, backup_main, label: 'restart replay main preferred position')
     assert_close!(replay_separator, backup_separator, label: 'restart replay separator preferred position')
     assert_snapshot_healthy!(replay, label: 'restart replay T+2s')
+    assert_main_right_gap_stable!(t5, replay, label: 'poisoned-startup T+5s→restart replay T+2s')
 
     {
       name: 'current-width backup beats ordinal seeds',
@@ -174,6 +183,29 @@ class StartupLayoutProbe
         replay_t2: replay
       }
     }
+  end
+
+  def run_current_host_visibility_override_case
+    version = autosave_version
+    keys = current_host_visibility_keys(version)
+    original_values = keys.to_h { |key| [key, read_current_host_default(key)] }
+
+    quit_app
+    keys.each { |key| write_current_host_bool(key, false) }
+    log("Seeded currentHost visibility overrides for autosave version #{version}")
+    launch_app
+
+    snapshot = snapshot_after_delay(2.0)
+    assert_snapshot_healthy!(snapshot, label: 'currentHost visibility override T+2s')
+    keys.each { |key| assert_current_host_default_cleared!(key) }
+
+    {
+      name: 'currentHost visibility overrides are cleared on startup',
+      seeded_keys: keys,
+      snapshot: snapshot
+    }
+  ensure
+    restore_current_host_defaults(original_values) if original_values
   end
 
   def run_auto_rehide_false_case
@@ -195,6 +227,7 @@ class StartupLayoutProbe
     end
     assert_snapshot_healthy!(t2, label: 'autoRehide=false T+2s')
     assert_snapshot_healthy!(t5, label: 'autoRehide=false T+5s')
+    assert_main_right_gap_stable!(t2, t5, label: 'autoRehide=false T+2s→T+5s')
 
     {
       name: 'autoRehide=false prevents launch hide',
@@ -320,7 +353,11 @@ class StartupLayoutProbe
   def snapshot_after_delay(delay_seconds)
     sleep delay_seconds
     snapshot = read_layout_snapshot!
-    log("Snapshot after #{delay_seconds}s: hidingState=#{snapshot['hidingState']} mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']}")
+    log(
+      "Snapshot after #{delay_seconds}s: hidingState=#{snapshot['hidingState']} " \
+      "mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']} " \
+      "startupItemsValid=#{snapshot['startupItemsValid']}"
+    )
     snapshot
   end
 
@@ -328,6 +365,21 @@ class StartupLayoutProbe
     raise "#{label}: geometry unavailable" unless snapshot['geometryAvailable']
     raise "#{label}: separator not before main" unless snapshot['separatorBeforeMain']
     raise "#{label}: main icon not near Control Center" unless snapshot['mainNearControlCenter']
+    raise "#{label}: status items are not attached to valid menu bar windows" if snapshot.key?('startupItemsValid') && !truthy?(snapshot['startupItemsValid'])
+    if truthy?(snapshot['possibleSystemMenuBarSuppression'])
+      raise "#{label}: macOS may be suppressing SaneBar in System Settings > Menu Bar > Allow in Menu Bar"
+    end
+  end
+
+  def assert_main_right_gap_stable!(baseline, current, label:)
+    baseline_gap = numeric_snapshot_value(baseline, 'mainRightGap')
+    current_gap = numeric_snapshot_value(current, 'mainRightGap')
+    return unless baseline_gap && current_gap
+
+    drift = (current_gap - baseline_gap).abs
+    return if drift <= @main_right_gap_tolerance
+
+    raise "#{label}: mainRightGap drifted by #{drift.round(2)}px (#{baseline_gap} → #{current_gap})"
   end
 
   def assert_close!(actual, expected, label:, epsilon: 0.001)
@@ -349,6 +401,51 @@ class StartupLayoutProbe
     raise "Failed to write default #{key}=#{value}" unless status.success?
   end
 
+  def current_host_visibility_keys(version)
+    [
+      "NSStatusItem Visible SaneBar_Main_v#{version}",
+      "NSStatusItem VisibleCC SaneBar_Main_v#{version}",
+      "NSStatusItem Visible SaneBar_Separator_v#{version}",
+      "NSStatusItem VisibleCC SaneBar_Separator_v#{version}"
+    ]
+  end
+
+  def read_current_host_default(key)
+    out, status = capture('defaults', '-currentHost', 'read', 'NSGlobalDomain', key)
+    return nil unless status.success?
+
+    out.strip
+  end
+
+  def write_current_host_bool(key, value)
+    _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, '-bool', value ? 'true' : 'false')
+    raise "Failed to write currentHost default #{key}=#{value}" unless status.success?
+  end
+
+  def delete_current_host_default(key)
+    capture('defaults', '-currentHost', 'delete', 'NSGlobalDomain', key)
+  end
+
+  def restore_current_host_defaults(values)
+    values.each do |key, value|
+      if value.nil?
+        delete_current_host_default(key)
+      elsif %w[1 true yes].include?(value.downcase)
+        write_current_host_bool(key, true)
+      elsif %w[0 false no].include?(value.downcase)
+        write_current_host_bool(key, false)
+      else
+        _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, value)
+        raise "Failed to restore currentHost default #{key}" unless status.success?
+      end
+    end
+  end
+
+  def assert_current_host_default_cleared!(key)
+    value = read_current_host_default(key)
+    raise "currentHost visibility override still present after launch: #{key}=#{value.inspect}" unless value.nil?
+  end
+
   def load_settings_json
     return {} unless File.exist?(SETTINGS_PATH)
 
@@ -367,6 +464,20 @@ class StartupLayoutProbe
     return value.to_f if value.is_a?(Numeric)
 
     nil
+  end
+
+  def numeric_snapshot_value(snapshot, key)
+    value = snapshot[key]
+    return value.to_f if value.is_a?(Numeric)
+    return Float(value) if value.is_a?(String)
+
+    nil
+  rescue ArgumentError
+    nil
+  end
+
+  def truthy?(value)
+    value == true || value.to_s.downcase == 'true'
   end
 
   def capture(*cmd)

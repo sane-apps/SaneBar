@@ -309,7 +309,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         return (mainItem, separatorItem)
     }
 
-    func recreateItemsFromPersistedPositions() -> (main: NSStatusItem, separator: NSStatusItem) {
+    func recreateItemsFromPersistedPositions(
+        afterRemovingExistingItems: (() -> Void)? = nil
+    ) -> (main: NSStatusItem, separator: NSStatusItem) {
         NSStatusBar.system.removeStatusItem(mainItem)
         NSStatusBar.system.removeStatusItem(separatorItem)
         if let ah = alwaysHiddenSeparatorItem {
@@ -317,6 +319,7 @@ final class StatusBarController: StatusBarControllerProtocol {
             alwaysHiddenSeparatorItem = nil
         }
         removeSpacerItems()
+        afterRemovingExistingItems?()
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated-layout)")
@@ -575,6 +578,58 @@ final class StatusBarController: StatusBarControllerProtocol {
         "\(positionBackupKeyPrefix)_\(widthBucket)_\(slot)"
     }
 
+    nonisolated static func displayPositionBackupKey(
+        for widthBucket: Int,
+        screenSignature: String?,
+        slot: String
+    ) -> String {
+        guard let screenSignature,
+              !screenSignature.isEmpty else {
+            return displayPositionBackupKey(for: widthBucket, slot: slot)
+        }
+        return "\(positionBackupKeyPrefix)_\(widthBucket)_\(screenSignature)_\(slot)"
+    }
+
+    nonisolated static func shouldAllowLegacyDisplayBackupFallback(
+        widthBucket: Int,
+        activeWidthBuckets: [Int]
+    ) -> Bool {
+        activeWidthBuckets.filter { $0 == widthBucket }.count <= 1
+    }
+
+    private nonisolated static func displayBackupScreenSignature(for screen: NSScreen?) -> String? {
+        guard let screen else { return nil }
+        let heightBucket = displayWidthBucket(screen.frame.height)
+        let safeAreaToken = screenHasTopSafeAreaInset(screen) ? "safe-top" : "plain"
+        if let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
+            return "d\(displayID)-h\(heightBucket)-\(safeAreaToken)"
+        }
+        return "h\(heightBucket)-\(safeAreaToken)"
+    }
+
+    private nonisolated static func displayPositionBackupKey(
+        for width: Double,
+        referenceScreen: NSScreen?,
+        slot: String
+    ) -> String {
+        displayPositionBackupKey(
+            for: displayWidthBucket(width),
+            screenSignature: displayBackupScreenSignature(for: referenceScreen),
+            slot: slot
+        )
+    }
+
+    private nonisolated static func shouldAllowLegacyDisplayBackupFallback(
+        for width: Double,
+        referenceScreen: NSScreen?
+    ) -> Bool {
+        let widthBucket = displayWidthBucket(width)
+        return shouldAllowLegacyDisplayBackupFallback(
+            widthBucket: widthBucket,
+            activeWidthBuckets: NSScreen.screens.map { displayWidthBucket($0.frame.width) }
+        ) || displayBackupScreenSignature(for: referenceScreen) == nil
+    }
+
     nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
         isPixelLikePosition(mainBackup) && isPixelLikePosition(separatorBackup)
     }
@@ -735,7 +790,7 @@ final class StatusBarController: StatusBarControllerProtocol {
               isPixelLikePosition(mainPosition),
               isPixelLikePosition(separatorPosition)
         else {
-            removeDisplayPositionBackup(for: width)
+            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen(referenceScreen))
             return
         }
 
@@ -745,23 +800,71 @@ final class StatusBarController: StatusBarControllerProtocol {
             screenWidth: width,
             screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
         ) else {
-            removeDisplayPositionBackup(for: width)
+            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen(referenceScreen))
             logger.warning(
                 "Display validation: refusing to save unsafe current-width backup for width \(width, privacy: .public) (main=\(mainPosition, privacy: .public), separator=\(separatorPosition, privacy: .public))"
             )
             return
         }
 
+        setDisplayPositionBackup(
+            for: width,
+            mainPosition: mainPosition,
+            separatorPosition: separatorPosition,
+            referenceScreen: resolvedReferenceScreen(referenceScreen)
+        )
+    }
+
+    private static func setDisplayPositionBackup(
+        for width: Double,
+        mainPosition: Double,
+        separatorPosition: Double,
+        referenceScreen: NSScreen? = nil
+    ) {
         let defaults = UserDefaults.standard
-        defaults.set(mainPosition, forKey: displayPositionBackupKey(for: width, slot: "main"))
-        defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: width, slot: "separator"))
+        defaults.set(
+            mainPosition,
+            forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "main")
+        )
+        defaults.set(
+            separatorPosition,
+            forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "separator")
+        )
+
+        if shouldAllowLegacyDisplayBackupFallback(for: width, referenceScreen: referenceScreen) {
+            defaults.set(mainPosition, forKey: displayPositionBackupKey(for: width, slot: "main"))
+            defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: width, slot: "separator"))
+        } else {
+            defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "main"))
+            defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "separator"))
+        }
+    }
+
+    private nonisolated static func displayPositionBackupValue(
+        for width: Double,
+        referenceScreen: NSScreen?,
+        slot: String
+    ) -> Double? {
+        let defaults = UserDefaults.standard
+        let scopedKey = displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: slot)
+        let legacyKey = displayPositionBackupKey(for: width, slot: slot)
+
+        if scopedKey != legacyKey,
+           let scoped = numericPositionValue(defaults.object(forKey: scopedKey)) {
+            return scoped
+        }
+
+        guard shouldAllowLegacyDisplayBackupFallback(for: width, referenceScreen: referenceScreen) else {
+            return nil
+        }
+        return numericPositionValue(defaults.object(forKey: legacyKey))
     }
 
     private static func restoreDisplayPositionBackupIfAvailable(for width: Double, referenceScreen: NSScreen? = nil) -> Bool {
-        let defaults = UserDefaults.standard
-        let mainBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: width, slot: "main")))
-        let separatorBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: width, slot: "separator")))
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(Self.resolvedReferenceScreen(referenceScreen))
+        let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen)
+        let mainBackup = displayPositionBackupValue(for: width, referenceScreen: resolvedReferenceScreen, slot: "main")
+        let separatorBackup = displayPositionBackupValue(for: width, referenceScreen: resolvedReferenceScreen, slot: "separator")
+        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(resolvedReferenceScreen)
 
         guard hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup),
               let mainBackup,
@@ -794,7 +897,7 @@ final class StatusBarController: StatusBarControllerProtocol {
                 return true
             }
 
-            removeDisplayPositionBackup(for: width)
+            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen)
             logger.warning(
                 "Display validation: discarding unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public), separator=\(separatorBackup, privacy: .public))"
             )
@@ -808,8 +911,9 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     private static func restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: NSScreen? = nil) -> Bool {
-        guard let currentWidth = Self.resolvedReferenceScreen(referenceScreen)?.frame.width else { return false }
-        guard restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: referenceScreen) else { return false }
+        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
+        let currentWidth = resolvedReferenceScreen.frame.width
+        guard restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) else { return false }
         UserDefaults.standard.set(currentWidth, forKey: screenWidthKey)
         return true
     }
@@ -817,9 +921,8 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static func hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: NSScreen? = nil) -> Bool {
         guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
         let currentWidth = resolvedReferenceScreen.frame.width
-        let defaults = UserDefaults.standard
-        let mainBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: currentWidth, slot: "main")))
-        let separatorBackup = numericPositionValue(defaults.object(forKey: displayPositionBackupKey(for: currentWidth, slot: "separator")))
+        let mainBackup = displayPositionBackupValue(for: currentWidth, referenceScreen: resolvedReferenceScreen, slot: "main")
+        let separatorBackup = displayPositionBackupValue(for: currentWidth, referenceScreen: resolvedReferenceScreen, slot: "separator")
         return isLaunchSafeDisplayBackup(
             mainBackup: mainBackup,
             separatorBackup: separatorBackup,
@@ -877,15 +980,18 @@ final class StatusBarController: StatusBarControllerProtocol {
             return true
         }
 
-        let defaults = UserDefaults.standard
         if let reanchored = reanchoredPreferredPositionsTowardControlCenter(
             mainPosition: mainPosition,
             separatorPosition: separatorPosition,
             screenWidth: currentWidth,
             screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
         ) {
-            defaults.set(reanchored.main, forKey: displayPositionBackupKey(for: currentWidth, slot: "main"))
-            defaults.set(reanchored.separator, forKey: displayPositionBackupKey(for: currentWidth, slot: "separator"))
+            setDisplayPositionBackup(
+                for: currentWidth,
+                mainPosition: reanchored.main,
+                separatorPosition: reanchored.separator,
+                referenceScreen: resolvedReferenceScreen
+            )
             logger.info(
                 "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
             )
@@ -896,8 +1002,12 @@ final class StatusBarController: StatusBarControllerProtocol {
             screenWidth: currentWidth,
             screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
         ) {
-            defaults.set(recoveryPair.main, forKey: displayPositionBackupKey(for: currentWidth, slot: "main"))
-            defaults.set(recoveryPair.separator, forKey: displayPositionBackupKey(for: currentWidth, slot: "separator"))
+            setDisplayPositionBackup(
+                for: currentWidth,
+                mainPosition: recoveryPair.main,
+                separatorPosition: recoveryPair.separator,
+                referenceScreen: resolvedReferenceScreen
+            )
             logger.info(
                 "Display validation: captured launch-safe current-width backup from clean startup state (main=\(recoveryPair.main, privacy: .public), separator=\(recoveryPair.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
             )
@@ -938,7 +1048,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         let defaults = UserDefaults.standard
         let storedWidth = defaults.double(forKey: screenWidthKey)
 
-        guard let currentWidth = Self.resolvedReferenceScreen(referenceScreen)?.frame.width else { return false }
+        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
+        let currentWidth = resolvedReferenceScreen.frame.width
         let screenCount = max(1, NSScreen.screens.count)
 
         let mainKey = preferredPositionKey(for: mainAutosaveName)
@@ -957,13 +1068,14 @@ final class StatusBarController: StatusBarControllerProtocol {
             saveDisplayPositionBackupIfNeeded(
                 for: currentWidth,
                 mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
+                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
+                referenceScreen: resolvedReferenceScreen
             )
             logger.info("Display validation: first run, stamping screen width \(currentWidth)")
             return false
         }
 
-        if hasOrdinalSeedPositions, restoreDisplayPositionBackupIfAvailable(for: currentWidth) {
+        if hasOrdinalSeedPositions, restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) {
             defaults.set(currentWidth, forKey: screenWidthKey)
             logger.info("Display validation: restored current-width backup over ordinal startup seeds")
             return false
@@ -973,7 +1085,8 @@ final class StatusBarController: StatusBarControllerProtocol {
             saveDisplayPositionBackupIfNeeded(
                 for: currentWidth,
                 mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
+                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
+                referenceScreen: resolvedReferenceScreen
             )
             return false
         }
@@ -987,7 +1100,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
 
         // If we have a known-good layout for this display width, restore it and skip reset.
-        if restoreDisplayPositionBackupIfAvailable(for: currentWidth) {
+        if restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) {
             defaults.set(currentWidth, forKey: screenWidthKey)
             return false
         }
@@ -1321,8 +1434,13 @@ final class StatusBarController: StatusBarControllerProtocol {
         _ = removeAllByHostVisibilityOverrides()
     }
 
-    private nonisolated static func removeDisplayPositionBackup(for width: Double) {
+    private nonisolated static func removeDisplayPositionBackup(
+        for width: Double,
+        referenceScreen: NSScreen? = nil
+    ) {
         let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "main"))
+        defaults.removeObject(forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "separator"))
         defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "main"))
         defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "separator"))
     }

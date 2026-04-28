@@ -380,7 +380,10 @@ extension AccessibilityService {
     }
 
     private nonisolated func isAccessibilityPointOnAnyScreen(_ point: CGPoint) -> Bool {
-        NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(point) }
+        Self.isAccessibilityPointOnAnyScreen(
+            point,
+            screenFrames: NSScreen.screens.map(\.frame)
+        )
     }
 
     private nonisolated func verifyStatusItemReaction(
@@ -452,7 +455,10 @@ extension AccessibilityService {
         }
 
         let center = CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
-        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(center) }
+        return Self.isAccessibilityPointOnAnyScreen(
+            center,
+            screenFrames: NSScreen.screens.map(\.frame)
+        )
     }
 
     // MARK: - Interaction
@@ -567,12 +573,20 @@ extension AccessibilityService {
         return CGPoint(x: location.x, y: globalMaxY - location.y)
     }
 
-    private nonisolated func normalizedCGEventPoint(fromAccessibilityPoint point: CGPoint) -> CGPoint {
+    private nonisolated func normalizedCGEventPoint(
+        fromAccessibilityPoint point: CGPoint,
+        preferredScreenFrame: CGRect? = nil
+    ) -> CGPoint {
         let globalMaxY = NSScreen.screens.map(\.frame.maxY).max() ?? NSScreen.main?.frame.maxY ?? 0
+        let globalPoint = Self.resolvedGlobalAccessibilityPoint(
+            point,
+            screenFrames: NSScreen.screens.map(\.frame),
+            preferredScreenFrame: preferredScreenFrame
+        )
         let rawY = point.y
         let anchorY: CGFloat = 15
         let clampedY = Self.normalizedEventY(rawY: rawY, globalMaxY: globalMaxY, anchorY: anchorY)
-        return CGPoint(x: point.x, y: clampedY)
+        return CGPoint(x: globalPoint.x, y: clampedY)
     }
 
     nonisolated static func cgEventScreenFrame(
@@ -596,9 +610,72 @@ extension AccessibilityService {
         inset: CGFloat = 2
     ) -> Bool {
         screenFrames.contains {
-            cgEventScreenFrame(fromAppKitScreenFrame: $0, globalMaxY: globalMaxY, inset: inset)
-                .contains(point)
+            let appKitFrame = $0.insetBy(dx: -inset, dy: -inset)
+            let cgEventFrame = cgEventScreenFrame(fromAppKitScreenFrame: $0, globalMaxY: globalMaxY, inset: inset)
+            return cgEventFrame.contains(point) || appKitFrame.contains(point)
         }
+    }
+
+    nonisolated static func resolvedGlobalAccessibilityPoint(
+        _ point: CGPoint,
+        screenFrames: [CGRect],
+        preferredScreenFrame: CGRect? = nil,
+        inset: CGFloat = 2
+    ) -> CGPoint {
+        guard !screenFrames.isEmpty else { return point }
+
+        if let preferredScreenFrame {
+            let preferredLocalFrame = CGRect(
+                x: 0,
+                y: 0,
+                width: preferredScreenFrame.width,
+                height: preferredScreenFrame.height
+            ).insetBy(dx: -inset, dy: -inset)
+
+            if preferredLocalFrame.contains(point) {
+                let rebased = CGPoint(x: preferredScreenFrame.minX + point.x, y: point.y)
+                if preferredScreenFrame.insetBy(dx: -inset, dy: -inset).contains(rebased) {
+                    return rebased
+                }
+            }
+
+            if preferredScreenFrame.insetBy(dx: -inset, dy: -inset).contains(point) {
+                return point
+            }
+        }
+
+        if screenFrames.contains(where: { $0.insetBy(dx: -inset, dy: -inset).contains(point) }) {
+            return point
+        }
+
+        let localMatches = screenFrames.compactMap { screenFrame -> CGPoint? in
+            let localFrame = CGRect(
+                x: 0,
+                y: 0,
+                width: screenFrame.width,
+                height: screenFrame.height
+            ).insetBy(dx: -inset, dy: -inset)
+            guard localFrame.contains(point) else { return nil }
+            return CGPoint(x: screenFrame.minX + point.x, y: point.y)
+        }
+
+        guard !localMatches.isEmpty else { return point }
+        return localMatches.min { abs($0.x - point.x) < abs($1.x - point.x) } ?? point
+    }
+
+    nonisolated static func isAccessibilityPointOnAnyScreen(
+        _ point: CGPoint,
+        screenFrames: [CGRect],
+        preferredScreenFrame: CGRect? = nil,
+        inset: CGFloat = 2
+    ) -> Bool {
+        let resolved = resolvedGlobalAccessibilityPoint(
+            point,
+            screenFrames: screenFrames,
+            preferredScreenFrame: preferredScreenFrame,
+            inset: inset
+        )
+        return screenFrames.contains { $0.insetBy(dx: -inset, dy: -inset).contains(resolved) }
     }
 
     nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
@@ -786,7 +863,8 @@ extension AccessibilityService {
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
         eventTap: CGEventTapLocation = .cghidEventTap,
-        originalMouseLocation: CGPoint
+        originalMouseLocation: CGPoint,
+        referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -802,8 +880,14 @@ extension AccessibilityService {
 
         let rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
         let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
-        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
-        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
+        let fromPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawFromPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
+        let toPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawToPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
         return performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
     }
 
@@ -817,7 +901,8 @@ extension AccessibilityService {
         targetMenuExtraID: String? = nil,
         targetStatusItemIndex: Int? = nil,
         placeAfterTarget: Bool,
-        originalMouseLocation: CGPoint
+        originalMouseLocation: CGPoint,
+        referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         guard isTrusted else {
             logger.error("🔧 Accessibility permission not granted")
@@ -846,8 +931,14 @@ extension AccessibilityService {
         let targetX = placeAfterTarget ? (targetFrame.maxX + spacing) : (targetFrame.minX - spacing)
         let rawFromPoint = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
         let rawToPoint = CGPoint(x: targetX, y: targetFrame.midY)
-        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
-        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
+        let fromPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawFromPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
+        let toPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawToPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
         return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
     }
 
@@ -865,7 +956,8 @@ extension AccessibilityService {
         separatorX: CGFloat,
         visibleBoundaryX: CGFloat? = nil,
         eventTap: CGEventTapLocation = .cghidEventTap,
-        originalMouseLocation: CGPoint
+        originalMouseLocation: CGPoint,
+        referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
         let resolvedTargetLane = targetLane ?? (toHidden ? .hidden : .visible)
@@ -890,7 +982,12 @@ extension AccessibilityService {
             ) else {
                 break // icon not found at all
             }
-            if frame.origin.x >= 0 {
+            let center = CGPoint(x: frame.midX, y: frame.midY)
+            if Self.isAccessibilityPointOnAnyScreen(
+                center,
+                screenFrames: NSScreen.screens.map(\.frame),
+                preferredScreenFrame: referenceScreenFrame
+            ) {
                 iconFrame = frame
                 if attempt > 1 {
                     logger.debug("🔧 Icon moved on-screen after \(attempt * 100)ms polling (x=\(frame.origin.x, privacy: .public))")
@@ -925,8 +1022,14 @@ extension AccessibilityService {
         // Normalize both points so drag coordinates stay anchored to the menu bar.
         let rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
         let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
-        let fromPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawFromPoint)
-        let toPoint = normalizedCGEventPoint(fromAccessibilityPoint: rawToPoint)
+        let fromPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawFromPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
+        let toPoint = normalizedCGEventPoint(
+            fromAccessibilityPoint: rawToPoint,
+            preferredScreenFrame: referenceScreenFrame
+        )
 
         if abs(fromPoint.y - rawFromPoint.y) > 2 || abs(toPoint.y - rawToPoint.y) > 2 {
             logger.debug(

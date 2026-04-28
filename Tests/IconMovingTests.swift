@@ -65,12 +65,16 @@ struct IconMovingTargetTests {
     func moveToHiddenTargetIsLeftOfSeparator() {
         let separatorX: CGFloat = 500
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20)
 
-        let targetX = separatorX - moveOffset
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: true,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: nil
+        )
 
         #expect(targetX < separatorX, "Hidden target must be LEFT of separator")
-        #expect(targetX == 458)
+        #expect(targetX == 418)
     }
 
     @Test("Hidden target with AH boundary is right-biased to prevent AH drift")
@@ -101,51 +105,57 @@ struct IconMovingTargetTests {
     func moveToVisibleNoBoundary() {
         let separatorX: CGFloat = 500
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20)
-        let visibleBoundaryX: CGFloat? = nil
 
-        let targetX: CGFloat = if let boundaryX = visibleBoundaryX {
-            min(separatorX + moveOffset, boundaryX - 20)
-        } else {
-            separatorX + moveOffset
-        }
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: nil
+        )
 
         #expect(targetX > separatorX, "Visible target must be RIGHT of separator")
-        #expect(targetX == 542)
+        #expect(targetX == 501)
     }
 
-    @Test("Move to visible WITH boundary: target is clamped")
-    func moveToVisibleWithBoundary() {
+    @Test("Move to visible with a tight boundary overlaps enough for insertion")
+    func moveToVisibleWithTightBoundaryOverlapsForInsertion() {
         let separatorX: CGFloat = 500
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20) // 42
         let visibleBoundaryX: CGFloat = 530 // Main icon left edge
 
-        let targetX = min(separatorX + moveOffset, visibleBoundaryX - 20)
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX
+        )
 
-        // separatorX + moveOffset = 542, but boundary - 20 = 510
-        // min(542, 510) = 510
-        #expect(targetX == 510, "Target must be clamped to stay LEFT of main icon")
-        #expect(targetX < visibleBoundaryX, "Target must not overshoot past SaneBar icon")
+        #expect(abs(targetX - 537.7) < 0.01)
+        #expect(targetX > visibleBoundaryX, "Tight layouts intentionally overlap the SaneBar icon to trigger insertion")
     }
 
-    @Test("REGRESSION: Boundary clamping prevents icon overshooting past SaneBar icon")
-    func boundaryClamping() {
-        // This was the original Bug 6 from the audit — visibleBoundaryX being "unused"
-        // In fact it WAS being used correctly. The audit was wrong.
+    @Test("REGRESSION: Visible boundary changes the production target")
+    func visibleBoundaryAffectsTarget() {
         let separatorX: CGFloat = 800
         let mainIconLeftEdge: CGFloat = 850 // SaneBar icon starts here
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20) // 42
 
-        // Without clamping: separatorX + 42 = 842 → past mainIconLeftEdge - 20 = 830
-        let unclamped = separatorX + moveOffset
-        #expect(unclamped > mainIconLeftEdge - 20, "Without clamping, icon would overshoot")
+        let withoutBoundary = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: nil
+        )
+        let withBoundary = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        // With clamping: min(842, 830) = 830
-        let clamped = min(separatorX + moveOffset, mainIconLeftEdge - 20)
-        #expect(clamped == 830)
-        #expect(clamped < mainIconLeftEdge, "Clamped target stays LEFT of main icon")
+        #expect(withoutBoundary == separatorX + 1)
+        #expect(withBoundary > withoutBoundary)
+        #expect(withBoundary > separatorX)
     }
 
     @Test("Boundary clamping with wide gap between separator and main icon")
@@ -153,26 +163,32 @@ struct IconMovingTargetTests {
         let separatorX: CGFloat = 500
         let mainIconLeftEdge: CGFloat = 900 // Lots of room
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20) // 42
 
-        let targetX = min(separatorX + moveOffset, mainIconLeftEdge - 20)
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        // 542 < 880, so clamping doesn't activate
         #expect(targetX == 542, "Wide gap: offset is used directly (no clamping needed)")
     }
 
-    @Test("Boundary clamping with separator and main icon very close")
-    func boundaryClampingTightGap() {
+    @Test("Visible target overlaps boundary when separator and main icon are very close")
+    func visibleTargetOverlapsTightGap() {
         let separatorX: CGFloat = 800
         let mainIconLeftEdge: CGFloat = 810 // Only 10px gap!
         let iconWidth: CGFloat = 22
-        let moveOffset = max(30, iconWidth + 20) // 42
 
-        let targetX = min(separatorX + moveOffset, mainIconLeftEdge - 20)
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        // 842 vs 790 → clamped to 790
-        #expect(targetX == 790, "Tight gap: must clamp aggressively")
-        #expect(targetX < mainIconLeftEdge)
+        #expect(abs(targetX - 817.7) < 0.01)
+        #expect(targetX > mainIconLeftEdge)
     }
 
     @Test("Wide-icon hidden guard blocks when lane is narrower than icon width + padding")
@@ -1339,9 +1355,21 @@ struct IconMovingSeparatorCacheCoherencyTests {
         let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: true,
-            hasPreciseIdentity: true
+            hasPreciseIdentity: true,
+            hasLiveSeparatorAnchor: true
         )
         #expect(allowed)
+    }
+
+    @Test("Visible cached move target stays blocked while separator anchor is estimated")
+    func rejectsCachedVisibleMoveTargetWithoutLiveSeparatorAnchor() {
+        let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            visibleBoundaryX: 1699,
+            sourceFrameIsOnScreen: true,
+            hasPreciseIdentity: true,
+            hasLiveSeparatorAnchor: false
+        )
+        #expect(allowed == false)
     }
 
     @Test("Visible cached move target stays blocked for coarse source identity")
@@ -1349,7 +1377,8 @@ struct IconMovingSeparatorCacheCoherencyTests {
         let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: true,
-            hasPreciseIdentity: false
+            hasPreciseIdentity: false,
+            hasLiveSeparatorAnchor: true
         )
         #expect(allowed == false)
     }
@@ -1359,7 +1388,8 @@ struct IconMovingSeparatorCacheCoherencyTests {
         let allowed = MenuBarManager.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: false,
-            hasPreciseIdentity: true
+            hasPreciseIdentity: true,
+            hasLiveSeparatorAnchor: true
         )
         #expect(allowed == false)
     }

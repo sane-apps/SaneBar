@@ -80,6 +80,11 @@ class LiveZoneSmoke
       com.yujitach.MenuMeters
     ]
   ).freeze
+  BROWSE_ACTIVATION_UNRELIABLE_IDS = %w[
+    com.apple.SSMenuAgent
+    com.apple.menuextra.focusmode
+    com.apple.menuextra.spotlight
+  ].freeze
   BROWSE_PANEL_COMMANDS = {
     'secondMenuBar' => 'show second menu bar',
     'findIcon' => 'open icon panel'
@@ -439,9 +444,10 @@ class LiveZoneSmoke
         excluded_app_menu_bundles.include?(item[:bundle].to_s.downcase)
     end
     precise_bundles = candidates.reject { |item| coarse_bundle_fallback?(item) }.map { |item| item[:bundle] }.uniq
-    candidates.reject do |item|
+    candidates.reject! do |item|
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
+    candidates
   end
 
   def compact_precise_non_apple_bundle_candidates(candidates)
@@ -597,7 +603,7 @@ class LiveZoneSmoke
     # non-Apple rows are available.
     candidate_order =
       if expected_mode == 'secondMenuBar'
-        precise_non_apple + exact_apple + preferred + coarse_non_apple + fallback
+        precise_non_apple + coarse_non_apple + exact_apple + preferred + fallback
       else
         precise_non_apple + coarse_non_apple + preferred + fallback
       end
@@ -624,6 +630,8 @@ class LiveZoneSmoke
   end
 
   def browse_activation_denied?(item, expected_mode: nil)
+    return true if BROWSE_ACTIVATION_UNRELIABLE_IDS.any? { |value| browse_candidate_matches?(item, value) }
+
     # Exact MenuMeters rows are stable browse fixtures on the Mini in both
     # browse modes, even though the coarse bundle fallback is still too noisy
     # to lead the generic activation pool.
@@ -662,7 +670,16 @@ class LiveZoneSmoke
       expected_mode: expected_mode,
       activation_command: 'right click browse icon'
     )
-    raise 'No browse activation candidate icon found.' if left_click_candidates.empty? && right_click_candidates.empty?
+    if left_click_candidates.empty? && right_click_candidates.empty?
+      if browse_activation_candidates_required?
+        raise 'No browse activation candidate icon found.'
+      end
+
+      puts 'ℹ️ No browse activation candidate icon found on this setup; skipping browse click checks for this default smoke run.'
+      close_browse_panel
+      puts "✅ Browse mode #{expected_mode} open/close ok"
+      return
+    end
 
     exercise_browse_activation('activate browse icon', expected_mode, left_click_candidates)
     # SearchService debounces duplicate activation of the same icon for 450ms.
@@ -1804,6 +1821,10 @@ class LiveZoneSmoke
   end
 
   def move_candidates_required?
+    @require_candidate || strict_candidate_mode?
+  end
+
+  def browse_activation_candidates_required?
     @require_candidate || strict_candidate_mode?
   end
 

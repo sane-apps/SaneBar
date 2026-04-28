@@ -85,9 +85,9 @@ struct SettingsControllerTests {
         #expect(capture.settings?.spacerCount == 3)
     }
 
-    @Test("saveQuietly() does not throw on error")
+    @Test("saveQuietly() keeps in-memory settings when persistence fails")
     @MainActor
-    func testSaveQuietlyDoesNotThrow() {
+    func testSaveQuietlyKeepsInMemorySettingsWhenPersistenceFails() {
         let mockPersistence = PersistenceServiceProtocolMock()
         mockPersistence.saveSettingsHandler = { _ in throw PersistenceError.profileNotFound }
         mockPersistence.loadSettingsHandler = { return SaneBarSettings() } // Required for init
@@ -95,10 +95,9 @@ struct SettingsControllerTests {
         let controller = SettingsController(persistence: mockPersistence)
         controller.settings.autoRehide = false
 
-        // Should not throw
         controller.saveQuietly()
 
-        #expect(true, "saveQuietly should not throw even on error")
+        #expect(controller.settings.autoRehide == false)
     }
 
     // MARK: - Update Tests
@@ -160,23 +159,6 @@ struct SettingsControllerTests {
 
         #expect(receivedSettings.count >= 2, "Should receive updated value")
         #expect(receivedSettings.last?.autoRehide == false)
-    }
-
-    // MARK: - Protocol Conformance Tests
-
-    @Test("SettingsController conforms to SettingsControllerProtocol")
-    @MainActor
-    func testProtocolConformance() {
-        let mockPersistence = PersistenceServiceProtocolMock()
-        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
-        
-        let controller: any SettingsControllerProtocol = SettingsController(persistence: mockPersistence)
-
-        // Protocol requires these
-        _ = controller.settings
-        _ = controller.settingsPublisher
-
-        #expect(true, "Should conform to protocol")
     }
 
     // MARK: - Dock Icon Setting Tests

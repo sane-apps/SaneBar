@@ -170,20 +170,6 @@ struct HoverServiceTests {
         #expect(service.scrollEnabled == false)
     }
 
-    @Test("stop() is safe to call multiple times")
-    func testStopMultipleTimes() {
-        let service = HoverService()
-        service.isEnabled = true
-        service.start()
-
-        // Stop multiple times - should not crash
-        service.stop()
-        service.stop()
-        service.stop()
-
-        #expect(true, "Multiple stop() calls should not crash")
-    }
-
     @Test("stop() resets internal mouse state")
     func testStopResetsState() {
         let service = HoverService()
@@ -223,21 +209,6 @@ struct HoverServiceTests {
         #expect(hoverReason != clickReason)
         #expect(clickReason != userDragReason)
         #expect(hoverReason != userDragReason)
-    }
-
-    // MARK: - Protocol Conformance Tests
-
-    @Test("HoverService conforms to HoverServiceProtocol")
-    func testProtocolConformance() {
-        let service: HoverServiceProtocol = HoverService()
-
-        // Protocol requires these properties/methods
-        _ = service.isEnabled
-        _ = service.scrollEnabled
-        service.start()
-        service.stop()
-
-        #expect(true, "HoverService should conform to protocol")
     }
 
     // MARK: - Mock Tests

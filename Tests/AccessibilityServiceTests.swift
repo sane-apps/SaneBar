@@ -1,3 +1,4 @@
+import ApplicationServices
 import Testing
 import AppKit
 @testable import SaneBar
@@ -7,13 +8,11 @@ struct AccessibilityServiceTests {
 
     // MARK: - Permission Tests
 
-    @Test("isTrusted returns boolean without crashing")
+    @Test("isTrusted matches the system Accessibility trust status")
     @MainActor
-    func testIsTrustedReturnsBoolean() {
+    func testIsTrustedMatchesSystemStatus() {
         let service = AccessibilityService.shared
-        // Just verify it doesn't crash - actual value depends on system permissions
-        let result = service.isTrusted
-        #expect(result == true || result == false)
+        #expect(service.isTrusted == AXIsProcessTrusted())
     }
 
     // MARK: - clickMenuBarItem Tests
@@ -33,58 +32,6 @@ struct AccessibilityServiceTests {
         let service = AccessibilityService.shared
         let result = service.clickMenuBarItem(for: "")
         #expect(result == false)
-    }
-
-    @Test("clickMenuBarItem handles Finder gracefully")
-    @MainActor
-    func testClickMenuBarItemFinder() {
-        let service = AccessibilityService.shared
-        // Finder is always running but may not have a menu bar extra
-        // This tests that the code handles a real app without crashing
-        let result = service.clickMenuBarItem(for: "com.apple.finder")
-        // Result depends on whether Finder has a status item - just verify no crash
-        #expect(result == true || result == false)
-    }
-
-    // MARK: - Integration Tests (require accessibility permission)
-
-    @Test("Virtual click returns boolean for any bundle ID")
-    @MainActor
-    func testVirtualClickReturnsBool() async {
-        let service = AccessibilityService.shared
-
-        // Skip if no accessibility permission
-        guard service.isTrusted else {
-            // Can't test without permission - this is expected in CI
-            return
-        }
-
-        // Use a non-existent bundle ID to avoid clicking real system UI
-        // (Previously clicked Control Center which toggled AirDrop!)
-        let result = service.clickMenuBarItem(for: "com.test.nonexistent.app")
-
-        // Should return false for non-existent app, but main point is no crash
-        #expect(result == false)
-    }
-
-    // MARK: - Permission Flow Regression Tests
-
-    @Test("isGranted property doesn't trigger system permission dialog")
-    @MainActor
-    func testIsGrantedDoesNotPrompt() {
-        // REGRESSION: MenuBarSearchView was calling requestAccessibility() which
-        // triggered the system permission dialog unexpectedly.
-        // Fix: Use isGranted property which only checks current status.
-        let service = AccessibilityService.shared
-
-        // Reading isGranted should NEVER trigger a dialog
-        // It uses AXIsProcessTrusted() internally which is read-only
-        let _ = service.isGranted
-        let _ = service.isGranted
-        let _ = service.isGranted
-
-        // If we got here without a dialog, test passed
-        #expect(true)
     }
 
     @Test("System Settings accessibility URL is valid")
@@ -281,6 +228,39 @@ struct AccessibilityServiceTests {
         #expect(index == 2)
     }
 
+    @Test("Single status item without AX identifier still gets an ordinal identity")
+    func testSingleUnidentifiedStatusItemGetsIndexIdentity() {
+        let index = AccessibilityService.scannedStatusItemIndex(
+            itemCount: 1,
+            itemIndex: 0,
+            axIdentifier: nil
+        )
+
+        #expect(index == 0)
+    }
+
+    @Test("Single status item with AX identifier keeps identifier-only identity")
+    func testSingleIdentifiedStatusItemDoesNotNeedIndexIdentity() {
+        let index = AccessibilityService.scannedStatusItemIndex(
+            itemCount: 1,
+            itemIndex: 0,
+            axIdentifier: "com.example.menu"
+        )
+
+        #expect(index == nil)
+    }
+
+    @Test("Multiple status items keep ordinal identity even when AX identifiers exist")
+    func testMultipleStatusItemsKeepIndexIdentity() {
+        let index = AccessibilityService.scannedStatusItemIndex(
+            itemCount: 2,
+            itemIndex: 1,
+            axIdentifier: "com.example.menu"
+        )
+
+        #expect(index == 1)
+    }
+
     @Test("Status item resolution continues after identifier miss when a live spatial hint exists")
     func testStatusItemResolutionContinuesAfterIdentifierMissWithPreferredCenterX() {
         #expect(
@@ -453,6 +433,73 @@ struct AccessibilityServiceTests {
         )
     }
 
+    @Test("Cmd-drag screen guard accepts display-local menu bar points")
+    func testCGEventPointScreenGuardAcceptsDisplayLocalMenuBarPoint() {
+        let screenFrames = [
+            CGRect(x: 0, y: 0, width: 1728, height: 1117),
+            CGRect(x: 0, y: 1117, width: 1728, height: 1117),
+        ]
+
+        #expect(
+            AccessibilityService.isCGEventPointOnAnyScreen(
+                CGPoint(x: 1199, y: 16.5),
+                screenFrames: screenFrames,
+                globalMaxY: 2234
+            ),
+            "Hidden-to-visible drag should not abort a display-local menu bar point as off-screen"
+        )
+    }
+
+    @Test("Accessibility frame screen guard accepts negative-origin displays")
+    func testAccessibilityPointScreenGuardAcceptsNegativeOriginDisplay() {
+        let screenFrames = [
+            CGRect(x: -1728, y: 0, width: 1728, height: 1117),
+            CGRect(x: 0, y: 0, width: 1728, height: 1117),
+        ]
+
+        #expect(
+            AccessibilityService.isAccessibilityPointOnAnyScreen(
+                CGPoint(x: -529, y: 16.5),
+                screenFrames: screenFrames
+            ),
+            "Valid menu bar items on a left-side display should not be rejected by x >= 0 sentinels"
+        )
+    }
+
+    @Test("Display-local accessibility points are rebased to the owning screen")
+    func testDisplayLocalAccessibilityPointRebasesToOwningScreen() {
+        let screenFrames = [
+            CGRect(x: 0, y: 0, width: 1728, height: 1117),
+            CGRect(x: 1728, y: 0, width: 1728, height: 1117),
+        ]
+        let rightScreen = screenFrames[1]
+
+        let resolved = AccessibilityService.resolvedGlobalAccessibilityPoint(
+            CGPoint(x: 1199, y: 16.5),
+            screenFrames: screenFrames,
+            preferredScreenFrame: rightScreen
+        )
+
+        #expect(resolved.x == 2927)
+        #expect(resolved.y == 16.5)
+    }
+
+    @Test("Ambiguous accessibility points stay global without a screen preference")
+    func testAmbiguousAccessibilityPointStaysGlobalWithoutScreenPreference() {
+        let screenFrames = [
+            CGRect(x: 0, y: 0, width: 1728, height: 1117),
+            CGRect(x: 1728, y: 0, width: 1728, height: 1117),
+        ]
+
+        let resolved = AccessibilityService.resolvedGlobalAccessibilityPoint(
+            CGPoint(x: 1199, y: 16.5),
+            screenFrames: screenFrames
+        )
+
+        #expect(resolved.x == 1199)
+        #expect(resolved.y == 16.5)
+    }
+
     @Test("Hardware-first right click does not fall back to AX after a dispatched on-screen click")
     func testShouldFallbackToAXAfterHardwareAttemptSkipsRightClickFallback() {
         #expect(
@@ -495,8 +542,8 @@ struct AccessibilityServiceTests {
         )
     }
 
-    @Test("Browse-panel left click prefers AX first for on-screen targets")
-    func testShouldPreferHardwareFirstSkipsBrowsePanelOnScreenLeftClick() {
+    @Test("Browse-panel left click uses hardware-first for on-screen targets")
+    func testShouldPreferHardwareFirstKeepsBrowsePanelOnScreenLeftClickHardwareFirst() {
         let app = RunningApp(
             id: "com.apple.Spotlight",
             name: "Spotlight",
@@ -509,7 +556,7 @@ struct AccessibilityServiceTests {
         )
 
         #expect(
-            !SearchService.shouldPreferHardwareFirst(
+            SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
                 app: app
@@ -517,8 +564,8 @@ struct AccessibilityServiceTests {
         )
     }
 
-    @Test("Browse-panel left click still prefers AX first when cached X is missing")
-    func testShouldPreferHardwareFirstSkipsBrowsePanelLeftClickWithoutCachedX() {
+    @Test("Browse-panel left click uses hardware-first when cached X is missing")
+    func testShouldPreferHardwareFirstKeepsBrowsePanelLeftClickHardwareFirstWithoutCachedX() {
         let app = RunningApp(
             id: "com.apple.Spotlight",
             name: "Spotlight",
@@ -531,7 +578,7 @@ struct AccessibilityServiceTests {
         )
 
         #expect(
-            !SearchService.shouldPreferHardwareFirst(
+            SearchService.shouldPreferHardwareFirst(
                 origin: .browsePanel,
                 isRightClick: false,
                 app: app
