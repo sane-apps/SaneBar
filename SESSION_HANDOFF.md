@@ -1,11 +1,18 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-04-28
-**Current public release:** `v2.1.45` (build `2145`)
+**Current public release:** `v2.1.46` (build `2146`)
 
 ## Current State
 
-- 2026-04-28 audit/test/root-cause cleanup pass is complete locally, not released or committed yet:
+- `v2.1.46` shipped successfully on 2026-04-28.
+  - direct ZIP is live: `https://dist.sanebar.com/updates/SaneBar-2.1.46.zip`
+  - appcast latest item is `2.1.46` / build `2146`
+  - GitHub release `v2.1.46` is public with asset SHA256 `61d06a4be733657ac3cb9fba1950aa18bb614fb81c9cca132e881d30a2891ea7`
+  - Homebrew cask is live at `2.1.46`
+  - website/download page and email webhook now serve `SaneBar-2.1.46.zip`
+  - post-release strict checks passed for download URL, appcast propagation, checkout redirect, source version, website JSON-LD, Homebrew, and email webhook
+- 2026-04-28 audit/test/root-cause cleanup pass shipped in `v2.1.46`:
   - removed low-signal placeholder/source-shape/no-crash test files: `SaneBarTests.swift`, `TriggerServiceTests.swift`, `RunningAppTests.swift`, and `NetworkTriggerServiceTests.swift`
   - removed remaining tautological assertions from active Swift tests and converted the highest-risk `IconMovingTests` target cases to call production `AccessibilityService.moveTargetX(...)`
   - fixed the `#138`-shaped coordinate path by passing the status-item screen frame into drag normalization, so ambiguous display-local AX points can be rebased to the owning display instead of being treated as the primary display
@@ -26,14 +33,16 @@
   - Ruby syntax checks passed for `Scripts/qa.rb`, `Scripts/qa_test.rb`, `Scripts/live_zone_smoke.rb`, and `Scripts/live_zone_smoke_test.rb`
   - Mini-routed `./scripts/SaneMaster.rb test_scan` passed with no anti-patterns detected
   - Mini-routed `./scripts/SaneMaster.rb verify --timeout 900` passed after the final hardening, latest pass: 1,084 tests
-  - Mini-routed `./scripts/SaneMaster.rb release_preflight` now exits green with warnings only: dirty worktree, 4 classified open issues, 1 pending replied email, and evening release timing
+  - Mini-routed `./scripts/SaneMaster.rb release_preflight` exited green with warnings only before release: 4 classified open issues, 1 pending email, and evening release timing
+  - Mini release run completed build, export, code signing, notarization, stapling, GitHub release, R2 upload, appcast update, website deploy, Homebrew update, email webhook deploy, and strict post-release checks
   - the open-regression GitHub gate now passes because the current issues have explicit release dispositions rather than being closed early for confirmation
-  - `check-inbox.sh check` shows 0 email action items, and `check-inbox.sh healthcheck` passes; release preflight still warns about 1 pending item, which is replied thread `#633` and can be resolved with approval
+  - `check-inbox.sh check` shows 0 email action items, and `check-inbox.sh healthcheck` passes; `#633` remains open because the resolve guard found no human reply evidence, so do not force-resolve it without explicit approval
 - Open GitHub issue state from the same refresh:
   - `#138` hidden-to-visible drag failure: `release:patched-pending`
   - `#137` BoringNotch interaction/performance report: `release:compat-limited`
   - `#136` arrangement bug: `release:patched-pending`
   - `#129` lost icon after dragging icon/divider out of menu bar: `release:patched-pending`
+  - no post-release GitHub comments were posted in this run; draft/review exact public comments before changing issue state
 - Additional GitHub audit finding:
   - closed issue `#133` has fresh April 23 reporter evidence that the invisible status-item / FrontBoard reconnect-loop reproduces on macOS `26.4.1 (25E253)` with `2.1.43`; it is labelled `release:compat-limited`, so it no longer blocks the patch, but release notes must not claim the FrontBoard loop is fixed
   - `Scripts/qa.rb` now has a post-closure negative-evidence guard so this class of closed-but-reported-still-broken issue blocks release preflight unless explicitly classified
@@ -62,9 +71,10 @@
   - `RuntimeGuardXCTests.swift` is still very large and still contains source-string guardrails; it is not fully converted to case-shaped behavioral regression fixtures
   - `TriggerService.swift` and `NetworkTriggerService.swift` no longer have direct behavioral tests after deleting the old low-signal files; persistence coverage remains, but trigger matching/restart behavior needs focused tests before broad feature work there
   - BoringNotch `2.7.3` was installed/run on the Mini for a focused probe. Standard Apple exact-ID smoke passed while BoringNotch was running, and SaneBar still discovers BoringNotch's optional `MenuBarExtra`; its primary notch UI is a custom top-edge panel, so issue `#137` remains compatibility-limited rather than a normal movable-item bug
-  - no release has been prepared; current tree is technically stronger and release-preflight green with warnings, but the patch still needs user approval before version bump/release work
+  - future hardening should add stronger runtime probes for display-topology churn, corrupted currentHost/startup loops, and overlay compatibility; current coverage is stronger but still too dependent on unit/static guardrails for those edge cases
+  - Mini SaneBar worktrees were pruned after release; only the canonical Mini checkout remains. The Mini `sane-email-automation` checkout was fast-forwarded to `bd873f7`; an unrelated dirty temp worktree remains at `/Users/stephansmac/tmp/pricing-rollout-verify/infra/sane-email-automation` and was intentionally not removed.
 - Use `CHANGELOG.md` for release history and GitHub for live issue state.
-- `v2.1.45` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email/download worker.
+- `v2.1.46` is live on direct ZIP, appcast, website/download page, GitHub release, Homebrew, and the email/download worker.
 - 2026-04-24 `2.1.45` post-release proof:
   - live ZIP: `https://dist.sanebar.com/updates/SaneBar-2.1.45.zip`
   - appcast latest item: `2.1.45` / build `2145`

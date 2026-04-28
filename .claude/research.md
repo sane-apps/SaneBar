@@ -2,10 +2,17 @@
 
 ## 2026-04-28 17:56 ET root-cause release-readiness audit and final gate
 
-**Updated:** 2026-04-28 17:56 ET | **Status:** verified release-preflight green with warnings | **TTL:** 7d
+**Updated:** 2026-04-28 18:35 ET | **Status:** verified release deployed | **TTL:** 7d
 **Source:** GitHub issue reviews for `#138`, `#137`, `#136`, `#129`, and closed `#133`; read-only GPT release-blocker/test-quality audits; local code audit; local `ruby Scripts/qa_test.rb`; local `ruby Scripts/live_zone_smoke_test.rb`; Mini `./scripts/SaneMaster.rb verify --timeout 900`; Mini `./scripts/SaneMaster.rb release_preflight`; live GitHub blocker-gate check after release-disposition labels; `check-inbox.sh check`; `check-inbox.sh healthcheck`; BoringNotch source research from `TheBoredTeam/boring.notch`; OSS cross-reference against Ice, Thaw, Stats, Maccy, Hidden Bar, Vanilla, Dozer, OnlySwitch, and SketchyBar.
 
 ### Verified Findings
+
+0. Post-release update: `v2.1.46` is live.
+   - Mini `release.sh --full --version 2.1.46 --deploy` completed build, export, code signing, notarization, stapling, GitHub release, R2 upload, appcast update, website deploy, Homebrew update, email webhook deploy, and strict post-release checks.
+   - Live ZIP is `https://dist.sanebar.com/updates/SaneBar-2.1.46.zip`; appcast top entry is `2.1.46` / build `2146`; GitHub release `v2.1.46` is public; Homebrew cask is `2.1.46`.
+   - SHA256 for the shipped ZIP is `61d06a4be733657ac3cb9fba1950aa18bb614fb81c9cca132e881d30a2891ea7`.
+   - Open GitHub issues remain classified for field confirmation: `#138`, `#136`, and `#129` as `release:patched-pending`; `#137` and closed `#133` as `release:compat-limited`.
+   - Do not claim the `#133` FrontBoard reconnect loop is fixed; this release improves adjacent diagnostics/recovery and keeps the issue compatibility-limited.
 
 1. The latest customer evidence is a real SaneBar bug family, not just user misunderstanding of Apple limits.
    - Apple does not expose a public API to reorder or repair arbitrary third-party menu extras, so SaneBar cannot promise universal control.
