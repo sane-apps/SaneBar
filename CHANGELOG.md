@@ -9,8 +9,8 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 ## [2.1.46] - 2026-04-28
 
 Improves hidden-to-visible drag reliability on multi-display setups.
-Hardens startup, wake, and display-change recovery when menu bar items attach slowly or saved positions drift.
-Adds clearer diagnostics for macOS menu bar visibility and compatibility-limited menu bar edge cases.
+Improves startup, wake, and display-change recovery when menu bar items attach slowly or saved positions drift.
+Adds clearer diagnostics for macOS menu bar visibility edge cases.
 
 ---
 
