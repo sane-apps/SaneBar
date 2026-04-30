@@ -813,20 +813,11 @@ extension AccessibilityService {
 
         case .visible:
             if let boundary = visibleBoundaryX {
-            // Visible moves usually want a short hop right of the separator.
-            // On tight notch layouts there may be no room between the separator
-            // and the SaneBar icon, so hugging `boundary - 2` leaves wide icons
-            // with their midpoint still hidden. In that case intentionally
-            // overlap a little into the SaneBar icon so macOS inserts the icon
-            // into the visible zone and pushes SaneBar right.
-            let preferredVisibleX = max(separatorX + 1, separatorX + moveOffset)
-            let inlineVisibleLimit = boundary - 2
-            if preferredVisibleX <= inlineVisibleLimit {
-                return preferredVisibleX
-            }
-
-            let insertionOverlap = max(6, min(18, iconWidth * 0.35))
-            return max(separatorX + 1, boundary + insertionOverlap)
+                // Visible moves belong in the lane between the divider and the
+                // SaneBar icon. Keep the target inside that lane; dragging to the
+                // right of SaneBar is visually wrong and can look like the repair
+                // tool is moving items into the system/control area.
+                return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))
             }
 
             return separatorX + 1

@@ -117,8 +117,8 @@ struct IconMovingTargetTests {
         #expect(targetX == 501)
     }
 
-    @Test("Move to visible with a tight boundary overlaps enough for insertion")
-    func moveToVisibleWithTightBoundaryOverlapsForInsertion() {
+    @Test("Move to visible with a tight boundary stays inside visible lane")
+    func moveToVisibleWithTightBoundaryStaysInsideVisibleLane() {
         let separatorX: CGFloat = 500
         let iconWidth: CGFloat = 22
         let visibleBoundaryX: CGFloat = 530 // Main icon left edge
@@ -130,8 +130,9 @@ struct IconMovingTargetTests {
             visibleBoundaryX: visibleBoundaryX
         )
 
-        #expect(abs(targetX - 537.7) < 0.01)
-        #expect(targetX > visibleBoundaryX, "Tight layouts intentionally overlap the SaneBar icon to trigger insertion")
+        #expect(targetX == 528)
+        #expect(targetX > separatorX, "Visible target must be RIGHT of separator")
+        #expect(targetX < visibleBoundaryX, "Visible target must stay LEFT of SaneBar icon")
     }
 
     @Test("REGRESSION: Visible boundary changes the production target")
@@ -174,8 +175,8 @@ struct IconMovingTargetTests {
         #expect(targetX == 542, "Wide gap: offset is used directly (no clamping needed)")
     }
 
-    @Test("Visible target overlaps boundary when separator and main icon are very close")
-    func visibleTargetOverlapsTightGap() {
+    @Test("Visible target stays left of boundary when separator and main icon are very close")
+    func visibleTargetStaysLeftOfTightBoundary() {
         let separatorX: CGFloat = 800
         let mainIconLeftEdge: CGFloat = 810 // Only 10px gap!
         let iconWidth: CGFloat = 22
@@ -187,8 +188,9 @@ struct IconMovingTargetTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(abs(targetX - 817.7) < 0.01)
-        #expect(targetX > mainIconLeftEdge)
+        #expect(targetX == 808)
+        #expect(targetX > separatorX)
+        #expect(targetX < mainIconLeftEdge)
     }
 
     @Test("Wide-icon hidden guard blocks when lane is narrower than icon width + padding")
@@ -1155,12 +1157,10 @@ struct MoveToVisibleRegressionTests {
             // NEW: max(separatorX + 1, min(separatorX + moveOffset, boundaryX - 2))
             let newTarget = max(scenario.sep + 1, min(scenario.sep + moveOffset, scenario.boundary - 2))
 
-            // When flush (sep == boundary), formula intentionally targets sep+1;
-            // macOS auto-adjusts by pushing items apart
             if scenario.sep == scenario.boundary {
-                #expect(newTarget == scenario.boundary + 1, "Flush: targets 1px past boundary for macOS auto-adjust (\(scenario.name))")
+                #expect(newTarget == scenario.sep + 1, "Flush: use the minimum right-of-separator target (\(scenario.name))")
             } else {
-                #expect(newTarget <= scenario.boundary, "New formula never overshoots boundary (\(scenario.name))")
+                #expect(newTarget <= scenario.boundary, "New formula never targets right of the SaneBar icon (\(scenario.name))")
                 #expect(newTarget <= oldTarget + 20, "New formula avoids oversized jumps in wide gaps (\(scenario.name))")
             }
             #expect(newTarget > scenario.sep, "New formula always right of separator (\(scenario.name))")

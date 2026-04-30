@@ -1003,8 +1003,7 @@ class ProjectQA
     puts "   ↳ #{lane_name} smoke after relaunch: #{exact_ids.join(', ')}"
     focused_env = smoke_env.merge(
       'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(','),
-      'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1',
-      'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'
+      'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'
     )
     focused_outputs = []
     focused_attempt = 0

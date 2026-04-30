@@ -313,6 +313,13 @@ end
     assert_includes source, "lane_name: 'host exact-id'"
   end
 
+  def test_focused_runtime_smoke_preserves_screenshot_setting
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, "'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'"
+    refute_includes source, "'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'"
+  end
+
   def test_runtime_smoke_status_snapshot_records_all_exact_id_lanes
     source = File.read(File.join(__dir__, 'qa.rb'))
 
