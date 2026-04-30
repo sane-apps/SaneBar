@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.47] - 2026-04-30
+
+Adds a first-run Health wizard and layout rescue tools, improves Bartender import with preview, makes Basic and Pro settings clearer, and improves menu bar layout recovery after launch, wake, display changes, and upgrades.
+
+---
+
 ## [2.1.46] - 2026-04-28
 
 Makes SaneBar more reliable when moving hidden icons, waking your Mac, or switching displays.
