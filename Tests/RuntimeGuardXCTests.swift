@@ -219,24 +219,25 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testVisibleMoveTargetUsesInsertionOverlapInFlushLayout() {
+    func testVisibleMoveTargetUsesMinimumRightOfSeparatorInFlushLayout() {
         let target = AccessibilityService.moveTargetX(
             toHidden: false,
             iconWidth: 16,
             separatorX: 1663,
             visibleBoundaryX: 1663
         )
-        XCTAssertEqual(target, 1669, accuracy: 0.001)
+        XCTAssertEqual(target, 1664, accuracy: 0.001)
     }
 
-    func testVisibleMoveTargetUsesInsertionOverlapForWideIconInTightGap() {
+    func testVisibleMoveTargetStaysInsideTightVisibleLane() {
         let target = AccessibilityService.moveTargetX(
             toHidden: false,
             iconWidth: 40,
             separatorX: 1249,
             visibleBoundaryX: 1251
         )
-        XCTAssertEqual(target, 1265, accuracy: 0.001)
+        XCTAssertEqual(target, 1250, accuracy: 0.001)
+        XCTAssertLessThan(target, 1251)
     }
 
     func testAlwaysHiddenMoveTargetUsesSeparatorAdjacentInsertion() throws {
@@ -267,12 +268,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Move verification should reject stale-boundary false positives when visible moves drift left"
         )
         XCTAssertTrue(
-            source.contains("let insertionOverlap = max(6, min(18, iconWidth * 0.35))"),
-            "Visible move targeting should deliberately overlap SaneBar a little on tight layouts so wide icons actually cross into the visible zone"
-        )
-        XCTAssertTrue(
-            source.contains("return max(separatorX + 1, boundary + insertionOverlap)"),
-            "Visible move targeting should use insertion overlap instead of boundary-hugging targets when there is no inline space"
+            source.contains("return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))"),
+            "Visible move targeting should stay between the divider and SaneBar icon instead of overshooting into the system area"
         )
     }
 
