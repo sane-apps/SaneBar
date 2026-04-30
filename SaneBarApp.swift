@@ -1,4 +1,5 @@
 import AppKit
+import AppIntents
 import KeyboardShortcuts
 import os.log
 import SaneUI
@@ -6,6 +7,11 @@ import SaneUI
 import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
+
+private enum SaneBarSettingsWindowMetrics {
+    static let idealWidth: CGFloat = 600
+    static let idealHeight: CGFloat = 560
+}
 
 // MARK: - AppDelegate
 
@@ -35,6 +41,9 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            SaneBarAppShortcuts.updateAppShortcutParameters()
+        }
 
         // Keep the menu bar process alive across idle periods.
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(
@@ -258,9 +267,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                         return
                     }
                 }
+                _ = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
                 SearchWindowController.shared.show(mode: .findIcon, prefill: searchQuery)
             case "settings":
                 SettingsOpener.open()
+            case "health", "repair":
+                SettingsOpener.open(tab: .health)
             default:
                 appLogger.log("🌐 Unknown URL command: \(command, privacy: .public)")
             }
@@ -275,13 +287,21 @@ enum SettingsOpener {
     @MainActor private static var settingsWindow: NSWindow?
     @MainActor private static var windowDelegate: SettingsWindowDelegate?
 
-    @MainActor static func open() {
+    @MainActor static func open(tab: SettingsView.SettingsTab? = nil) {
         // DON'T force .regular here - respect the user's showDockIcon setting
         // An .accessory app CAN have visible windows (the dock icon just won't show)
         // This fixes the bug where dock icon appears when Settings opens despite setting being OFF
         NSApp.activate()
 
-        let window = settingsWindow ?? makeWindow()
+        let window: NSWindow
+        if let existingWindow = settingsWindow {
+            if let tab {
+                existingWindow.contentViewController = NSHostingController(rootView: SettingsView(defaultTab: tab))
+            }
+            window = existingWindow
+        } else {
+            window = makeWindow(defaultTab: tab ?? .control)
+        }
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
     }
@@ -314,15 +334,22 @@ enum SettingsOpener {
         }
     }
 
-    @MainActor private static func makeWindow() -> NSWindow {
-        let settingsView = SettingsView()
+    @MainActor private static func makeWindow(defaultTab: SettingsView.SettingsTab = .control) -> NSWindow {
+        let settingsView = SettingsView(defaultTab: defaultTab)
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "SaneBar Settings"
         window.appearance = NSAppearance(named: .darkAqua)
-        window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 450, height: 400))
+        window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        window.contentMinSize = NSSize(
+            width: SaneSettingsWindowDefaults.minWidth,
+            height: SaneSettingsWindowDefaults.minHeight
+        )
+        window.setContentSize(NSSize(
+            width: SaneBarSettingsWindowMetrics.idealWidth,
+            height: SaneBarSettingsWindowMetrics.idealHeight
+        ))
         window.center()
         window.isReleasedWhenClosed = false
 

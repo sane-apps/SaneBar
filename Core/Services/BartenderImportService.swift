@@ -29,6 +29,7 @@ enum BartenderImportService {
     }
 
     struct ResolutionContext {
+        let availableItems: [AccessibilityService.MenuBarItemPosition]
         let availableByBundle: [String: [AccessibilityService.MenuBarItemPosition]]
         let availableByMenuExtraId: [String: AccessibilityService.MenuBarItemPosition]
         let availableByMenuExtraIdLower: [String: AccessibilityService.MenuBarItemPosition]
@@ -43,6 +44,7 @@ enum BartenderImportService {
 
     struct ImportSummary {
         var movedHidden = 0
+        var movedAlwaysHidden = 0
         var movedVisible = 0
         var movedViaWindowFallback = 0
         var failedMoves = 0
@@ -52,11 +54,12 @@ enum BartenderImportService {
         var skippedDuplicates = 0
         var behavioralSettings: [String] = []
 
-        var totalMoved: Int { movedHidden + movedVisible }
+        var totalMoved: Int { movedHidden + movedAlwaysHidden + movedVisible }
 
         var description: String {
             var lines = [
                 "Hidden: \(movedHidden)",
+                "Always Hidden: \(movedAlwaysHidden)",
                 "Visible: \(movedVisible)",
                 "Moved via window fallback: \(movedViaWindowFallback)",
                 "Failed moves: \(failedMoves)",
@@ -118,17 +121,24 @@ enum BartenderImportService {
         var summary = ImportSummary()
         importBehavioralSettings(from: root, to: menuBarManager, summary: &summary)
 
-        let hideRaw = profile.hide + profile.alwaysHide
+        let hideRaw = profile.hide
+        let alwaysHideRaw = profile.alwaysHide
         let showRaw = profile.show
 
-        if hideRaw.isEmpty, showRaw.isEmpty, summary.behavioralSettings.isEmpty {
+        if hideRaw.isEmpty, alwaysHideRaw.isEmpty, showRaw.isEmpty, summary.behavioralSettings.isEmpty {
             throw ImportError.emptyProfile
         }
         let parsedHide = hideRaw.compactMap(parseItem)
+        let parsedAlwaysHide = alwaysHideRaw.compactMap(parseItem)
         let parsedShow = showRaw.compactMap(parseItem)
 
         var seen = Set<String>()
         let uniqueHide = parsedHide.filter { item in
+            let inserted = seen.insert(item.raw).inserted
+            if !inserted { summary.skippedDuplicates += 1 }
+            return inserted
+        }
+        let uniqueAlwaysHide = parsedAlwaysHide.filter { item in
             let inserted = seen.insert(item.raw).inserted
             if !inserted { summary.skippedDuplicates += 1 }
             return inserted
@@ -140,6 +150,17 @@ enum BartenderImportService {
         }
 
         let context = await buildResolutionContext()
+        let specialAllOtherHide = uniqueHide.contains(where: isAllOtherItemsToken)
+        let explicitHide = uniqueHide.filter { !isAllOtherItemsToken($0) }
+        let allOtherHideItems = specialAllOtherHide
+            ? resolvedAllOtherItems(context: context, preservedRawItems: uniqueShow)
+            : []
+        applyHideAllOtherRule(
+            enabled: specialAllOtherHide,
+            visibleItems: uniqueShow,
+            context: context,
+            menuBarManager: menuBarManager
+        )
         let runningBundleIDs = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
 
         let wasHidden = menuBarManager.hidingService.state == .hidden
@@ -150,8 +171,31 @@ enum BartenderImportService {
             }
         }
 
-        for item in uniqueHide {
+        var attemptedMoveKeys = Set<String>()
+        for resolved in allOtherHideItems {
+            guard attemptedMoveKeys.insert(moveIdentityKey(for: resolved)).inserted else {
+                summary.skippedDuplicates += 1
+                continue
+            }
+            let didMove = await menuBarManager.moveIconAndWait(
+                bundleID: resolved.bundleId,
+                menuExtraId: resolved.menuExtraId,
+                statusItemIndex: resolved.statusItemIndex,
+                toHidden: true
+            )
+            if didMove {
+                summary.movedHidden += 1
+            } else {
+                summary.failedMoves += 1
+            }
+        }
+
+        for item in explicitHide {
             if let resolved = resolveItem(item, context: context, summary: &summary) {
+                guard attemptedMoveKeys.insert(moveIdentityKey(for: resolved)).inserted else {
+                    summary.skippedDuplicates += 1
+                    continue
+                }
                 let didMove = await menuBarManager.moveIconAndWait(
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
@@ -184,8 +228,32 @@ enum BartenderImportService {
             }
         }
 
+        for item in uniqueAlwaysHide {
+            if let resolved = resolveItem(item, context: context, summary: &summary) {
+                guard attemptedMoveKeys.insert(moveIdentityKey(for: resolved)).inserted else {
+                    summary.skippedDuplicates += 1
+                    continue
+                }
+                let didMove = await menuBarManager.moveIconAlwaysHiddenAndWait(
+                    bundleID: resolved.bundleId,
+                    menuExtraId: resolved.menuExtraId,
+                    statusItemIndex: resolved.statusItemIndex,
+                    toAlwaysHidden: true
+                )
+                if didMove {
+                    summary.movedAlwaysHidden += 1
+                } else {
+                    summary.failedMoves += 1
+                }
+            }
+        }
+
         for item in uniqueShow {
             if let resolved = resolveItem(item, context: context, summary: &summary) {
+                guard attemptedMoveKeys.insert(moveIdentityKey(for: resolved)).inserted else {
+                    summary.skippedDuplicates += 1
+                    continue
+                }
                 let didMove = await menuBarManager.moveIconAndWait(
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
@@ -288,7 +356,7 @@ enum BartenderImportService {
 
     // MARK: - Parsing
 
-    private static func parseProfile(from data: Data) throws -> (Profile, [String: Any]) {
+    static func parseProfile(from data: Data) throws -> (Profile, [String: Any]) {
         var format = PropertyListSerialization.PropertyListFormat.xml
         let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: &format)
         guard let root = plist as? [String: Any] else {
@@ -357,7 +425,7 @@ enum BartenderImportService {
         menuBarManager.saveSettings()
     }
 
-    private static func parseItem(_ raw: String) -> ParsedItem? {
+    static func parseItem(_ raw: String) -> ParsedItem? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return ParsedItem(raw: trimmed)
@@ -365,7 +433,7 @@ enum BartenderImportService {
 
     // MARK: - Resolution
 
-    private static func buildResolutionContext() async -> ResolutionContext {
+    static func buildResolutionContext() async -> ResolutionContext {
         let availableItems = await AccessibilityService.shared.listMenuBarItemsWithPositions()
         let availableByBundle = Dictionary(grouping: availableItems, by: { $0.app.bundleId })
         var availableByMenuExtraId: [String: AccessibilityService.MenuBarItemPosition] = [:]
@@ -384,6 +452,7 @@ enum BartenderImportService {
         }
 
         return ResolutionContext(
+            availableItems: availableItems,
             availableByBundle: availableByBundle,
             availableByMenuExtraId: availableByMenuExtraId,
             availableByMenuExtraIdLower: availableByMenuExtraIdLower,
@@ -391,7 +460,7 @@ enum BartenderImportService {
         )
     }
 
-    private static func resolveItem(
+    static func resolveItem(
         _ item: ParsedItem,
         context: ResolutionContext,
         summary: inout ImportSummary
@@ -452,6 +521,97 @@ enum BartenderImportService {
 
         summary.skippedAmbiguous += 1
         return nil
+    }
+
+    static func isAllOtherItemsToken(_ item: ParsedItem) -> Bool {
+        item.raw == "special.AllOtherItems"
+    }
+
+    static func resolvedAllOtherItems(
+        context: ResolutionContext,
+        preservedRawItems: [ParsedItem]
+    ) -> [ResolvedItem] {
+        let preservedKeys = Set(preservedRawItems.compactMap { item -> String? in
+            var summary = ImportSummary()
+            guard let resolved = resolveItem(item, context: context, summary: &summary) else {
+                return nil
+            }
+            return moveIdentityKey(for: resolved)
+        })
+
+        return context.availableItems.compactMap { position -> ResolvedItem? in
+            let app = position.app
+            guard !isUnsupportedAllOtherBundle(app.bundleId) else { return nil }
+            let resolved = ResolvedItem(
+                raw: app.bundleId,
+                bundleId: app.bundleId,
+                menuExtraId: app.menuExtraIdentifier,
+                statusItemIndex: app.statusItemIndex
+            )
+            guard !preservedKeys.contains(moveIdentityKey(for: resolved)) else { return nil }
+            return resolved
+        }
+    }
+
+    @MainActor
+    private static func applyHideAllOtherRule(
+        enabled: Bool,
+        visibleItems: [ParsedItem],
+        context: ResolutionContext,
+        menuBarManager: MenuBarManager
+    ) {
+        var settings = menuBarManager.settings
+        settings.hideAllOtherMenuBarItems = enabled
+        settings.hideAllOtherVisibleItemIds = enabled
+            ? sortedUnique(resolvedRuleVisibleItemIds(visibleItems, context: context))
+            : []
+        menuBarManager.settings = settings
+        menuBarManager.saveSettings()
+    }
+
+    private static func resolvedRuleVisibleItemIds(
+        _ items: [ParsedItem],
+        context: ResolutionContext
+    ) -> [String] {
+        items.compactMap { item in
+            var summary = ImportSummary()
+            guard let resolved = resolveItem(item, context: context, summary: &summary) else {
+                return nil
+            }
+            return storedRuleItemId(resolved)
+        }
+    }
+
+    static func isUnsupportedAllOtherBundle(_ bundleID: String) -> Bool {
+        bundleID.hasPrefix("com.surteesstudios.Bartender") ||
+            bundleID.hasPrefix("com.sanebar.")
+    }
+
+    static func storedRuleItemId(_ resolved: ResolvedItem) -> String {
+        if let menuExtraId = resolved.menuExtraId {
+            if menuExtraId.hasPrefix("com.apple.menuextra.") {
+                return menuExtraId
+            }
+            return "\(resolved.bundleId)::axid:\(menuExtraId)"
+        }
+        if let statusItemIndex = resolved.statusItemIndex {
+            return "\(resolved.bundleId)::statusItem:\(statusItemIndex)"
+        }
+        return resolved.bundleId
+    }
+
+    static func sortedUnique(_ values: [String]) -> [String] {
+        Array(Set(values)).sorted()
+    }
+
+    private static func moveIdentityKey(for resolved: ResolvedItem) -> String {
+        if let menuExtraId = resolved.menuExtraId {
+            return "\(resolved.bundleId)|menuExtra|\(menuExtraId)"
+        }
+        if let statusItemIndex = resolved.statusItemIndex {
+            return "\(resolved.bundleId)|statusItem|\(statusItemIndex)"
+        }
+        return "\(resolved.bundleId)|bundle"
     }
 
     private static func resolveBundleIdAndToken(from raw: String, availableBundles: Set<String>) -> BundleMatch? {
@@ -567,12 +727,14 @@ extension BartenderImportService {
     }
 
     static func _test_resolutionContext(
+        availableItems: [AccessibilityService.MenuBarItemPosition]? = nil,
         availableByBundle: [String: [AccessibilityService.MenuBarItemPosition]],
         availableByMenuExtraId: [String: AccessibilityService.MenuBarItemPosition] = [:],
         availableByMenuExtraIdLower: [String: AccessibilityService.MenuBarItemPosition] = [:],
         availableByBundleAndName: [String: AccessibilityService.MenuBarItemPosition] = [:]
     ) -> ResolutionContext {
         ResolutionContext(
+            availableItems: availableItems ?? availableByBundle.values.flatMap(\.self),
             availableByBundle: availableByBundle,
             availableByMenuExtraId: availableByMenuExtraId,
             availableByMenuExtraIdLower: availableByMenuExtraIdLower,
@@ -587,6 +749,40 @@ extension BartenderImportService {
     ) -> String? {
         guard let parsed = parseItem(raw) else { return nil }
         return fallbackBundleIDForWindowMove(parsed, context: context, runningBundleIDs: runningBundleIDs)
+    }
+
+    static func _test_resolvedAllOtherItems(
+        context: ResolutionContext,
+        preservedRawItems: [String]
+    ) -> [ResolvedItem] {
+        resolvedAllOtherItems(
+            context: context,
+            preservedRawItems: preservedRawItems.compactMap(parseItem)
+        )
+    }
+
+    static func _test_previewPlan(
+        profile: Profile,
+        root: [String: Any],
+        fileName: String,
+        context: ResolutionContext
+    ) -> SaneBarImportPreviewPlan {
+        previewPlan(profile: profile, root: root, fileName: fileName, context: context)
+    }
+
+    static func _test_storedRuleItemId(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?
+    ) -> String {
+        storedRuleItemId(
+            ResolvedItem(
+                raw: bundleID,
+                bundleId: bundleID,
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            )
+        )
     }
 }
 #endif

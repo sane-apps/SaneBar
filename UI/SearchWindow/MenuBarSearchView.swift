@@ -32,8 +32,8 @@ struct MenuBarSearchView: View {
 
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
 
-    @State private var searchText = ""
-    @State private var searchTextDebounced = ""
+    @State private var searchText: String
+    @State private var searchTextDebounced: String
     @State var isSearchVisible = true
     @FocusState var isSearchFieldFocused: Bool
     @State var selectedAppIndex: Int?
@@ -91,8 +91,12 @@ struct MenuBarSearchView: View {
     init(
         isSecondMenuBar: Bool = false,
         service: SearchServiceProtocol = SearchService.shared,
+        initialSearchText: String? = nil,
         onDismiss: @escaping () -> Void
     ) {
+        let initialSearchText = initialSearchText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        _searchText = State(initialValue: initialSearchText)
+        _searchTextDebounced = State(initialValue: initialSearchText)
         self.isSecondMenuBar = isSecondMenuBar
         self.service = service
         self.onDismiss = onDismiss

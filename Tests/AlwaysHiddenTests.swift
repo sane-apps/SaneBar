@@ -98,6 +98,105 @@ struct AlwaysHiddenTests {
         #expect(result == true)
     }
 
+    // MARK: - Hide-All-Other Rule
+
+    @Test("hide-all-other stored IDs mirror menu bar identity")
+    func hideAllOtherStoredIds() {
+        #expect(
+            MenuBarManager.hideAllOtherStoredItemId(
+                bundleID: "com.apple.controlcenter",
+                menuExtraId: "com.apple.menuextra.battery",
+                statusItemIndex: nil
+            ) == "com.apple.menuextra.battery"
+        )
+        #expect(
+            MenuBarManager.hideAllOtherStoredItemId(
+                bundleID: "com.vendor.agent",
+                menuExtraId: "AgentAX",
+                statusItemIndex: nil
+            ) == "com.vendor.agent::axid:AgentAX"
+        )
+        #expect(
+            MenuBarManager.hideAllOtherStoredItemId(
+                bundleID: "com.vendor.agent",
+                menuExtraId: nil,
+                statusItemIndex: 1
+            ) == "com.vendor.agent::statusItem:1"
+        )
+    }
+
+    @Test("hide-all-other skips controller and unmovable system items")
+    func hideAllOtherSkipRules() {
+        #expect(
+            MenuBarManager.hideAllOtherRuleShouldSkipItem(
+                bundleID: "com.sanebar.app",
+                menuExtraId: nil,
+                name: "SaneBar"
+            )
+        )
+        #expect(
+            MenuBarManager.hideAllOtherRuleShouldSkipItem(
+                bundleID: "com.surteesstudios.Bartender-setapp",
+                menuExtraId: nil,
+                name: "Bartender"
+            )
+        )
+        #expect(
+            MenuBarManager.hideAllOtherRuleShouldSkipItem(
+                bundleID: "com.apple.controlcenter",
+                menuExtraId: "com.apple.menuextra.clock",
+                name: "Clock"
+            )
+        )
+        #expect(
+            !MenuBarManager.hideAllOtherRuleShouldSkipItem(
+                bundleID: "com.example.app",
+                menuExtraId: nil,
+                name: "Example"
+            )
+        )
+    }
+
+    @Test("hide-all-other allow list seeds from movable visible items")
+    func hideAllOtherVisibleIdsSeedsMovableItems() {
+        let apps = [
+            RunningApp(
+                id: "com.apple.controlcenter",
+                name: "Wi-Fi",
+                icon: nil,
+                menuExtraIdentifier: "com.apple.menuextra.wifi",
+                xPosition: 500
+            ),
+            RunningApp(
+                id: "com.apple.controlcenter",
+                name: "Clock",
+                icon: nil,
+                menuExtraIdentifier: "com.apple.menuextra.clock",
+                xPosition: 540
+            ),
+            RunningApp(
+                id: "com.example.agent",
+                name: "Example",
+                icon: nil,
+                menuExtraIdentifier: "StatusItem",
+                xPosition: 560
+            ),
+            RunningApp(
+                id: "com.sanebar.app",
+                name: "SaneBar",
+                icon: nil,
+                xPosition: 580
+            ),
+        ]
+
+        #expect(
+            MenuBarManager.hideAllOtherVisibleItemIds(from: apps) == [
+                "com.apple.menuextra.wifi",
+                "com.example.agent::axid:StatusItem",
+            ]
+        )
+    }
+
     // MARK: - AlwaysHiddenPin.bundleId
 
     @Test("menuExtra pin has no bundleId")

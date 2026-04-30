@@ -30,6 +30,8 @@ extension MenuBarManager {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        rebuildProfileSubmenu(in: menu)
+
         let event = NSApp.currentEvent
         let mainHasMenu = (mainStatusItem?.menu != nil)
         let sepHasMenu = (separatorItem?.menu != nil)
@@ -174,9 +176,19 @@ extension MenuBarManager {
         toggleHiddenItems()
     }
 
+    @objc func menuArrangeNow(_: Any?) {
+        logger.info("Menu: Arrange Now")
+        arrangeNow(reason: "status-menu")
+    }
+
     @objc func openSettings(_: Any?) {
         logger.info("Menu: Opening Settings")
         SettingsOpener.open()
+    }
+
+    @objc func openHealth(_: Any?) {
+        logger.info("Menu: Opening Health")
+        SettingsOpener.open(tab: .health)
     }
 
     @objc func showReleaseNotes(_: Any?) {
@@ -187,6 +199,22 @@ extension MenuBarManager {
     @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Browse Icons")
         SearchWindowController.shared.toggle()
+    }
+
+    @objc func applyProfileFromMenu(_ sender: NSMenuItem) {
+        guard let rawId = sender.representedObject as? String,
+              let id = UUID(uuidString: rawId) else { return }
+        _ = applyProfile(id: id, reason: "status-menu")
+    }
+
+    @objc func saveCurrentProfileFromMenu(_: Any?) {
+        let existingNames = savedProfiles().map(\.name)
+        let name = SaneBarProfile.generateName(basedOn: existingNames)
+        do {
+            try saveCurrentProfile(named: name)
+        } catch {
+            logger.error("Menu: failed to save profile \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     @objc func quitApp(_: Any?) {
@@ -305,5 +333,40 @@ extension MenuBarManager {
         let origin = NSPoint(x: button.bounds.midX, y: button.bounds.maxY)
         statusMenu.popUp(positioning: nil, at: origin, in: button)
         pendingExplicitStatusMenuRightClick = false
+    }
+
+    private func rebuildProfileSubmenu(in menu: NSMenu) {
+        let title = "Profiles"
+        let profileMenuItem: NSMenuItem
+        if let existing = menu.items.first(where: { $0.title == title }) {
+            profileMenuItem = existing
+        } else {
+            profileMenuItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            if let insertAfter = menu.items.firstIndex(where: { $0.title == "Show / Hide Icons" }) {
+                menu.insertItem(profileMenuItem, at: insertAfter + 1)
+            } else {
+                menu.insertItem(profileMenuItem, at: min(2, menu.items.count))
+            }
+        }
+
+        let submenu = NSMenu()
+        let profiles = savedProfiles()
+        if profiles.isEmpty {
+            let empty = NSMenuItem(title: "No Saved Profiles", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        } else {
+            for profile in profiles {
+                let item = NSMenuItem(title: profile.name, action: #selector(applyProfileFromMenu(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = profile.id.uuidString
+                submenu.addItem(item)
+            }
+        }
+        submenu.addItem(NSMenuItem.separator())
+        let saveItem = NSMenuItem(title: "Save Current as Profile", action: #selector(saveCurrentProfileFromMenu(_:)), keyEquivalent: "")
+        saveItem.target = self
+        submenu.addItem(saveItem)
+        profileMenuItem.submenu = submenu
     }
 }

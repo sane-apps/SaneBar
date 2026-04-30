@@ -62,8 +62,12 @@ final class ScheduleTriggerService {
         )
 
         if isInWindow, !wasInScheduleWindow {
-            logger.info("Schedule trigger entered active window - showing hidden items")
-            manager.showHiddenItems()
+            logger.info("Schedule trigger entered active window")
+            manager.runTriggerAction(
+                manager.settings.scheduleTriggerAction,
+                profileId: manager.settings.scheduleTriggerProfileId,
+                reason: "schedule"
+            )
         }
         wasInScheduleWindow = isInWindow
     }

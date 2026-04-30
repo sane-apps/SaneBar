@@ -210,4 +210,37 @@ struct SettingsControllerTests {
 
         #expect(controller.settings.showDockIcon == true, "showDockIcon should be loaded")
     }
+
+    @Test("resetToDefaults preserves health wizard and layout rescue state")
+    @MainActor
+    func testResetToDefaultsPreservesHealthWizardAndLayoutRescueState() {
+        let mockPersistence = PersistenceServiceProtocolMock()
+        mockPersistence.loadSettingsHandler = { return SaneBarSettings() }
+        mockPersistence.saveSettingsHandler = { _ in }
+        let controller = SettingsController(persistence: mockPersistence)
+
+        let createdAt = Date(timeIntervalSinceReferenceDate: 123)
+        controller.settings.hasCompletedOnboarding = true
+        controller.settings.hasSeenFreemiumIntro = true
+        controller.settings.hasCompletedHealthWizard = true
+        controller.settings.layoutRescueRestorePointCreatedAt = createdAt
+        controller.settings.layoutRescueRestorePoint = SaneBarLayoutSnapshot(
+            mainPosition: 420,
+            separatorPosition: 520,
+            alwaysHiddenSeparatorPosition: nil,
+            spacerPositions: [:],
+            calibratedScreenWidth: 1512,
+            displayBackups: []
+        )
+        controller.settings.spacerCount = 3
+
+        controller.resetToDefaults()
+
+        #expect(controller.settings.hasCompletedOnboarding)
+        #expect(controller.settings.hasSeenFreemiumIntro)
+        #expect(controller.settings.hasCompletedHealthWizard)
+        #expect(controller.settings.layoutRescueRestorePointCreatedAt == createdAt)
+        #expect(controller.settings.layoutRescueRestorePoint?.mainPosition == 420)
+        #expect(controller.settings.spacerCount == 0)
+    }
 }

@@ -140,6 +140,24 @@ final class ShowIconPanelCommand: SaneBarScriptCommand {
         return true
     }
 }
+
+@objc(QuickSearchCommand)
+final class QuickSearchCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        let query = (directParameter as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if checkAuthRequired(), checkIsHidden() {
+            setAuthBlockedError()
+            return nil
+        }
+        Task { @MainActor in
+            let manager = MenuBarManager.shared
+            _ = await manager.showHiddenItemsNow(trigger: .search)
+            SearchWindowController.shared.show(mode: .findIcon, prefill: query?.isEmpty == false ? query : nil)
+        }
+        return true
+    }
+}
+
 @objc(ShowSecondMenuBarCommand)
 final class ShowSecondMenuBarCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {

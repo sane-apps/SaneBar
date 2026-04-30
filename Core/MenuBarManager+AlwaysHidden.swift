@@ -4,6 +4,174 @@ import os.log
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager.AlwaysHidden")
 
 extension MenuBarManager {
+    // MARK: - Hide-All-Other Rule
+
+    nonisolated static func hideAllOtherStoredItemId(
+        bundleID: String,
+        menuExtraId: String?,
+        statusItemIndex: Int?
+    ) -> String {
+        if let menuExtraId {
+            if menuExtraId.hasPrefix("com.apple.menuextra.") {
+                return menuExtraId
+            }
+            return "\(bundleID)::axid:\(menuExtraId)"
+        }
+        if let statusItemIndex {
+            return "\(bundleID)::statusItem:\(statusItemIndex)"
+        }
+        return bundleID
+    }
+
+    nonisolated static func hideAllOtherRuleShouldSkipItem(
+        bundleID: String,
+        menuExtraId: String?,
+        name: String
+    ) -> Bool {
+        if bundleID.hasPrefix("com.sanebar.") { return true }
+        if bundleID.hasPrefix("com.surteesstudios.Bartender") { return true }
+        if menuExtraId == "com.apple.menuextra.clock" { return true }
+        if menuExtraId == "com.apple.menuextra.controlcenter" { return true }
+        if bundleID == "com.apple.controlcenter", name == "Control Center" { return true }
+        return false
+    }
+
+    nonisolated static func hideAllOtherRuleShouldShowItem(
+        app: RunningApp,
+        visibleIds: Set<String>
+    ) -> Bool {
+        visibleIds.contains(app.uniqueId) || visibleIds.contains(app.bundleId)
+    }
+
+    nonisolated static func hideAllOtherVisibleItemIds(from apps: [RunningApp]) -> [String] {
+        var ids = Set<String>()
+        for app in apps {
+            guard !hideAllOtherRuleShouldSkipItem(
+                bundleID: app.bundleId,
+                menuExtraId: app.menuExtraIdentifier,
+                name: app.name
+            ) else {
+                continue
+            }
+            ids.insert(app.uniqueId)
+        }
+        return Array(ids).sorted()
+    }
+
+    @MainActor
+    func enableHideAllOtherMenuBarItemsFromCurrentLayout() {
+        hideAllOtherRuleEnforcementTask?.cancel()
+
+        let cachedIds = Self.hideAllOtherVisibleItemIds(from: SearchService.shared.cachedClassifiedApps().visible)
+        if !cachedIds.isEmpty {
+            settings.hideAllOtherVisibleItemIds = cachedIds
+            settings.hideAllOtherMenuBarItems = true
+            return
+        }
+
+        Task { [weak self] in
+            let classified = await SearchService.shared.refreshKnownClassifiedApps()
+            await MainActor.run {
+                guard let self else { return }
+                let refreshedIds = Self.hideAllOtherVisibleItemIds(from: classified.visible)
+                guard !refreshedIds.isEmpty else {
+                    logger.warning("Hide-all-other rule not enabled because no current visible item ids could be seeded")
+                    self.settings.hideAllOtherMenuBarItems = false
+                    self.settings.hideAllOtherVisibleItemIds = []
+                    return
+                }
+                self.settings.hideAllOtherVisibleItemIds = refreshedIds
+                self.settings.hideAllOtherMenuBarItems = true
+            }
+        }
+    }
+
+    func scheduleHideAllOtherRuleEnforcement(reason: String, filterBundleId: String? = nil, delay: Duration) {
+        guard settings.hideAllOtherMenuBarItems else { return }
+        guard !shouldSkipHideForExternalMonitor else {
+            logger.info("Hide-all-other enforcement skipped by external monitor policy (\(reason, privacy: .public))")
+            return
+        }
+        hideAllOtherRuleEnforcementTask?.cancel()
+        hideAllOtherRuleEnforcementTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: delay)
+            await enforceHideAllOtherMenuBarItems(reason: reason, filterBundleId: filterBundleId)
+        }
+    }
+
+    func enforceHideAllOtherMenuBarItems(reason: String, filterBundleId: String? = nil) async {
+        if let activeMoveTask, !activeMoveTask.isCancelled {
+            logger.debug("Hide-all-other enforcement skipped while icon move is in progress (\(reason, privacy: .public))")
+            return
+        }
+        guard settings.hideAllOtherMenuBarItems else { return }
+        guard !shouldSkipHideForExternalMonitor else {
+            logger.info("Hide-all-other enforcement skipped by external monitor policy (\(reason, privacy: .public))")
+            return
+        }
+        guard AccessibilityService.shared.isTrusted else {
+            logger.debug("Hide-all-other enforcement skipped (no Accessibility permission)")
+            return
+        }
+
+        let visibleIds = Set(settings.hideAllOtherVisibleItemIds)
+        let wasHidden = hidingService.state == .hidden
+
+        await hidingService.showAll()
+        try? await Task.sleep(for: .milliseconds(300))
+
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        if Task.isCancelled {
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
+            return
+        }
+
+        guard let separatorX = getSeparatorOriginX() ?? getSeparatorRightEdgeX() else {
+            logger.warning("Hide-all-other enforcement (\(reason, privacy: .public)): separator position unavailable")
+            await hidingService.restoreFromShowAll()
+            if wasHidden { await hidingService.hide() }
+            return
+        }
+
+        var seenUniqueIds = Set<String>()
+        for item in items {
+            if Task.isCancelled { break }
+            let app = item.app
+            if let filterBundleId, app.bundleId != filterBundleId { continue }
+            guard seenUniqueIds.insert(app.uniqueId).inserted else { continue }
+            guard !Self.hideAllOtherRuleShouldSkipItem(
+                bundleID: app.bundleId,
+                menuExtraId: app.menuExtraIdentifier,
+                name: app.name
+            ) else {
+                continue
+            }
+
+            let shouldShow = Self.hideAllOtherRuleShouldShowItem(app: app, visibleIds: visibleIds)
+            let midX = item.x + (max(1, app.width ?? 22) / 2)
+            let isCurrentlyHidden = midX < (separatorX - 4)
+            if shouldShow == !isCurrentlyHidden {
+                continue
+            }
+
+            _ = await moveIconAndWait(
+                bundleID: app.bundleId,
+                menuExtraId: app.menuExtraIdentifier,
+                statusItemIndex: app.statusItemIndex,
+                preferredCenterX: app.preferredCenterX,
+                toHidden: !shouldShow
+            )
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+
+        await hidingService.restoreFromShowAll()
+        if wasHidden {
+            await hidingService.hide()
+        }
+    }
+
     // MARK: - Always-Hidden Pins (Experimental)
 
     nonisolated static func alwaysHiddenSeparatorNeedsRepair(

@@ -93,8 +93,12 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
         // Check if this app is in our trigger list
         if manager.settings.triggerApps.contains(bundleID) {
-            logger.info("App trigger: \(bundleID) launched, showing hidden items")
-            manager.showHiddenItems()
+            logger.info("App trigger: \(bundleID) launched")
+            manager.runTriggerAction(
+                manager.settings.appLaunchTriggerAction,
+                profileId: manager.settings.appLaunchTriggerProfileId,
+                reason: "app-launch:\(bundleID)"
+            )
         }
     }
 
@@ -112,8 +116,12 @@ final class TriggerService: ObservableObject, TriggerServiceProtocol {
 
         // Trigger only on transition to below threshold (not every check)
         if isBelowThreshold, !wasBelowThreshold {
-            logger.info("Battery trigger: \(percentage)% <= \(threshold)% threshold, showing hidden items")
-            manager.showHiddenItems()
+            logger.info("Battery trigger: \(percentage)% <= \(threshold)% threshold")
+            manager.runTriggerAction(
+                manager.settings.batteryTriggerAction,
+                profileId: manager.settings.batteryTriggerProfileId,
+                reason: "battery"
+            )
         }
 
         wasBelowThreshold = isBelowThreshold

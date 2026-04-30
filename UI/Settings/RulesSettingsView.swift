@@ -6,38 +6,7 @@ struct RulesSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared
     @ObservedObject private var licenseService = LicenseService.shared
     @State private var proUpsellFeature: ProFeature?
-
-    // MARK: - User-Friendly Labels (instead of "s" and "ms" jargon)
-
-    private var rehideDelayLabel: String {
-        let value = Int(menuBarManager.settings.rehideDelay)
-        switch value {
-        case 1 ... 5: return "Quick (\(value)s)"
-        case 6 ... 15: return "Normal (\(value)s)"
-        case 16 ... 30: return "Leisurely (\(value)s)"
-        default: return "Extended (\(value)s)"
-        }
-    }
-
-    private var findIconDelayLabel: String {
-        let value = Int(menuBarManager.settings.findIconRehideDelay)
-        switch value {
-        case 1 ... 5: return "Quick (\(value)s)"
-        case 6 ... 15: return "Normal (\(value)s)"
-        case 16 ... 30: return "Leisurely (\(value)s)"
-        default: return "Extended (\(value)s)"
-        }
-    }
-
-    private var hoverDelayLabel: String {
-        let ms = Int(menuBarManager.settings.hoverDelay * 1000)
-        switch ms {
-        case 0 ... 150: return "Instant"
-        case 151 ... 350: return "Quick"
-        case 351 ... 600: return "Normal"
-        default: return "Patient"
-        }
-    }
+    @State private var savedProfiles: [SaneBarProfile] = []
 
     private var scheduleStartLabel: String {
         formatScheduleTime(hour: menuBarManager.settings.scheduleStartHour, minute: menuBarManager.settings.scheduleStartMinute)
@@ -66,25 +35,6 @@ struct RulesSettingsView: View {
         }
     }
 
-    private var gestureModeSummary: String {
-        menuBarManager.settings.gestureMode == .showOnly
-            ? "Gestures reveal hidden icons."
-            : "Scroll up shows icons, scroll down hides icons."
-    }
-
-    private func gestureModeHelp(_ mode: SaneBarSettings.GestureMode) -> String {
-        switch mode {
-        case .showOnly:
-            "Gestures only reveal hidden icons."
-        case .showAndHide:
-            "Gestures toggle visibility (scroll up show, scroll down hide)."
-        }
-    }
-
-    private var hideApplicationMenusHelp: String {
-        "Temporarily hides File/Edit/View if needed to make room in the menu bar. Only affects inline reveal, not Icon Panel or Second Menu Bar."
-    }
-
     private func segmentedChoiceButton(
         _ title: String,
         isSelected: Bool,
@@ -96,135 +46,7 @@ struct RulesSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // 1. Behavior (Hiding)
-                CompactSection("Hiding Behavior") {
-                    CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
-                        .help("Automatically hide icons after a delay when revealed")
-
-                    if menuBarManager.settings.autoRehide {
-                        if licenseService.isPro {
-                            CompactDivider()
-                            CompactRow("Wait before hiding") {
-                                HStack {
-                                    Text(rehideDelayLabel)
-                                        .frame(width: 95, alignment: .trailing)
-                                    Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
-                                        .labelsHidden()
-                                        .help("How long to wait before hiding icons again")
-                                }
-                            }
-                            CompactDivider()
-                            CompactRow("Wait after Browse Icons") {
-                                HStack {
-                                    Text(findIconDelayLabel)
-                                        .frame(width: 95, alignment: .trailing)
-                                    Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
-                                        .labelsHidden()
-                                        .help("Extra time to browse after using Browse Icons")
-                                }
-                            }
-                            CompactDivider()
-                            CompactToggle(
-                                label: "Hide when app changes",
-                                isOn: $menuBarManager.settings.rehideOnAppChange
-                            )
-                            .help("Auto-hide when you switch to a different app")
-                        } else {
-                            CompactDivider()
-                            proGatedRow(feature: .autoRehideCustomization, label: "Customize auto-hide timing")
-                        }
-                    }
-
-                    CompactDivider()
-                    if licenseService.isPro {
-                        CompactToggle(
-                            label: "Always show on external monitors",
-                            isOn: $menuBarManager.settings.disableOnExternalMonitor
-                        )
-                        .help("External monitors have plenty of space—keep icons visible")
-                    } else {
-                        proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
-                    }
-                }
-
-                // 2. Gestures (Revealing)
-                CompactSection("Revealing") {
-                    CompactToggle(label: "Show when mouse hovers top edge", isOn: $menuBarManager.settings.showOnHover)
-                        .help("Reveal hidden icons when your mouse moves to the top of the screen")
-
-                    if menuBarManager.settings.showOnHover {
-                        CompactDivider()
-                        CompactRow("Hover Delay") {
-                            HStack {
-                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 1.0, step: 0.05)
-                                    .frame(width: 80)
-                                    .help("How long to hover before icons appear")
-                                Text(hoverDelayLabel)
-                                    .frame(width: 55, alignment: .trailing)
-                            }
-                        }
-                    }
-
-                    CompactDivider()
-                    CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
-                        .help("Scroll on the menu bar to reveal or hide icons")
-
-                    // Gesture behavior picker - only show if scroll is enabled
-                    if menuBarManager.settings.showOnScroll {
-                        CompactDivider()
-                        if licenseService.isPro {
-                            CompactRow("Gesture behavior") {
-                                HStack(spacing: 6) {
-                                    ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
-                                        segmentedChoiceButton(
-                                            mode.rawValue,
-                                            isSelected: menuBarManager.settings.gestureMode == mode
-                                        ) {
-                                            menuBarManager.settings.gestureMode = mode
-                                        }
-                                        .help(gestureModeHelp(mode))
-                                    }
-                                }
-                                .frame(width: 220)
-                            }
-                            Text(gestureModeSummary)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.92))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .multilineTextAlignment(.leading)
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 4)
-                        } else {
-                            proGatedRow(feature: .gestureCustomization, label: "Customize gesture behavior")
-                        }
-                    }
-
-                    CompactDivider()
-
-                    // Show on user drag (Ice-style) - reveal all when ⌘+dragging to rearrange
-                    CompactToggle(
-                        label: "Show when rearranging icons",
-                        isOn: $menuBarManager.settings.showOnUserDrag
-                    )
-                    .help("Reveal all icons while ⌘+dragging to rearrange")
-
-                    CompactDivider()
-                    CompactToggle(
-                        label: "Hide app menus during inline reveal",
-                        isOn: $menuBarManager.settings.hideApplicationMenusOnInlineReveal
-                    )
-                    .help(hideApplicationMenusHelp)
-
-                    Text(hideApplicationMenusHelp)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 4)
-                }
-
-                // 3. Triggers (Automation) — Pro
+                // Triggers (Automation) — Pro
                 CompactSection("Automatic Triggers") {
                     if licenseService.isPro {
                         // Battery
@@ -249,10 +71,22 @@ struct RulesSettingsView: View {
                                     .frame(width: 36, alignment: .trailing)
                             }
                             .padding(.leading, 4)
+
+                            triggerActionControls(
+                                action: $menuBarManager.settings.batteryTriggerAction,
+                                profileId: $menuBarManager.settings.batteryTriggerProfileId
+                            )
                         }
+                    } else {
+                        proTriggerRow(
+                            label: "Show on Low Battery",
+                            help: "Reveal battery and power icons automatically when battery is low"
+                        )
+                    }
 
-                        CompactDivider()
+                    CompactDivider()
 
+                    if licenseService.isPro {
                         // App Launch
                         CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
                             .help("Reveal icons when certain apps are launched")
@@ -271,10 +105,22 @@ struct RulesSettingsView: View {
                                 .padding(.horizontal, 4)
                             }
                             .padding(.vertical, 8)
+
+                            triggerActionControls(
+                                action: $menuBarManager.settings.appLaunchTriggerAction,
+                                profileId: $menuBarManager.settings.appLaunchTriggerProfileId
+                            )
                         }
+                    } else {
+                        proTriggerRow(
+                            label: "Show when specific apps open",
+                            help: "Reveal chosen menu bar icons automatically when selected apps launch"
+                        )
+                    }
 
-                        CompactDivider()
+                    CompactDivider()
 
+                    if licenseService.isPro {
                         // Schedule
                         CompactToggle(label: "Show on Schedule", isOn: $menuBarManager.settings.showOnSchedule)
                             .help("Reveal icons when local time enters selected day/time window")
@@ -323,13 +169,25 @@ struct RulesSettingsView: View {
                                     .font(.system(size: 12))
                                     .foregroundStyle(.white.opacity(0.9))
                                     .padding(.leading, 4)
+
+                                triggerActionControls(
+                                    action: $menuBarManager.settings.scheduleTriggerAction,
+                                    profileId: $menuBarManager.settings.scheduleTriggerProfileId
+                                )
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 4)
                         }
+                    } else {
+                        proTriggerRow(
+                            label: "Show on Schedule",
+                            help: "Reveal hidden icons only during selected days and time windows"
+                        )
+                    }
 
-                        CompactDivider()
+                    CompactDivider()
 
+                    if licenseService.isPro {
                         // Network
                         CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
                             .help("Reveal icons when connecting to specific Wi-Fi networks")
@@ -367,13 +225,25 @@ struct RulesSettingsView: View {
                                     .background(Color.primary.opacity(0.1))
                                     .cornerRadius(6)
                                 }
+
+                                triggerActionControls(
+                                    action: $menuBarManager.settings.networkTriggerAction,
+                                    profileId: $menuBarManager.settings.networkTriggerProfileId
+                                )
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 4)
                         }
+                    } else {
+                        proTriggerRow(
+                            label: "Show on Wi-Fi Change",
+                            help: "Reveal selected icons when your Mac joins specific Wi-Fi networks"
+                        )
+                    }
 
-                        CompactDivider()
+                    CompactDivider()
 
+                    if licenseService.isPro {
                         // Focus Mode
                         CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
                             .help("Reveal icons when entering or exiting specific Focus Modes")
@@ -432,13 +302,25 @@ struct RulesSettingsView: View {
                                         .font(.system(size: 13))
                                         .foregroundStyle(.white.opacity(0.92))
                                 }
+
+                                triggerActionControls(
+                                    action: $menuBarManager.settings.focusTriggerAction,
+                                    profileId: $menuBarManager.settings.focusTriggerProfileId
+                                )
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 4)
                         }
+                    } else {
+                        proTriggerRow(
+                            label: "Show on Focus Mode Change",
+                            help: "Reveal selected icons when Focus turns on, changes, or turns off"
+                        )
+                    }
 
-                        CompactDivider()
+                    CompactDivider()
 
+                    if licenseService.isPro {
                         // Script Trigger
                         CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
                             .help("Run a script every few seconds. Exit 0 shows icons; any other exit code hides them.")
@@ -447,7 +329,10 @@ struct RulesSettingsView: View {
                             ScriptTriggerSettingsView()
                         }
                     } else {
-                        proGatedRow(feature: .advancedTriggers, label: "Battery, schedule, Wi-Fi, Focus, app, and script triggers")
+                        proTriggerRow(
+                            label: "Let a script control visibility",
+                            help: "Run your own script to decide when hidden icons should show or hide"
+                        )
                     }
                 }
             }
@@ -455,6 +340,9 @@ struct RulesSettingsView: View {
         }
         .sheet(item: $proUpsellFeature) { feature in
             ProUpsellView(feature: feature)
+        }
+        .onAppear {
+            savedProfiles = menuBarManager.savedProfiles()
         }
     }
 
@@ -469,6 +357,70 @@ struct RulesSettingsView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private func proTriggerRow(label: String, help: String) -> some View {
+        Button {
+            proUpsellFeature = .advancedTriggers
+        } label: {
+            CompactRow(label) {
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
+            }
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    private func triggerActionControls(
+        action: Binding<SaneBarSettings.TriggerAction>,
+        profileId: Binding<UUID?>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CompactRow("Action") {
+                HStack(spacing: 6) {
+                    ForEach(SaneBarSettings.TriggerAction.allCases, id: \.self) { option in
+                        segmentedChoiceButton(
+                            option.rawValue,
+                            isSelected: action.wrappedValue == option
+                        ) {
+                            action.wrappedValue = option
+                            if option == .applyProfile, profileId.wrappedValue == nil {
+                                profileId.wrappedValue = savedProfiles.first?.id
+                            }
+                        }
+                    }
+                }
+                .frame(width: 220)
+            }
+
+            if action.wrappedValue == .applyProfile {
+                CompactRow("Profile") {
+                    Menu(selectedProfileName(profileId.wrappedValue)) {
+                        if savedProfiles.isEmpty {
+                            Button("No saved profiles") {}
+                                .disabled(true)
+                        } else {
+                            ForEach(savedProfiles) { profile in
+                                Button(profile.name) {
+                                    profileId.wrappedValue = profile.id
+                                }
+                            }
+                        }
+                    }
+                    .buttonStyle(ChromeActionButtonStyle())
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func selectedProfileName(_ id: UUID?) -> String {
+        guard let id,
+              let profile = savedProfiles.first(where: { $0.id == id }) else {
+            return savedProfiles.isEmpty ? "No Profiles" : "Choose Profile"
+        }
+        return profile.name
     }
 }
 

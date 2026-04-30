@@ -87,8 +87,12 @@ final class NetworkTriggerService: NSObject, NetworkTriggerServiceProtocol, CWEv
         // Check if this network is in our trigger list
         let triggerNetworks = manager.settings.triggerNetworks
         if triggerNetworks.contains(ssid) {
-            logger.info("Connected to trigger network: \(ssid, privacy: .private) - showing hidden items")
-            manager.showHiddenItems()
+            logger.info("Connected to trigger network: \(ssid, privacy: .private)")
+            manager.runTriggerAction(
+                manager.settings.networkTriggerAction,
+                profileId: manager.settings.networkTriggerProfileId,
+                reason: "network"
+            )
         } else {
             logger.debug("Network '\(ssid, privacy: .private)' not in trigger list")
         }

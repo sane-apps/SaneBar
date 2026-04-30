@@ -210,13 +210,22 @@ enum MenuBarOperationCoordinator {
         recoveryReason: StartupRecoveryReason,
         recoveryCount: Int
     ) -> Bool {
+        isRuntimeMissingCoordinateState(
+            snapshot: snapshot,
+            validationContext: validationContext,
+            recoveryReason: recoveryReason
+        ) && recoveryCount < 2
+    }
+
+    static func isRuntimeMissingCoordinateState(
+        snapshot: MenuBarRuntimeSnapshot,
+        validationContext: PositionValidationContext,
+        recoveryReason: StartupRecoveryReason
+    ) -> Bool {
         guard recoveryReason == .missingCoordinates else { return false }
         guard validationContext == .screenParametersChanged || validationContext == .wakeResume else { return false }
-        guard recoveryCount < 2 else { return false }
         guard snapshot.structuralState == .ready else { return false }
-        guard snapshot.separatorAnchorSource == .estimated else { return false }
-        guard snapshot.mainAnchorSource != .missing else { return false }
-        return snapshot.separatorX != nil && snapshot.mainX != nil
+        return true
     }
 
     static func statusItemRecoveryAction(
@@ -268,6 +277,14 @@ enum MenuBarOperationCoordinator {
                 recoveryCount: recoveryCount
             ) {
                 return .waitForLiveAnchor
+            }
+
+            if isRuntimeMissingCoordinateState(
+                snapshot: snapshot,
+                validationContext: validationContext,
+                recoveryReason: recoveryReason
+            ) {
+                return .stop(recoveryReason)
             }
 
             if validationContext == .manualLayoutRestore {

@@ -2049,12 +2049,20 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Appearance settings should keep extra dividers behind an explicit upsell row"
         )
         XCTAssertTrue(
-            appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Custom tint, glass, borders, and shadows\")"),
-            "Appearance settings should keep menu bar styling behind an explicit upsell row"
+            appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Custom Appearance\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Translucent Background\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Light Tint\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Dark Tint\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Shadow\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Border\")") &&
+                appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Rounded Corners\")"),
+            "Appearance settings should show individual Basic-visible locked rows for menu bar styling value"
         )
         XCTAssertTrue(
-            appearanceSource.contains("proGatedRow(feature: .iconSpacing, label: \"Reduce space between icons\")"),
-            "Appearance settings should keep icon spacing behind an explicit upsell row"
+            appearanceSource.contains("proGatedRow(feature: .iconSpacing, label: \"Reduce space between icons\")") &&
+                appearanceSource.contains("proGatedRow(feature: .iconSpacing, label: \"Item Spacing\")") &&
+                appearanceSource.contains("proGatedRow(feature: .iconSpacing, label: \"Click Area\")"),
+            "Appearance settings should show individual Basic-visible locked rows for menu bar layout value"
         )
         XCTAssertTrue(
             appearanceSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
@@ -2062,20 +2070,34 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            rulesSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Customize auto-hide timing\")"),
-            "Rules settings should keep auto-rehide tuning behind an explicit upsell row"
+            generalSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Customize auto-hide timing\")"),
+            "Control settings should keep auto-rehide tuning behind an explicit upsell row"
         )
         XCTAssertTrue(
-            rulesSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Always show on external monitors\")"),
-            "Rules settings should keep external-monitor behavior behind an explicit upsell row"
+            generalSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Always show on external monitors\")"),
+            "Control settings should keep external-monitor behavior behind an explicit upsell row"
         )
         XCTAssertTrue(
-            rulesSource.contains("proGatedRow(feature: .gestureCustomization, label: \"Customize gesture behavior\")"),
-            "Rules settings should keep gesture customization behind an explicit upsell row"
+            generalSource.contains("proGatedRow(feature: .gestureCustomization, label: \"Customize gesture behavior\")"),
+            "Control settings should keep gesture customization behind an explicit upsell row"
+        )
+        XCTAssertFalse(
+            rulesSource.contains("Battery, schedule, Wi-Fi, Focus, app, and script triggers"),
+            "Rules settings should not hide all trigger value behind one generic Pro row"
         )
         XCTAssertTrue(
-            rulesSource.contains("proGatedRow(feature: .advancedTriggers, label: \"Battery, schedule, Wi-Fi, Focus, app, and script triggers\")"),
-            "Rules settings should keep advanced triggers behind an explicit upsell row"
+            rulesSource.contains("proTriggerRow(") &&
+                rulesSource.contains("label: \"Show on Low Battery\"") &&
+                rulesSource.contains("label: \"Show when specific apps open\"") &&
+                rulesSource.contains("label: \"Show on Schedule\"") &&
+                rulesSource.contains("label: \"Show on Wi-Fi Change\"") &&
+                rulesSource.contains("label: \"Show on Focus Mode Change\"") &&
+                rulesSource.contains("label: \"Let a script control visibility\""),
+            "Rules settings should show each advanced trigger as its own Basic-visible locked row"
+        )
+        XCTAssertTrue(
+            rulesSource.contains("proUpsellFeature = .advancedTriggers"),
+            "Each locked trigger row should open the contextual advanced-trigger upsell"
         )
         XCTAssertTrue(
             rulesSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
@@ -2083,16 +2105,145 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            shortcutsSource.contains("proGatedRow(feature: .additionalShortcuts, label: \"Show, Hide, Open Settings shortcuts\")"),
-            "Shortcuts settings should keep extra global shortcuts behind an explicit upsell row"
+            shortcutsSource.contains("proLockedRow(feature: .additionalShortcuts, label: \"Show icons\")") &&
+                shortcutsSource.contains("proLockedRow(feature: .additionalShortcuts, label: \"Hide icons\")") &&
+                shortcutsSource.contains("proLockedRow(feature: .additionalShortcuts, label: \"Open Settings\")"),
+            "Shortcuts settings should show each Pro hotkey as an individual Basic-visible locked row"
         )
         XCTAssertTrue(
-            shortcutsSource.contains("proGatedRow(feature: .appleScript, label: \"AppleScript automation commands\")"),
-            "Shortcuts settings should keep automation commands behind an explicit upsell row"
+            shortcutsSource.contains("proAutomationCommandRow(item)") &&
+                shortcutsSource.contains("Unlock Pro to copy and use this automation command"),
+            "Shortcuts settings should show each Pro automation command as an individual Basic-visible locked row"
+        )
+        XCTAssertTrue(
+            shortcutsSource.contains("proLockedRow(feature: .appleScript, label: \"Toggle action\")") &&
+                shortcutsSource.contains("proLockedRow(feature: .appleScript, label: \"Profiles actions\")") &&
+                shortcutsSource.contains("proLockedRow(feature: .appleScript, label: \"Search action\")"),
+            "Shortcuts settings should show App Shortcuts actions individually in Basic"
         )
         XCTAssertTrue(
             shortcutsSource.contains(".sheet(item: $proUpsellFeature) { feature in"),
             "Shortcuts settings should still present a Pro upsell sheet for gated rows"
+        )
+    }
+
+    func testSettingsHoverHelpExplainsHealthAndLayoutActions() throws {
+        let healthURL = projectRootURL().appendingPathComponent("UI/Settings/HealthSettingsView.swift")
+        let healthSource = try String(contentsOf: healthURL, encoding: .utf8)
+        let generalURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
+        let generalSource = try String(contentsOf: generalURL, encoding: .utf8)
+        let saneHelpURL = projectRootURL()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("infra/SaneUI/Sources/SaneUI/Components/SaneHelp.swift")
+        let saneHelpSource = try String(contentsOf: saneHelpURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            saneHelpSource.contains("public struct SaneHelpModifier") &&
+                saneHelpSource.contains(".help(text)") &&
+                saneHelpSource.contains(".accessibilityHint(text)") &&
+                saneHelpSource.contains("public struct SaneInlineHelp") &&
+                !healthSource.contains("overlay(alignment: .bottomTrailing)") &&
+                !healthSource.contains("QuickActionHelpModifier"),
+            "Settings should use the shared SaneUI native Apple hover-help standard instead of fragile app-local overlays"
+        )
+        XCTAssertTrue(
+            healthSource.contains(".saneHelp(accessibilityHelp)") &&
+                healthSource.contains(".saneHelp(geometryHelp)") &&
+                healthSource.contains(".saneHelp(structureHelp)") &&
+                healthSource.contains("SaneInlineHelp(layoutModeHelp)") &&
+                healthSource.contains("if !accessibilityService.isGranted") &&
+                healthSource.contains("openAccessibilitySettings()") &&
+                healthSource.contains(".accessibilityLabel(\"Open Accessibility settings\")") &&
+                healthSource.contains("if needsGeometryAction") &&
+                healthSource.contains("runRepair(reason: \"health-geometry-fix\"") &&
+                healthSource.contains("repairMenuBarHealth(reason: reason)") &&
+                healthSource.contains("repairInProgress") &&
+                healthSource.contains(".accessibilityLabel(\"Fix menu bar geometry\")") &&
+                healthSource.contains("if needsStructureAction") &&
+                healthSource.contains("runRepair(reason: \"health-items-fix\"") &&
+                healthSource.contains(".accessibilityLabel(\"Fix SaneBar items\")") &&
+                healthSource.contains("menuBarManager.setLayoutMode(mode, reason: \"health\")") &&
+                healthSource.contains("Button(\"Stability\")") &&
+                healthSource.contains("Button(\"Live\")") &&
+                healthSource.contains("func setLayoutMode(_ mode: SaneBarSettings.LayoutMode)"),
+            "Health should explain status rows, provide one-click repair actions for warning states, and expose clickable Stability/Live layout mode choices"
+        )
+        XCTAssertTrue(
+            healthSource.contains("Copies a support report with current permissions, layout state, item counts, and recent diagnostics"),
+            "Health support actions should say exactly what clicking them does"
+        )
+        XCTAssertTrue(
+                generalSource.contains("layoutModeDescription") &&
+                generalSource.contains("liveLayoutChecksBinding") &&
+                generalSource.contains("menuBarManager.setLayoutMode(enabled ? .live : .stability, reason: \"control\")") &&
+                generalSource.contains("menuBarManager.repairMenuBarHealth(reason: \"control\")") &&
+                generalSource.contains("Live checks after wake/display changes") &&
+                generalSource.contains("SaneInlineHelp(layoutModeDescription)") &&
+                generalSource.contains("Stability repairs only at startup"),
+            "Layout Stability should expose Live mode as a plain switch with visible and hover copy instead of a confusing one-option mode selector"
+        )
+    }
+
+    func testAppearanceIconMenuUsesRuntimeSymbolsInsteadOfApproximateGlyphs() throws {
+        let appearanceURL = projectRootURL().appendingPathComponent("UI/Settings/AppearanceSettingsView.swift")
+        let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            appearanceSource.contains("menuSymbolName(for style: SaneBarSettings.MenuBarIconStyle)") &&
+                appearanceSource.contains("selectedIconImage(for style: SaneBarSettings.MenuBarIconStyle)") &&
+                appearanceSource.contains("StatusBarController.makeSymbolImage(name: menuSymbolName(for: style))") &&
+                appearanceSource.contains("Image(systemName: menuSymbolName(for: style))"),
+            "Menu Bar Icon options should render the same SF Symbols as the actual status item instead of approximate glyphs"
+        )
+        XCTAssertFalse(
+            appearanceSource.contains("pickerIconOptionLabel(\"Filter\", glyph:"),
+            "Menu Bar Icon picker rows should not approximate the actual Filter status icon with text glyphs"
+        )
+    }
+
+    func testAppearanceIconMenuUsesEnabledMenuButtonsAndRuntimeSymbols() throws {
+        let appearanceURL = projectRootURL().appendingPathComponent("UI/Settings/AppearanceSettingsView.swift")
+        let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
+        let settingsURL = projectRootURL().appendingPathComponent("Core/Services/PersistenceService.swift")
+        let settingsSource = try String(contentsOf: settingsURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            appearanceSource.contains("Menu {") &&
+                appearanceSource.contains("Button {") &&
+                appearanceSource.contains("selectMenuBarIconStyle(style)") &&
+                appearanceSource.contains("selectedIconMenuLabel"),
+            "Icon style selection should use real Menu button actions instead of custom Picker rows that can render as disabled gray"
+        )
+        XCTAssertFalse(
+            appearanceSource.contains("Picker(\"\", selection: $menuBarManager.settings.menuBarIconStyle)"),
+            "Icon style selection should not return to the custom Picker presentation that made enabled options look disabled"
+        )
+        XCTAssertTrue(
+            settingsSource.contains("case .filter: \"line.3.horizontal.decrease\"") &&
+                appearanceSource.contains("style.sfSymbolName ?? \"photo\""),
+            "Icon style menu rows should use the same symbols as the runtime status item, with Filter matching the actual menu bar icon"
+        )
+    }
+
+    func testSettingsWindowIsResizableWithSaneBarOwnedSizing() throws {
+        let appURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let appSource = try String(contentsOf: appURL, encoding: .utf8)
+        let settingsURL = projectRootURL().appendingPathComponent("UI/SettingsView.swift")
+        let settingsSource = try String(contentsOf: settingsURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            appSource.contains("window.styleMask = [.titled, .closable, .resizable, .miniaturizable]") &&
+                appSource.contains("SaneSettingsWindowDefaults.minWidth") &&
+                appSource.contains("SaneBarSettingsWindowMetrics.idealHeight") &&
+                settingsSource.contains("SaneSettingsContainer(defaultTab: defaultTab, windowSizing: .embedded)") &&
+                settingsSource.contains("SettingsResizeGrip") &&
+                settingsSource.contains("NSViewRepresentable") &&
+                settingsSource.contains("NSEvent.mouseLocation") &&
+                settingsSource.contains("window.setFrame(frame, display: true, animate: false)") &&
+                !settingsSource.contains("DragGesture(minimumDistance: 1)") &&
+                !settingsSource.contains("RoundedRectangle(cornerRadius: 6"),
+            "Settings should be user-resizable with a subtle AppKit-backed grip instead of a heavy SwiftUI drag overlay"
         )
     }
 
@@ -2131,6 +2282,17 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             upsellSource.contains("Button(\"Activate\")"),
             "The direct license-entry sheet should still expose an explicit Activate action"
+        )
+    }
+
+    func testSettingsOpenerRetargetsExistingWindowForDeepLinks() throws {
+        let appURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let source = try String(contentsOf: appURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if let existingWindow = settingsWindow") &&
+                source.contains("existingWindow.contentViewController = NSHostingController(rootView: SettingsView(defaultTab: tab))"),
+            "SettingsOpener should switch an already-open settings window when Health/Repair deep links request a specific tab"
         )
     }
 
@@ -2179,7 +2341,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "SaneBar surfaces should import SaneUI directly instead of relying on a local background copy"
         )
         XCTAssertTrue(
-            settingsSource.contains("SaneSettingsContainer(defaultTab: SettingsTab.general)") &&
+            settingsSource.contains("SaneSettingsContainer(defaultTab: defaultTab") &&
                 iconPanelSource.contains("SaneGradientBackground(style: .panel)") &&
                 secondMenuBarSource.contains("SaneGradientBackground(style: .panel)"),
             "Settings should use the shared SaneUI container, and both browse surfaces should use the calmer shared panel background"
@@ -2196,7 +2358,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "SaneBar should not keep a local gradient background clone once SaneUI owns the shared panel background"
         )
         XCTAssertTrue(
-            settingsSource.contains("SaneSettingsContainer(defaultTab: SettingsTab.general)"),
+            settingsSource.contains("SaneSettingsContainer(defaultTab: defaultTab") &&
+                settingsSource.contains("var defaultTab: SettingsTab = .control"),
             "Settings shell should come from SaneUI so the shared settings chrome stays unified across apps"
         )
         XCTAssertFalse(
@@ -2977,21 +3140,63 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
-    func testRulesSettingsExposeInlineRevealAppMenuToggle() throws {
-        let fileURL = projectRootURL().appendingPathComponent("UI/Settings/RulesSettingsView.swift")
+    func testQuickSearchPrefillSurvivesInitialPanelCreation() throws {
+        let controllerSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/SearchWindow/SearchWindowController.swift"),
+            encoding: .utf8
+        )
+        let viewSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            controllerSource.contains("createWindow(mode: desiredMode, prefill: searchText)") &&
+                controllerSource.contains("createFindIconWindow(prefill: searchText)"),
+            "Quick Search should pass its prefill into newly-created Browse Icons windows instead of only posting an early notification"
+        )
+        XCTAssertTrue(
+            viewSource.contains("initialSearchText: String? = nil") &&
+                viewSource.contains("_searchText = State(initialValue: initialSearchText)") &&
+                viewSource.contains("_searchTextDebounced = State(initialValue: initialSearchText)"),
+            "Browse Icons should seed search state from Quick Search before notification subscribers exist"
+        )
+    }
+
+    func testSearchURLRevealsHiddenItemsBeforeOpeningPanel() throws {
+        let appSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("SaneBarApp.swift"),
+            encoding: .utf8
+        )
+        guard let searchCase = appSource.range(of: "case \"search\":"),
+              let settingsCase = appSource.range(of: "case \"settings\":") else {
+            XCTFail("Expected URL handler search and settings cases")
+            return
+        }
+
+        let searchBlock = String(appSource[searchCase.lowerBound ..< settingsCase.lowerBound])
+        XCTAssertTrue(
+            searchBlock.contains("await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)") &&
+                searchBlock.range(of: "showHiddenItemsNow")!.lowerBound < searchBlock.range(of: "SearchWindowController.shared.show")!.lowerBound,
+            "sanebar://search?q=... should reveal hidden items before opening Browse Icons so URL quick search can find hidden icons"
+        )
+    }
+
+    func testControlSettingsExposeInlineRevealAppMenuToggle() throws {
+        let fileURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
             source.contains("Hide app menus during inline reveal"),
-            "Rules settings should expose the inline reveal app-menu toggle label"
+            "Control settings should expose the inline reveal app-menu toggle label"
         )
         XCTAssertTrue(
-            source.contains("Only affects inline reveal, not Icon Panel or Second Menu Bar."),
-            "Rules settings should explain that the toggle only applies to inline reveal"
+            source.contains("Only affects inline reveal."),
+            "Control settings should explain that the toggle only applies to inline reveal"
         )
         XCTAssertTrue(
             source.contains("$menuBarManager.settings.hideApplicationMenusOnInlineReveal"),
-            "Rules settings should bind the toggle to the persisted inline reveal app-menu setting"
+            "Control settings should bind the toggle to the persisted inline reveal app-menu setting"
         )
     }
 
@@ -3329,6 +3534,82 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("Basic can browse and click icons, but moving icons is Pro-only."),
             "The AppleScript move gate should explain the exact Basic vs Pro boundary"
+        )
+    }
+
+    func testLayoutRescueAndHealthWizardAreFirstClassHealthFlows() throws {
+        let healthURL = projectRootURL().appendingPathComponent("UI/Settings/HealthSettingsView.swift")
+        let healthSource = try String(contentsOf: healthURL, encoding: .utf8)
+        let wizardURL = projectRootURL().appendingPathComponent("UI/Settings/HealthWizardView.swift")
+        let wizardSource = try String(contentsOf: wizardURL, encoding: .utf8)
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Profiles.swift")
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
+        let startupURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let startupSource = try String(contentsOf: startupURL, encoding: .utf8)
+        let onboardingURL = projectRootURL().appendingPathComponent("UI/Onboarding/OnboardingController.swift")
+        let onboardingSource = try String(contentsOf: onboardingURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            healthSource.contains("CompactSection(\"Layout Rescue\"") &&
+                healthSource.contains("Save Current Layout") &&
+                healthSource.contains("Restore Last Good Layout"),
+            "Health should expose Layout Rescue as a first-class restore-point workflow, not only Arrange Now"
+        )
+        XCTAssertTrue(
+            managerSource.contains("func createLayoutRescueRestorePoint") &&
+                managerSource.contains("StatusBarController.captureLayoutSnapshot()") &&
+                managerSource.contains("func restoreLayoutRescueRestorePoint") &&
+                managerSource.contains("StatusBarController.applyLayoutSnapshot(snapshot)") &&
+                managerSource.contains("restoreStatusItemLayoutIfNeeded()") &&
+                managerSource.contains("func repairMenuBarHealth(reason: String = \"manual\") async") &&
+                managerSource.contains("func setLayoutMode(_ mode: SaneBarSettings.LayoutMode, reason: String = \"manual\") async"),
+            "Layout Rescue should use the existing layout snapshot and recovery primitives"
+        )
+        XCTAssertTrue(
+            wizardSource.contains("final class HealthWizardController") &&
+                wizardSource.contains("FirstRunHealthWizardView") &&
+                wizardSource.contains("showIfNeeded()") &&
+                wizardSource.contains("createLayoutRescueRestorePoint(reason: \"health-wizard\")") &&
+                !wizardSource.contains(".onAppear {\n            if menuBarManager.settings.layoutRescueRestorePoint == nil"),
+            "First-run Health Wizard should expose rescue creation without blindly saving an unproven restore point on appearance"
+        )
+        XCTAssertTrue(
+            onboardingSource.contains("HealthWizardController.shared.showIfNeeded()") &&
+                startupSource.contains("else if !settings.hasCompletedHealthWizard") &&
+                startupSource.contains("HealthWizardController.shared.showIfNeeded()"),
+            "Completing onboarding and already-onboarded pending states should both be able to show the Health Wizard"
+        )
+    }
+
+    func testProfilesDoNotOverwriteHealthWizardOrLayoutRescueState() throws {
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Profiles.swift")
+        let source = try String(contentsOf: managerURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("func preservingLocalLifecycleState(from current: SaneBarSettings)") &&
+                source.contains("next.hasCompletedHealthWizard = current.hasCompletedHealthWizard") &&
+                source.contains("next.layoutRescueRestorePoint = current.layoutRescueRestorePoint") &&
+                source.contains("next.layoutRescueRestorePointCreatedAt = current.layoutRescueRestorePointCreatedAt"),
+            "Applying profiles should not erase wizard completion or the user's layout rescue restore point"
+        )
+    }
+
+    func testImportsCreateRollbackPointAndPreserveLocalWizardState() throws {
+        let generalURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
+        let generalSource = try String(contentsOf: generalURL, encoding: .utf8)
+        let settingsControllerURL = projectRootURL().appendingPathComponent("Core/Controllers/SettingsController.swift")
+        let settingsControllerSource = try String(contentsOf: settingsControllerURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            generalSource.contains("createLayoutRescueRestorePoint(reason: \"pre-import\")") &&
+                generalSource.contains("settings.preservingLocalLifecycleState(from: menuBarManager.settings)"),
+            "Settings import should save a pre-change rollback point and preserve local wizard/rescue state"
+        )
+        XCTAssertTrue(
+            settingsControllerSource.contains("preserveHealthWizard") &&
+                settingsControllerSource.contains("preserveLayoutRescueRestorePoint") &&
+                settingsControllerSource.contains("preserveLayoutRescueRestorePointCreatedAt"),
+            "Reset to defaults should not silently erase Health Wizard completion or the user's rescue point"
         )
     }
 

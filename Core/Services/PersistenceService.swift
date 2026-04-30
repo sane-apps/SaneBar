@@ -35,6 +35,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     enum MenuBarIconStyle: String, Codable, CaseIterable, Sendable {
         case filter // line.3.horizontal.decrease (Default)
+        case sliders // slider.horizontal.3
         case dots // ellipsis
         case lines // line.3.horizontal
         case chevron // chevron.up.chevron.down
@@ -44,6 +45,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         var sfSymbolName: String? {
             switch self {
             case .filter: "line.3.horizontal.decrease"
+            case .sliders: "slider.horizontal.3"
             case .dots: "ellipsis"
             case .lines: "line.3.horizontal"
             case .chevron: "chevron.up.chevron.down"
@@ -57,6 +59,16 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     enum GestureMode: String, Codable, CaseIterable, Sendable {
         case showOnly = "Show only"
         case showAndHide = "Show and hide"
+    }
+
+    enum LayoutMode: String, Codable, CaseIterable, Sendable {
+        case stability = "Stability"
+        case live = "Live"
+    }
+
+    enum TriggerAction: String, Codable, CaseIterable, Sendable {
+        case showIcons = "Show Icons"
+        case applyProfile = "Apply Profile"
     }
 
     /// User-created icon group for organizing menu bar apps
@@ -96,6 +108,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Bundle IDs of apps that trigger showing hidden items
     var triggerApps: [String] = []
 
+    /// Action to run when a configured app trigger fires.
+    var appLaunchTriggerAction: TriggerAction = .showIcons
+
+    /// Profile to apply when `appLaunchTriggerAction` is `.applyProfile`.
+    var appLaunchTriggerProfileId: UUID?
+
     /// Per-icon hotkey configurations: bundleID -> shortcut key data
     /// When triggered, shows hidden items and activates the app
     var iconHotkeys: [String: KeyboardShortcutData] = [:]
@@ -108,6 +126,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     /// Battery percentage threshold for triggering (1-100)
     var batteryThreshold: Int = 20
+
+    /// Action to run when the battery trigger crosses its threshold.
+    var batteryTriggerAction: TriggerAction = .showIcons
+
+    /// Profile to apply when `batteryTriggerAction` is `.applyProfile`.
+    var batteryTriggerProfileId: UUID?
 
     /// Whether the user has completed first-launch onboarding
     var hasCompletedOnboarding: Bool = false
@@ -132,6 +156,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// WiFi network SSIDs that trigger showing hidden items
     var triggerNetworks: [String] = []
 
+    /// Action to run when a configured Wi-Fi trigger fires.
+    var networkTriggerAction: TriggerAction = .showIcons
+
+    /// Profile to apply when `networkTriggerAction` is `.applyProfile`.
+    var networkTriggerProfileId: UUID?
+
     /// Show Dock icon (default: false for backward compatibility)
     /// When false, app uses .accessory mode (no Dock icon)
     /// When true, app uses .regular mode (Dock icon visible)
@@ -146,6 +176,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Also supports special value "(Focus Off)" to trigger when Focus turns off
     var triggerFocusModes: [String] = []
 
+    /// Action to run when a configured Focus trigger fires.
+    var focusTriggerAction: TriggerAction = .showIcons
+
+    /// Profile to apply when `focusTriggerAction` is `.applyProfile`.
+    var focusTriggerProfileId: UUID?
+
     // MARK: - Schedule Trigger
 
     /// Show hidden items when local time enters the configured schedule window.
@@ -153,6 +189,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     /// Days of week that participate in schedule trigger (1=Sunday ... 7=Saturday).
     var scheduleWeekdays: [Int] = [2, 3, 4, 5, 6] // Mon-Fri
+
+    /// Action to run when the schedule trigger enters its configured window.
+    var scheduleTriggerAction: TriggerAction = .showIcons
+
+    /// Profile to apply when `scheduleTriggerAction` is `.applyProfile`.
+    var scheduleTriggerProfileId: UUID?
 
     /// Schedule start (24h clock).
     var scheduleStartHour: Int = 9
@@ -269,6 +311,25 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Stored as `RunningApp.uniqueId` values (best-effort).
     var alwaysHiddenPinnedItemIds: [String] = []
 
+    /// Hide every detected menu bar item except the explicitly allowed visible IDs.
+    /// Stored IDs use `RunningApp.uniqueId` where possible, with bundle ID fallback.
+    var hideAllOtherMenuBarItems: Bool = false
+
+    /// Menu bar item IDs that should remain visible when `hideAllOtherMenuBarItems` is enabled.
+    var hideAllOtherVisibleItemIds: [String] = []
+
+    /// Controls how aggressively SaneBar performs automatic layout validation/repair.
+    var layoutMode: LayoutMode = .stability
+
+    /// Whether the first-run health wizard has already been dismissed.
+    var hasCompletedHealthWizard: Bool = false
+
+    /// User-created known-good menu bar layout restore point.
+    var layoutRescueRestorePoint: SaneBarLayoutSnapshot?
+
+    /// Creation date for the current layout rescue restore point.
+    var layoutRescueRestorePointCreatedAt: Date?
+
     // MARK: - Script Trigger
 
     /// Run a user-defined shell script on a timer to control visibility.
@@ -295,10 +356,14 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         spacerWidth = try container.decodeIfPresent(SpacerWidth.self, forKey: .spacerWidth) ?? .normal
         showOnAppLaunch = try container.decodeIfPresent(Bool.self, forKey: .showOnAppLaunch) ?? false
         triggerApps = try container.decodeIfPresent([String].self, forKey: .triggerApps) ?? []
+        appLaunchTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .appLaunchTriggerAction) ?? .showIcons
+        appLaunchTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .appLaunchTriggerProfileId)
         iconHotkeys = try container.decodeIfPresent([String: KeyboardShortcutData].self, forKey: .iconHotkeys) ?? [:]
         iconGroups = try container.decodeIfPresent([IconGroup].self, forKey: .iconGroups) ?? []
         showOnLowBattery = try container.decodeIfPresent(Bool.self, forKey: .showOnLowBattery) ?? false
         batteryThreshold = try container.decodeIfPresent(Int.self, forKey: .batteryThreshold) ?? 20
+        batteryTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .batteryTriggerAction) ?? .showIcons
+        batteryTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .batteryTriggerProfileId)
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
         hasSeenFreemiumIntro = try container.decodeIfPresent(Bool.self, forKey: .hasSeenFreemiumIntro) ?? false
         requireAuthToShowHiddenIcons = try container.decodeIfPresent(Bool.self, forKey: .requireAuthToShowHiddenIcons) ?? false
@@ -308,11 +373,17 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         ) ?? MenuBarAppearanceSettings()
         showOnNetworkChange = try container.decodeIfPresent(Bool.self, forKey: .showOnNetworkChange) ?? false
         triggerNetworks = try container.decodeIfPresent([String].self, forKey: .triggerNetworks) ?? []
+        networkTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .networkTriggerAction) ?? .showIcons
+        networkTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .networkTriggerProfileId)
         showDockIcon = try container.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? false
         showOnFocusModeChange = try container.decodeIfPresent(Bool.self, forKey: .showOnFocusModeChange) ?? false
         triggerFocusModes = try container.decodeIfPresent([String].self, forKey: .triggerFocusModes) ?? []
+        focusTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .focusTriggerAction) ?? .showIcons
+        focusTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .focusTriggerProfileId)
         showOnSchedule = try container.decodeIfPresent(Bool.self, forKey: .showOnSchedule) ?? false
         scheduleWeekdays = try container.decodeIfPresent([Int].self, forKey: .scheduleWeekdays) ?? [2, 3, 4, 5, 6]
+        scheduleTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .scheduleTriggerAction) ?? .showIcons
+        scheduleTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .scheduleTriggerProfileId)
         scheduleStartHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartHour) ?? 9, 0), 23)
         scheduleStartMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartMinute) ?? 0, 0), 59)
         scheduleEndHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndHour) ?? 17, 0), 23)
@@ -339,6 +410,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         menuBarIconStyle = try container.decodeIfPresent(MenuBarIconStyle.self, forKey: .menuBarIconStyle) ?? .filter
         alwaysHiddenSectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .alwaysHiddenSectionEnabled) ?? false
         alwaysHiddenPinnedItemIds = try container.decodeIfPresent([String].self, forKey: .alwaysHiddenPinnedItemIds) ?? []
+        hideAllOtherMenuBarItems = try container.decodeIfPresent(Bool.self, forKey: .hideAllOtherMenuBarItems) ?? false
+        hideAllOtherVisibleItemIds = try container.decodeIfPresent([String].self, forKey: .hideAllOtherVisibleItemIds) ?? []
+        layoutMode = try container.decodeIfPresent(LayoutMode.self, forKey: .layoutMode) ?? .stability
+        hasCompletedHealthWizard = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedHealthWizard) ?? false
+        layoutRescueRestorePoint = try container.decodeIfPresent(SaneBarLayoutSnapshot.self, forKey: .layoutRescueRestorePoint)
+        layoutRescueRestorePointCreatedAt = try container.decodeIfPresent(Date.self, forKey: .layoutRescueRestorePointCreatedAt)
         scriptTriggerEnabled = try container.decodeIfPresent(Bool.self, forKey: .scriptTriggerEnabled) ?? false
         scriptTriggerPath = try container.decodeIfPresent(String.self, forKey: .scriptTriggerPath) ?? ""
         scriptTriggerInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .scriptTriggerInterval) ?? 10.0
@@ -354,10 +431,13 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case autoRehide, rehideDelay, findIconRehideDelay, spacerCount, spacerStyle, spacerWidth, showOnAppLaunch, triggerApps
-        case iconHotkeys, iconGroups, showOnLowBattery, batteryThreshold, hasCompletedOnboarding, hasSeenFreemiumIntro
-        case menuBarAppearance, showOnNetworkChange, triggerNetworks, showDockIcon
-        case showOnFocusModeChange, triggerFocusModes
-        case showOnSchedule, scheduleWeekdays, scheduleStartHour, scheduleStartMinute, scheduleEndHour, scheduleEndMinute
+        case appLaunchTriggerAction, appLaunchTriggerProfileId
+        case iconHotkeys, iconGroups, showOnLowBattery, batteryThreshold, batteryTriggerAction, batteryTriggerProfileId
+        case hasCompletedOnboarding, hasSeenFreemiumIntro
+        case menuBarAppearance, showOnNetworkChange, triggerNetworks, networkTriggerAction, networkTriggerProfileId, showDockIcon
+        case showOnFocusModeChange, triggerFocusModes, focusTriggerAction, focusTriggerProfileId
+        case showOnSchedule, scheduleWeekdays, scheduleTriggerAction, scheduleTriggerProfileId
+        case scheduleStartHour, scheduleStartMinute, scheduleEndHour, scheduleEndMinute
         case requireAuthToShowHiddenIcons
         case showOnHover, hoverDelay, showOnScroll, showOnClick, hideApplicationMenusOnInlineReveal, gestureToggles
         case useDirectionalScroll, showOnUserDrag, rehideOnAppChange, disableOnExternalMonitor
@@ -365,6 +445,8 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case checkForUpdatesAutomatically, lastUpdateCheck
         case hideMainIcon, dividerStyle, menuBarIconStyle
         case alwaysHiddenSectionEnabled, alwaysHiddenPinnedItemIds, useSecondMenuBar, secondMenuBarShowVisible, secondMenuBarShowAlwaysHidden, leftClickOpensBrowseIcons
+        case hideAllOtherMenuBarItems, hideAllOtherVisibleItemIds, layoutMode
+        case hasCompletedHealthWizard, layoutRescueRestorePoint, layoutRescueRestorePointCreatedAt
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 
@@ -472,6 +554,12 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         let hasOnboardingKey = hasTopLevelKey("hasCompletedOnboarding", in: data)
         if !hasOnboardingKey {
             settings.hasCompletedOnboarding = true
+            shouldRewriteJSON = true
+        }
+
+        let hasHealthWizardKey = hasTopLevelKey("hasCompletedHealthWizard", in: data)
+        if !hasHealthWizardKey {
+            settings.hasCompletedHealthWizard = settings.hasCompletedOnboarding
             shouldRewriteJSON = true
         }
 

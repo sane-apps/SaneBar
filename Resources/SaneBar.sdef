@@ -24,6 +24,12 @@
             <result type="boolean" description="True if the icon-panel open request was accepted"/>
         </command>
 
+        <command name="quick search" code="SBarqksc" description="Reveal hidden items and open Browse Icons with optional search text">
+            <cocoa class="QuickSearchCommand"/>
+            <direct-parameter type="text" optional="yes" description="Optional search text"/>
+            <result type="boolean" description="True if the quick search request was accepted"/>
+        </command>
+
         <command name="show second menu bar" code="SBar2ndm" description="Reveal hidden items and open the second menu bar browse panel">
             <cocoa class="ShowSecondMenuBarCommand"/>
             <result type="boolean" description="True if the browse-panel open request was accepted"/>
