@@ -1,10 +1,16 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-04-30
-**Current public release:** `v2.1.46` (build `2146`)
+**Current public release:** `v2.1.47` (build `2147`)
 
 ## Current State
 
+- 2026-04-30 post-2.1.47 drag-lane audit note:
+  - User observed the automated Mini smoke appeared to drag Spotlight to the right of the SaneBar icon instead of into the visible lane between the divider and SaneBar icon.
+  - Investigation found a validation gap plus a low-risk tight-layout fallback in `AccessibilityService.moveTargetX(.visible...)` that could target just right of the SaneBar boundary.
+  - Fixed on `main` in commit `38f47c2` (`Keep visible icon moves inside SaneBar lane`): visible move fallback now clamps inside the divider-to-SaneBar lane, focused runtime smoke preserves screenshots, and regression tests assert the target stays left of the SaneBar icon boundary.
+  - Mini verification passed before/after commit: `SaneMaster verify`, `Scripts/qa_test.rb`, native exact-id smoke for Siri and Spotlight, startup layout probe, and visual screenshot inspection.
+  - Release decision: do not fast-publish 2.1.48 for this by default; 2.1.47 can remain live because this appears to be primarily a test/automation validation issue with a low-risk edge-case hardening patch queued for the next normal release.
 - 2026-04-30 UI/gating follow-up and Mini-channel audit:
   - Paused the local Codex `app-store-status` automation after confirming it ran SaneSales App Store/status checks in a local worktree on the MacBook Air; its prompt now says to stop rather than fall back locally if Mini-only checks are unavailable.
   - Fixed shared `sane_test.rb` free/pro launch mode bug in `~/SaneApps/infra/SaneProcess`: local release runs now clear/write no-keychain license data for the staged runtime bundle ID (`com.sanebar.app`) instead of always targeting the dev bundle ID.
