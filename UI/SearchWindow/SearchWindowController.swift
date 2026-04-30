@@ -210,15 +210,17 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             resetWindow()
         }
 
+        let didCreateWindow = window == nil
+
         // Create window lazily if needed
         if window == nil {
-            createWindow(mode: desiredMode)
+            createWindow(mode: desiredMode, prefill: searchText)
         }
 
         guard let window else { return }
         applyDarkAppearance(to: window)
 
-        if desiredMode == .findIcon {
+        if desiredMode == .findIcon, !didCreateWindow {
             if let searchText, !searchText.isEmpty {
                 NotificationCenter.default.post(name: MenuBarSearchView.setSearchTextNotification, object: searchText)
             } else {
@@ -596,21 +598,24 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Window Creation
 
-    private func createWindow(mode: SearchWindowMode) {
+    private func createWindow(mode: SearchWindowMode, prefill searchText: String? = nil) {
         currentMode = mode
 
         switch mode {
         case .findIcon:
-            createFindIconWindow()
+            createFindIconWindow(prefill: searchText)
         case .secondMenuBar:
             createSecondMenuBarWindow()
         }
     }
 
-    private func createFindIconWindow() {
-        let contentView = MenuBarSearchView(onDismiss: { [weak self] in
-            self?.close()
-        })
+    private func createFindIconWindow(prefill searchText: String? = nil) {
+        let contentView = MenuBarSearchView(
+            initialSearchText: searchText,
+            onDismiss: { [weak self] in
+                self?.close()
+            }
+        )
         .preferredColorScheme(.dark)
 
         let hostingView = NSHostingView(rootView: contentView)

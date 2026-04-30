@@ -1,10 +1,41 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-30
 **Current public release:** `v2.1.46` (build `2146`)
 
 ## Current State
 
+- 2026-04-30 UI/gating follow-up and Mini-channel audit:
+  - Paused the local Codex `app-store-status` automation after confirming it ran SaneSales App Store/status checks in a local worktree on the MacBook Air; its prompt now says to stop rather than fall back locally if Mini-only checks are unavailable.
+  - Fixed shared `sane_test.rb` free/pro launch mode bug in `~/SaneApps/infra/SaneProcess`: local release runs now clear/write no-keychain license data for the staged runtime bundle ID (`com.sanebar.app`) instead of always targeting the dev bundle ID.
+  - Re-ran true Basic/free-mode SaneBar release launch on the Mini and verified `com.sanebar.app` no longer had `pro_license`/`pro_last_validation` fallback defaults.
+  - Fresh Mini Basic screenshots captured at `~/Desktop/Screenshots/SaneBarCodex/basic-rules.png`, `basic-appearance.png`, `basic-shortcuts.png`, and `basic-health.png`; Rules/Appearance/Shortcuts now expose individual locked Pro rows instead of hiding whole sections.
+  - Verification passed after the tooling fix: SaneBar `./scripts/SaneMaster.rb verify --timeout 900` with 1,128 tests, SaneClip verify earlier with 145 tests, SaneProcess `ruby scripts/app_test_mode_test.rb` 6/6, and `git diff --check` for SaneBar/SaneClip/SaneProcess.
+  - Runtime `scripts/live_zone_smoke.rb` on the Mini is still blocked by the Mini’s missing Accessibility grant for the staged `com.sanebar.app`; Health screenshot shows `Accessibility: Needs Action`. Do not call this release-ready until Accessibility is granted and live smoke is rerun.
+- 2026-04-29 Bartender import/export upgrade is implemented and locally verified, but not committed:
+  - Bartender `special.AllOtherItems` now maps to first-class SaneBar settings (`hideAllOtherMenuBarItems` and `hideAllOtherVisibleItemIds`) instead of only doing a one-time import move.
+  - Runtime enforcement keeps the imported hide-all-others rule active across app launches and newly appearing menu items while skipping SaneBar/Bartender control items and known unmovable system extras.
+  - SaneBar and Bartender imports now show an import preview sheet before applying changes, including counts for shown/hidden/always-hidden/all-other rules, profiles, snapshots, custom icons, settings changes, missing items, and skipped items.
+  - Verification passed: `./scripts/SaneMaster.rb test_scan`, `git diff --check`, and `./scripts/SaneMaster.rb verify --timeout 900` with 1,102 tests.
+  - Practical Mini verification passed through `./scripts/SaneMaster.rb test_mode --release` and `./scripts/SaneMaster.rb mode SaneBar pro --host mini --launch --live-seconds 5`.
+  - Visual Mini verification captured the Pro Data section and an actual Bartender preview sheet from sample plist selection; screenshots are in `~/Desktop/Screenshots/sanebar-settings-data-section2.png` and `~/Desktop/Screenshots/sanebar-import-after-select.png`.
+- 2026-04-30 competitor-research upgrade pass is implemented and locally verified, but not committed:
+  - Settings IA now prioritizes daily workflows through a first-position Control tab; Rules is scoped to automatic triggers, and Health adds repair/status diagnostics.
+  - Added Stability vs Live layout mode, explicit Arrange Now controls, safer hide-all-others enablement seeded from current visible layout, and profile apply/save helpers that preserve automation settings.
+  - Automatic triggers can now apply a saved profile instead of only showing icons; battery, app, network, focus, and schedule services route through the shared trigger-action path.
+  - Status menu now exposes Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, and dynamic saved-profile actions.
+  - Added App Intents/App Shortcuts, `sanebar://health`, `sanebar://repair`, `sanebar://search?q=...`, and AppleScript `quick search`; initial Quick Search prefill now survives first panel creation.
+  - Review subagent found and the patch fixed two blockers: empty allow-list hide-all-others enablement and Health deep-link retargeting for an already-open Settings window.
+  - Verification passed: `git diff --check`, `./scripts/SaneMaster.rb test_scan`, and `./scripts/SaneMaster.rb verify --timeout 900` with 1,113 tests.
+  - Practical Mini verification passed through `./scripts/SaneMaster.rb test_mode --release --timeout 900`, AppleScript/URL workflow exercise, and clean screenshots at `~/Desktop/Screenshots/SaneBar/control.png`, `health.png`, `quick-search.png`, and `quick-search-url.png`.
+  - NVIDIA visual second-pass audit was attempted twice (`llama-vision` 500, `phi-vision` 400) and stopped per two-strikes; direct screenshot inspection confirmed no visible overlap/clipping and both Quick Search paths show `wifi` prefilled.
+- 2026-04-30 morning release-readiness rerun: not ready to publish yet.
+  - The competitor-upgrade work was restored from auto-reconcile `stash@{0}` before rerunning verification; keep the stash until this work is committed.
+  - Fresh restored-tree checks passed: `git diff --check`, `./scripts/SaneMaster.rb test_scan`, and `./scripts/SaneMaster.rb verify --timeout 900` with 1,112 tests.
+  - Fresh visual verification used SaneBar AppleScript snapshots and Codex built-in image inspection only; screenshots are `~/Desktop/Screenshots/SaneBar/restored-control.png`, `restored-health.png`, `restored-quick-search.png`, and `restored-quick-search-url.png`.
+  - `./scripts/SaneMaster.rb release_preflight` is blocked: release runtime smoke failed activating off-screen Setapp/Lungo items in Second Menu Bar, the live email worker still serves SaneBar build 2141 while appcast is 2146, and the worker product config is at 2.1.41.
+  - Release-risk review found feature blockers to fix before publishing the competitor-upgrade release: trigger/App Intent profile application can weaken `requireAuthToShowHiddenIcons` without the manual auth guard, Bartender Always Hide preview/import semantics do not match, `sanebar://search?q=...` does not reveal hidden items like AppleScript/App Intent quick search, and trigger-applied profiles need loop/cooldown protection or focused runtime proof.
+  - Status runner also reported Lemon Squeezy hosted-file dashboard drift: SaneBar hosted file is 2.1.45 while expected/appcast version is 2.1.46.
 - `v2.1.46` shipped successfully on 2026-04-28.
   - direct ZIP is live: `https://dist.sanebar.com/updates/SaneBar-2.1.46.zip`
   - appcast latest item is `2.1.46` / build `2146`
@@ -661,3 +692,75 @@
 
 ### Next
 - Commit and release as 2.1.45. Use release notes that avoid internal/scary release-script banned words.
+
+---
+
+## 2026-04-30 Health UI + Test Launcher Signing
+
+### Done
+- Added shared SaneUI readable help standard (`saneHelp(_:)`, `SaneInlineHelp`) and migrated SaneBar Health/General/Health Wizard hover help off app-local overlays.
+- Simplified Health status rows so warning states expose one-click actions: Accessibility `Open`, Menu Bar Geometry `Fix`, and SaneBar Items `Fix`.
+- Replaced the heavy SwiftUI resize grip with a subtle AppKit-backed corner grip that resizes from absolute mouse position.
+- Fixed `sane_test.rb --release` so it no longer stages ad-hoc builds that break Accessibility/TCC identity; it now preserves release signing and prepares the signing keychain.
+
+### Verification
+- SaneUI `swift test` passed 67 tests on the Mini.
+- SaneBar `./scripts/SaneMaster.rb verify --timeout 900` passed 1,142 tests on the Mini.
+- `ruby ~/SaneApps/infra/SaneProcess/scripts/app_test_mode_test.rb` passed 7/7.
+- `ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --release --free-mode --no-logs` now stages Developer ID signed `/Applications/SaneBar.app`.
+- Final signed Health screenshot: `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-health-sanetest-signed.png`; Accessibility shows `OK`.
+
+### Notes
+- The apparent Health bug where Accessibility showed `Needs Action` while System Settings looked granted was caused by the old ad-hoc test-launch identity, not by Health logic.
+
+## 2026-04-30 Health Repair Follow-Up
+
+### Done
+- Fixed Health repair actions so Geometry/Items repair reveals SaneBar status items long enough to capture live menu-bar anchors, runs the existing status-item recovery path, then waits for a healthy live/cached runtime snapshot before refreshing.
+- Added overlap protection by disabling Health `Fix` / `Run` repair buttons while a repair is already in progress.
+- Confirmed the previous broken loop: the old Health Fix path could recreate status items while still hidden, lose live separator anchors, and flip `SaneBar Items` to `Detached` after briefly looking green.
+
+### Verification
+- Mini `./scripts/SaneMaster.rb test_scan` passed.
+- Mini `./scripts/SaneMaster.rb verify --timeout 900` passed 1,142 tests after the repair change and again after the overlap-protection tweak.
+- Mini signed `ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --release --free-mode --no-logs` staged and launched Developer ID signed `/Applications/SaneBar.app`.
+- Final Mini visual/action proof:
+  - Before repair run: `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-health-final-before-run.png`
+  - After repair run: `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-health-final-after-run.png`
+  - Both show Accessibility `OK`, Menu Bar Geometry `Good`, and SaneBar Items `Ready`.
+- Final layout snapshot reported `startupItemsValid=true`, `geometryAvailable=true`, live separator/main coordinates, and `hidingState=expanded`.
+
+### Follow-Up
+- User reproduced a second failure path: clicking `Fix` worked, but switching `Stability` then `Live` could return Health to `Needs Check` / `Detached`.
+- Root cause: Health Fix used the new anchored repair path, but Live mode enablement, Control `Arrange Now`, Health Wizard `Arrange Now`, and the status menu `Arrange Now` still used the older `arrangeNow` path or raw layout-mode setting writes.
+- Consolidated all customer-facing layout repair entry points onto `repairMenuBarHealth(reason:)`, and added `setLayoutMode(_:reason:)` so enabling Live verifies the layout before reporting success.
+- Live UI matrix on the signed Mini runtime passed: Stability -> Live, Stability -> Live again, and Repair Run all left Health at Accessibility `OK`, Geometry `Good`/`High`, and Items `Ready`; layout snapshots stayed `startupItemsValid=true`.
+- Sequential automated probes passed after relaunch: `startup_layout_probe.rb` and `wake_layout_probe.rb`. The earlier parallel probe failures were invalid because startup and wake probes were run simultaneously and mutated the same live app state.
+
+## 2026-04-30 Pre-Release Basic/Pro Audit + GitHub #139
+
+### Done
+- Checked the fresh support surfaces before release: inbox sweep found no new SaneBar email blocker, and GitHub issue #139 reported MeetingBar disappearing from Visible daily on 2.1.46.
+- Matched #139 to the wake/screen live-validation path: while hidden, SaneBar could treat transient missing/estimated anchors as `.missingCoordinates`, wait twice, then run destructive autosave recovery.
+- Changed wake/screen missing-coordinate validation so it waits briefly for live anchors, then stops without recreating status items or bumping the autosave namespace. Startup/manual repair paths still repair real missing-coordinate states.
+- Fixed the live smoke harness to denylist Setapp/Lungo Mini fixtures for activation/move coverage; they are off-screen hidden helpers that fail dispatch and were producing false red smoke results.
+
+### Verification
+- Mini `./scripts/SaneMaster.rb verify --timeout 900` passed 1,143 tests after the #139/harness patches.
+- `ruby scripts/live_zone_smoke_test.rb` passed 22 tests / 55 assertions.
+- Mini signed Basic: `sane_test.rb SaneBar --release --free-mode --no-logs`, startup probe, wake probe, live zone smoke, and visual screenshots all passed.
+- Mini signed Pro: `sane_test.rb SaneBar --release --pro-mode --no-logs` confirmed `licenseIsPro=true`; live zone smoke with Always Hidden requirement passed.
+- Visual artifacts reviewed locally:
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-basic-health-20260430.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-pro-health-20260430.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-secondMenuBar-20260430-175843.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-findIcon-20260430-175844.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-settings-20260430-175845.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-secondMenuBar-20260430-175653.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-findIcon-20260430-175654.png`
+  - `/Users/sj/Desktop/Screenshots/SaneBarCodex/sanebar-settings-20260430-175654.png`
+- Last log scan during runtime verification showed no recent `Status item remained off-menu-bar` or autosave-bump recovery pattern.
+
+### Release Notes
+- Mention #139 as a layout stability fix for hidden menu bar items after wake/display changes.
+- Mention Basic/Pro UI gating only if release notes cover the broader UI work; use `Basic` and `Pro`, never `free mode`.

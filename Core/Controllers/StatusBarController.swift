@@ -7,7 +7,10 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarCo
 // MARK: - Menu Configuration
 
 struct MenuConfiguration {
+    let toggleAction: Selector
     let findIconAction: Selector
+    let arrangeNowAction: Selector
+    let healthAction: Selector
     let settingsAction: Selector
     let showReleaseNotesAction: Selector?
     let checkForUpdatesAction: Selector
@@ -1664,6 +1667,18 @@ final class StatusBarController: StatusBarControllerProtocol {
         let findItem = NSMenuItem(title: "Browse Icons...", action: configuration.findIconAction, keyEquivalent: "")
         findItem.setShortcut(for: .searchMenuBar)
         menu.addItem(findItem)
+
+        let toggleItem = NSMenuItem(title: "Show / Hide Icons", action: configuration.toggleAction, keyEquivalent: "")
+        toggleItem.setShortcut(for: .toggleHiddenItems)
+        menu.addItem(toggleItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let arrangeItem = NSMenuItem(title: "Arrange Now", action: configuration.arrangeNowAction, keyEquivalent: "")
+        menu.addItem(arrangeItem)
+
+        let healthItem = NSMenuItem(title: "Help / Repair...", action: configuration.healthAction, keyEquivalent: "")
+        menu.addItem(healthItem)
 
         menu.addItem(NSMenuItem.separator())
 

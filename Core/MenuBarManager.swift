@@ -78,6 +78,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
     var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
+    /// Best-effort enforcement task for hide-all-other profile rules.
+    var hideAllOtherRuleEnforcementTask: Task<Void, Never>?
     var lastAlwaysHiddenRepairAt: Date?
     var isRepairingAlwaysHiddenSeparator = false
 
@@ -597,7 +599,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
         // Setup menu using controller (shown via right-click on main icon)
         statusMenu = statusBarController.createMenu(configuration: MenuConfiguration(
+            toggleAction: #selector(menuToggleHiddenItems),
             findIconAction: #selector(openFindIcon),
+            arrangeNowAction: #selector(menuArrangeNow),
+            healthAction: #selector(openHealth),
             settingsAction: #selector(openSettings),
             showReleaseNotesAction: LicenseService.shared.usesSetappDistribution ? #selector(showReleaseNotes) : nil,
             checkForUpdatesAction: #selector(userDidClickCheckForUpdates),
@@ -1289,6 +1294,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 logger.warning(
                     "Status item validation is still waiting for a live anchor after \(maxAttempts, privacy: .public) checks for \(context.rawValue, privacy: .public) — retrying before recovery escalation"
                 )
+            } else if case .stop = action {
+                logger.warning(
+                    "Status item validation stopped after \(maxAttempts, privacy: .public) checks for \(context.rawValue, privacy: .public) without autosave recovery"
+                )
             } else {
                 logger.error(
                     "Status item remained off-menu-bar after \(maxAttempts, privacy: .public) checks — triggering autosave recovery"
@@ -1414,7 +1423,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.clearCachedSeparatorGeometry()
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
-                self?.schedulePositionValidation(context: .screenParametersChanged)
+                if self?.settings.layoutMode == .live {
+                    self?.schedulePositionValidation(context: .screenParametersChanged)
+                }
             }
             .store(in: &cancellables)
 
@@ -1448,7 +1459,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.clearCachedSeparatorGeometry()
                 logger.debug("System did wake — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                self.schedulePositionValidation(context: .wakeResume)
+                if self.settings.layoutMode == .live {
+                    self.schedulePositionValidation(context: .wakeResume)
+                }
             }
             .store(in: &cancellables)
 
@@ -1460,7 +1473,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.clearCachedSeparatorGeometry()
                 logger.debug("Screens did wake — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                self.schedulePositionValidation(context: .wakeResume)
+                if self.settings.layoutMode == .live {
+                    self.schedulePositionValidation(context: .wakeResume)
+                }
             }
             .store(in: &cancellables)
 
@@ -1472,7 +1487,9 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.clearCachedSeparatorGeometry()
                 logger.debug("Session became active — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                self.schedulePositionValidation(context: .wakeResume)
+                if self.settings.layoutMode == .live {
+                    self.schedulePositionValidation(context: .wakeResume)
+                }
             }
             .store(in: &cancellables)
 
@@ -1492,6 +1509,25 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 guard pinnedBundleIds.contains(bundleID) else { return }
 
                 scheduleAlwaysHiddenPinEnforcement(
+                    reason: "didLaunch:\(bundleID)",
+                    filterBundleId: bundleID,
+                    delay: .seconds(1)
+                )
+            }
+            .store(in: &cancellables)
+
+        // Hide-all-other rule enforcement: if a new non-allowed menu bar app launches,
+        // move it to the hidden side after macOS has created its status item.
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didLaunchApplicationNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self else { return }
+                guard settings.hideAllOtherMenuBarItems else { return }
+                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      let bundleID = app.bundleIdentifier else { return }
+
+                scheduleHideAllOtherRuleEnforcement(
                     reason: "didLaunch:\(bundleID)",
                     filterBundleId: bundleID,
                     delay: .seconds(1)
@@ -1684,8 +1720,24 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     func saveSettings() {
         settingsController.settings = settings
         settingsController.saveQuietly()
+        applySettingsSideEffects()
+    }
+
+    func saveSettingsStrict() throws {
+        settingsController.settings = settings
+        try settingsController.save()
+        applySettingsSideEffects()
+    }
+
+    private func applySettingsSideEffects() {
         iconHotkeysService.registerHotkeys(from: settings)
         updateHoverService()
+        if settings.hideAllOtherMenuBarItems {
+            scheduleHideAllOtherRuleEnforcement(reason: "settingsChanged", delay: .milliseconds(500))
+        } else {
+            hideAllOtherRuleEnforcementTask?.cancel()
+            hideAllOtherRuleEnforcementTask = nil
+        }
     }
 
     /// Reset all settings to defaults
@@ -1789,6 +1841,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 OnboardingController.shared.show()
+            }
+        } else if !settings.hasCompletedHealthWizard {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                HealthWizardController.shared.showIfNeeded()
             }
         }
     }

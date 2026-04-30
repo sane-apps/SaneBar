@@ -21,6 +21,21 @@ struct GeneralSettingsView: View {
     @State private var newProfileName = ""
     @State private var showingResetAlert = false
     @State private var showBrowseRowCustomization = false
+    @State private var pendingImport: PendingImport?
+
+    private enum PendingImport: Identifiable {
+        case saneBar(SaneBarSettingsImportPayload, SaneBarImportPreviewPlan)
+        case bartender(URL, SaneBarImportPreviewPlan)
+
+        var id: UUID { preview.id }
+
+        var preview: SaneBarImportPreviewPlan {
+            switch self {
+            case let .saneBar(_, preview), let .bartender(_, preview):
+                preview
+            }
+        }
+    }
 
     enum BrowseLeftClickMode: String, CaseIterable, Identifiable {
         case toggleHidden
@@ -84,6 +99,17 @@ struct GeneralSettingsView: View {
         )
     }
 
+    private var liveLayoutChecksBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.layoutMode == .live },
+            set: { enabled in
+                Task { @MainActor in
+                    _ = await menuBarManager.setLayoutMode(enabled ? .live : .stability, reason: "control")
+                }
+            }
+        )
+    }
+
     private var browseDestinationLabel: String {
         menuBarManager.settings.useSecondMenuBar ? "Second Menu Bar" : "Icon Panel"
     }
@@ -130,6 +156,19 @@ struct GeneralSettingsView: View {
         return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and Always Hidden."
     }
 
+    private var layoutModeDescription: String {
+        layoutModeHelp(menuBarManager.settings.layoutMode)
+    }
+
+    private func layoutModeHelp(_ mode: SaneBarSettings.LayoutMode) -> String {
+        switch mode {
+        case .stability:
+            "Stability repairs only at startup or when you click Arrange Now."
+        case .live:
+            "Live checks after wake and display changes."
+        }
+    }
+
     private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
         switch preset {
         case .minimal:
@@ -138,6 +177,68 @@ struct GeneralSettingsView: View {
             "Show Hidden and Visible rows in the Second Menu Bar."
         case .power:
             "Show Hidden, Visible, and Always Hidden rows in the Second Menu Bar."
+        }
+    }
+
+    private var rehideDelayLabel: String {
+        let value = Int(menuBarManager.settings.rehideDelay)
+        switch value {
+        case 1 ... 5: return "Quick (\(value)s)"
+        case 6 ... 15: return "Normal (\(value)s)"
+        case 16 ... 30: return "Leisurely (\(value)s)"
+        default: return "Extended (\(value)s)"
+        }
+    }
+
+    private var findIconDelayLabel: String {
+        let value = Int(menuBarManager.settings.findIconRehideDelay)
+        switch value {
+        case 1 ... 5: return "Quick (\(value)s)"
+        case 6 ... 15: return "Normal (\(value)s)"
+        case 16 ... 30: return "Leisurely (\(value)s)"
+        default: return "Extended (\(value)s)"
+        }
+    }
+
+    private var hoverDelayLabel: String {
+        let ms = Int(menuBarManager.settings.hoverDelay * 1000)
+        switch ms {
+        case 0 ... 150: return "Instant"
+        case 151 ... 350: return "Quick"
+        case 351 ... 600: return "Normal"
+        default: return "Patient"
+        }
+    }
+
+    private var hideApplicationMenusHelp: String {
+        "Temporarily hides File/Edit/View if needed to make room in the menu bar. Only affects inline reveal."
+    }
+
+    private var hideAllOtherMenuBarItemsBinding: Binding<Bool> {
+        Binding(
+            get: { menuBarManager.settings.hideAllOtherMenuBarItems },
+            set: { isEnabled in
+                if isEnabled {
+                    menuBarManager.enableHideAllOtherMenuBarItemsFromCurrentLayout()
+                } else {
+                    menuBarManager.settings.hideAllOtherMenuBarItems = false
+                }
+            }
+        )
+    }
+
+    private var gestureModeSummary: String {
+        menuBarManager.settings.gestureMode == .showOnly
+            ? "Gestures reveal hidden icons."
+            : "Scroll up shows icons, scroll down hides icons."
+    }
+
+    private func gestureModeHelp(_ mode: SaneBarSettings.GestureMode) -> String {
+        switch mode {
+        case .showOnly:
+            return "Gestures only reveal hidden icons."
+        case .showAndHide:
+            return "Gestures toggle visibility. Scroll up shows icons, scroll down hides them."
         }
     }
 
@@ -328,27 +429,109 @@ struct GeneralSettingsView: View {
                     .padding(.vertical, 10)
                 }
 
-                // 2. Security — Pro
-                CompactSection("Security") {
+                // 2. Everyday Hiding
+                CompactSection("Hiding Behavior") {
+                    CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
+                        .help("Automatically hide icons after a delay when revealed")
+
+                    if menuBarManager.settings.autoRehide {
+                        if licenseService.isPro {
+                            CompactDivider()
+                            CompactRow("Wait before hiding") {
+                                HStack {
+                                    Text(rehideDelayLabel)
+                                        .frame(width: 95, alignment: .trailing)
+                                    Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
+                                        .labelsHidden()
+                                }
+                            }
+                            CompactDivider()
+                            CompactRow("Wait after Browse Icons") {
+                                HStack {
+                                    Text(findIconDelayLabel)
+                                        .frame(width: 95, alignment: .trailing)
+                                    Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
+                                        .labelsHidden()
+                                }
+                            }
+                            CompactDivider()
+                            CompactToggle(label: "Hide when app changes", isOn: $menuBarManager.settings.rehideOnAppChange)
+                        } else {
+                            CompactDivider()
+                            proGatedRow(feature: .autoRehideCustomization, label: "Customize auto-hide timing")
+                        }
+                    }
+
+                    CompactDivider()
                     if licenseService.isPro {
-                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
-                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
+                        CompactToggle(label: "Always show on external monitors", isOn: $menuBarManager.settings.disableOnExternalMonitor)
+                            .help("Keep icons visible on external displays where menu bar space is less constrained.")
                     } else {
-                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
+                        proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
+                    }
+
+                    CompactDivider()
+                    CompactToggle(label: "Show on hover", isOn: $menuBarManager.settings.showOnHover)
+                    if menuBarManager.settings.showOnHover {
+                        CompactDivider()
+                        CompactRow("Hover delay") {
+                            HStack {
+                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 1.0, step: 0.05)
+                                    .frame(width: 80)
+                                Text(hoverDelayLabel)
+                                    .frame(width: 55, alignment: .trailing)
+                            }
+                        }
+                    }
+
+                    CompactDivider()
+                    CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
+                    if menuBarManager.settings.showOnScroll {
+                        CompactDivider()
+                        if licenseService.isPro {
+                            CompactRow("Gesture behavior") {
+                                HStack(spacing: 6) {
+                                    ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
+                                        segmentedChoiceButton(
+                                            mode.rawValue,
+                                            isSelected: menuBarManager.settings.gestureMode == mode
+                                        ) {
+                                            menuBarManager.settings.gestureMode = mode
+                                        }
+                                        .help(gestureModeHelp(mode))
+                                    }
+                                }
+                                .frame(width: 220)
+                            }
+                            Text(gestureModeSummary)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.92))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .multilineTextAlignment(.leading)
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 4)
+                        } else {
+                            proGatedRow(feature: .gestureCustomization, label: "Customize gesture behavior")
+                        }
+                    }
+
+                    CompactDivider()
+                    CompactToggle(label: "Show when rearranging icons", isOn: $menuBarManager.settings.showOnUserDrag)
+
+                    CompactDivider()
+                    CompactToggle(label: "Hide app menus during inline reveal", isOn: $menuBarManager.settings.hideApplicationMenusOnInlineReveal)
+                        .help(hideApplicationMenusHelp)
+
+                    CompactDivider()
+                    if licenseService.isPro {
+                        CompactToggle(label: "Hide new/unlisted items by default", isOn: hideAllOtherMenuBarItemsBinding)
+                            .help("Keep only the explicitly visible items shown; move other detected menu bar items to Hidden.")
+                    } else {
+                        proGatedRow(feature: .zoneMoves, label: "Hide new/unlisted items by default")
                     }
                 }
 
-                // 3. Startup Status
-                CompactSection("Startup") {
-                    SaneLoginItemToggle()
-                    CompactDivider()
-                    SaneDockIconToggle(showDockIcon: showDockIconBinding)
-                }
-
-                // 4. Updates
-                softwareUpdatesSection
-
-                // 5. Profiles — Pro
+                // 3. Profiles — Pro
                 CompactSection("Saved Profiles") {
                     if licenseService.isPro {
                         if savedProfiles.isEmpty {
@@ -397,7 +580,55 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 6. Data — Pro
+                // 4. Layout Stability
+                CompactSection("Layout Stability") {
+                    CompactToggle(
+                        label: "Live checks after wake/display changes",
+                        isOn: liveLayoutChecksBinding
+                    )
+                    .saneHelp("Turn on Live mode if icons drift after wake, monitor changes, or fast user switching. Leave it off for the calmer default Stability mode.")
+                    CompactDivider()
+                    CompactRow("Current Mode") {
+                        StatusBadge(menuBarManager.settings.layoutMode.rawValue, color: .cyan, icon: "slider.horizontal.3")
+                            .saneHelp(layoutModeDescription)
+                    }
+                    SaneInlineHelp(layoutModeDescription)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 4)
+                    CompactDivider()
+                    CompactRow("Arrange Now") {
+                        Button("Run") {
+                            Task { @MainActor in
+                                _ = await menuBarManager.repairMenuBarHealth(reason: "control")
+                            }
+                        }
+                        .buttonStyle(ChromeActionButtonStyle())
+                        .controlSize(.small)
+                        .saneHelp("Runs an immediate layout check, refreshes menu bar anchor positions, and repairs SaneBar's visible, hidden, and always-hidden groups if needed.")
+                    }
+                }
+
+                // 5. Security — Pro
+                CompactSection("Security") {
+                    if licenseService.isPro {
+                        CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
+                            .help("Require Touch ID (or password on Macs without Touch ID) to reveal hidden menu bar icons")
+                    } else {
+                        proGatedRow(feature: .touchIDProtection, label: "Touch ID to unlock hidden icons")
+                    }
+                }
+
+                // 6. Startup Status
+                CompactSection("Startup") {
+                    SaneLoginItemToggle()
+                    CompactDivider()
+                    SaneDockIconToggle(showDockIcon: showDockIconBinding)
+                }
+
+                // 7. Updates
+                softwareUpdatesSection
+
+                // 8. Data — Pro
                 CompactSection("Data") {
                     if licenseService.isPro {
                         CompactRow("Settings") {
@@ -433,7 +664,7 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 7. Troubleshooting
+                // 9. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
@@ -472,6 +703,13 @@ struct GeneralSettingsView: View {
         }
         .sheet(item: $proUpsellFeature) { feature in
             ProUpsellView(feature: feature)
+        }
+        .sheet(item: $pendingImport) { pending in
+            ImportPreviewSheet(
+                plan: pending.preview,
+                onCancel: { pendingImport = nil },
+                onImport: { applyPendingImport(pending) }
+            )
         }
     }
 
@@ -714,8 +952,29 @@ struct GeneralSettingsView: View {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
-            if let export = try? decoder.decode(SaneBarSettingsArchive.self, from: data) {
+            switch try SaneBarSettingsArchive.decodeImportPayload(from: data, using: decoder) {
+            case let .archive(export):
                 settingsLogger.log("📥 Importing wrapped settings from \(url.lastPathComponent, privacy: .public)")
+                let payload = SaneBarSettingsImportPayload.archive(export)
+                pendingImport = .saneBar(payload, payload.previewPlan(fileName: url.lastPathComponent))
+            case let .legacySettings(settings):
+                settingsLogger.log("📥 Importing raw settings from \(url.lastPathComponent, privacy: .public)")
+                let payload = SaneBarSettingsImportPayload.legacySettings(settings)
+                pendingImport = .saneBar(payload, payload.previewPlan(fileName: url.lastPathComponent))
+            }
+        } catch {
+            settingsLogger.error("📥 Import failed: \(error.localizedDescription, privacy: .public)")
+            showError(title: "Import Failed", error: error)
+        }
+    }
+
+    private func applyPendingImport(_ pending: PendingImport) {
+        pendingImport = nil
+
+        switch pending {
+        case let .saneBar(payload, _):
+            switch payload {
+            case let .archive(export):
                 applyConfiguration(
                     settings: export.settings,
                     layoutSnapshot: export.layoutSnapshot,
@@ -723,9 +982,7 @@ struct GeneralSettingsView: View {
                     importedProfiles: export.savedProfiles,
                     successLog: "📥 Imported archive applied"
                 )
-            } else {
-                settingsLogger.log("📥 Importing raw settings from \(url.lastPathComponent, privacy: .public)")
-                let settings = try decoder.decode(SaneBarSettings.self, from: data)
+            case let .legacySettings(settings):
                 applyConfiguration(
                     settings: settings,
                     layoutSnapshot: nil,
@@ -734,9 +991,16 @@ struct GeneralSettingsView: View {
                     successLog: "📥 Imported legacy settings applied"
                 )
             }
-        } catch {
-            settingsLogger.error("📥 Import failed: \(error.localizedDescription, privacy: .public)")
-            showError(title: "Import Failed", error: error)
+
+        case let .bartender(url, _):
+            Task { @MainActor in
+                do {
+                    let summary = try await BartenderImportService.importSettings(from: url, menuBarManager: menuBarManager)
+                    showInfo(title: "Bartender Import Complete", message: summary.description)
+                } catch {
+                    showError(title: "Bartender Import Failed", error: error)
+                }
+            }
         }
     }
 
@@ -788,6 +1052,7 @@ struct GeneralSettingsView: View {
         successLog: String
     ) {
         do {
+            _ = menuBarManager.createLayoutRescueRestorePoint(reason: "pre-import")
             if let importedProfiles {
                 try PersistenceService.shared.upsertProfiles(importedProfiles)
             }
@@ -798,8 +1063,8 @@ struct GeneralSettingsView: View {
                 StatusBarController.applyLayoutSnapshot(layoutSnapshot)
             }
 
-            menuBarManager.settings = settings
-            menuBarManager.saveSettings()
+            menuBarManager.settings = settings.preservingLocalLifecycleState(from: menuBarManager.settings)
+            try menuBarManager.saveSettingsStrict()
             menuBarManager.restoreStatusItemLayoutIfNeeded()
             loadProfiles()
             settingsLogger.log("\(successLog, privacy: .public)")
@@ -830,8 +1095,8 @@ struct GeneralSettingsView: View {
 
         Task { @MainActor in
             do {
-                let summary = try await BartenderImportService.importSettings(from: url, menuBarManager: menuBarManager)
-                showInfo(title: "Bartender Import Complete", message: summary.description)
+                let preview = try await BartenderImportService.previewImport(from: url)
+                pendingImport = .bartender(url, preview)
             } catch {
                 showError(title: "Bartender Import Failed", error: error)
             }
@@ -887,6 +1152,7 @@ struct GeneralSettingsView: View {
         alert.runModal()
     }
 }
+
 // swiftlint:enable file_length
 
 extension GeneralSettingsView.SecondMenuBarPreset {

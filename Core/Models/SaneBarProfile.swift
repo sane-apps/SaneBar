@@ -65,6 +65,137 @@ struct SaneBarSettingsArchive: Codable, Sendable {
     }
 }
 
+enum SaneBarSettingsImportPayload: Sendable {
+    case archive(SaneBarSettingsArchive)
+    case legacySettings(SaneBarSettings)
+}
+
+struct SaneBarImportPreviewPlan: Identifiable, Sendable, Equatable {
+    enum SourceKind: String, Sendable, Equatable {
+        case saneBarArchive = "SaneBar Archive"
+        case saneBarLegacySettings = "SaneBar Settings"
+        case bartender = "Bartender"
+    }
+
+    let id: UUID
+    var sourceKind: SourceKind
+    var fileName: String
+    var showItemIds: [String]
+    var hideItemIds: [String]
+    var alwaysHideItemIds: [String]
+    var hideAllOtherItems: Bool
+    var missingItemIds: [String]
+    var skippedItemIds: [String]
+    var behavioralSettings: [String]
+    var savedProfileCount: Int
+    var includesLayoutSnapshot: Bool
+    var includesCustomIconSnapshot: Bool
+
+    init(
+        id: UUID = UUID(),
+        sourceKind: SourceKind,
+        fileName: String,
+        showItemIds: [String] = [],
+        hideItemIds: [String] = [],
+        alwaysHideItemIds: [String] = [],
+        hideAllOtherItems: Bool = false,
+        missingItemIds: [String] = [],
+        skippedItemIds: [String] = [],
+        behavioralSettings: [String] = [],
+        savedProfileCount: Int = 0,
+        includesLayoutSnapshot: Bool = false,
+        includesCustomIconSnapshot: Bool = false
+    ) {
+        self.id = id
+        self.sourceKind = sourceKind
+        self.fileName = fileName
+        self.showItemIds = showItemIds
+        self.hideItemIds = hideItemIds
+        self.alwaysHideItemIds = alwaysHideItemIds
+        self.hideAllOtherItems = hideAllOtherItems
+        self.missingItemIds = missingItemIds
+        self.skippedItemIds = skippedItemIds
+        self.behavioralSettings = behavioralSettings
+        self.savedProfileCount = savedProfileCount
+        self.includesLayoutSnapshot = includesLayoutSnapshot
+        self.includesCustomIconSnapshot = includesCustomIconSnapshot
+    }
+}
+
+enum SaneBarSettingsImportError: LocalizedError {
+    case invalidArchive(underlying: Error)
+    case invalidLegacySettings(underlying: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidArchive:
+            "The SaneBar settings archive is damaged or incomplete."
+        case .invalidLegacySettings:
+            "The selected file is not a valid SaneBar settings export."
+        }
+    }
+}
+
+extension SaneBarSettingsArchive {
+    static func decodeImportPayload(
+        from data: Data,
+        using decoder: JSONDecoder
+    ) throws -> SaneBarSettingsImportPayload {
+        if looksLikeArchivePayload(data) {
+            do {
+                return .archive(try decoder.decode(SaneBarSettingsArchive.self, from: data))
+            } catch {
+                throw SaneBarSettingsImportError.invalidArchive(underlying: error)
+            }
+        }
+
+        do {
+            return .legacySettings(try decoder.decode(SaneBarSettings.self, from: data))
+        } catch {
+            throw SaneBarSettingsImportError.invalidLegacySettings(underlying: error)
+        }
+    }
+
+    private static func looksLikeArchivePayload(_ data: Data) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let dictionary = object as? [String: Any]
+        else {
+            return false
+        }
+
+        return dictionary["settings"] != nil ||
+            dictionary["layoutSnapshot"] != nil ||
+            dictionary["customIconSnapshot"] != nil ||
+            dictionary["savedProfiles"] != nil ||
+            dictionary["exportedAt"] != nil ||
+            dictionary["version"] != nil
+    }
+}
+
+extension SaneBarSettingsImportPayload {
+    func previewPlan(fileName: String) -> SaneBarImportPreviewPlan {
+        switch self {
+        case let .archive(archive):
+            SaneBarImportPreviewPlan(
+                sourceKind: .saneBarArchive,
+                fileName: fileName,
+                showItemIds: archive.settings.hideAllOtherVisibleItemIds,
+                hideAllOtherItems: archive.settings.hideAllOtherMenuBarItems,
+                savedProfileCount: archive.savedProfiles.count,
+                includesLayoutSnapshot: archive.layoutSnapshot != nil,
+                includesCustomIconSnapshot: archive.customIconSnapshot?.pngData != nil
+            )
+        case let .legacySettings(settings):
+            SaneBarImportPreviewPlan(
+                sourceKind: .saneBarLegacySettings,
+                fileName: fileName,
+                showItemIds: settings.hideAllOtherVisibleItemIds,
+                hideAllOtherItems: settings.hideAllOtherMenuBarItems
+            )
+        }
+    }
+}
+
 // MARK: - SaneBarProfile
 
 /// A saved configuration profile

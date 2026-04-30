@@ -148,6 +148,69 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Layout rescue restore points require healthy status item anchors")
+    func layoutRescueRestorePointEligibilityMatrix() {
+        let healthy = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .live,
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: 520,
+            mainX: 620
+        )
+        #expect(MenuBarManager.canCreateLayoutRescueRestorePoint(from: healthy))
+
+        let cached = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .cached,
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .cached,
+            startupItemsValid: true,
+            separatorX: 520,
+            mainX: 620
+        )
+        #expect(MenuBarManager.canCreateLayoutRescueRestorePoint(from: cached))
+
+        let stale = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .stale,
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .cached,
+            startupItemsValid: true,
+            separatorX: 520,
+            mainX: 620
+        )
+        #expect(!MenuBarManager.canCreateLayoutRescueRestorePoint(from: stale))
+
+        let missingAnchor = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .live,
+            structuralState: .ready,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .live,
+            startupItemsValid: true,
+            separatorX: nil,
+            mainX: 620
+        )
+        #expect(!MenuBarManager.canCreateLayoutRescueRestorePoint(from: missingAnchor))
+
+        let detached = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .live,
+            structuralState: .unattachedWindows,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            startupItemsValid: false,
+            separatorX: 520,
+            mainX: 620
+        )
+        #expect(!MenuBarManager.canCreateLayoutRescueRestorePoint(from: detached))
+    }
+
     @Test("Startup recovery hard-resets poisoned startup geometry but not general geometry drift")
     func statusItemRecoveryResetDecisionMatrix() {
         #expect(

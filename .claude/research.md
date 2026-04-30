@@ -1,5 +1,38 @@
 # SaneBar Research Cache
 
+## 2026-04-29 22:35 ET Bartender 6 Setapp import-shape audit
+
+**Updated:** 2026-04-29 23:34 ET | **Status:** verified and patched | **TTL:** 30d
+**Source:** Mini read-only inspection of `/Applications/Setapp/Bartender.app` metadata, entitlements, scripting dictionary, preferences plist, and app-group file layout; local SaneBar code audit; Mini-routed `./scripts/SaneMaster.rb verify --timeout 900`; Mini-routed `./scripts/SaneMaster.rb test_scan`; Mini signed release test-mode launch; Mini live settings import-preview UI test.
+
+### Verified Findings
+
+1. Bartender 6.4.2 Setapp stores the active profile in `~/Library/Preferences/com.surteesstudios.Bartender-setapp.plist` under `ProfileSettings.activeProfile`.
+   - The profile shape remains list-based for `Hide`, `Show`, and `AlwaysHide`.
+   - The Mini install used `Hide = ["special.AllOtherItems"]` and `Show = ["com.surteesstudios.Bartender-setapp-statusItem"]`, so a correct importer must understand the special hide-all-others token instead of expecting every hidden icon to be listed explicitly.
+
+2. SaneBar had a real Bartender import gap.
+   - Before the fix, `special.AllOtherItems` resolved as a non-running bundle token, so import could apply behavioral settings and report completion while moving zero icons.
+   - `BartenderImportService` now expands `special.AllOtherItems` to the current detected menu bar items, preserves explicit `Show` entries, skips Bartender/SaneBar controller items, and deduplicates move identities across special, explicit hide, and show lists.
+   - The importer now persists Bartender's hide-all-others intent as first-class SaneBar settings (`hideAllOtherMenuBarItems` plus `hideAllOtherVisibleItemIds`) so future menu items are enforced consistently instead of relying only on a one-time import move.
+
+3. Import/export coverage is green after the fix.
+   - New tests cover the special all-other expansion and the observed Bartender 6 default profile shape.
+   - SaneBar and Bartender imports now show a normalized preview sheet before applying changes, including show/hide/always-hide/all-others counts, profile/snapshot/custom-icon/settings counts, and missing/skipped item counts.
+   - Archive import now uses `SaneBarSettingsArchive.decodeImportPayload(...)` so damaged wrapped archives do not silently fall back to raw `SaneBarSettings` and drop layout/custom-icon/profile data.
+   - The settings import apply path now uses strict settings persistence through `MenuBarManager.saveSettingsStrict()` so a settings-write failure surfaces as an import failure instead of reporting success after partial side effects.
+   - Added tests for full v2 archive roundtrip, damaged wrapped archive rejection, and raw legacy settings acceptance.
+   - Mini `./scripts/SaneMaster.rb verify --timeout 900` passed with 1,102 tests after the first-class rule/import-preview implementation.
+   - Mini `./scripts/SaneMaster.rb test_scan` passed with no anti-patterns.
+   - Mini signed release staging launched successfully through `./scripts/SaneMaster.rb test_mode --release`, and Pro live mode stayed running through `./scripts/SaneMaster.rb mode SaneBar pro --host mini --launch --live-seconds 5`.
+   - A live Mini UI test selected a Bartender plist containing `special.AllOtherItems`; the preview sheet rendered cleanly and was canceled without applying mutation.
+
+4. Competitor implementation learnings stayed at the metadata/behavior boundary.
+   - Bartender declares a small AppleScript surface: toggle, quick search, list menu bar items, activate, and show.
+   - It separates profile and trigger concerns in preferences and declares `.BartenderPreferences` / `.BartenderWidget` package document types.
+   - It uses a helper XPC service for Tahoe-era support plus entitlements for Apple Events, app group, location, WeatherKit, Music, and Spotify.
+   - No decompilation, disassembly, binary string dumping, DRM/license bypass, or proprietary algorithm extraction was used.
+
 ## 2026-04-28 17:56 ET root-cause release-readiness audit and final gate
 
 **Updated:** 2026-04-28 18:35 ET | **Status:** verified release deployed | **TTL:** 7d

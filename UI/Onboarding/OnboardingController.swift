@@ -65,5 +65,9 @@ final class OnboardingController: NSObject, NSWindowDelegate {
 
         // Restore accessory policy (hide Dock icon)
         SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            HealthWizardController.shared.showIfNeeded()
+        }
     }
 }

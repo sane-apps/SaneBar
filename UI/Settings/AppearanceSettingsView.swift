@@ -82,33 +82,21 @@ struct AppearanceSettingsView: View {
                 // 0. Icon Style
                 CompactSection("Menu Bar Icon") {
                     CompactRow("Icon") {
-                        Picker("", selection: $menuBarManager.settings.menuBarIconStyle) {
-                            pickerIconOptionLabel("Filter", systemImage: "line.3.horizontal.decrease")
-                                .tag(SaneBarSettings.MenuBarIconStyle.filter)
-                            pickerIconOptionLabel("Dots", systemImage: "ellipsis")
-                                .tag(SaneBarSettings.MenuBarIconStyle.dots)
-                            pickerIconOptionLabel("Lines", systemImage: "line.3.horizontal")
-                                .tag(SaneBarSettings.MenuBarIconStyle.lines)
-                            pickerIconOptionLabel("Chevron", systemImage: "chevron.up.chevron.down")
-                                .tag(SaneBarSettings.MenuBarIconStyle.chevron)
-                            pickerIconOptionLabel("Coin", systemImage: "circle.circle")
-                                .tag(SaneBarSettings.MenuBarIconStyle.coin)
-                            pickerIconOptionLabel("Custom Image...", systemImage: "photo")
-                                .tag(SaneBarSettings.MenuBarIconStyle.custom)
-                        }
-                        .labelsHidden()
-                        .frame(width: 160)
-                        .help("Choose the SaneBar menu bar icon style")
-                        .onChange(of: menuBarManager.settings.menuBarIconStyle) { _, newValue in
-                            if newValue == .custom {
-                                if licenseService.isPro {
-                                    showCustomIconPicker()
-                                } else {
-                                    menuBarManager.settings.menuBarIconStyle = .filter
-                                    proUpsellFeature = .customIcon
+                        Menu {
+                            ForEach(SaneBarSettings.MenuBarIconStyle.allCases, id: \.self) { style in
+                                Button {
+                                    selectMenuBarIconStyle(style)
+                                } label: {
+                                    iconMenuOptionLabel(style)
                                 }
                             }
+                        } label: {
+                            selectedIconMenuLabel(menuBarManager.settings.menuBarIconStyle)
                         }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .frame(width: 160)
+                        .help("Choose the SaneBar menu bar icon style")
                     }
 
                     if menuBarManager.settings.menuBarIconStyle == .custom {
@@ -187,7 +175,19 @@ struct AppearanceSettingsView: View {
                 // 2. Menu Bar Visuals — Pro
                 CompactSection("Menu Bar Style") {
                     if !licenseService.isPro {
-                        proGatedRow(feature: .menuBarAppearance, label: "Custom tint, glass, borders, and shadows")
+                        proGatedRow(feature: .menuBarAppearance, label: "Custom Appearance")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Translucent Background")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Light Tint")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Dark Tint")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Shadow")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Border")
+                        CompactDivider()
+                        proGatedRow(feature: .menuBarAppearance, label: "Rounded Corners")
                     } else {
                         CompactToggle(label: "Custom Appearance", isOn: $menuBarManager.settings.menuBarAppearance.isEnabled)
                             .help("Apply custom colors and effects to the menu bar background")
@@ -293,6 +293,10 @@ struct AppearanceSettingsView: View {
                         }
                     } else {
                         proGatedRow(feature: .iconSpacing, label: "Reduce space between icons")
+                        CompactDivider()
+                        proGatedRow(feature: .iconSpacing, label: "Item Spacing")
+                        CompactDivider()
+                        proGatedRow(feature: .iconSpacing, label: "Click Area")
                     }
                 }
             }
@@ -369,27 +373,78 @@ struct AppearanceSettingsView: View {
         menuBarManager.settings.menuBarIconStyle = .custom
     }
 
-    private func pickerIconOptionLabel(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 6) {
-            Image(nsImage: popupSymbolImage(systemImage))
+    private func selectMenuBarIconStyle(_ style: SaneBarSettings.MenuBarIconStyle) {
+        if style == .custom {
+            guard licenseService.isPro else {
+                menuBarManager.settings.menuBarIconStyle = .filter
+                proUpsellFeature = .customIcon
+                return
+            }
+            menuBarManager.settings.menuBarIconStyle = .custom
+            showCustomIconPicker()
+            return
+        }
 
-            Text(title)
-                .foregroundStyle(Color.white)
+        menuBarManager.settings.menuBarIconStyle = style
+    }
+
+    private func iconMenuOptionLabel(_ style: SaneBarSettings.MenuBarIconStyle) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: menuSymbolName(for: style))
+                .frame(width: 16)
+
+            Text(menuTitle(for: style))
+
+            if menuBarManager.settings.menuBarIconStyle == style {
+                Spacer()
+                Image(systemName: "checkmark")
+            }
         }
     }
 
-    private func popupSymbolImage(_ systemImage: String) -> NSImage {
-        let weightConfig = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-        let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: .white)
-        let resolvedConfig = weightConfig.applying(colorConfig)
+    private func selectedIconMenuLabel(_ style: SaneBarSettings.MenuBarIconStyle) -> some View {
+        HStack(spacing: 7) {
+            if let image = selectedIconImage(for: style) {
+                Image(nsImage: image)
+                    .renderingMode(.template)
+                    .foregroundStyle(Color.white)
+                    .frame(width: 16, height: 14)
+            }
 
-        guard let image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
-            .withSymbolConfiguration(resolvedConfig)
-        else {
-            return NSImage()
+            Text(menuTitle(for: style))
+                .foregroundStyle(Color.white)
+
+            Spacer()
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.9))
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.white.opacity(0.10))
+        )
+    }
 
-        image.isTemplate = false
-        return image
+    private func selectedIconImage(for style: SaneBarSettings.MenuBarIconStyle) -> NSImage? {
+        StatusBarController.makeSymbolImage(name: menuSymbolName(for: style))
+    }
+
+    private func menuSymbolName(for style: SaneBarSettings.MenuBarIconStyle) -> String {
+        style.sfSymbolName ?? "photo"
+    }
+
+    private func menuTitle(for style: SaneBarSettings.MenuBarIconStyle) -> String {
+        switch style {
+        case .filter: "Filter"
+        case .sliders: "Sliders"
+        case .dots: "Dots"
+        case .lines: "Lines"
+        case .chevron: "Chevron"
+        case .coin: "Circle"
+        case .custom: "Custom Image..."
+        }
     }
 }

@@ -65,6 +65,8 @@ class LiveZoneSmoke
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
+      com.setapp.DesktopClient.SetappLauncher
+      com.sindresorhus.Lungo-setapp
       cc.ffitch.shottr
       com.yujitach.MenuMeters
       com.yonilevy.cryptoticker
@@ -77,6 +79,8 @@ class LiveZoneSmoke
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
+      com.setapp.DesktopClient.SetappLauncher
+      com.sindresorhus.Lungo-setapp
       com.yujitach.MenuMeters
     ]
   ).freeze

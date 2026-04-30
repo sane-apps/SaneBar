@@ -89,9 +89,15 @@ final class SettingsController: ObservableObject, SettingsControllerProtocol {
     func resetToDefaults() {
         let preserveOnboarding = settings.hasCompletedOnboarding
         let preserveFreemiumIntro = settings.hasSeenFreemiumIntro
+        let preserveHealthWizard = settings.hasCompletedHealthWizard
+        let preserveLayoutRescueRestorePoint = settings.layoutRescueRestorePoint
+        let preserveLayoutRescueRestorePointCreatedAt = settings.layoutRescueRestorePointCreatedAt
         settings = SaneBarSettings()
         settings.hasCompletedOnboarding = preserveOnboarding
         settings.hasSeenFreemiumIntro = preserveFreemiumIntro
+        settings.hasCompletedHealthWizard = preserveHealthWizard
+        settings.layoutRescueRestorePoint = preserveLayoutRescueRestorePoint
+        settings.layoutRescueRestorePointCreatedAt = preserveLayoutRescueRestorePointCreatedAt
         saveQuietly()
         logger.info("Settings reset to defaults")
     }

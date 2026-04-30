@@ -49,6 +49,30 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_empty candidates
   end
 
+  def test_normal_candidate_pool_excludes_unreliable_setapp_helpers
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sindresorhus.Lungo-setapp',
+        unique_id: 'com.sindresorhus.Lungo-setapp::statusItem:0',
+        name: 'Lungo'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.setapp.DesktopClient.SetappLauncher',
+        unique_id: 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item',
+        name: 'SetappLauncher'
+      }
+    ]
+
+    candidates = smoke.send(:candidate_pool, zones)
+
+    assert_empty candidates
+  end
+
   def test_required_candidate_bypasses_move_denylist
     required_id = 'com.apple.menuextra.focusmode::axid:7'
     smoke = build_smoke(required_ids: [required_id])
@@ -168,6 +192,45 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes candidate_ids, 'com.apple.menuextra.display'
     refute_includes candidate_ids, 'com.apple.SSMenuAgent'
     refute_includes candidate_ids, 'com.apple.menuextra.spotlight'
+  end
+
+  def test_browse_activation_candidates_exclude_unreliable_setapp_helpers
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sindresorhus.Lungo-setapp',
+        unique_id: 'com.sindresorhus.Lungo-setapp::statusItem:0',
+        name: 'Lungo'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.setapp.DesktopClient.SetappLauncher',
+        unique_id: 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item',
+        name: 'SetappLauncher'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(
+      :browse_activation_candidates,
+      zones,
+      expected_mode: 'secondMenuBar',
+      activation_command: 'activate browse icon'
+    )
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    refute_includes candidate_ids, 'com.sindresorhus.Lungo-setapp::statusItem:0'
+    refute_includes candidate_ids, 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item'
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
   def test_find_icon_right_click_candidates_prefer_precise_non_apple_before_apple_fixtures

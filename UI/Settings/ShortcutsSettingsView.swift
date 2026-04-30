@@ -35,14 +35,29 @@ struct ShortcutsSettingsView: View {
             command: "open \"sanebar://search\""
         ),
         .init(
+            id: "search-query",
+            title: "Search text",
+            command: "open \"sanebar://search?q=wifi\""
+        ),
+        .init(
             id: "settings",
             title: "Open settings",
             command: "open \"sanebar://settings\""
         ),
         .init(
+            id: "health",
+            title: "Open health",
+            command: "open \"sanebar://health\""
+        ),
+        .init(
             id: "applescript-toggle",
             title: "AppleScript toggle",
             command: "osascript -e 'tell application \"SaneBar\" to toggle'"
+        ),
+        .init(
+            id: "applescript-search",
+            title: "AppleScript search",
+            command: "osascript -e 'tell application \"SaneBar\" to quick search \"wifi\"'"
         )
     ]
 
@@ -91,7 +106,11 @@ struct ShortcutsSettingsView: View {
                             }
                         } else {
                             CompactDivider()
-                            proGatedRow(feature: .additionalShortcuts, label: "Show, Hide, Open Settings shortcuts")
+                            proLockedRow(feature: .additionalShortcuts, label: "Show icons")
+                            CompactDivider()
+                            proLockedRow(feature: .additionalShortcuts, label: "Hide icons")
+                            CompactDivider()
+                            proLockedRow(feature: .additionalShortcuts, label: "Open Settings")
                         }
                     }
                     .padding(4)
@@ -141,7 +160,34 @@ struct ShortcutsSettingsView: View {
                         }
                         .padding(4)
                     } else {
-                        proGatedRow(feature: .appleScript, label: "AppleScript automation commands")
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(automationCommands.enumerated()), id: \.element.id) { index, item in
+                                proAutomationCommandRow(item)
+
+                                if index < automationCommands.count - 1 {
+                                    CompactDivider()
+                                }
+                            }
+                        }
+                        .padding(4)
+                    }
+                }
+
+                CompactSection("App Shortcuts") {
+                    if licenseService.isPro {
+                        CompactRow("Actions") {
+                            HStack(spacing: 8) {
+                                StatusBadge("Toggle", color: .cyan, icon: "line.3.horizontal.decrease")
+                                StatusBadge("Profiles", color: .green, icon: "rectangle.stack")
+                                StatusBadge("Search", color: .blue, icon: "magnifyingglass")
+                            }
+                        }
+                    } else {
+                        proLockedRow(feature: .appleScript, label: "Toggle action")
+                        CompactDivider()
+                        proLockedRow(feature: .appleScript, label: "Profiles actions")
+                        CompactDivider()
+                        proLockedRow(feature: .appleScript, label: "Search action")
                     }
                 }
             }
@@ -163,6 +209,35 @@ struct ShortcutsSettingsView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private func proLockedRow(feature: ProFeature, label: String) -> some View {
+        Button {
+            proUpsellFeature = feature
+        } label: {
+            CompactRow(label) {
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func proAutomationCommandRow(_ command: AutomationCommand) -> some View {
+        Button {
+            proUpsellFeature = .appleScript
+        } label: {
+            CompactRow(command.title) {
+                HStack(spacing: 8) {
+                    Text(command.command)
+                        .font(.system(size: 13, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    ChromeBadge(title: "Pro", systemImage: "lock.fill")
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Unlock Pro to copy and use this automation command")
     }
 
     private func copyToClipboard(_ command: AutomationCommand) {
