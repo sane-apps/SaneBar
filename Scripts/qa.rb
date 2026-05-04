@@ -117,6 +117,7 @@ class ProjectQA
   RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[
     at.obdev.littlesnitch.networkmonitor
     at.obdev.littlesnitch.agent
+    com.sindresorhus.Lungo-setapp::statusItem:0
   ].freeze
   OPEN_RELEASE_BLOCKING_LABELS = %w[
     bug
@@ -1005,6 +1006,9 @@ class ProjectQA
       'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(','),
       'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'
     )
+    if lane_name == 'host exact-id'
+      focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
+    end
     focused_outputs = []
     focused_attempt = 0
 

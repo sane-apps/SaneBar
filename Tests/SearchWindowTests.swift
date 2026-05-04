@@ -1,54 +1,52 @@
-import Testing
-import SwiftUI
 import AppKit
 @testable import SaneBar
+import SwiftUI
+import Testing
 
-@Suite("Search Window Tests")
 struct SearchWindowTests {
-
     // MARK: - Logic Tests
 
     @Test("Filtering logic works correctly")
     @MainActor
-    func testFiltering() async {
+    func filtering() async {
         // Given
         let mockService = SearchServiceProtocolMock()
         mockService.getRunningAppsHandler = {
-            return [
+            [
                 RunningApp(id: "com.apple.Safari", name: "Safari", icon: nil),
                 RunningApp(id: "com.google.Chrome", name: "Chrome", icon: nil),
-                RunningApp(id: "com.apple.Notes", name: "Notes", icon: nil)
+                RunningApp(id: "com.apple.Notes", name: "Notes", icon: nil),
             ]
         }
 
-        _ = MenuBarSearchView(service: mockService, onDismiss: {})  // Verify it can be created
+        _ = MenuBarSearchView(service: mockService, onDismiss: {}) // Verify it can be created
 
         // Verify service interaction
         let apps = await mockService.getRunningApps()
         #expect(apps.count == 3)
         #expect(mockService.getRunningAppsCallCount > 0)
-        
+
         // Note: We cannot test @State filteredApps directly from outside the view
         // But we verified the dependency injection works
     }
 
     @Test("Service activation is called")
     @MainActor
-    func testActivation() async {
+    func activation() async {
         let mockService = SearchServiceProtocolMock()
         let app = RunningApp(id: "com.test", name: "Test", icon: nil)
-        
+
         await mockService.activate(app: app, isRightClick: false, origin: .direct)
 
         #expect(mockService.activateCallCount == 1)
         #expect(mockService.activateArgValues.first?.0.id == "com.test")
         #expect(mockService.activateArgValues.first?.2 == .direct)
     }
-    
+
     // MARK: - Model Tests
-    
+
     @Test("RunningApp uses synthesized equality checking all properties")
-    func testRunningAppEquality() {
+    func runningAppEquality() {
         let app1 = RunningApp(id: "com.test", name: "Test", icon: nil)
         let app2 = RunningApp(id: "com.test", name: "Test", icon: nil) // Same ID and name
         let app3 = RunningApp(id: "com.other", name: "Test", icon: nil) // Different ID
@@ -58,7 +56,7 @@ struct SearchWindowTests {
         #expect(app1 != app3) // Different id = not equal
         #expect(app1 != app4) // Same id but different name = not equal (synthesized Equatable)
     }
-    
+
     @Test("Duplicate badges number repeated menu extras by bundle and name in x-order")
     func duplicateBadgesNumberRepeatedMenuExtrasInXOrder() {
         let stats2 = RunningApp(
@@ -132,7 +130,7 @@ struct SearchWindowTests {
     }
 
     @Test("Search activation diagnostics keep resolution and retry details")
-    func testSearchActivationDiagnosticsSummary() {
+    func searchActivationDiagnosticsSummary() {
         let diagnostics = SearchService.ActivationDiagnostics(
             startedAt: "2026-03-05T12:34:56.789Z",
             requestedApp: "id=req bundle=com.test.app menuExtra=nil statusItemIndex=1 x=100.0 width=24.0",
@@ -156,7 +154,7 @@ struct SearchWindowTests {
 
     @Test("Second menu bar idle close defers for in-flight and recent browse activation")
     @MainActor
-    func testSecondMenuBarIdleCloseDeferral() {
+    func secondMenuBarIdleCloseDeferral() {
         #expect(
             SearchWindowController.panelIdleCloseActivationGracePeriod(for: .secondMenuBar) == 4
         )
@@ -203,7 +201,7 @@ struct SearchWindowTests {
     }
 
     @Test("Browse window anchor validation accepts correctly positioned icon panel")
-    func testBrowseWindowAnchorValidationForFindIcon() {
+    func browseWindowAnchorValidationForFindIcon() {
         let screenFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 860)
         let windowFrame = CGRect(x: 510, y: 320, width: 420, height: 520)
@@ -220,7 +218,7 @@ struct SearchWindowTests {
     }
 
     @Test("Browse window anchor validation rejects obviously misplaced second menu bar")
-    func testBrowseWindowAnchorValidationRejectsMisplacedSecondMenuBar() {
+    func browseWindowAnchorValidationRejectsMisplacedSecondMenuBar() {
         let screenFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 860)
         let expectedRightEdge: CGFloat = 1320
@@ -238,7 +236,7 @@ struct SearchWindowTests {
     }
 
     @Test("Second menu bar initial sizing can reuse the current frame before a deferred refit")
-    func testSecondMenuBarSizeCanReuseCurrentFrame() {
+    func secondMenuBarSizeCanReuseCurrentFrame() {
         let size = SearchWindowController.clampedSecondMenuBarSize(
             currentWindowSize: CGSize(width: 400, height: 140),
             fittingSize: CGSize(width: 620, height: 260),
@@ -250,7 +248,7 @@ struct SearchWindowTests {
     }
 
     @Test("Second menu bar refit still honors SwiftUI fitting size with clamping")
-    func testSecondMenuBarRefitUsesFittingSize() {
+    func secondMenuBarRefitUsesFittingSize() {
         let size = SearchWindowController.clampedSecondMenuBarSize(
             currentWindowSize: CGSize(width: 400, height: 140),
             fittingSize: CGSize(width: 900, height: 40),
@@ -262,7 +260,7 @@ struct SearchWindowTests {
     }
 
     @Test("Search activation rejects unverified clicks for revealed or browse-session flows")
-    func testSearchActivationRequiresObservableReactionForBrowseFlows() {
+    func searchActivationRequiresObservableReactionForBrowseFlows() {
         #expect(
             SearchService.requiresObservableReactionVerification(
                 origin: .browsePanel,
@@ -422,11 +420,48 @@ struct SearchWindowTests {
             )
         )
         #expect(
+            SearchService.shouldUseAlwaysHiddenRevealForActivation(
+                appUniqueId: "com.amazon.clouddrive.mac::statusItem:0",
+                bundleId: "com.amazon.clouddrive.mac",
+                pinnedIds: ["com.amazon.clouddrive.mac::statusItem:0"]
+            )
+        )
+        #expect(
+            SearchService.shouldUseAlwaysHiddenRevealForActivation(
+                appUniqueId: "com.amazon.clouddrive.mac::statusItem:0",
+                bundleId: "com.amazon.clouddrive.mac",
+                pinnedIds: ["com.amazon.clouddrive.mac"]
+            )
+        )
+        #expect(
+            !SearchService.shouldUseAlwaysHiddenRevealForActivation(
+                appUniqueId: "com.amazon.clouddrive.mac::statusItem:0",
+                bundleId: "com.amazon.clouddrive.mac",
+                pinnedIds: ["com.example.other"]
+            )
+        )
+        #expect(
             !SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: false,
                 fallbackCenterOnScreen: true,
                 hasPreciseMenuBarIdentity: true
+            )
+        )
+        #expect(
+            SearchService.shouldAllowFreshHardwareFallbackCenter(
+                preferHardwareFirst: true,
+                requireObservableReaction: true,
+                hasPreciseMenuBarIdentity: true,
+                fallbackCenterOnScreen: true
+            )
+        )
+        #expect(
+            !SearchService.shouldAllowFreshHardwareFallbackCenter(
+                preferHardwareFirst: true,
+                requireObservableReaction: true,
+                hasPreciseMenuBarIdentity: true,
+                fallbackCenterOnScreen: false
             )
         )
         #expect(
@@ -471,7 +506,7 @@ struct SearchWindowTests {
     }
 
     @Test("Spatial fallback center is suppressed when the cached X is off the hosting menu bar screen")
-    func testSpatialFallbackCenterRejectsOffscreenX() {
+    func spatialFallbackCenterRejectsOffscreenX() {
         let center = SearchService.spatialFallbackCenter(
             xPosition: -1721,
             width: 24,
@@ -482,7 +517,7 @@ struct SearchWindowTests {
     }
 
     @Test("Spatial fallback center is kept when the cached X is still on the hosting menu bar screen")
-    func testSpatialFallbackCenterKeepsOnScreenX() {
+    func spatialFallbackCenterKeepsOnScreenX() {
         let center = SearchService.spatialFallbackCenter(
             xPosition: 4748,
             width: 24,
@@ -493,7 +528,7 @@ struct SearchWindowTests {
     }
 
     @Test("Browse and reveal flows get a larger click timeout budget for observable reaction verification")
-    func testClickAttemptTimeoutBudgetExpandsForObservableReaction() {
+    func clickAttemptTimeoutBudgetExpandsForObservableReaction() {
         #expect(
             SearchService.clickAttemptTimeoutMs(
                 baseMs: 900,
@@ -509,7 +544,7 @@ struct SearchWindowTests {
     }
 
     @Test("Preferred spatial fallback keeps the last on-screen center when refreshed coordinates drift off-screen")
-    func testPreferredSpatialFallbackCenterUsesOriginalOnScreenXWhenRefreshRegresses() {
+    func preferredSpatialFallbackCenterUsesOriginalOnScreenXWhenRefreshRegresses() {
         let center = SearchService.preferredSpatialFallbackCenter(
             primaryXPosition: -3628,
             primaryWidth: 33,
@@ -522,7 +557,7 @@ struct SearchWindowTests {
     }
 
     @Test("Second menu bar diagnostics keep counts and relayout state")
-    func testSecondMenuBarDiagnosticsSummary() {
+    func secondMenuBarDiagnosticsSummary() {
         let diagnostics = SearchWindowController.SecondMenuBarDiagnostics(
             showRequestedAt: "2026-03-05T12:34:56.789Z",
             currentMode: "Optional(SaneBar.SearchWindowMode.secondMenuBar)",
@@ -546,7 +581,7 @@ struct SearchWindowTests {
 
     @Test("Browse diagnostics report live mode and visibility instead of cached state")
     @MainActor
-    func testBrowseDiagnosticsSnapshotReflectsLiveWindowState() {
+    func browseDiagnosticsSnapshotReflectsLiveWindowState() {
         let controller = SearchWindowController.shared
         controller.close()
 
@@ -570,7 +605,7 @@ struct SearchWindowTests {
 
     @Test("Merged discoverable apps append owner-only fallbacks without duplicating precise matches")
     @MainActor
-    func testMergedDiscoverableAppsPrefersPreciseItems() {
+    func mergedDiscoverableAppsPrefersPreciseItems() {
         let positioned = [
             RunningApp(
                 id: "com.example.precise",
@@ -579,11 +614,11 @@ struct SearchWindowTests {
                 menuExtraIdentifier: "com.example.precise.status",
                 xPosition: 400,
                 width: 20
-            )
+            ),
         ]
         let owners = [
             RunningApp(id: "com.example.precise", name: "Precise", icon: nil),
-            RunningApp(id: "at.obdev.littlesnitch.networkmonitor", name: "Little Snitch", icon: nil)
+            RunningApp(id: "at.obdev.littlesnitch.networkmonitor", name: "Little Snitch", icon: nil),
         ]
 
         let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: owners)
@@ -595,7 +630,7 @@ struct SearchWindowTests {
 
     @Test("Merged discoverable apps collapse Little Snitch helper-family duplicates without hiding the live item")
     @MainActor
-    func testMergedDiscoverableAppsCollapseLittleSnitchFamilyDuplicates() {
+    func mergedDiscoverableAppsCollapseLittleSnitchFamilyDuplicates() {
         let positioned = [
             RunningApp(
                 id: "at.obdev.littlesnitch.networkmonitor",
@@ -612,7 +647,7 @@ struct SearchWindowTests {
                 menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
                 xPosition: -3400,
                 width: 22
-            )
+            ),
         ]
 
         let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: [])
@@ -622,7 +657,7 @@ struct SearchWindowTests {
     }
 
     @Test("Pinned hidden apps promote to always-hidden classification")
-    func testPinnedHiddenAppsPromoteToAlwaysHidden() {
+    func pinnedHiddenAppsPromoteToAlwaysHidden() {
         let weather = RunningApp(
             id: "com.apple.weather.menu",
             name: "WeatherMenu",
@@ -643,7 +678,7 @@ struct SearchWindowTests {
     }
 
     @Test("Pinned hidden promotion honors bundle-level fallback for precise extras")
-    func testPinnedHiddenAppsPromoteViaBundleFallback() {
+    func pinnedHiddenAppsPromoteViaBundleFallback() {
         let helperHosted = RunningApp(
             id: "com.example.helper",
             name: "HelperHosted",
@@ -664,7 +699,7 @@ struct SearchWindowTests {
     }
 
     @Test("Zoned menu bar views keep fallback-only entries but drop coarse duplicates")
-    func testZonedMenuBarItemsPreferPreciseIdentityPerBundle() {
+    func zonedMenuBarItemsPreferPreciseIdentityPerBundle() {
         let preciseAX = AccessibilityService.MenuBarItemPosition(
             app: RunningApp(
                 id: "com.example.precise",
@@ -717,14 +752,14 @@ struct SearchWindowTests {
         #expect(filtered.map(\.app.uniqueId) == [
             preciseAX.app.uniqueId,
             preciseIndexed.app.uniqueId,
-            coarseOnly.app.uniqueId
+            coarseOnly.app.uniqueId,
         ])
         #expect(filtered.contains { $0.app.uniqueId == coarseOnly.app.uniqueId && !$0.app.hasPreciseMenuBarIdentity })
     }
 
     @Test("Zoned menu bar views exclude compatibility-limited overlay apps")
     @MainActor
-    func testZonedMenuBarItemsExcludeCompatibilityLimitedOverlayApps() {
+    func zonedMenuBarItemsExcludeCompatibilityLimitedOverlayApps() {
         let boringNotch = AccessibilityService.MenuBarItemPosition(
             app: RunningApp(
                 id: "theboringteam.boringnotch",
@@ -749,7 +784,7 @@ struct SearchWindowTests {
     }
 
     @Test("Zoned menu bar views collapse Little Snitch helper-family duplicates without hiding the visible item")
-    func testZonedMenuBarItemsCollapseLittleSnitchFamilyDuplicates() {
+    func zonedMenuBarItemsCollapseLittleSnitchFamilyDuplicates() {
         let visibleNetworkMonitor = AccessibilityService.MenuBarItemPosition(
             app: RunningApp(
                 id: "at.obdev.littlesnitch.networkmonitor",
@@ -782,7 +817,7 @@ struct SearchWindowTests {
     }
 
     @Test("Helper-family fallback resolution prefers current Little Snitch helper")
-    func testHelperHostedAliasResolutionPrefersCurrentLittleSnitchHelper() {
+    func helperHostedAliasResolutionPrefersCurrentLittleSnitchHelper() {
         let original = RunningApp(
             id: "at.obdev.littlesnitch.networkmonitor",
             name: "Little Snitch",
@@ -807,7 +842,7 @@ struct SearchWindowTests {
                 menuExtraIdentifier: "com.obdev.LittleSnitchUIAgent-Item-0",
                 xPosition: -3440,
                 width: 22
-            )
+            ),
         ]
 
         let resolved = SearchService.bestHelperHostedAliasResolutionCandidate(
@@ -820,7 +855,7 @@ struct SearchWindowTests {
 
     @Test("Collapsed helper-family duplicates still prefer the current helper when all candidates are hidden")
     @MainActor
-    func testMergedDiscoverableAppsCollapseLittleSnitchFamilyHiddenDuplicates() {
+    func mergedDiscoverableAppsCollapseLittleSnitchFamilyHiddenDuplicates() {
         let positioned = [
             RunningApp(
                 id: "at.obdev.littlesnitch.networkmonitor",
@@ -837,7 +872,7 @@ struct SearchWindowTests {
                 menuExtraIdentifier: "at.obdev.littlesnitch.agent.menuextra.little-snitch",
                 xPosition: -3520,
                 width: 22
-            )
+            ),
         ]
 
         let merged = SearchService.mergedDiscoverableApps(positioned: positioned, owners: [])
@@ -847,7 +882,7 @@ struct SearchWindowTests {
     }
 
     @Test("SaneBar diagnostics collector includes search and panel snapshots")
-    func testDiagnosticsCollectorIncludesRuntimeSnapshots() throws {
+    func diagnosticsCollectorIncludesRuntimeSnapshots() throws {
         let diagnosticsFile = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -866,7 +901,7 @@ struct SearchWindowTests {
     }
 
     @Test("All mode discovery uses the broader menu bar app list")
-    func testAllModeDiscoveryUsesMergedMenuBarApps() throws {
+    func allModeDiscoveryUsesMergedMenuBarApps() throws {
         let viewFile = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -883,7 +918,7 @@ struct SearchWindowTests {
     }
 
     @Test("All mode refresh uses known-owner positions before the owner merge")
-    func testAllModeRefreshUsesKnownOwnerPositions() throws {
+    func allModeRefreshUsesKnownOwnerPositions() throws {
         let serviceFile = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -900,7 +935,7 @@ struct SearchWindowTests {
     // MARK: - Icon Groups Tests
 
     @Test("IconGroup filtering matches bundle IDs correctly")
-    func testIconGroupFiltering() {
+    func iconGroupFiltering() {
         // Given: a group with specific bundle IDs and a list of apps
         let group = SaneBarSettings.IconGroup(
             name: "Work",
@@ -911,7 +946,7 @@ struct SearchWindowTests {
             RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil),
             RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil),
             RunningApp(id: "com.1password.1password", name: "1Password", icon: nil),
-            RunningApp(id: "com.apple.Safari", name: "Safari", icon: nil)
+            RunningApp(id: "com.apple.Safari", name: "Safari", icon: nil),
         ]
 
         // When: filter apps by group (mimicking filteredApps logic)
@@ -926,13 +961,13 @@ struct SearchWindowTests {
     }
 
     @Test("IconGroup filtering with empty group returns no apps")
-    func testIconGroupFilteringEmptyGroup() {
+    func iconGroupFilteringEmptyGroup() {
         // Given: an empty group
         let group = SaneBarSettings.IconGroup(name: "Empty")
 
         let apps = [
             RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil),
-            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil)
+            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil),
         ]
 
         // When: filter apps by group
@@ -944,7 +979,7 @@ struct SearchWindowTests {
     }
 
     @Test("IconGroup filtering handles missing apps gracefully")
-    func testIconGroupFilteringMissingApps() {
+    func iconGroupFilteringMissingApps() {
         // Given: a group with bundle IDs that don't exist in app list
         let group = SaneBarSettings.IconGroup(
             name: "Missing",
@@ -952,7 +987,7 @@ struct SearchWindowTests {
         )
 
         let apps = [
-            RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil)
+            RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil),
         ]
 
         // When: filter apps by group
@@ -964,7 +999,7 @@ struct SearchWindowTests {
     }
 
     @Test("Adding app to group prevents duplicates")
-    func testAddAppToGroupNoDuplicates() {
+    func addAppToGroupNoDuplicates() {
         // Given: a group with an existing app
         var group = SaneBarSettings.IconGroup(
             name: "Test",
@@ -984,7 +1019,7 @@ struct SearchWindowTests {
     }
 
     @Test("Adding new app to group works")
-    func testAddAppToGroupNewApp() {
+    func addAppToGroupNewApp() {
         // Given: a group with an existing app
         var group = SaneBarSettings.IconGroup(
             name: "Test",
@@ -1004,7 +1039,7 @@ struct SearchWindowTests {
     }
 
     @Test("Removing app from group works")
-    func testRemoveAppFromGroup() {
+    func removeAppFromGroup() {
         // Given: a group with multiple apps
         var group = SaneBarSettings.IconGroup(
             name: "Test",
@@ -1024,7 +1059,7 @@ struct SearchWindowTests {
     }
 
     @Test("Removing non-existent app from group is safe")
-    func testRemoveNonExistentAppFromGroup() {
+    func removeNonExistentAppFromGroup() {
         // Given: a group with apps
         var group = SaneBarSettings.IconGroup(
             name: "Test",
@@ -1041,7 +1076,7 @@ struct SearchWindowTests {
     }
 
     @Test("Group selection finds correct group by ID")
-    func testGroupSelectionById() {
+    func groupSelectionById() {
         // Given: multiple groups
         let group1 = SaneBarSettings.IconGroup(name: "Work", appBundleIds: ["com.work.app"])
         let group2 = SaneBarSettings.IconGroup(name: "Personal", appBundleIds: ["com.personal.app"])
@@ -1059,7 +1094,7 @@ struct SearchWindowTests {
     }
 
     @Test("Combined search and group filtering works")
-    func testCombinedSearchAndGroupFiltering() {
+    func combinedSearchAndGroupFiltering() {
         // Given: a group and search text
         let group = SaneBarSettings.IconGroup(
             name: "Social",
@@ -1070,7 +1105,7 @@ struct SearchWindowTests {
             RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil),
             RunningApp(id: "com.discord.Discord", name: "Discord", icon: nil),
             RunningApp(id: "com.twitter.twitter", name: "Twitter", icon: nil),
-            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil)
+            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil),
         ]
 
         let searchText = "Dis"
@@ -1086,7 +1121,7 @@ struct SearchWindowTests {
     }
 
     @Test("Case-insensitive search within group works")
-    func testCaseInsensitiveSearchInGroup() {
+    func caseInsensitiveSearchInGroup() {
         // Given: a group and lowercase search
         let group = SaneBarSettings.IconGroup(
             name: "Apps",
@@ -1095,10 +1130,10 @@ struct SearchWindowTests {
 
         let apps = [
             RunningApp(id: "com.slack.Slack", name: "Slack", icon: nil),
-            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil)
+            RunningApp(id: "com.spotify.client", name: "Spotify", icon: nil),
         ]
 
-        let searchText = "SLACK"  // uppercase search
+        let searchText = "SLACK" // uppercase search
 
         // When: apply filters
         let bundleIds = Set(group.appBundleIds)
@@ -1111,11 +1146,11 @@ struct SearchWindowTests {
     }
 
     @Test("Deleting group resets selection to nil (All)")
-    func testDeleteGroupResetsSelection() {
+    func deleteGroupResetsSelection() {
         // Given: groups and a selected group ID
         var groups = [
             SaneBarSettings.IconGroup(name: "Work"),
-            SaneBarSettings.IconGroup(name: "Personal")
+            SaneBarSettings.IconGroup(name: "Personal"),
         ]
         var selectedGroupId: UUID? = groups[0].id
 
@@ -1134,15 +1169,15 @@ struct SearchWindowTests {
     }
 
     @Test("Deleting non-selected group preserves selection")
-    func testDeleteNonSelectedGroupPreservesSelection() {
+    func deleteNonSelectedGroupPreservesSelection() {
         // Given: groups and a selected group ID
         var groups = [
             SaneBarSettings.IconGroup(name: "Work"),
-            SaneBarSettings.IconGroup(name: "Personal")
+            SaneBarSettings.IconGroup(name: "Personal"),
         ]
-        var selectedGroupId: UUID? = groups[0].id  // Work is selected
+        var selectedGroupId: UUID? = groups[0].id // Work is selected
 
-        let groupToDelete = groups[1]  // Delete Personal (not selected)
+        let groupToDelete = groups[1] // Delete Personal (not selected)
 
         // When: delete non-selected group
         groups.removeAll { $0.id == groupToDelete.id }
@@ -1157,7 +1192,7 @@ struct SearchWindowTests {
     }
 
     @Test("Creating group auto-selects new group")
-    func testCreateGroupAutoSelects() {
+    func createGroupAutoSelects() {
         // Given: existing groups
         var groups: [SaneBarSettings.IconGroup] = []
         var selectedGroupId: UUID? = nil
@@ -1173,27 +1208,27 @@ struct SearchWindowTests {
     }
 
     @Test("Empty group name is allowed (UI validation responsibility)")
-    func testEmptyGroupNameAllowed() {
+    func emptyGroupNameAllowed() {
         // Given: creating group with empty name
         let group = SaneBarSettings.IconGroup(name: "")
 
         // Then: it's allowed at data layer (UI should validate)
         #expect(group.name == "")
-        #expect(group.id != UUID())  // Has valid ID
+        #expect(group.id != UUID()) // Has valid ID
     }
 
     @Test("Group with many apps filters correctly")
-    func testGroupWithManyApps() {
+    func groupWithManyApps() {
         // Given: a group with many apps
         var bundleIds: [String] = []
-        for i in 1...100 {
+        for i in 1 ... 100 {
             bundleIds.append("com.app\(i).test")
         }
         let group = SaneBarSettings.IconGroup(name: "Large", appBundleIds: bundleIds)
 
         // Create matching apps
         var apps: [RunningApp] = []
-        for i in 1...150 {  // 150 apps, only 100 in group
+        for i in 1 ... 150 { // 150 apps, only 100 in group
             apps.append(RunningApp(id: "com.app\(i).test", name: "App \(i)", icon: nil))
         }
 
@@ -1208,7 +1243,7 @@ struct SearchWindowTests {
     // MARK: - Stress Tests (Hostile User Behavior)
 
     @Test("STRESS: Whitespace-only group name is rejected")
-    func testWhitespaceOnlyGroupNameRejected() {
+    func whitespaceOnlyGroupNameRejected() {
         // Given: names that are all whitespace
         let whitespaceNames = ["   ", "\t", "\n", "  \t\n  ", ""]
 
@@ -1220,10 +1255,10 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Group lookup by stale ID returns nil safely")
-    func testStaleGroupIdLookup() {
+    func staleGroupIdLookup() {
         // Given: groups where one was "deleted"
         let group1 = SaneBarSettings.IconGroup(name: "Exists")
-        let deletedGroupId = UUID()  // ID that doesn't exist in array
+        let deletedGroupId = UUID() // ID that doesn't exist in array
 
         let groups = [group1]
 
@@ -1235,12 +1270,12 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Index bounds check after concurrent modification")
-    func testIndexBoundsAfterConcurrentModification() {
+    func indexBoundsAfterConcurrentModification() {
         // Given: array that might be modified during iteration
         var groups = [
             SaneBarSettings.IconGroup(name: "A"),
             SaneBarSettings.IconGroup(name: "B"),
-            SaneBarSettings.IconGroup(name: "C")
+            SaneBarSettings.IconGroup(name: "C"),
         ]
 
         let targetId = groups[1].id
@@ -1257,13 +1292,13 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Rapid create/delete operations don't corrupt state")
-    func testRapidCreateDelete() {
+    func rapidCreateDelete() {
         // Given: empty groups array
         var groups: [SaneBarSettings.IconGroup] = []
         var selectedGroupId: UUID? = nil
 
         // When: rapidly create and delete groups
-        for i in 1...100 {
+        for i in 1 ... 100 {
             // Create
             let newGroup = SaneBarSettings.IconGroup(name: "Group \(i)")
             groups.append(newGroup)
@@ -1285,13 +1320,13 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Max group limit prevents runaway creation")
-    func testMaxGroupLimit() {
+    func maxGroupLimit() {
         // Given: approaching max limit
         let maxGroupCount = 50
         var groups: [SaneBarSettings.IconGroup] = []
 
         // When: try to create more than max
-        for i in 1...60 {
+        for i in 1 ... 60 {
             if groups.count < maxGroupCount {
                 groups.append(SaneBarSettings.IconGroup(name: "Group \(i)"))
             }
@@ -1302,7 +1337,7 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Double-delete same group is safe")
-    func testDoubleDeleteSafe() {
+    func doubleDeleteSafe() {
         // Given: a group
         var groups = [SaneBarSettings.IconGroup(name: "ToDelete")]
         let groupId = groups[0].id
@@ -1318,7 +1353,7 @@ struct SearchWindowTests {
         }
 
         deleteGroup(id: groupId)
-        deleteGroup(id: groupId)  // Second delete should be no-op
+        deleteGroup(id: groupId) // Second delete should be no-op
 
         // Then: no crash, group gone
         #expect(groups.isEmpty)
@@ -1326,10 +1361,10 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Add app to deleted group is safe")
-    func testAddAppToDeletedGroup() {
+    func addAppToDeletedGroup() {
         // Given: groups array (group will be "deleted")
         var groups = [
-            SaneBarSettings.IconGroup(name: "Work", appBundleIds: [])
+            SaneBarSettings.IconGroup(name: "Work", appBundleIds: []),
         ]
         let targetGroupId = groups[0].id
 
@@ -1339,7 +1374,7 @@ struct SearchWindowTests {
         // When: try to add app to deleted group
         func addAppToGroup(bundleId: String, groupId: UUID) -> Bool {
             guard let index = groups.firstIndex(where: { $0.id == groupId }) else {
-                return false  // Group not found
+                return false // Group not found
             }
             guard index < groups.count else { return false }
             groups[index].appBundleIds.append(bundleId)
@@ -1353,19 +1388,20 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Filter with stale selectedGroupId shows all apps")
-    func testFilterWithStaleSelectedGroupId() {
+    func filterWithStaleSelectedGroupId() {
         // Given: apps and a stale group ID
         let apps = [
             RunningApp(id: "com.a", name: "A", icon: nil),
-            RunningApp(id: "com.b", name: "B", icon: nil)
+            RunningApp(id: "com.b", name: "B", icon: nil),
         ]
-        let groups: [SaneBarSettings.IconGroup] = []  // Empty - group was deleted
-        let staleGroupId: UUID? = UUID()  // Points to non-existent group
+        let groups: [SaneBarSettings.IconGroup] = [] // Empty - group was deleted
+        let staleGroupId: UUID? = UUID() // Points to non-existent group
 
         // When: filter with stale ID (mimicking filteredApps logic)
         var filtered = apps
         if let groupId = staleGroupId,
-           let group = groups.first(where: { $0.id == groupId }) {
+           let group = groups.first(where: { $0.id == groupId })
+        {
             let bundleIds = Set(group.appBundleIds)
             filtered = apps.filter { bundleIds.contains($0.id) }
         }
@@ -1376,7 +1412,7 @@ struct SearchWindowTests {
     }
 
     @Test("STRESS: Unicode and emoji in group names preserved")
-    func testUnicodeEmojiGroupNames() {
+    func unicodeEmojiGroupNames() {
         // Given: groups with various Unicode
         let names = [
             "🎨 Creative",
@@ -1384,7 +1420,7 @@ struct SearchWindowTests {
             "مجموعة عربية",
             "Группа",
             "🔥💯👍",
-            "Test™️ App©️"
+            "Test™️ App©️",
         ]
 
         var groups: [SaneBarSettings.IconGroup] = []

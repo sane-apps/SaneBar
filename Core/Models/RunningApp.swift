@@ -84,10 +84,23 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         let name: String
         let icon: NSImage?
         let category: AppCategory
+        var lastAccess: UInt64
     }
 
     private static let metadataCacheLock = NSLock()
+    private static let metadataCacheMaxEntries = 128
+    private static nonisolated(unsafe) var metadataCacheClock: UInt64 = 0
     private static nonisolated(unsafe) var metadataCache: [String: CachedMetadata] = [:]
+
+    internal nonisolated static func metadataCacheEvictionVictim(
+        accessOrder: [String: UInt64],
+        preserving keyToPreserve: String
+    ) -> String? {
+        accessOrder
+            .filter { $0.key != keyToPreserve }
+            .min { $0.value < $1.value }?
+            .key
+    }
 
     /// Owning app/process bundle identifier (e.g. com.apple.systemuiserver).
     /// This is the identifier we should use for activation/move operations.
@@ -477,7 +490,10 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         let cacheKey = metadataCacheKey(for: app, resolvedBundleId: resolvedBundleId)
 
         metadataCacheLock.lock()
-        if let cached = metadataCache[cacheKey] {
+        metadataCacheClock &+= 1
+        if var cached = metadataCache[cacheKey] {
+            cached.lastAccess = metadataCacheClock
+            metadataCache[cacheKey] = cached
             metadataCacheLock.unlock()
             return cached
         }
@@ -491,16 +507,29 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
                 bundleId: bundleId,
                 appName: (app.localizedName ?? "").lowercased(),
                 bundleURL: app.bundleURL
-            )
+            ),
+            lastAccess: 0
         )
 
         metadataCacheLock.lock()
-        if let cached = metadataCache[cacheKey] {
+        metadataCacheClock &+= 1
+        if var cached = metadataCache[cacheKey] {
+            cached.lastAccess = metadataCacheClock
+            metadataCache[cacheKey] = cached
             metadataCacheLock.unlock()
             return cached
         }
-        metadataCache[cacheKey] = metadata
+        var stored = metadata
+        stored.lastAccess = metadataCacheClock
+        if metadataCache.count >= metadataCacheMaxEntries,
+           let victim = metadataCacheEvictionVictim(
+               accessOrder: metadataCache.mapValues(\.lastAccess),
+               preserving: cacheKey
+           ) {
+            metadataCache.removeValue(forKey: victim)
+        }
+        metadataCache[cacheKey] = stored
         metadataCacheLock.unlock()
-        return metadata
+        return stored
     }
 }

@@ -143,19 +143,20 @@ extension AccessibilityService {
         let axDiscoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for runningApp in candidateApps {
                 group.addTask {
-                    let pid = runningApp.processIdentifier
-                    let appElement = AXUIElementCreateApplication(pid)
+                    autoreleasepool { () -> pid_t? in
+                        let pid = runningApp.processIdentifier
+                        let appElement = AXUIElementCreateApplication(pid)
 
-                    var extrasBar: CFTypeRef?
-                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                        var extrasBar: CFTypeRef?
+                        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
 
-                    if result == .success {
-                        return pid
+                        if result == .success {
+                            return pid
+                        }
+                        return nil
                     }
-                    return nil
                 }
             }
-
             var pidsSet = Set<pid_t>()
             for await pid in group {
                 if let pid = pid {
@@ -390,7 +391,8 @@ extension AccessibilityService {
         let results: [ScannedStatusItem] = await withTaskGroup(of: [ScannedStatusItem].self) { group in
             for runningApp in candidateApps {
                 group.addTask {
-                    let pid = runningApp.processIdentifier
+                    autoreleasepool { () -> [ScannedStatusItem] in
+                        let pid = runningApp.processIdentifier
                     let appElement = AXUIElementCreateApplication(pid)
 
                     var extrasBar: CFTypeRef?
@@ -479,7 +481,8 @@ extension AccessibilityService {
                             )
                         )
                     }
-                    return localResults
+                        return localResults
+                    }
                 }
             }
 

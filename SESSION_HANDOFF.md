@@ -1,9 +1,19 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-04
 **Current public release:** `v2.1.47` (build `2147`)
 
 ## Current State
+
+- 2026-05-04 open-issue hardening pass for `#142`, `#141`, and `#140` was completed on the Mac Mini checkout (not local MacBook runtime):
+  - `#142` Dark Tint blink: root cause was the appearance overlay being ordered front before resolved appearance/tint state was applied, plus SwiftUI `@Environment(\.colorScheme)` briefly choosing the light/default black tint. Patch applies resolved appearance before `orderFront`, skips redundant `orderFront`, and drives tint from `MenuBarOverlayViewModel.isDarkAppearance`.
+  - `#140` Always Hidden activation/move/right-click path: root causes were (1) activation treating pinned Always Hidden icons like normal hidden icons, so `showHiddenItemsNow()` kept them blocked/offscreen, and (2) browse click verification conflating hardware dispatch with observable AX/window reaction. Patch detects pinned Always Hidden exact IDs/bundle fallbacks, uses `showAll()`, resolves a fresh on-screen target, allows the fresh hardware fallback center, adds bounded AX messaging timeout for interaction probes, checks WindowServer reaction before slower AX polling, and accepts right-click hardware dispatch only for a freshly resolved on-screen target.
+  - `#141` memory growth: current evidence points to repeated AX/WindowServer menu-bar scans plus unbounded `RunningApp.metadataCache` retaining `NSImage?`. Patch bounds metadata cache to 128 LRU-style entries and wraps AX owner/position/system-wide scan loops in autorelease pools. This is hardening, not a multi-day field proof.
+  - Verification passed on Mini: `./scripts/SaneMaster.rb test_scan`, `./scripts/SaneMaster.rb verify --timeout 900` with 1,145 tests after the final interaction patch, `ruby Scripts/live_zone_smoke_test.rb` with 22 runs / 55 assertions, focused pinned-Always-Hidden Lungo live smoke, and `SANEBAR_RUN_RUNTIME_SMOKE=1 SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ruby Scripts/qa.rb` with staged release runtime smoke, focused native exact-ID Siri/Spotlight compatibility/move lanes, focused host exact-ID pinned-Always-Hidden browse activation/move lane, resource watchdog, and startup layout probe.
+  - Visual proof inspected locally from Mini screenshots: second menu bar, icon panel, settings, high-contrast seeded dark appearance overlay, and fresh Basic/Pro icon-panel captures were clean/readable with no overlap/crowding. Basic correctly showed Always Hidden locks; Pro required a relaunch after mode switch and then showed no locks. The high-contrast overlay snapshot intentionally rendered as a bright tint-only bar because it captures the overlay layer; it proves dark tint selection rather than full menu-bar compositing.
+  - Related issue map: `#138`, `#136`, and `#129` remain the patched-pending layout/move recovery family and are covered by the same startup/layout/move smoke lanes; `#137` remains compatibility-limited for BoringNotch/custom top-edge UI rather than a normal Apple menu-extra path. Native Apple Siri/Spotlight pinned-AH browse activation remains compatibility-sensitive and is not treated as the host exact-ID regression fixture; native lanes still cover open/close and move behavior.
+  - Do not post GitHub follow-up comments without drafting exact text for review first. Labels/comments were not changed in this pass.
+  - Note: `.claude/research.md` was already dirty with large unrelated churn; it was not touched for this task and should be handled separately before commit/PR.
 
 - 2026-04-30 post-2.1.47 drag-lane audit note:
   - User observed the automated Mini smoke appeared to drag Spotlight to the right of the SaneBar icon instead of into the visible lane between the divider and SaneBar icon.

@@ -147,6 +147,7 @@ class LiveZoneSmoke
     @require_candidate = ENV['SANEBAR_SMOKE_REQUIRE_CANDIDATE'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
+    @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
     @window_screenshot_tool = resolve_window_screenshot_tool
     @required_candidate_ids = ENV.fetch('SANEBAR_SMOKE_REQUIRED_IDS', '')
@@ -542,14 +543,28 @@ class LiveZoneSmoke
   end
 
   def exercise_browse_modes(zones)
+    forced_activation_candidates = nil
+    if focused_required_id_mode? && @pin_required_browse_always_hidden
+      forced_activation_candidates = selected_candidates(zones)
+      forced_activation_candidates.each do |candidate|
+        move_and_verify('move icon to always hidden', candidate, 'alwaysHidden')
+      end
+      puts "✅ Focused browse fixtures pinned Always Hidden: #{forced_activation_candidates.map { |item| item[:unique_id] }.join(', ')}"
+    end
+
     BROWSE_PANEL_COMMANDS.each do |expected_mode, command|
       unless supports_applescript_command?(command)
         puts "ℹ️ Skipping #{expected_mode}: running app does not expose '#{command}'"
         next
       end
 
-      if full_browse_activation_supported? && !focused_required_id_mode?
-        exercise_browse_mode(expected_mode: expected_mode, command: command, zones: zones)
+      if full_browse_activation_supported? && (!focused_required_id_mode? || @pin_required_browse_always_hidden)
+        exercise_browse_mode(
+          expected_mode: expected_mode,
+          command: command,
+          zones: zones,
+          forced_activation_candidates: forced_activation_candidates
+        )
       else
         reason = focused_required_id_mode? ? 'focused required-id smoke' : 'activation diagnostics unavailable in running app'
         puts "ℹ️ Compatibility browse check for #{expected_mode}: #{reason}"
@@ -558,6 +573,14 @@ class LiveZoneSmoke
     end
 
     exercise_settings_window_visual_check
+  ensure
+    if forced_activation_candidates
+      forced_activation_candidates.each do |candidate|
+        restore_zone(candidate)
+      rescue StandardError => e
+        puts "⚠️ Failed to restore focused browse fixture #{candidate[:unique_id]}: #{e.message}"
+      end
+    end
   end
 
   def full_browse_activation_supported?
@@ -650,7 +673,7 @@ class LiveZoneSmoke
     BROWSE_ACTIVATION_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }
   end
 
-  def exercise_browse_mode(expected_mode:, command:, zones:)
+  def exercise_browse_mode(expected_mode:, command:, zones:, forced_activation_candidates: nil)
     focus_probe_prior_state = seed_focus_probe_prior_app
     result = app_script(command).strip.downcase
     raise "#{command} returned '#{result}'" unless %w[true 1].include?(result)
@@ -664,12 +687,12 @@ class LiveZoneSmoke
     # is active, classification intentionally collapses always-hidden geometry
     # back into the generic hidden lane, which can reintroduce off-panel IDs
     # into the runtime smoke budget.
-    left_click_candidates = browse_activation_candidates(
+    left_click_candidates = forced_activation_candidates || browse_activation_candidates(
       zones,
       expected_mode: expected_mode,
       activation_command: 'activate browse icon'
     )
-    right_click_candidates = browse_activation_candidates(
+    right_click_candidates = forced_activation_candidates || browse_activation_candidates(
       zones,
       expected_mode: expected_mode,
       activation_command: 'right click browse icon'

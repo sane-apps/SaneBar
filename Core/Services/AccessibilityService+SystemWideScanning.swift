@@ -43,9 +43,10 @@ extension AccessibilityService {
         sampleStep: CGFloat = 4,
         anchorY: CGFloat = 15
     ) -> [MenuBarItemPosition] {
-        guard !candidatePIDs.isEmpty else { return [] }
+        autoreleasepool { () -> [MenuBarItemPosition] in
+            guard !candidatePIDs.isEmpty else { return [] }
 
-        func axString(_ value: CFTypeRef?) -> String? {
+            func axString(_ value: CFTypeRef?) -> String? {
             if let string = value as? String { return string }
             if let attributed = value as? NSAttributedString { return attributed.string }
             return nil
@@ -110,8 +111,9 @@ extension AccessibilityService {
             }
         }
 
-        let segments = systemWideMenuBarSegments(from: samples, sampleStep: sampleStep)
-        return resolvedSystemWideMenuBarItems(from: segments, sampleStep: sampleStep)
+            let segments = systemWideMenuBarSegments(from: samples, sampleStep: sampleStep)
+            return resolvedSystemWideMenuBarItems(from: segments, sampleStep: sampleStep)
+        }
     }
 
     internal nonisolated static func systemWideMenuBarSegments(

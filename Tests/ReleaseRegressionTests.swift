@@ -672,4 +672,16 @@ struct AppcastReleaseGuardrailTests {
             #expect(offered == latest, "Host \(currentVersion) should be offered \(latest ?? "latest"), got \(offered ?? "nil")")
         }
     }
+
+    @Test("RunningApp metadata cache eviction preserves newest key")
+    func runningAppMetadataCacheEvictsLeastRecentlyUsedKey() {
+        let victim = RunningApp.metadataCacheEvictionVictim(
+            accessOrder: ["old": 1, "warm": 7, "incoming": 0],
+            preserving: "incoming"
+        )
+
+        #expect(victim == "old")
+        #expect(RunningApp.metadataCacheEvictionVictim(accessOrder: ["incoming": 0], preserving: "incoming") == nil)
+    }
+
 }

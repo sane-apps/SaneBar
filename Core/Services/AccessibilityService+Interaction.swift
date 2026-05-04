@@ -5,13 +5,13 @@ import os.log
 // swiftlint:disable file_length
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService.Interaction")
 extension AccessibilityService {
-    enum MoveTargetLane: Sendable {
+    enum MoveTargetLane {
         case hidden
         case alwaysHidden
         case visible
     }
 
-    struct ClickMenuBarItemResult: Sendable {
+    struct ClickMenuBarItemResult {
         let success: Bool
         let verification: String
     }
@@ -32,7 +32,7 @@ extension AccessibilityService {
         return true
     }
 
-    struct StatusItemReactionSnapshot: Equatable, Sendable {
+    struct StatusItemReactionSnapshot: Equatable {
         let shownMenuPresent: Bool?
         let focusedWindowPresent: Bool?
         let windowCount: Int?
@@ -40,7 +40,8 @@ extension AccessibilityService {
         let expanded: Bool?
         let selected: Bool?
     }
-    private enum StatusItemReactionVerification: Sendable {
+
+    private enum StatusItemReactionVerification {
         case verified(String)
         case unavailable(String)
         case failed(String)
@@ -56,20 +57,22 @@ extension AccessibilityService {
 
         var summary: String {
             switch self {
-            case .verified(let detail):
+            case let .verified(detail):
                 "verified (\(detail))"
-            case .unavailable(let detail):
+            case let .unavailable(detail):
                 "unavailable (\(detail))"
-            case .failed(let detail):
+            case let .failed(detail):
                 "failed (\(detail))"
             }
         }
     }
 
     // MARK: - Actions
+
     nonisolated func clickMenuBarItem(for bundleID: String) -> Bool {
         clickMenuBarItem(bundleID: bundleID, menuExtraId: nil, fallbackCenter: nil)
     }
+
     /// Perform a "Virtual Click" on a specific menu bar item.
     nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false, allowImmediateFallbackCenter: Bool = true) -> Bool {
         clickMenuBarItemResult(
@@ -134,6 +137,7 @@ extension AccessibilityService {
     // swiftlint:disable:next function_parameter_count
     private nonisolated func clickSystemWideItem(for targetPID: pid_t, bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, preferHardwareFirst: Bool, allowImmediateFallbackCenter: Bool) -> ClickMenuBarItemResult {
         let appElement = AXUIElementCreateApplication(targetPID)
+        applyInteractionMessagingTimeout(to: appElement)
 
         var extrasBar: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
@@ -166,6 +170,7 @@ extension AccessibilityService {
         guard let barElement = safeAXUIElement(bar) else {
             return ClickMenuBarItemResult(success: false, verification: "not-run (invalid AXExtrasMenuBar element)")
         }
+        applyInteractionMessagingTimeout(to: barElement)
 
         var children: CFTypeRef?
         let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
@@ -210,6 +215,8 @@ extension AccessibilityService {
             )
         }
 
+        applyInteractionMessagingTimeout(to: item)
+
         let reactionBaseline = captureStatusItemReactionSnapshot(item: item, appElement: appElement)
         let itemOnScreen = isElementOnScreen(item)
 
@@ -226,7 +233,8 @@ extension AccessibilityService {
                 ),
                 item: item,
                 appElement: appElement,
-                baseline: reactionBaseline
+                baseline: reactionBaseline,
+                acceptDispatchWithoutObservableReaction: isRightClick && itemOnScreen
             )
             if !Self.shouldFallbackToAXAfterHardwareAttempt(
                 success: hardwareResult.success,
@@ -298,7 +306,8 @@ extension AccessibilityService {
         dispatched: Bool,
         item: AXUIElement,
         appElement: AXUIElement,
-        baseline: StatusItemReactionSnapshot
+        baseline: StatusItemReactionSnapshot,
+        acceptDispatchWithoutObservableReaction: Bool = false
     ) -> ClickMenuBarItemResult {
         guard dispatched else {
             return ClickMenuBarItemResult(success: false, verification: "failed (dispatch failed)")
@@ -309,10 +318,22 @@ extension AccessibilityService {
             appElement: appElement,
             baseline: baseline
         )
+        if acceptDispatchWithoutObservableReaction, !verification.summary.hasPrefix("verified") {
+            return ClickMenuBarItemResult(
+                success: true,
+                verification: "verified (rightClickDispatch; \(verification.summary))"
+            )
+        }
+
         return ClickMenuBarItemResult(
             success: verification.success,
             verification: verification.summary
         )
+    }
+
+    private nonisolated func applyInteractionMessagingTimeout(to element: AXUIElement) {
+        // Keep browse activation responsive when a status item blocks AX reads after re-layout.
+        AXUIElementSetMessagingTimeout(element, 0.18)
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -322,7 +343,8 @@ extension AccessibilityService {
         // click there immediately instead of AX frame polling.
         if allowImmediateFallbackCenter,
            let fallbackCenter,
-           isAccessibilityPointOnAnyScreen(fallbackCenter) {
+           isAccessibilityPointOnAnyScreen(fallbackCenter)
+        {
             logger.info("Hardware click fallback: using immediate spatial center for \(bundleID)")
             let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
             return simulateHardwareClick(at: point, isRightClick: isRightClick)
@@ -395,6 +417,21 @@ extension AccessibilityService {
     ) -> StatusItemReactionVerification {
         var lastSnapshot = baseline
 
+        if baseline.windowServerWindowCount != nil {
+            Thread.sleep(forTimeInterval: interval)
+            let windowServerSnapshot = StatusItemReactionSnapshot(
+                shownMenuPresent: nil,
+                focusedWindowPresent: nil,
+                windowCount: nil,
+                windowServerWindowCount: appWindowServerCount(appElement),
+                expanded: nil,
+                selected: nil
+            )
+            if let reaction = Self.observableReactionDescription(before: baseline, after: windowServerSnapshot) {
+                return .verified(reaction)
+            }
+        }
+
         for _ in 0 ..< attempts {
             Thread.sleep(forTimeInterval: interval)
             let currentSnapshot = captureStatusItemReactionSnapshot(
@@ -447,7 +484,8 @@ extension AccessibilityService {
         if AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
            let sVal = sizeValue,
            CFGetTypeID(sVal) == AXValueGetTypeID(),
-           let axSizeVal = safeAXValue(sVal) {
+           let axSizeVal = safeAXValue(sVal)
+        {
             var s = CGSize.zero
             if AXValueGetValue(axSizeVal, .cgSize, &s) {
                 size = CGSize(width: max(1, s.width), height: max(1, s.height))
@@ -473,7 +511,8 @@ extension AccessibilityService {
 
             var children: CFTypeRef?
             if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-               let childItems = children as? [AXUIElement] {
+               let childItems = children as? [AXUIElement]
+            {
                 for child in childItems {
                     if performShowMenu(on: child) { return true }
                     if performPress(on: child) {
@@ -491,7 +530,8 @@ extension AccessibilityService {
 
         var children: CFTypeRef?
         if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-           let childItems = children as? [AXUIElement] {
+           let childItems = children as? [AXUIElement]
+        {
             for child in childItems where performPress(on: child) {
                 return true
             }
@@ -504,7 +544,8 @@ extension AccessibilityService {
         var actionNames: CFArray?
         if AXUIElementCopyActionNames(element, &actionNames) == .success,
            let names = actionNames as? [String],
-           names.contains("AXShowMenu") {
+           names.contains("AXShowMenu")
+        {
             let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
             if menuError == .success {
                 logger.info("AXShowMenu successful")
@@ -525,7 +566,8 @@ extension AccessibilityService {
         var actionNames: CFArray?
         if AXUIElementCopyActionNames(element, &actionNames) == .success,
            let names = actionNames as? [String],
-           names.contains("AXShowMenu") {
+           names.contains("AXShowMenu")
+        {
             let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
             if menuError == .success {
                 logger.info("AXShowMenu successful")
@@ -559,7 +601,8 @@ extension AccessibilityService {
                mouseType: .mouseMoved,
                mouseCursorPosition: restorePoint,
                mouseButton: .left
-           ) {
+           )
+        {
             restoreEvent.post(tap: .cgSessionEventTap)
         }
 
@@ -740,7 +783,8 @@ extension AccessibilityService {
               freshVisibleBoundaryX.isFinite,
               staleSeparatorX > 0,
               freshSeparatorX > 0,
-              freshVisibleBoundaryX > freshSeparatorX else {
+              freshVisibleBoundaryX > freshSeparatorX
+        else {
             return false
         }
 
@@ -1093,7 +1137,7 @@ extension AccessibilityService {
 
         if !movedToExpectedSide {
             logger.error(
-                "🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), targetX=\(targetX, privacy: .public), beforeX=\(iconFrame.origin.x, privacy: .public), beforeMidX=\(iconFrame.midX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public), deltaMidX=\((afterFrame.midX - iconFrame.midX), privacy: .public), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public)"
+                "🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), targetX=\(targetX, privacy: .public), beforeX=\(iconFrame.origin.x, privacy: .public), beforeMidX=\(iconFrame.midX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public), deltaMidX=\(afterFrame.midX - iconFrame.midX, privacy: .public), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public)"
             )
         }
 

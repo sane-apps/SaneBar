@@ -2,13 +2,13 @@ import AppKit
 import Foundation
 
 extension SearchService {
-    enum ActivationOrigin: String, Sendable {
+    enum ActivationOrigin: String {
         case direct
         case browsePanel
         case automation
     }
 
-    struct ActivationDiagnostics: Sendable {
+    struct ActivationDiagnostics {
         var startedAt: String = "never"
         var requestedApp: String = "none"
         var origin: String = ActivationOrigin.direct.rawValue
@@ -170,7 +170,7 @@ extension SearchService {
 
     nonisolated static func shouldUseWorkspaceActivationFallback(
         origin: ActivationOrigin,
-        isRightClick: Bool
+        isRightClick _: Bool
     ) -> Bool {
         origin != .browsePanel
     }
@@ -205,6 +205,14 @@ extension SearchService {
         return baseAllowImmediateFallbackCenter || coarseBrowseIdentityNeedsSpatialFallback || noExtrasNeedsSpatialFallback
     }
 
+    nonisolated static func shouldUseAlwaysHiddenRevealForActivation(
+        appUniqueId: String,
+        bundleId: String,
+        pinnedIds: Set<String>
+    ) -> Bool {
+        pinnedIds.contains(appUniqueId) || pinnedIds.contains(bundleId)
+    }
+
     nonisolated static func shouldUsePinnedAlwaysHiddenFallback(
         hidingState: HidingState,
         isBrowseSessionActive: Bool
@@ -227,6 +235,18 @@ extension SearchService {
         isPointOnScreen: Bool
     ) -> Bool {
         allowImmediateFallbackCenter && isPointOnScreen
+    }
+
+    nonisolated static func shouldAllowFreshHardwareFallbackCenter(
+        preferHardwareFirst: Bool,
+        requireObservableReaction: Bool,
+        hasPreciseMenuBarIdentity: Bool,
+        fallbackCenterOnScreen: Bool
+    ) -> Bool {
+        preferHardwareFirst &&
+            requireObservableReaction &&
+            hasPreciseMenuBarIdentity &&
+            fallbackCenterOnScreen
     }
 
     nonisolated static func shouldWaitForRevealSettle(
@@ -265,7 +285,7 @@ extension SearchService {
         requireObservableReaction: Bool
     ) -> Int {
         guard requireObservableReaction else { return baseMs }
-        return max(baseMs, 1_800)
+        return max(baseMs, 1800)
     }
 
     nonisolated static func helperHostedAliasFamilyKey(for app: RunningApp) -> String? {
@@ -325,7 +345,7 @@ extension SearchService {
 
     nonisolated static func isLikelyDeepHiddenX(_ xPosition: CGFloat?) -> Bool {
         guard let xPosition else { return false }
-        return abs(xPosition) >= 2_000
+        return abs(xPosition) >= 2000
     }
 
     nonisolated static func bestHelperHostedAliasRepresentative(
@@ -414,7 +434,8 @@ extension SearchService {
             if seenIDs.contains(owner.uniqueId) { continue }
             if owner.menuExtraIdentifier == nil,
                owner.statusItemIndex == nil,
-               positionedBundles.contains(owner.bundleId) {
+               positionedBundles.contains(owner.bundleId)
+            {
                 continue
             }
 
