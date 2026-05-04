@@ -304,8 +304,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             return
         }
 
-        window.orderFront(nil)
         applyResolvedAppearance()
+        if !window.isVisible {
+            window.orderFront(nil)
+        }
     }
 
     private func currentWindowInfos() -> [[String: Any]] {
@@ -387,6 +389,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let resolvedAppearance = Self.resolvedOverlayAppearance(from: NSApp.effectiveAppearance)
         window.appearance = resolvedAppearance
         window.contentView?.appearance = resolvedAppearance
+        overlayViewModel?.isDarkAppearance = Self.isDarkAppearance(resolvedAppearance)
     }
 
     @MainActor
@@ -447,6 +450,17 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             return appearance
         }
         return NSAppearance(named: matchedName) ?? appearance
+    }
+
+    internal nonisolated static func isDarkAppearance(_ appearance: NSAppearance?) -> Bool {
+        let supportedAppearances: [NSAppearance.Name] = [
+            .aqua,
+            .darkAqua,
+            .accessibilityHighContrastAqua,
+            .accessibilityHighContrastDarkAqua
+        ]
+        let match = resolvedOverlayAppearance(from: appearance)?.bestMatch(from: supportedAppearances)
+        return match == .darkAqua || match == .accessibilityHighContrastDarkAqua
     }
 
     // MARK: - Window Level
@@ -577,6 +591,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 final class MenuBarOverlayViewModel {
     var settings = MenuBarAppearanceSettings()
     var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+    var isDarkAppearance = MenuBarAppearanceService.isDarkAppearance(NSApp.effectiveAppearance)
 }
 
 // MARK: - MenuBarOverlayView
@@ -584,19 +599,18 @@ final class MenuBarOverlayViewModel {
 /// SwiftUI view that renders the menu bar overlay with tint, shadow, border effects
 struct MenuBarOverlayView: View {
     var viewModel: MenuBarOverlayViewModel
-    @Environment(\.colorScheme) private var colorScheme
 
-    /// Active tint color based on current system appearance
+    /// Active tint color based on the overlay window appearance.
     private var activeTintColor: String {
-        colorScheme == .dark ? viewModel.settings.tintColorDark : viewModel.settings.tintColor
+        viewModel.isDarkAppearance ? viewModel.settings.tintColorDark : viewModel.settings.tintColor
     }
 
-    /// Active tint opacity based on current system appearance.
+    /// Active tint opacity based on the overlay window appearance.
     /// When Reduce Transparency is enabled, the menu bar background becomes a solid opaque fill
     /// instead of blur — low-opacity tints are invisible on solid backgrounds. Use at least 50%
     /// opacity to ensure the tint is perceptible while not completely obscuring icons.
     private var activeTintOpacity: Double {
-        let baseOpacity = colorScheme == .dark
+        let baseOpacity = viewModel.isDarkAppearance
             ? viewModel.settings.tintOpacityDark
             : viewModel.settings.tintOpacity
         if viewModel.reduceTransparency {

@@ -420,6 +420,41 @@ struct MenuBarAppearanceServiceTests {
         #expect(MenuBarAppearanceService.resolvedOverlayAppearance(from: nil) == nil)
     }
 
+    @Test("Overlay tint mode is resolved from explicit window appearance")
+    func testOverlayTintModeUsesResolvedAppearance() {
+        #expect(MenuBarAppearanceService.isDarkAppearance(NSAppearance(named: .darkAqua)))
+        #expect(MenuBarAppearanceService.isDarkAppearance(NSAppearance(named: .accessibilityHighContrastDarkAqua)))
+        #expect(!MenuBarAppearanceService.isDarkAppearance(NSAppearance(named: .aqua)))
+        #expect(!MenuBarAppearanceService.isDarkAppearance(NSAppearance(named: .accessibilityHighContrastAqua)))
+    }
+
+    @Test("Overlay refresh resolves appearance before showing window")
+    func testOverlayRefreshResolvesAppearanceBeforeShowingWindow() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = root.appendingPathComponent("Core/Services/MenuBarAppearanceService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        guard let refreshStart = source.range(of: "private func refreshOverlayVisibility()"),
+              let refreshEnd = source.range(of: "private func currentWindowInfos") else {
+            Issue.record("Could not find refreshOverlayVisibility source")
+            return
+        }
+
+        let refreshBody = String(source[refreshStart.lowerBound..<refreshEnd.lowerBound])
+        guard let appearanceCall = refreshBody.range(of: "applyResolvedAppearance()"),
+              let orderFrontCall = refreshBody.range(of: "window.orderFront(nil)") else {
+            Issue.record("Appearance refresh or orderFront call missing")
+            return
+        }
+
+        #expect(appearanceCall.lowerBound < orderFrontCall.lowerBound)
+        #expect(refreshBody.contains("if !window.isVisible"))
+        #expect(!source.contains(#"@Environment(\.colorScheme)"#))
+        #expect(!source.contains("colorScheme"))
+    }
+
     // MARK: - Mock Tests
 
     @Test("MenuBarAppearanceServiceProtocolMock tracks method calls")

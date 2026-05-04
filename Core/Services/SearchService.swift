@@ -6,7 +6,7 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchService")
 
-struct SearchClassifiedApps: Sendable {
+struct SearchClassifiedApps {
     let visible: [RunningApp]
     let hidden: [RunningApp]
     let alwaysHidden: [RunningApp]
@@ -139,7 +139,8 @@ final class SearchService: SearchServiceProtocol {
             hidingState: MenuBarManager.shared.hidingService.state,
             isBrowseSessionActive: SearchWindowController.shared.isBrowseSessionActive
         ),
-           MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX() == nil {
+            MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX() == nil
+        {
             return (separatorX, nil)
         }
 
@@ -157,7 +158,8 @@ final class SearchService: SearchServiceProtocol {
 
         if alwaysHiddenBoundaryX == nil,
            let alwaysHiddenSeparatorOriginX,
-           alwaysHiddenSeparatorOriginX > 0 {
+           alwaysHiddenSeparatorOriginX > 0
+        {
             alwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
                 alwaysHiddenSeparatorOriginX + 20,
                 separatorX: separatorX
@@ -165,7 +167,8 @@ final class SearchService: SearchServiceProtocol {
         }
 
         if let alwaysHiddenSeparatorOriginX,
-           alwaysHiddenSeparatorOriginX >= separatorX {
+           alwaysHiddenSeparatorOriginX >= separatorX
+        {
             let now = Date()
             if let last = lastAlwaysHiddenOrderWarningAt {
                 if now.timeIntervalSince(last) >= 5 {
@@ -192,7 +195,8 @@ final class SearchService: SearchServiceProtocol {
             }
             if repairedAlwaysHiddenBoundaryX == nil,
                let repairedAlwaysHiddenOriginX,
-               repairedAlwaysHiddenOriginX > 0 {
+               repairedAlwaysHiddenOriginX > 0
+            {
                 repairedAlwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
                     repairedAlwaysHiddenOriginX + 20,
                     separatorX: repairedSeparatorX
@@ -200,7 +204,8 @@ final class SearchService: SearchServiceProtocol {
             }
             if let repairedAlwaysHiddenOriginX,
                repairedAlwaysHiddenOriginX < repairedSeparatorX,
-               let repairedAlwaysHiddenBoundaryX {
+               let repairedAlwaysHiddenBoundaryX
+            {
                 return (repairedSeparatorX, repairedAlwaysHiddenBoundaryX)
             }
             return (repairedSeparatorX, nil)
@@ -624,7 +629,8 @@ final class SearchService: SearchServiceProtocol {
             alwaysHidden = promoted.alwaysHidden
             if promotedCount > 0 {
                 if positions.alwaysHiddenSeparatorX == nil,
-                   MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
+                   MenuBarManager.shared.alwaysHiddenSeparatorItem != nil
+                {
                     logger.debug("classifyItems: post-pass moved \(promotedCount, privacy: .public) pinned apps to alwaysHidden (fallback)")
                 } else {
                     logger.debug("classifyItems: post-pass kept \(promotedCount, privacy: .public) pinned hidden apps in alwaysHidden")
@@ -698,7 +704,8 @@ final class SearchService: SearchServiceProtocol {
 
         for bucket in aliasBuckets.values {
             guard let bestApp = Self.bestHelperHostedAliasRepresentative(from: bucket.map(\.app)),
-                  let bestItem = bucket.first(where: { $0.app.uniqueId == bestApp.uniqueId }) else {
+                  let bestItem = bucket.first(where: { $0.app.uniqueId == bestApp.uniqueId })
+            else {
                 continue
             }
             kept.append(bestItem)
@@ -736,8 +743,33 @@ final class SearchService: SearchServiceProtocol {
         }
         defer { finishActivation(for: app.uniqueId) }
 
-        // 1. Show hidden menu bar items first
-        let didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
+        // 1. Show hidden menu bar items first. Always Hidden icons need the
+        // stronger showAll path; regular reveal intentionally keeps them blocked.
+        let shouldRevealAlwaysHidden = await MainActor.run {
+            Self.shouldUseAlwaysHiddenRevealForActivation(
+                appUniqueId: app.uniqueId,
+                bundleId: app.bundleId,
+                pinnedIds: Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+            )
+        }
+        let didReveal: Bool
+        if shouldRevealAlwaysHidden {
+            let requiresAuthFromHidden = await MainActor.run {
+                MenuBarManager.shared.settings.requireAuthToShowHiddenIcons &&
+                    MenuBarManager.shared.hidingService.state == .hidden
+            }
+            if requiresAuthFromHidden {
+                guard await MenuBarManager.shared.showHiddenItemsNow(trigger: .search) else {
+                    diagnostics.finalOutcome = "aborted (auth failed before always-hidden reveal)"
+                    lastActivationDiagnostics = diagnostics
+                    return
+                }
+            }
+            await MenuBarManager.shared.hidingService.showAll()
+            didReveal = true
+        } else {
+            didReveal = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
+        }
         diagnostics.didReveal = didReveal
         let browseSessionActive = SearchWindowController.shared.isBrowseSessionActive
         let activationPlan = Self.activationPlan(
@@ -761,7 +793,7 @@ final class SearchService: SearchServiceProtocol {
             // hidden/off-screen targets still need time to re-enter the bar.
             if Self.shouldWaitForRevealSettle(
                 preferHardwareFirst: requestedPreferHardwareFirst,
-                xPosition: app.xPosition
+                xPosition: shouldRevealAlwaysHidden ? nil : app.xPosition
             ) {
                 diagnostics.waitOutcome = await waitForIconOnScreen(app: app)
             } else {
@@ -789,15 +821,22 @@ final class SearchService: SearchServiceProtocol {
         )
         let initialFallbackCenter = fallbackCenter(for: initialTarget, fallbackSource: app)
         let preferHardwareFirst = initialPlan.preferHardwareFirst
+        let initialFallbackCenterOnScreen = Self.isFallbackCenterOnScreen(initialFallbackCenter)
+        let initialFreshHardwareFallback = Self.shouldAllowFreshHardwareFallbackCenter(
+            preferHardwareFirst: preferHardwareFirst,
+            requireObservableReaction: requireObservableReaction,
+            hasPreciseMenuBarIdentity: initialTarget.hasPreciseMenuBarIdentity,
+            fallbackCenterOnScreen: initialFallbackCenterOnScreen
+        )
         diagnostics.initialResolution = initialResolution.strategy
         diagnostics.initialTarget = Self.diagnosticsApp(initialTarget)
         diagnostics.preferHardwareFirst = preferHardwareFirst
         let axService = AccessibilityService.shared
         let initialLikelyNoExtras = axService.likelyLacksExtrasMenuBar(bundleID: initialTarget.bundleId)
         let initialAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
-            baseAllowImmediateFallbackCenter: allowImmediateFallbackCenter,
+            baseAllowImmediateFallbackCenter: allowImmediateFallbackCenter || initialFreshHardwareFallback,
             likelyNoExtrasMenuBar: initialLikelyNoExtras,
-            fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(initialFallbackCenter),
+            fallbackCenterOnScreen: initialFallbackCenterOnScreen,
             hasPreciseMenuBarIdentity: initialTarget.hasPreciseMenuBarIdentity
         )
         logger.info(
@@ -860,10 +899,17 @@ final class SearchService: SearchServiceProtocol {
                 )
                 let refreshedPreferHardwareFirst = refreshedPlan.preferHardwareFirst
                 let refreshedLikelyNoExtras = axService.likelyLacksExtrasMenuBar(bundleID: refreshedTarget.bundleId)
+                let refreshedFallbackCenterOnScreen = Self.isFallbackCenterOnScreen(refreshedFallbackCenter)
+                let refreshedFreshHardwareFallback = Self.shouldAllowFreshHardwareFallbackCenter(
+                    preferHardwareFirst: refreshedPreferHardwareFirst,
+                    requireObservableReaction: requireObservableReaction,
+                    hasPreciseMenuBarIdentity: refreshedTarget.hasPreciseMenuBarIdentity,
+                    fallbackCenterOnScreen: refreshedFallbackCenterOnScreen
+                )
                 let refreshedAllowImmediateFallbackCenter = Self.resolvedAllowImmediateFallbackCenter(
-                    baseAllowImmediateFallbackCenter: false,
+                    baseAllowImmediateFallbackCenter: refreshedFreshHardwareFallback,
                     likelyNoExtrasMenuBar: refreshedLikelyNoExtras,
-                    fallbackCenterOnScreen: Self.isFallbackCenterOnScreen(refreshedFallbackCenter),
+                    fallbackCenterOnScreen: refreshedFallbackCenterOnScreen,
                     hasPreciseMenuBarIdentity: refreshedTarget.hasPreciseMenuBarIdentity
                 )
                 let refreshedAttemptStart = Date()
@@ -926,7 +972,7 @@ final class SearchService: SearchServiceProtocol {
         )
     }
 
-    private struct ClickAttemptResult: Sendable {
+    private struct ClickAttemptResult {
         let success: Bool
         let timedOut: Bool
         let verification: String
@@ -989,7 +1035,8 @@ final class SearchService: SearchServiceProtocol {
         }
 
         if lastActivatedAppID == appUniqueID,
-           now.timeIntervalSince(lastActivationAt) < activationDebounceInterval {
+           now.timeIntervalSince(lastActivationAt) < activationDebounceInterval
+        {
             if let nameForLog {
                 logger.info("Debounced duplicate activation for \(nameForLog, privacy: .private)")
             } else {
@@ -1026,14 +1073,16 @@ final class SearchService: SearchServiceProtocol {
 
         // Next: bundle + menuExtra identifier.
         if let menuExtraIdentifier = original.menuExtraIdentifier,
-           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.menuExtraIdentifier == menuExtraIdentifier })?.app {
+           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.menuExtraIdentifier == menuExtraIdentifier })?.app
+        {
             logger.info("Resolved click target via menuExtra identifier (\(prefix, privacy: .public))")
             return (match, "\(prefix) method=bundle+menuExtraId")
         }
 
         // Next: bundle + status item index.
         if let statusItemIndex = original.statusItemIndex,
-           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.statusItemIndex == statusItemIndex })?.app {
+           let match = items.first(where: { $0.app.bundleId == original.bundleId && $0.app.statusItemIndex == statusItemIndex })?.app
+        {
             logger.info("Resolved click target via status item index (\(prefix, privacy: .public))")
             return (match, "\(prefix) method=bundle+statusItemIndex")
         }
@@ -1054,7 +1103,8 @@ final class SearchService: SearchServiceProtocol {
             return (original, "\(prefix) method=preciseIdentityLost")
         }
         if let originalX = original.xPosition,
-           let closest = sameBundle.min(by: { abs(($0.xPosition ?? originalX) - originalX) < abs(($1.xPosition ?? originalX) - originalX) }) {
+           let closest = sameBundle.min(by: { abs(($0.xPosition ?? originalX) - originalX) < abs(($1.xPosition ?? originalX) - originalX) })
+        {
             logger.warning("Resolved click target via closest same-bundle position (\(prefix, privacy: .public))")
             return (closest, "\(prefix) method=closestSameBundleX")
         }
