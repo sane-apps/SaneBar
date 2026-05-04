@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.48] - 2026-05-04
+
+Improves Basic and Pro menu bar controls, makes Browse Icons and Second Menu Bar more reliable with Always Hidden items, keeps appearance changes smooth, and lowers background memory use.
+
+---
+
 ## [2.1.47] - 2026-04-30
 
 Adds a first-run Health wizard and layout rescue tools, improves Bartender import with preview, makes Basic and Pro settings clearer, and improves menu bar layout recovery after launch, wake, display changes, and upgrades.
