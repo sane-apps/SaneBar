@@ -293,9 +293,11 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             return
         }
 
+        let frontmostApp = NSWorkspace.shared.frontmostApplication
         if Self.shouldSuppressOverlay(
-            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-            frontmostBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+            frontmostPID: frontmostApp?.processIdentifier,
+            frontmostBundleID: frontmostApp?.bundleIdentifier,
+            frontmostIsAccessoryApp: frontmostApp?.activationPolicy != .regular,
             targetScreenFrame: preferredMenuBarScreen()?.frame,
             windowInfos: currentWindowInfos()
         ) {
@@ -317,6 +319,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     internal nonisolated static func shouldSuppressOverlay(
         frontmostPID: pid_t?,
         frontmostBundleID: String?,
+        frontmostIsAccessoryApp: Bool = false,
         targetScreenFrame: CGRect?,
         windowInfos: [[String: Any]],
         selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
@@ -350,6 +353,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let maximumHorizontalDrift: CGFloat = 8
         let maximumTopDrift: CGFloat = 2
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
+        let suppressFullscreenHost = !frontmostIsAccessoryApp
 
         for info in windowInfos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
@@ -369,7 +373,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
             let coveredRect = rect.intersection(targetFrame)
 
-            if coveredRect.width >= minimumCoveredWidth,
+            if suppressFullscreenHost,
+               coveredRect.width >= minimumCoveredWidth,
                coveredRect.height >= minimumCoveredHeight {
                 return true
             }
