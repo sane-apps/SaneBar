@@ -254,6 +254,54 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Appearance overlay stays visible for accessory launcher fullscreen windows")
+    func testDoesNotSuppressOverlayForAccessoryLauncherFullscreenWindow() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "app.remixdesign.LaunchOS",
+                frontmostIsAccessoryApp: true,
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
+    @Test("Appearance overlay still suppresses accessory thin top hosts")
+    func testSuppressOverlayForAccessoryThinTopHost() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 24)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.example.MenuBarHost",
+                frontmostIsAccessoryApp: true,
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
     @Test("Appearance overlay suppresses for Apple fullscreen content windows")
     func testSuppressOverlayForAppleFullscreenContentWindow() {
         let infos: [[String: Any]] = [[
