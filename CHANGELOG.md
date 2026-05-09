@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.49] - 2026-05-09
+
+Improves menu bar tint behavior around fullscreen browser windows, fixes hover reveal reliability, and makes menu bar layout checks smoother during updates.
+
+---
+
 ## [2.1.48] - 2026-05-04
 
 Improves Basic and Pro menu bar controls, makes Browse Icons and Second Menu Bar more reliable with Always Hidden items, keeps appearance changes smooth, and lowers background memory use.
