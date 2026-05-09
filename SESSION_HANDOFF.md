@@ -5,6 +5,12 @@
 
 ## Current State
 
+- 2026-05-09 shared menu parity audit:
+  - SaneBar's Dock menu and menu-bar right-click menu now use the shared SaneUI utility-menu contract for Settings, License, Check for Updates, About / Report a Bug, optional What's New, and Quit.
+  - SaneBar now pins SaneUI to `ce1df3c2b03d8ade3b300e907fbcf37320a847bc` so `SaneStandardMenu` is available during Mini builds.
+  - Added regression coverage for the shared Dock utility actions and status menu License/About actions.
+  - Mini verification passed: `./scripts/SaneMaster.rb verify --timeout 1200` with 1,157 tests.
+
 - 2026-05-09 customer visual/robustness pass for rehide, hover, and settings copy:
   - Auto-rehide now schedules immediately when the setting changes while icons are already expanded, instead of waiting for Settings to close and another reveal cycle.
   - Fire-time rehide no longer treats pointer position below the menu bar as enough by itself to keep icons open; real panels/menus still gate hiding.

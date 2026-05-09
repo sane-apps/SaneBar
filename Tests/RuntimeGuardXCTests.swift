@@ -104,9 +104,27 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("StatusBarController.resetPersistentStatusItemState(") &&
+                source.contains("freshAutosaveNamespace: true") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\") {") &&
                 source.contains("schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)"),
-            "Reset to Defaults should reset status-item persistence and recreate live menu bar items immediately"
+            "Reset to Defaults should reset status-item persistence into a fresh autosave namespace and recreate live menu bar items immediately"
+        )
+    }
+
+    func testRecoveryRewireWarmsGeometryAndAccessibilityCaches() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private func schedulePostRecoveryGeometryWarmup()"),
+            "MenuBarManager should define a dedicated post-recovery geometry warmup helper"
+        )
+        XCTAssertTrue(
+            source.contains("AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)") &&
+                source.contains("await self.warmSeparatorPositionCache(maxAttempts: 32)") &&
+                source.contains("await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)") &&
+                source.contains("self.schedulePostRecoveryGeometryWarmup()"),
+            "Structural recovery should immediately re-warm separator geometry and AX caches so stale frames do not loop back into recovery"
         )
     }
 
@@ -1336,8 +1354,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Rehide guard should explicitly allow auto-rehide while Browse Icons intentionally suspends hover monitoring"
         )
         XCTAssertTrue(
-            source.contains("return true"),
-            "Plain timed auto-hide should not be deferred only because the pointer is below the menu bar"
+            source.contains("shouldBlockRehideForMouseLocation"),
+            "Fire-time rehide should distinguish the top strip from the real below-strip menu interaction zone"
         )
     }
 
@@ -1356,10 +1374,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             "MenuBarManager should pass the live auto-rehide setting into app-change rehide decisions"
         )
         XCTAssertTrue(
-            visibilitySource.contains("func scheduleRehideAfterSettingsChangeIfNeeded()") &&
-                visibilitySource.contains("guard settings.autoRehide else { return }") &&
-                managerSource.contains("scheduleRehideAfterSettingsChangeIfNeeded()"),
-            "Turning on auto-hide while icons are already visible should schedule a hide instead of waiting for another reveal"
+            visibilitySource.contains("struct AutoRehideSettingsChangeContext") &&
+                visibilitySource.contains("shouldArmAutoRehideAfterSettingsChange") &&
+                managerSource.contains("applyAutoRehideSettingsChange(from: oldSettings, to: newSettings)") &&
+                managerSource.contains("previousObservedSettings = newSettings"),
+            "Turning on auto-hide while icons are already visible should compare old/new settings and schedule a hide instead of waiting for another reveal"
         )
         XCTAssertTrue(
             managerSource.contains("installMainStatusItemHoverTrackingArea(on: button)") &&
@@ -1538,7 +1557,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("/settings mismatch/i") &&
-            source.contains("never got the requested diagnostics"),
+                source.contains("never got the requested diagnostics"),
             "Closed-regression confirmation guardrails should exempt stale settings-mismatch closures that never produced current diagnostics"
         )
     }
@@ -2196,7 +2215,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Health support actions should say exactly what clicking them does"
         )
         XCTAssertTrue(
-                generalSource.contains("layoutModeDescription") &&
+            generalSource.contains("layoutModeDescription") &&
                 generalSource.contains("liveLayoutChecksBinding") &&
                 generalSource.contains("menuBarManager.setLayoutMode(enabled ? .live : .stability, reason: \"control\")") &&
                 generalSource.contains("menuBarManager.repairMenuBarHealth(reason: \"control\")") &&
@@ -2530,85 +2549,85 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("'browse panel diagnostics'") &&
-            source.contains("'activate browse icon'") &&
-            source.contains("'right click browse icon'"),
+                source.contains("'activate browse icon'") &&
+                source.contains("'right click browse icon'"),
             "Live smoke should check support using full multi-word AppleScript command names"
         )
         XCTAssertTrue(
             source.contains("current_browse_activation_diagnostics") &&
-            source.contains("salvage_timed_out_browse_activation"),
+                source.contains("salvage_timed_out_browse_activation"),
             "Live smoke should salvage SSH AppleScript reply timeouts using fresh in-app diagnostics"
         )
         XCTAssertTrue(
             source.contains("browse_activation_observably_verified?") &&
-            source.contains("accepted=true") &&
-            source.contains("verification=verified"),
+                source.contains("accepted=true") &&
+                source.contains("verification=verified"),
             "Live smoke should require an accepted, observably verified browse activation before treating the panel click path as healthy"
         )
         XCTAssertTrue(
             source.contains("STANDARD_APP_MENU_TITLES") &&
-            source.contains("likely_standard_app_menu_candidate?") &&
-            source.contains("app_menu_bundle_ids(raw_candidates)") &&
-            source.contains("coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])"),
+                source.contains("likely_standard_app_menu_candidate?") &&
+                source.contains("app_menu_bundle_ids(raw_candidates)") &&
+                source.contains("coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])"),
             "Live smoke should ignore standard app-menu titles when choosing move candidates so all-candidate sweeps stay focused on real menu extras"
         )
         XCTAssertTrue(
             source.contains("BROWSE_ACTIVATION_BUNDLE_DENYLIST") &&
-            source.contains("%w[hidden visible].include?(item[:zone])") &&
-            source.contains("compact_precise_non_apple_bundle_candidates") &&
-            source.contains("precise_non_apple") &&
-            source.contains("exact_apple") &&
-            source.contains("coarse_non_apple") &&
-            source.contains("prepare_layout_baseline") &&
-            source.contains("browse_activation_pool(zones)") &&
-            source.contains("com.yujitach.MenuMeters") &&
-            source.contains("if expected_mode == 'secondMenuBar'") &&
-            source.contains("precise_non_apple + coarse_non_apple + exact_apple + preferred + fallback") &&
-            source.contains("precise_non_apple + coarse_non_apple + preferred + fallback") &&
-            source.contains("com.apple.menuextra.bluetooth") &&
-            source.contains("browse_activation_denied?(item, expected_mode: expected_mode)") &&
-            source.contains("item[:bundle].start_with?('com.apple.')") &&
-            source.contains("Exact MenuMeters rows are stable browse fixtures on the Mini in both") &&
-            source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
+                source.contains("%w[hidden visible].include?(item[:zone])") &&
+                source.contains("compact_precise_non_apple_bundle_candidates") &&
+                source.contains("precise_non_apple") &&
+                source.contains("exact_apple") &&
+                source.contains("coarse_non_apple") &&
+                source.contains("prepare_layout_baseline") &&
+                source.contains("browse_activation_pool(zones)") &&
+                source.contains("com.yujitach.MenuMeters") &&
+                source.contains("if expected_mode == 'secondMenuBar'") &&
+                source.contains("precise_non_apple + coarse_non_apple + exact_apple + preferred + fallback") &&
+                source.contains("precise_non_apple + coarse_non_apple + preferred + fallback") &&
+                source.contains("com.apple.menuextra.bluetooth") &&
+                source.contains("browse_activation_denied?(item, expected_mode: expected_mode)") &&
+                source.contains("item[:bundle].start_with?('com.apple.')") &&
+                source.contains("Exact MenuMeters rows are stable browse fixtures on the Mini in both") &&
+                source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
             "Live smoke should prioritize precise non-Apple browse fixtures, keep second-menu-bar exact Apple coverage behind them, and avoid noisy coarse browse candidates until later fallback"
         )
         XCTAssertTrue(
             source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST") &&
-            source.contains("cc.ffitch.shottr") &&
-            source.contains("com.yonilevy.cryptoticker") &&
-            source.contains("com.yujitach.MenuMeters") &&
-            source.contains("candidates.reject! { |item| move_candidate_denied?(item) }") &&
-            source.contains("bundle = item[:bundle].to_s.strip.downcase") &&
-            source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }") &&
-            source.contains("MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES") &&
-            source.contains("com.mrsane.") &&
-            source.contains("return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?") &&
-            source.contains("preferred_move_candidate_rank(item[:bundle])") &&
-            source.contains("if @require_always_hidden") &&
-            source.contains("{ 'alwaysHidden' => 0, 'hidden' => 1, 'visible' => 2 }"),
+                source.contains("cc.ffitch.shottr") &&
+                source.contains("com.yonilevy.cryptoticker") &&
+                source.contains("com.yujitach.MenuMeters") &&
+                source.contains("candidates.reject! { |item| move_candidate_denied?(item) }") &&
+                source.contains("bundle = item[:bundle].to_s.strip.downcase") &&
+                source.contains("MOVE_CANDIDATE_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }") &&
+                source.contains("MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES") &&
+                source.contains("com.mrsane.") &&
+                source.contains("return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?") &&
+                source.contains("preferred_move_candidate_rank(item[:bundle])") &&
+                source.contains("if @require_always_hidden") &&
+                source.contains("{ 'alwaysHidden' => 0, 'hidden' => 1, 'visible' => 2 }"),
             "Live smoke should prefer stable first-party move fixtures and exclude known noisy edge-case bundles when always-hidden moves are required"
         )
         XCTAssertTrue(
             source.contains("check_always_hidden_preconditions(snapshot)") &&
-            source.contains("Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)."),
+                source.contains("Always Hidden smoke requires a Pro-enabled target (licenseIsPro=false)."),
             "Live smoke should fail clearly when an Always Hidden smoke is pointed at a free-mode runtime target"
         )
         XCTAssertTrue(
             source.contains("!non_idempotent_app_script?(statement)") &&
-            source.contains("statement.start_with?('activate browse icon ')"),
+                source.contains("statement.start_with?('activate browse icon ')"),
             "Live smoke should not blindly retry side-effectful browse activation AppleScript commands after a timeout"
         )
         XCTAssertTrue(
             source.contains("APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS = 25") &&
-            source.contains("APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20") &&
-            source.contains("return APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS if activation_app_script?(statement)") &&
-            source.contains("statement == 'browse panel diagnostics'") &&
-            source.contains("statement == 'activation diagnostics'"),
+                source.contains("APPLESCRIPT_HEAVY_READ_TIMEOUT_SECONDS = 20") &&
+                source.contains("return APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS if activation_app_script?(statement)") &&
+                source.contains("statement == 'browse panel diagnostics'") &&
+                source.contains("statement == 'activation diagnostics'"),
             "Live smoke should give browse activation commands a longer timeout and treat diagnostics reads as heavy read-only AppleScript"
         )
         XCTAssertTrue(
             source.contains("Salvaging timed-out move command via zone verification") &&
-            source.contains("timed_out_move_command?"),
+                source.contains("timed_out_move_command?"),
             "Live smoke should verify the final zone before failing a move command whose AppleScript reply timed out"
         )
         XCTAssertTrue(
@@ -2624,12 +2643,12 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("if exact_move_identity_lost?(candidate, icon_unique_id, zones)") &&
-            source.contains("Shared-bundle move verification lost exact identity"),
+                source.contains("Shared-bundle move verification lost exact identity"),
             "Live smoke should fail fast when a shared-bundle move can no longer prove the requested identity after relayout"
         )
         XCTAssertTrue(
             source.contains("return nil if same_bundle.length > 1") &&
-            source.contains("def matched_move_candidate(zones, requested_unique_id, candidate)"),
+                source.contains("def matched_move_candidate(zones, requested_unique_id, candidate)"),
             "Live smoke should refuse same-bundle sibling fallback when verifying a shared-bundle move result"
         )
         XCTAssertFalse(
@@ -2638,7 +2657,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("retryable_zone_poll_error?") &&
-            source.contains("after transient poll failures"),
+                source.contains("after transient poll failures"),
             "Live smoke should keep polling through transient list-icon-zones timeouts while the menu bar is relayouting"
         )
         XCTAssertTrue(
@@ -2731,7 +2750,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             return
         }
 
-        let startupBlock = String(coordinatorSource[startupBlockStart.lowerBound..<startupBlockEnd.lowerBound])
+        let startupBlock = String(coordinatorSource[startupBlockStart.lowerBound ..< startupBlockEnd.lowerBound])
 
         guard let autoRehideIndex = startupBlock.range(of: "if !inputs.autoRehideEnabled"),
               let skipIndex = startupBlock.range(of: "if inputs.shouldSkipHideForExternalMonitor"),
@@ -2827,9 +2846,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("isStartupRecovery: trigger.hasPrefix(\"startup-\")") &&
                 source.contains("validationContext: validationContext") &&
                 source.contains("StatusBarController.resetPersistentStatusItemState(") &&
+                source.contains("freshAutosaveNamespace: true") &&
                 source.contains("StatusBarController.recoverStartupPositions(") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
-            "Status-item recovery should hard-reset poisoned startup geometry while keeping non-startup geometry recovery on the lighter path"
+            "Status-item recovery should hard-reset poisoned startup geometry into a fresh autosave namespace while keeping non-startup geometry recovery on the lighter path"
         )
         XCTAssertTrue(
             source.contains("lastKnownStatusItemDisplayID") &&
@@ -2865,15 +2885,15 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         guard let blockingStart = source.range(of: "if separatorItem.length > 1000 {"),
               let blockingEnd = source.range(
-                of: "guard let separatorButton = separatorItem.button",
-                range: blockingStart.upperBound..<source.endIndex
+                  of: "guard let separatorButton = separatorItem.button",
+                  range: blockingStart.upperBound ..< source.endIndex
               )
         else {
             XCTFail("Blocking-mode separator path not found")
             return
         }
 
-        let blockingPath = String(source[blockingStart.lowerBound..<blockingEnd.lowerBound])
+        let blockingPath = String(source[blockingStart.lowerBound ..< blockingEnd.lowerBound])
         XCTAssertTrue(
             blockingPath.contains("estimatedSeparatorEdgesFromMainIcon()"),
             "Blocking mode should still estimate a temporary separator edge when no cache exists"
@@ -2889,7 +2909,6 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testStartupRecoveryRecreatesLiveItemsImmediately() throws {
-
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
@@ -3012,7 +3031,6 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testInlineAppMenuSuppressionDoesNotForceDockIconVisible() throws {
-
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+Visibility.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
@@ -3193,7 +3211,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             encoding: .utf8
         )
         guard let searchCase = appSource.range(of: "case \"search\":"),
-              let settingsCase = appSource.range(of: "case \"settings\":") else {
+              let settingsCase = appSource.range(of: "case \"settings\":")
+        else {
             XCTFail("Expected URL handler search and settings cases")
             return
         }
@@ -3203,6 +3222,21 @@ final class RuntimeGuardXCTests: XCTestCase {
             searchBlock.contains("await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)") &&
                 searchBlock.range(of: "showHiddenItemsNow")!.lowerBound < searchBlock.range(of: "SearchWindowController.shared.show")!.lowerBound,
             "sanebar://search?q=... should reveal hidden items before opening Browse Icons so URL quick search can find hidden icons"
+        )
+    }
+
+    func testDockMenuUsesSharedUtilityActions() throws {
+        let appSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("SaneBarApp.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            appSource.contains("SaneStandardMenu.addCoreUtilityItems") &&
+                appSource.contains("openSettingsFromDock") &&
+                appSource.contains("openLicenseFromDock") &&
+                appSource.contains("openAboutFromDock"),
+            "SaneBar Dock right-click menu should expose shared Settings, License, and About / Report actions"
         )
     }
 
@@ -3437,7 +3471,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         let menuExtrasURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityService+MenuExtras.swift")
         let menuExtrasSource = try String(contentsOf: menuExtrasURL, encoding: .utf8)
         let combinedSource = interactionSource + "\n" + menuExtrasSource
-        let diagnosticsSource = try self.diagnosticsSource()
+        let diagnosticsSource = try diagnosticsSource()
         XCTAssertTrue(
             combinedSource.contains("kAXShownMenuUIElementAttribute"),
             "Click verification should check AXShownMenuUIElement so hardware-click success means more than event dispatch"
@@ -3636,5 +3670,4 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Reset to defaults should not silently erase Health Wizard completion or the user's rescue point"
         )
     }
-
 }

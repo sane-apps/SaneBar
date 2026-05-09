@@ -22,6 +22,11 @@
 - Track customer/GitHub field state for issues `#129`, `#136`, `#138`, `#137`, and `#133`.
 - Use GitHub issue state and support evidence as source of truth before reopening old raw research.
 
+## SaneBar Mixed Test Output Verification | Updated: 2026-05-09 | Status: verified | TTL: 30d
+- Trigger: a Mini verify log showed a Swift Testing pass summary while xcodebuild still ended with `** TEST FAILED **`.
+- Finding: `xcrun xcresulttool get test-results summary --path <xcresult>` is the source of truth for hidden XCTest failures in mixed Swift Testing/XCTest runs.
+- Decision: do not classify xcodebuild failure footers as system-log noise. Inspect `.xcresult` first, then rerun only after the current source is confirmed to contain the expected fix.
+
 ## Promoted / Superseded Archive | Updated: 2026-05-04 | Status: promoted | TTL: 90d
 - Menu bar geometry/recovery, stale-frame handling, live-anchor trust, exact-ID identity, and AppKit reorder limits were promoted to Serena/memory.
 - Release/preflight/runtime smoke lessons, exact-ID smoke lanes, and tautology-test cleanup were promoted to Serena/memory.

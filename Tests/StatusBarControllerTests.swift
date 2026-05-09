@@ -1,4 +1,5 @@
 import AppKit
+import SaneUI
 @testable import SaneBar
 import Testing
 
@@ -61,7 +62,7 @@ struct StatusBarControllerTests {
         let names = [
             StatusBarController.mainAutosaveName,
             StatusBarController.separatorAutosaveName,
-            StatusBarController.alwaysHiddenSeparatorAutosaveName
+            StatusBarController.alwaysHiddenSeparatorAutosaveName,
         ]
 
         let uniqueNames = Set(names)
@@ -269,12 +270,12 @@ struct StatusBarControllerTests {
             "NSStatusItem Visible SaneBar_Main_v7",
             "NSStatusItem VisibleCC SaneBar_Main_v7",
             "NSStatusItem Visible OtherApp",
-            "NSStatusItem Preferred Position SaneBar_Main_v7"
+            "NSStatusItem Preferred Position SaneBar_Main_v7",
         ])
 
         #expect(keys == [
             "NSStatusItem Visible SaneBar_Main_v7",
-            "NSStatusItem VisibleCC SaneBar_Main_v7"
+            "NSStatusItem VisibleCC SaneBar_Main_v7",
         ])
     }
 
@@ -454,7 +455,8 @@ struct StatusBarControllerTests {
             "NSStatusItem Visible \(StatusBarController.mainAutosaveName)",
             "NSStatusItem Visible \(StatusBarController.separatorAutosaveName)",
             "NSStatusItem Visible \(StatusBarController.alwaysHiddenSeparatorAutosaveName)",
-            "NSStatusItem Visible SaneBar_spacer_0" // spacer app-domain
+            "NSStatusItem VisibleCC SaneBar_Main_v7",
+            "NSStatusItem Visible SaneBar_spacer_0", // spacer app-domain
         ]
         let byHostKeys = [
             "NSStatusItem Visible SaneBar_main_v7_v6",
@@ -463,7 +465,7 @@ struct StatusBarControllerTests {
             "NSStatusItem Visible SaneBar_alwayshiddenseparator_v7_v6", // legacy lowercased variant
             "NSStatusItem Visible SaneBar_Main_v7_v6", // unknown variant: no lowercasing (#86)
             "NSStatusItem VisibleCC SaneBar_main_v7_v6", // macOS 26 VisibleCC key
-            "NSStatusItem Visible SaneBar_spacer_0_v6" // spacer ByHost key
+            "NSStatusItem Visible SaneBar_spacer_0_v6", // spacer ByHost key
         ]
         let originalAppValues: [(String, Any?)] = appKeys.map { ($0, defaults.object(forKey: $0)) }
         let originalByHostValues: [(String, CFPropertyList?)] = byHostKeys.map { key in
@@ -559,17 +561,25 @@ struct StatusBarControllerTests {
         let mainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
         let separatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
         let alwaysHiddenKey = "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator_v10"
+        let spacerKey = "NSStatusItem Preferred Position SaneBar_spacer_0"
         let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
         let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let appVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10"
         let byHostVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10_v6"
+        let byHostPreferredKey = "NSStatusItem Preferred Position SaneBar_Main_v10_v6"
         let keys = [
-            versionKey, screenWidthKey, mainKey, separatorKey, alwaysHiddenKey,
-            backupMainKey, backupSeparatorKey, appVisibilityKey
+            versionKey, screenWidthKey, mainKey, separatorKey, alwaysHiddenKey, spacerKey,
+            backupMainKey, backupSeparatorKey, appVisibilityKey,
         ]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
-        let originalByHost = CFPreferencesCopyValue(
+        let originalByHostVisibility = CFPreferencesCopyValue(
             byHostVisibilityKey as CFString,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        let originalByHostPreferred = CFPreferencesCopyValue(
+            byHostPreferredKey as CFString,
             ".GlobalPreferences" as CFString,
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
@@ -585,7 +595,14 @@ struct StatusBarControllerTests {
             }
             CFPreferencesSetValue(
                 byHostVisibilityKey as CFString,
-                originalByHost,
+                originalByHostVisibility,
+                ".GlobalPreferences" as CFString,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSetValue(
+                byHostPreferredKey as CFString,
+                originalByHostPreferred,
                 ".GlobalPreferences" as CFString,
                 kCFPreferencesCurrentUser,
                 kCFPreferencesCurrentHost
@@ -602,12 +619,20 @@ struct StatusBarControllerTests {
         defaults.set(420.0, forKey: mainKey)
         defaults.set(360.0, forKey: separatorKey)
         defaults.set(10000.0, forKey: alwaysHiddenKey)
+        defaults.set(255.0, forKey: spacerKey)
         defaults.set(180.0, forKey: backupMainKey)
         defaults.set(300.0, forKey: backupSeparatorKey)
         defaults.set(false, forKey: appVisibilityKey)
         CFPreferencesSetValue(
             byHostVisibilityKey as CFString,
             kCFBooleanFalse,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        CFPreferencesSetValue(
+            byHostPreferredKey as CFString,
+            999.0 as NSNumber,
             ".GlobalPreferences" as CFString,
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
@@ -632,7 +657,15 @@ struct StatusBarControllerTests {
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
         )
+        let byHostPreferred = CFPreferencesCopyValue(
+            byHostPreferredKey as CFString,
+            ".GlobalPreferences" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
         #expect(byHostVisibility == nil)
+        #expect(byHostPreferred == nil)
+        #expect(defaults.object(forKey: spacerKey) == nil)
 
         let reseededMain = UserDefaults.standard.object(
             forKey: "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
@@ -646,6 +679,66 @@ struct StatusBarControllerTests {
         #expect(reseededMain != nil)
         #expect(reseededSeparator != nil)
         #expect(reseededAlwaysHidden?.doubleValue == 10000.0)
+    }
+
+    @Test("Reset persistent state can advance to a fresh autosave namespace")
+    @MainActor
+    func resetPersistentStatusItemStateUsesFreshNamespaceWhenRequested() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for fresh autosave reset test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
+        let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
+        let freshMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
+        let freshSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v11"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [
+            versionKey,
+            screenWidthKey,
+            oldMainKey,
+            oldSeparatorKey,
+            freshMainKey,
+            freshSeparatorKey,
+            backupMainKey,
+            backupSeparatorKey,
+        ]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(10, forKey: versionKey)
+        defaults.set(currentWidth, forKey: screenWidthKey)
+        defaults.set(420.0, forKey: oldMainKey)
+        defaults.set(360.0, forKey: oldSeparatorKey)
+
+        StatusBarController.resetPersistentStatusItemState(
+            alwaysHiddenEnabled: false,
+            freshAutosaveNamespace: true
+        )
+
+        #expect(defaults.integer(forKey: versionKey) == 11)
+        #expect((defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue == safeRecovery.main)
+        #expect((defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue == safeRecovery.separator)
+        #expect((defaults.object(forKey: freshMainKey) as? NSNumber)?.doubleValue == safeRecovery.main)
+        #expect((defaults.object(forKey: freshSeparatorKey) as? NSNumber)?.doubleValue == safeRecovery.separator)
+        #expect(defaults.object(forKey: oldMainKey) == nil)
+        #expect(defaults.object(forKey: oldSeparatorKey) == nil)
     }
 
     @Test("Migration preserves healthy custom positions on upgrade")
@@ -662,7 +755,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -718,7 +811,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -784,7 +877,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -825,7 +918,7 @@ struct StatusBarControllerTests {
                 legacyAlwaysHidden: nil,
                 expectedMain: safeRecovery.main,
                 expectedSeparator: safeRecovery.separator
-            )
+            ),
         ]
 
         for scenario in scenarios {
@@ -892,7 +985,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -909,7 +1002,7 @@ struct StatusBarControllerTests {
         // Values mirror real-world healthy snapshots reported in 2.1.2/2.1.5 era upgrades.
         let snapshots: [Snapshot] = [
             Snapshot(name: "v2.1.2-style", main: 97.0, separator: 546.0, alwaysHidden: 6072.0),
-            Snapshot(name: "v2.1.5-style", main: 420.0, separator: 360.0, alwaysHidden: 10000.0)
+            Snapshot(name: "v2.1.5-style", main: 420.0, separator: 360.0, alwaysHidden: 10000.0),
         ]
 
         for snapshot in snapshots {
@@ -964,7 +1057,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -1024,7 +1117,7 @@ struct StatusBarControllerTests {
             "SaneBar_PositionMigration_v5",
             "SaneBar_PositionMigration_v6",
             "SaneBar_PositionMigration_v7",
-            "SaneBar_CalibratedScreenWidth"
+            "SaneBar_CalibratedScreenWidth",
         ]
         let allKeys = [mainKey, separatorKey, alwaysHiddenKey, legacyAlwaysHiddenKey] + migrationKeys
         let originalValues: [(String, Any?)] = allKeys.map { ($0, defaults.object(forKey: $0)) }
@@ -1089,6 +1182,8 @@ struct StatusBarControllerTests {
             @objc func arrangeNow() {}
             @objc func health() {}
             @objc func settings() {}
+            @objc func license() {}
+            @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
         }
@@ -1099,13 +1194,16 @@ struct StatusBarControllerTests {
             arrangeNowAction: #selector(DummyTarget.arrangeNow),
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
+            licenseAction: #selector(DummyTarget.license),
+            aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
         ))
 
-        // Should have: Browse, Toggle, separator, Arrange, Health, separator, Settings, Updates, separator, Quit
-        #expect(menu.items.count == 10, "Menu should have 10 items (7 commands + 3 separators)")
+        // Should have: Browse, Toggle, separator, Arrange, Health, separator,
+        // Settings, License, Updates, About / Report, separator, Quit
+        #expect(menu.items.count == 12, "Menu should have 12 items (9 commands + 3 separators)")
 
         // Use named lookups (resilient to menu reordering)
         let findIconItem = menu.item(titled: "Browse Icons...")
@@ -1126,9 +1224,15 @@ struct StatusBarControllerTests {
         #expect(settingsItem != nil, "Menu should have Settings item")
         #expect(settingsItem?.keyEquivalent == ",")
 
+        let licenseItem = menu.item(titled: SaneStandardMenu.licenseTitle)
+        #expect(licenseItem != nil, "Menu should have License item")
+
         let checkUpdatesItem = menu.item(titled: "Check for Updates...")
         #expect(checkUpdatesItem != nil, "Menu should have Check for Updates item")
         #expect(checkUpdatesItem?.keyEquivalent.isEmpty == true)
+
+        let aboutItem = menu.item(titled: SaneStandardMenu.aboutAndBugReportTitle)
+        #expect(aboutItem != nil, "Menu should have About / Report item")
 
         let quitItem = menu.item(titled: "Quit SaneBar")
         #expect(quitItem != nil, "Menu should have Quit item")
@@ -1146,6 +1250,8 @@ struct StatusBarControllerTests {
             @objc func arrangeNow() {}
             @objc func health() {}
             @objc func settings() {}
+            @objc func license() {}
+            @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
         }
@@ -1156,6 +1262,8 @@ struct StatusBarControllerTests {
             arrangeNowAction: #selector(DummyTarget.arrangeNow),
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
+            licenseAction: #selector(DummyTarget.license),
+            aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
@@ -1180,6 +1288,8 @@ struct StatusBarControllerTests {
             var arrangeNowCalled = false
             var healthCalled = false
             var settingsCalled = false
+            var licenseCalled = false
+            var aboutCalled = false
             var checkForUpdatesCalled = false
             var quitCalled = false
 
@@ -1188,6 +1298,8 @@ struct StatusBarControllerTests {
             @objc func arrangeNow() { arrangeNowCalled = true }
             @objc func health() { healthCalled = true }
             @objc func settings() { settingsCalled = true }
+            @objc func license() { licenseCalled = true }
+            @objc func about() { aboutCalled = true }
             @objc func checkForUpdates() { checkForUpdatesCalled = true }
             @objc func quit() { quitCalled = true }
         }
@@ -1198,6 +1310,8 @@ struct StatusBarControllerTests {
             arrangeNowAction: #selector(DummyTarget.arrangeNow),
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
+            licenseAction: #selector(DummyTarget.license),
+            aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
@@ -1209,7 +1323,9 @@ struct StatusBarControllerTests {
         let arrangeItem = menu.item(titled: "Arrange Now")
         let healthItem = menu.item(titled: "Help / Repair...")
         let settingsItem = menu.item(titled: "Settings...")
+        let licenseItem = menu.item(titled: SaneStandardMenu.licenseTitle)
         let checkForUpdatesItem = menu.item(titled: "Check for Updates...")
+        let aboutItem = menu.item(titled: SaneStandardMenu.aboutAndBugReportTitle)
         let quitItem = menu.item(titled: "Quit SaneBar")
 
         #expect(findIconItem?.action == #selector(DummyTarget.findIcon), "Browse Icons item should have findIcon action")
@@ -1217,7 +1333,9 @@ struct StatusBarControllerTests {
         #expect(arrangeItem?.action == #selector(DummyTarget.arrangeNow), "Arrange Now item should have arrange action")
         #expect(healthItem?.action == #selector(DummyTarget.health), "Help / Repair item should have health action")
         #expect(settingsItem?.action == #selector(DummyTarget.settings), "Settings item should have settings action")
+        #expect(licenseItem?.action == #selector(DummyTarget.license), "License item should have license action")
         #expect(checkForUpdatesItem?.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
+        #expect(aboutItem?.action == #selector(DummyTarget.about), "About / Report item should have about action")
         #expect(quitItem?.action == #selector(DummyTarget.quit), "Quit item should have quit action")
     }
 
@@ -1233,6 +1351,8 @@ struct StatusBarControllerTests {
             @objc func arrangeNow() {}
             @objc func health() {}
             @objc func settings() { settingsCalled = true }
+            @objc func license() {}
+            @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
         }
@@ -1244,6 +1364,8 @@ struct StatusBarControllerTests {
             arrangeNowAction: #selector(DummyTarget.arrangeNow),
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
+            licenseAction: #selector(DummyTarget.license),
+            aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
             quitAction: #selector(DummyTarget.quit)
@@ -1541,7 +1663,7 @@ struct StatusBarControllerTests {
                 spacerPositions: [0: 360.0],
                 calibratedScreenWidth: 1512.0,
                 displayBackups: [
-                    .init(widthBucket: 1512, mainPosition: 180.0, separatorPosition: 300.0)
+                    .init(widthBucket: 1512, mainPosition: 180.0, separatorPosition: 300.0),
                 ]
             )
         )
@@ -1592,7 +1714,7 @@ struct StatusBarControllerTests {
                 spacerPositions: [0: 360.0],
                 calibratedScreenWidth: 1512.0,
                 displayBackups: [
-                    .init(widthBucket: 1512, mainPosition: 430.0, separatorPosition: 480.0)
+                    .init(widthBucket: 1512, mainPosition: 430.0, separatorPosition: 480.0),
                 ]
             )
         )
@@ -1633,7 +1755,7 @@ struct StatusBarControllerTests {
                 spacerPositions: [:],
                 calibratedScreenWidth: 1920.0,
                 displayBackups: [
-                    .init(widthBucket: 1920, mainPosition: 144.0, separatorPosition: 5897.0)
+                    .init(widthBucket: 1920, mainPosition: 144.0, separatorPosition: 5897.0),
                 ]
             )
         )
@@ -2057,6 +2179,60 @@ struct StatusBarControllerTests {
 
         #expect(restoredMain == safeRecovery.main, "Autosave recovery should fall back to a launch-safe main anchor before ordinals")
         #expect(restoredSeparator == safeRecovery.separator, "Autosave recovery should fall back to a launch-safe separator anchor before ordinals")
+    }
+
+    @Test("Escalated autosave recovery skips the current-width backup and uses launch-safe positions")
+    @MainActor
+    func recreateItemsWithBumpedVersionCanBypassCurrentWidthBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for escalated autosave recovery backup bypass test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let versionKey = "SaneBar_AutosaveVersion"
+        let originalVersion = defaults.object(forKey: versionKey)
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
+        let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
+        let newMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
+        let newSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v11"
+        let keys = [versionKey, backupMainKey, backupSeparatorKey, oldMainKey, oldSeparatorKey, newMainKey, newSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            if let originalVersion {
+                defaults.set(originalVersion, forKey: versionKey)
+            } else {
+                defaults.removeObject(forKey: versionKey)
+            }
+        }
+
+        defaults.set(10, forKey: versionKey)
+        defaults.set(0.0, forKey: oldMainKey)
+        defaults.set(1.0, forKey: oldSeparatorKey)
+        defaults.set(180.0, forKey: backupMainKey)
+        defaults.set(300.0, forKey: backupSeparatorKey)
+
+        let controller = StatusBarController()
+        _ = controller.recreateItemsWithBumpedVersion(allowCurrentDisplayBackup: false)
+
+        let restoredMain = (defaults.object(forKey: newMainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: newSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(defaults.integer(forKey: versionKey) == 11)
+        #expect(restoredMain == safeRecovery.main, "Escalated autosave recovery should stop replaying a potentially poisoned current-width backup")
+        #expect(restoredSeparator == safeRecovery.separator, "Escalated autosave recovery should use the launch-safe separator anchor instead of the previous backup")
     }
 
     @Test("Init does not eager-reanchor far-left persisted positions on the current display")

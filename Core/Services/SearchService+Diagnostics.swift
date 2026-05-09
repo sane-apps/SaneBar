@@ -213,6 +213,24 @@ extension SearchService {
         pinnedIds.contains(appUniqueId) || pinnedIds.contains(bundleId)
     }
 
+    nonisolated static func shouldUseFullRevealForActivation(
+        appUniqueId: String,
+        bundleId: String,
+        xPosition: CGFloat?,
+        origin: ActivationOrigin,
+        pinnedIds: Set<String>
+    ) -> Bool {
+        if shouldUseAlwaysHiddenRevealForActivation(
+            appUniqueId: appUniqueId,
+            bundleId: bundleId,
+            pinnedIds: pinnedIds
+        ) {
+            return true
+        }
+
+        return origin == .browsePanel && isLikelyDeepHiddenX(xPosition)
+    }
+
     nonisolated static func shouldUsePinnedAlwaysHiddenFallback(
         hidingState: HidingState,
         isBrowseSessionActive: Bool
@@ -434,8 +452,7 @@ extension SearchService {
             if seenIDs.contains(owner.uniqueId) { continue }
             if owner.menuExtraIdentifier == nil,
                owner.statusItemIndex == nil,
-               positionedBundles.contains(owner.bundleId)
-            {
+               positionedBundles.contains(owner.bundleId) {
                 continue
             }
 

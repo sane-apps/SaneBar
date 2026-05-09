@@ -1,6 +1,7 @@
 import AppKit
 import KeyboardShortcuts
 import os.log
+import SaneUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarController")
 
@@ -12,10 +13,13 @@ struct MenuConfiguration {
     let arrangeNowAction: Selector
     let healthAction: Selector
     let settingsAction: Selector
+    let licenseAction: Selector
+    let aboutAndBugReportAction: Selector
     let showReleaseNotesAction: Selector?
     let checkForUpdatesAction: Selector
     let quitAction: Selector
 }
+
 // swiftlint:enable file_length
 
 // MARK: - StatusBarControllerProtocol
@@ -49,14 +53,14 @@ final class StatusBarController: StatusBarControllerProtocol {
     // Autosave namespace is versioned so we can hard-reset from historically
     // corrupted status item position keys without depending on manual cleanup.
     // Keep base at v7 to avoid resetting healthy existing user layouts.
-    nonisolated private static let autosaveVersionKey = "SaneBar_AutosaveVersion"
-    nonisolated private static let baseAutosaveVersion = 7
-    nonisolated private static let maxAutosaveVersion = 99
-    nonisolated private static func autosaveNamesForCleanup(version: Int) -> [String] {
+    private nonisolated static let autosaveVersionKey = "SaneBar_AutosaveVersion"
+    private nonisolated static let baseAutosaveVersion = 7
+    private nonisolated static let maxAutosaveVersion = 99
+    private nonisolated static func autosaveNamesForCleanup(version: Int) -> [String] {
         [
             "SaneBar_Main_v\(version)",
             "SaneBar_Separator_v\(version)",
-            "SaneBar_AlwaysHiddenSeparator_v\(version)"
+            "SaneBar_AlwaysHiddenSeparator_v\(version)",
         ]
     }
 
@@ -86,22 +90,22 @@ final class StatusBarController: StatusBarControllerProtocol {
     nonisolated static let iconExpanded = "line.3.horizontal.decrease"
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
     nonisolated static let maxSpacerCount = 12
-    nonisolated private static let interactiveRemovalBehaviors: NSStatusItem.Behavior = [
+    private nonisolated static let interactiveRemovalBehaviors: NSStatusItem.Behavior = [
         .removalAllowed,
-        .terminationOnRemoval
+        .terminationOnRemoval,
     ]
-    nonisolated private static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
-    nonisolated private static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
+    private nonisolated static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+    private nonisolated static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
     private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
     private static let legacyMigrationKeys = [
         "SaneBar_PositionMigration_v4",
         "SaneBar_PositionMigration_v5",
         "SaneBar_PositionMigration_v6",
-        "SaneBar_PositionMigration_v7"
+        "SaneBar_PositionMigration_v7",
     ]
     private static let minimumSafeAlwaysHiddenPosition = 200.0
 
-    nonisolated private static func resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil) -> NSScreen? {
+    private nonisolated static func resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil) -> NSScreen? {
         if let referenceScreen {
             return referenceScreen
         }
@@ -204,7 +208,12 @@ final class StatusBarController: StatusBarControllerProtocol {
 
     /// Bumps autosave namespace and recreates status items to escape WindowServer
     /// position cache corruption keyed by autosaveName.
-    func recreateItemsWithBumpedVersion(referenceScreen: NSScreen? = nil) -> (main: NSStatusItem, separator: NSStatusItem) {
+    /// When escalating after a failed recovery pass, callers can skip replaying the
+    /// current-width backup so the new namespace falls back to stricter safe anchors.
+    func recreateItemsWithBumpedVersion(
+        referenceScreen: NSScreen? = nil,
+        allowCurrentDisplayBackup: Bool = true
+    ) -> (main: NSStatusItem, separator: NSStatusItem) {
         let oldVersion = Self.autosaveVersion
         let hadAlwaysHiddenSeparator = alwaysHiddenSeparatorItem != nil
         let nextVersion: Int
@@ -256,7 +265,8 @@ final class StatusBarController: StatusBarControllerProtocol {
             Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
         }
 
-        let restoredCurrentDisplayBackup = Self.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
+        let restoredCurrentDisplayBackup = allowCurrentDisplayBackup &&
+            Self.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
         if !restoredCurrentDisplayBackup {
             if let reanchoredCurrentPair {
                 Self.setPreferredPosition(reanchoredCurrentPair.main, forAutosaveName: Self.mainAutosaveName)
@@ -419,7 +429,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Unit tests intentionally exercise migration/seed behavior with crafted
         // defaults and should not be affected by onboarding-first-run policy.
         if NSClassFromString("XCTestCase") != nil ||
-            ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        {
             return false
         }
 
@@ -473,12 +484,31 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Resets persisted status-item state to a clean, launch-safe baseline.
     /// Use this for explicit user recovery actions such as Reset to Defaults.
     static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
+        resetPersistentStatusItemState(
+            alwaysHiddenEnabled: alwaysHiddenEnabled,
+            referenceScreen: referenceScreen,
+            freshAutosaveNamespace: false
+        )
+    }
+
+    /// Resets persisted status-item state to a clean, launch-safe baseline.
+    /// When `freshAutosaveNamespace` is true, the reset also advances the
+    /// autosave identity so recovery can escape a poisoned WindowServer cache.
+    static func resetPersistentStatusItemState(
+        alwaysHiddenEnabled: Bool,
+        referenceScreen: NSScreen? = nil,
+        freshAutosaveNamespace: Bool
+    ) {
         clearPersistedVisibilityOverrides()
         clearHistoricalAutosaveNamespaces()
         clearDisplayPositionBackups()
 
         let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: autosaveVersionKey)
+        if freshAutosaveNamespace {
+            defaults.set(nextFreshAutosaveVersion(after: autosaveVersion), forKey: autosaveVersionKey)
+        } else {
+            defaults.removeObject(forKey: autosaveVersionKey)
+        }
         defaults.removeObject(forKey: screenWidthKey)
 
         if !applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: referenceScreen) {
@@ -489,7 +519,13 @@ final class StatusBarController: StatusBarControllerProtocol {
             seedAlwaysHiddenSeparatorPositionIfNeeded()
         }
 
-        logger.info("Reset persistent status item state to a startup-safe baseline")
+        if freshAutosaveNamespace {
+            logger.info(
+                "Reset persistent status item state to a startup-safe baseline with fresh autosave namespace v\(autosaveVersion)"
+            )
+        } else {
+            logger.info("Reset persistent status item state to a startup-safe baseline")
+        }
     }
 
     /// Best-effort startup recovery used when runtime invariants detect a bad
@@ -503,8 +539,9 @@ final class StatusBarController: StatusBarControllerProtocol {
             logger.info("Recovered startup positions from current-width display backup")
             return
         }
-        if let currentWidth = Self.resolvedReferenceScreen(referenceScreen)?.frame.width,
-           reanchorCurrentDisplayPositionsIfNeeded(for: currentWidth, referenceScreen: referenceScreen) {
+        if let currentWidth = resolvedReferenceScreen(referenceScreen)?.frame.width,
+           reanchorCurrentDisplayPositionsIfNeeded(for: currentWidth, referenceScreen: referenceScreen)
+        {
             if alwaysHiddenEnabled {
                 seedAlwaysHiddenSeparatorPositionIfNeeded()
             }
@@ -587,7 +624,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         slot: String
     ) -> String {
         guard let screenSignature,
-              !screenSignature.isEmpty else {
+              !screenSignature.isEmpty
+        else {
             return displayPositionBackupKey(for: widthBucket, slot: slot)
         }
         return "\(positionBackupKeyPrefix)_\(widthBucket)_\(screenSignature)_\(slot)"
@@ -853,7 +891,8 @@ final class StatusBarController: StatusBarControllerProtocol {
         let legacyKey = displayPositionBackupKey(for: width, slot: slot)
 
         if scopedKey != legacyKey,
-           let scoped = numericPositionValue(defaults.object(forKey: scopedKey)) {
+           let scoped = numericPositionValue(defaults.object(forKey: scopedKey))
+        {
             return scoped
         }
 
@@ -1147,21 +1186,13 @@ final class StatusBarController: StatusBarControllerProtocol {
     private static func clearPersistedVisibilityOverrides() {
         let defaults = UserDefaults.standard
         var clearedAny = false
-        let currentAutosaveNames = [mainAutosaveName, separatorAutosaveName, alwaysHiddenSeparatorAutosaveName]
 
-        // App-domain cleanup: named items + spacer prefix sweep
-        for name in currentAutosaveNames {
-            let appKey = "NSStatusItem Visible \(name)"
-            if defaults.object(forKey: appKey) != nil {
-                defaults.removeObject(forKey: appKey)
-                clearedAny = true
-            }
-        }
-
-        // Spacer app-domain keys (SaneBar_spacer_0 through SaneBar_spacer_11)
-        let spacerPrefix = "NSStatusItem Visible SaneBar_spacer_"
-        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(spacerPrefix) {
-            defaults.removeObject(forKey: key)
+        // App-domain cleanup: all known SaneBar item namespaces, historical
+        // versions, spacer items, and macOS 26 VisibleCC variants.
+        if removeAllAppKeys(matchingPrefixes: [
+            "NSStatusItem Visible SaneBar_",
+            "NSStatusItem VisibleCC SaneBar_",
+        ]) {
             clearedAny = true
         }
 
@@ -1430,11 +1461,23 @@ final class StatusBarController: StatusBarControllerProtocol {
         for version in baseAutosaveVersion ... maxAutosaveVersion {
             for autosaveName in autosaveNamesForCleanup(version: version) {
                 removePreferredPosition(forAutosaveName: autosaveName)
-                let appVisibilityKey = "NSStatusItem Visible \(autosaveName)"
-                UserDefaults.standard.removeObject(forKey: appVisibilityKey)
             }
         }
+        _ = removeAllAppKeys(matchingPrefixes: [
+            "NSStatusItem Preferred Position SaneBar_",
+            "NSStatusItem Visible SaneBar_",
+            "NSStatusItem VisibleCC SaneBar_",
+        ])
+        _ = removeAllByHostPreferredPositionOverrides()
         _ = removeAllByHostVisibilityOverrides()
+    }
+
+    private nonisolated static func nextFreshAutosaveVersion(after currentVersion: Int) -> Int {
+        let normalizedVersion = max(baseAutosaveVersion, currentVersion)
+        if normalizedVersion >= maxAutosaveVersion {
+            return baseAutosaveVersion
+        }
+        return normalizedVersion + 1
     }
 
     private nonisolated static func removeDisplayPositionBackup(
@@ -1494,10 +1537,36 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
     }
 
+    private nonisolated static func removeAllAppKeys(matchingPrefixes prefixes: [String]) -> Bool {
+        let defaults = UserDefaults.standard
+        let keysToRemove = defaults.dictionaryRepresentation().keys.filter { key in
+            prefixes.contains(where: { key.hasPrefix($0) })
+        }
+        guard !keysToRemove.isEmpty else { return false }
+
+        for key in keysToRemove {
+            defaults.removeObject(forKey: key)
+        }
+        return true
+    }
+
+    private nonisolated static func removeAllByHostPreferredPositionOverrides() -> Bool {
+        removeAllByHostKeys(matchingPrefixes: [
+            "NSStatusItem Preferred Position SaneBar_",
+        ])
+    }
+
     /// Enumerate ALL ByHost keys matching SaneBar visibility prefixes and remove them.
     /// This catches every variant macOS may write — known casing, legacy lowercased,
     /// future `_vN` suffixes, spacer items, and macOS 26's `VisibleCC` keys.
     private nonisolated static func removeAllByHostVisibilityOverrides() -> Bool {
+        removeAllByHostKeys(matchingPrefixes: [
+            "NSStatusItem Visible SaneBar_",
+            "NSStatusItem VisibleCC SaneBar_",
+        ])
+    }
+
+    private nonisolated static func removeAllByHostKeys(matchingPrefixes prefixes: [String]) -> Bool {
         let globalDomain = ".GlobalPreferences" as CFString
         guard let allKeys = CFPreferencesCopyKeyList(
             globalDomain,
@@ -1505,10 +1574,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             kCFPreferencesCurrentHost
         ) as? [String] else { return false }
 
-        let prefixes = [
-            "NSStatusItem Visible SaneBar_",
-            "NSStatusItem VisibleCC SaneBar_"
-        ]
         let keysToRemove = allKeys.filter { key in
             prefixes.contains(where: { key.hasPrefix($0) })
         }
@@ -1682,21 +1747,18 @@ final class StatusBarController: StatusBarControllerProtocol {
 
         menu.addItem(NSMenuItem.separator())
 
-        let settingsItem = NSMenuItem(title: "Settings...", action: configuration.settingsAction, keyEquivalent: ",")
-        menu.addItem(settingsItem)
-
-        if let showReleaseNotesAction = configuration.showReleaseNotesAction {
-            let whatsNewItem = NSMenuItem(title: "What's New...", action: showReleaseNotesAction, keyEquivalent: "")
-            menu.addItem(whatsNewItem)
-        }
-
-        let updateItem = NSMenuItem(title: "Check for Updates...", action: configuration.checkForUpdatesAction, keyEquivalent: "")
-        menu.addItem(updateItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(title: "Quit SaneBar", action: configuration.quitAction, keyEquivalent: "q")
-        menu.addItem(quitItem)
+        SaneStandardMenu.addCoreUtilityItems(
+            to: menu,
+            appName: "SaneBar",
+            target: nil,
+            settingsAction: configuration.settingsAction,
+            licenseAction: configuration.licenseAction,
+            checkForUpdatesAction: configuration.checkForUpdatesAction,
+            aboutAndBugReportAction: configuration.aboutAndBugReportAction,
+            whatsNewAction: configuration.showReleaseNotesAction,
+            quitAction: configuration.quitAction,
+            settingsKeyEquivalent: ","
+        )
 
         return menu
     }

@@ -168,48 +168,25 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         showAllItem.target = self
         menu.addItem(showAllItem)
 
-        if LicenseService.shared.distributionChannel.supportsInAppUpdates {
-            menu.addItem(NSMenuItem.separator())
-
-            let checkUpdatesItem = NSMenuItem(
-                title: "Check for Updates...",
-                action: #selector(checkForUpdatesFromDock(_:)),
-                keyEquivalent: ""
-            )
-            checkUpdatesItem.target = self
-            menu.addItem(checkUpdatesItem)
-        }
-
         menu.addItem(NSMenuItem.separator())
 
-        let settingsItem = NSMenuItem(
-            title: "Settings...",
-            action: #selector(openSettingsFromDock(_:)),
-            keyEquivalent: ","
+        SaneStandardMenu.addCoreUtilityItems(
+            to: menu,
+            appName: "SaneBar",
+            target: self,
+            settingsAction: #selector(openSettingsFromDock(_:)),
+            licenseAction: #selector(openLicenseFromDock(_:)),
+            checkForUpdatesAction: LicenseService.shared.distributionChannel.supportsInAppUpdates
+                ? #selector(checkForUpdatesFromDock(_:))
+                : nil,
+            aboutAndBugReportAction: #selector(openAboutFromDock(_:)),
+            whatsNewAction: LicenseService.shared.usesSetappDistribution
+                ? #selector(showReleaseNotesFromDock(_:))
+                : nil,
+            quitTarget: NSApplication.shared,
+            quitAction: #selector(NSApplication.terminate(_:)),
+            settingsKeyEquivalent: ","
         )
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        if LicenseService.shared.usesSetappDistribution {
-            let whatsNewItem = NSMenuItem(
-                title: "What's New...",
-                action: #selector(showReleaseNotesFromDock(_:)),
-                keyEquivalent: ""
-            )
-            whatsNewItem.target = self
-            menu.addItem(whatsNewItem)
-            menu.addItem(NSMenuItem.separator())
-        } else {
-            menu.addItem(NSMenuItem.separator())
-        }
-
-        let quitItem = NSMenuItem(
-            title: "Quit SaneBar",
-            action: #selector(quitFromDock(_:)),
-            keyEquivalent: "q"
-        )
-        quitItem.target = self
-        menu.addItem(quitItem)
 
         return menu
     }
@@ -232,13 +209,18 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor
-    @objc private func showReleaseNotesFromDock(_: Any?) {
-        SetappIntegration.showReleaseNotes()
+    @objc private func openLicenseFromDock(_: Any?) {
+        SettingsOpener.open(tab: .license)
     }
 
     @MainActor
-    @objc private func quitFromDock(_: Any?) {
-        NSApplication.shared.terminate(nil)
+    @objc private func openAboutFromDock(_: Any?) {
+        SettingsOpener.open(tab: .about)
+    }
+
+    @MainActor
+    @objc private func showReleaseNotesFromDock(_: Any?) {
+        SetappIntegration.showReleaseNotes()
     }
 
     private func handleURL(_ url: URL) {

@@ -16,6 +16,71 @@ release:
   r2_bucket: sanebar-downloads
   use_sparkle: true
   min_system_version: "15.0"
+  reviewed_auto_reconcile_stashes:
+    - stash_sha: "2726743844e862d381fb5de14c61a5b8f1affbb4"
+      subject: "On main: auto-reconcile-20260508-215529-stephans-macbook-air"
+      decision: recovered
+      reason: "Recovered the shared SaneUI direct-download app mover and confirmed the hover, rehide, tint/fullscreen, shared utility-menu, and settings-copy fixes are represented in the current tree and SaneBar handoff."
+    - stash_sha: "e4b57eb5df25cadea0036285a0510b1695d26f53"
+      subject: "On main: auto-reconcile-20260506-215531-stephans-macbook-air"
+      decision: deferred
+      reason: "Setapp/App Store lane collateral conflicts with the current direct-download-only manifest; active-lane copy and App Store assumptions are deferred until those lanes are deliberately reactivated."
+    - stash_sha: "40f8dee89d23f623a211f30a40a5ba52f0c76c0e"
+      subject: "On main: auto-reconcile-20260430-215529-stephans-macbook-air"
+      decision: deferred
+      reason: "Website and SEO copy improvements are real but not required for the current regression release; direct-download release truth is already represented in the active docs."
+    - stash_sha: "c20fa15c32b778192ccd427d5267a7ff7a26c19d"
+      subject: "On main: auto-reconcile-20260430-055528-stephans-macbook-air"
+      decision: deferred
+      reason: "Bartender import preview, All Other Items persistence, saved-profile, and export plumbing are substantial feature work that is intentionally deferred from this regression release instead of silently discarded."
+    - stash_sha: "5a1ada9fb07d44030528d31e6a1de20cf60db022"
+      subject: "On main: auto-reconcile-20260429-215525-stephans-macbook-air"
+      decision: superseded
+      reason: "Release-lane and project metadata drift is superseded by the current direct-download-only manifest and release SOP; no unique current-regression fix remains in this stash."
+    - stash_sha: "a5f01515277f88000b6181d83d56d5e53478537a"
+      subject: "On main: auto-reconcile-20260428-215531-stephans-macbook-air"
+      decision: deferred
+      reason: "Setapp lane activation metadata and docs are deferred because SaneBar is not currently shipping through Setapp; release-critical direct metadata remains in the active manifest."
+    - stash_sha: "deade8ddfc62c48cea05e26e08592cd2a619bf44"
+      subject: "On main: auto-reconcile-20260427-215526-stephans-macbook-air"
+      decision: superseded
+      reason: "Runtime hardening and research notes are represented by later current-tree fixes and handoff evidence; no unique current-regression release work remains."
+    - stash_sha: "a381a1ccaef0920d60eaba96a978225989691edb"
+      subject: "On main: auto-reconcile-20260425-215529-stephans-macbook-air"
+      decision: recovered
+      reason: "Privacy disclosure expansion is already represented in PRIVACY.md and docs/privacy.html, so this stash no longer carries unrecovered release-critical privacy work."
+    - stash_sha: "f71150f7ebe9f0d2e1f902cb2c0df60875c9b4b3"
+      subject: "On main: auto-reconcile-20260424-153503-stephans-macbook-air"
+      decision: superseded
+      reason: "Direct-download and Homebrew documentation corrections are already represented by the current direct-download release strategy and active docs."
+    - stash_sha: "073ca7625870f40668a2f1740c058e430946d220"
+      subject: "On main: auto-reconcile-20260423-215529-stephans-macbook-air"
+      decision: superseded
+      reason: "Older icon-moving, operation-coordinator, and AppleScript work has been superseded by later verified runtime hardening in the current tree."
+    - stash_sha: "39d7967b032d49a2b2e1c0ea0ade7ccb80a5b300"
+      subject: "On main: auto-reconcile-20260421-215525-stephans-macbook-air"
+      decision: superseded
+      reason: "Older Accessibility interaction and scanning changes are superseded by later current-tree interaction fixes and focused runtime coverage."
+    - stash_sha: "c7ba4796e7fd735d5414ade36202587c1d0e8e99"
+      subject: "On main: auto-reconcile-20260420-215524-stephans-macbook-air"
+      decision: superseded
+      reason: "Older icon-moving and operation-coordinator changes are superseded by later current-tree menu-bar movement hardening and tests."
+    - stash_sha: "054394892e90c3fef66fd81a29bc0a3cf2841d0a"
+      subject: "On main: auto-reconcile-20260418-055526-stephans-macbook-air"
+      decision: deferred
+      reason: "Older docs and guide updates are non-blocking for the current regression release and are deferred for a documentation cleanup pass."
+    - stash_sha: "e4281a8b725a8dbbfe0e8af8045278c702f15c41"
+      subject: "On main: auto-reconcile-20260413-215540-stephans-macbook-air"
+      decision: superseded
+      reason: "Older release collateral is superseded by subsequent shipped releases and current release notes."
+    - stash_sha: "33069574b42c64f0d2cfdc00df8d88dd51d08ab2"
+      subject: "On main: auto-reconcile-20260413-155607-stephans-macbook-air"
+      decision: archived
+      reason: "Research-cache-only stash is archived as non-release source material and does not carry app code needed for the current release."
+    - stash_sha: "fedcce969f81c20779b019235f81d8065a450020"
+      subject: "On main: auto-reconcile-20260411-055525-stephans-macbook-air"
+      decision: superseded
+      reason: "Older local hook/config and lint drift is superseded by current shared SaneProcess hook and release checks."
   dmg:
     volume_icon: Resources/DMGIcon.icns
     file_icon: Resources/DMGIcon.icns

@@ -36,7 +36,7 @@ These were previously standalone bash scripts. Now unified in SaneMaster — sin
 
 ```bash
 ./scripts/SaneMaster.rb release_preflight   # 9 safety checks (direct download)
-./scripts/SaneMaster.rb appstore_preflight  # App Store submission compliance
+./scripts/SaneMaster.rb appstore_preflight  # Only when .saneprocess appstore.enabled is true
 ```
 
 Release preflight now enforces project QA guardrails:
