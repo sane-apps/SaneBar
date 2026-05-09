@@ -972,8 +972,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "currentIconZones should stay a pure cached snapshot instead of secretly kicking off a second refresh before the explicit listing refresh path runs"
         )
         XCTAssertTrue(
-            commandsSource.contains("refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false)"),
-            "List icon zones should stay on the lighter known-owner refresh path instead of escalating to the authoritative full refresh during normal polling"
+            commandsSource.contains("let coldStart = cached.isEmpty") &&
+                commandsSource.contains("timeoutSeconds: coldStart ? 2.5 : 1.2") &&
+                commandsSource.contains("allowAuthoritativeFallback: coldStart"),
+            "List icon zones should use the lighter known-owner refresh during normal polling but allow authoritative fallback when a relaunch starts with an empty cache"
         )
         XCTAssertTrue(
             commandsSource.contains("retryResult.value = await SearchService.shared.refreshClassifiedApps()"),
