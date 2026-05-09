@@ -1334,8 +1334,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Rehide guard should explicitly allow auto-rehide while Browse Icons intentionally suspends hover monitoring"
         )
         XCTAssertTrue(
-            source.contains("shouldBlockRehideForMouseLocation"),
-            "Fire-time rehide should distinguish the top strip from the real below-strip menu interaction zone"
+            source.contains("return true"),
+            "Plain timed auto-hide should not be deferred only because the pointer is below the menu bar"
         )
     }
 
@@ -1352,6 +1352,18 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             managerSource.contains("autoRehideEnabled: settings.autoRehide"),
             "MenuBarManager should pass the live auto-rehide setting into app-change rehide decisions"
+        )
+        XCTAssertTrue(
+            visibilitySource.contains("func scheduleRehideAfterSettingsChangeIfNeeded()") &&
+                visibilitySource.contains("guard settings.autoRehide else { return }") &&
+                managerSource.contains("scheduleRehideAfterSettingsChangeIfNeeded()"),
+            "Turning on auto-hide while icons are already visible should schedule a hide instead of waiting for another reveal"
+        )
+        XCTAssertTrue(
+            managerSource.contains("installMainStatusItemHoverTrackingArea(on: button)") &&
+                managerSource.contains("@objc func mouseEntered(with event: NSEvent)") &&
+                managerSource.contains("showHiddenItemsNow(trigger: .hover)"),
+            "Hovering the SaneBar status item itself should reveal hidden icons without relying only on global mouse monitors"
         )
     }
 
@@ -2046,6 +2058,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Appearance settings should keep extra dividers behind an explicit upsell row"
         )
         XCTAssertTrue(
+            appearanceSource.contains("Movable visual dividers") &&
+                appearanceSource.contains("Command-drag them into place") &&
+                appearanceSource.contains("do not create extra hidden sections"),
+            "Extra Dividers copy should explain that the setting adds movable visual separators, not hidden-section layers"
+        )
+        XCTAssertTrue(
             appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Custom Appearance\")") &&
                 appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Translucent Background\")") &&
                 appearanceSource.contains("proGatedRow(feature: .menuBarAppearance, label: \"Light Tint\")") &&
@@ -2069,6 +2087,11 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             generalSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Customize auto-hide timing\")"),
             "Control settings should keep auto-rehide tuning behind an explicit upsell row"
+        )
+        XCTAssertTrue(
+            generalSource.contains("Reveal hidden icons on hover") &&
+                generalSource.contains("Click the SaneBar icon to open or toggle manually"),
+            "Hover settings should say they reveal hidden icons inline instead of implying they open Browse Icons"
         )
         XCTAssertTrue(
             generalSource.contains("proGatedRow(feature: .autoRehideCustomization, label: \"Always show on external monitors\")"),
@@ -2176,6 +2199,8 @@ final class RuntimeGuardXCTests: XCTestCase {
                 generalSource.contains("menuBarManager.setLayoutMode(enabled ? .live : .stability, reason: \"control\")") &&
                 generalSource.contains("menuBarManager.repairMenuBarHealth(reason: \"control\")") &&
                 generalSource.contains("Live checks after wake/display changes") &&
+                generalSource.contains("Layout Repair") &&
+                generalSource.contains("Repair after wake or display changes") &&
                 generalSource.contains("SaneInlineHelp(layoutModeDescription)") &&
                 generalSource.contains("Stability repairs only at startup"),
             "Layout Stability should expose Live mode as a plain switch with visible and hover copy instead of a confusing one-option mode selector"

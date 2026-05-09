@@ -68,10 +68,16 @@ extension MenuBarManager {
             return true
         }
 
-        return !Self.shouldBlockRehideForMouseLocation(
-            NSEvent.mouseLocation,
-            screenFrames: NSScreen.screens.map(\.frame)
-        )
+        return true
+    }
+
+    func scheduleRehideAfterSettingsChangeIfNeeded() {
+        guard settings.autoRehide else { return }
+        guard hidingService.state == .expanded else { return }
+        guard !isRevealPinned else { return }
+        guard !shouldSkipHideForExternalMonitor else { return }
+
+        hidingService.scheduleRehide(after: settings.rehideDelay)
     }
 
     enum RevealTrigger: String, Sendable {

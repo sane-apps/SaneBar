@@ -168,6 +168,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var accessibilityObserver: Any?
     private var appActivationObserver: Any?
     private var activeSpaceObserver: Any?
+    private var pendingOverlayRefreshWorkItems: [DispatchWorkItem] = []
 
     // MARK: - Initialization
 
@@ -197,6 +198,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             activeSpaceObserver = nil
         }
+        cancelPendingOverlayVisibilityRefreshes()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
     }
@@ -214,7 +216,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.repositionOverlay()
-                self?.refreshOverlayVisibility()
+                self?.scheduleOverlayVisibilityRefreshes()
             }
         }
 
@@ -249,7 +251,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshOverlayVisibility()
+                self?.scheduleOverlayVisibilityRefreshes()
             }
         }
 
@@ -259,7 +261,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshOverlayVisibility()
+                self?.scheduleOverlayVisibilityRefreshes()
             }
         }
     }
@@ -310,6 +312,26 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         if !window.isVisible {
             window.orderFront(nil)
         }
+    }
+
+    private func scheduleOverlayVisibilityRefreshes() {
+        cancelPendingOverlayVisibilityRefreshes()
+        refreshOverlayVisibility()
+
+        for delay in [0.15, 0.5] {
+            let workItem = DispatchWorkItem { [weak self] in
+                Task { @MainActor in
+                    self?.refreshOverlayVisibility()
+                }
+            }
+            pendingOverlayRefreshWorkItems.append(workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+    }
+
+    private func cancelPendingOverlayVisibilityRefreshes() {
+        pendingOverlayRefreshWorkItems.forEach { $0.cancel() }
+        pendingOverlayRefreshWorkItems.removeAll()
     }
 
     private func currentWindowInfos() -> [[String: Any]] {
@@ -369,8 +391,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             }
 
             let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
-            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
             let coveredRect = rect.intersection(targetFrame)
 
             if suppressFullscreenHost,
@@ -379,6 +399,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
                 return true
             }
 
+            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
+            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
             guard suppressThinTopHost else { continue }
             guard height >= 20, height <= 26 else { continue }
             guard coveredRect.width >= minimumCoveredWidth else { continue }

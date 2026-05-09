@@ -1,9 +1,18 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-05-04
-**Current public release:** `v2.1.47` (build `2147`)
+**Last updated:** 2026-05-09
+**Current public release:** `v2.1.48` (build `2148`)
 
 ## Current State
+
+- 2026-05-09 customer visual/robustness pass for rehide, hover, and settings copy:
+  - Auto-rehide now schedules immediately when the setting changes while icons are already expanded, instead of waiting for Settings to close and another reveal cycle.
+  - Fire-time rehide no longer treats pointer position below the menu bar as enough by itself to keep icons open; real panels/menus still gate hiding.
+  - The main SaneBar status item installs hover tracking so "Reveal hidden icons on hover" works from the SaneBar menu-bar icon itself instead of depending only on global mouse monitors.
+  - Appearance overlay visibility refresh now retries after Space/app activation changes, and the fullscreen suppression path handles slight Brave/window geometry drift.
+  - Settings copy now explains `Reveal hidden icons on hover`, `Layout Repair`, `Repair Mode`, and `Movable visual dividers` in user terms. Extra dividers are described as movable visual separators, not extra hidden zones.
+  - Verification recorded during this pass: Mini SaneBar verify passed with 1,164 tests, and focused tests cover rehide scheduling, hover tracking, overlay refresh retries, fullscreen suppression drift, and the clarified settings copy.
+  - Live GitHub state at closeout: `#143` hover, `#144` layout wording, `#145` extra dividers, and `#146` auto-hide remain open and map to this local pass. Older open issues `#129`, `#136`, `#138`, `#139`, `#140`, `#141`, and `#142` remain open/patched-pending or compatibility-limited. Do not close or comment publicly without exact draft approval.
 
 - 2026-05-04 open-issue hardening pass for `#142`, `#141`, and `#140` was completed on the Mac Mini checkout (not local MacBook runtime):
   - `#142` Dark Tint blink: root cause was the appearance overlay being ordered front before resolved appearance/tint state was applied, plus SwiftUI `@Environment(\.colorScheme)` briefly choosing the light/default black tint. Patch applies resolved appearance before `orderFront`, skips redundant `orderFront`, and drives tint from `MenuBarOverlayViewModel.isDarkAppearance`.
@@ -20,7 +29,7 @@
   - Investigation found a validation gap plus a low-risk tight-layout fallback in `AccessibilityService.moveTargetX(.visible...)` that could target just right of the SaneBar boundary.
   - Fixed on `main` in commit `38f47c2` (`Keep visible icon moves inside SaneBar lane`): visible move fallback now clamps inside the divider-to-SaneBar lane, focused runtime smoke preserves screenshots, and regression tests assert the target stays left of the SaneBar icon boundary.
   - Mini verification passed before/after commit: `SaneMaster verify`, `Scripts/qa_test.rb`, native exact-id smoke for Siri and Spotlight, startup layout probe, and visual screenshot inspection.
-  - Release decision: do not fast-publish 2.1.48 for this by default; 2.1.47 can remain live because this appears to be primarily a test/automation validation issue with a low-risk edge-case hardening patch queued for the next normal release.
+  - Historical release decision at the time: that edge case alone was not enough to justify a release. This is superseded by the current public release line above: 2.1.48 is now live.
 - 2026-04-30 UI/gating follow-up and Mini-channel audit:
   - Paused the local Codex `app-store-status` automation after confirming it ran SaneSales App Store/status checks in a local worktree on the MacBook Air; its prompt now says to stop rather than fall back locally if Mini-only checks are unavailable.
   - Fixed shared `sane_test.rb` free/pro launch mode bug in `~/SaneApps/infra/SaneProcess`: local release runs now clear/write no-keychain license data for the staged runtime bundle ID (`com.sanebar.app`) instead of always targeting the dev bundle ID.
@@ -44,7 +53,7 @@
   - Review subagent found and the patch fixed two blockers: empty allow-list hide-all-others enablement and Health deep-link retargeting for an already-open Settings window.
   - Verification passed: `git diff --check`, `./scripts/SaneMaster.rb test_scan`, and `./scripts/SaneMaster.rb verify --timeout 900` with 1,113 tests.
   - Practical Mini verification passed through `./scripts/SaneMaster.rb test_mode --release --timeout 900`, AppleScript/URL workflow exercise, and clean screenshots at `~/Desktop/Screenshots/SaneBar/control.png`, `health.png`, `quick-search.png`, and `quick-search-url.png`.
-  - NVIDIA visual second-pass audit was attempted twice (`llama-vision` 500, `phi-vision` 400) and stopped per two-strikes; direct screenshot inspection confirmed no visible overlap/clipping and both Quick Search paths show `wifi` prefilled.
+  - Direct screenshot inspection confirmed no visible overlap/clipping and both Quick Search paths show `wifi` prefilled.
 - 2026-04-30 morning release-readiness rerun: not ready to publish yet.
   - The competitor-upgrade work was restored from auto-reconcile `stash@{0}` before rerunning verification; keep the stash until this work is committed.
   - Fresh restored-tree checks passed: `git diff --check`, `./scripts/SaneMaster.rb test_scan`, and `./scripts/SaneMaster.rb verify --timeout 900` with 1,112 tests.

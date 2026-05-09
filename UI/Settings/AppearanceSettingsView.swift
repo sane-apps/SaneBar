@@ -135,19 +135,22 @@ struct AppearanceSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        CompactRow("Extra Dividers") {
+                        CompactRow("Movable visual dividers") {
                             HStack {
                                 Text("\(menuBarManager.settings.spacerCount)")
                                     .monospacedDigit()
                                 Stepper("", value: $menuBarManager.settings.spacerCount, in: 0 ... 12)
                                     .labelsHidden()
-                                    .help("Add more visual separators to organize your menu bar")
+                                    .help("Add small line or dot menu bar items. Command-drag them into place; they do not create extra hidden sections.")
                             }
                         }
+                        SaneInlineHelp("Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.")
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
 
                         if menuBarManager.settings.spacerCount > 0 {
                             CompactDivider()
-                            CompactRow("Extra Style") {
+                            CompactRow("Divider look") {
                                 HStack(spacing: 6) {
                                     ChromeSegmentedChoiceButton(
                                         title: "Line",

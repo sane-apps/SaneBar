@@ -163,9 +163,9 @@ struct GeneralSettingsView: View {
     private func layoutModeHelp(_ mode: SaneBarSettings.LayoutMode) -> String {
         switch mode {
         case .stability:
-            "Stability repairs only at startup or when you click Arrange Now."
+            "Stability repairs only at startup or when you click Arrange Now. This is the calm default."
         case .live:
-            "Live checks after wake and display changes."
+            "Live checks after wake and display changes if your icons drift."
         }
     }
 
@@ -432,7 +432,7 @@ struct GeneralSettingsView: View {
                 // 2. Everyday Hiding
                 CompactSection("Hiding Behavior") {
                     CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
-                        .help("Automatically hide icons after a delay when revealed")
+                        .help("Hide revealed icons again after the delay below.")
 
                     if menuBarManager.settings.autoRehide {
                         if licenseService.isPro {
@@ -471,7 +471,8 @@ struct GeneralSettingsView: View {
                     }
 
                     CompactDivider()
-                    CompactToggle(label: "Show on hover", isOn: $menuBarManager.settings.showOnHover)
+                    CompactToggle(label: "Reveal hidden icons on hover", isOn: $menuBarManager.settings.showOnHover)
+                        .help("Hover near the menu bar to reveal hidden icons inline. Click the SaneBar icon to open or toggle manually.")
                     if menuBarManager.settings.showOnHover {
                         CompactDivider()
                         CompactRow("Hover delay") {
@@ -580,15 +581,15 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 4. Layout Stability
-                CompactSection("Layout Stability") {
+                // 4. Layout Repair
+                CompactSection("Layout Repair") {
                     CompactToggle(
-                        label: "Live checks after wake/display changes",
+                        label: "Repair after wake or display changes",
                         isOn: liveLayoutChecksBinding
                     )
-                    .saneHelp("Turn on Live mode if icons drift after wake, monitor changes, or fast user switching. Leave it off for the calmer default Stability mode.")
+                    .saneHelp("Live checks after wake/display changes. Turn it on if icons drift after wake, monitor changes, or fast user switching. Leave it off for the calmer default Stability mode.")
                     CompactDivider()
-                    CompactRow("Current Mode") {
+                    CompactRow("Repair Mode") {
                         StatusBadge(menuBarManager.settings.layoutMode.rawValue, color: .cyan, icon: "slider.horizontal.3")
                             .saneHelp(layoutModeDescription)
                     }
