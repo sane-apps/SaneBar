@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                <item>
+                                                                                                                                                                        <item>
+            <title>2.1.49</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Sat, 09 May 2026 01:54:30 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves menu bar tint behavior around fullscreen browser windows, fixes hover reveal reliability, and makes menu bar layout checks smoother during updates.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.49.zip"
+                       sparkle:version="2149"
+                       sparkle:shortVersionString="2.1.49"
+                       length="8945183"
+                       type="application/octet-stream"
+                       sparkle:edSignature="DknTPmtWrOvs2lullHzjhXuYjy7JBt0rhubSb+FVb5NGPcfZbkAtvdNq8iSy/KlUsUeXj/eQUy+9R6RmCPMBCw=="/>
+        </item>
+<item>
             <title>2.1.48</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 04 May 2026 14:04:14 -0400</pubDate>
