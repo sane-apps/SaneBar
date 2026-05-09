@@ -436,6 +436,54 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal 2, attempts
   end
 
+  def test_launch_idle_budget_accepts_small_peak_only_cpu_spike
+    smoke = build_smoke
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:capture_resource_window) do |sample_seconds:, interval_seconds:|
+      {
+        avg_cpu: 3.9,
+        peak_cpu: 16.9,
+        avg_rss_mb: 57.6,
+        peak_rss_mb: 57.6
+      }
+    end
+
+    smoke.send(
+      :assert_idle_budget!,
+      label: 'launch',
+      settle_seconds: 0,
+      sample_seconds: 3.0,
+      cpu_avg_max: 5.0,
+      cpu_peak_max: 15.0,
+      rss_mb_max: 128.0
+    )
+  end
+
+  def test_launch_idle_budget_still_rejects_sustained_cpu_overrun
+    smoke = build_smoke
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:capture_resource_window) do |sample_seconds:, interval_seconds:|
+      {
+        avg_cpu: 5.5,
+        peak_cpu: 16.9,
+        avg_rss_mb: 57.6,
+        peak_rss_mb: 57.6
+      }
+    end
+
+    assert_raises(RuntimeError) do
+      smoke.send(
+        :assert_idle_budget!,
+        label: 'launch',
+        settle_seconds: 0,
+        sample_seconds: 3.0,
+        cpu_avg_max: 5.0,
+        cpu_peak_max: 15.0,
+        rss_mb_max: 128.0
+      )
+    end
+  end
+
   def test_repeated_process_missing_stops_after_tolerance
     smoke = build_smoke
 
