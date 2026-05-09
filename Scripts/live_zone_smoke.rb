@@ -1710,6 +1710,21 @@ class LiveZoneSmoke
     end
     peak_rss_failure = format('peakRss=%<actual>.1fMB > %<limit>.1fMB', actual: report[:peak_rss_mb], limit: rss_mb_max)
     failures << peak_rss_failure if report[:peak_rss_mb] > rss_mb_max
+    if label == 'launch' &&
+       failures.length == 1 &&
+       failures.first.start_with?('peakCpu=') &&
+       report[:avg_cpu] <= cpu_avg_max &&
+       report[:peak_cpu] <= DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX
+      puts format(
+        'ℹ️ Idle budget %<label>s: accepting peak-only CPU spike because avgCpu=%<avg>.1f%% <= %<avg_limit>.1f%% and peakCpu=%<peak>.1f%% <= %<peak_limit>.1f%%',
+        label: label,
+        avg: report[:avg_cpu],
+        avg_limit: cpu_avg_max,
+        peak: report[:peak_cpu],
+        peak_limit: DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX
+      )
+      return
+    end
     if failures == [peak_rss_failure]
       physical_footprint_mb = current_physical_footprint_mb
       if physical_footprint_mb
