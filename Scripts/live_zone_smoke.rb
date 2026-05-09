@@ -1828,6 +1828,7 @@ class LiveZoneSmoke
   def zone_api_retryable?(error)
     message = error.message.to_s
     message.include?('Connection is invalid') ||
+      message.include?('No icons returned from list icon zones.') ||
       message.include?('Accessibility permission is required')
   end
 
