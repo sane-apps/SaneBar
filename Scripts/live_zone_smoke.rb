@@ -86,6 +86,7 @@ class LiveZoneSmoke
   ).freeze
   BROWSE_ACTIVATION_UNRELIABLE_IDS = %w[
     com.apple.SSMenuAgent
+    com.apple.menuextra.audiovideo
     com.apple.menuextra.focusmode
     com.apple.menuextra.spotlight
   ].freeze

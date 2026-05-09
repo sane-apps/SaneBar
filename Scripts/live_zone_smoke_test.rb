@@ -233,6 +233,37 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
+  def test_browse_activation_candidates_exclude_unreliable_audio_video_extra
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.audiovideo',
+        name: 'Audio and Video Controls'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(
+      :browse_activation_candidates,
+      zones,
+      expected_mode: 'findIcon',
+      activation_command: 'activate browse icon'
+    )
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    refute_includes candidate_ids, 'com.apple.menuextra.audiovideo'
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
   def test_find_icon_right_click_candidates_prefer_precise_non_apple_before_apple_fixtures
     smoke = build_smoke
     zones = [
