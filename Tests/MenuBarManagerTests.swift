@@ -906,8 +906,8 @@ struct MenuBarManagerTests {
         )
     }
 
-    @Test("Fire-time rehide only blocks for interaction space below the menu bar strip")
-    func fireTimeRehideMousePolicy() {
+    @Test("Mouse-location helper only treats below-strip hover as an interaction")
+    func mouseLocationRehideInteractionPolicy() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
 
         #expect(
@@ -923,7 +923,7 @@ struct MenuBarManagerTests {
                 NSPoint(x: 1500, y: 980),
                 screenFrames: [screen]
             ),
-            "Pointer positions below the strip but still near the bar should keep rehide blocked for active menu interaction"
+            "The legacy helper should still identify below-strip menu interaction zones for callers that need that signal"
         )
 
         #expect(

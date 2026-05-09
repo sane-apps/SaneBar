@@ -254,6 +254,29 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Appearance overlay suppresses Brave fullscreen windows with slight geometry drift")
+    func testSuppressOverlayForBraveFullscreenWindowWithDrift() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: -4),
+                "Y": NSNumber(value: 22),
+                "Width": NSNumber(value: 1736),
+                "Height": NSNumber(value: 1072)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.brave.Browser",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                windowInfos: infos,
+                selfPID: 9999
+            )
+        )
+    }
+
     @Test("Appearance overlay stays visible for accessory launcher fullscreen windows")
     func testDoesNotSuppressOverlayForAccessoryLauncherFullscreenWindow() {
         let infos: [[String: Any]] = [[
@@ -501,6 +524,22 @@ struct MenuBarAppearanceServiceTests {
         #expect(refreshBody.contains("if !window.isVisible"))
         #expect(!source.contains(#"@Environment(\.colorScheme)"#))
         #expect(!source.contains("colorScheme"))
+    }
+
+    @Test("Overlay visibility refresh retries after space and app changes")
+    func testOverlayVisibilityRefreshRetriesAfterSpaceAndAppChanges() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = root.appendingPathComponent("Core/Services/MenuBarAppearanceService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        #expect(source.contains("private var pendingOverlayRefreshWorkItems"))
+        #expect(source.contains("private func scheduleOverlayVisibilityRefreshes()"))
+        #expect(source.contains("DispatchQueue.main.asyncAfter"))
+        #expect(source.contains("for delay in [0.15, 0.5]"))
+        #expect(source.contains("NSWorkspace.didActivateApplicationNotification"))
+        #expect(source.contains("NSWorkspace.activeSpaceDidChangeNotification"))
     }
 
     // MARK: - Mock Tests

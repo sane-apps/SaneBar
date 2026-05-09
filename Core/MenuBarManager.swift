@@ -82,6 +82,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var hideAllOtherRuleEnforcementTask: Task<Void, Never>?
     var lastAlwaysHiddenRepairAt: Date?
     var isRepairingAlwaysHiddenSeparator = false
+    var mainStatusItemHoverTrackingArea: NSTrackingArea?
 
     // MARK: - Screen Detection
 
@@ -644,6 +645,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 button.action = #selector(statusItemClicked)
                 button.target = self
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+                self.installMainStatusItemHoverTrackingArea(on: button)
             }
 
             self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)
@@ -1341,6 +1343,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.updateScriptTrigger(settings: newSettings)
                 self?.triggerService.updateBatteryMonitoring(enabled: newSettings.showOnLowBattery)
                 self?.updateHoverService()
+                self?.scheduleRehideAfterSettingsChangeIfNeeded()
                 self?.syncUpdateConfiguration()
                 self?.updateMainIconVisibility()
                 self?.updateDividerStyle()
@@ -1631,6 +1634,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             button.action = #selector(statusItemClicked(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            installMainStatusItemHoverTrackingArea(on: button)
         }
 
         // Separator should only offer right-click menu
@@ -1646,6 +1650,31 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         clearStatusItemMenus()
 
         logger.info("Main icon visible - separator menu-only mode")
+    }
+
+    private func installMainStatusItemHoverTrackingArea(on button: NSStatusBarButton) {
+        if let mainStatusItemHoverTrackingArea {
+            button.removeTrackingArea(mainStatusItemHoverTrackingArea)
+            self.mainStatusItemHoverTrackingArea = nil
+        }
+
+        let area = NSTrackingArea(
+            rect: button.bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: ["role": "mainStatusItem"]
+        )
+        button.addTrackingArea(area)
+        mainStatusItemHoverTrackingArea = area
+    }
+
+    @objc func mouseEntered(with event: NSEvent) {
+        guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
+        guard settings.showOnHover else { return }
+
+        Task { @MainActor in
+            _ = await self.showHiddenItemsNow(trigger: .hover)
+        }
     }
 
     private func updateAppearance() {
