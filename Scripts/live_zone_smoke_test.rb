@@ -379,6 +379,32 @@ class LiveZoneSmokeTest < Minitest::Test
     refute smoke.send(:resource_watchdog_failure)
   end
 
+  def test_zone_api_ready_retries_empty_zone_snapshots
+    smoke = build_smoke
+    attempts = 0
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.example.ready',
+        unique_id: 'com.example.ready::statusItem:0',
+        name: 'Ready'
+      }
+    ]
+
+    smoke.define_singleton_method(:check_resource_watchdog!) {}
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:list_icon_zones) do
+      attempts += 1
+      raise 'No icons returned from list icon zones.' if attempts == 1
+
+      zones
+    end
+
+    assert_equal zones, smoke.send(:wait_for_zone_api_ready)
+    assert_equal 2, attempts
+  end
+
   def test_repeated_process_missing_stops_after_tolerance
     smoke = build_smoke
 
