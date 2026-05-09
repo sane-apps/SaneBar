@@ -565,6 +565,33 @@ func preferredScriptListingZones(
 }
 
 @MainActor
+private func scriptListingZonesForCommand() -> [ScriptZonedIcon] {
+    let cached = currentIconZones()
+    let coldStart = cached.isEmpty
+    let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
+    let cacheValiditySeconds = scriptListingCacheValiditySeconds(
+        baseValiditySeconds: AccessibilityService.shared.menuBarItemCacheValiditySeconds
+    )
+
+    let refreshed = preferredScriptListingZones(
+        cached: cached,
+        refreshed: refreshedIconZones(
+            timeoutSeconds: coldStart ? 2.5 : 1.2,
+            allowAuthoritativeFallback: coldStart
+        ),
+        cacheAge: cacheAge,
+        cacheValiditySeconds: cacheValiditySeconds
+    )
+    if !refreshed.isEmpty || !coldStart {
+        return refreshed
+    }
+
+    return sortedScriptZones(
+        refreshedIconZones(timeoutSeconds: 2.5, allowAuthoritativeFallback: true)
+    )
+}
+
+@MainActor
 private func runScriptMove(timeoutSeconds: TimeInterval = 9.0, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
     Task { @MainActor in
@@ -801,29 +828,11 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
 
         let zones: [ScriptZonedIcon] = if Thread.isMainThread {
             MainActor.assumeIsolated {
-                let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
-                let cacheValiditySeconds = scriptListingCacheValiditySeconds(
-                    baseValiditySeconds: AccessibilityService.shared.menuBarItemCacheValiditySeconds
-                )
-                return preferredScriptListingZones(
-                    cached: currentIconZones(),
-                    refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false),
-                    cacheAge: cacheAge,
-                    cacheValiditySeconds: cacheValiditySeconds
-                )
+                return scriptListingZonesForCommand()
             }
         } else {
             DispatchQueue.main.sync {
-                let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)
-                let cacheValiditySeconds = scriptListingCacheValiditySeconds(
-                    baseValiditySeconds: AccessibilityService.shared.menuBarItemCacheValiditySeconds
-                )
-                return preferredScriptListingZones(
-                    cached: currentIconZones(),
-                    refreshed: refreshedIconZones(timeoutSeconds: 1.2, allowAuthoritativeFallback: false),
-                    cacheAge: cacheAge,
-                    cacheValiditySeconds: cacheValiditySeconds
-                )
+                return scriptListingZonesForCommand()
             }
         }
 
