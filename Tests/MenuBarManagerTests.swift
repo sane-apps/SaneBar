@@ -1,41 +1,40 @@
-import Testing
 import Foundation
 @testable import SaneBar
+import Testing
 
 // MARK: - MenuBarManagerTests
 
 @Suite("MenuBarManager Tests")
 struct MenuBarManagerTests {
-
     // MARK: - AutosaveName Tests
 
-	    @Test("Autosave names are unique to prevent position conflicts")
-	    func testAutosaveNamesAreUnique() {
-	        // These are the autosaveName values used by StatusBarController (and relied on by MenuBarManager).
-	        // They must be unique for macOS to persist positions correctly
-	        var autosaveNames = [
-	            StatusBarController.mainAutosaveName,
-	            StatusBarController.separatorAutosaveName,
-	            StatusBarController.alwaysHiddenSeparatorAutosaveName
-	        ]
-	        for index in 0..<StatusBarController.maxSpacerCount {
-	            autosaveNames.append("SaneBar_spacer_\(index)")
-	        }
+    @Test("Autosave names are unique to prevent position conflicts")
+    func autosaveNamesAreUnique() {
+        // These are the autosaveName values used by StatusBarController (and relied on by MenuBarManager).
+        // They must be unique for macOS to persist positions correctly
+        var autosaveNames = [
+            StatusBarController.mainAutosaveName,
+            StatusBarController.separatorAutosaveName,
+            StatusBarController.alwaysHiddenSeparatorAutosaveName,
+        ]
+        for index in 0 ..< StatusBarController.maxSpacerCount {
+            autosaveNames.append("SaneBar_spacer_\(index)")
+        }
 
-	        let uniqueNames = Set(autosaveNames)
+        let uniqueNames = Set(autosaveNames)
 
         #expect(uniqueNames.count == autosaveNames.count,
                 "All autosaveName values must be unique - found duplicates")
     }
 
-	    @Test("Autosave names follow naming convention")
-	    func testAutosaveNamesFollowConvention() {
-	        let autosaveNames = [
-	            StatusBarController.mainAutosaveName,
-	            StatusBarController.separatorAutosaveName,
-	            StatusBarController.alwaysHiddenSeparatorAutosaveName,
-	            "SaneBar_spacer_0"
-	        ]
+    @Test("Autosave names follow naming convention")
+    func autosaveNamesFollowConvention() {
+        let autosaveNames = [
+            StatusBarController.mainAutosaveName,
+            StatusBarController.separatorAutosaveName,
+            StatusBarController.alwaysHiddenSeparatorAutosaveName,
+            "SaneBar_spacer_0",
+        ]
 
         for name in autosaveNames {
             #expect(name.hasPrefix("SaneBar_"),
@@ -403,37 +402,37 @@ struct MenuBarManagerTests {
     // MARK: - Position Validation Tests (BUG: separator eating main icon)
 
     @Test("Position validation: separator LEFT of main is valid")
-    func testSeparatorLeftOfMainIsValid() {
+    func separatorLeftOfMainIsValid() {
         // Screen coordinates: left = lower X, right = higher X
         // Separator at X=100, Main at X=150 → separator is LEFT → valid
         let separatorX: CGFloat = 100
         let mainX: CGFloat = 150
 
-        let isValid = separatorX < mainX  // This is the core logic in validateSeparatorPosition()
+        let isValid = separatorX < mainX // This is the core logic in validateSeparatorPosition()
 
         #expect(isValid, "Separator LEFT of main icon should be valid for hiding")
     }
 
     @Test("Position validation: separator RIGHT of main is invalid")
-    func testSeparatorRightOfMainIsInvalid() {
+    func separatorRightOfMainIsInvalid() {
         // Screen coordinates: left = lower X, right = higher X
         // Separator at X=150, Main at X=100 → separator is RIGHT → INVALID
         // If we hide here, main icon gets pushed off screen!
         let separatorX: CGFloat = 150
         let mainX: CGFloat = 100
 
-        let isValid = separatorX < mainX  // This is the core logic in validateSeparatorPosition()
+        let isValid = separatorX < mainX // This is the core logic in validateSeparatorPosition()
 
         #expect(!isValid, "Separator RIGHT of main icon should be INVALID - hiding would eat the main icon")
     }
 
     @Test("Position validation: same X position is edge case")
-    func testSamePositionIsEdgeCase() {
+    func samePositionIsEdgeCase() {
         // If both at same X (unlikely but possible), treating as invalid is safer
         let separatorX: CGFloat = 100
         let mainX: CGFloat = 100
 
-        let isValid = separatorX < mainX  // Strict less-than, not <=
+        let isValid = separatorX < mainX // Strict less-than, not <=
 
         #expect(!isValid, "Same position should be treated as invalid (edge case)")
     }
@@ -441,7 +440,7 @@ struct MenuBarManagerTests {
     // MARK: - Regression Tests
 
     @Test("REGRESSION: Verify hiding logic matches documentation (Left = Hidden)")
-    func testHidingLogicMatchesDocumentation() {
+    func hidingLogicMatchesDocumentation() {
         // This test documents the relationship between screen coordinates and visibility
         // to prevent regression of the "Icons Left of Separator are Hidden" documentation.
 
@@ -462,7 +461,7 @@ struct MenuBarManagerTests {
     // MARK: - Position Validation Edge Cases (BUG: Separator Eating Main Icon)
 
     @Test("Position validation: separator left edge overlapping main left edge is invalid")
-    func testSeparatorOverlappingMainIsInvalid() {
+    func separatorOverlappingMainIsInvalid() {
         // Validation checks separator LEFT EDGE relative to main LEFT EDGE
         let separatorLeftEdge: CGFloat = 150
         let mainLeftEdge: CGFloat = 150
@@ -474,7 +473,7 @@ struct MenuBarManagerTests {
     }
 
     @Test("Position validation: separator left of main is valid")
-    func testSeparatorCompletelyLeftIsValid() {
+    func separatorCompletelyLeftIsValid() {
         let separatorLeftEdge: CGFloat = 100
         let mainLeftEdge: CGFloat = 200
 
@@ -485,9 +484,9 @@ struct MenuBarManagerTests {
     }
 
     @Test("Position validation: separator touching main is invalid")
-    func testSeparatorTouchingMainIsInvalid() {
+    func separatorTouchingMainIsInvalid() {
         let separatorLeftEdge: CGFloat = 200
-        let mainLeftEdge: CGFloat = 200  // Exactly touching
+        let mainLeftEdge: CGFloat = 200 // Exactly touching
 
         // separatorLeftEdge (200) >= mainLeftEdge (200) → INVALID
         let isInvalid = separatorLeftEdge >= mainLeftEdge
@@ -497,7 +496,7 @@ struct MenuBarManagerTests {
     }
 
     @Test("Position validation ignores separator width (hidden state)")
-    func testValidationWithHiddenStateSeparatorWidth() {
+    func validationWithHiddenStateSeparatorWidth() {
         // When items are hidden, separator is 10,000px wide, but
         // validation should only care about the separator's LEFT edge.
         let separatorLeftEdge: CGFloat = 1000
@@ -510,7 +509,7 @@ struct MenuBarManagerTests {
     }
 
     @Test("Position validation should pass when separator is left of main (expanded state)")
-    func testValidationWithExpandedStateSeparatorWidth() {
+    func validationWithExpandedStateSeparatorWidth() {
         let separatorLeftEdge: CGFloat = 1000
         let mainLeftEdge: CGFloat = 1200
 
@@ -523,7 +522,7 @@ struct MenuBarManagerTests {
     // MARK: - State Transition Tests
 
     @Test("HidingState transitions: expanded to hidden requires valid position")
-    func testExpandedToHiddenTransitionRequiresValidPosition() {
+    func expandedToHiddenTransitionRequiresValidPosition() {
         // Document the expected behavior:
         // expanded → hidden MUST validate position first
         // If position is invalid, transition should be BLOCKED
@@ -540,11 +539,11 @@ struct MenuBarManagerTests {
     }
 
     @Test("HidingState transitions: hidden to expanded always allowed")
-    func testHiddenToExpandedAlwaysAllowed() {
+    func hiddenToExpandedAlwaysAllowed() {
         // If main icon got eaten, user should ALWAYS be able to show/expand to recover
         // These states document the scenario being tested
-        _ = HidingState.hidden      // Current state
-        _ = HidingState.expanded    // Target state
+        _ = HidingState.hidden // Current state
+        _ = HidingState.expanded // Target state
 
         // Show/expand should NEVER be blocked - it's the recovery path
         let shouldAllowTransition = true
@@ -554,12 +553,12 @@ struct MenuBarManagerTests {
     }
 
     @Test("Auto-expand on invalid position: must rescue eaten main icon")
-    func testAutoExpandRescuesEatenMainIcon() {
+    func autoExpandRescuesEatenMainIcon() {
         // If user drags separator to eat main icon while hidden,
         // continuous monitoring should auto-expand to rescue the main icon
 
         let currentState = HidingState.hidden
-        let positionValid = false  // Separator is eating main icon!
+        let positionValid = false // Separator is eating main icon!
 
         // Expected behavior: auto-expand when hidden + invalid position
         let shouldAutoExpand = (currentState == .hidden && !positionValid)
@@ -932,6 +931,85 @@ struct MenuBarManagerTests {
                 screenFrames: [screen]
             ),
             "Pointer positions outside the menu interaction zone should allow rehide"
+        )
+    }
+
+    @Test("Settings auto-rehide change only arms when it becomes enabled for an expanded unpinned bar")
+    func settingsChangeAutoRehideDecisionMatrix() {
+        func context(
+            wasAutoRehideEnabled: Bool,
+            isAutoRehideEnabled: Bool = true,
+            hidingState: HidingState = .expanded,
+            isRevealPinned: Bool = false,
+            shouldSkipHideForExternalMonitor: Bool = false,
+            isStatusMenuOpen: Bool = false
+        ) -> MenuBarManager.AutoRehideSettingsChangeContext {
+            MenuBarManager.AutoRehideSettingsChangeContext(
+                wasAutoRehideEnabled: wasAutoRehideEnabled,
+                isAutoRehideEnabled: isAutoRehideEnabled,
+                hidingState: hidingState,
+                isRevealPinned: isRevealPinned,
+                shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
+                isStatusMenuOpen: isStatusMenuOpen
+            )
+        }
+
+        #expect(
+            MenuBarManager.shouldArmAutoRehideAfterSettingsChange(context(wasAutoRehideEnabled: false))
+        )
+        #expect(
+            !MenuBarManager.shouldArmAutoRehideAfterSettingsChange(context(wasAutoRehideEnabled: true))
+        )
+        #expect(
+            !MenuBarManager.shouldArmAutoRehideAfterSettingsChange(
+                context(wasAutoRehideEnabled: false, hidingState: .hidden)
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldArmAutoRehideAfterSettingsChange(
+                context(wasAutoRehideEnabled: false, isRevealPinned: true)
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldArmAutoRehideAfterSettingsChange(
+                context(wasAutoRehideEnabled: false, isStatusMenuOpen: true)
+            )
+        )
+    }
+
+    @Test("Own app windows can bypass pointer rehide blocking without bypassing menus or browse panels")
+    func ownAppWindowRehideBypassPolicy() {
+        #expect(
+            MenuBarManager.shouldIgnorePointerRehideBlockForOwnAppWindow(
+                ownAppWindowActive: true,
+                isStatusMenuOpen: false,
+                isBrowseSessionActive: false,
+                isBrowseVisible: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldIgnorePointerRehideBlockForOwnAppWindow(
+                ownAppWindowActive: false,
+                isStatusMenuOpen: false,
+                isBrowseSessionActive: false,
+                isBrowseVisible: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldIgnorePointerRehideBlockForOwnAppWindow(
+                ownAppWindowActive: true,
+                isStatusMenuOpen: true,
+                isBrowseSessionActive: false,
+                isBrowseVisible: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldIgnorePointerRehideBlockForOwnAppWindow(
+                ownAppWindowActive: true,
+                isStatusMenuOpen: false,
+                isBrowseSessionActive: true,
+                isBrowseVisible: false
+            )
         )
     }
 

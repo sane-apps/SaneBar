@@ -1,10 +1,10 @@
-This folder is for the active Setapp lane.
+This folder is for the dormant Setapp lane.
 
-Setapp is a third macOS channel, separate from direct Lemon Squeezy/Sparkle distribution and separate from App Store work.
+The current SaneBar release strategy is direct Lemon Squeezy/Sparkle distribution. Setapp materials are retained as lane reference only until Setapp is intentionally reactivated and revalidated.
 
-Keep the Setapp-provided `setappPublicKey.pem` in this folder. The Setapp build script copies `Setapp/setappPublicKey.pem` into the app bundle at build time.
+If Setapp is reactivated, keep the Setapp-provided `setappPublicKey.pem` in this folder. The Setapp build script copies `Setapp/setappPublicKey.pem` into the app bundle at build time.
 
-Before upload, follow the canonical SaneProcess lane:
+Before any future Setapp upload, first update `.saneprocess`, `ARCHITECTURE.md`, release notes, licensing copy, and reviewer notes so they agree that Setapp is active. Then follow the canonical SaneProcess lane:
 
 ```bash
 ./scripts/SaneMaster.rb mini_preflight --setapp --gui

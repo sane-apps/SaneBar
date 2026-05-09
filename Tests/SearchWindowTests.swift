@@ -441,6 +441,24 @@ struct SearchWindowTests {
             )
         )
         #expect(
+            SearchService.shouldUseFullRevealForActivation(
+                appUniqueId: "com.saneclick.SaneClick::statusItem:0",
+                bundleId: "com.saneclick.SaneClick",
+                xPosition: -3630,
+                origin: .browsePanel,
+                pinnedIds: []
+            )
+        )
+        #expect(
+            !SearchService.shouldUseFullRevealForActivation(
+                appUniqueId: "com.saneclick.SaneClick::statusItem:0",
+                bundleId: "com.saneclick.SaneClick",
+                xPosition: -3630,
+                origin: .direct,
+                pinnedIds: []
+            )
+        )
+        #expect(
             !SearchService.resolvedAllowImmediateFallbackCenter(
                 baseAllowImmediateFallbackCenter: false,
                 likelyNoExtrasMenuBar: false,

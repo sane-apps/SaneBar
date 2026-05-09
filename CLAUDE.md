@@ -98,7 +98,7 @@ ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI AVAILABLE" || e
 
 # Release & App Store
 ./scripts/SaneMaster.rb release_preflight   # 9 pre-release safety checks
-./scripts/SaneMaster.rb appstore_preflight  # App Store submission compliance
+./scripts/SaneMaster.rb appstore_preflight  # Only when .saneprocess appstore.enabled is true
 
 # CI/CD Helpers
 ./scripts/SaneMaster.rb enable_ci_tests   # Enable test targets for CI

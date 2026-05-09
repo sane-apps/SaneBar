@@ -186,6 +186,16 @@ extension MenuBarManager {
         SettingsOpener.open()
     }
 
+    @objc func openLicense(_: Any?) {
+        logger.info("Menu: Opening License")
+        SettingsOpener.open(tab: .license)
+    }
+
+    @objc func openAbout(_: Any?) {
+        logger.info("Menu: Opening About / Report")
+        SettingsOpener.open(tab: .about)
+    }
+
     @objc func openHealth(_: Any?) {
         logger.info("Menu: Opening Health")
         SettingsOpener.open(tab: .health)

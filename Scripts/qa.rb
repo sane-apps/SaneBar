@@ -117,7 +117,6 @@ class ProjectQA
   RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[
     at.obdev.littlesnitch.networkmonitor
     at.obdev.littlesnitch.agent
-    com.sindresorhus.Lungo-setapp::statusItem:0
   ].freeze
   OPEN_RELEASE_BLOCKING_LABELS = %w[
     bug

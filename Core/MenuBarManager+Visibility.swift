@@ -68,7 +68,22 @@ extension MenuBarManager {
             return true
         }
 
-        return true
+        let ownAppWindowActive = NSApp.isActive && NSApp.windows.contains { window in
+            window.isVisible && window.isKeyWindow && !window.isMiniaturized
+        }
+        if Self.shouldIgnorePointerRehideBlockForOwnAppWindow(
+            ownAppWindowActive: ownAppWindowActive,
+            isStatusMenuOpen: isMenuOpen,
+            isBrowseSessionActive: browseController.isBrowseSessionActive,
+            isBrowseVisible: browseController.isVisible
+        ) {
+            return true
+        }
+
+        return !Self.shouldBlockRehideForMouseLocation(
+            NSEvent.mouseLocation,
+            screenFrames: NSScreen.screens.map(\.frame)
+        )
     }
 
     func scheduleRehideAfterSettingsChangeIfNeeded() {
@@ -123,6 +138,35 @@ extension MenuBarManager {
         }
 
         return true
+    }
+
+    struct AutoRehideSettingsChangeContext: Equatable, Sendable {
+        let wasAutoRehideEnabled: Bool
+        let isAutoRehideEnabled: Bool
+        let hidingState: HidingState
+        let isRevealPinned: Bool
+        let shouldSkipHideForExternalMonitor: Bool
+        let isStatusMenuOpen: Bool
+    }
+
+    nonisolated static func shouldArmAutoRehideAfterSettingsChange(
+        _ context: AutoRehideSettingsChangeContext
+    ) -> Bool {
+        guard !context.wasAutoRehideEnabled, context.isAutoRehideEnabled else { return false }
+        guard context.hidingState == .expanded else { return false }
+        guard !context.isRevealPinned else { return false }
+        guard !context.shouldSkipHideForExternalMonitor else { return false }
+        guard !context.isStatusMenuOpen else { return false }
+        return true
+    }
+
+    nonisolated static func shouldIgnorePointerRehideBlockForOwnAppWindow(
+        ownAppWindowActive: Bool,
+        isStatusMenuOpen: Bool,
+        isBrowseSessionActive: Bool,
+        isBrowseVisible: Bool
+    ) -> Bool {
+        ownAppWindowActive && !isStatusMenuOpen && !isBrowseSessionActive && !isBrowseVisible
     }
 
     nonisolated static func shouldReactivateSavedAppAfterSuppression(
@@ -223,9 +267,9 @@ extension MenuBarManager {
     nonisolated static func shouldSuppressApplicationMenus(for revealTrigger: RevealTrigger) -> Bool {
         switch revealTrigger {
         case .click, .scroll, .userDrag:
-            return true
+            true
         case .hotkey, .search, .automation, .hover, .settingsButton, .findIcon:
-            return false
+            false
         }
     }
 
@@ -324,10 +368,14 @@ extension MenuBarManager {
     }
 
     /// Schedule a rehide specifically from Find Icon / Browse Icons flows.
-    /// This always hides (ignores autoRehide setting) but defers while Browse Icons
-    /// stays visible, so active panel interactions are never interrupted.
+    /// This obeys auto-rehide and defers while Browse Icons stays visible, so
+    /// active panel interactions are never interrupted.
     @MainActor
     func scheduleRehideFromSearch(after delay: TimeInterval) {
+        guard settings.autoRehide else {
+            logger.debug("Search rehide skipped because auto-rehide is disabled")
+            return
+        }
         guard !shouldSkipHideForExternalMonitor else { return }
         let browseController = SearchWindowController.shared
         if browseController.isBrowseSessionActive || browseController.isVisible {
@@ -499,10 +547,10 @@ extension MenuBarManager {
             for delay in Self.appMenuDockPolicyReassertionIntervalsNanoseconds {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
-                guard self.isAppMenuSuppressed else { return }
-                guard !self.settings.showDockIcon else { return }
+                guard isAppMenuSuppressed else { return }
+                guard !settings.showDockIcon else { return }
 
-                self.reassertAccessoryPolicyDuringAppMenuSuppression(reason: "suppressionHold")
+                reassertAccessoryPolicyDuringAppMenuSuppression(reason: "suppressionHold")
             }
         }
     }
@@ -542,14 +590,16 @@ extension MenuBarManager {
         var menuBarValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(appElement, kAXMenuBarAttribute as CFString, &menuBarValue) == .success,
               let menuBarValue,
-              let menuBarElement = safeAXUIElement(menuBarValue) else {
+              let menuBarElement = safeAXUIElement(menuBarValue)
+        else {
             return nil
         }
 
         var childrenValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(menuBarElement, kAXChildrenAttribute as CFString, &childrenValue) == .success,
               let menuBarItems = childrenValue as? [AXUIElement],
-              !menuBarItems.isEmpty else {
+              !menuBarItems.isEmpty
+        else {
             return nil
         }
 
@@ -582,7 +632,8 @@ extension MenuBarManager {
         var positionValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
               let positionValue,
-              let axPosition = safeAXValue(positionValue) else {
+              let axPosition = safeAXValue(positionValue)
+        else {
             return nil
         }
 
@@ -592,7 +643,8 @@ extension MenuBarManager {
         var sizeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
               let sizeValue,
-              let axSize = safeAXValue(sizeValue) else {
+              let axSize = safeAXValue(sizeValue)
+        else {
             return nil
         }
 
