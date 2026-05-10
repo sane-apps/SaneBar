@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.50] - 2026-05-09
+
+Improves Browse Icons drag reliability in Icon Panel and Second Menu Bar, keeps Always Hidden moves responsive, and includes the recent tint/full-screen compatibility and settings/menu polish fixes.
+
+---
+
 ## [2.1.49] - 2026-05-09
 
 Improves menu bar tint behavior around fullscreen browser windows, fixes hover reveal reliability, and makes menu bar layout checks smoother during updates.
