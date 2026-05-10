@@ -517,31 +517,43 @@ struct SecondMenuBarView: View {
         }
     }
 
-    private func queueMove(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
-        let request: MenuBarManager.ZoneMoveRequest?
+    private func zoneMoveRequest(from source: IconZone, to target: IconZone) -> MenuBarManager.ZoneMoveRequest? {
         switch (source, target) {
         case (.visible, .hidden):
-            request = .visibleToHidden
+            return .visibleToHidden
         case (.hidden, .visible):
-            request = .hiddenToVisible
+            return .hiddenToVisible
         case (.visible, .alwaysHidden):
-            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
-            request = .visibleToAlwaysHidden
+            return menuBarManager.settings.alwaysHiddenSectionEnabled ? .visibleToAlwaysHidden : nil
         case (.hidden, .alwaysHidden):
-            guard menuBarManager.settings.alwaysHiddenSectionEnabled else { return false }
-            request = .hiddenToAlwaysHidden
+            return menuBarManager.settings.alwaysHiddenSectionEnabled ? .hiddenToAlwaysHidden : nil
         case (.alwaysHidden, .visible):
-            request = .alwaysHiddenToVisible
+            return .alwaysHiddenToVisible
         case (.alwaysHidden, .hidden):
-            request = .alwaysHiddenToHidden
+            return .alwaysHiddenToHidden
         case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            request = nil
+            return nil
         }
+    }
+
+    private func queueMove(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
+        let request = zoneMoveRequest(from: source, to: target)
 
         guard let request,
               let task = menuBarManager.queueZoneMove(app: app, request: request) else { return false }
 
         observeQueuedMoveResult(task, target: target)
+        return true
+    }
+
+    private func queueMoveAfterDrop(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
+        guard let request = zoneMoveRequest(from: source, to: target) else { return false }
+        Task { @MainActor in
+            await Task.yield()
+            notePanelInteraction()
+            guard let task = await menuBarManager.queueZoneMoveAfterDrop(app: app, request: request) else { return }
+            observeQueuedMoveResult(task, target: target)
+        }
         return true
     }
 
@@ -568,7 +580,7 @@ struct SecondMenuBarView: View {
             return false
         }
 
-        return moveIcon(source.app, from: source.zone, to: targetZone)
+        return queueMoveAfterDrop(source.app, from: source.zone, to: targetZone)
     }
 
     private func handleTileDrop(_ payloads: [String], targetApp: RunningApp, targetZone: IconZone) -> Bool {
@@ -585,7 +597,7 @@ struct SecondMenuBarView: View {
         }
 
         if source.zone != targetZone {
-            return moveIcon(source.app, from: source.zone, to: targetZone)
+            return queueMoveAfterDrop(source.app, from: source.zone, to: targetZone)
         }
 
         guard sourceID != targetApp.uniqueId else { return false }
@@ -607,17 +619,20 @@ struct SecondMenuBarView: View {
         let targetX = targetApp.xPosition ?? 0
         let placeAfterTarget = sourceX < targetX
 
-        guard let task = menuBarManager.queueReorderIcon(
-            sourceBundleID: sourceApp.bundleId,
-            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
-            sourceStatusItemIndex: sourceApp.statusItemIndex,
-            targetBundleID: targetApp.bundleId,
-            targetMenuExtraID: targetApp.menuExtraIdentifier,
-            targetStatusItemIndex: targetApp.statusItemIndex,
-            placeAfterTarget: placeAfterTarget
-        ) else { return false }
+        Task { @MainActor in
+            await Task.yield()
+            guard let task = menuBarManager.queueReorderIcon(
+                sourceBundleID: sourceApp.bundleId,
+                sourceMenuExtraID: sourceApp.menuExtraIdentifier,
+                sourceStatusItemIndex: sourceApp.statusItemIndex,
+                targetBundleID: targetApp.bundleId,
+                targetMenuExtraID: targetApp.menuExtraIdentifier,
+                targetStatusItemIndex: targetApp.statusItemIndex,
+                placeAfterTarget: placeAfterTarget
+            ) else { return }
 
-        observeQueuedReorderResult(task)
+            observeQueuedReorderResult(task)
+        }
         return true
     }
 
