@@ -17,6 +17,94 @@ release:
   use_sparkle: true
   min_system_version: "15.0"
   reviewed_auto_reconcile_stashes:
+    - stash_sha: "eac8e7000572fa141151aaa51349e92dfabc8ec5"
+      subject: "On main: auto-reconcile-20260508-215519-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found hover, rehide, direct-download mover, and classified move verification work represented in current HEAD a186861; no unique release-blocking work remains."
+    - stash_sha: "c0297796a0569708613fe57783d0928bad9621de"
+      subject: "On main: auto-reconcile-20260506-215521-stephans-mac-mini"
+      decision: deferred
+      reason: "Mini stash audit found Setapp, App Store, App Intent, Shortcuts, and Focus-filter lane work that is outside the current direct-download regression release."
+    - stash_sha: "7e7696022de4f5c4667daa4824d964d292a6a245"
+      subject: "On main: auto-reconcile-20260505-215526-stephans-mac-mini"
+      decision: archived
+      reason: "Mini stash audit found outreach-only metadata about deleted competitor-thread posts; it carries no app source or release artifact work."
+    - stash_sha: "d7aed56bd114d8b460a8906b28506df0c304609a"
+      subject: "On main: auto-reconcile-20260430-215517-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found Bartender import preview, hide-all-other persistence, profile/export plumbing, and related tests represented in the current tree and handoff."
+    - stash_sha: "5e47aaed184782dfc80e83a83056705c15614d9e"
+      subject: "On main: auto-reconcile-20260430-055519-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found this is an older subset of later Bartender import, persistence, and settings UI work already represented in HEAD."
+    - stash_sha: "754c750b407542f72df3473da9f289c86f1885bd"
+      subject: "On main: auto-reconcile-20260429-215516-stephans-mac-mini"
+      decision: deferred
+      reason: "Mini stash audit found Setapp runtime-proof and review-packaging work that should wait for deliberate Setapp lane reactivation."
+    - stash_sha: "54307b5e84fc2eee8fe27b9d9c4c44fc9a277730"
+      subject: "On main: auto-reconcile-20260428-215521-stephans-mac-mini"
+      decision: deferred
+      reason: "Mini stash audit found Setapp activation metadata deferred because SaneBar is currently direct-download only."
+    - stash_sha: "e54e0378b7997c21af02b064f12f3c52f9c4dbcc"
+      subject: "On main: auto-reconcile-20260427-215517-stephans-mac-mini"
+      decision: deferred
+      reason: "Mini stash audit found future degraded-bootstrap and status-recovery architecture; current HEAD has later verified visibility/menu stabilization and passed Mini runtime smoke for this release."
+    - stash_sha: "b9cfad76a5118406bc4275f5ab9f5d7bdad6e9b4"
+      subject: "On main: auto-reconcile-20260425-215520-stephans-mac-mini"
+      decision: recovered
+      reason: "Recovered the missing privacy-preserving aggregate analytics disclosure into PRIVACY.md and docs/privacy.html before marking this Mini stash reviewed."
+    - stash_sha: "637eb6e900e6c64375c7fdd92d7a32f02f429530"
+      subject: "On main: auto-reconcile-20260424-215517-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found the SaneBar Pro comparison-table clarification already present in HEAD."
+    - stash_sha: "a01d96dea170fd74a5be2284c17fb7d46a69f24f"
+      subject: "On main: auto-reconcile-20260424-153452-stephans-mac-mini"
+      decision: deferred
+      reason: "Mini stash audit found docs-only legacy onboarding and README guidance; useful for later docs cleanup but not release code."
+    - stash_sha: "151abb115af365fa5b5ff27d3eb2a91de865555a"
+      subject: "On main: auto-reconcile-20260423-215519-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found live-anchor wait, right-gap helper, and related recovery tests already present in HEAD."
+    - stash_sha: "5133677643cb35944f00521ff5d09435ad7e1dd2"
+      subject: "On main: auto-reconcile-20260420-215516-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found bootstrap and structural runtime snapshot model plus coordinator rejection paths already present in HEAD."
+    - stash_sha: "b4649be0d6efc85939ef3a87d3e116e99c8d717a"
+      subject: "On main: auto-reconcile-20260420-095220-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found autosave recovery bypass and broader status-item cleanup already present in HEAD with tests."
+    - stash_sha: "38da933a6b14da28aebb71f05b0bb328986fc23e"
+      subject: "On main: auto-reconcile-20260419-055518-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found post-recovery geometry warmup and runtime guard coverage already present in HEAD."
+    - stash_sha: "3da463ae6e27d4f1abb78981cbb065408e8d67f1"
+      subject: "On main: auto-reconcile-20260418-215516-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found fresh autosave namespace reset and expanded by-host/app-domain cleanup already present in HEAD."
+    - stash_sha: "9e19085a36a3762c931fd447884ab6415f0ae3f3"
+      subject: "On main: auto-reconcile-20260417-215518-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found rehide mouse-location policy, Browse panel Pro gating, and public pricing surfaces already present in HEAD."
+    - stash_sha: "c11fd408dcbae8f6a5ecefb725cd627c853dfdb0"
+      subject: "On main: auto-reconcile-20260417-055518-stephans-mac-mini"
+      decision: archived
+      reason: "Mini stash audit found research-cache-only browse-move notes superseded by later HEAD runtime work."
+    - stash_sha: "8a80f7995891db8f977317177a00345e3908adfa"
+      subject: "On main: auto-reconcile-20260416-055517-stephans-mac-mini"
+      decision: archived
+      reason: "Mini stash audit found stale research-cache-only release context with no source, test, or docs work to recover."
+    - stash_sha: "594a8b785f2e00a19c438343f66e03e3c4a94846"
+      subject: "On main: auto-reconcile-20260415-055522-stephans-mac-mini"
+      decision: superseded
+      reason: "Mini stash audit found price display and dormant Setapp wording already present in HEAD."
+    - stash_sha: "33069574b42c64f0d2cfdc00df8d88dd51d08ab2"
+      subject: "On main: auto-reconcile-20260413-155607-stephans-macbook-air"
+      decision: archived
+      reason: "Mini stash audit found research-cache-only Zoom performance triage with no current release artifact work."
+    - stash_sha: "fedcce969f81c20779b019235f81d8065a450020"
+      subject: "On main: auto-reconcile-20260411-055525-stephans-macbook-air"
+      decision: deferred
+      reason: "Mini stash audit found repo hook/config sync work covered by active user-level hooks and not needed for the current release artifact."
     - stash_sha: "2726743844e862d381fb5de14c61a5b8f1affbb4"
       subject: "On main: auto-reconcile-20260508-215529-stephans-macbook-air"
       decision: recovered
