@@ -1102,6 +1102,23 @@ extension MenuBarManager {
     }
 
     @MainActor
+    private func prepareAlwaysHiddenMoveQueueAfterDrop(
+        operationName: String,
+        identityPrecision: MenuBarIdentityPrecision,
+        shouldEnableSection: Bool
+    ) async -> Bool {
+        _ = await ensureAlwaysHiddenSeparatorReadyAfterDrop(
+            operationName: operationName,
+            shouldEnableSection: shouldEnableSection
+        )
+        return canQueueInteractiveMove(
+            operationName: operationName,
+            requiresAlwaysHiddenSeparator: true,
+            identityPrecision: identityPrecision
+        )
+    }
+
+    @MainActor
     private func ensureAlwaysHiddenSeparatorReady(
         operationName: String,
         shouldEnableSection: Bool,
@@ -1135,6 +1152,43 @@ extension MenuBarManager {
         }
 
         logger.error("🔧 \(operationName, privacy: .public): always-hidden separator unavailable after wait")
+        return false
+    }
+
+    @MainActor
+    private func ensureAlwaysHiddenSeparatorReadyAfterDrop(
+        operationName: String,
+        shouldEnableSection: Bool,
+        maxAttempts: Int = 12
+    ) async -> Bool {
+        if shouldEnableSection, !settings.alwaysHiddenSectionEnabled {
+            settings.alwaysHiddenSectionEnabled = true
+            saveSettings()
+        }
+
+        let featureEnabled = Self.effectiveAlwaysHiddenSectionEnabled(
+            isPro: LicenseService.shared.isPro,
+            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
+        )
+        guard featureEnabled else {
+            logger.error(
+                "🔧 \(operationName, privacy: .public): always-hidden feature unavailable (isPro=\(LicenseService.shared.isPro, privacy: .public) requested=\(self.settings.alwaysHiddenSectionEnabled, privacy: .public))"
+            )
+            return false
+        }
+
+        for attempt in 1 ... maxAttempts {
+            updateAlwaysHiddenSeparatorIfReady(forceRecreateIfMissing: attempt >= 4)
+            if alwaysHiddenSeparatorItem != nil {
+                if attempt > 1 {
+                    logger.info("🔧 \(operationName, privacy: .public): always-hidden separator became ready after \(attempt) async attempts")
+                }
+                return true
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        logger.error("🔧 \(operationName, privacy: .public): always-hidden separator unavailable after async wait")
         return false
     }
 
@@ -1529,18 +1583,29 @@ extension MenuBarManager {
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
         preferredCenterX: CGFloat? = nil,
-        toAlwaysHidden: Bool
+        toAlwaysHidden: Bool,
+        preflightAlreadyPassed: Bool = false
     ) -> Bool {
         let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex
         ) ? .exact : .coarse
-        guard prepareAlwaysHiddenMoveQueue(
-            operationName: "moveIconAlwaysHidden",
-            identityPrecision: identityPrecision,
-            shouldEnableSection: toAlwaysHidden
-        ) else {
-            return false
+        if preflightAlreadyPassed {
+            guard canQueueInteractiveMove(
+                operationName: "moveIconAlwaysHidden",
+                requiresAlwaysHiddenSeparator: true,
+                identityPrecision: identityPrecision
+            ) else {
+                return false
+            }
+        } else {
+            guard prepareAlwaysHiddenMoveQueue(
+                operationName: "moveIconAlwaysHidden",
+                identityPrecision: identityPrecision,
+                shouldEnableSection: toAlwaysHidden
+            ) else {
+                return false
+            }
         }
 
         let wasHidden = hidingService.state == .hidden
@@ -2158,6 +2223,66 @@ extension MenuBarManager {
         }
 
         return startedTask
+    }
+
+    @MainActor
+    func queueZoneMoveAfterDrop(
+        app: RunningApp,
+        request: ZoneMoveRequest
+    ) async -> Task<Bool, Never>? {
+        let bundleID = app.bundleId
+        let menuExtraId = app.menuExtraIdentifier
+        let statusItemIndex = app.statusItemIndex
+        let preferredCenterX = app.preferredCenterX
+
+        switch request {
+        case .visibleToHidden, .hiddenToVisible, .alwaysHiddenToHidden:
+            return queueZoneMove(app: app, request: request)
+        case .visibleToAlwaysHidden, .hiddenToAlwaysHidden:
+            let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            ) ? .exact : .coarse
+            guard await prepareAlwaysHiddenMoveQueueAfterDrop(
+                operationName: "moveIconAlwaysHidden",
+                identityPrecision: identityPrecision,
+                shouldEnableSection: true
+            ) else {
+                return nil
+            }
+            return queuedMoveTaskIfStarted(
+                moveIconAlwaysHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
+                    toAlwaysHidden: true,
+                    preflightAlreadyPassed: true
+                )
+            )
+        case .alwaysHiddenToVisible:
+            let identityPrecision: MenuBarIdentityPrecision = Self.hasPreciseMoveIdentity(
+                menuExtraId: menuExtraId,
+                statusItemIndex: statusItemIndex
+            ) ? .exact : .coarse
+            guard await prepareAlwaysHiddenMoveQueueAfterDrop(
+                operationName: "moveIconAlwaysHidden",
+                identityPrecision: identityPrecision,
+                shouldEnableSection: false
+            ) else {
+                return nil
+            }
+            return queuedMoveTaskIfStarted(
+                moveIconAlwaysHidden(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    preferredCenterX: preferredCenterX,
+                    toAlwaysHidden: false,
+                    preflightAlreadyPassed: true
+                )
+            )
+        }
     }
 
     @MainActor

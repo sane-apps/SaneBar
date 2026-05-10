@@ -174,32 +174,47 @@ extension MenuBarSearchView {
         }
     }
 
-    private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
-        let request: MenuBarManager.ZoneMoveRequest?
+    private func zoneMoveRequest(from sourceZone: AppZone, to targetZone: AppZone) -> MenuBarManager.ZoneMoveRequest? {
         switch (sourceZone, targetZone) {
         case (.visible, .hidden):
-            request = .visibleToHidden
+            return .visibleToHidden
         case (.hidden, .visible):
-            request = .hiddenToVisible
+            return .hiddenToVisible
         case (.visible, .alwaysHidden):
-            guard isAlwaysHiddenEnabled else { return false }
-            request = .visibleToAlwaysHidden
+            return isAlwaysHiddenEnabled ? .visibleToAlwaysHidden : nil
         case (.hidden, .alwaysHidden):
-            guard isAlwaysHiddenEnabled else { return false }
-            request = .hiddenToAlwaysHidden
+            return isAlwaysHiddenEnabled ? .hiddenToAlwaysHidden : nil
         case (.alwaysHidden, .visible):
-            request = .alwaysHiddenToVisible
+            return .alwaysHiddenToVisible
         case (.alwaysHidden, .hidden):
-            request = .alwaysHiddenToHidden
+            return .alwaysHiddenToHidden
         case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            request = nil
+            return nil
         }
+    }
+
+    private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
+        let request = zoneMoveRequest(from: sourceZone, to: targetZone)
 
         guard let request,
               let task = menuBarManager.queueZoneMove(app: app, request: request) else { return false }
 
         movingAppId = app.uniqueId
         observeQueuedMoveResult(task)
+        return true
+    }
+
+    private func queueMoveAfterDrop(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
+        guard let request = zoneMoveRequest(from: sourceZone, to: targetZone) else { return false }
+        movingAppId = app.uniqueId
+        Task { @MainActor in
+            await Task.yield()
+            guard let task = await menuBarManager.queueZoneMoveAfterDrop(app: app, request: request) else {
+                movingAppId = nil
+                return
+            }
+            observeQueuedMoveResult(task)
+        }
         return true
     }
 
@@ -225,6 +240,14 @@ extension MenuBarSearchView {
         return true
     }
 
+    private func queueReorderAfterDrop(_ sourceApp: RunningApp, targetApp: RunningApp) -> Bool {
+        Task { @MainActor in
+            await Task.yield()
+            _ = queueReorder(sourceApp, targetApp: targetApp)
+        }
+        return true
+    }
+
     @MainActor
     func activateApp(_ app: RunningApp, isRightClick: Bool = false) {
         Task { @MainActor in
@@ -242,7 +265,7 @@ extension MenuBarSearchView {
         guard sourceID != targetApp.uniqueId else { return false }
         guard let sourceApp = filteredApps.first(where: { $0.uniqueId == sourceID }) else { return false }
 
-        return queueReorder(sourceApp, targetApp: targetApp)
+        return queueReorderAfterDrop(sourceApp, targetApp: targetApp)
     }
 
     func handleZoneDrop(_ payloads: [String], targetMode: Mode) -> Bool {
@@ -270,11 +293,11 @@ extension MenuBarSearchView {
 
         switch targetMode {
         case .visible:
-            return queueMove(sourceApp, from: sourceZone, to: .visible)
+            return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .visible)
         case .hidden:
-            return queueMove(sourceApp, from: sourceZone, to: .hidden)
+            return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .hidden)
         case .alwaysHidden:
-            return queueMove(sourceApp, from: sourceZone, to: .alwaysHidden)
+            return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .alwaysHidden)
         case .all:
             return false
         }

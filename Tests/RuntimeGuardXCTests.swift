@@ -1039,27 +1039,38 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             managerSource.contains("enum ZoneMoveRequest: Sendable") &&
                 managerSource.contains("func queueZoneMove(") &&
+                managerSource.contains("func queueZoneMoveAfterDrop(") &&
+                managerSource.contains("prepareAlwaysHiddenMoveQueueAfterDrop") &&
+                managerSource.contains("ensureAlwaysHiddenSeparatorReadyAfterDrop") &&
+                managerSource.contains("try? await Task.sleep(for: .milliseconds(50))") &&
                 managerSource.contains("enum AlwaysHiddenQueuedMutation") &&
                 managerSource.contains("optimisticAlwaysHiddenMutation") &&
                 managerSource.contains("rollbackQueuedAlwaysHiddenMutation"),
-            "MenuBarManager should own queued zone-move planning and always-hidden optimistic mutation rollback inside the move engine"
+            "MenuBarManager should own queued zone-move planning, nonblocking drop preflight, and always-hidden optimistic mutation rollback inside the move engine"
         )
         XCTAssertTrue(
             iconPanelSource.contains("queueZoneMove(app: app, request: request)") &&
+                iconPanelSource.contains("queueZoneMoveAfterDrop(app: app, request: request)") &&
                 iconPanelSource.contains("guard let request,") &&
                 iconPanelSource.contains("let moved = await task.value") &&
+                iconPanelSource.contains("queueMoveAfterDrop") &&
+                iconPanelSource.contains("queueReorderAfterDrop") &&
+                iconPanelSource.contains("await Task.yield()") &&
                 !iconPanelSource.contains("pinAlwaysHidden(app: app)") &&
                 !iconPanelSource.contains("unpinAlwaysHidden(app: app)"),
-            "Icon panel move flows should delegate queue planning and always-hidden mutation ownership to MenuBarManager"
+            "Icon panel move flows should delegate queue planning to MenuBarManager and defer drag-drop queueing until after SwiftUI finishes the drop callback"
         )
         XCTAssertTrue(
             secondMenuBarSource.contains("queueZoneMove(app: app, request: request)") &&
+                secondMenuBarSource.contains("queueZoneMoveAfterDrop(app: app, request: request)") &&
                 secondMenuBarSource.contains("guard let request,") &&
                 secondMenuBarSource.contains("let moved = await task.value") &&
                 secondMenuBarSource.contains("applySuccessfulMovePresentation") &&
+                secondMenuBarSource.contains("queueMoveAfterDrop") &&
+                secondMenuBarSource.contains("await Task.yield()") &&
                 !secondMenuBarSource.contains("pinAlwaysHidden(app: app)") &&
                 !secondMenuBarSource.contains("unpinAlwaysHidden(app: app)"),
-            "Second menu bar moves should wait on the shared manager-owned zone move result before updating row state or reporting success"
+            "Second menu bar moves should wait on the shared manager-owned zone move result and defer drag-drop queueing until after SwiftUI finishes the drop callback"
         )
         XCTAssertFalse(
             secondMenuBarSource.contains("DispatchQueue.main.asyncAfter(deadline: .now() + 0.3)"),
