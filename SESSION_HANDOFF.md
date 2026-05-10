@@ -1,9 +1,22 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-05-09
-**Current public release:** `v2.1.48` (build `2148`)
+**Current public release:** `v2.1.50` (build `2150`)
 
 ## Current State
+
+- 2026-05-09/10 SaneBar `v2.1.50` is live across the direct-download release lane:
+  - Shipped commit sequence: `255672f` drag-stall fix, `7014b1b` version bump, `8e8ed83` site/version metadata, `2ee4f8d` release metadata.
+  - Release artifact: `https://dist.sanebar.com/updates/SaneBar-2.1.50.zip`; GitHub release `v2.1.50`; Homebrew, appcast, website, and email/download worker all report `2.1.50`.
+  - Lemon Squeezy hosted files were reconciled on the Mac Mini. The SaneBar product now has exactly one published hosted file, `SaneBar-2.1.50.zip`; old `2.1.48` draft and `2.1.49` published files were deleted.
+  - Final cross-channel validation reported SaneBar, SaneClick, SaneClip, SaneHosts, and SaneSales in sync across Appcast/Website/Webhook/Homebrew/Lemon. SaneSync and SaneVideo remain excluded/unreleased and should not be treated as blockers for this live-app release set.
+  - Current-head Mini verification passed after release metadata commits: `./scripts/SaneMaster.rb verify` with 1,158 tests. Project QA snapshot refreshed with `ruby scripts/qa.rb`; final validation shows SaneBar `READY TO SHIP`.
+
+- 2026-05-09/10 drag-stall fix for Browse Icons:
+  - User reproduced a stall/spinning wheel when dragging between zones in both Second Menu Bar and Icon Panel.
+  - Root cause was the drop path doing expensive Always Hidden preflight/reorder work synchronously enough to block UI responsiveness.
+  - `MenuBarManager.queueZoneMoveAfterDrop(app:request:) async` now runs Always Hidden separator preparation asynchronously after the SwiftUI drop callback yields; Icon Panel and Second Menu Bar drop handlers validate immediately and queue the move instead of doing heavy AX/CG work inline.
+  - Regression coverage was added to `RuntimeGuardXCTests` for nonblocking drop behavior. Mini runtime proof included `Scripts/live_zone_smoke.rb` screenshots and a forced-candidate smoke moving a real hidden Lungo status item through Hidden/Visible and Always Hidden lanes.
 
 - 2026-05-09 shared menu parity audit:
   - SaneBar's Dock menu and menu-bar right-click menu now use the shared SaneUI utility-menu contract for Settings, License, Check for Updates, About / Report a Bug, optional What's New, and Quit.
