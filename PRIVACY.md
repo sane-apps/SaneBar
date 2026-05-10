@@ -7,8 +7,8 @@ SaneBar is built with privacy as the foundation. This document explains every pe
 ## The Short Version
 
 - **Your menu bar setup stays on your Mac** - No files, icon names, or menu bar contents are uploaded
-- **A few simple anonymous app counts** - We count things like app version, update status, and whether the app opened in Free or Pro
-- **No user identifiers** - We do not tie those counts to your identity
+- **Privacy-preserving aggregate counts** - We count things like app version, update status, launches, purchase flow, and whether the app opened in Free or Pro
+- **No user identifiers** - We do not tie those counts to your identity or sell customer data
 - **Local storage only** - Settings saved to `~/Library/Application Support/SaneBar/`
 - **Limited network use** - Update checks, license validation, and those simple app counts
 
@@ -129,9 +129,9 @@ rm ~/Library/Preferences/com.sanebar.app.plist
 
 ---
 
-## Simple Anonymous App Counts
+## Privacy-Preserving Aggregate Analytics
 
-SaneBar sends a few simple anonymous app counts so we can see which versions are in use and whether updates are working as expected.
+SaneBar sends a few privacy-preserving aggregate counts so we can see which versions are in use, whether updates are working, and whether the Basic-to-Pro flow is healthy.
 
 These events may include:
 
@@ -141,6 +141,7 @@ These events may include:
 - macOS version
 - distribution channel (`direct`, `app_store`, or `setapp`)
 - license tier (`free` or `pro`)
+- broad purchase/update lifecycle events such as buy clicked, purchase started/completed, license activated, update available, or update install started
 - update target version/build when Sparkle offers or starts installing an update
 
 These events do **not** include:
@@ -150,8 +151,12 @@ These events do **not** include:
 - IP address in SaneApps analytics storage
 - menu bar contents, icon names, screenshots, or files
 - any persistent user identifier
+- customer content, clipboard contents, browser history, or app-internal clicked URLs
+- data for sale to advertisers or data brokers
 
 Storage is daily aggregate counts only. SaneApps does not store raw per-user histories for these counts.
+
+The sanebar.com website may also use cookie-free aggregate website analytics, such as page views and referrers, to understand whether the website is working. That website analytics is separate from the app and does not identify you.
 
 ---
 

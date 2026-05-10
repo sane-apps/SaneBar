@@ -141,27 +141,28 @@
         <p>These permissions are used solely for the app's core functionality. SaneBar does not inspect other apps' window contents, Zoom video frames, or network traffic, and no data from these permissions is transmitted.</p>
 
         <h2>Network Access</h2>
-        <p>SaneBar accesses the network for update checks via Sparkle (can be disabled in Settings), license validation when you enter a Pro key, and a few simple anonymous counts such as app version, build, tier, and update status. No menu bar contents or personal files are transmitted.</p>
+        <p>SaneBar accesses the network for update checks via Sparkle (can be disabled in Settings), license validation when you enter a Pro key, and privacy-preserving aggregate counts such as app version, build, tier, launch status, purchase flow, and update status. No menu bar contents or personal files are transmitted.</p>
 
         <h2>Third-Party Services</h2>
         <p>SaneBar uses:</p>
         <ul>
             <li><strong>Sparkle:</strong> For checking app updates. Only checks for updates from sanebar.com. No personal content is transmitted.</li>
-            <li><strong>SaneApps distribution service:</strong> Receives a few simple anonymous counts such as app launch tier, app version, build, and update status. These counts are not tied to an account and do not include your menu bar contents.</li>
-            <li><strong>Cloudflare Web Analytics (website only):</strong> The sanebar.com website uses simple aggregate traffic stats. This applies to the website only, not the app.</li>
+            <li><strong>SaneApps distribution service:</strong> Receives privacy-preserving aggregate counts such as app launch tier, app version, build, purchase flow, and update status. These counts are not tied to an account and do not include your menu bar contents.</li>
+            <li><strong>Cloudflare Web Analytics (website only):</strong> The sanebar.com website may use cookie-free aggregate traffic stats, such as page views and referrers. This applies to the website only, not the app.</li>
         </ul>
 
-        <h2>What These Simple Counts Include</h2>
-        <p>When SaneBar sends simple anonymous app counts, they may include:</p>
+        <h2>What These Aggregate Counts Include</h2>
+        <p>When SaneBar sends privacy-preserving aggregate app counts, they may include:</p>
         <ul>
             <li>app name and event name</li>
             <li>app version and build</li>
             <li>macOS version</li>
             <li>distribution channel (`direct`, `app_store`, or `setapp`)</li>
             <li>license tier (`free` or `pro`)</li>
+            <li>broad purchase/update lifecycle events such as buy clicked, purchase started/completed, license activated, update available, or update install started</li>
             <li>update target version/build when Sparkle finds or starts installing an update</li>
         </ul>
-        <p>These counts do not include your name, email, license key, IP address in SaneApps analytics storage, icon names, screenshots, or files.</p>
+        <p>These counts do not include your name, email, license key, IP address in SaneApps analytics storage, icon names, screenshots, files, clipboard contents, browser history, app-internal clicked URLs, or data for sale to advertisers or data brokers.</p>
 
         <h2>100% Transparent Code</h2>
         <p>Every line of SaneBar's code is public. Review it at <a href="https://github.com/sane-apps/SaneBar">github.com/sane-apps/SaneBar</a>.</p>
