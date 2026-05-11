@@ -118,11 +118,25 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
     /// Re-wire the delimiter after status-item recreation without losing the
     /// current hidden/expanded state.
-    func reconfigure(delimiterItem: StatusItemProtocol, preserving preservedState: HidingState) {
+    func reconfigure(
+        delimiterItem: StatusItemProtocol,
+        preserving preservedState: HidingState,
+        deferApplyingState: Bool = false
+    ) {
         self.delimiterItem = delimiterItem
         state = preservedState
+        if deferApplyingState {
+            delimiterItem.length = StatusItemLength.expanded
+            logger.info("HidingService reconfigured with delimiter while deferring \(preservedState.rawValue) restore")
+            return
+        }
         applyDelimiterStateToLiveItems()
         logger.info("HidingService reconfigured with delimiter while preserving \(preservedState.rawValue)")
+    }
+
+    func applyCurrentStateToLiveItems() {
+        applyDelimiterStateToLiveItems()
+        logger.info("HidingService applied current \(self.state.rawValue) state to live delimiters")
     }
 
     /// Set or clear the always-hidden delimiter item.

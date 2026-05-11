@@ -116,15 +116,18 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("private func schedulePostRecoveryGeometryWarmup()"),
+            source.contains("private func schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: Bool = false)"),
             "MenuBarManager should define a dedicated post-recovery geometry warmup helper"
         )
         XCTAssertTrue(
             source.contains("AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)") &&
                 source.contains("await self.warmSeparatorPositionCache(maxAttempts: 32)") &&
                 source.contains("await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)") &&
-                source.contains("self.schedulePostRecoveryGeometryWarmup()"),
-            "Structural recovery should immediately re-warm separator geometry and AX caches so stale frames do not loop back into recovery"
+                source.contains("let separatorAnchorSource = self.currentSeparatorAnchorSource()") &&
+                source.contains("separatorAnchorSource == .live || separatorAnchorSource == .cached") &&
+                source.contains("self.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
+                source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
+            "Structural recovery should re-warm separator geometry from a trustworthy anchor, then refresh appearance overlay visibility"
         )
         XCTAssertTrue(
             source.contains("self.statusBarController.configureStatusItems(") &&
@@ -3041,9 +3044,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("Skipping overlapping status item recovery action") &&
                 source.contains("positionValidationGeneration += 1") &&
                 source.contains("let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : self.hidingService.state") &&
-                source.contains("self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)") &&
+                source.contains("deferApplyingState: shouldRestoreHidden") &&
+                source.contains("self.hidingService.applyCurrentStateToLiveItems()") &&
                 source.contains("Preserved hidden state during status item recovery"),
-            "Structural status-item recovery should reject stale validation escalations, preserve hidden-state rebuild intent, and avoid leaving the bar permanently expanded after a wake/display repair"
+            "Structural status-item recovery should reject stale validation escalations, defer hidden-state collapse until geometry warmup, and avoid leaving the bar permanently expanded after a wake/display repair"
         )
     }
 

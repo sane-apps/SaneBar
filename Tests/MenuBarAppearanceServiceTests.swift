@@ -553,9 +553,14 @@ struct MenuBarAppearanceServiceTests {
         #expect(source.contains("private var pendingOverlayRefreshWorkItems"))
         #expect(source.contains("private func scheduleOverlayVisibilityRefreshes()"))
         #expect(source.contains("DispatchQueue.main.asyncAfter"))
-        #expect(source.contains("for delay in [0.15, 0.5]"))
+        #expect(source.contains("internal nonisolated static let overlayVisibilityRefreshRetryDelays"))
+        #expect(MenuBarAppearanceService.overlayVisibilityRefreshRetryDelays == [0.15, 0.5, 1.5, 3.0])
         #expect(source.contains("NSWorkspace.didActivateApplicationNotification"))
         #expect(source.contains("NSWorkspace.activeSpaceDidChangeNotification"))
+        #expect(source.contains("NSWorkspace.didWakeNotification"))
+        #expect(source.contains("NSWorkspace.screensDidWakeNotification"))
+        #expect(source.contains("NSWorkspace.sessionDidBecomeActiveNotification"))
+        #expect(source.contains("func refreshAfterStatusItemRecovery()"))
     }
 
     // MARK: - Mock Tests

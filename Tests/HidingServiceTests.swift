@@ -223,6 +223,32 @@ struct HidingServiceTests {
         #expect(replacementItem.length == 10000,
                 "Replacement delimiter should stay collapsed when the service was hidden")
     }
+
+    @Test("Recovery reconfigure can defer collapsing until geometry is warm")
+    @MainActor
+    func reconfigureCanDeferHiddenStateRestore() async {
+        let service = HidingService()
+        let originalItem = RecordingMockStatusItem()
+        let replacementItem = RecordingMockStatusItem()
+
+        service.configure(delimiterItem: originalItem)
+        await service.hide()
+        service.reconfigure(
+            delimiterItem: replacementItem,
+            preserving: .hidden,
+            deferApplyingState: true
+        )
+
+        #expect(service.state == .hidden,
+                "Deferred recovery reconfigure should preserve the logical hidden state")
+        #expect(replacementItem.length == 20,
+                "Deferred recovery reconfigure should keep the separator visible for live anchor warmup")
+
+        service.applyCurrentStateToLiveItems()
+
+        #expect(replacementItem.length == 10000,
+                "Once warmup finishes, applying the current state should collapse the replacement delimiter")
+    }
 }
 
 // MARK: - Always-Hidden Regression Tests
