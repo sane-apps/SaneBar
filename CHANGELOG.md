@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.51] - 2026-05-11
+
+Keeps Custom Appearance tint stable after restart and Dock launches, and improves menu bar recovery after startup so the SaneBar icon stays fully configured.
+
+---
+
 ## [2.1.50] - 2026-05-09
 
 Improves Browse Icons drag reliability in Icon Panel and Second Menu Bar, keeps Always Hidden moves responsive, and includes the recent tint/full-screen compatibility and settings/menu polish fixes.
