@@ -486,6 +486,21 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Overlay appearance follows system style instead of activated app appearance")
+    func testResolvedOverlayAppearanceUsesSystemInterfaceStyle() {
+        let source = NSAppearance(named: .aqua)
+
+        let resolved = MenuBarAppearanceService.resolvedOverlayAppearance(
+            from: source,
+            systemInterfaceStyleName: "Dark"
+        )
+
+        #expect(
+            resolved?.bestMatch(from: MenuBarAppearanceService.supportedOverlayAppearances) == .darkAqua,
+            "App activation can report Aqua briefly; the menu-bar overlay should keep the system dark tint"
+        )
+    }
+
     @Test("Overlay appearance keeps nil when no appearance is available")
     func testResolvedOverlayAppearanceNil() {
         #expect(MenuBarAppearanceService.resolvedOverlayAppearance(from: nil) == nil)
@@ -522,6 +537,7 @@ struct MenuBarAppearanceServiceTests {
 
         #expect(appearanceCall.lowerBound < orderFrontCall.lowerBound)
         #expect(refreshBody.contains("if !window.isVisible"))
+        #expect(source.contains("systemInterfaceStyleName: Self.currentSystemInterfaceStyleName()"))
         #expect(!source.contains(#"@Environment(\.colorScheme)"#))
         #expect(!source.contains("colorScheme"))
     }

@@ -1,9 +1,18 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-11
 **Current public release:** `v2.1.50` (build `2150`)
+**Next release candidate:** `v2.1.51` (build `2151`)
 
 ## Current State
+
+- 2026-05-11 post-2.1.50 SaneBar `#142` follow-up is fixed in the `v2.1.51` release candidate, not released yet:
+  - Fresh reporter evidence showed the dark tint still turned black after reboot / Dock launches on `2.1.50`, and the logs were not only a tint issue: startup status-item validation looped through invalid windows, missing live coordinates, autosave namespace bumps, and the final diagnostics showed `mainButton.identifier: nil`.
+  - Root cause update: the appearance overlay still resolved light/dark from `NSApp.effectiveAppearance` on app activation, which can briefly reflect the activated app/window instead of the system menu-bar style. Also, status-item recreation manually rewired click handling but did not rerun `StatusBarController.configureStatusItems`, so the main button identity/icon/action contract could drift after recovery.
+  - Patch: `MenuBarAppearanceService` now resolves overlay tint mode from the global `AppleInterfaceStyle` while preserving high-contrast variants and still applies the resolved appearance before `orderFront`. `MenuBarManager.onItemsRecreated` now reruns `statusBarController.configureStatusItems(...)` before reinstalling hover tracking.
+  - Tests: added `MenuBarAppearanceServiceTests.testResolvedOverlayAppearanceUsesSystemInterfaceStyle` and a `RuntimeGuardXCTests` guard that structural recovery restores the controller-owned status-button configuration.
+  - Verification: Mini `./scripts/SaneMaster.rb test_scan` passed; Mini `./scripts/SaneMaster.rb verify --timeout 900` passed `1159` tests. `.claude/research.md` refreshed `sanebar-browse-ux` and `sanebar-browse-move` gates for the 2026-05-11 evidence.
+  - Public GitHub follow-up is approved to post after `v2.1.51` is live. Do not close `#142` until the fix ships and the reporter confirms.
 
 - 2026-05-09/10 SaneBar `v2.1.50` is live across the direct-download release lane:
   - Shipped commit sequence: `255672f` drag-stall fix, `7014b1b` version bump, `8e8ed83` site/version metadata, `2ee4f8d` release metadata.

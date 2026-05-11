@@ -32,17 +32,17 @@
 - Release/preflight/runtime smoke lessons, exact-ID smoke lanes, and tautology-test cleanup were promoted to Serena/memory.
 - February and March raw sections are expired unless a linked issue becomes active again.
 
-## sanebar-browse-ux | Updated: 2026-05-04 | Status: verified | TTL: 14d
-- Trigger: release guard blocked `release_preflight` for repeated Browse Icons / Second Menu Bar confusion reports.
-- Apple docs: `NSStatusItem.isVisible` can remain true even when temporarily hidden for insufficient menu bar space; do not use visibility alone as visual proof. Source: https://developer.apple.com/documentation/appkit/nsstatusitem/isvisible
-- Competitor/web: MacStories roundup notes Bartender-style tools rely on Accessibility/screen-observation because Apple provides no native menu-bar management API; Hidden Bar/Vanilla/Ice use divider/drawer/secondary-surface patterns. Source: https://www.macstories.net/roundups/managing-your-mac-menu-bar-a-roundup-of-my-favorite-bartender-alternatives/
-- GitHub/web: Ice Tahoe issue #679 reports no visible/hidden items even after permissions and restart, matching the broader Tahoe observability/permission fragility family. Source: https://github.com/jordanbaird/Ice/issues/679
-- Local finding: SaneBar release smoke now verifies both browse surfaces, but focused native Apple exact-ID smoke remains compatibility/open-close for browse activation. Host/third-party exact-ID lane is the release fixture for pinned Always Hidden browse activation.
-- Decision: Release can proceed only when Browse Icons/Second Menu Bar screenshots are visually inspected and focused host exact-ID browse activation passes after pinning the fixture Always Hidden.
+## sanebar-browse-ux | Updated: 2026-05-11 | Status: verified | TTL: 14d
+- Trigger: fresh `verify` guard blocked after post-2.1.50 issue work; repeated Browse Icons / Second Menu Bar confusion still requires current research before changes.
+- Apple docs: `NSStatusItem.isVisible` only means the item should be shown when there is room, so visual state still needs frame/window evidence and screenshots. Source: https://developer.apple.com/documentation/appkit/nsstatusitem/isvisible
+- Competitor/web: MacStories' Bartender alternatives roundup still shows the same divider/drawer/secondary-surface pattern across Hidden Bar, Vanilla, and Ice; no native Apple menu-bar management API replaces AX/window observation. Source: https://www.macstories.net/roundups/managing-your-mac-menu-bar-a-roundup-of-my-favorite-bartender-alternatives/
+- GitHub/web: Ice Tahoe issue #679 remains relevant for the Tahoe observability family: permissions can be granted while visible/hidden item discovery is empty.
+- Local finding: current #142 evidence is not a browse-panel UX report, but its logs overlap the same recovery substrate: repeated startup status-item validation failures, autosave namespace bumps, and later user interaction restoring usability.
+- Decision: Keep browse UX changes gated by visual inspection and exact-ID smoke. For #142, do not treat a tint-only patch as complete unless status-item recovery also preserves the main button identity after recreation.
 
-## sanebar-browse-move | Updated: 2026-05-04 | Status: verified | TTL: 14d
-- Trigger: release guard blocked `release_preflight` for repeated icon move / visibility mismatch reports.
-- GitHub local state: open issues #140, #142 are `release:patched-pending`; #141 is `release:needs-evidence`; #129/#136/#138 remain patched-pending, #137 compat-limited.
-- Local root cause: pinned Always Hidden browse activation needed `showAll()` rather than `showHiddenItemsNow()`, fresh on-screen target resolution, bounded AX messaging timeouts, WindowServer reaction checks, and right-click hardware dispatch acceptance only for freshly resolved on-screen targets.
-- Local verification: Mini `SaneMaster verify --timeout 900` passed after final patch; `live_zone_smoke_test.rb` passed 22/55; focused pinned-AH Lungo smoke passed; full QA runtime smoke passed with native compatibility lane and host exact-ID pinned-AH activation/move lane.
-- Decision: Treat system extras (Siri/Spotlight) as compatibility/move coverage, not universal pinned-AH activation proof. Treat stable third-party exact-ID smoke as the release-blocking regression lane.
+## sanebar-browse-move | Updated: 2026-05-11 | Status: verified | TTL: 14d
+- Trigger: fresh runtime research required before more icon move / visibility mismatch fixes.
+- GitHub local state: #136, #138, #140, #141, #143-#146 remain `release:patched-pending`; #137 remains `release:compat-limited`; #142 has new post-2.1.50 external evidence newer than the last maintainer reply.
+- GitHub evidence: #142's 2026-05-10/11 report shows startup recovery looping through invalid status-item windows and missing live coordinates, then a final diagnostic where `mainButton.identifier` is `nil` even though `action=statusItemClicked:` and windows are valid.
+- Local root cause update: recreated status items were manually rewired in `MenuBarManager.onItemsRecreated`, but the main button did not go back through `StatusBarController.configureStatusItems`, so the identifier/icon/action contract could drift after autosave recovery.
+- Decision: Recovery fixes must preserve controller-owned button configuration, then warm geometry/AX caches. Treat stable third-party exact-ID smoke as the release-blocking move lane; native system extras remain compatibility/open-close coverage.
