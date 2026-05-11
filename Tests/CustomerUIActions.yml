@@ -1,0 +1,129 @@
+version: 1
+app: SaneBar
+actions:
+  - id: menu-bar-reveal-hide-cycle
+    title: Menu bar reveal and hide controls are live
+    surfaces:
+      - Menu bar status items
+      - SaneBar separator item
+    steps:
+      - Launch the signed release build on the Mini.
+      - Trigger hide and reveal exactly through the shipped menu bar controls.
+      - Let auto-rehide settle after the interaction.
+    assertions:
+      - The separator stays before the main SaneBar item.
+      - Hidden items reveal and hide without losing the live right-side anchor.
+      - The app returns to idle without runaway CPU or memory.
+    evidence:
+      - Mini release runtime smoke transcript
+      - Mini resource watchdog receipt
+
+  - id: browse-icons-panel
+    title: Browse Icons panel opens, activates items, and closes correctly
+    surfaces:
+      - Browse Icons panel
+      - Menu bar icon tiles
+    steps:
+      - Open Browse Icons from the shipped app.
+      - Left-click a representative icon tile.
+      - Right-click a representative icon tile.
+      - Close the panel.
+    assertions:
+      - The panel opens anchored to the live menu bar geometry.
+      - Left-click activation succeeds from the Browse Icons surface.
+      - Right-click activation succeeds without returning focus to Finder.
+      - The panel closes cleanly after the action.
+    evidence:
+      - Mini AX and AppleScript click transcript
+      - Browse Icons screenshot
+
+  - id: second-menu-bar-panel
+    title: Second Menu Bar opens, activates items, and stays visible correctly
+    surfaces:
+      - Second Menu Bar window
+      - Menu bar icon tiles
+    steps:
+      - Open Second Menu Bar from the shipped app.
+      - Left-click a representative icon tile.
+      - Right-click a representative icon tile.
+      - Close the Second Menu Bar.
+    assertions:
+      - The Second Menu Bar appears with the expected content.
+      - Activating a tile reports a verified click result.
+      - The Second Menu Bar does not collapse immediately after activation.
+      - The window closes without leaving stale floating UI.
+    evidence:
+      - Mini AX and AppleScript click transcript
+      - Second Menu Bar screenshot
+
+  - id: icon-zone-move-actions
+    title: Icon move actions update Hidden, Visible, and Always Hidden zones
+    surfaces:
+      - Browse Icons panel
+      - Second Menu Bar
+      - Icon action menus
+    steps:
+      - Select representative Mini menu bar fixtures.
+      - Move each fixture to Visible.
+      - Move each fixture to Hidden.
+      - Move each fixture to Always Hidden.
+      - Restore the fixture zone.
+    assertions:
+      - Each move command changes the live zone to the requested zone.
+      - Shared-bundle Apple menu extras keep exact identity during verification.
+      - Always Hidden moves require and use a Pro-enabled release target.
+      - Restoring the fixture leaves the Mini menu bar in its prior state.
+    evidence:
+      - Mini exact-ID move transcript
+      - Before/after zone snapshot receipt
+
+  - id: settings-tabs-and-visual-state
+    title: Settings opens and renders the expected customer controls
+    surfaces:
+      - SaneBar Settings window
+    steps:
+      - Open Settings from the shipped app.
+      - Verify the window renders without blank, clipped, or disabled controls.
+      - Close Settings.
+    assertions:
+      - Settings opens from the live app command surface.
+      - The rendered window is capturable as a customer-visible surface.
+      - Closing Settings leaves no stuck modal or orphan window.
+    evidence:
+      - Settings screenshot
+      - Mini settings open/close transcript
+
+  - id: appearance-overlay-recovery
+    title: Custom menu bar appearance recovers after status item recreation
+    surfaces:
+      - Menu bar custom appearance overlay
+      - Menu bar recovery path
+    steps:
+      - Recreate the status items during the release runtime smoke.
+      - Refresh the custom appearance overlay after recovery.
+      - Confirm the overlay geometry is tied to a live or cached right-side anchor.
+    assertions:
+      - The hidden state is not restored before live geometry warmup.
+      - The overlay refreshes after status item recovery.
+      - The separator is never collapsed to an untrusted derived boundary.
+    evidence:
+      - Mini runtime recovery transcript
+      - Unit guard covering recovery warmup and overlay refresh
+
+  - id: startup-and-wake-recovery
+    title: Startup and wake recovery preserve customer-visible layout
+    surfaces:
+      - App launch
+      - Display wake recovery
+      - Menu bar status items
+    steps:
+      - Run the startup layout probe against the signed release build.
+      - Run wake/session recovery observers through the release runtime suite.
+      - Verify currentHost visibility cleanup and layout backup selection.
+    assertions:
+      - Current display backup beats stale ordinal seeds on startup.
+      - currentHost visibility overrides are cleared when needed.
+      - The app restores the intended layout after wake or session activation.
+    evidence:
+      - Mini startup layout probe artifact
+      - Mini release runtime smoke transcript
