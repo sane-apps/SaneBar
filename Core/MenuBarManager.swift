@@ -583,7 +583,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @MainActor
-    private func schedulePostRecoveryGeometryWarmup() {
+    private func schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: Bool = false) {
         Task { @MainActor [weak self] in
             guard let self else { return }
 
@@ -593,13 +593,21 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             await self.warmSeparatorPositionCache(maxAttempts: 32)
             await self.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)
 
-            let separatorBoundaryX = self.getSeparatorRightEdgeX()
-            let mainBoundaryX = self.getMainStatusItemLeftEdgeX()
-            if separatorBoundaryX != nil || mainBoundaryX != nil {
+            let separatorAnchorSource = self.currentSeparatorAnchorSource()
+            let hasTrustworthySeparatorAnchor = separatorAnchorSource == .live || separatorAnchorSource == .cached
+            if hasTrustworthySeparatorAnchor {
                 logger.info("Warmed status item geometry caches after structural recovery")
             } else {
                 logger.warning("Status item recovery completed before geometry caches could be re-warmed")
             }
+
+            if restoreHiddenStateAfterWarmup {
+                self.hidingService.applyCurrentStateToLiveItems()
+                self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
+                logger.info("Restored hidden state after post-recovery geometry warmup")
+            }
+
+            self.appearanceService.refreshAfterStatusItemRecovery()
         }
     }
 
@@ -674,7 +682,11 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.installMainStatusItemHoverTrackingArea(on: button)
             }
 
-            self.hidingService.reconfigure(delimiterItem: separator, preserving: preservedHidingState)
+            self.hidingService.reconfigure(
+                delimiterItem: separator,
+                preserving: preservedHidingState,
+                deferApplyingState: shouldRestoreHidden
+            )
             self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
             self.clearStatusItemMenus()
             self.updateMainIconVisibility()
@@ -682,7 +694,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateIconStyle()
             self.updateAlwaysHiddenSeparator()
             self.updateSpacers()
-            self.schedulePostRecoveryGeometryWarmup()
+            self.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)
 
             if shouldRestoreHidden {
                 logger.info("Preserved hidden state during status item recovery")

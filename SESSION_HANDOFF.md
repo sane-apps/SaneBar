@@ -1,12 +1,25 @@
 # Session Handoff — SaneBar
 
 **Last updated:** 2026-05-11
-**Current public release:** `v2.1.50` (build `2150`)
-**Next release candidate:** `v2.1.51` (build `2151`)
+**Current public release:** `v2.1.51` (build `2151`)
+**Next release candidate:** `v2.1.52` (build `2152`)
 
 ## Current State
 
-- 2026-05-11 post-2.1.50 SaneBar `#142` follow-up is fixed in the `v2.1.51` release candidate, not released yet:
+- 2026-05-11 post-`2.1.51` `#142` follow-up is fixed locally for the next patch release:
+  - Fresh `2.1.51` reporter evidence showed the main button identity fix worked (`mainButton.identifier: SaneBar.main`), but recovery could still restore hidden mode before a trustworthy separator anchor existed, leaving validation in estimated/missing-coordinate loops.
+  - Patch: status-item recovery now defers collapsing the replacement delimiter until post-recovery warmup gets a live/cached separator anchor or exhausts the bounded warmup window, then reapplies the preserved hidden state. Recovery warmup no longer treats estimated geometry as success.
+  - Patch: menu-bar appearance overlay refreshes now run after status-item recovery and on wake/screens-wake/session-active events, with longer delayed retries (`0.15`, `0.5`, `1.5`, `3.0` seconds) for VM/remote-window topology settling.
+  - Maintenance: split `MenuBarOverlayView`/view model and color helpers out of `MenuBarAppearanceService.swift`; the service file is now under the 800-line hard limit.
+  - Verification: Mini `./scripts/SaneMaster.rb test_scan` passed; Mini `./scripts/SaneMaster.rb verify --timeout 900` passed `1159` tests after the split.
+
+- 2026-05-11 SaneBar `v2.1.51` is live across the direct-download release lane:
+  - Release artifact: `https://dist.sanebar.com/updates/SaneBar-2.1.51.zip`; GitHub release `v2.1.51`; Homebrew cask `2.1.51`; appcast has exactly one `2.1.51` item; website download links are updated.
+  - Release ZIP SHA256: `5949bd98083ecaa8803cb001a1f8656288357151bf001249296c67cbfb681b6b`; size `9003898`; Sparkle signature `+DvJSwiH0bNJeJqL3zZgHP2PSsFmEh2Qe6jsH60XZ2VIWxsDKtWgitNzrzhzM3KDP0Vtqo0XYQPt6a5ZA8kRBg==`.
+  - Mini release verification passed `1157` tests, focused native exact-ID Siri/Spotlight smoke, and startup layout checks. Public GitHub reply posted to `sane-apps/SaneBar#142`; keep the issue open until reporter confirms the reboot/Dock-launch tint path.
+  - Release script published app/site/Homebrew successfully but initially failed at the email webhook push because the routed worker checkout used a stale local Mini remote. The canonical `sane-email-automation` worker was manually updated, tested, pushed, and deployed. Signed SaneBar customer download URL now includes `/updates/SaneBar-2.1.51.zip` and downloads the expected artifact.
+
+- 2026-05-11 post-2.1.50 SaneBar `#142` follow-up fixed in `v2.1.51`:
   - Fresh reporter evidence showed the dark tint still turned black after reboot / Dock launches on `2.1.50`, and the logs were not only a tint issue: startup status-item validation looped through invalid windows, missing live coordinates, autosave namespace bumps, and the final diagnostics showed `mainButton.identifier: nil`.
   - Root cause update: the appearance overlay still resolved light/dark from `NSApp.effectiveAppearance` on app activation, which can briefly reflect the activated app/window instead of the system menu-bar style. Also, status-item recreation manually rewired click handling but did not rerun `StatusBarController.configureStatusItems`, so the main button identity/icon/action contract could drift after recovery.
   - Patch: `MenuBarAppearanceService` now resolves overlay tint mode from the global `AppleInterfaceStyle` while preserving high-contrast variants and still applies the resolved appearance before `orderFront`. `MenuBarManager.onItemsRecreated` now reruns `statusBarController.configureStatusItems(...)` before reinstalling hover tracking.
