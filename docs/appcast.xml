@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                <item>
+                                                                                                                                                                                        <item>
+            <title>2.1.51</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 11 May 2026 14:05:47 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Keeps Custom Appearance tint stable after restart and Dock launches, and improves menu bar recovery after startup so the SaneBar icon stays fully configured.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.51.zip"
+                       sparkle:version="2151"
+                       sparkle:shortVersionString="2.1.51"
+                       length="9003898"
+                       type="application/octet-stream"
+                       sparkle:edSignature="+DvJSwiH0bNJeJqL3zZgHP2PSsFmEh2Qe6jsH60XZ2VIWxsDKtWgitNzrzhzM3KDP0Vtqo0XYQPt6a5ZA8kRBg=="/>
+        </item>
+<item>
             <title>2.1.50</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Sat, 09 May 2026 22:59:15 -0400</pubDate>
