@@ -413,7 +413,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private func applyResolvedAppearance() {
         guard let window = overlayWindow else { return }
 
-        let resolvedAppearance = Self.resolvedOverlayAppearance(from: NSApp.effectiveAppearance)
+        let resolvedAppearance = Self.resolvedOverlayAppearance(
+            from: NSApp.effectiveAppearance,
+            systemInterfaceStyleName: Self.currentSystemInterfaceStyleName()
+        )
         window.appearance = resolvedAppearance
         window.contentView?.appearance = resolvedAppearance
         overlayViewModel?.isDarkAppearance = Self.isDarkAppearance(resolvedAppearance)
@@ -464,29 +467,37 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         return URL(fileURLWithPath: trimmed).standardizedFileURL
     }
 
-    internal nonisolated static func resolvedOverlayAppearance(from appearance: NSAppearance?) -> NSAppearance? {
-        guard let appearance else { return nil }
+    internal nonisolated static let supportedOverlayAppearances: [NSAppearance.Name] = [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua]
 
-        let supportedAppearances: [NSAppearance.Name] = [
-            .aqua,
-            .darkAqua,
-            .accessibilityHighContrastAqua,
-            .accessibilityHighContrastDarkAqua
-        ]
-        guard let matchedName = appearance.bestMatch(from: supportedAppearances) else {
+    private nonisolated static func currentSystemInterfaceStyleName() -> String {
+        UserDefaults(suiteName: UserDefaults.globalDomain)?
+            .string(forKey: "AppleInterfaceStyle") ?? "Light"
+    }
+
+    internal nonisolated static func resolvedOverlayAppearance(
+        from appearance: NSAppearance?,
+        systemInterfaceStyleName: String? = nil
+    ) -> NSAppearance? {
+        if let systemInterfaceStyleName {
+            let currentMatch = appearance?.bestMatch(from: supportedOverlayAppearances)
+            let highContrast = currentMatch == .accessibilityHighContrastAqua ||
+                currentMatch == .accessibilityHighContrastDarkAqua
+            let resolvedName: NSAppearance.Name = systemInterfaceStyleName == "Dark"
+                ? (highContrast ? .accessibilityHighContrastDarkAqua : .darkAqua)
+                : (highContrast ? .accessibilityHighContrastAqua : .aqua)
+            return NSAppearance(named: resolvedName) ?? appearance
+        }
+
+        guard let appearance else { return nil }
+        guard let matchedName = appearance.bestMatch(from: supportedOverlayAppearances) else {
             return appearance
         }
         return NSAppearance(named: matchedName) ?? appearance
     }
 
     internal nonisolated static func isDarkAppearance(_ appearance: NSAppearance?) -> Bool {
-        let supportedAppearances: [NSAppearance.Name] = [
-            .aqua,
-            .darkAqua,
-            .accessibilityHighContrastAqua,
-            .accessibilityHighContrastDarkAqua
-        ]
-        let match = resolvedOverlayAppearance(from: appearance)?.bestMatch(from: supportedAppearances)
+        let match = resolvedOverlayAppearance(from: appearance)?
+            .bestMatch(from: supportedOverlayAppearances)
         return match == .darkAqua || match == .accessibilityHighContrastDarkAqua
     }
 

@@ -667,9 +667,10 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.pendingRecoveryHideRestore = false
 
             if let button = main.button {
-                button.action = #selector(statusItemClicked)
-                button.target = self
-                button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+                self.statusBarController.configureStatusItems(
+                    clickAction: #selector(statusItemClicked),
+                    target: self
+                )
                 self.installMainStatusItemHoverTrackingArea(on: button)
             }
 

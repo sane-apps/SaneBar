@@ -126,6 +126,12 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("self.schedulePostRecoveryGeometryWarmup()"),
             "Structural recovery should immediately re-warm separator geometry and AX caches so stale frames do not loop back into recovery"
         )
+        XCTAssertTrue(
+            source.contains("self.statusBarController.configureStatusItems(") &&
+                source.contains("clickAction: #selector(statusItemClicked)") &&
+                source.contains("self.installMainStatusItemHoverTrackingArea(on: button)"),
+            "Structural recovery should restore the main status button identifier, action, image, and hover tracking after recreation"
+        )
     }
 
     func testUninstallScriptClearsCurrentHostStatusItemState() throws {
