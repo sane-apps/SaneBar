@@ -12,6 +12,8 @@
   - Patch: menu-bar appearance overlay refreshes now run after status-item recovery and on wake/screens-wake/session-active events, with longer delayed retries (`0.15`, `0.5`, `1.5`, `3.0` seconds) for VM/remote-window topology settling.
   - Maintenance: split `MenuBarOverlayView`/view model and color helpers out of `MenuBarAppearanceService.swift`; the service file is now under the 800-line hard limit.
   - Verification: Mini `./scripts/SaneMaster.rb test_scan` passed; Mini `./scripts/SaneMaster.rb verify --timeout 900` passed `1159` tests after the split.
+  - Release QA hardening: added `Tests/CustomerUIActions.yml` plus `.sane/customer_ui_action_receipt.json` so SaneBar now has a release-blocking customer UI action contract. Fresh Mini screenshot-enabled preflight covered Browse Icons, Second Menu Bar, Settings, Hidden/Visible moves, Always Hidden moves, shared-bundle Focus, native Siri/Spotlight exact IDs, and startup layout recovery. `./scripts/SaneMaster.rb customer_ui_contract --json --no-exit` passes with 7 covered actions.
+  - Current release preflight state: screenshot-enabled Mini `SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight` reaches `Customer UI action contract... ✅ 7 action(s)` and is blocked only by the fast-release cadence guard requiring the exact manual approval phrase `MR. SANE APPROVES FAST RELEASE`.
 
 - 2026-05-11 SaneBar `v2.1.51` is live across the direct-download release lane:
   - Release artifact: `https://dist.sanebar.com/updates/SaneBar-2.1.51.zip`; GitHub release `v2.1.51`; Homebrew cask `2.1.51`; appcast has exactly one `2.1.51` item; website download links are updated.

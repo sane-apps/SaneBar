@@ -1,0 +1,40 @@
+{
+  "app": "SaneBar",
+  "status": "passed",
+  "host": "mini",
+  "generated_at": "2026-05-11T23:16:58Z",
+  "manifest_sha256": "caae71d2af3daeb3c87fff637193e3c71e74c7ec2e8118ff9056c6cf57cf4444",
+  "source_fingerprint": "2182776ab70bbe431d6aaa6728a537640fee267b39e7aae7cd72901677e09e3d",
+  "tested_action_ids": [
+    "menu-bar-reveal-hide-cycle",
+    "browse-icons-panel",
+    "second-menu-bar-panel",
+    "icon-zone-move-actions",
+    "settings-tabs-and-visual-state",
+    "appearance-overlay-recovery",
+    "startup-and-wake-recovery"
+  ],
+  "screenshots": [
+    "outputs/customer-ui/sanebar-secondMenuBar-20260511-231414.png",
+    "outputs/customer-ui/sanebar-findIcon-20260511-231415.png",
+    "outputs/customer-ui/sanebar-settings-20260511-231415.png"
+  ],
+  "evidence": {
+    "app_version": "2.1.51",
+    "app_build": "2151",
+    "mini_preflight": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight on 2026-05-11",
+    "mini_verify": "1159 tests passed on committed tree before release preflight",
+    "runtime_smoke": [
+      "Launch layout invariants passed: separator before main item and main near Control Center.",
+      "Second Menu Bar opened and was captured as sanebar-secondMenuBar-20260511-231414.png.",
+      "Browse Icons opened and was captured as sanebar-findIcon-20260511-231415.png.",
+      "Settings opened and was captured as sanebar-settings-20260511-231415.png.",
+      "Shared-bundle exact-id smoke passed for com.apple.menuextra.focusmode.",
+      "Native Apple exact-id smoke passed for com.apple.menuextra.siri and com.apple.menuextra.spotlight.",
+      "Hidden/Visible and Always Hidden move actions passed for Focus, Siri, and Spotlight.",
+      "Startup layout probe passed: current-width backup beats ordinal seeds, currentHost visibility overrides clear on startup, and autoRehide=false prevents launch hide.",
+      "Post-smoke idle budget passed with physical footprint below the 128 MB budget."
+    ],
+    "remaining_non_ui_blocker": "Release cadence guard requires the explicit manual approval phrase before publishing inside 24 hours of v2.1.51."
+  }
+}
