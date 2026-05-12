@@ -1184,7 +1184,6 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Clears persisted visibility overrides written by macOS after cmd-dragging
     /// a status item out of the menu bar.
     private static func clearPersistedVisibilityOverrides() {
-        let defaults = UserDefaults.standard
         var clearedAny = false
 
         // App-domain cleanup: all known SaneBar item namespaces, historical
@@ -1494,12 +1493,14 @@ final class StatusBarController: StatusBarControllerProtocol {
     private nonisolated static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
         let appKey = preferredPositionKey(for: autosaveName)
         UserDefaults.standard.set(value, forKey: appKey)
+        UserDefaults.standard.synchronize()
         setByHostPreferredPosition(value, forAutosaveName: autosaveName)
     }
 
     private nonisolated static func removePreferredPosition(forAutosaveName autosaveName: String) {
         let appKey = preferredPositionKey(for: autosaveName)
         UserDefaults.standard.removeObject(forKey: appKey)
+        UserDefaults.standard.synchronize()
         removeByHostPreferredPosition(forAutosaveName: autosaveName)
     }
 
