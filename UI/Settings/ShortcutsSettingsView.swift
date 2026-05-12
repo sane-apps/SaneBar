@@ -75,7 +75,7 @@ struct ShortcutsSettingsView: View {
                         }
                         CompactDivider()
                         HStack {
-                            Text("Show/Hide icons")
+                            Text("Show / Hide icons")
                             Spacer()
                             KeyboardShortcuts.Recorder(for: .toggleHiddenItems)
                                 .help("Toggle hidden icons visible or hidden")
