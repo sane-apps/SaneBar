@@ -26,11 +26,11 @@ actions:
       - SaneBar right-click status menu
     steps:
       - Open the status menu from the shipped app.
-      - Exercise Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, Settings, License, Check for Updates, About / Report a Bug, and Quit availability.
+      - Exercise Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit availability.
       - For destructive or externally visible commands, verify the menu item and first non-destructive surface, then cancel or close.
     assertions:
       - Every advertised status menu item is present, enabled when applicable, and wired to a selector.
-      - Browse Icons, Settings, License, Help / Repair, Check for Updates, and About / Report a Bug open the intended customer surface.
+      - Browse Icons, Settings, License, Help / Repair, Check for Updates, About / Report a Bug, and What's New when present open the intended customer surface.
       - Arrange Now completes without losing the live menu bar anchor.
       - Quit is present but is only invoked in an isolated end-of-run launch/quit check.
     evidence:
@@ -45,7 +45,7 @@ actions:
     steps:
       - Enable or use a release-like Dock-visible run.
       - Open the Dock menu.
-      - Verify Show All Icons plus shared Settings, License, Check for Updates, About / Report a Bug, and Quit commands.
+      - Verify Show All Icons plus shared Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit commands.
     assertions:
       - Dock menu commands are present and use the shared SaneUI utility actions.
       - Non-destructive commands open the same surfaces as the status menu.
