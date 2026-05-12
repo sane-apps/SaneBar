@@ -2,9 +2,9 @@
   "app": "SaneBar",
   "status": "passed",
   "host": "mini",
-  "generated_at": "2026-05-12T01:01:08Z",
+  "generated_at": "2026-05-12T01:07:28Z",
   "manifest_sha256": "b5f9e6a72cae4184c66a2c27b5d519bc9513ab7cff16c2cd35f75e82ec1a415e",
-  "source_fingerprint": "dd81243fec2e4c4566d2825ecba5404752c6462e457e678a43adafbe6e370abe",
+  "source_fingerprint": "6c392daf6c7abbc68e71903769782b2694b842eb1f8e85d85b9a9b72144e8552",
   "tested_action_ids": [
     "status-item-click-routes",
     "status-menu-command-actions",
@@ -37,13 +37,13 @@
     "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-secondMenuBar-20260512-005634.png",
     "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-findIcon-20260512-005635.png",
     "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-settings-20260512-005635.png",
-    "outputs/customer-ui/settings-control-20260512T010056Z.png",
-    "outputs/customer-ui/settings-rules-20260512T010056Z.png",
-    "outputs/customer-ui/settings-appearance-20260512T010056Z.png",
-    "outputs/customer-ui/settings-shortcuts-20260512T010056Z.png",
-    "outputs/customer-ui/settings-health-20260512T010056Z.png",
-    "outputs/customer-ui/settings-license-20260512T010056Z.png",
-    "outputs/customer-ui/settings-about-20260512T010056Z.png"
+    "outputs/customer-ui/settings-control-20260512T010717Z.png",
+    "outputs/customer-ui/settings-rules-20260512T010717Z.png",
+    "outputs/customer-ui/settings-appearance-20260512T010717Z.png",
+    "outputs/customer-ui/settings-shortcuts-20260512T010717Z.png",
+    "outputs/customer-ui/settings-health-20260512T010717Z.png",
+    "outputs/customer-ui/settings-license-20260512T010717Z.png",
+    "outputs/customer-ui/settings-about-20260512T010717Z.png"
   ],
   "evidence": {
     "app_version": "2.1.51",
@@ -51,13 +51,13 @@
     "mini_verify": "SaneMaster verify passed after customer UI contract expansion",
     "mini_release_preflight_runtime": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence",
     "settings_tab_sweep": [
-      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T010056Z.png",
-      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T010056Z.png",
-      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T010056Z.png",
-      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T010056Z.png",
-      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T010056Z.png",
-      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T010056Z.png",
-      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T010056Z.png"
+      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T010717Z.png",
+      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T010717Z.png",
+      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T010717Z.png",
+      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T010717Z.png",
+      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T010717Z.png",
+      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T010717Z.png",
+      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T010717Z.png"
     ],
     "url_routes": [
       "url_route=settings ok",
@@ -75,7 +75,7 @@
       "applescript=close browse panel ok output=true",
       "applescript=open settings window ok output=true",
       "applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run",
-      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T01:01:07.601 currentMode: secondMenuBar windowVisible: false windowFrame: x=1320.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 4 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T01:01:07.731 lastRelayoutReaso",
+      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T01:07:28.067 currentMode: secondMenuBar windowVisible: false windowFrame: x=1320.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 4 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T01:07:28.214 lastRelayoutReaso",
       "applescript=close settings window ok output=true"
     ],
     "runtime_smoke": [
