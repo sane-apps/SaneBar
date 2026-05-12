@@ -272,7 +272,7 @@ actions:
       - App Intents
       - AppleScript dictionary
     steps:
-      - Record, fire, and clear global hotkeys for Browse Icons, Show / Hide, Show, Hide, and Settings.
+      - Record, fire, and clear global hotkeys for Browse Icons, Show / Hide icons, Show, Hide, and Settings.
       - Click every automation Copy button and verify clipboard output.
       - Run sanebar://toggle, show, hide, search, settings, health, and repair.
       - Run App Intents for Toggle, Show, Hide, Apply Profile, and Quick Search.
@@ -312,14 +312,14 @@ actions:
       - Import preview sheet
       - Reset confirmation alert
     steps:
-      - Export settings to a temporary file.
+      - Click Export Settings and write a readable settings file to a temporary location.
       - Import exported settings and cancel at least one import preview.
-      - Import representative Bartender and Ice fixtures.
+      - Click Import Bartender and Import Ice with representative fixtures.
       - Open Reset to Defaults, cancel it, then run an isolated reset/restore scenario.
     assertions:
-      - Export writes a readable settings file.
+      - Export Settings writes a readable settings file.
       - Import preview shows expected differences and creates a rollback point before applying.
-      - Bartender and Ice import paths preserve local wizard and rescue state.
+      - Import Bartender and Import Ice preserve local wizard and rescue state.
       - Reset confirmation is required and reset recreates live status items safely.
     evidence:
       - Mini import/export transcript

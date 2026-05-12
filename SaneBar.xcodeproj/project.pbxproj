@@ -100,6 +100,7 @@
 		C601ED301E952DF913D1DCF8 /* StressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */; };
 		C6D235BA832CD11B9DAE6ADD /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1905495077B20635EBB95815 /* MenuBarManager.swift */; };
 		C8BE0F2DA79D48E5DCB1AB88 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 559CC16A1F18750B4B3C5181 /* main.swift */; };
+		CB537E9472B58A6D3FB6C463 /* CustomerUIActions.yml in Resources */ = {isa = PBXBuildFile; fileRef = 9BBC448625CE1A729E883B67 /* CustomerUIActions.yml */; };
 		D2871B156F56853B56E41C06 /* ScheduleTriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9CD7B77F3337BB1C6362A41 /* ScheduleTriggerService.swift */; };
 		D325DC9CDAAB48158A818FFF /* MenuBarOperationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A082B5A938BDAC46C4462DC /* MenuBarOperationCoordinator.swift */; };
 		D380B5F6DA8F9378FBE90A23 /* AccessibilityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41439DA42C1E6C2FB079D071 /* AccessibilityServiceTests.swift */; };
@@ -118,6 +119,7 @@
 		F3CF0B2E82F641BEE867C5A8 /* BartenderImportService+Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0F393788F31906EE3733BB /* BartenderImportService+Preview.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
 		F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */; };
+		F7ED414431C97B5A1BA9FA84 /* CustomerUIActionContractXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB47B74A70ECF1C07DE9899 /* CustomerUIActionContractXCTests.swift */; };
 		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
 		F9052AA7B4B05AF38C20D134 /* LicenseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03C6BAC13E153AFBB2FC78C /* LicenseService.swift */; };
 		F989BD2C0C70795F414A16B7 /* MenuBarManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B8F87A5FFE2F2F93CB39EF /* MenuBarManagerTests.swift */; };
@@ -199,6 +201,7 @@
 		86E43D8C4F0157E62129DA8C /* AccessibilityService+MenuExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+MenuExtras.swift"; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
+		9BBC448625CE1A729E883B67 /* CustomerUIActions.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = CustomerUIActions.yml; sourceTree = "<group>"; };
 		9C742574D88EB9D36FD7B9DA /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
 		9C93098AD1E0E439617BC84B /* RulesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesSettingsView.swift; sourceTree = "<group>"; };
 		9D898AFE92B22CE32B8CB084 /* SecondMenuBarDropXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondMenuBarDropXCTests.swift; sourceTree = "<group>"; };
@@ -229,6 +232,7 @@
 		CDAF4FCD6C1F89B41AF9B3CD /* StressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StressTests.swift; sourceTree = "<group>"; };
 		CE5A542C8A14777015A6DBF1 /* MenuBarSearchView+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarSearchView+Actions.swift"; sourceTree = "<group>"; };
 		CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Cache.swift"; sourceTree = "<group>"; };
+		CFB47B74A70ECF1C07DE9899 /* CustomerUIActionContractXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomerUIActionContractXCTests.swift; sourceTree = "<group>"; };
 		D09AE59754E6F1AFF593D071 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		D221A5C7682EA4CBDB3E1399 /* FocusModeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModeService.swift; sourceTree = "<group>"; };
 		D3C979E73A0782B57994ACEB /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
@@ -328,6 +332,8 @@
 				B41CB60FD0C491252BA1E72A /* AlwaysHiddenTests.swift */,
 				73AFDDAD60438791551A8B50 /* AppleScriptCommandsTests.swift */,
 				00E9680E1146BC9D47C86081 /* BartenderImportServiceTests.swift */,
+				CFB47B74A70ECF1C07DE9899 /* CustomerUIActionContractXCTests.swift */,
+				9BBC448625CE1A729E883B67 /* CustomerUIActions.yml */,
 				5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */,
 				EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
@@ -521,6 +527,7 @@
 			buildConfigurationList = 6AFCDAF3F1C0A43572986D8F /* Build configuration list for PBXNativeTarget "SaneBarTests" */;
 			buildPhases = (
 				6CB7510505531FA222E573BD /* Sources */,
+				601E591DC52EEB5CF9D43944 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -600,6 +607,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		601E591DC52EEB5CF9D43944 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB537E9472B58A6D3FB6C463 /* CustomerUIActions.yml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FEB2BBAEB007C7EC59786730 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -663,6 +678,7 @@
 				FB0BEE3305F10FDF840ED278 /* AlwaysHiddenTests.swift in Sources */,
 				81DC7704C8927588BF8B325A /* AppleScriptCommandsTests.swift in Sources */,
 				357F28E6F430EBE6D344A98D /* BartenderImportServiceTests.swift in Sources */,
+				F7ED414431C97B5A1BA9FA84 /* CustomerUIActionContractXCTests.swift in Sources */,
 				DCD7859B590532E39241C485 /* EventTrackerTests.swift in Sources */,
 				A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
@@ -811,7 +827,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -821,7 +837,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D SETAPP";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
@@ -979,7 +995,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -989,7 +1005,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1159,7 +1175,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1169,7 +1185,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.dev;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1207,7 +1223,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1217,7 +1233,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1238,7 +1254,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = NO;
@@ -1250,7 +1266,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D APP_STORE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
@@ -1342,7 +1358,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2151;
+				CURRENT_PROJECT_VERSION = 2152;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1352,7 +1368,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.51;
+				MARKETING_VERSION = 2.1.52;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
