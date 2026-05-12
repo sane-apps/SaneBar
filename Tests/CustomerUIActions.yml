@@ -1,129 +1,414 @@
 version: 1
 app: SaneBar
 actions:
-  - id: menu-bar-reveal-hide-cycle
-    title: Menu bar reveal and hide controls are live
+  - id: status-item-click-routes
+    title: Status item left, right, and option-click routes are live
     surfaces:
       - Menu bar status items
       - SaneBar separator item
     steps:
-      - Launch the signed release build on the Mini.
-      - Trigger hide and reveal exactly through the shipped menu bar controls.
-      - Let auto-rehide settle after the interaction.
+      - Launch the signed release-like build on the Mini.
+      - Left-click the SaneBar menu bar item with both left-click modes: toggle hidden items and open Browse Icons.
+      - Option-click the SaneBar menu bar item.
+      - Right-click or control-click the SaneBar menu bar item.
     assertions:
-      - The separator stays before the main SaneBar item.
-      - Hidden items reveal and hide without losing the live right-side anchor.
-      - The app returns to idle without runaway CPU or memory.
+      - Left-click toggles hidden icons or opens the configured Browse Icons surface.
+      - Option-click always opens the Icon Panel Browse Icons surface.
+      - Right-click opens the status menu without toggling hidden icons.
+      - The separator stays before the main SaneBar item after each route.
     evidence:
-      - Mini release runtime smoke transcript
-      - Mini resource watchdog receipt
+      - Mini click transcript
+      - Mini layout snapshot before and after click routes
 
-  - id: browse-icons-panel
-    title: Browse Icons panel opens, activates items, and closes correctly
+  - id: status-menu-command-actions
+    title: Status menu customer commands open or act from the shipped menu
     surfaces:
-      - Browse Icons panel
-      - Menu bar icon tiles
+      - SaneBar right-click status menu
+    steps:
+      - Open the status menu from the shipped app.
+      - Exercise Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, Settings, License, Check for Updates, About / Report a Bug, and Quit availability.
+      - For destructive or externally visible commands, verify the menu item and first non-destructive surface, then cancel or close.
+    assertions:
+      - Every advertised status menu item is present, enabled when applicable, and wired to a selector.
+      - Browse Icons, Settings, License, Help / Repair, Check for Updates, and About / Report a Bug open the intended customer surface.
+      - Arrange Now completes without losing the live menu bar anchor.
+      - Quit is present but is only invoked in an isolated end-of-run launch/quit check.
+    evidence:
+      - Mini AX menu transcript
+      - Menu selector unit guard
+      - Settings, License, Health, and About screenshots
+
+  - id: dock-menu-command-actions
+    title: Dock menu utility commands are reachable
+    surfaces:
+      - Dock menu
+    steps:
+      - Enable or use a release-like Dock-visible run.
+      - Open the Dock menu.
+      - Verify Show All Icons plus shared Settings, License, Check for Updates, About / Report a Bug, and Quit commands.
+    assertions:
+      - Dock menu commands are present and use the shared SaneUI utility actions.
+      - Non-destructive commands open the same surfaces as the status menu.
+      - Quit is verified in isolation and does not leave duplicate app instances.
+    evidence:
+      - Mini Dock menu transcript
+      - Shared utility menu source guard
+
+  - id: browse-icons-search-navigation
+    title: Browse Icons opens, searches, navigates, and closes
+    surfaces:
+      - Browse Icons Icon Panel
+      - Search field
+      - Category and group tabs
+      - Help popover
     steps:
       - Open Browse Icons from the shipped app.
+      - Type a query, clear it, switch tabs, use keyboard navigation, and close the panel.
+      - Open and close the help popover.
+    assertions:
+      - The panel opens anchored to live menu bar geometry.
+      - Search filters visible rows and clear restores the full list.
+      - Arrow and Return navigation activate the highlighted icon or keep focus in the panel as designed.
+      - Escape or close dismisses the panel and re-arms auto-rehide.
+    evidence:
+      - Mini Browse Icons screenshot
+      - Mini AX and AppleScript transcript
+
+  - id: browse-icons-icon-context-actions
+    title: Browse Icons icon tiles execute context actions
+    surfaces:
+      - Browse Icons icon tiles
+      - Icon context menu
+    steps:
       - Left-click a representative icon tile.
       - Right-click a representative icon tile.
-      - Close the panel.
+      - Use Left-Click, Right-Click, Set Hotkey, Copy Icon ID, Move to Visible, Move to Hidden, Move to Always Hidden, and Remove from Group where applicable.
     assertions:
-      - The panel opens anchored to the live menu bar geometry.
-      - Left-click activation succeeds from the Browse Icons surface.
-      - Right-click activation succeeds without returning focus to Finder.
-      - The panel closes cleanly after the action.
+      - Left-click and Right-click produce verified activation diagnostics.
+      - Copy Icon ID writes the expected identifier.
+      - Set Hotkey opens the hotkey recorder without changing unrelated shortcuts.
+      - Move commands update the live zone and restore the fixture afterward.
+      - Destructive Remove from Group is confirmed or cancelled without corrupting the group.
     evidence:
-      - Mini AX and AppleScript click transcript
-      - Browse Icons screenshot
+      - Mini icon action transcript
+      - Before/after zone snapshot receipt
 
-  - id: second-menu-bar-panel
-    title: Second Menu Bar opens, activates items, and stays visible correctly
+  - id: second-menu-bar-actions
+    title: Second Menu Bar opens, searches, activates, and edits rows
     surfaces:
       - Second Menu Bar window
-      - Menu bar icon tiles
+      - Hidden, Visible, and Always Hidden rows
+      - Second Menu Bar toolbar
     steps:
-      - Open Second Menu Bar from the shipped app.
-      - Left-click a representative icon tile.
-      - Right-click a representative icon tile.
-      - Close the Second Menu Bar.
+      - Open the Second Menu Bar from the shipped app.
+      - Search and clear search.
+      - Open Settings and Help from the toolbar, then close them.
+      - Left-click, right-click, copy ID, and move representative icons from the row context menu.
+      - Toggle row visibility chips where available.
     assertions:
-      - The Second Menu Bar appears with the expected content.
-      - Activating a tile reports a verified click result.
-      - The Second Menu Bar does not collapse immediately after activation.
-      - The window closes without leaving stale floating UI.
+      - The Second Menu Bar appears with expected rows and remains open after activation.
+      - Search, Help, Settings, and Close controls are live.
+      - Row context actions have the same activation and move behavior as Browse Icons.
+      - Row visibility controls update the rendered rows and persist.
     evidence:
-      - Mini AX and AppleScript click transcript
-      - Second Menu Bar screenshot
+      - Mini Second Menu Bar screenshot
+      - Mini AX and AppleScript transcript
 
-  - id: icon-zone-move-actions
-    title: Icon move actions update Hidden, Visible, and Always Hidden zones
+  - id: icon-zone-move-reorder-always-hidden
+    title: Icon move, reorder, and Always Hidden behavior is complete
     surfaces:
       - Browse Icons panel
       - Second Menu Bar
       - Icon action menus
+      - Always Hidden section
     steps:
-      - Select representative Mini menu bar fixtures.
-      - Move each fixture to Visible.
-      - Move each fixture to Hidden.
-      - Move each fixture to Always Hidden.
+      - Select representative exact-ID menu bar fixtures.
+      - Move each fixture to Visible, Hidden, and Always Hidden.
+      - Reorder an icon within a zone.
+      - Reveal hidden icons while an Always Hidden fixture is pinned.
       - Restore the fixture zone.
     assertions:
       - Each move command changes the live zone to the requested zone.
+      - Reordering does not collapse the separator or move the main SaneBar item.
+      - Always Hidden items remain hidden during a normal reveal.
       - Shared-bundle Apple menu extras keep exact identity during verification.
-      - Always Hidden moves require and use a Pro-enabled release target.
-      - Restoring the fixture leaves the Mini menu bar in its prior state.
+      - Restoring fixtures leaves the Mini menu bar in its prior state.
     evidence:
       - Mini exact-ID move transcript
       - Before/after zone snapshot receipt
 
-  - id: settings-tabs-and-visual-state
-    title: Settings opens and renders the expected customer controls
+  - id: icon-hotkeys-and-groups
+    title: Per-icon hotkeys and icon groups behave as customer features
     surfaces:
-      - SaneBar Settings window
+      - Icon hotkey recorder
+      - Smart category tabs
+      - Custom groups
+      - Group deletion and remove-from-group confirmation
+    steps:
+      - Record, fire, and clear a representative per-icon hotkey.
+      - Switch each smart category tab.
+      - Create a custom group, add an icon, remove it, and delete the group.
+    assertions:
+      - Recorded hotkeys persist and activate the target icon.
+      - Smart tabs filter the expected icon population.
+      - Custom group create, add, remove, and delete flows persist correctly.
+      - Destructive group actions require confirmation or are cancelled cleanly.
+    evidence:
+      - Mini group and hotkey transcript
+      - Persistence unit guard
+
+  - id: settings-shell-tabs-render
+    title: Settings shell and every tab render correctly
+    surfaces:
+      - Settings window
+      - Control tab
+      - Rules tab
+      - Appearance tab
+      - Shortcuts tab
+      - Health tab
+      - License tab
+      - About tab
     steps:
       - Open Settings from the shipped app.
-      - Verify the window renders without blank, clipped, or disabled controls.
+      - Select every tab.
+      - Capture the window on every tab.
       - Close Settings.
     assertions:
-      - Settings opens from the live app command surface.
-      - The rendered window is capturable as a customer-visible surface.
+      - Every tab renders without blank, clipped, overlapping, or disabled-by-mistake controls.
+      - Shared SaneUI Settings, License, and About chrome is used.
       - Closing Settings leaves no stuck modal or orphan window.
     evidence:
-      - Settings screenshot
-      - Mini settings open/close transcript
+      - Mini settings tab screenshot set
+      - Mini tab navigation transcript
 
-  - id: appearance-overlay-recovery
-    title: Custom menu bar appearance recovers after status item recreation
+  - id: control-settings-actions
+    title: Control settings update customer behavior
     surfaces:
-      - Menu bar custom appearance overlay
-      - Menu bar recovery path
+      - Settings Control tab
     steps:
-      - Recreate the status items during the release runtime smoke.
-      - Refresh the custom appearance overlay after recovery.
-      - Confirm the overlay geometry is tied to a live or cached right-side anchor.
+      - Switch Browse Icons view between Icon Panel and Second Menu Bar.
+      - Change Second Menu Bar row presets and custom rows.
+      - Change left-click behavior.
+      - Toggle auto-hide, hide-on-app-change, external monitor behavior, hover reveal, scroll reveal, drag reveal, hide app menus during inline reveal, and hide-new-items behavior.
+      - Adjust rehide delays and hover delay.
+      - Toggle login item and Dock icon controls where non-destructive.
+      - Toggle update auto-check and frequency, then click Check Now.
     assertions:
-      - The hidden state is not restored before live geometry warmup.
-      - The overlay refreshes after status item recovery.
-      - The separator is never collapsed to an untrusted derived boundary.
+      - Each control updates persisted settings and the next customer interaction follows the new setting.
+      - Timing controls clamp to expected ranges.
+      - Startup and Dock controls use the shared SaneUI components.
+      - Check Now opens the update flow or reports non-release status without hanging.
     evidence:
-      - Mini runtime recovery transcript
-      - Unit guard covering recovery warmup and overlay refresh
+      - Mini settings action transcript
+      - Persistence and update source guards
 
-  - id: startup-and-wake-recovery
-    title: Startup and wake recovery preserve customer-visible layout
+  - id: profiles-save-load-delete-apply
+    title: Profiles save, load, delete, and apply across surfaces
+    surfaces:
+      - Settings Control tab
+      - Status menu Profiles submenu
+      - App Intent Apply Profile
+    steps:
+      - Save the current layout as a profile.
+      - Load the profile from Settings.
+      - Apply the profile from the status menu.
+      - Apply the profile through the App Intent path.
+      - Delete the profile and cancel at least one destructive delete.
+    assertions:
+      - Saved profiles persist and are visible in every customer surface.
+      - Loading or applying a profile preserves Health Wizard and Layout Rescue state.
+      - Deleting a profile removes it from every surface without touching unrelated settings.
+    evidence:
+      - Mini profile transcript
+      - Profile persistence unit guard
+
+  - id: rules-trigger-actions
+    title: Rules triggers can be configured and fired or safely simulated
+    surfaces:
+      - Settings Rules tab
+    steps:
+      - Toggle low battery, app launch, schedule, Wi-Fi, Focus, and script triggers.
+      - Change thresholds, weekdays, times, selected apps, networks, Focus modes, trigger action, and apply-profile choices.
+      - Add and remove representative app/network/focus/script entries.
+      - Run script-trigger test or simulation where available.
+    assertions:
+      - Every trigger control persists and validates input.
+      - Add/remove controls update the visible lists.
+      - Runtime firing or deterministic simulation runs the configured action without blocking the app.
+      - Pro-only trigger controls show the Pro gate in Basic mode.
+    evidence:
+      - Mini Rules tab transcript
+      - Trigger service unit guards
+
+  - id: appearance-customization-actions
+    title: Appearance controls update visible output and recover
+    surfaces:
+      - Settings Appearance tab
+      - Menu bar appearance overlay
+      - Menu bar icon and dividers
+    steps:
+      - Change menu bar icon style and custom icon chooser path.
+      - Change divider style, visual divider count, and divider look.
+      - Toggle custom appearance, translucent background, colors, opacity, shadow, border, rounding, and corner radius.
+      - Toggle spacing and click-area controls, then restore system defaults.
+      - Recreate status items and wake/session observers after appearance changes.
+    assertions:
+      - Visual controls update persisted settings and rendered output.
+      - System spacing changes are reversible and clearly communicate logout requirements.
+      - The custom appearance overlay refreshes after status item recovery.
+      - No text or controls are clipped after appearance changes.
+    evidence:
+      - Mini appearance screenshots
+      - Overlay recovery transcript
+      - MenuBarAppearanceService unit guard
+
+  - id: shortcuts-and-automation-actions
+    title: Shortcuts, URL schemes, App Intents, and AppleScript are equivalent entry points
+    surfaces:
+      - Settings Shortcuts tab
+      - Global hotkey recorders
+      - Automation command copy buttons
+      - URL scheme
+      - App Intents
+      - AppleScript dictionary
+    steps:
+      - Record, fire, and clear global hotkeys for Browse Icons, Show / Hide, Show, Hide, and Settings.
+      - Click every automation Copy button and verify clipboard output.
+      - Run sanebar://toggle, show, hide, search, settings, health, and repair.
+      - Run App Intents for Toggle, Show, Hide, Apply Profile, and Quick Search.
+      - Run AppleScript commands for toggle, show, hide, open/close panels, open/close settings, list icons/zones, activate/right-click icon, and move/show/hide icon.
+    assertions:
+      - Each automation entry point reaches the same behavior as the UI action.
+      - Copy buttons copy exact documented commands.
+      - Auth and Pro gates return explicit errors instead of silently succeeding.
+      - AppleScript read commands do not deadlock the main thread.
+    evidence:
+      - Mini automation transcript
+      - AppleScript and App Intent source guards
+
+  - id: health-repair-rescue-diagnostics
+    title: Health, repair, rescue, and diagnostics actions work
+    surfaces:
+      - Settings Health tab
+      - First-run Health Wizard
+      - Help / Repair status menu item
+    steps:
+      - Open Health from Settings and Help / Repair.
+      - Click Open Accessibility, Fix Geometry, Fix SaneBar Items, Stability/Live layout mode controls, Arrange Now, Save Current Layout, Restore Last Good Layout, and Copy Report.
+      - Exercise the first-run Health Wizard path.
+    assertions:
+      - Permission buttons open System Settings without hanging SaneBar.
+      - Repair and Arrange Now refresh menu bar layout and keep SaneBar anchors valid.
+      - Layout Rescue create/restore persists and restores a valid snapshot.
+      - Copy Report places diagnostics text on the clipboard.
+    evidence:
+      - Mini Health tab transcript
+      - Layout Rescue unit guard
+
+  - id: data-import-export-reset-actions
+    title: Export, import, migration, and reset flows are safe
+    surfaces:
+      - Settings Control tab Data section
+      - Import preview sheet
+      - Reset confirmation alert
+    steps:
+      - Export settings to a temporary file.
+      - Import exported settings and cancel at least one import preview.
+      - Import representative Bartender and Ice fixtures.
+      - Open Reset to Defaults, cancel it, then run an isolated reset/restore scenario.
+    assertions:
+      - Export writes a readable settings file.
+      - Import preview shows expected differences and creates a rollback point before applying.
+      - Bartender and Ice import paths preserve local wizard and rescue state.
+      - Reset confirmation is required and reset recreates live status items safely.
+    evidence:
+      - Mini import/export transcript
+      - Import and reset unit guards
+
+  - id: onboarding-basic-pro-permission-actions
+    title: Onboarding covers Basic, Pro, permissions, import, and existing-customer paths
+    surfaces:
+      - First-launch onboarding window
+      - Plan selection cards
+      - Accessibility step
+      - Competitor import step
+      - License entry and restore controls
+    steps:
+      - Run a clean-state first launch.
+      - Navigate Back, Next, and Get Started.
+      - Select Basic and Pro plan cards.
+      - Click Import Layout or Import Settings for Bartender and Ice paths.
+      - Click Open Accessibility Settings.
+      - Click Unlock Pro, Restore Purchases, and existing-customer license entry without completing a real purchase.
+    assertions:
+      - Every onboarding button is visible and reachable in the fixed window.
+      - Accessibility and import flows explain the required action and return safely.
+      - Purchase/restore/license controls are live but do not complete external transactions during QA.
+      - Completing onboarding shows the Health Wizard when required.
+    evidence:
+      - Mini clean-state onboarding transcript
+      - Onboarding screenshot set
+
+  - id: license-about-support-actions
+    title: License, About, support, and external links are live and cancelable
+    surfaces:
+      - License tab
+      - About tab
+      - Pro upsell window
+      - Feedback/report bug sheet
+    steps:
+      - Open License from Settings, status menu, Dock menu, and Pro gates.
+      - Click Unlock Pro, Restore Purchases, Enter License Key, Activate, Cancel, and Deactivate where applicable without completing a real purchase.
+      - Open About, Licenses, GitHub, View Issues, Report a Bug, add/remove feedback attachments, copy report, and cancel.
+    assertions:
+      - License state and Basic/Pro gates agree across all surfaces.
+      - Purchase and restore flows open the expected system or checkout path without double-submitting.
+      - License activation handles empty/invalid input with visible errors and valid test keys in test mode.
+      - About and Report a Bug flows use shared SaneUI and never expose stale mailto paths.
+    evidence:
+      - Mini license/about/support transcript
+      - SaneUI shared surface source guard
+
+  - id: pro-basic-gating-actions
+    title: Basic and Pro boundaries are enforced at every customer action
+    surfaces:
+      - Browse Icons
+      - Second Menu Bar
+      - Settings
+      - Onboarding
+      - Automation entry points
+    steps:
+      - Run the action matrix in Basic mode.
+      - Run Pro-only move, Always Hidden, custom groups, rules, import/export, appearance, shortcuts, and automation actions.
+      - Switch to Pro test mode and repeat the same actions.
+    assertions:
+      - Basic mode can browse and click icons but cannot silently perform Pro-only changes.
+      - Pro-only UI opens the Pro gate or returns a clear automation error in Basic mode.
+      - Pro mode performs the action and persists the result.
+      - Counts, labels, and enabled states never imply a Pro action succeeded in Basic mode.
+    evidence:
+      - Mini Basic and Pro transcript
+      - License mode receipt
+
+  - id: startup-wake-appearance-recovery
+    title: Startup, wake, and appearance recovery preserve customer-visible layout
     surfaces:
       - App launch
       - Display wake recovery
       - Menu bar status items
+      - Custom menu bar appearance overlay
     steps:
-      - Run the startup layout probe against the signed release build.
-      - Run wake/session recovery observers through the release runtime suite.
-      - Verify currentHost visibility cleanup and layout backup selection.
+      - Run the startup layout probe against the signed release-like build.
+      - Recreate status items during runtime smoke.
+      - Run wake/session/display recovery observers.
+      - Confirm overlay refresh after status item recovery.
     assertions:
       - Current display backup beats stale ordinal seeds on startup.
       - currentHost visibility overrides are cleared when needed.
-      - The app restores the intended layout after wake or session activation.
+      - The app restores intended layout after wake or session activation.
+      - The custom appearance overlay stays tied to live or cached right-side anchors.
+      - The app returns to idle within CPU and memory budgets.
     evidence:
       - Mini startup layout probe artifact
       - Mini release runtime smoke transcript
+      - Mini resource watchdog receipt

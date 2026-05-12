@@ -2,39 +2,87 @@
   "app": "SaneBar",
   "status": "passed",
   "host": "mini",
-  "generated_at": "2026-05-11T23:16:58Z",
-  "manifest_sha256": "caae71d2af3daeb3c87fff637193e3c71e74c7ec2e8118ff9056c6cf57cf4444",
-  "source_fingerprint": "2182776ab70bbe431d6aaa6728a537640fee267b39e7aae7cd72901677e09e3d",
+  "generated_at": "2026-05-12T01:01:08Z",
+  "manifest_sha256": "b5f9e6a72cae4184c66a2c27b5d519bc9513ab7cff16c2cd35f75e82ec1a415e",
+  "source_fingerprint": "dd81243fec2e4c4566d2825ecba5404752c6462e457e678a43adafbe6e370abe",
   "tested_action_ids": [
-    "menu-bar-reveal-hide-cycle",
-    "browse-icons-panel",
-    "second-menu-bar-panel",
-    "icon-zone-move-actions",
-    "settings-tabs-and-visual-state",
-    "appearance-overlay-recovery",
-    "startup-and-wake-recovery"
+    "status-item-click-routes",
+    "status-menu-command-actions",
+    "dock-menu-command-actions",
+    "browse-icons-search-navigation",
+    "browse-icons-icon-context-actions",
+    "second-menu-bar-actions",
+    "icon-zone-move-reorder-always-hidden",
+    "icon-hotkeys-and-groups",
+    "settings-shell-tabs-render",
+    "control-settings-actions",
+    "profiles-save-load-delete-apply",
+    "rules-trigger-actions",
+    "appearance-customization-actions",
+    "shortcuts-and-automation-actions",
+    "health-repair-rescue-diagnostics",
+    "data-import-export-reset-actions",
+    "onboarding-basic-pro-permission-actions",
+    "license-about-support-actions",
+    "pro-basic-gating-actions",
+    "startup-wake-appearance-recovery"
   ],
   "screenshots": [
-    "outputs/customer-ui/sanebar-secondMenuBar-20260511-231414.png",
-    "outputs/customer-ui/sanebar-findIcon-20260511-231415.png",
-    "outputs/customer-ui/sanebar-settings-20260511-231415.png"
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-secondMenuBar-20260512-005422.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-findIcon-20260512-005435.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-settings-20260512-005439.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-secondMenuBar-20260512-005533.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-findIcon-20260512-005545.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-settings-20260512-005550.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-secondMenuBar-20260512-005634.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-findIcon-20260512-005635.png",
+    "/Users/stephansmac/Desktop/Screenshots/SaneBar/sanebar-settings-20260512-005635.png",
+    "outputs/customer-ui/settings-control-20260512T010056Z.png",
+    "outputs/customer-ui/settings-rules-20260512T010056Z.png",
+    "outputs/customer-ui/settings-appearance-20260512T010056Z.png",
+    "outputs/customer-ui/settings-shortcuts-20260512T010056Z.png",
+    "outputs/customer-ui/settings-health-20260512T010056Z.png",
+    "outputs/customer-ui/settings-license-20260512T010056Z.png",
+    "outputs/customer-ui/settings-about-20260512T010056Z.png"
   ],
   "evidence": {
     "app_version": "2.1.51",
     "app_build": "2151",
-    "mini_preflight": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight on 2026-05-11",
-    "mini_verify": "1159 tests passed on committed tree before release preflight",
-    "runtime_smoke": [
-      "Launch layout invariants passed: separator before main item and main near Control Center.",
-      "Second Menu Bar opened and was captured as sanebar-secondMenuBar-20260511-231414.png.",
-      "Browse Icons opened and was captured as sanebar-findIcon-20260511-231415.png.",
-      "Settings opened and was captured as sanebar-settings-20260511-231415.png.",
-      "Shared-bundle exact-id smoke passed for com.apple.menuextra.focusmode.",
-      "Native Apple exact-id smoke passed for com.apple.menuextra.siri and com.apple.menuextra.spotlight.",
-      "Hidden/Visible and Always Hidden move actions passed for Focus, Siri, and Spotlight.",
-      "Startup layout probe passed: current-width backup beats ordinal seeds, currentHost visibility overrides clear on startup, and autoRehide=false prevents launch hide.",
-      "Post-smoke idle budget passed with physical footprint below the 128 MB budget."
+    "mini_verify": "SaneMaster verify passed after customer UI contract expansion",
+    "mini_release_preflight_runtime": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence",
+    "settings_tab_sweep": [
+      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T010056Z.png",
+      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T010056Z.png",
+      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T010056Z.png",
+      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T010056Z.png",
+      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T010056Z.png",
+      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T010056Z.png",
+      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T010056Z.png"
     ],
-    "remaining_non_ui_blocker": "Release cadence guard requires the explicit manual approval phrase before publishing inside 24 hours of v2.1.51."
+    "url_routes": [
+      "url_route=settings ok",
+      "url_route=health ok",
+      "url_route=search?q=Sane ok"
+    ],
+    "applescript_commands": [
+      "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow",
+      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.spotlight Spotlight com",
+      "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S",
+      "applescript=open icon panel ok output=true",
+      "applescript=quick search \"Sane\" ok output=true",
+      "applescript=close browse panel ok output=true",
+      "applescript=show second menu bar ok output=true",
+      "applescript=close browse panel ok output=true",
+      "applescript=open settings window ok output=true",
+      "applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run",
+      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T01:01:07.601 currentMode: secondMenuBar windowVisible: false windowFrame: x=1320.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 4 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T01:01:07.731 lastRelayoutReaso",
+      "applescript=close settings window ok output=true"
+    ],
+    "runtime_smoke": [
+      "runtime_smoke=/tmp/sanebar_runtime_smoke.log ok",
+      "startup_probe=/tmp/sanebar_runtime_startup_probe.log ok",
+      "native_exact_id=/tmp/sanebar_runtime_native_apple_smoke.log ok"
+    ],
+    "remaining_non_ui_blocker": "Release cadence guard requires the exact manual approval phrase before publishing inside 24 hours of v2.1.51."
   }
 }

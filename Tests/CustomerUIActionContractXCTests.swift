@@ -1,0 +1,191 @@
+import Foundation
+import XCTest
+
+final class CustomerUIActionContractXCTests: XCTestCase {
+    private func projectRootURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func saneAppsRootURL() -> URL {
+        projectRootURL()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func read(_ relativePath: String) throws -> String {
+        try String(
+            contentsOf: projectRootURL().appendingPathComponent(relativePath),
+            encoding: .utf8
+        )
+    }
+
+    private func readShared(_ relativePath: String) throws -> String {
+        try String(
+            contentsOf: saneAppsRootURL().appendingPathComponent(relativePath),
+            encoding: .utf8
+        )
+    }
+
+    private func contract() throws -> String {
+        try read("Tests/CustomerUIActions.yml")
+    }
+
+    func testContractEnumeratesAllCustomerFacingActionFamilies() throws {
+        let source = try contract()
+        let requiredIDs = [
+            "status-item-click-routes",
+            "status-menu-command-actions",
+            "dock-menu-command-actions",
+            "browse-icons-search-navigation",
+            "browse-icons-icon-context-actions",
+            "second-menu-bar-actions",
+            "icon-zone-move-reorder-always-hidden",
+            "icon-hotkeys-and-groups",
+            "settings-shell-tabs-render",
+            "control-settings-actions",
+            "profiles-save-load-delete-apply",
+            "rules-trigger-actions",
+            "appearance-customization-actions",
+            "shortcuts-and-automation-actions",
+            "health-repair-rescue-diagnostics",
+            "data-import-export-reset-actions",
+            "onboarding-basic-pro-permission-actions",
+            "license-about-support-actions",
+            "pro-basic-gating-actions",
+            "startup-wake-appearance-recovery"
+        ]
+
+        for id in requiredIDs {
+            XCTAssertTrue(
+                source.contains("- id: \(id)"),
+                "Customer UI release contract must include \(id)"
+            )
+        }
+
+        let actionCount = source.components(separatedBy: "\n  - id: ").count - 1
+        XCTAssertGreaterThanOrEqual(
+            actionCount,
+            requiredIDs.count,
+            "The release contract must stay expanded beyond broad smoke-test buckets"
+        )
+    }
+
+    func testContractTracksShippedMenuAndAutomationSurfaces() throws {
+        let contract = try contract()
+        let statusMenuSource = try read("Core/Controllers/StatusBarController.swift")
+        let appSource = try read("SaneBarApp.swift")
+        let intentsSource = try read("Core/AppIntents/SaneBarAppIntents.swift")
+        let sdefSource = try read("Resources/SaneBar.sdef")
+
+        for title in ["Browse Icons...", "Show / Hide Icons", "Arrange Now", "Help / Repair..."] {
+            XCTAssertTrue(statusMenuSource.contains(title), "Expected shipped menu item \(title)")
+        }
+        XCTAssertTrue(contract.contains("status-menu-command-actions"))
+
+        for urlCase in ["toggle", "show", "hide", "search", "settings", "health"] {
+            XCTAssertTrue(appSource.contains("case \"\(urlCase)\""), "Expected URL route \(urlCase)")
+        }
+        XCTAssertTrue(contract.contains("shortcuts-and-automation-actions"))
+
+        for intent in ["ToggleHiddenItemsIntent", "ShowHiddenIconsIntent", "HideIconsIntent", "ApplyProfileIntent", "QuickSearchIntent"] {
+            XCTAssertTrue(intentsSource.contains(intent), "Expected shipped App Intent \(intent)")
+        }
+        XCTAssertTrue(contract.contains("App Intents"))
+
+        for command in ["toggle", "show hidden", "hide items", "open icon panel", "quick search", "show second menu bar", "list icon zones", "activate browse icon", "move icon to always hidden"] {
+            XCTAssertTrue(sdefSource.contains("command name=\"\(command)\""), "Expected AppleScript command \(command)")
+        }
+        XCTAssertTrue(contract.contains("AppleScript"))
+    }
+
+    func testContractTracksSettingsTabsAndRiskyActions() throws {
+        let contract = try contract()
+        let settingsSource = try read("UI/SettingsView.swift")
+        let generalSource = try read("UI/Settings/GeneralSettingsView.swift")
+        let rulesSource = try read("UI/Settings/RulesSettingsView.swift")
+        let appearanceSource = try read("UI/Settings/AppearanceSettingsView.swift")
+        let shortcutsSource = try read("UI/Settings/ShortcutsSettingsView.swift")
+        let healthSource = try read("UI/Settings/HealthSettingsView.swift")
+
+        for tab in ["Control", "Rules", "Appearance", "Shortcuts", "Health", "License", "About"] {
+            XCTAssertTrue(settingsSource.contains(tab), "Expected Settings tab \(tab)")
+            XCTAssertTrue(contract.contains("\(tab) tab"), "Contract must require evidence for Settings \(tab)")
+        }
+
+        for label in ["Export Settings...", "Import Settings...", "Import Bartender...", "Import Ice...", "Reset to Defaults"] {
+            XCTAssertTrue(generalSource.contains(label), "Expected shipped data action \(label)")
+            XCTAssertTrue(contract.contains(label.replacingOccurrences(of: "...", with: "")) || contract.contains(label), "Contract must name \(label)")
+        }
+
+        for marker in ["showOnLowBattery", "showOnAppLaunch", "showOnSchedule", "showOnNetworkChange", "showOnFocusModeChange", "scriptTriggerEnabled"] {
+            XCTAssertTrue(rulesSource.contains(marker), "Expected Rules control \(marker)")
+        }
+        XCTAssertTrue(contract.contains("rules-trigger-actions"))
+
+        for label in ["Menu Bar Icon", "Custom Appearance", "Reduce space between icons", "Click Area"] {
+            XCTAssertTrue(appearanceSource.contains(label), "Expected Appearance control \(label)")
+        }
+        XCTAssertTrue(contract.contains("appearance-customization-actions"))
+
+        for label in ["Browse Icons", "Show / Hide icons", "Automation", "Copy"] {
+            XCTAssertTrue(shortcutsSource.contains(label), "Expected Shortcuts control \(label)")
+        }
+        XCTAssertTrue(contract.contains("shortcuts-and-automation-actions"))
+
+        for label in ["Save Current Layout", "Restore Last Good Layout", "Arrange Now", "Copy Report"] {
+            XCTAssertTrue(healthSource.contains(label), "Expected Health action \(label)")
+            XCTAssertTrue(contract.contains(label), "Contract must name \(label)")
+        }
+    }
+
+    func testContractTracksBrowseContextOnboardingAndSharedSaneUI() throws {
+        let contract = try contract()
+        let tileSource = try read("UI/SearchWindow/MenuBarAppTile.swift")
+        let searchSource = try read("UI/SearchWindow/MenuBarSearchView.swift")
+        let secondMenuBarSource = try read("UI/SearchWindow/SecondMenuBarView.swift")
+        let onboardingSource = try read("UI/Onboarding/WelcomeView.swift")
+        let saneUICatalog = try readShared("infra/SaneUI/Sources/SaneUICatalog/SaneUICatalogApp.swift")
+        let aboutSource = try readShared("infra/SaneUI/Sources/SaneUI/Components/SaneAboutView.swift")
+        let licenseSource = try readShared("infra/SaneUI/Sources/SaneUI/License/LicenseSettingsView.swift")
+
+        for label in ["Left-Click", "Right-Click", "Set Hotkey", "Copy Icon ID", "Move to Visible", "Move to Hidden", "Move to Always Hidden", "Remove from Group"] {
+            XCTAssertTrue(tileSource.contains(label) || secondMenuBarSource.contains(label), "Expected icon context action \(label)")
+            XCTAssertTrue(contract.contains(label), "Contract must name icon context action \(label)")
+        }
+
+        for label in ["How Browse Icons works", "Open Accessibility Settings", "Try Again"] {
+            XCTAssertTrue(searchSource.contains(label) || secondMenuBarSource.contains(label), "Expected Browse/Second Menu Bar action \(label)")
+        }
+
+        for label in ["Import Layout", "Import Settings", "Open Accessibility Settings", "Unlock Pro", "Restore Purchases"] {
+            XCTAssertTrue(onboardingSource.contains(label), "Expected onboarding action \(label)")
+            XCTAssertTrue(contract.contains(label), "Contract must name onboarding action \(label)")
+        }
+
+        XCTAssertTrue(saneUICatalog.contains("SaneSettingsContainer"), "Shared SaneUI catalog should remain the settings source of truth")
+        for label in ["Licenses", "Report a Bug"] {
+            XCTAssertTrue(aboutSource.contains(label), "Expected shared About action \(label)")
+            XCTAssertTrue(contract.contains(label), "Contract must name shared About action \(label)")
+        }
+        for label in ["Restore Purchases", "Unlock Pro"] {
+            XCTAssertTrue(licenseSource.contains(label), "Expected shared License action \(label)")
+            XCTAssertTrue(contract.contains(label), "Contract must name shared License action \(label)")
+        }
+    }
+
+    func testEveryReleaseRequiredActionNamesMiniEvidence() throws {
+        let source = try contract()
+        let sections = source.components(separatedBy: "\n  - id: ").dropFirst()
+        XCTAssertFalse(sections.isEmpty)
+
+        for section in sections {
+            let id = section.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? "unknown"
+            XCTAssertTrue(section.contains("steps:"), "\(id) must describe click/interaction steps")
+            XCTAssertTrue(section.contains("assertions:"), "\(id) must describe customer-visible assertions")
+            XCTAssertTrue(section.contains("evidence:"), "\(id) must require evidence")
+            XCTAssertTrue(section.contains("Mini"), "\(id) must require Mini-side evidence")
+        }
+    }
+}
