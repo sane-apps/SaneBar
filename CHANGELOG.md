@@ -12,6 +12,12 @@ Improves restart and Dock-launch recovery so Custom Appearance tint and the Sane
 
 ---
 
+## [2.1.52] - 2026-05-11
+
+Improves restart and Dock-launch recovery so Custom Appearance tint and the SaneBar menu bar item stay stable after status items are recreated.
+
+---
+
 ## [2.1.51] - 2026-05-11
 
 Keeps Custom Appearance tint stable after restart and Dock launches, and improves menu bar recovery after startup so the SaneBar icon stays fully configured.
