@@ -2,9 +2,9 @@
   "app": "SaneBar",
   "status": "passed",
   "host": "mini",
-  "generated_at": "2026-05-12T01:54:37Z",
+  "generated_at": "2026-05-12T02:24:55Z",
   "manifest_sha256": "894486c223a9991b3fde6b32bbb6f2b90f14b97b0ffd5e74959e5c3a11af97ab",
-  "source_fingerprint": "307db166926e8e5c8591b936685e7491da3aac4dcaf60cf79001214adc637d72",
+  "source_fingerprint": "c77fd24f1350e2a31b1ac1e339ee1e020c7614cdd971646406e79ad925f82f9b",
   "tested_action_ids": [
     "status-item-click-routes",
     "status-menu-command-actions",
@@ -33,7 +33,7 @@
       "evidence": [
         {
           "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.13s)"
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.66s)"
         },
         {
           "type": "unit_guard",
@@ -153,7 +153,7 @@
       "evidence": [
         {
           "type": "mini_screenshots",
-          "detail": "Captured 7 settings tab screenshot(s): outputs/customer-ui/settings-control-20260512T015420Z.png, outputs/customer-ui/settings-rules-20260512T015420Z.png, outputs/customer-ui/settings-appearance-20260512T015420Z.png, outputs/customer-ui/settings-shortcuts-20260512T015420Z.png, outputs/customer-ui/settings-health-20260512T015420Z.png, outputs/customer-ui/settings-license-20260512T015420Z.png, outputs/customer-ui/settings-about-20260512T015420Z.png"
+          "detail": "Captured 7 settings tab screenshot(s): outputs/customer-ui/settings-control-20260512T022439Z.png, outputs/customer-ui/settings-rules-20260512T022439Z.png, outputs/customer-ui/settings-appearance-20260512T022439Z.png, outputs/customer-ui/settings-shortcuts-20260512T022439Z.png, outputs/customer-ui/settings-health-20260512T022439Z.png, outputs/customer-ui/settings-license-20260512T022439Z.png, outputs/customer-ui/settings-about-20260512T022439Z.png"
         },
         {
           "type": "mini_ax",
@@ -230,7 +230,7 @@
         },
         {
           "type": "mini_automation",
-          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.spotlight Spotlight com | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run | applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T01:54"
+          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.app | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run | applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T02:24"
         }
       ]
     },
@@ -286,7 +286,7 @@
         },
         {
           "type": "mini_screenshots",
-          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260512T015420Z.png, outputs/customer-ui/settings-about-20260512T015420Z.png"
+          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260512T022439Z.png, outputs/customer-ui/settings-about-20260512T022439Z.png"
         }
       ]
     },
@@ -308,11 +308,11 @@
       "evidence": [
         {
           "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_startup_probe.log: ✅ Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide)"
+          "detail": "/tmp/sanebar_runtime_startup_probe.json: Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide)"
         },
         {
           "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.13s)"
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.66s)"
         },
         {
           "type": "source_guard",
@@ -322,13 +322,13 @@
     }
   },
   "screenshots": [
-    "outputs/customer-ui/settings-control-20260512T015420Z.png",
-    "outputs/customer-ui/settings-rules-20260512T015420Z.png",
-    "outputs/customer-ui/settings-appearance-20260512T015420Z.png",
-    "outputs/customer-ui/settings-shortcuts-20260512T015420Z.png",
-    "outputs/customer-ui/settings-health-20260512T015420Z.png",
-    "outputs/customer-ui/settings-license-20260512T015420Z.png",
-    "outputs/customer-ui/settings-about-20260512T015420Z.png"
+    "outputs/customer-ui/settings-control-20260512T022439Z.png",
+    "outputs/customer-ui/settings-rules-20260512T022439Z.png",
+    "outputs/customer-ui/settings-appearance-20260512T022439Z.png",
+    "outputs/customer-ui/settings-shortcuts-20260512T022439Z.png",
+    "outputs/customer-ui/settings-health-20260512T022439Z.png",
+    "outputs/customer-ui/settings-license-20260512T022439Z.png",
+    "outputs/customer-ui/settings-about-20260512T022439Z.png"
   ],
   "evidence": {
     "app_version": "2.1.52",
@@ -336,13 +336,13 @@
     "mini_verify": "SaneMaster verify passed after customer UI contract expansion",
     "mini_release_preflight_runtime": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence",
     "settings_tab_sweep": [
-      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T015420Z.png",
-      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T015420Z.png",
-      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T015420Z.png",
-      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T015420Z.png",
-      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T015420Z.png",
-      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T015420Z.png",
-      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T015420Z.png"
+      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T022439Z.png",
+      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T022439Z.png",
+      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T022439Z.png",
+      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T022439Z.png",
+      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T022439Z.png",
+      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T022439Z.png",
+      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T022439Z.png"
     ],
     "url_routes": [
       "url_route=toggle ok",
@@ -358,7 +358,7 @@
       "applescript=show hidden ok output=",
       "applescript=hide items ok output=",
       "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow",
-      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.spotlight Spotlight com",
+      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.app",
       "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S",
       "applescript=open icon panel ok output=true",
       "applescript=quick search \"Sane\" ok output=true",
@@ -367,7 +367,7 @@
       "applescript=close browse panel ok output=true",
       "applescript=open settings window ok output=true",
       "applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run",
-      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T01:54:36.198 currentMode: secondMenuBar windowVisible: false windowFrame: x=1282.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 5 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T01:54:36.358 lastRelayoutReaso",
+      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T02:24:54.816 currentMode: secondMenuBar windowVisible: false windowFrame: x=1312.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 5 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T02:24:54.956 lastRelayoutReaso",
       "applescript=close settings window ok output=true"
     ],
     "runtime_smoke": [

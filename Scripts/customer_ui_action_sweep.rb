@@ -485,7 +485,18 @@ class CustomerUIActionSweep
 
   def runtime_evidence_lines
     paths = ['/tmp/sanebar_runtime_smoke.log', '/tmp/sanebar_runtime_startup_probe.log', '/tmp/sanebar_runtime_native_apple_smoke.log']
-    paths.select { |path| File.exist?(path) }.flat_map { |path| File.readlines(path, chomp: true).map { |line| "#{path}: #{line}" } }
+    lines = paths.select { |path| File.exist?(path) }.flat_map { |path| File.readlines(path, chomp: true).map { |line| "#{path}: #{line}" } }
+
+    startup_artifact = '/tmp/sanebar_runtime_startup_probe.json'
+    if File.exist?(startup_artifact)
+      payload = JSON.parse(File.read(startup_artifact))
+      if payload['status'] == 'pass'
+        case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
+        lines << "#{startup_artifact}: Startup layout probe passed (#{case_names})"
+      end
+    end
+
+    lines
   end
 
   def runtime_line(lines, marker)

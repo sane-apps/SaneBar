@@ -2807,6 +2807,10 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
         let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
+        let controllerSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Controllers/StatusBarController.swift"),
+            encoding: .utf8
+        )
 
         XCTAssertTrue(
             source.contains("statusItemValidationMaxAttempts(context: context)") &&
@@ -2849,6 +2853,11 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Stable backup capture should use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
         )
         XCTAssertTrue(
+            controllerSource.contains("UserDefaults.standard.set(value, forKey: appKey)\n        UserDefaults.standard.synchronize()") &&
+                controllerSource.contains("UserDefaults.standard.removeObject(forKey: appKey)\n        UserDefaults.standard.synchronize()"),
+            "Recovered NSStatusItem preferred positions must be flushed to the app defaults domain before startup probes or restarts depend on them"
+        )
+        XCTAssertTrue(
             coordinatorSource.contains("case waitForLiveAnchor") &&
                 coordinatorSource.contains("shouldWaitForLiveSeparatorAnchor(") &&
                 source.contains("Status item validation is still waiting for a live anchor"),
@@ -2881,10 +2890,6 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("guard let resolvedScreen = statusItemScreen else") &&
                 source.contains("guard let displayID = screenDisplayID(resolvedScreen) else"),
             "External-monitor policy should use the same status-item screen source as startup recovery"
-        )
-        let controllerSource = try String(
-            contentsOf: projectRootURL().appendingPathComponent("Core/Controllers/StatusBarController.swift"),
-            encoding: .utf8
         )
         XCTAssertTrue(
             controllerSource.contains("resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil)") &&
