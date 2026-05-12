@@ -82,6 +82,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         for title in ["Browse Icons...", "Show / Hide Icons", "Arrange Now", "Help / Repair..."] {
             XCTAssertTrue(statusMenuSource.contains(title), "Expected shipped menu item \(title)")
         }
+        XCTAssertTrue(contract.contains("What's New when present"), "Contract must cover conditional What's New menu items")
         XCTAssertTrue(contract.contains("status-menu-command-actions"))
 
         for urlCase in ["toggle", "show", "hide", "search", "settings", "health"] {
@@ -89,7 +90,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         }
         XCTAssertTrue(contract.contains("shortcuts-and-automation-actions"))
 
-        for intent in ["ToggleHiddenItemsIntent", "ShowHiddenIconsIntent", "HideIconsIntent", "ApplyProfileIntent", "QuickSearchIntent"] {
+        for intent in ["ToggleHiddenItemsIntent", "ShowHiddenItemsIntent", "HideHiddenItemsIntent", "ApplySaneBarProfileIntent", "QuickSearchSaneBarIntent"] {
             XCTAssertTrue(intentsSource.contains(intent), "Expected shipped App Intent \(intent)")
         }
         XCTAssertTrue(contract.contains("App Intents"))
@@ -186,6 +187,28 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertTrue(section.contains("assertions:"), "\(id) must describe customer-visible assertions")
             XCTAssertTrue(section.contains("evidence:"), "\(id) must require evidence")
             XCTAssertTrue(section.contains("Mini"), "\(id) must require Mini-side evidence")
+        }
+    }
+
+    func testReceiptRecordsEvidencePerCustomerAction() throws {
+        let receiptURL = projectRootURL().appendingPathComponent(".sane/customer_ui_action_receipt.json")
+        let data = try Data(contentsOf: receiptURL)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let actionResults = try XCTUnwrap(json["action_results"] as? [String: Any])
+        let source = try contract()
+        let actionIDs = source.components(separatedBy: "\n  - id: ")
+            .dropFirst()
+            .compactMap { section in section.split(separator: "\n", maxSplits: 1).first.map(String.init) }
+
+        for id in actionIDs {
+            let result = try XCTUnwrap(actionResults[id] as? [String: Any], "\(id) must have per-action receipt evidence")
+            XCTAssertEqual(result["status"] as? String, "passed", "\(id) must be marked passed in the receipt")
+            let evidence = try XCTUnwrap(result["evidence"] as? [[String: Any]], "\(id) must have structured evidence")
+            XCTAssertFalse(evidence.isEmpty, "\(id) must not rely on a coarse smoke bucket")
+            for item in evidence {
+                XCTAssertFalse((item["type"] as? String ?? "").isEmpty, "\(id) evidence must name its type")
+                XCTAssertFalse((item["detail"] as? String ?? "").isEmpty, "\(id) evidence must include detail")
+            }
         }
     }
 }
