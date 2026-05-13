@@ -12,6 +12,12 @@ Improves Browse Icons and menu bar recovery reliability, fixes Custom group crea
 
 ---
 
+## [2.1.53] - 2026-05-13
+
+Improves Browse Icons and menu bar recovery reliability, fixes Custom group creation in the Icon Panel, restores usable Settings window sizing, and adds stricter customer UI click-through release checks.
+
+---
+
 ## [2.1.52] - 2026-05-11
 
 Improves restart and Dock-launch recovery so Custom Appearance tint and the SaneBar menu bar item stay stable after status items are recreated.
