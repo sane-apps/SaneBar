@@ -909,7 +909,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         let mainItemVisible = mainItem?.isVisible
         let separatorItemVisible = separator?.isVisible
         let alwaysHiddenSeparatorVisible = alwaysHiddenSeparatorItem?.isVisible
-        let separatorX = getSeparatorOriginX()
+        let separatorX = getSeparatorOriginX(allowEstimatedFallback: false)
         let separatorAnchorSource = currentSeparatorAnchorSource()
         let mainX = getMainStatusItemLeftEdgeX()
         let mainAnchorSource = currentMainStatusItemAnchorSource()

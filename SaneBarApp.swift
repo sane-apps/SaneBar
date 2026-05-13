@@ -280,6 +280,7 @@ enum SettingsOpener {
             if let tab {
                 existingWindow.contentViewController = NSHostingController(rootView: SettingsView(defaultTab: tab))
             }
+            enforceUsableWindowSize(existingWindow, preferIdealSize: false)
             window = existingWindow
         } else {
             window = makeWindow(defaultTab: tab ?? .control)
@@ -324,14 +325,7 @@ enum SettingsOpener {
         window.title = "SaneBar Settings"
         window.appearance = NSAppearance(named: .darkAqua)
         window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
-        window.contentMinSize = NSSize(
-            width: SaneSettingsWindowDefaults.minWidth,
-            height: SaneSettingsWindowDefaults.minHeight
-        )
-        window.setContentSize(NSSize(
-            width: SaneBarSettingsWindowMetrics.idealWidth,
-            height: SaneBarSettingsWindowMetrics.idealHeight
-        ))
+        enforceUsableWindowSize(window, preferIdealSize: true)
         window.center()
         window.isReleasedWhenClosed = false
 
@@ -340,6 +334,32 @@ enum SettingsOpener {
         windowDelegate = delegate
         settingsWindow = window
         return window
+    }
+
+    @MainActor private static func enforceUsableWindowSize(_ window: NSWindow, preferIdealSize: Bool) {
+        let minimumSize = NSSize(
+            width: SaneSettingsWindowDefaults.minWidth,
+            height: SaneSettingsWindowDefaults.minHeight
+        )
+        window.contentMinSize = minimumSize
+
+        let contentSize = window.contentLayoutRect.size
+        guard preferIdealSize || contentSize.width < minimumSize.width || contentSize.height < minimumSize.height else {
+            return
+        }
+
+        let targetSize = if preferIdealSize {
+            NSSize(
+                width: max(SaneBarSettingsWindowMetrics.idealWidth, minimumSize.width),
+                height: max(SaneBarSettingsWindowMetrics.idealHeight, minimumSize.height)
+            )
+        } else {
+            NSSize(
+                width: max(contentSize.width, minimumSize.width),
+                height: max(contentSize.height, minimumSize.height)
+            )
+        }
+        window.setContentSize(targetSize)
     }
 
     private static func snapshotOutputURL(for path: String) -> URL? {

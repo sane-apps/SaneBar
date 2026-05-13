@@ -146,11 +146,11 @@ extension MenuBarManager {
             && hasLiveSeparatorAnchor
     }
 
-    private func resolvedSeparatorRightEdgeFromCaches() -> CGFloat? {
+    private func resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: Bool = true) -> CGFloat? {
         let normalized = Self.normalizedSeparatorRightEdge(
             cachedRightEdge: lastKnownSeparatorRightEdgeX,
             cachedOrigin: lastKnownSeparatorX,
-            estimatedRightEdge: estimatedSeparatorEdgesFromMainIcon()?.rightEdgeX,
+            estimatedRightEdge: allowEstimatedFallback ? estimatedSeparatorEdgesFromMainIcon()?.rightEdgeX : nil,
             mainLeftEdge: getMainStatusItemLeftEdgeX()
         )
 
@@ -306,7 +306,7 @@ extension MenuBarManager {
     /// Icons to the LEFT of this position (lower X) are HIDDEN
     /// Icons to the RIGHT of this position (higher X) are VISIBLE
     /// Returns nil if separator position can't be determined
-    func getSeparatorOriginX() -> CGFloat? {
+    func getSeparatorOriginX(allowEstimatedFallback: Bool = true) -> CGFloat? {
         guard let separatorItem else { return lastKnownSeparatorX }
 
         // If in blocking mode (length > 1000), live position is off-screen — use cache
@@ -317,7 +317,7 @@ extension MenuBarManager {
                 return cachedX
             }
 
-            if let estimated = estimatedSeparatorEdgesFromMainIcon() {
+            if allowEstimatedFallback, let estimated = estimatedSeparatorEdgesFromMainIcon() {
                 logger.warning("🔧 getSeparatorOriginX: blocking mode with empty cache, using estimated \(estimated.originX)")
                 return estimated.originX
             }
@@ -345,7 +345,7 @@ extension MenuBarManager {
             return cachedX
         }
 
-        if let estimated = estimatedSeparatorEdgesFromMainIcon() {
+        if allowEstimatedFallback, let estimated = estimatedSeparatorEdgesFromMainIcon() {
             logger.warning("🔧 getSeparatorOriginX: stale/off-screen frame with empty cache, using estimated \(estimated.originX)")
             return estimated.originX
         }
@@ -460,16 +460,16 @@ extension MenuBarManager {
     /// Get the separator's right edge X position (for moving icons)
     /// NOTE: This value changes based on expanded/collapsed state!
     /// Returns nil if separator position can't be determined
-    func getSeparatorRightEdgeX() -> CGFloat? {
+    func getSeparatorRightEdgeX(allowEstimatedFallback: Bool = true) -> CGFloat? {
         guard let separatorItem else {
             logger.error("🔧 getSeparatorRightEdgeX: separatorItem is nil")
-            return resolvedSeparatorRightEdgeFromCaches()
+            return resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback)
         }
 
         // If in blocking mode (length > 1000), live position is off-screen — use cache.
         // This mirrors getSeparatorOriginX() which already has this check.
         if separatorItem.length > 1000 {
-            let cachedX = resolvedSeparatorRightEdgeFromCaches() ?? -1
+            let cachedX = resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback) ?? -1
             logger.debug("🔧 getSeparatorRightEdgeX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
             return cachedX > 0 ? cachedX : nil
         }
@@ -478,20 +478,20 @@ extension MenuBarManager {
               let separatorWindow = separatorButton.window
         else {
             logger.error("🔧 getSeparatorRightEdgeX: button or window is nil")
-            return resolvedSeparatorRightEdgeFromCaches()
+            return resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback)
         }
         let frame = separatorWindow.frame
         logger.debug("🔧 getSeparatorRightEdgeX: window.frame = \(String(describing: frame))")
         guard frame.width > 0 else {
             logger.error("🔧 getSeparatorRightEdgeX: frame.width is 0")
-            return resolvedSeparatorRightEdgeFromCaches()
+            return resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback)
         }
 
         // If window frame looks stale (width > 1000 or origin off-screen),
         // WindowServer hasn't finished relayout after showAll() — use cache.
         // showAll() sets length=20 immediately but the window frame lags behind.
         if !Self.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) {
-            if let cachedX = resolvedSeparatorRightEdgeFromCaches() {
+            if let cachedX = resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback) {
                 if !hasLoggedStaleSeparatorRightEdgeFallback {
                     logger.warning("🔧 getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
                     hasLoggedStaleSeparatorRightEdgeFallback = true
@@ -499,7 +499,7 @@ extension MenuBarManager {
                 return cachedX
             }
 
-            if let estimated = estimatedSeparatorEdgesFromMainIcon() {
+            if allowEstimatedFallback, let estimated = estimatedSeparatorEdgesFromMainIcon() {
                 if !hasLoggedStaleSeparatorRightEdgeFallback {
                     logger.warning("🔧 getSeparatorRightEdgeX: stale frame with empty cache, using estimated \(estimated.rightEdgeX)")
                     hasLoggedStaleSeparatorRightEdgeFallback = true

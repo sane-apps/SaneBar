@@ -36,6 +36,11 @@ class LiveZoneSmoke
   DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
   DEFAULT_ACTIVE_AVG_CPU_MAX = 15.0
   DEFAULT_ACTIVE_AVG_RSS_MB_MAX = 192.0
+  # Short focused exact-ID lanes can finish while screenshot capture and menu
+  # teardown are still active. Keep peak watchdogs live for spikes, but only
+  # enforce the active average once the sample window is long enough to reflect
+  # sustained app behavior.
+  DEFAULT_ACTIVE_AVG_MIN_SAMPLES = 15
   RESOURCE_WATCHDOG_PROCESS_MISSING_TOLERANCE = 2
   LAYOUT_STABILIZE_TIMEOUT_SECONDS = 10
   LAYOUT_STABILIZE_POLL_SECONDS = 0.25
@@ -65,6 +70,7 @@ class LiveZoneSmoke
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
+      com.openai.codex
       com.setapp.DesktopClient.SetappLauncher
       com.sindresorhus.Lungo-setapp
       cc.ffitch.shottr
@@ -79,6 +85,7 @@ class LiveZoneSmoke
     APPLE_FALLBACK_BUNDLE_DENYLIST + %w[
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
+      com.openai.codex
       com.setapp.DesktopClient.SetappLauncher
       com.sindresorhus.Lungo-setapp
       com.yujitach.MenuMeters
@@ -1675,6 +1682,14 @@ class LiveZoneSmoke
   def assert_active_average_budget!
     state = @resource_watchdog_mutex.synchronize { @resource_watchdog_state.dup }
     return if state[:sample_count].zero?
+    if state[:sample_count] < DEFAULT_ACTIVE_AVG_MIN_SAMPLES
+      puts format(
+        'ℹ️ Active budget: skipped average check because only %<count>d sample(s) were collected; minimum=%<minimum>d',
+        count: state[:sample_count],
+        minimum: DEFAULT_ACTIVE_AVG_MIN_SAMPLES
+      )
+      return
+    end
 
     averages = resource_watchdog_averages(state)
     failures = []

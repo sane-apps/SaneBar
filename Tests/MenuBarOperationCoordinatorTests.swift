@@ -344,6 +344,7 @@ struct MenuBarOperationCoordinatorTests {
             geometryConfidence: .cached,
             separatorAnchorSource: .estimated,
             mainAnchorSource: .live,
+            visibilityPhase: .hidden,
             startupItemsValid: true,
             separatorX: 1661,
             mainX: 1691,

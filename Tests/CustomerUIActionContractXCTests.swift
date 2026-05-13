@@ -32,8 +32,22 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         try read("Tests/CustomerUIActions.yml")
     }
 
+    private func normalizedContract(_ source: String) -> String {
+        source
+            .replacingOccurrences(
+                of: #"(?m)^- id:"#,
+                with: "  - id:",
+                options: .regularExpression
+            )
+            .replacingOccurrences(
+                of: #"\n {4,}"#,
+                with: " ",
+                options: .regularExpression
+            )
+    }
+
     func testContractEnumeratesAllCustomerFacingActionFamilies() throws {
-        let source = try contract()
+        let source = normalizedContract(try contract())
         let requiredIDs = [
             "status-item-click-routes",
             "status-menu-command-actions",
@@ -142,7 +156,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     func testContractTracksBrowseContextOnboardingAndSharedSaneUI() throws {
-        let contract = try contract()
+        let contract = normalizedContract(try contract())
         let tileSource = try read("UI/SearchWindow/MenuBarAppTile.swift")
         let searchSource = try read("UI/SearchWindow/MenuBarSearchView.swift")
         let secondMenuBarSource = try read("UI/SearchWindow/SecondMenuBarView.swift")
@@ -177,7 +191,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     func testEveryReleaseRequiredActionNamesMiniEvidence() throws {
-        let source = try contract()
+        let source = normalizedContract(try contract())
         let sections = source.components(separatedBy: "\n  - id: ").dropFirst()
         XCTAssertFalse(sections.isEmpty)
 
@@ -195,7 +209,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         let data = try Data(contentsOf: receiptURL)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let actionResults = try XCTUnwrap(json["action_results"] as? [String: Any])
-        let source = try contract()
+        let source = normalizedContract(try contract())
         let actionIDs = source.components(separatedBy: "\n  - id: ")
             .dropFirst()
             .compactMap { section in section.split(separator: "\n", maxSplits: 1).first.map(String.init) }
@@ -203,6 +217,11 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         for id in actionIDs {
             let result = try XCTUnwrap(actionResults[id] as? [String: Any], "\(id) must have per-action receipt evidence")
             XCTAssertEqual(result["status"] as? String, "passed", "\(id) must be marked passed in the receipt")
+            XCTAssertFalse((result["proof_level"] as? String ?? "").isEmpty, "\(id) must record the proof level used for release")
+            XCTAssertNotNil(result["functional_state"] as? [String: Any], "\(id) must prove the required app/user state was established")
+            XCTAssertFalse((result["inputs"] as? [String] ?? []).isEmpty, "\(id) must record exercised user inputs")
+            XCTAssertFalse((result["output_assertions"] as? [String] ?? []).isEmpty, "\(id) must record output assertions")
+            XCTAssertNotNil(result["workflow"] as? [String: Any], "\(id) must include structured workflow proof")
             let evidence = try XCTUnwrap(result["evidence"] as? [[String: Any]], "\(id) must have structured evidence")
             XCTAssertFalse(evidence.isEmpty, "\(id) must not rely on a coarse smoke bucket")
             for item in evidence {

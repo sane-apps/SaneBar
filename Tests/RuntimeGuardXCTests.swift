@@ -730,15 +730,15 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("private func separatorBoundaryXForClassification() -> CGFloat?"),
+            source.contains("private func separatorBoundaryXForClassification(allowEstimatedFallback: Bool = false) -> CGFloat?"),
             "SearchService should centralize separator lookup through a dedicated classification helper"
         )
         XCTAssertTrue(
-            source.contains("MenuBarManager.shared.getSeparatorRightEdgeX()"),
+            source.contains("MenuBarManager.shared.getSeparatorRightEdgeX(allowEstimatedFallback: allowEstimatedFallback)"),
             "Classification helper should prefer separator right-edge cache for stable hidden/visible partitioning"
         )
         XCTAssertTrue(
-            source.contains("MenuBarManager.shared.getSeparatorOriginX()"),
+            source.contains("MenuBarManager.shared.getSeparatorOriginX(allowEstimatedFallback: allowEstimatedFallback)"),
             "Classification helper should use the main separator origin for stable hidden/visible partitioning"
         )
         XCTAssertTrue(
@@ -754,6 +754,12 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("let shouldScheduleImmediateRehide = trigger != .search && trigger != .findIcon"),
             "showHiddenItemsNow should not arm the short rehide timer for Browse Icons flows"
+        )
+        XCTAssertTrue(
+            source.contains("await warmSeparatorPositionCache(maxAttempts: 16)") &&
+                source.contains("_ = getSeparatorOriginX()") &&
+                source.contains("_ = getSeparatorRightEdgeX()"),
+            "Browse/search reveals should refresh real separator geometry before classification so wake-cleared caches do not fall back to stale visible/hidden zones"
         )
         XCTAssertTrue(
             source.contains("browseController.isVisible"),
@@ -970,8 +976,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AccessibilityService should expose a scoped positioned-item scan for targeted verification without clobbering the global cache"
         )
         XCTAssertTrue(
-            searchSource.contains("func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps"),
-            "SearchService should expose direct classification for targeted verification scans"
+            searchSource.contains("func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps") &&
+                searchSource.contains("classifyItems(items, allowEstimatedFallback: false)"),
+            "SearchService should expose direct classification for targeted verification scans without blessing estimated separator geometry"
         )
     }
 
@@ -2354,8 +2361,12 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("if let existingWindow = settingsWindow") &&
-                source.contains("existingWindow.contentViewController = NSHostingController(rootView: SettingsView(defaultTab: tab))"),
-            "SettingsOpener should switch an already-open settings window when Health/Repair deep links request a specific tab"
+                source.contains("existingWindow.contentViewController = NSHostingController(rootView: SettingsView(defaultTab: tab))") &&
+                source.contains("enforceUsableWindowSize(existingWindow, preferIdealSize: false)") &&
+                source.contains("enforceUsableWindowSize(window, preferIdealSize: true)") &&
+                source.contains("width: max(contentSize.width, minimumSize.width)") &&
+                source.contains("height: max(contentSize.height, minimumSize.height)"),
+            "SettingsOpener should switch an already-open settings window when Health/Repair deep links request a specific tab without collapsing below the shared settings window minimum"
         )
     }
 

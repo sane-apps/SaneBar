@@ -331,6 +331,9 @@ extension MenuBarManager {
                 lastRevealTrigger = trigger
                 await hidingService.show()
             }
+            await warmSeparatorPositionCache(maxAttempts: 16)
+            _ = getSeparatorOriginX()
+            _ = getSeparatorRightEdgeX()
             hidingService.cancelRehide()
             return didReveal
         }
@@ -354,6 +357,9 @@ extension MenuBarManager {
             lastRevealTrigger = trigger
         }
         await hidingService.show()
+        await warmSeparatorPositionCache(maxAttempts: 16)
+        _ = getSeparatorOriginX()
+        _ = getSeparatorRightEdgeX()
 
         // Search / Find Icon paths use their own dedicated delay handling so
         // we don't double-schedule and close target menus too early.
