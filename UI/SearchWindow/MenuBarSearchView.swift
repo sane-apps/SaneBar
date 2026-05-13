@@ -17,7 +17,9 @@ struct MenuBarSearchView: View {
         case alwaysHidden
         case all
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
 
         var title: String {
             switch self {
@@ -27,7 +29,6 @@ struct MenuBarSearchView: View {
             case .all: "All"
             }
         }
-
     }
 
     @AppStorage("MenuBarSearchView.mode") private var storedMode: String = Mode.all.rawValue
@@ -62,8 +63,6 @@ struct MenuBarSearchView: View {
     // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
-    @State var isCreatingGroup = false
-    @State private var newGroupName = ""
     @State var movingAppId: String?
     /// Set after a move completes so the next tab switch does a fresh scan
     @State private var needsPostMoveRefresh = false
@@ -140,7 +139,8 @@ struct MenuBarSearchView: View {
         guard let separatorRightEdgeX,
               let mainLeftEdgeX,
               separatorRightEdgeX > 0,
-              mainLeftEdgeX > separatorRightEdgeX else {
+              mainLeftEdgeX > separatorRightEdgeX
+        else {
             return false
         }
 
@@ -248,7 +248,9 @@ struct MenuBarSearchView: View {
         return AppCategory.allCases.filter { categories.contains($0) }
     }
 
-    private var accentHighlight: Color { SaneBarChrome.accentHighlight }
+    private var accentHighlight: Color {
+        SaneBarChrome.accentHighlight
+    }
 
     private var shouldShowMoveHint: Bool {
         LicenseService.shared.isPro && isModeStripDropActive && !moveHintModes.isEmpty
@@ -708,7 +710,8 @@ struct MenuBarSearchView: View {
         guard let userInfo = notification.userInfo,
               let bundleID = userInfo[MenuBarManager.visibleLaneCrowdingBundleIDKey] as? String,
               let separatorRightEdgeRaw = userInfo[MenuBarManager.visibleLaneCrowdingSeparatorRightEdgeKey] as? Double,
-              let visibleBoundaryRaw = userInfo[MenuBarManager.visibleLaneCrowdingVisibleBoundaryKey] as? Double else {
+              let visibleBoundaryRaw = userInfo[MenuBarManager.visibleLaneCrowdingVisibleBoundaryKey] as? Double
+        else {
             return nil
         }
 
@@ -976,129 +979,112 @@ struct MenuBarSearchView: View {
     }
 
     private var groupTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                // "All" tab - shows everything
-                SmartGroupTab(
-                    title: "All",
-                    isSelected: selectedGroupId == nil && selectedSmartCategory == nil,
-                    action: {
-                        selectedGroupId = nil
-                        selectedSmartCategory = nil
-                    }
-                )
-
-                // Smart category tabs (auto-detected from apps)
-                ForEach(availableCategories, id: \.self) { category in
+        HStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    // "All" tab - shows everything
                     SmartGroupTab(
-                        title: category.rawValue,
-                        isSelected: selectedGroupId == nil && selectedSmartCategory == category,
+                        title: "All",
+                        isSelected: selectedGroupId == nil && selectedSmartCategory == nil,
                         action: {
                             selectedGroupId = nil
-                            selectedSmartCategory = category
-                        }
-                    )
-                }
-
-                // Divider between smart and custom groups
-                if !menuBarManager.settings.iconGroups.isEmpty {
-                    Divider()
-                        .frame(height: 16)
-                        .padding(.horizontal, 4)
-                }
-
-                // User-created custom groups (drop targets for icons)
-                ForEach(menuBarManager.settings.iconGroups) { group in
-                    let groupId = group.id
-                    GroupTabButton(
-                        title: group.name,
-                        isSelected: selectedGroupId == groupId,
-                        action: {
-                            selectedGroupId = groupId
                             selectedSmartCategory = nil
                         }
                     )
-                    .dropDestination(for: String.self) { bundleIds, _ in
-                        for payload in bundleIds {
-                            addAppToGroup(bundleId: Self.bundleIDFromPayload(payload), groupId: groupId)
-                        }
-                        return !bundleIds.isEmpty
-                    }
-                    .contextMenu {
-                        Button("Delete Group", role: .destructive) {
-                            deleteGroup(groupId: groupId)
-                        }
-                    }
-                }
 
-                // Add custom group button
-                Button {
-                    if LicenseService.shared.isPro {
-                        isCreatingGroup = true
-                    } else {
-                        proUpsellFeature = .iconGroups
+                    // Smart category tabs (auto-detected from apps)
+                    ForEach(availableCategories, id: \.self) { category in
+                        SmartGroupTab(
+                            title: category.rawValue,
+                            isSelected: selectedGroupId == nil && selectedSmartCategory == category,
+                            action: {
+                                selectedGroupId = nil
+                                selectedSmartCategory = category
+                            }
+                        )
                     }
-                } label: {
-                    Label("Custom", systemImage: "plus")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.92))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(SaneBarChrome.utilityFill)
+
+                    // Divider between smart and custom groups
+                    if !menuBarManager.settings.iconGroups.isEmpty {
+                        Divider()
+                            .frame(height: 16)
+                            .padding(.horizontal, 4)
+                    }
+
+                    // User-created custom groups (drop targets for icons)
+                    ForEach(menuBarManager.settings.iconGroups) { group in
+                        let groupId = group.id
+                        GroupTabButton(
+                            title: group.name,
+                            isSelected: selectedGroupId == groupId,
+                            action: {
+                                selectedGroupId = groupId
+                                selectedSmartCategory = nil
+                            }
                         )
-                        .overlay(
-                            Capsule()
-                                .stroke(SaneBarChrome.controlStroke, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $isCreatingGroup, arrowEdge: .top) {
-                    VStack(spacing: 12) {
-                        Text("New Custom Group")
-                            .font(.headline)
-                        TextField("Group name", text: $newGroupName)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 180)
-                            .onSubmit {
-                                createGroup(named: newGroupName)
-                                newGroupName = ""
-                                isCreatingGroup = false
+                        .dropDestination(for: String.self) { bundleIds, _ in
+                            for payload in bundleIds {
+                                addAppToGroup(bundleId: Self.bundleIDFromPayload(payload), groupId: groupId)
                             }
-                        HStack(spacing: 12) {
-                            Button("Cancel") {
-                                newGroupName = ""
-                                isCreatingGroup = false
+                            return !bundleIds.isEmpty
+                        }
+                        .contextMenu {
+                            Button("Delete Group", role: .destructive) {
+                                deleteGroup(groupId: groupId)
                             }
-                            .buttonStyle(ChromeActionButtonStyle())
-                            .keyboardShortcut(.cancelAction)
-                            Button("Create") {
-                                createGroup(named: newGroupName)
-                                newGroupName = ""
-                                isCreatingGroup = false
-                            }
-                            .buttonStyle(ChromeActionButtonStyle(prominent: true))
-                            .keyboardShortcut(.defaultAction)
-                            .disabled(newGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
-                    .padding()
                 }
             }
-            .padding(.horizontal)
+
+            customGroupButton
         }
+        .padding(.horizontal)
         .padding(.vertical, 6)
     }
 
     private let maxGroupCount = 50 // Prevent UI performance issues
+
+    private var customGroupButton: some View {
+        SmartGroupTab(
+            title: "+ Custom",
+            isSelected: false,
+            action: {
+                openCustomGroupCreation()
+            }
+        )
+    }
+
+    private func openCustomGroupCreation() {
+        if LicenseService.shared.isPro {
+            promptForCustomGroupName()
+        } else {
+            proUpsellFeature = .iconGroups
+        }
+    }
+
+    private func promptForCustomGroupName() {
+        let alert = NSAlert()
+        alert.messageText = "New Custom Group"
+        alert.informativeText = "Name this group."
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        input.placeholderString = "Group name"
+        alert.accessoryView = input
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+        createGroup(named: input.stringValue)
+    }
 
     private func createGroup(named name: String) {
         // Validate: trim whitespace, check not empty
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
-        // Limit total groups to prevent performance issues
+        // Limit total groups to prevent UI performance issues
         guard menuBarManager.settings.iconGroups.count < maxGroupCount else {
             // Silently fail - UI should prevent this
             return
@@ -1488,4 +1474,5 @@ struct MenuBarSearchView: View {
 #Preview {
     MenuBarSearchView(onDismiss: {})
 }
+
 // swiftlint:enable file_length

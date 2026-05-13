@@ -82,6 +82,11 @@ extension MenuBarSearchView {
 
     /// Classify an app's current zone based on its X position vs separator positions.
     func appZone(for app: RunningApp) -> AppZone {
+        let pinnedIds = Set(menuBarManager.settings.alwaysHiddenPinnedItemIds)
+        if pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId) {
+            return .alwaysHidden
+        }
+
         guard let xPos = app.xPosition else { return .visible }
         let midX = xPos + ((app.width ?? 22) / 2)
         let separatorBoundaryX = Self.separatorBoundaryForAllTabClassification(
@@ -343,7 +348,7 @@ extension MenuBarSearchView {
 
     /// Whether keyboard navigation should be active (not when modals are open)
     var isKeyboardNavigationActive: Bool {
-        !isCreatingGroup && hotkeyApp == nil
+        hotkeyApp == nil && proUpsellFeature == nil
     }
 
     func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {

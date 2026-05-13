@@ -97,14 +97,14 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    private func separatorBoundaryXForClassification() -> CGFloat? {
+    private func separatorBoundaryXForClassification(allowEstimatedFallback: Bool = false) -> CGFloat? {
         // Use the separator's right edge as the hidden/visible boundary.
         // In collapsed mode, right-edge cache remains stable while live AX frames
         // can lag, which avoids misclassifying hidden icons as visible.
-        if let rightEdge = MenuBarManager.shared.getSeparatorRightEdgeX() {
+        if let rightEdge = MenuBarManager.shared.getSeparatorRightEdgeX(allowEstimatedFallback: allowEstimatedFallback) {
             return rightEdge
         }
-        return MenuBarManager.shared.getSeparatorOriginX()
+        return MenuBarManager.shared.getSeparatorOriginX(allowEstimatedFallback: allowEstimatedFallback)
     }
 
     /// Normalize the always-hidden boundary against the main separator boundary.
@@ -124,8 +124,10 @@ final class SearchService: SearchServiceProtocol {
     }
 
     @MainActor
-    private func separatorOriginsForClassification() -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
-        guard let separatorX = separatorBoundaryXForClassification() else { return nil }
+    private func separatorOriginsForClassification(
+        allowEstimatedFallback: Bool = false
+    ) -> (separatorX: CGFloat, alwaysHiddenSeparatorX: CGFloat?)? {
+        guard let separatorX = separatorBoundaryXForClassification(allowEstimatedFallback: allowEstimatedFallback) else { return nil }
 
         guard MenuBarManager.shared.alwaysHiddenSeparatorItem != nil else {
             return (separatorX, nil)
@@ -178,7 +180,7 @@ final class SearchService: SearchServiceProtocol {
             }
 
             MenuBarManager.shared.repairAlwaysHiddenSeparatorPositionIfNeeded(reason: "classification")
-            let repairedSeparatorX = separatorBoundaryXForClassification() ?? separatorX
+            let repairedSeparatorX = separatorBoundaryXForClassification(allowEstimatedFallback: allowEstimatedFallback) ?? separatorX
             let repairedAlwaysHiddenOriginX = MenuBarManager.shared.getAlwaysHiddenSeparatorOriginX()
             let rawRepairedAlwaysHiddenBoundaryX = MenuBarManager.shared.getAlwaysHiddenSeparatorBoundaryX()
             var repairedAlwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
@@ -573,7 +575,7 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps {
-        classifyItems(items)
+        classifyItems(items, allowEstimatedFallback: false)
     }
 
     /// Single-pass classification for all items.
@@ -584,14 +586,21 @@ final class SearchService: SearchServiceProtocol {
     /// 3. If AH position is unknown but AH separator exists → use pinned IDs for always-hidden
     /// 4. If main separator is unknown → use screen-based offscreen detection
     @MainActor
-    private func classifyItems(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps {
+    private func classifyItems(
+        _ items: [AccessibilityService.MenuBarItemPosition],
+        allowEstimatedFallback: Bool = false
+    ) -> SearchClassifiedApps {
         let zonedItems = Self.zonedMenuBarItems(from: items)
         if zonedItems.count != items.count {
             logger.info(
                 "classifyItems: filtered \(items.count - zonedItems.count, privacy: .public) coarse fallback item(s) from zoned views"
             )
         }
-        let positions = separatorOriginsForClassification()
+        let positions = separatorOriginsForClassification(allowEstimatedFallback: allowEstimatedFallback)
+
+        if positions == nil, allowEstimatedFallback {
+            logger.warning("classifyItems: separator geometry unavailable after reveal; skipping estimated boundary fallback for visible/hidden split")
+        }
 
         // --- Main separator available: position-based classification ---
         if let positions {

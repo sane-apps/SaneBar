@@ -11,6 +11,8 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.instance_variable_set(:@require_all_candidates, false)
     smoke.instance_variable_set(:@required_candidate_ids, required_ids)
     smoke.instance_variable_set(:@app_pid, Process.pid)
+    smoke.instance_variable_set(:@active_avg_cpu_max, LiveZoneSmoke::DEFAULT_ACTIVE_AVG_CPU_MAX)
+    smoke.instance_variable_set(:@active_avg_rss_mb_max, LiveZoneSmoke::DEFAULT_ACTIVE_AVG_RSS_MB_MAX)
     smoke.send(:reset_resource_watchdog_state)
     smoke
   end
@@ -65,6 +67,23 @@ class LiveZoneSmokeTest < Minitest::Test
         bundle: 'com.setapp.DesktopClient.SetappLauncher',
         unique_id: 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item',
         name: 'SetappLauncher'
+      }
+    ]
+
+    candidates = smoke.send(:candidate_pool, zones)
+
+    assert_empty candidates
+  end
+
+  def test_normal_candidate_pool_excludes_codex_controller_status_item
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.openai.codex',
+        unique_id: 'com.openai.codex::statusItem:0',
+        name: 'Codex'
       }
     ]
 
@@ -230,6 +249,37 @@ class LiveZoneSmokeTest < Minitest::Test
 
     refute_includes candidate_ids, 'com.sindresorhus.Lungo-setapp::statusItem:0'
     refute_includes candidate_ids, 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item'
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
+  def test_browse_activation_candidates_exclude_codex_controller_status_item
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.openai.codex',
+        unique_id: 'com.openai.codex::statusItem:0',
+        name: 'Codex'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(
+      :browse_activation_candidates,
+      zones,
+      expected_mode: 'secondMenuBar',
+      activation_command: 'activate browse icon'
+    )
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    refute_includes candidate_ids, 'com.openai.codex::statusItem:0'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
@@ -481,6 +531,28 @@ class LiveZoneSmokeTest < Minitest::Test
         cpu_peak_max: 15.0,
         rss_mb_max: 128.0
       )
+    end
+  end
+
+  def test_active_average_budget_skips_too_few_samples
+    smoke = build_smoke
+    state = smoke.instance_variable_get(:@resource_watchdog_state)
+    state[:sample_count] = LiveZoneSmoke::DEFAULT_ACTIVE_AVG_MIN_SAMPLES - 1
+    state[:total_cpu] = 999.0
+    state[:total_rss_mb] = 999.0
+
+    smoke.send(:assert_active_average_budget!)
+  end
+
+  def test_active_average_budget_rejects_sustained_cpu_after_minimum_samples
+    smoke = build_smoke
+    state = smoke.instance_variable_get(:@resource_watchdog_state)
+    state[:sample_count] = LiveZoneSmoke::DEFAULT_ACTIVE_AVG_MIN_SAMPLES
+    state[:total_cpu] = (LiveZoneSmoke::DEFAULT_ACTIVE_AVG_CPU_MAX + 1.0) * state[:sample_count]
+    state[:total_rss_mb] = 50.0 * state[:sample_count]
+
+    assert_raises(RuntimeError) do
+      smoke.send(:assert_active_average_budget!)
     end
   end
 

@@ -46,3 +46,19 @@
 - GitHub evidence: #142's 2026-05-10/11 report shows startup recovery looping through invalid status-item windows and missing live coordinates, then a final diagnostic where `mainButton.identifier` is `nil` even though `action=statusItemClicked:` and windows are valid.
 - Local root cause update: recreated status items were manually rewired in `MenuBarManager.onItemsRecreated`, but the main button did not go back through `StatusBarController.configureStatusItems`, so the identifier/icon/action contract could drift after autosave recovery.
 - Decision: Recovery fixes must preserve controller-owned button configuration, then warm geometry/AX caches. Treat stable third-party exact-ID smoke as the release-blocking move lane; native system extras remain compatibility/open-close coverage.
+
+## sanebar-customer-ui-yaml-contract | Updated: 2026-05-12 | Status: verified | TTL: 7d
+- Trigger: upgraded suite-wide customer UI manifests added proof levels and historical failure classes; SaneBar Mini verify failed in `CustomerUIActionContractXCTests` before runtime sweep could proceed.
+- Local finding: the manifest remained valid YAML, but machine dumping changed top-level action indentation from `  - id:` to `- id:` and wrapped long scalar lines such as `Move to Hidden`. Existing tests were checking raw formatting instead of semantic contract content.
+- Decision: keep the new proof metadata, but make SaneBar contract tests resilient to YAML indentation/wrapping before rerunning verification. This is a process-tooling failure, not an app runtime failure.
+
+## sanebar-runtime-live-anchor-probe | Updated: 2026-05-13 | Status: verified | TTL: 14d
+- Trigger: GitHub #147 reported dynamic SwiftBar/Fantastical visible items falling back into hidden on SaneBar 2.1.52 after screen-parameter validation logged repeated missing live coordinates.
+- Local finding: runtime wake/screen-change validation intentionally stopped instead of autosave-repairing when only estimated separator coordinates were available. The safer fix is to avoid blessing estimated geometry in recovery/classification and warm separator caches before external-monitor always-show decisions, not to reveal protected hidden state in the background.
+- Decision: status-item recovery and verification should use no-estimate separator reads. Warm caches around reveal/external-monitor paths, but do not use a background reveal probe as a release requirement.
+
+## sanebar-customer-ui-release-proof | Updated: 2026-05-13 | Status: verified | TTL: 14d
+- Trigger: release SOP now requires visual click-through proof for every customer-facing UI action before publishing.
+- Local finding: the Browse Icons `+ Custom` group control was visible but could be a no-op in the release-like NSPanel; the customer sweep now catches it by clicking on the Mini, creating a QA group, checking persisted settings, capturing a screenshot, and restoring the user's settings file.
+- Tooling finding: `test_mode --release --no-logs` can report no-keychain state while Launch Services drops the runtime argument, and smoke paths can relaunch the app without the Pro/no-keychain argument. Pro-only customer UI sweeps must generate smoke evidence first, then run `./scripts/SaneMaster.rb mode SaneBar pro --launch` immediately before `ruby Scripts/customer_ui_action_sweep.rb`; the sweep now fails closed if the running process args do not include `--sane-no-keychain`.
+- Decision: `Tests/CustomerUIActions.yml` is the durable customer-action inventory. `.sane/customer_ui_action_receipt.json` is the release receipt and must contain portable structured evidence for all 20 action families before release preflight; final Mini contract receipt for `v2.1.53` passed at `2026-05-13T21:49:38Z` after regenerating `SaneBar.xcodeproj` from `project.yml`.

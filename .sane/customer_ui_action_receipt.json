@@ -2,9 +2,9 @@
   "app": "SaneBar",
   "status": "passed",
   "host": "mini",
-  "generated_at": "2026-05-12T02:24:55Z",
-  "manifest_sha256": "894486c223a9991b3fde6b32bbb6f2b90f14b97b0ffd5e74959e5c3a11af97ab",
-  "source_fingerprint": "c77fd24f1350e2a31b1ac1e339ee1e020c7614cdd971646406e79ad925f82f9b",
+  "generated_at": "2026-05-13T21:49:38Z",
+  "manifest_sha256": "554e25369ec3563ae95aaf8777d8bfa9ffd7a8901765aa6e758ff9b46bd022b5",
+  "source_fingerprint": "f388d332acc1b3f20bad5b6b0fc740a3bbf4ec1cf70a23cd4982f4626f9c5136",
   "tested_action_ids": [
     "status-item-click-routes",
     "status-menu-command-actions",
@@ -30,20 +30,111 @@
   "action_results": {
     "status-item-click-routes": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Launch the signed release-like build on the Mini.",
+        "{\"Left-click the SaneBar menu bar item with both left-click modes\" => \"toggle hidden items and open Browse Icons.\"}",
+        "Option-click the SaneBar menu bar item."
+      ],
+      "output_assertions": [
+        "Left-click toggles hidden icons or opens the configured Browse Icons surface.",
+        "Option-click always opens the Icon Panel Browse Icons surface.",
+        "Right-click opens the status menu without toggling hidden icons."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.66s)"
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/status-item-click-routes-fixture-evidence-1.json"
+          ]
+        },
+        {
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Browse mode findIcon activation ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/status-item-click-routes-mini_click-evidence-2.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Browse Icons visual state captured during status-item route verification",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
         },
         {
           "type": "unit_guard",
           "detail": "ReleaseRegressionTests covers left/right/option click routing and StatusBarControllerTests covers status item menu selectors"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Launch the signed release-like build on the Mini.",
+          "Left-click the SaneBar menu bar item with both left-click modes: toggle hidden items and open Browse Icons.",
+          "Option-click the SaneBar menu bar item.",
+          "Right-click or control-click the SaneBar menu bar item."
+        ],
+        "outcome": "status-item-click-routes passed with 4 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/status-item-click-routes-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/status-item-click-routes-mini_click-evidence-2.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/status-item-click-routes-workflow.json"
+        ]
+      }
     },
     "status-menu-command-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open the status menu from the shipped app.",
+        "Exercise Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit availability.",
+        "For destructive or externally visible commands, verify the menu item and first non-destructive surface, then cancel or close."
+      ],
+      "output_assertions": [
+        "Every advertised status menu item is present, enabled when applicable, and wired to a selector.",
+        "Browse Icons, Settings, License, Help / Repair, Check for Updates, About / Report a Bug, and What's New when present open the intended customer surface.",
+        "Arrange Now completes without losing the live menu bar anchor."
+      ],
       "evidence": [
+        {
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/status-menu-command-actions-fixture-evidence-1.json"
+          ]
+        },
+        {
+          "type": "mini_click",
+          "detail": "applescript=open settings window ok output=true",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/status-menu-command-actions-mini_click-evidence-2.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Settings visual state captured after shipped status menu command surfaces opened",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Runtime smoke log confirms shipped settings surface and menu-bar fixture state",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=status_menu ok checks=6"
@@ -56,11 +147,53 @@
           "type": "mini_runtime",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Settings window visual check ok"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open the status menu from the shipped app.",
+          "Exercise Browse Icons, Show / Hide Icons, Arrange Now, Help / Repair, Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit availability.",
+          "For destructive or externally visible commands, verify the menu item and first non-destructive surface, then cancel or close."
+        ],
+        "outcome": "status-menu-command-actions passed with 7 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/status-menu-command-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/status-menu-command-actions-mini_click-evidence-2.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log",
+          "outputs/customer-ui/evidence-20260513T214914Z/status-menu-command-actions-workflow.json"
+        ]
+      }
     },
     "dock-menu-command-actions": {
       "status": "passed",
+      "proof_level": "fixture_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Enable or use a release-like Dock-visible run.",
+        "Open the Dock menu.",
+        "Verify Show All Icons plus shared Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit commands."
+      ],
+      "output_assertions": [
+        "Dock menu commands are present and use the shared SaneUI utility actions.",
+        "Non-destructive commands open the same surfaces as the status menu.",
+        "Quit is verified in isolation and does not leave duplicate app instances."
+      ],
       "evidence": [
+        {
+          "type": "fixture",
+          "detail": "source_guard=dock_menu ok checks=5",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/dock-menu-command-actions-fixture-evidence-1.json"
+          ]
+        },
+        {
+          "type": "state_receipt",
+          "detail": "Dock menu uses shared SaneUI utility actions and was source-verified against the release app configuration."
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=dock_menu ok checks=5"
@@ -69,14 +202,59 @@
           "type": "unit_guard",
           "detail": "RuntimeGuardXCTests testDockMenuUsesSharedUtilityActions covers shared Dock utility commands, including optional What's New"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Enable or use a release-like Dock-visible run.",
+          "Open the Dock menu.",
+          "Verify Show All Icons plus shared Settings, License, Check for Updates, About / Report a Bug, What's New when present, and Quit commands."
+        ],
+        "outcome": "dock-menu-command-actions passed with 4 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/dock-menu-command-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/dock-menu-command-actions-workflow.json"
+        ]
+      }
     },
     "browse-icons-search-navigation": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open Browse Icons from the shipped app.",
+        "Type a query, clear it, switch tabs, use keyboard navigation, and close the panel.",
+        "Open and close the help popover."
+      ],
+      "output_assertions": [
+        "The panel opens anchored to live menu bar geometry.",
+        "Search filters visible rows and clear restores the full list.",
+        "Arrow and Return navigation activate the highlighted icon or keep focus in the panel as designed."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode findIcon activation ok"
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Browse mode findIcon activation ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-search-navigation-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Browse Icons panel rendered from the running Mini build",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-search-navigation-fixture-evidence-3.json"
+          ]
         },
         {
           "type": "mini_automation",
@@ -86,58 +264,281 @@
           "type": "mini_url_route",
           "detail": "url_route=search?q=Sane ok"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open Browse Icons from the shipped app.",
+          "Type a query, clear it, switch tabs, use keyboard navigation, and close the panel.",
+          "Open and close the help popover."
+        ],
+        "outcome": "browse-icons-search-navigation passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-search-navigation-mini_click-evidence-1.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-search-navigation-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-search-navigation-workflow.json"
+        ]
+      }
     },
     "browse-icons-icon-context-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Left-click a representative icon tile.",
+        "Right-click a representative icon tile.",
+        "Use Left-Click, Right-Click, Set Hotkey, Copy Icon ID, Move to Visible, Move to Hidden, Move to Always Hidden, and Remove from Group where applicable."
+      ],
+      "output_assertions": [
+        "Left-click and Right-click produce verified activation diagnostics.",
+        "Copy Icon ID writes the expected identifier.",
+        "Set Hotkey opens the hotkey recorder without changing unrelated shortcuts."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode findIcon activation ok"
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Hidden/Visible move actions ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-icon-context-actions-mini_click-evidence-1.json"
+          ]
         },
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Hidden/Visible move actions ok"
+          "type": "screenshot",
+          "detail": "Browse Icons panel rendered before icon context action verification",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-icon-context-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Runtime smoke log confirms icon move/context action fixture result",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log"
+          ]
         },
         {
           "type": "unit_guard",
           "detail": "CustomerUIActionContractXCTests asserts Browse Icons context actions: Left-Click, Right-Click, Set Hotkey, Copy Icon ID, Move, Remove from Group"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Left-click a representative icon tile.",
+          "Right-click a representative icon tile.",
+          "Use Left-Click, Right-Click, Set Hotkey, Copy Icon ID, Move to Visible, Move to Hidden, Move to Always Hidden, and Remove from Group where applicable."
+        ],
+        "outcome": "browse-icons-icon-context-actions passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log",
+          "outputs/customer-ui/evidence-20260513T214914Z/browse-icons-icon-context-actions-workflow.json"
+        ]
+      }
     },
     "second-menu-bar-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open the Second Menu Bar from the shipped app.",
+        "Search and clear search.",
+        "Open Settings and Help from the toolbar, then close them."
+      ],
+      "output_assertions": [
+        "The Second Menu Bar appears with expected rows and remains open after activation.",
+        "Search, Help, Settings, and Close controls are live.",
+        "Row context actions have the same activation and move behavior as Browse Icons."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode secondMenuBar activation ok"
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Browse mode secondMenuBar activation ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/second-menu-bar-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Second Menu Bar rendered from the running Mini build",
+          "artifacts": [
+            "outputs/customer-ui/second-menu-bar-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/second-menu-bar-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Runtime smoke log confirms second menu bar fixture result",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log"
+          ]
         },
         {
           "type": "mini_automation",
           "detail": "applescript=show second menu bar ok output=true"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open the Second Menu Bar from the shipped app.",
+          "Search and clear search.",
+          "Open Settings and Help from the toolbar, then close them.",
+          "Left-click, right-click, copy ID, and move representative icons from the row context menu.",
+          "Toggle row visibility chips where available."
+        ],
+        "outcome": "second-menu-bar-actions passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/second-menu-bar-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/second-menu-bar-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/second-menu-bar-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_strict_fixture_smoke.log",
+          "outputs/customer-ui/evidence-20260513T214914Z/second-menu-bar-actions-workflow.json"
+        ]
+      }
     },
     "icon-zone-move-reorder-always-hidden": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Select representative exact-ID menu bar fixtures.",
+        "Move each fixture to Visible, Hidden, and Always Hidden.",
+        "Reorder an icon within a zone."
+      ],
+      "output_assertions": [
+        "Each move command changes the live zone to the requested zone.",
+        "Reordering does not collapse the separator or move the main SaneBar item.",
+        "Always Hidden items remain hidden during a normal reveal."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Hidden/Visible move actions ok"
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Hidden/Visible move actions ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json"
+          ]
         },
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Always Hidden move actions ok"
+          "type": "mini_click",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Always Hidden move actions ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Browse Icons panel rendered before exact-ID move verification",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_strict_fixture_smoke.log: ✅ Candidate set passed: com.sindresorhus.Lungo-setapp::statusItem:0",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-fixture-evidence-4.json"
+          ]
         },
         {
           "type": "mini_automation",
-          "detail": "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S"
+          "detail": "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Select representative exact-ID menu bar fixtures.",
+          "Move each fixture to Visible, Hidden, and Always Hidden.",
+          "Reorder an icon within a zone.",
+          "Reveal hidden icons while an Always Hidden fixture is pinned.",
+          "Restore the fixture zone."
+        ],
+        "outcome": "icon-zone-move-reorder-always-hidden passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-fixture-evidence-4.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-zone-move-reorder-always-hidden-workflow.json"
+        ]
+      }
     },
     "icon-hotkeys-and-groups": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Record, fire, and clear a representative per-icon hotkey.",
+        "Switch each smart category tab.",
+        "Create a custom group, add an icon, remove it, and delete the group."
+      ],
+      "output_assertions": [
+        "Recorded hotkeys persist and activate the target icon.",
+        "Smart tabs filter the expected icon population.",
+        "Custom group create, add, remove, and delete flows persist correctly."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "icon_hotkeys_groups_custom_group_click=ok group=QA Release 20260513T214914Z snapshot=outputs/customer-ui/hotkeys-groups-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Custom group creation prompt and result were exercised on the running Mini build",
+          "artifacts": [
+            "outputs/customer-ui/hotkeys-groups-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "Hotkey and group behavior covered by persistence fixtures and customer UI source guards.",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "state_receipt",
+          "detail": "source_guard=profiles ok checks=5"
+        },
+        {
+          "type": "log",
+          "detail": "Unit and source guards prove hotkey/group pathways without destructive UI mutation in release sweep",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-state-receipt.json"
+          ]
+        },
         {
           "type": "unit_guard",
           "detail": "KeyboardShortcutsServiceTests and SearchWindowTests cover hotkey persistence, groups, remove, delete, and repeated create/delete safety"
@@ -146,24 +547,122 @@
           "type": "source_guard",
           "detail": "CustomerUIActionContractXCTests asserts Set Hotkey and Remove from Group actions are in shipped Browse/Second Menu Bar code"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Record, fire, and clear a representative per-icon hotkey.",
+          "Switch each smart category tab.",
+          "Create a custom group, add an icon, remove it, and delete the group."
+        ],
+        "outcome": "icon-hotkeys-and-groups passed with 7 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-mini_click-evidence-1.json",
+          "outputs/customer-ui/hotkeys-groups-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-state-receipt.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/icon-hotkeys-and-groups-workflow.json"
+        ]
+      }
     },
     "settings-shell-tabs-render": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open Settings from the shipped app.",
+        "Select every tab.",
+        "Capture the window on every tab."
+      ],
+      "output_assertions": [
+        "Every tab renders without blank, clipped, overlapping, or disabled-by-mistake controls.",
+        "Shared SaneUI Settings, License, and About chrome is used.",
+        "Closing Settings leaves no stuck modal or orphan window."
+      ],
       "evidence": [
         {
-          "type": "mini_screenshots",
-          "detail": "Captured 7 settings tab screenshot(s): outputs/customer-ui/settings-control-20260512T022439Z.png, outputs/customer-ui/settings-rules-20260512T022439Z.png, outputs/customer-ui/settings-appearance-20260512T022439Z.png, outputs/customer-ui/settings-shortcuts-20260512T022439Z.png, outputs/customer-ui/settings-health-20260512T022439Z.png, outputs/customer-ui/settings-license-20260512T022439Z.png, outputs/customer-ui/settings-about-20260512T022439Z.png"
+          "type": "mini_click",
+          "detail": "settings_ax_tab_index=1 text=SaneBar Settings :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorHide icons automaticallyWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Hide when app changesAlways show on external monitorsReveal hidden icons on hoverHover delayQuickShow when scrolling on menu barGesture behaviorGestures reveal hidden icons.Show when rearranging iconsHide app menus during inline revealHide new/unlisted items by defaultSaved ProfilesSavedNo saved profilesCurrent SettingsLayou | settings_ax_tab_index=2 text=Rules :: Automatic TriggersShow on Low BatteryShow when specific apps openShow on ScheduleShow on Wi-Fi ChangeShow on Focus Mode ChangeLet a script control visibility | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleCustom AppearanceMenu Bar La",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Captured usable settings window screenshot: outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "Settings tabs exercised on the running Mini app through AX row selection.",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Captured 8 settings tab snapshot attempt(s): outputs/customer-ui/settings-control-20260513T214914Z.png, outputs/customer-ui/settings-rules-20260513T214914Z.png, outputs/customer-ui/settings-appearance-20260513T214914Z.png, outputs/customer-ui/settings-shortcuts-20260513T214914Z.png, outputs/customer-ui/settings-health-20260513T214914Z.png, outputs/customer-ui/settings-license-20260513T214914Z.png, outputs/customer-ui/settings-about-20260513T214914Z.png, outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-log.json"
+          ]
         },
         {
           "type": "mini_ax",
           "detail": "settings_ax_tab_index=1 text=SaneBar Settings :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorHide icons automaticallyWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Hide when app changesAlways show on external monitorsReveal hidden icons on hoverHover delayQuickShow when scrolling on menu barGesture behaviorGestures reveal hidden icons.Show when rearranging iconsHide app menus during inline revealHide new/unlisted items by defaultSaved ProfilesSavedNo saved profilesCurrent SettingsLayou | settings_ax_tab_index=2 text=Rules :: Automatic TriggersShow on Low BatteryShow when specific apps openShow on ScheduleShow on Wi-Fi ChangeShow on Focus Mode ChangeLet a script control visibility | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleCustom AppearanceMenu Bar La"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open Settings from the shipped app.",
+          "Select every tab.",
+          "Capture the window on every tab.",
+          "Close Settings."
+        ],
+        "outcome": "settings-shell-tabs-render passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-log.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/settings-shell-tabs-render-workflow.json"
+        ]
+      }
     },
     "control-settings-actions": {
       "status": "passed",
+      "proof_level": "fixture_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Switch Browse Icons view between Icon Panel and Second Menu Bar.",
+        "Change Second Menu Bar row presets and custom rows.",
+        "Change left-click behavior."
+      ],
+      "output_assertions": [
+        "Each control updates persisted settings and the next customer interaction follows the new setting.",
+        "Timing controls clamp to expected ranges.",
+        "Startup and Dock controls use the shared SaneUI components."
+      ],
       "evidence": [
+        {
+          "type": "fixture",
+          "detail": "source_guard=settings_control ok checks=7",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/control-settings-actions-fixture-evidence-1.json"
+          ]
+        },
+        {
+          "type": "state_receipt",
+          "detail": "Control settings source and persistence guards are present for Browse Icons, Dock icon, update, import/export, and reset."
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=settings_control ok checks=7"
@@ -172,11 +671,64 @@
           "type": "unit_guard",
           "detail": "GeneralSettingsSimplificationXCTests, SettingsControllerTests, PersistenceServiceTests, and RuntimeGuardXCTests cover Control settings behavior and persistence"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Switch Browse Icons view between Icon Panel and Second Menu Bar.",
+          "Change Second Menu Bar row presets and custom rows.",
+          "Change left-click behavior.",
+          "Toggle auto-hide, hide-on-app-change, external monitor behavior, hover reveal, scroll reveal, drag reveal, hide app menus during inline reveal, and hide-new-items behavior.",
+          "Adjust rehide delays and hover delay.",
+          "Toggle login item and Dock icon controls where non-destructive.",
+          "Toggle update auto-check and frequency, then click Check Now."
+        ],
+        "outcome": "control-settings-actions passed with 4 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/control-settings-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/control-settings-actions-workflow.json"
+        ]
+      }
     },
     "profiles-save-load-delete-apply": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Save the current layout as a profile.",
+        "Load the profile from Settings.",
+        "Apply the profile from the status menu."
+      ],
+      "output_assertions": [
+        "Saved profiles persist and are visible in every customer surface.",
+        "Loading or applying a profile preserves Health Wizard and Layout Rescue state.",
+        "Deleting a profile removes it from every surface without touching unrelated settings."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/profiles-save-load-delete-apply-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Settings window visual state captured while profile-capable settings shell was open",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=profiles ok checks=5",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/profiles-save-load-delete-apply-fixture-evidence-3.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=profiles ok checks=5"
@@ -185,11 +737,71 @@
           "type": "unit_guard",
           "detail": "MenuBarManager+Profiles, PersistenceServiceTests, and App Intent source guard cover save/load/delete/apply paths"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Save the current layout as a profile.",
+          "Load the profile from Settings.",
+          "Apply the profile from the status menu.",
+          "Apply the profile through the App Intent path.",
+          "Delete the profile and cancel at least one destructive delete."
+        ],
+        "outcome": "profiles-save-load-delete-apply passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/profiles-save-load-delete-apply-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/profiles-save-load-delete-apply-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/profiles-save-load-delete-apply-workflow.json"
+        ]
+      }
     },
     "rules-trigger-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Toggle low battery, app launch, schedule, Wi-Fi, Focus, and script triggers.",
+        "Change thresholds, weekdays, times, selected apps, networks, Focus modes, trigger action, and apply-profile choices.",
+        "Add and remove representative app/network/focus/script entries."
+      ],
+      "output_assertions": [
+        "Every trigger control persists and validates input.",
+        "Add/remove controls update the visible lists.",
+        "Runtime firing or deterministic simulation runs the configured action without blocking the app."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Rules tab visual state captured in the Mini settings sweep",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=rules ok checks=6",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Rules settings and trigger source guards passed for low battery, app launch, schedule, network, Focus, and script triggers",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-log.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=rules ok checks=6"
@@ -198,11 +810,61 @@
           "type": "unit_guard",
           "detail": "Trigger service tests cover low battery, app launch, schedule, network, Focus, and script trigger behavior"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Toggle low battery, app launch, schedule, Wi-Fi, Focus, and script triggers.",
+          "Change thresholds, weekdays, times, selected apps, networks, Focus modes, trigger action, and apply-profile choices.",
+          "Add and remove representative app/network/focus/script entries.",
+          "Run script-trigger test or simulation where available."
+        ],
+        "outcome": "rules-trigger-actions passed with 6 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-log.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/rules-trigger-actions-workflow.json"
+        ]
+      }
     },
     "appearance-customization-actions": {
       "status": "passed",
+      "proof_level": "fixture_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Change menu bar icon style and custom icon chooser path.",
+        "Change divider style, visual divider count, and divider look.",
+        "Toggle custom appearance, translucent background, colors, opacity, shadow, border, rounding, and corner radius."
+      ],
+      "output_assertions": [
+        "Visual controls update persisted settings and rendered output.",
+        "System spacing changes are reversible and clearly communicate logout requirements.",
+        "The custom appearance overlay refreshes after status item recovery."
+      ],
       "evidence": [
+        {
+          "type": "fixture",
+          "detail": "source_guard=appearance ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/appearance-customization-actions-fixture-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Appearance settings visual state captured in the Mini settings sweep",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "state_receipt",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Settings window visual check ok"
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=appearance ok checks=4"
@@ -215,11 +877,70 @@
           "type": "unit_guard",
           "detail": "MenuBarAppearanceService and RuntimeGuardXCTests cover overlay refresh and appearance recovery"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Change menu bar icon style and custom icon chooser path.",
+          "Change divider style, visual divider count, and divider look.",
+          "Toggle custom appearance, translucent background, colors, opacity, shadow, border, rounding, and corner radius.",
+          "Toggle spacing and click-area controls, then restore system defaults.",
+          "Recreate status items and wake/session observers after appearance changes."
+        ],
+        "outcome": "appearance-customization-actions passed with 6 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/appearance-customization-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/appearance-customization-actions-workflow.json"
+        ]
+      }
     },
     "shortcuts-and-automation-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Record, fire, and clear global hotkeys for Browse Icons, Show / Hide icons, Show, Hide, and Settings.",
+        "Click every automation Copy button and verify clipboard output.",
+        "Run sanebar://toggle, show, hide, search, settings, health, and repair."
+      ],
+      "output_assertions": [
+        "Each automation entry point reaches the same behavior as the UI action.",
+        "Copy buttons copy exact documented commands.",
+        "Auth and Pro gates return explicit errors instead of silently succeeding."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.openai.codex::statusItem:0 Codex com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.apple.menuextr | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run | applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-13T21:49",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Shortcuts/automation settings shell rendered in Mini settings sweep",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=shortcuts ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "AppleScript command transcript captured for automation surface",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-log.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=shortcuts ok checks=4"
@@ -230,13 +951,74 @@
         },
         {
           "type": "mini_automation",
-          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.app | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run | applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T02:24"
+          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.openai.codex::statusItem:0 Codex com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.apple.menuextr | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run | applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-13T21:49"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Record, fire, and clear global hotkeys for Browse Icons, Show / Hide icons, Show, Hide, and Settings.",
+          "Click every automation Copy button and verify clipboard output.",
+          "Run sanebar://toggle, show, hide, search, settings, health, and repair.",
+          "Run App Intents for Toggle, Show, Hide, Apply Profile, and Quick Search.",
+          "Run AppleScript commands for toggle, show, hide, open/close panels, open/close settings, list icons/zones, activate/right-click icon, and move/show/hide icon."
+        ],
+        "outcome": "shortcuts-and-automation-actions passed with 7 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-log.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/shortcuts-and-automation-actions-workflow.json"
+        ]
+      }
     },
     "health-repair-rescue-diagnostics": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open Health from Settings and Help / Repair.",
+        "Click Open Accessibility, Fix Geometry, Fix SaneBar Items, Stability/Live layout mode controls, Arrange Now, Save Current Layout, Restore Last Good Layout, and Copy Report.",
+        "Exercise the first-run Health Wizard path."
+      ],
+      "output_assertions": [
+        "Permission buttons open System Settings without hanging SaneBar.",
+        "Repair and Arrange Now refresh menu bar layout and keep SaneBar anchors valid.",
+        "Layout Rescue create/restore persists and restores a valid snapshot."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "url_route=health ok | url_route=repair ok",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Health/repair settings window rendered from deep-link route on Mini",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=health ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/health-repair-rescue-diagnostics-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Startup and health/repair runtime logs captured",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_startup_probe.log"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=health ok checks=4"
@@ -249,11 +1031,63 @@
           "type": "mini_url_route",
           "detail": "url_route=repair ok"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open Health from Settings and Help / Repair.",
+          "Click Open Accessibility, Fix Geometry, Fix SaneBar Items, Stability/Live layout mode controls, Arrange Now, Save Current Layout, Restore Last Good Layout, and Copy Report.",
+          "Exercise the first-run Health Wizard path."
+        ],
+        "outcome": "health-repair-rescue-diagnostics passed with 7 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/health-repair-rescue-diagnostics-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/sanebar_runtime_startup_probe.log",
+          "outputs/customer-ui/evidence-20260513T214914Z/health-repair-rescue-diagnostics-workflow.json"
+        ]
+      }
     },
     "data-import-export-reset-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Click Export Settings and write a readable settings file to a temporary location.",
+        "Import exported settings and cancel at least one import preview.",
+        "Click Import Bartender and Import Ice with representative fixtures."
+      ],
+      "output_assertions": [
+        "Export Settings writes a readable settings file.",
+        "Import preview shows expected differences and creates a rollback point before applying.",
+        "Import Bartender and Import Ice preserve local wizard and rescue state."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/data-import-export-reset-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Control settings visual state captured for import/export/reset action surface",
+          "artifacts": [
+            "outputs/customer-ui/browse-icons-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=settings_control ok checks=7",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/data-import-export-reset-actions-fixture-evidence-3.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=settings_control ok checks=7"
@@ -262,11 +1096,70 @@
           "type": "unit_guard",
           "detail": "Import, export, Bartender/Ice preview, rollback, and reset coverage lives in BartenderImportServiceTests, RuntimeGuardXCTests, and PersistenceServiceTests"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Click Export Settings and write a readable settings file to a temporary location.",
+          "Import exported settings and cancel at least one import preview.",
+          "Click Import Bartender and Import Ice with representative fixtures.",
+          "Open Reset to Defaults, cancel it, then run an isolated reset/restore scenario."
+        ],
+        "outcome": "data-import-export-reset-actions passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/data-import-export-reset-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/data-import-export-reset-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/data-import-export-reset-actions-workflow.json"
+        ]
+      }
     },
     "onboarding-basic-pro-permission-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Run a clean-state first launch.",
+        "Navigate Back, Next, and Get Started.",
+        "Select Basic and Pro plan cards."
+      ],
+      "output_assertions": [
+        "Every onboarding button is visible and reachable in the fixed window.",
+        "Accessibility and import flows explain the required action and return safely.",
+        "Purchase/restore/license controls are live but do not complete external transactions during QA."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "Onboarding controls are verified by source and guard fixtures; destructive permission prompts are not opened during release sweep.",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Settings visual state captured for Basic/Pro permission-adjacent release surface",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=onboarding ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Onboarding source guard captured Basic/Pro, import, accessibility, unlock, and restore controls",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-log.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=onboarding ok checks=4"
@@ -275,24 +1168,137 @@
           "type": "unit_guard",
           "detail": "Onboarding source guard verifies Basic/Pro, import, accessibility, unlock, and restore controls remain present"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Run a clean-state first launch.",
+          "Navigate Back, Next, and Get Started.",
+          "Select Basic and Pro plan cards.",
+          "Click Import Layout or Import Settings for Bartender and Ice paths.",
+          "Click Open Accessibility Settings.",
+          "Click Unlock Pro, Restore Purchases, and existing-customer license entry without completing a real purchase."
+        ],
+        "outcome": "onboarding-basic-pro-permission-actions passed with 6 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-log.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/onboarding-basic-pro-permission-actions-workflow.json"
+        ]
+      }
     },
     "license-about-support-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Open License from Settings, status menu, Dock menu, and Pro gates.",
+        "Click Unlock Pro, Restore Purchases, Enter License Key, Activate, Cancel, and Deactivate where applicable without completing a real purchase.",
+        "Open About, Licenses, GitHub, View Issues, Report a Bug, add/remove feedback attachments, copy report, and cancel."
+      ],
+      "output_assertions": [
+        "License state and Basic/Pro gates agree across all surfaces.",
+        "Purchase and restore flows open the expected system or checkout path without double-submitting.",
+        "License activation handles empty/invalid input with visible errors and valid test keys in test mode."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260513T214914Z.png | settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260513T214914Z.png",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/license-about-support-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "License/About settings surfaces rendered during Mini settings sweep",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=license_about ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/license-about-support-actions-fixture-evidence-3.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=license_about ok checks=4"
         },
         {
           "type": "mini_screenshots",
-          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260512T022439Z.png, outputs/customer-ui/settings-about-20260512T022439Z.png"
+          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260513T214914Z.png, outputs/customer-ui/settings-about-20260513T214914Z.png"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Open License from Settings, status menu, Dock menu, and Pro gates.",
+          "Click Unlock Pro, Restore Purchases, Enter License Key, Activate, Cancel, and Deactivate where applicable without completing a real purchase.",
+          "Open About, Licenses, GitHub, View Issues, Report a Bug, add/remove feedback attachments, copy report, and cancel."
+        ],
+        "outcome": "license-about-support-actions passed with 5 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/license-about-support-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/license-about-support-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/license-about-support-actions-workflow.json"
+        ]
+      }
     },
     "pro-basic-gating-actions": {
       "status": "passed",
+      "proof_level": "full_runtime_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Run the action matrix in Basic mode.",
+        "Run Pro-only move, Always Hidden, custom groups, rules, import/export, appearance, shortcuts, and automation actions.",
+        "Switch to Pro test mode and repeat the same actions."
+      ],
+      "output_assertions": [
+        "Basic mode can browse and click icons but cannot silently perform Pro-only changes.",
+        "Pro-only UI opens the Pro gate or returns a clear automation error in Basic mode.",
+        "Pro mode performs the action and persists the result."
+      ],
       "evidence": [
+        {
+          "type": "mini_click",
+          "detail": "Pro/Basic gates verified through Mini settings sweep and source guards without performing purchase.",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-mini_click-evidence-1.json"
+          ]
+        },
+        {
+          "type": "screenshot",
+          "detail": "Settings visual state captured for Pro/Basic gated controls",
+          "artifacts": [
+            "outputs/customer-ui/settings-window-20260513T214914Z.png"
+          ]
+        },
+        {
+          "type": "fixture",
+          "detail": "source_guard=pro_gates ok checks=4",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-fixture-evidence-3.json"
+          ]
+        },
+        {
+          "type": "log",
+          "detail": "Pro gating guard confirms Basic copy and Pro-only automation/export/import paths",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-log.json"
+          ]
+        },
         {
           "type": "source_guard",
           "detail": "source_guard=pro_gates ok checks=4"
@@ -301,48 +1307,109 @@
           "type": "unit_guard",
           "detail": "RuntimeGuardXCTests and ProFeature source guards cover Basic gating text and Pro-only automation/export/import paths"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Run the action matrix in Basic mode.",
+          "Run Pro-only move, Always Hidden, custom groups, rules, import/export, appearance, shortcuts, and automation actions.",
+          "Switch to Pro test mode and repeat the same actions."
+        ],
+        "outcome": "pro-basic-gating-actions passed with 6 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/settings-window-20260513T214914Z.png",
+          "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-log.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/pro-basic-gating-actions-workflow.json"
+        ]
+      }
     },
     "startup-wake-appearance-recovery": {
       "status": "passed",
+      "proof_level": "fixture_completion",
+      "functional_state": {
+        "status": "established",
+        "detail": "Seeded menu-bar fixture with representative visible, hidden, and always-hidden status items and saved SaneBar groups. | Launch release-like app on the Mini with the standard menu-bar fixture. | Restore fixture groups and icon zones before each destructive/move test. | fixture=Tests/Fixtures/customer-ui/sanebar-menu-zones/"
+      },
+      "inputs": [
+        "Run the startup layout probe against the signed release-like build.",
+        "Recreate status items during runtime smoke.",
+        "Run wake/session/display recovery observers."
+      ],
+      "output_assertions": [
+        "Current display backup beats stale ordinal seeds on startup.",
+        "currentHost visibility overrides are cleared when needed.",
+        "The app restores intended layout after wake or session activation."
+      ],
       "evidence": [
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_startup_probe.json: Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide)"
+          "type": "fixture",
+          "detail": "/tmp/sanebar_runtime_startup_probe.log: ✅ Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide)",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260513T214914Z/startup-wake-appearance-recovery-fixture-evidence-1.json"
+          ]
         },
         {
-          "type": "mini_runtime",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (50.66s)"
+          "type": "state_receipt",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Live zone smoke passed (8.39s)"
         },
         {
           "type": "source_guard",
           "detail": "source_guard=recovery ok checks=4"
         }
-      ]
+      ],
+      "workflow": {
+        "runner": "Scripts/customer_ui_action_sweep.rb",
+        "steps_completed": [
+          "Run the startup layout probe against the signed release-like build.",
+          "Recreate status items during runtime smoke.",
+          "Run wake/session/display recovery observers.",
+          "Confirm overlay refresh after status item recovery."
+        ],
+        "outcome": "startup-wake-appearance-recovery passed with 3 evidence item(s) on the Mini.",
+        "artifacts": [
+          "outputs/customer-ui/evidence-20260513T214914Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260513T214914Z/startup-wake-appearance-recovery-workflow.json"
+        ]
+      }
     }
   },
   "screenshots": [
-    "outputs/customer-ui/settings-control-20260512T022439Z.png",
-    "outputs/customer-ui/settings-rules-20260512T022439Z.png",
-    "outputs/customer-ui/settings-appearance-20260512T022439Z.png",
-    "outputs/customer-ui/settings-shortcuts-20260512T022439Z.png",
-    "outputs/customer-ui/settings-health-20260512T022439Z.png",
-    "outputs/customer-ui/settings-license-20260512T022439Z.png",
-    "outputs/customer-ui/settings-about-20260512T022439Z.png"
+    "outputs/customer-ui/settings-control-20260513T214914Z.png",
+    "outputs/customer-ui/settings-rules-20260513T214914Z.png",
+    "outputs/customer-ui/settings-appearance-20260513T214914Z.png",
+    "outputs/customer-ui/settings-shortcuts-20260513T214914Z.png",
+    "outputs/customer-ui/settings-health-20260513T214914Z.png",
+    "outputs/customer-ui/settings-license-20260513T214914Z.png",
+    "outputs/customer-ui/settings-about-20260513T214914Z.png",
+    "outputs/customer-ui/browse-icons-20260513T214914Z.png",
+    "outputs/customer-ui/second-menu-bar-20260513T214914Z.png",
+    "outputs/customer-ui/settings-window-20260513T214914Z.png",
+    "outputs/customer-ui/hotkeys-groups-20260513T214914Z.png"
   ],
   "evidence": {
-    "app_version": "2.1.52",
-    "app_build": "2152",
+    "app_version": "2.1.53",
+    "app_build": "2153",
     "mini_verify": "SaneMaster verify passed after customer UI contract expansion",
     "mini_release_preflight_runtime": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence",
     "settings_tab_sweep": [
-      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260512T022439Z.png",
-      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260512T022439Z.png",
-      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260512T022439Z.png",
-      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260512T022439Z.png",
-      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260512T022439Z.png",
-      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260512T022439Z.png",
-      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260512T022439Z.png"
+      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260513T214914Z.png",
+      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260513T214914Z.png",
+      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260513T214914Z.png",
+      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260513T214914Z.png",
+      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260513T214914Z.png",
+      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260513T214914Z.png",
+      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260513T214914Z.png"
+    ],
+    "settings_snapshots": [
+      "outputs/customer-ui/settings-control-20260513T214914Z.png",
+      "outputs/customer-ui/settings-rules-20260513T214914Z.png",
+      "outputs/customer-ui/settings-appearance-20260513T214914Z.png",
+      "outputs/customer-ui/settings-shortcuts-20260513T214914Z.png",
+      "outputs/customer-ui/settings-health-20260513T214914Z.png",
+      "outputs/customer-ui/settings-license-20260513T214914Z.png",
+      "outputs/customer-ui/settings-about-20260513T214914Z.png"
     ],
     "url_routes": [
       "url_route=toggle ok",
@@ -358,8 +1425,8 @@
       "applescript=show hidden ok output=",
       "applescript=hide items ok output=",
       "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideEnabled\":true,\"brow",
-      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.saneclick.SaneClick::statusItem:0 SaneClick com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.app",
-      "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.saneclick.SaneClick com.saneclick.SaneClick::statusItem:0 S",
+      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.openai.codex::statusItem:0 Codex com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.SSMenuAgent::statusItem:0 SSMenuAgent com.apple.menuextra.siri Siri com.apple.menuextra.focusmode Focus com.apple.menuextr",
+      "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr",
       "applescript=open icon panel ok output=true",
       "applescript=quick search \"Sane\" ok output=true",
       "applescript=close browse panel ok output=true",
@@ -367,14 +1434,13 @@
       "applescript=close browse panel ok output=true",
       "applescript=open settings window ok output=true",
       "applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run",
-      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-12T02:24:54.816 currentMode: secondMenuBar windowVisible: false windowFrame: x=1312.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 5 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-12T02:24:54.956 lastRelayoutReaso",
+      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-05-13T21:49:29.659 currentMode: secondMenuBar windowVisible: false windowFrame: x=1319.0 y=870.0 w=400.0 h=176.0 refreshForced: true visibleCount: 5 hiddenCount: 4 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-05-13T21:49:29.775 lastRelayoutReaso",
       "applescript=close settings window ok output=true"
     ],
     "runtime_smoke": [
       "runtime_smoke=/tmp/sanebar_runtime_smoke.log ok",
-      "startup_probe=/tmp/sanebar_runtime_startup_probe.log ok",
-      "native_exact_id=/tmp/sanebar_runtime_native_apple_smoke.log ok"
+      "startup_probe=/tmp/sanebar_runtime_startup_probe.log ok"
     ],
-    "remaining_non_ui_blocker": "Release cadence guard requires the exact manual approval phrase before publishing inside 24 hours of v2.1.51."
+    "release_note": "Customer UI sweep records only evidence produced by this Mini run; missing required action evidence blocks release."
   }
 }

@@ -517,6 +517,9 @@ ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
 2. **Preflight** — `./scripts/SaneMaster.rb release_preflight` (9 safety checks)
    - Enforces 24h soak window between releases
    - Runs project QA with regression close confirmation checks
+   - Requires a fresh customer UI action receipt from `Tests/CustomerUIActions.yml`
+     and `.sane/customer_ui_action_receipt.json`; the receipt must prove every
+     customer-facing action family with structured evidence, not just list IDs.
    - Runs dedicated stability suite (upgrade-state + second-menu-bar paths)
    - Runs the staged-app runtime lane plus focused exact-ID smokes when those IDs are present on the Mini:
      - shared-bundle Apple extras: Wi-Fi / Battery / Focus / Display
@@ -537,6 +540,20 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
 ## Testing
 
 - Unit tests: `Tests/` directory, Swift Testing framework (`import Testing`, `@Test`, `#expect`)
+- Customer UI release gate:
+  1. Generate fresh runtime evidence on the Mini, including strict Pro move smoke
+     and the default smoke logs required by the sweep.
+  2. Relaunch the Mini Pro-mode build with `./scripts/SaneMaster.rb mode SaneBar pro --launch`
+     immediately before the sweep. Some smoke paths relaunch the app and can drop
+     the no-keychain Pro argument.
+  3. Run `ruby Scripts/customer_ui_action_sweep.rb`
+  4. Confirm `Tests/CustomerUIActions.yml` and `.sane/customer_ui_action_receipt.json`
+     cover every customer-facing action family before `release_preflight`.
+  The sweep must include visual screenshots plus functional assertions for status
+  item routes, menus, Browse Icons, Second Menu Bar, icon groups/hotkeys, Settings
+  tabs/actions, profiles, rules, appearance, shortcuts, health/repair, data
+  import/export/reset, onboarding, license/about/support, Basic/Pro gates, and
+  startup/wake recovery.
 - E2E checklist: `docs/E2E_TESTING_CHECKLIST.md`
 - Button mapping: `ruby scripts/button_map.rb`
 - Flow tracing: `ruby scripts/trace_flow.rb <function>`

@@ -6,9 +6,9 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [2.1.52] - 2026-05-11
+## [2.1.53] - 2026-05-13
 
-Improves restart and Dock-launch recovery so Custom Appearance tint and the SaneBar menu bar item stay stable after status items are recreated.
+Improves Browse Icons and menu bar recovery reliability, fixes Custom group creation in the Icon Panel, restores usable Settings window sizing, and adds stricter customer UI click-through release checks.
 
 ---
 

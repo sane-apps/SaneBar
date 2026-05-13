@@ -1,10 +1,17 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-05-11
+**Last updated:** 2026-05-13
 **Current public release:** `v2.1.52` (build `2152`)
-**Next release candidate:** none active
+**Next release candidate:** `v2.1.53` active local/Mini worktree changes, not published
 
 ## Current State
+
+- 2026-05-13 active release-blocker work after `v2.1.52`:
+  - Found and fixed a real customer-facing no-op in Browse Icons: the visible `+ Custom` group button could fail to activate from the release-like NSPanel. The action is now outside the horizontal scroll area and opens a native `NSAlert` prompt; the Mini sweep creates a QA group, verifies it persisted, captures a screenshot, and restores the user's settings file.
+  - Settings window reuse now clamps unusably small frames without overriding a valid user-resized Settings window.
+  - Runtime recovery/classification no longer treats estimated separator geometry as trustworthy for startup/status-item recovery or verification. Cache warmup runs before external-monitor always-show decisions.
+  - Default `live_zone_smoke.rb` no longer fails on a noisy active CPU average when fewer than five samples exist; strict fixture smoke still enforces sustained active resource behavior.
+  - Customer UI release proof is now standardized in `Tests/CustomerUIActions.yml` plus `Scripts/customer_ui_action_sweep.rb`. Generate smoke evidence first, then relaunch with `./scripts/SaneMaster.rb mode SaneBar pro --launch` immediately before the sweep. `test_mode --release --no-logs` is not sufficient for that sweep because Launch Services or smoke relaunch paths can drop the no-keychain/pro-mode argument.
 
 - 2026-05-11 `v2.1.52` is live across the direct-download release lane:
   - Release artifact: `https://dist.sanebar.com/updates/SaneBar-2.1.52.zip`
@@ -42,6 +49,11 @@
 - 2026-05-11 validation report: global app readiness still flags other app QA snapshots stale and Sonoma-minimum warnings for SaneBar/SaneClip. For this SaneBar release candidate, the active release blocker is cadence approval.
 - 2026-05-11 SaneBar Mini release: `release.sh --full --version 2.1.52 --deploy` passed embedded QA (`1171` tests in release workspace), startup layout probe, archive, signature verification, Sparkle config verification, notarization, staple, GitHub release, R2 upload, appcast, Cloudflare Pages, Homebrew, email webhook, and strict post-release checks.
 - 2026-05-11 SaneBar post-release preflight: `./scripts/SaneMaster.rb release_preflight` passed on Mini-routed workspace after publication. Runtime smoke covered Browse Icons, Second Menu Bar, settings visual check, Hidden/Visible moves, Always Hidden moves, shared-bundle relaunch smoke, native Siri/Spotlight exact-ID smoke, and startup layout probe.
+- 2026-05-13 SaneBar Mini customer UI sweep: strict Pro fixture smoke, startup probe, default smoke, then `./scripts/SaneMaster.rb mode SaneBar pro --launch` followed by `ruby Scripts/customer_ui_action_sweep.rb` passed and wrote `.sane/customer_ui_action_receipt.json` at `2026-05-13T20:48:02Z`. Receipt covers 20/20 action families with portable per-action evidence artifacts; `icon-hotkeys-and-groups` includes real Mini click, persisted group creation, screenshot, and settings restoration evidence.
+- 2026-05-13 SaneBar Mini full verify: `./scripts/SaneMaster.rb verify` passed `1172` tests. Remaining warnings are pre-existing SwiftLint opening-brace warnings in `Core/Services/AccessibilityService+Interaction.swift`.
+- 2026-05-13 runtime proof: default `live_zone_smoke.rb` passed, strict fixture smoke passed with Lungo exact-ID activation/move checks, and `startup_layout_probe.rb` passed.
+- 2026-05-13 SaneBar Mini release preflight: `./scripts/SaneMaster.rb release_preflight` passed with no blockers. Customer UI action contract passed `20` action families. Runtime fallback coverage passed shared-bundle Focus plus native Siri/Spotlight exact-ID smokes and startup layout probe. Remaining warnings: 18 uncommitted files, defaults/migration touched, 12 open GitHub issues, 8 pending emails, known Swift script parse warnings, and classified non-blocking regression issues.
+- 2026-05-13 `v2.1.53` release-candidate preflight: after regenerating `SaneBar.xcodeproj` from `project.yml`, rebuilding the Mini Release app, and refreshing the customer UI receipt, `./scripts/SaneMaster.rb release_preflight` passed with no blockers. Customer UI action contract passed `20` action families at `2026-05-13T21:49:38Z`; runtime fallback coverage passed shared-bundle Focus plus native Siri/Spotlight exact-ID smokes and startup layout probe. Expected pre-publish warnings remain for appcast/Homebrew/email webhook still pointing at `v2.1.52`.
 
 ## Open Issues
 
@@ -57,6 +69,6 @@
 
 ## Next
 
-- Keep `#142` open until the reporter confirms reboot/Dock-launch tint and startup recovery behavior on `v2.1.52`.
-- Triage the 6 pending customer emails and 11 open GitHub issues.
+- Publish `v2.1.53` with release notes covering customer-facing UI/action reliability fixes; after publish, verify appcast/Homebrew/email webhook move from `2.1.52` to `2.1.53`.
+- Keep `#142` open until the reporter confirms reboot/Dock-launch tint and startup recovery behavior on `v2.1.52` or the next patch.
 - Continue expanding the customer-facing UI action contract to the other apps before their next releases.
