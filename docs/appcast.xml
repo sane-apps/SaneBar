@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                <item>
+                                                                                                                                                                                                        <item>
+            <title>2.1.53</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Wed, 13 May 2026 18:06:57 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves Browse Icons and menu bar recovery reliability, fixes Custom group creation in the Icon Panel, restores usable Settings window sizing, and adds stricter customer UI click-through release checks.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.53.zip"
+                       sparkle:version="2153"
+                       sparkle:shortVersionString="2.1.53"
+                       length="8996357"
+                       type="application/octet-stream"
+                       sparkle:edSignature="CuICpOp1aploZuNZhnTns+I6rydze8unUHntnM+P7uKvzYd/7TRyHSv0R7PXot6//JdwOVKyxegiP7cZBXJXCA=="/>
+        </item>
+<item>
             <title>2.1.52</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 11 May 2026 22:47:48 -0400</pubDate>
