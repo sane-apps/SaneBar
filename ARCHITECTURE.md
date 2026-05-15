@@ -95,6 +95,7 @@ The app itself is a single process with modular services that all route through 
 4. The overlay is suppressed for:
    - true fullscreen content windows on the active screen
    - narrow third-party full-width top-host strips that occupy the menu bar region
+   Large desktop windows that start below the menu bar are not treated as fullscreen; Custom Appearance stays visible during ordinary app launches and maximized windows.
 5. The overlay is never supposed to re-enable itself; fullscreen/app-switch events may hide or show an already-enabled overlay, but they must not override the saved setting.
 
 ## State Machines

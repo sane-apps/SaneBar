@@ -434,6 +434,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let minimumCoveredHeight = targetFrame.height * 0.92
         let maximumHorizontalDrift: CGFloat = 8
         let maximumTopDrift: CGFloat = 2
+        let maximumFullscreenEdgeDrift: CGFloat = 8
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
         let suppressFullscreenHost = !frontmostIsAccessoryApp
 
@@ -452,8 +453,14 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
             let rect = CGRect(x: x, y: y, width: width, height: height).standardized
             let coveredRect = rect.intersection(targetFrame)
+            let fillsScreenEdges =
+                abs(rect.minX - targetFrame.minX) <= maximumFullscreenEdgeDrift &&
+                abs(rect.minY - targetFrame.minY) <= maximumFullscreenEdgeDrift &&
+                abs(rect.maxX - targetFrame.maxX) <= maximumFullscreenEdgeDrift &&
+                abs(rect.maxY - targetFrame.maxY) <= maximumFullscreenEdgeDrift
 
             if suppressFullscreenHost,
+               fillsScreenEdges,
                coveredRect.width >= minimumCoveredWidth,
                coveredRect.height >= minimumCoveredHeight {
                 return true

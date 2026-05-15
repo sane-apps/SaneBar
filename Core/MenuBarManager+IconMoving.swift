@@ -788,8 +788,6 @@ extension MenuBarManager {
         toAlwaysHidden: Bool,
         maxAttempts: Int = 20
     ) async -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
-        var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
-
         for attempt in 1 ... maxAttempts {
             let (targets, liveAHSeparatorReady, liveMainSeparatorReady) = await MainActor.run {
                 if toAlwaysHidden {
@@ -806,13 +804,11 @@ extension MenuBarManager {
                     self.currentLiveSeparatorFrame() != nil
                 )
             }
-            lastTargets = targets
-
             if let separatorX = targets.0,
                separatorX > 0,
                toAlwaysHidden || (targets.1 != nil && (targets.1 ?? 0) > 0) {
                 let liveGeometryReady = toAlwaysHidden ? liveAHSeparatorReady : liveAHSeparatorReady && liveMainSeparatorReady
-                if liveGeometryReady || attempt == maxAttempts {
+                if liveGeometryReady {
                     if attempt > 1 {
                         logger.info("🔧 Resolved always-hidden move targets after \(attempt * 50)ms")
                     }
@@ -827,7 +823,8 @@ extension MenuBarManager {
             try? await Task.sleep(for: .milliseconds(50))
         }
 
-        return lastTargets
+        logger.error("🔧 Always-hidden move target resolution failed without live separator geometry")
+        return (nil, nil)
     }
 
     nonisolated static func shouldBlockWideIconHiddenMove(
@@ -929,7 +926,7 @@ extension MenuBarManager {
                 let scopedItems = await AccessibilityService.shared.scopedMenuBarItemsWithPositions(for: owners)
                 if !scopedItems.isEmpty {
                     let classified = await MainActor.run {
-                        SearchService.shared.classifyItemsForVerification(scopedItems)
+                        SearchService.shared.classifyItemsForMoveVerification(scopedItems)
                     }
                     if classifiedMoveVerificationMatchesTarget(
                         classified: classified,
@@ -945,8 +942,11 @@ extension MenuBarManager {
 
             if attempt == attempts {
                 let classified = await SearchService.shared.refreshClassifiedApps()
+                let physicalClassified = await MainActor.run {
+                    SearchService.shared.classifyAppsForMoveVerification(classified)
+                }
                 if classifiedMoveVerificationMatchesTarget(
-                    classified: classified,
+                    classified: physicalClassified,
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
@@ -2074,11 +2074,12 @@ extension MenuBarManager {
         optimisticAlwaysHiddenMutation: AlwaysHiddenQueuedMutation? = nil,
         _ operation: @escaping @Sendable (MenuBarManager) async -> Bool
     ) -> Bool {
-        applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
         activeMoveTask = Task.detached(priority: .userInitiated) { [weak self] () async -> Bool in
             guard let self else { return false }
 
             await MainActor.run {
+                self.alwaysHiddenPinEnforcementTask?.cancel()
+                self.alwaysHiddenPinEnforcementTask = nil
                 SearchWindowController.shared.setMoveInProgress(true)
                 self.hidingService.cancelRehide()
                 AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()
@@ -2090,13 +2091,20 @@ extension MenuBarManager {
                     // Replaying deferred reveal/conceal warmups here just adds a
                     // second AX refresh on top of the work we already finished.
                     AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
+                    self?.lastManualZoneMoveSettledAt = Date()
                     self?.activeMoveTask = nil
                 }
             }
 
             logger.info("🔧 \(operationName, privacy: .public) task started")
             let success = await operation(self)
-            if !success {
+            if success {
+                await MainActor.run {
+                    self.applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
+                    self.alwaysHiddenPinEnforcementTask?.cancel()
+                    self.alwaysHiddenPinEnforcementTask = nil
+                }
+            } else {
                 await MainActor.run {
                     self.rollbackQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
                 }

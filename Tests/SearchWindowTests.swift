@@ -716,6 +716,29 @@ struct SearchWindowTests {
         #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
     }
 
+    @Test("Move verification classification can ignore optimistic always-hidden pins")
+    @MainActor
+    func moveVerificationClassificationIgnoresPinnedAlwaysHiddenState() {
+        let optimistic = RunningApp(
+            id: "com.example.optimistic",
+            name: "Optimistic",
+            icon: nil,
+            menuExtraIdentifier: "com.example.optimistic.status",
+            xPosition: 900,
+            width: 24
+        )
+        let classified = SearchClassifiedApps(
+            visible: [],
+            hidden: [optimistic],
+            alwaysHidden: []
+        )
+
+        let physical = SearchService.shared.classifyAppsForMoveVerification(classified)
+
+        #expect(physical.hidden.map(\.uniqueId) == [optimistic.uniqueId])
+        #expect(physical.alwaysHidden.isEmpty)
+    }
+
     @Test("Zoned menu bar views keep fallback-only entries but drop coarse duplicates")
     func zonedMenuBarItemsPreferPreciseIdentityPerBundle() {
         let preciseAX = AccessibilityService.MenuBarItemPosition(

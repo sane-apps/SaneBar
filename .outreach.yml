@@ -84,6 +84,82 @@ launches:
     status: "live"
     notes: "7 Best Bartender Alternatives. Details unclear (page blocked)."
 
+launch_calendar:
+  timezone: "America/New_York"
+  classification: "meaningfully_launched"
+  rule: "SaneBar already had the real launch beat. Do not burn another Product Hunt/HN-style launch without a major product story."
+  meaningful_launches:
+    - channel: "Product Hunt"
+      status: "completed"
+      date: "2026-01-24"
+      evidence: "PH badge and peak sales day Jan 25 with 42 orders."
+    - channel: "Mac utility directories and press"
+      status: "completed"
+      evidence: "PayOnce.tools, OnMyMenubar, MacMenuBar, vvmac.fr, ifun.de, Badgeify, Dr.Buho."
+  next_eligible_launch:
+    status: "not_scheduled"
+    trigger: "Major release only, such as a visible v2.2/v3 workflow change, new Touch ID/security story, or substantial user proof."
+    earliest_recommendation: "After the current v2.1.53 customer UI reliability patch is published and support noise is stable."
+  scheduled:
+    - cadence: "weekly"
+      channel: "Opportunity monitoring"
+      status: "scheduled_by_cross_product_launch_ops"
+      action: "Scan competitor issues and high-fit X/HN/Reddit threads; do not post unless the user is asking for a menu bar manager/Bartender/Ice alternative and the reply discloses 'I built SaneBar'."
+      gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
+      success_metric: "0-2 high-fit replies per week or a recorded no-go."
+  last_launch_readiness:
+    date: "2026-05-15"
+    status: "no_go"
+    launch_readiness_exit: 1
+    blocker_summary:
+      - "Already launched on Product Hunt/Hacker News; no major new story exists for a relaunch."
+      - "Open support/layout stability issues should settle before broader amplification."
+      - "Latest Mini launch gate reported release_preflight not green in context (1 issue, 4 warnings)."
+    next_date: "Weekly monitoring only until v2.1.53 is published and support noise is stable."
+
+x_search_keywords:
+  - "\"Bartender\" (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"
+  - "\"Ice\" macOS (bug OR broken OR alternative OR menu bar) lang:en -is:retweet"
+  - "\"menu bar\" (hide icons OR manage icons OR too many icons) macOS lang:en -is:retweet"
+  - "\"Touch ID\" \"menu bar\" macOS lang:en -is:retweet"
+
+public_posting_policy:
+  approval_required: true
+  disclosure_required: "Always say 'I built SaneBar' when recommending it publicly."
+
+launch_package:
+  status: "targeted_only_not_broad_launch"
+  audience: "Mac users actively looking for a Bartender/Ice/menu bar manager alternative."
+  problem: "Mac menu bars get crowded, existing tools can feel fragile or unclear, and privacy-sensitive icons deserve protection."
+  solution: "SaneBar hides, searches, locks, and organizes menu bar icons with Touch ID lock, Browse Icons, Second Menu Bar, Smart Triggers, and one-time Pro pricing."
+  primary_story: "A privacy-first menu bar manager with a uniquely strong Touch ID/security angle."
+  pricing_proof: "Website shows Basic free and Pro $14.99 once; structured download URL points to the free ZIP and Buy Pro points to Lemon Squeezy."
+  privacy_proof: "Privacy page states menu bar contents and personal files are not uploaded; network use is limited to updates, direct license checks, and simple anonymous counts."
+  proof_assets:
+    - type: "website_hero"
+      status: "current"
+      path: "docs/index.html"
+    - type: "og_image"
+      status: "current"
+      path: "docs/images/og-image.png"
+    - type: "product_screenshot"
+      status: "current"
+      path: "docs/images/second-menu-bar-live.png"
+    - type: "product_screenshot"
+      status: "current"
+      path: "docs/images/icon-panel-live.png"
+  channel_plan:
+    product_hunt: "no_go_until_major_release_story"
+    hacker_news: "no_go_until_major_release_story"
+    x_replies: "targeted_only_when_user_asks_for_menu_bar_alternative"
+    directories: "maintenance_only"
+  go_no_go:
+    rule: "No broad public launch until a major release story exists and current support noise is stable."
+    next_trigger: "Visible v2.2/v3 workflow change, new Touch ID/security story, or strong user proof."
+  weak_launch_blockers:
+    - "Already launched on Product Hunt/HN; a repost without a major new story would look weak."
+    - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
+
 # --- COMPETITOR RESPONSES (already posted — don't suggest re-posting) ---
 competitor_responses:
   - repo: "jordanbaird/Ice"

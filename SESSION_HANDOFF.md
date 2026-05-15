@@ -42,6 +42,9 @@
 
 ## Verification Ledger
 
+- 2026-05-15 SaneBar refund-support patch candidate: Matthew Longbottom email `#720` reported Hidden/Always Hidden moves failing, hover/reveal inconsistency, and Icon Panel categories flipping. Root cause found in the latest public `2.1.53` move path: queued Always Hidden pin state could be applied before physical drag verification, verification could read pinned state as success, and Always Hidden target resolution could return cached-only geometry. Patch `2.1.54` now verifies physical menu-bar position before mutating saved pin state, fails closed without live separator geometry, and pauses delayed pin enforcement during the post-move settle window.
+- 2026-05-15 SaneBar tint patch candidate: GitHub `#142` had fresh `2.1.53` evidence that Custom Appearance tint could still drop to black. Root cause found in fullscreen suppression: large desktop windows below the menu bar were treated as fullscreen. Patch `2.1.54` requires a window to fill all screen edges before suppressing the overlay, while preserving thin third-party top-host suppression.
+- 2026-05-15 SaneBar Mini verification for `2.1.54`: `./scripts/SaneMaster.rb verify` passed `918` tests; strict Lungo fixture smoke passed Browse Icons, Second Menu Bar, Hidden/Visible moves, and Always Hidden moves; startup layout probe passed; `./scripts/SaneMaster.rb customer_ui_sweep` plus `customer_ui_contract` passed `20` release-required action families. `./scripts/SaneMaster.rb release_preflight` rerun passed with no blockers and expected pre-publish warnings for appcast/Homebrew/email webhook still at `2.1.53`.
 - 2026-05-11 SaneBar Mini verify: `./scripts/SaneMaster.rb verify` passed `1159` tests.
 - 2026-05-11 SaneBar Mini per-action sweep: `Scripts/customer_ui_action_sweep.rb` passed and wrote `.sane/customer_ui_action_receipt.json` at `2026-05-12T01:24:16Z`.
 - 2026-05-11 SaneBar Mini release preflight: passed all runtime/customer UI/monetization/API/appcast/channel checks, blocked only by release cadence guard.
@@ -69,6 +72,20 @@
 
 ## Next
 
-- Publish `v2.1.53` with release notes covering customer-facing UI/action reliability fixes; after publish, verify appcast/Homebrew/email webhook move from `2.1.52` to `2.1.53`.
-- Keep `#142` open until the reporter confirms reboot/Dock-launch tint and startup recovery behavior on `v2.1.52` or the next patch.
+- Publish `v2.1.54` with release notes covering Custom Appearance tint stability and physical Hidden/Always Hidden move verification; after publish, verify appcast/Homebrew/email webhook move from `2.1.53` to `2.1.54`.
+- Draft Matthew Longbottom email `#720` only after `2.1.54` is live. Include concrete proof: `918` tests, `20` customer UI action families, exact-ID fixture smoke for Browse Icons / Second Menu Bar / Hidden / Always Hidden moves, and startup layout probe. Do not send without explicit approval.
+- Keep `#142` open until the reporter confirms reboot/Dock-launch tint and startup recovery behavior on `2.1.54` or a later patch.
 - Continue expanding the customer-facing UI action contract to the other apps before their next releases.
+
+## Launch Ops Calendar - 2026-05-14
+
+- `.outreach.yml` now classifies SaneBar as `meaningfully_launched`: Product Hunt, Hacker News, directories, and organic mentions already happened.
+- Do not schedule another PH/HN-style launch until there is a major visible product story. Current near-term priority is publishing/monitoring `v2.1.53`, then weekly opportunity monitoring only.
+- 2026-05-14 launch-readiness check confirms this should stay targeted-only: `launch_readiness` is intentionally no-go for broad launch because SaneBar already launched and current support/layout issues should stabilize before any major relaunch story.
+
+## Launch Ops Calendar - 2026-05-15
+
+- Mini `./scripts/SaneMaster.rb launch_readiness` returned nonzero for SaneBar. No launch, directory, scheduling, or public reply action was taken.
+- Blockers recorded from the gate: SaneBar already used its meaningful Product Hunt/Hacker News launch, support/layout stability should settle before amplification, and the launch gate reported latest `release_preflight` as not green in this context (1 issue, 4 warnings).
+- Existing live support-surface URLs remain unchanged: [Product Hunt](https://www.producthunt.com/posts/sanebar), [PayOnce.tools](https://www.payonce.tools/tools/sanebar), [OnMyMenubar.app](https://onmymenubar.app/sanebar/), and [MacMenuBar.com](https://macmenubar.com/sanebar/).
+- Next launch-ops date stays weekly monitoring only, with no broad relaunch before `v2.1.53` is live and support noise is stable.

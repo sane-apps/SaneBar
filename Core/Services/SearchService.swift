@@ -578,6 +578,20 @@ final class SearchService: SearchServiceProtocol {
         classifyItems(items, allowEstimatedFallback: false)
     }
 
+    @MainActor
+    func classifyItemsForMoveVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps {
+        classifyItems(items, allowEstimatedFallback: false, promotePinnedAlwaysHidden: false)
+    }
+
+    @MainActor
+    func classifyAppsForMoveVerification(_ classified: SearchClassifiedApps) -> SearchClassifiedApps {
+        SearchClassifiedApps(
+            visible: classified.visible,
+            hidden: classified.hidden + classified.alwaysHidden,
+            alwaysHidden: []
+        )
+    }
+
     /// Single-pass classification for all items.
     ///
     /// Strategy:
@@ -588,7 +602,8 @@ final class SearchService: SearchServiceProtocol {
     @MainActor
     private func classifyItems(
         _ items: [AccessibilityService.MenuBarItemPosition],
-        allowEstimatedFallback: Bool = false
+        allowEstimatedFallback: Bool = false,
+        promotePinnedAlwaysHidden: Bool = true
     ) -> SearchClassifiedApps {
         let zonedItems = Self.zonedMenuBarItems(from: items)
         if zonedItems.count != items.count {
@@ -622,21 +637,23 @@ final class SearchService: SearchServiceProtocol {
                 }
             }
 
-            let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
-            let promoted = Self.promotePinnedHiddenAppsToAlwaysHidden(
-                hidden: hidden,
-                alwaysHidden: alwaysHidden,
-                pinnedIds: pinnedIds
-            )
-            let promotedCount = hidden.count - promoted.hidden.count
-            hidden = promoted.hidden
-            alwaysHidden = promoted.alwaysHidden
-            if promotedCount > 0 {
-                if positions.alwaysHiddenSeparatorX == nil,
-                   MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
-                    logger.debug("classifyItems: post-pass moved \(promotedCount, privacy: .public) pinned apps to alwaysHidden (fallback)")
-                } else {
-                    logger.debug("classifyItems: post-pass kept \(promotedCount, privacy: .public) pinned hidden apps in alwaysHidden")
+            if promotePinnedAlwaysHidden {
+                let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
+                let promoted = Self.promotePinnedHiddenAppsToAlwaysHidden(
+                    hidden: hidden,
+                    alwaysHidden: alwaysHidden,
+                    pinnedIds: pinnedIds
+                )
+                let promotedCount = hidden.count - promoted.hidden.count
+                hidden = promoted.hidden
+                alwaysHidden = promoted.alwaysHidden
+                if promotedCount > 0 {
+                    if positions.alwaysHiddenSeparatorX == nil,
+                       MenuBarManager.shared.alwaysHiddenSeparatorItem != nil {
+                        logger.debug("classifyItems: post-pass moved \(promotedCount, privacy: .public) pinned apps to alwaysHidden (fallback)")
+                    } else {
+                        logger.debug("classifyItems: post-pass kept \(promotedCount, privacy: .public) pinned hidden apps in alwaysHidden")
+                    }
                 }
             }
 
@@ -653,7 +670,7 @@ final class SearchService: SearchServiceProtocol {
         let allApps = zonedItems.map(\.app)
 
         // Always-hidden: match against persisted pinned IDs
-        let alwaysHidden = appsMatchingPinnedIds(from: allApps)
+        let alwaysHidden = promotePinnedAlwaysHidden ? appsMatchingPinnedIds(from: allApps) : []
         let alwaysHiddenIds = Set(alwaysHidden.map(\.id))
 
         // Hidden: items off-screen (excluding always-hidden)

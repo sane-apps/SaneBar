@@ -440,6 +440,11 @@ extension MenuBarManager {
             )
             return
         }
+        if let lastManualZoneMoveSettledAt,
+           Date().timeIntervalSince(lastManualZoneMoveSettledAt) < 1.5 {
+            logger.debug("Always-hidden pin enforcement skipped during post-move settle window (\(reason, privacy: .public))")
+            return
+        }
         alwaysHiddenPinEnforcementTask?.cancel()
         alwaysHiddenPinEnforcementTask = Task { [weak self] in
             guard let self else { return }
@@ -484,6 +489,11 @@ extension MenuBarManager {
     func enforceAlwaysHiddenPinnedItems(reason: String, filterBundleId: String? = nil) async {
         if let activeMoveTask, !activeMoveTask.isCancelled {
             logger.debug("Always-hidden pin enforcement skipped while icon move is in progress (\(reason, privacy: .public))")
+            return
+        }
+        if let lastManualZoneMoveSettledAt,
+           Date().timeIntervalSince(lastManualZoneMoveSettledAt) < 1.5 {
+            logger.debug("Always-hidden pin enforcement skipped during post-move settle window (\(reason, privacy: .public))")
             return
         }
         guard !shouldSkipHideForExternalMonitor else {
@@ -621,6 +631,15 @@ extension MenuBarManager {
         guard settings.alwaysHiddenSectionEnabled else { return }
         guard alwaysHiddenSeparatorItem != nil else { return }
         guard AccessibilityService.shared.isTrusted else { return }
+        if let activeMoveTask, !activeMoveTask.isCancelled {
+            logger.debug("reconcilePins: skipped while icon move is in progress")
+            return
+        }
+        if let lastManualZoneMoveSettledAt,
+           Date().timeIntervalSince(lastManualZoneMoveSettledAt) < 1.5 {
+            logger.debug("reconcilePins: skipped during post-move settle window")
+            return
+        }
 
         // Wait for macOS to finish relayout after drag
         try? await Task.sleep(for: .milliseconds(400))

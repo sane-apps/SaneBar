@@ -329,6 +329,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Always-hidden moves should wait for live AH separator geometry before trusting cached drag targets"
         )
         XCTAssertTrue(
+            source.contains("Always-hidden move target resolution failed without live separator geometry"),
+            "Always-hidden move target resolution must fail closed instead of returning cached-only targets at the retry limit"
+        )
+        XCTAssertTrue(
             source.contains("let (separatorX, visibleBoundaryX) = await manager.resolveAlwaysHiddenMoveTargetsWithRetries("),
             "Always-hidden move pipelines should use the dedicated always-hidden target resolver instead of a one-shot separator lookup"
         )
@@ -1061,8 +1065,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 managerSource.contains("try? await Task.sleep(for: .milliseconds(50))") &&
                 managerSource.contains("enum AlwaysHiddenQueuedMutation") &&
                 managerSource.contains("optimisticAlwaysHiddenMutation") &&
-                managerSource.contains("rollbackQueuedAlwaysHiddenMutation"),
-            "MenuBarManager should own queued zone-move planning, nonblocking drop preflight, and always-hidden optimistic mutation rollback inside the move engine"
+                managerSource.contains("classifyItemsForMoveVerification") &&
+                managerSource.contains("applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)") &&
+                managerSource.contains("lastManualZoneMoveSettledAt"),
+            "MenuBarManager should own queued zone-move planning, nonblocking drop preflight, physical move verification, and post-success always-hidden pin mutation inside the move engine"
         )
         XCTAssertTrue(
             iconPanelSource.contains("queueZoneMove(app: app, request: request)") &&
