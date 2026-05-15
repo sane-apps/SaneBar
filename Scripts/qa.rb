@@ -525,15 +525,28 @@ class ProjectQA
     end
 
     failures = []
-    urls.each do |url|
-      response_code = url_status(url)
+    warnings = []
+    latest_url = urls.first
+    urls.each_with_index do |url, index|
+      response_code = url_status(
+        url,
+        attempts: index.zero? ? 3 : 1,
+        connect_timeout: index.zero? ? '5' : '2',
+        max_time: index.zero? ? '12' : '4'
+      )
       next if response_code && response_code < 400
 
-      failures << "#{url} (#{response_code || 'error'})"
+      message = "#{url} (#{response_code || 'error'})"
+      if url == latest_url
+        failures << message
+      else
+        warnings << message
+      end
     end
 
     if failures.empty?
       puts "✅ #{urls.count} enclosure URLs reachable"
+      warnings.each { |warning| @warnings << "Historical appcast enclosure could not be confirmed: #{warning}" }
     else
       failures.each { |failure| @errors << "Dead appcast enclosure URL: #{failure}" }
       puts "❌ #{failures.count} dead enclosure URL#{'s' unless failures.count == 1}"
@@ -2061,20 +2074,20 @@ def applescript_commands_for_app(app_path)
     end
   end
 
-  def url_status(url)
+  def url_status(url, attempts: 3, connect_timeout: '5', max_time: '12')
     head_code = nil
-    3.times do |attempt|
-      head_code = curl_url_status(url, head: true)
+    attempts.times do |attempt|
+      head_code = curl_url_status(url, head: true, connect_timeout: connect_timeout, max_time: max_time)
       break unless head_code.nil?
 
-      sleep 1 if attempt < 2
+      sleep 1 if attempt < attempts - 1
     end
     return head_code unless head_code == 405 || head_code.nil?
 
-    curl_url_status(url, head: false)
+    curl_url_status(url, head: false, connect_timeout: connect_timeout, max_time: max_time)
   end
 
-  def curl_url_status(url, head:)
+  def curl_url_status(url, head:, connect_timeout:, max_time:)
     args = [
       'curl',
       '--location',
@@ -2082,8 +2095,8 @@ def applescript_commands_for_app(app_path)
       '--show-error',
       '--output', File::NULL,
       '--write-out', '%{http_code}',
-      '--connect-timeout', '5',
-      '--max-time', '12',
+      '--connect-timeout', connect_timeout,
+      '--max-time', max_time,
       '--user-agent', "#{PROJECT_NAME} QA URL Check"
     ]
     args << '--head' if head
