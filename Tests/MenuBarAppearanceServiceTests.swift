@@ -254,15 +254,15 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
-    @Test("Appearance overlay suppresses Brave fullscreen windows with slight geometry drift")
-    func testSuppressOverlayForBraveFullscreenWindowWithDrift() {
+    @Test("Appearance overlay suppresses true fullscreen windows with slight geometry drift")
+    func testSuppressOverlayForFullscreenWindowWithDrift() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
             kCGWindowBounds as String: [
                 "X": NSNumber(value: -4),
-                "Y": NSNumber(value: 22),
+                "Y": NSNumber(value: -3),
                 "Width": NSNumber(value: 1736),
-                "Height": NSNumber(value: 1072)
+                "Height": NSNumber(value: 1124)
             ]
         ]]
 
@@ -274,6 +274,30 @@ struct MenuBarAppearanceServiceTests {
                 windowInfos: infos,
                 selfPID: 9999
             )
+        )
+    }
+
+    @Test("Appearance overlay stays visible for maximized desktop windows below the menu bar")
+    func testDoesNotSuppressOverlayForDesktopMaximizedWindowBelowMenuBar() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 25),
+                "Width": NSNumber(value: 1728),
+                "Height": NSNumber(value: 1068)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.anthropic.claudefordesktop",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                windowInfos: infos,
+                selfPID: 9999
+            ),
+            "A large desktop app window below the menu bar should not hide Custom Appearance tint"
         )
     }
 

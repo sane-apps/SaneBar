@@ -6,9 +6,9 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [2.1.53] - 2026-05-13
+## [2.1.54] - 2026-05-15
 
-Improves Browse Icons and menu bar recovery reliability, fixes Custom group creation in the Icon Panel, restores usable Settings window sizing, and adds stricter customer UI click-through release checks.
+Keeps Custom Appearance tint stable when launching or switching to large desktop apps, and makes Hidden / Always Hidden icon moves verify physical menu bar position before updating saved pin state.
 
 ---
 

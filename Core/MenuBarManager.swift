@@ -76,6 +76,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
 
     /// Reference to the currently active icon move task to ensure atomicity
     var activeMoveTask: Task<Bool, Never>?
+    var lastManualZoneMoveSettledAt: Date?
 
     /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
     var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
