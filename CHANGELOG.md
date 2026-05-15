@@ -8,6 +8,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.54] - 2026-05-15
 
+Improves Custom Appearance tint when switching to large desktop apps. Improves Hidden and Always Hidden icon moves so icons stay in the section you choose after SaneBar checks the menu bar position.
+
+---
+
+## [2.1.54] - 2026-05-15
+
 Keeps Custom Appearance tint stable when launching or switching to large desktop apps, and makes Hidden / Always Hidden icon moves verify physical menu bar position before updating saved pin state.
 
 ---
