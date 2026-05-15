@@ -17,7 +17,6 @@
 # - .claude/rules/ count matches expectations
 #
 
-require 'net/http'
 require 'uri'
 require 'json'
 require 'open3'
@@ -2063,22 +2062,32 @@ def applescript_commands_for_app(app_path)
   end
 
   def url_status(url)
-    uri = URI.parse(url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = uri.scheme == 'https'
-    http.open_timeout = 10
-    http.read_timeout = 20
+    head_code = curl_url_status(url, head: true)
+    return head_code unless head_code.nil? || head_code == 405
 
-    response = nil
-    [Net::HTTP::Head, Net::HTTP::Get].each_with_index do |request_class, index|
-      request = request_class.new(uri.request_uri)
-      request['User-Agent'] = "#{PROJECT_NAME} QA URL Check"
-      response = http.request(request)
-      code = response.code.to_i
-      break unless [401, 403, 405].include?(code) && index.zero?
-    end
+    curl_url_status(url, head: false)
+  end
 
-    response&.code&.to_i
+  def curl_url_status(url, head:)
+    args = [
+      'curl',
+      '--location',
+      '--silent',
+      '--show-error',
+      '--output', File::NULL,
+      '--write-out', '%{http_code}',
+      '--connect-timeout', '5',
+      '--max-time', '12',
+      '--user-agent', "#{PROJECT_NAME} QA URL Check"
+    ]
+    args << '--head' if head
+    args << url
+
+    output, status = Open3.capture2e(*args)
+    return nil unless status.success?
+
+    code = output.to_s.scan(/\b\d{3}\b/).last.to_i
+    code.positive? ? code : nil
   rescue StandardError
     nil
   end
