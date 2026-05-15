@@ -1854,6 +1854,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("[401, 403, 405].include?(response_code)"),
             "QA URL checks should treat anti-bot and auth-gated responses as reachable after fallback"
         )
+        XCTAssertTrue(
+            source.contains("reachable = response_code && response_code < 400"),
+            "QA URL checks should report timed-out URL probes as errors instead of throwing NoMethodError"
+        )
     }
 
     func testLiveSmokeReportsMeaningfulBrowseActivationFailures() throws {

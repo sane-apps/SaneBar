@@ -2057,7 +2057,7 @@ def applescript_commands_for_app(app_path)
     urls_to_check.uniq { |u| u[:url] }.each do |entry|
       begin
         response_code = url_status(entry[:url])
-        reachable = response_code < 400
+        reachable = response_code && response_code < 400
         reachable ||= response_code == 404 && entry[:url].include?('raw.githubusercontent')
         reachable ||= [401, 403, 405].include?(response_code)
         bad_urls << "#{entry[:url]} (#{response_code || 'error'}) in #{entry[:file]}" unless reachable
