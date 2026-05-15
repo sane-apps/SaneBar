@@ -1834,15 +1834,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("'--connect-timeout', '5'") &&
-                source.contains("'--max-time', '12'") &&
-                source.contains("def curl_url_status(url, head:)") &&
-                source.contains("3.times do |attempt|"),
+            source.contains("'--connect-timeout', connect_timeout") &&
+                source.contains("'--max-time', max_time") &&
+                source.contains("def curl_url_status(url, head:, connect_timeout:, max_time:)") &&
+                source.contains("attempts.times do |attempt|"),
             "QA URL checks should use bounded curl probes because Ruby DNS resolution can outlive Net::HTTP timeouts"
         )
         XCTAssertTrue(
-            source.contains("head_code = curl_url_status(url, head: true)") &&
-                source.contains("curl_url_status(url, head: false)"),
+            source.contains("Historical appcast enclosure could not be confirmed"),
+            "Historical appcast URL flakes should warn while the latest enclosure remains release-blocking"
+        )
+        XCTAssertTrue(
+            source.contains("head_code = curl_url_status(url, head: true, connect_timeout: connect_timeout, max_time: max_time)") &&
+                source.contains("return head_code unless head_code == 405 || head_code.nil?") &&
+                source.contains("curl_url_status(url, head: false, connect_timeout: connect_timeout, max_time: max_time)"),
             "QA URL checks should retry with GET when HEAD-only probing is blocked"
         )
         XCTAssertTrue(
