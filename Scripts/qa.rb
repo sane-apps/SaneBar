@@ -2062,8 +2062,14 @@ def applescript_commands_for_app(app_path)
   end
 
   def url_status(url)
-    head_code = curl_url_status(url, head: true)
-    return head_code unless head_code.nil? || head_code == 405
+    head_code = nil
+    3.times do |attempt|
+      head_code = curl_url_status(url, head: true)
+      break unless head_code.nil?
+
+      sleep 1 if attempt < 2
+    end
+    return head_code unless head_code == 405 || head_code.nil?
 
     curl_url_status(url, head: false)
   end

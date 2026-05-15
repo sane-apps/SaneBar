@@ -1836,7 +1836,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("'--connect-timeout', '5'") &&
                 source.contains("'--max-time', '12'") &&
-                source.contains("def curl_url_status(url, head:)"),
+                source.contains("def curl_url_status(url, head:)") &&
+                source.contains("3.times do |attempt|"),
             "QA URL checks should use bounded curl probes because Ruby DNS resolution can outlive Net::HTTP timeouts"
         )
         XCTAssertTrue(
