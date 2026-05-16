@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.55] - 2026-05-16
+
+Keeps custom menu bar colors more stable during fullscreen and window changes, improves SaneBar after wake and display changes, and makes moving items in Browse Icons smoother.
+
+---
+
 ## [2.1.54] - 2026-05-15
 
 Improves Custom Appearance tint when switching to large desktop apps. Improves Hidden and Always Hidden icon moves so icons stay in the section you choose after SaneBar checks the menu bar position.
