@@ -1,6 +1,88 @@
 ---
 version: 1
 app: SaneBar
+require_standard_runtime_state_matrix: true
+runtime_state_matrix:
+  upgrade_update:
+    why: Customers can only recover from a regression if a fresh install and an upgrade from the prior public build both serve and run the intended version.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - license-about-support-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - state_receipt
+    - log
+    runner: Scripts/live_zone_smoke.rb plus release_preflight
+  cold_launch_relaunch:
+    why: New users hit launch, quit, Dock relaunch, and single-instance behavior before they can use any feature.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - status-item-click-routes
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - state_receipt
+    runner: Scripts/live_zone_smoke.rb
+  wake_unlock:
+    why: Menu bar geometry and app state can drift after wake or unlock even when a normal launch looked correct.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - appearance-customization-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - log
+    runner: Scripts/live_zone_smoke.rb
+  display_topology:
+    why: External display, notch, and width changes are common customer setups and have caused stale menu-bar placement before.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - browse-icons-search-navigation
+    - browse-icons-icon-context-actions
+    - appearance-customization-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - state_receipt
+    runner: Scripts/live_zone_smoke.rb
+  fullscreen_maximize_transition:
+    why: Fullscreen and maximize transition windows can hide or repaint menu-bar state incorrectly during normal customer use.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - appearance-customization-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - log
+    runner: Scripts/live_zone_smoke.rb fullscreen/maximize transition probe
+  basic_pro_mode:
+    why: The same customer action must either work in Pro or clearly gate in Basic without pretending the change succeeded.
+    action_ids:
+    - onboarding-basic-pro-permission-actions
+    - pro-basic-gating-actions
+    - license-about-support-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_click
+    - screenshot
+    - log
+    runner: Scripts/customer_ui_action_sweep.rb
+  support_report_media:
+    why: Customers rely on in-app reports when the app is broken, including large videos that cannot travel as normal email attachments.
+    action_ids:
+    - license-about-support-actions
+    - health-repair-rescue-diagnostics
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_click
+    - screenshot
+    - log
+    runner: Scripts/customer_ui_action_sweep.rb support/report media path
 actions:
 - id: status-item-click-routes
   title: Status item left, right, and option-click routes are live
@@ -127,10 +209,12 @@ actions:
   evidence:
   - Mini Dock menu transcript
   - Shared utility menu source guard
-  required_proof_level: fixture_completion
+  required_proof_level: full_runtime_completion
   required_evidence_types:
+  - mini_click
+  - screenshot
   - fixture
-  - state_receipt
+  - log
   historical_failure_classes:
   - duplicate_or_stale_menu_item
   - menu_entry_missing
@@ -336,6 +420,7 @@ actions:
   - Restore the fixture zone.
   assertions:
   - Each move command changes the live zone to the requested zone.
+  - Each move remains in the requested zone after the delayed post-move settle window.
   - Reordering does not collapse the separator or move the main SaneBar item.
   - Always Hidden items remain hidden during a normal reveal.
   - Shared-bundle Apple menu extras keep exact identity during verification.
@@ -370,6 +455,7 @@ actions:
   - Reorder an icon within a zone.
   expected_outputs:
   - Each move command changes the live zone to the requested zone.
+  - Moved items stay in the requested zone after delayed reconciliation runs.
   - Reordering does not collapse the separator or move the main SaneBar item.
   - Always Hidden items remain hidden during a normal reveal.
 - id: icon-hotkeys-and-groups
@@ -498,8 +584,11 @@ actions:
   evidence:
   - Mini settings action transcript
   - Persistence and update source guards
-  required_proof_level: fixture_completion
+  required_proof_level: full_runtime_completion
   required_evidence_types:
+  - mini_click
+  - mini_ax
+  - screenshot
   - fixture
   - state_receipt
   historical_failure_classes:
@@ -652,8 +741,11 @@ actions:
   - Mini appearance screenshots
   - Overlay recovery transcript
   - MenuBarAppearanceService unit guard
-  required_proof_level: fixture_completion
+  required_proof_level: full_runtime_completion
   required_evidence_types:
+  - mini_click
+  - screenshot
+  - mini_runtime
   - fixture
   - state_receipt
   historical_failure_classes:
@@ -935,6 +1027,7 @@ actions:
   - mini_click
   - screenshot
   - fixture
+  - support_report
   historical_failure_classes:
   - duplicate_or_stale_menu_item
   - menu_entry_missing
@@ -1044,10 +1137,12 @@ actions:
   - Mini startup layout probe artifact
   - Mini release runtime smoke transcript
   - Mini resource watchdog receipt
-  required_proof_level: fixture_completion
+  required_proof_level: full_runtime_completion
   required_evidence_types:
+  - mini_runtime
   - fixture
   - state_receipt
+  - log
   historical_failure_classes:
   - duplicate_or_stale_menu_item
   - menu_entry_missing

@@ -181,6 +181,79 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testFrameInTargetZoneRejectsAlwaysHiddenWhenExpectingRegularHidden() {
+        let alwaysHiddenFrame = CGRect(x: 60, y: 0, width: 22, height: 22) // midX=71
+        let regularHiddenFrame = CGRect(x: 84, y: 0, width: 10, height: 22) // midX=89
+
+        XCTAssertFalse(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: alwaysHiddenFrame,
+                separatorX: 100,
+                toHidden: true,
+                alwaysHiddenBoundaryX: 80
+            )
+        )
+        XCTAssertTrue(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: regularHiddenFrame,
+                separatorX: 100,
+                toHidden: true,
+                alwaysHiddenBoundaryX: 80
+            )
+        )
+    }
+
+    func testFrameInTargetZoneRejectsVisibleWhenExpectingIntermediateHiddenLane() {
+        let visibleFrame = CGRect(x: 116, y: 0, width: 12, height: 22) // midX=122
+        let regularHiddenFrame = CGRect(x: 100, y: 0, width: 10, height: 22) // midX=105
+
+        XCTAssertFalse(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: visibleFrame,
+                separatorX: 80,
+                toHidden: false,
+                alwaysHiddenBoundaryX: 120
+            )
+        )
+        XCTAssertTrue(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: regularHiddenFrame,
+                separatorX: 80,
+                toHidden: false,
+                alwaysHiddenBoundaryX: 120
+            )
+        )
+    }
+
+    func testFrameInTargetZoneAcceptsNarrowRegularHiddenLaneMidpoint() {
+        let regularHiddenFrame = CGRect(x: 486, y: 0, width: 18, height: 22) // midX=495
+
+        XCTAssertTrue(
+            AccessibilityService.frameIsInTargetZone(
+                afterFrame: regularHiddenFrame,
+                separatorX: 500,
+                toHidden: true,
+                alwaysHiddenBoundaryX: 490
+            )
+        )
+    }
+
+    func testRegularHiddenMoveRequiresAlwaysHiddenBoundaryWhenSectionExists() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("private func regularHiddenMoveRequiresAlwaysHiddenBoundary() -> Bool") &&
+                source.contains("await warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)") &&
+                source.contains("Expanding ALL icons to resolve regular Hidden lane boundary") &&
+                source.contains("Waiting for always-hidden boundary before accepting regular hidden move target") &&
+                source.contains("Regular hidden move target resolution failed without always-hidden boundary"),
+            "Regular Hidden moves must fail closed when the Always Hidden lane exists but its boundary is unavailable"
+        )
+    }
+
     func testDirectionMismatchIgnoredWhenVisibleMoveStartsAlreadyVisible() {
         let before = CGRect(x: 160, y: 0, width: 22, height: 22) // visible
         let after = CGRect(x: 145, y: 0, width: 22, height: 22) // moved left but still visible
@@ -224,8 +297,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Wide menu extras should get a deeper always-hidden drag target than the normal far-hidden fallback"
         )
         XCTAssertTrue(
-            source.contains("let minRegularHiddenX = ahBoundary + 2"),
-            "Hidden moves should not overshoot left of the lane floor when an always-hidden boundary exists"
+            source.contains("let laneMidX = ahBoundary + (hiddenLaneWidth * 0.5)") &&
+                source.contains("let laneMargin = min(CGFloat(6), max(CGFloat(1), hiddenLaneWidth * 0.25))"),
+            "Hidden moves should target the real regular Hidden lane, even when the lane is narrow"
         )
         XCTAssertTrue(
             source.contains("guard let ahBoundary = visibleBoundaryX else {") &&
@@ -233,7 +307,8 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden moves without an always-hidden boundary should still keep the direct farHiddenX target for normal-width icons"
         )
         XCTAssertTrue(
-            source.contains("let maxRegularHiddenX = separatorX - separatorSafety"),
+            source.contains("let boundedSeparatorSafety = min(separatorSafety, max(laneMargin, hiddenLaneWidth * 0.45))") &&
+                source.contains("let maxRegularHiddenX = separatorX - boundedSeparatorSafety"),
             "Hidden moves should enforce a separator-side safety margin for reliable midpoint verification"
         )
         XCTAssertTrue(
@@ -241,9 +316,33 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Hidden moves should bias toward the separator-side hidden lane to avoid AH drift after re-hide transitions"
         )
         XCTAssertTrue(
-            source.contains("return max(boundedPreferredX, min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX))"),
-            "Hidden move target should stay clamped to lane bounds while preserving far-hidden fallback for wide icons"
+            source.contains("let wideRegularHiddenThreshold: CGFloat = 56") &&
+                source.contains("let fallbackRegularHiddenX = min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)") &&
+                source.contains("return iconWidth >= wideRegularHiddenThreshold ? fallbackRegularHiddenX : boundedPreferredX"),
+            "Hidden move target should stay clamped to lane bounds while allowing the deeper fallback to win for wide icons"
         )
+    }
+
+    func testWideRegularHiddenMoveCanUseDeeperFallbackInsideLane() {
+        let target = AccessibilityService.moveTargetX(
+            targetLane: .hidden,
+            iconWidth: 72,
+            separatorX: 500,
+            visibleBoundaryX: 410
+        )
+
+        XCTAssertEqual(target, 416, accuracy: 0.001)
+    }
+
+    func testNarrowRegularHiddenMoveTargetsLaneMidpoint() {
+        let target = AccessibilityService.moveTargetX(
+            targetLane: .hidden,
+            iconWidth: 72,
+            separatorX: 500,
+            visibleBoundaryX: 490
+        )
+
+        XCTAssertEqual(target, 495, accuracy: 0.001)
     }
 
     func testVisibleMoveTargetUsesMinimumRightOfSeparatorInFlushLayout() {
@@ -968,6 +1067,12 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("await manager.refreshAccessibilityCacheAfterMove()"),
             "Move completion should call the shared post-move refresh helper before returning success"
+        )
+        XCTAssertTrue(
+            source.contains("let shouldPreservePreHideMoveSnapshot = success && toHidden && usedShowAllShield") &&
+                source.contains("Capturing regular Hidden move snapshot before re-hide") &&
+                source.contains("if !shouldPreservePreHideMoveSnapshot"),
+            "Hidden moves performed through the showAll shield should keep the post-drag regular Hidden classification instead of replacing it with a post-hide stale scan"
         )
         XCTAssertTrue(
             source.contains("let scopedItems = await AccessibilityService.shared.scopedMenuBarItemsWithPositions(for: owners)") &&
@@ -1731,13 +1836,16 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should persist the latest smoke transcript on success so the artifact always matches the current run"
         )
         XCTAssertTrue(
-            source.contains("shared_bundle_ids = runtime_smoke_available_required_candidate_ids(") &&
+            source.contains("shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(") &&
+                source.contains("def runtime_smoke_available_shared_bundle_candidate_ids(target, required_ids:)") &&
+                source.contains("shared_group = grouped.values.find { |items| items.length >= 2 }") &&
+                source.contains("need at least two Wi-Fi/Battery/Focus/Display items on this host") &&
                 source.contains("run_focused_runtime_smoke_exact_ids(") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(',')") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'") &&
                 source.contains("lane_name: 'shared-bundle'") &&
                 source.contains("retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?"),
-            "Project QA runtime smoke should run a dedicated focused pass for shared-bundle Apple extras when those exact IDs are present"
+            "Project QA runtime smoke should run shared-bundle Apple-extra coverage only when the host has a real same-bundle fixture pair"
         )
         XCTAssertTrue(
             source.contains("native_apple_ids = runtime_smoke_available_required_candidate_ids(") &&
@@ -2504,14 +2612,18 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("private var shouldShowMoveHint: Bool"),
-            "Icon panel should expose a single inline drag hint state instead of duplicating the tabs in a second row"
+            "Icon panel should retain drag-session state for deciding which existing tabs can accept drops"
+        )
+        XCTAssertFalse(
+            source.contains("Text(\"Move to\")") ||
+                source.contains(".move(edge: .leading)") ||
+                source.contains(".scaleEffect(isTargeted"),
+            "Dragging over Hidden, Visible, or Always Hidden must not insert visible labels, slide tabs, or resize target tabs"
         )
         XCTAssertTrue(
-            source.contains("Text(\"Move to\")") &&
-                source.contains("if shouldShowMoveHint") &&
-                source.contains("modeSegment(segmentMode)") &&
+            source.contains("modeSegment(segmentMode)") &&
                 !source.contains("moveDestinationChip("),
-            "Drag guidance should stay in the existing tab row with one Move to label and no duplicate destination strip"
+            "Drag destinations should stay in the existing stable tab row with no duplicate destination strip"
         )
         XCTAssertTrue(
             source.contains("@State private var isModeStripDropActive = false"),
@@ -2683,6 +2795,22 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("Salvaging timed-out move command via zone verification") &&
                 source.contains("timed_out_move_command?"),
             "Live smoke should verify the final zone before failing a move command whose AppleScript reply timed out"
+        )
+        XCTAssertTrue(
+            source.contains("DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS") &&
+                source.contains("@post_move_zone_stability_seconds") &&
+                source.contains("assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)") &&
+                source.contains("Post-settle move verification drifted") &&
+                source.contains("Post-settle zone stability ok"),
+            "Live smoke should catch customer-visible move drift after delayed pin reconciliation, not only immediate move success"
+        )
+        XCTAssertTrue(
+            source.contains("exercise_hidden_always_hidden_round_trip(candidate)") &&
+                source.contains("def exercise_hidden_always_hidden_round_trip(candidate)") &&
+                source.contains("move_and_verify('move icon to hidden', candidate, 'hidden')") &&
+                source.contains("move_and_verify('move icon to always hidden', candidate, 'alwaysHidden')") &&
+                source.contains("Hidden/Always Hidden round-trip ok"),
+            "Live smoke should gate the exact Hidden to Always Hidden to Hidden customer workflow, not infer it from visible-only moves"
         )
         XCTAssertTrue(
             source.contains("current_physical_footprint_mb") &&

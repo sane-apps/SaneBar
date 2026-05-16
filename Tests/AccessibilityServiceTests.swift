@@ -118,6 +118,34 @@ struct AccessibilityServiceTests {
         #expect(service.menuBarCacheWarmupTask == nil)
     }
 
+    @Test("Manual move cache preservation keeps refreshed positions fresh")
+    @MainActor
+    func testManualMoveCachePreservationKeepsPositionsFresh() {
+        let service = AccessibilityService.shared
+        service.menuBarItemCache = [
+            AccessibilityService.MenuBarItemPosition(
+                app: RunningApp.menuExtraItem(
+                    ownerBundleId: "com.apple.systemuiserver",
+                    name: "Siri",
+                    identifier: "com.apple.menuextra.siri",
+                    xPosition: 1480,
+                    width: 34
+                ),
+                x: 1480,
+                width: 34
+            )
+        ]
+        service.menuBarItemCacheTime = .distantPast
+        service.deferredMenuBarCacheWarmupReason = .conceal
+
+        service.preserveFreshMenuBarItemPositionsAfterManualMove()
+
+        #expect(service.menuBarItemCache.count == 1)
+        #expect(Date().timeIntervalSince(service.menuBarItemCacheTime) < service.menuBarItemCacheValiditySeconds)
+        #expect(service.deferredMenuBarCacheWarmupReason == nil)
+        #expect(service.menuBarCacheWarmupTask == nil)
+    }
+
     @Test("Known-owner position refresh accepts strong coverage")
     func testKnownOwnerPositionRefreshAcceptsStrongCoverage() {
         #expect(

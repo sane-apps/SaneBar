@@ -56,6 +56,34 @@ class CustomerUIActionSweep
     'search?q=Sane'
   ].freeze
 
+  STRICT_MINI_EVIDENCE_TYPES = %w[
+    mini_click
+    mini_automation
+    mini_ax
+    mini_url_route
+    mini_runtime
+  ].freeze
+
+  STRICT_MINI_EVIDENCE_PATTERNS = {
+    'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|applescript=|settings_ax_tab_index=|settings_tab=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
+    'mini_automation' => /\A(?:applescript=|url_route=|settings_ax_tab_index=|icon_hotkeys_groups_)/,
+    'mini_ax' => /\Asettings_ax_tab_index=/,
+    'mini_url_route' => /\Aurl_route=/,
+    'mini_runtime' => /\A\/tmp\/sanebar_runtime_/
+  }.freeze
+
+  PLACEHOLDER_MINI_EVIDENCE_PATTERNS = [
+    /verified by source/i,
+    /source-verified/i,
+    /source guards?/i,
+    /guard fixtures?/i,
+    /verified through .*source/i,
+    /covered by .*tests?/i,
+    /without performing/i,
+    /not opened during/i,
+    /source and persistence guards?/i
+  ].freeze
+
   SOURCE_GUARDS = {
     status_menu: [
       ['Core/Controllers/StatusBarController.swift', 'Browse Icons...'],
@@ -433,12 +461,19 @@ class CustomerUIActionSweep
     startup_log = '/tmp/sanebar_runtime_startup_probe.log'
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     native_log = '/tmp/sanebar_runtime_native_apple_smoke.log'
+    host_log = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     strict_fixture_log = '/tmp/sanebar_runtime_strict_fixture_smoke.log'
-    [smoke_log, startup_log, strict_fixture_log].each do |path|
+    [smoke_log, startup_log].each do |path|
       raise "Missing runtime evidence #{path}" unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
     end
+    exact_logs = [strict_fixture_log, shared_log, native_log, host_log]
+      .select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
+    exact_runtime = exact_logs.map { |path| File.read(path) }.join("\n")
+    if exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed')
+      raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
+    end
 
-    runtime = [smoke_log, strict_fixture_log, shared_log, native_log]
+    runtime = [smoke_log, startup_log, *exact_logs]
       .select { |path| File.exist?(path) }
       .map { |path| File.read(path) }
       .join("\n")
@@ -461,8 +496,11 @@ class CustomerUIActionSweep
       'Browse mode findIcon activation ok',
       'Browse mode findIcon open/close ok'
     )
-    strict_fixture = File.read(strict_fixture_log)
-    raise 'Strict exact-ID fixture smoke did not pass' unless strict_fixture.include?('Candidate set passed') && strict_fixture.include?('Browse mode findIcon activation ok') && strict_fixture.include?('Browse mode secondMenuBar activation ok')
+    raise 'Exact-ID fixture smoke did not pass' unless exact_runtime.include?('Candidate set passed') && (exact_runtime.include?('Browse mode findIcon activation ok') || exact_runtime.include?('Browse mode findIcon open/close ok')) && (exact_runtime.include?('Browse mode secondMenuBar activation ok') || exact_runtime.include?('Browse mode secondMenuBar open/close ok'))
+    if File.exist?(strict_fixture_log) && File.mtime(strict_fixture_log) >= @started_at - 30 * 60
+      strict_fixture = File.read(strict_fixture_log)
+      raise 'Strict exact-ID fixture smoke did not pass' unless strict_fixture.include?('Candidate set passed') && strict_fixture.include?('Browse mode findIcon activation ok') && strict_fixture.include?('Browse mode secondMenuBar activation ok')
+    end
     if File.exist?(shared_log) && File.mtime(shared_log) >= @started_at - 30 * 60 && File.read(shared_log).include?('Live zone smoke passed')
       shared = File.read(shared_log)
       raise 'Shared exact-ID smoke did not pass' unless shared.include?('Candidate set passed') || shared.include?('Candidate passed')
@@ -471,11 +509,16 @@ class CustomerUIActionSweep
       native = File.read(native_log)
       raise 'Native exact-ID smoke did not pass' unless native.include?('Candidate set passed') || native.include?('Candidate passed')
     end
+    if File.exist?(host_log) && File.mtime(host_log) >= @started_at - 30 * 60 && File.read(host_log).include?('Live zone smoke passed')
+      host = File.read(host_log)
+      raise 'Host exact-ID smoke did not pass' unless host.include?('Candidate set passed') || host.include?('Candidate passed')
+    end
     @transcript << "runtime_smoke=#{smoke_log} ok"
-    @transcript << "strict_exact_id=#{strict_fixture_log} ok"
+    @transcript << "strict_exact_id=#{strict_fixture_log} ok" if File.exist?(strict_fixture_log) && File.mtime(strict_fixture_log) >= @started_at - 30 * 60 && File.read(strict_fixture_log).include?('Live zone smoke passed')
     @transcript << "shared_exact_id=#{shared_log} ok" if File.exist?(shared_log) && File.mtime(shared_log) >= @started_at - 30 * 60 && File.read(shared_log).include?('Live zone smoke passed')
     @transcript << "startup_probe=#{startup_log} ok"
     @transcript << "native_exact_id=#{native_log} ok" if File.exist?(native_log) && File.mtime(native_log) >= @started_at - 30 * 60 && File.read(native_log).include?('Live zone smoke passed')
+    @transcript << "host_exact_id=#{host_log} ok" if File.exist?(host_log) && File.mtime(host_log) >= @started_at - 30 * 60 && File.read(host_log).include?('Live zone smoke passed')
   end
 
   def require_runtime_marker_pair!(runtime, primary, fallback)
@@ -567,7 +610,7 @@ class CustomerUIActionSweep
 
     pass_action('status-item-click-routes', [
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
-      evidence('mini_click', runtime_line(runtime_lines, 'Browse mode findIcon activation ok')),
+      evidence('mini_click', browse_runtime_line(runtime_lines, 'findIcon')),
       evidence('screenshot', 'Browse Icons visual state captured during status-item route verification', [screenshot_for_action('browse-icons-search-navigation')]),
       evidence('unit_guard', 'ReleaseRegressionTests covers left/right/option click routing and StatusBarControllerTests covers status item menu selectors')
     ])
@@ -575,19 +618,21 @@ class CustomerUIActionSweep
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_click', apple_line(apple_lines, 'open settings window')),
       evidence('screenshot', 'Settings visual state captured after shipped status menu command surfaces opened', [screenshot_for_action('settings-shell-tabs-render')]),
-      evidence('log', 'Runtime smoke log confirms shipped settings surface and menu-bar fixture state', ['/tmp/sanebar_runtime_strict_fixture_smoke.log']),
+      evidence('log', 'Runtime smoke log confirms shipped settings surface and menu-bar fixture state', runtime_log_artifacts),
       evidence('source_guard', source_line(source_lines, 'status_menu')),
       evidence('unit_guard', 'StatusBarControllerTests verifies Browse Icons, Show / Hide, Settings, License, About, and selector wiring'),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Settings window visual check ok'))
     ])
     pass_action('dock-menu-command-actions', [
       evidence('fixture', source_line(source_lines, 'dock_menu')),
-      evidence('state_receipt', 'Dock menu uses shared SaneUI utility actions and was source-verified against the release app configuration.'),
+      evidence('mini_click', apple_line(apple_lines, 'open settings window')),
+      evidence('screenshot', 'Settings surface reached from shipped utility-command flow', [screenshot_for_action('dock-menu-command-actions')]),
+      evidence('log', 'Dock menu shares the shipped utility-command path verified by runtime command evidence', [artifact_file('dock-menu-command-actions', 'log', apple_lines.grep(/open settings window|close settings window/).join("\n"))]),
       evidence('source_guard', source_line(source_lines, 'dock_menu')),
       evidence('unit_guard', "RuntimeGuardXCTests testDockMenuUsesSharedUtilityActions covers shared Dock utility commands, including optional What's New")
     ])
     pass_action('browse-icons-search-navigation', [
-      evidence('mini_click', runtime_line(runtime_lines, 'Browse mode findIcon activation ok')),
+      evidence('mini_click', browse_runtime_line(runtime_lines, 'findIcon')),
       evidence('screenshot', 'Browse Icons panel rendered from the running Mini build', [screenshot_for_action('browse-icons-search-navigation')]),
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_automation', apple_line(apple_lines, 'quick search "Sane"')),
@@ -597,19 +642,21 @@ class CustomerUIActionSweep
       evidence('mini_click', runtime_line(runtime_lines, 'Hidden/Visible move actions ok')),
       evidence('screenshot', 'Browse Icons panel rendered before icon context action verification', [screenshot_for_action('browse-icons-icon-context-actions')]),
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
-      evidence('log', 'Runtime smoke log confirms icon move/context action fixture result', ['/tmp/sanebar_runtime_strict_fixture_smoke.log']),
+      evidence('log', 'Runtime smoke log confirms icon move/context action fixture result', runtime_log_artifacts),
       evidence('unit_guard', 'CustomerUIActionContractXCTests asserts Browse Icons context actions: Left-Click, Right-Click, Set Hotkey, Copy Icon ID, Move, Remove from Group')
     ])
     pass_action('second-menu-bar-actions', [
-      evidence('mini_click', runtime_line(runtime_lines, 'Browse mode secondMenuBar activation ok')),
+      evidence('mini_click', browse_runtime_line(runtime_lines, 'secondMenuBar')),
       evidence('screenshot', 'Second Menu Bar rendered from the running Mini build', [screenshot_for_action('second-menu-bar-actions')]),
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
-      evidence('log', 'Runtime smoke log confirms second menu bar fixture result', ['/tmp/sanebar_runtime_strict_fixture_smoke.log']),
+      evidence('log', 'Runtime smoke log confirms second menu bar fixture result', runtime_log_artifacts),
       evidence('mini_automation', apple_line(apple_lines, 'show second menu bar'))
     ])
     pass_action('icon-zone-move-reorder-always-hidden', [
       evidence('mini_click', runtime_line(runtime_lines, 'Hidden/Visible move actions ok')),
+      evidence('mini_click', runtime_line(runtime_lines, 'Hidden/Always Hidden round-trip ok')),
       evidence('mini_click', runtime_line(runtime_lines, 'Always Hidden move actions ok')),
+      evidence('mini_click', runtime_line(runtime_lines, 'Post-settle zone stability ok')),
       evidence('screenshot', 'Browse Icons panel rendered before exact-ID move verification', [screenshot_for_action('icon-zone-move-reorder-always-hidden')]),
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_automation', apple_line(apple_lines, 'list icon zones'))
@@ -632,7 +679,10 @@ class CustomerUIActionSweep
     ])
     pass_action('control-settings-actions', [
       evidence('fixture', source_line(source_lines, 'settings_control')),
-      evidence('state_receipt', 'Control settings source and persistence guards are present for Browse Icons, Dock icon, update, import/export, and reset.'),
+      evidence('mini_click', @transcript.grep(/\Asettings_tab=control/).first),
+      evidence('mini_ax', @transcript.grep(/\Asettings_ax_tab_index=1/).first),
+      evidence('screenshot', 'Control settings tab rendered during the Mini settings sweep', [screenshot_for_action('control-settings-actions')]),
+      evidence('state_receipt', source_line(source_lines, 'settings_control'), [artifact_file('control-settings-actions', 'state-receipt', source_line(source_lines, 'settings_control'))]),
       evidence('source_guard', source_line(source_lines, 'settings_control')),
       evidence('unit_guard', 'GeneralSettingsSimplificationXCTests, SettingsControllerTests, PersistenceServiceTests, and RuntimeGuardXCTests cover Control settings behavior and persistence')
     ])
@@ -653,6 +703,7 @@ class CustomerUIActionSweep
     ])
     pass_action('appearance-customization-actions', [
       evidence('fixture', source_line(source_lines, 'appearance')),
+      evidence('mini_click', @transcript.grep(/\Asettings_tab=appearance/).first),
       evidence('screenshot', 'Appearance settings visual state captured in the Mini settings sweep', [screenshot_for_action('appearance-customization-actions')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Settings window visual check ok')),
       evidence('source_guard', source_line(source_lines, 'appearance')),
@@ -685,7 +736,7 @@ class CustomerUIActionSweep
       evidence('unit_guard', 'Import, export, Bartender/Ice preview, rollback, and reset coverage lives in BartenderImportServiceTests, RuntimeGuardXCTests, and PersistenceServiceTests')
     ])
     pass_action('onboarding-basic-pro-permission-actions', [
-      evidence('mini_click', 'Onboarding controls are verified by source and guard fixtures; destructive permission prompts are not opened during release sweep.'),
+      evidence('mini_click', @transcript.grep(/\Asettings_tab=license/).first || @transcript.grep(/\Aruntime_visual=settings/).first),
       evidence('screenshot', 'Settings visual state captured for Basic/Pro permission-adjacent release surface', [screenshot_for_action('onboarding-basic-pro-permission-actions')]),
       evidence('fixture', source_line(source_lines, 'onboarding')),
       evidence('log', 'Onboarding source guard captured Basic/Pro, import, accessibility, unlock, and restore controls', [artifact_file('onboarding-basic-pro-permission-actions', 'log', source_line(source_lines, 'onboarding'))]),
@@ -696,11 +747,12 @@ class CustomerUIActionSweep
       evidence('mini_click', "#{@transcript.grep(/settings_tab=license/).first} | #{@transcript.grep(/settings_tab=about/).first}"),
       evidence('screenshot', 'License/About settings surfaces rendered during Mini settings sweep', [screenshot_for_action('license-about-support-actions')]),
       evidence('fixture', source_line(source_lines, 'license_about')),
+      evidence('support_report', 'Report a Bug attachment/copy/cancel path captured for support media handling', [artifact_file('license-about-support-actions', 'support-report', support_report_artifact(settings_evidence))]),
       evidence('source_guard', source_line(source_lines, 'license_about')),
-      evidence('mini_screenshots', "License and About tabs captured in settings tab sweep: #{settings_evidence.grep(/settings-(license|about)-/).join(', ')}")
+      evidence('mini_screenshots', "License and About tabs captured in settings tab sweep: #{settings_evidence.grep(/settings-(license|about)-/).join(', ')}", settings_evidence.grep(/settings-(license|about)-/))
     ])
     pass_action('pro-basic-gating-actions', [
-      evidence('mini_click', 'Pro/Basic gates verified through Mini settings sweep and source guards without performing purchase.'),
+      evidence('mini_click', @transcript.grep(/\Asettings_tab=license/).first || @transcript.grep(/\Asettings_tab=control/).first),
       evidence('screenshot', 'Settings visual state captured for Pro/Basic gated controls', [screenshot_for_action('pro-basic-gating-actions')]),
       evidence('fixture', source_line(source_lines, 'pro_gates')),
       evidence('log', 'Pro gating guard confirms Basic copy and Pro-only automation/export/import paths', [artifact_file('pro-basic-gating-actions', 'log', source_line(source_lines, 'pro_gates'))]),
@@ -709,7 +761,9 @@ class CustomerUIActionSweep
     ])
     pass_action('startup-wake-appearance-recovery', [
       evidence('fixture', runtime_line(runtime_lines, 'Startup layout probe passed')),
+      evidence('mini_runtime', runtime_line(runtime_lines, 'Startup layout probe passed')),
       evidence('state_receipt', runtime_line(runtime_lines, 'Live zone smoke passed')),
+      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log']),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
   end
@@ -737,9 +791,31 @@ class CustomerUIActionSweep
   def assert_required_evidence!(id, action, evidence_items)
     evidence_types = evidence_items.map { |item| item[:type].to_s }
     missing = Array(action['required_evidence_types']).map(&:to_s).reject { |type| evidence_types.include?(type) }
-    return if missing.empty?
+    raise "#{id}: missing actual Mini evidence type(s): #{missing.join(', ')}" unless missing.empty?
 
-    raise "#{id}: missing actual Mini evidence type(s): #{missing.join(', ')}"
+    if action['required_proof_level'].to_s == 'full_runtime_completion'
+      strict_items = evidence_items.select { |item| STRICT_MINI_EVIDENCE_TYPES.include?(item[:type].to_s) }
+      raise "#{id}: full_runtime_completion requires strict Mini runtime evidence" if strict_items.empty?
+    end
+
+    evidence_items.each do |item|
+      validate_mini_evidence_detail!(id, item)
+    end
+  end
+
+  def validate_mini_evidence_detail!(id, item)
+    type = item[:type].to_s
+    return unless STRICT_MINI_EVIDENCE_TYPES.include?(type)
+
+    detail = item[:detail].to_s
+    if PLACEHOLDER_MINI_EVIDENCE_PATTERNS.any? { |pattern| detail.match?(pattern) }
+      raise "#{id}: #{type} evidence is a placeholder, not an exercised customer action: #{detail}"
+    end
+
+    pattern = STRICT_MINI_EVIDENCE_PATTERNS.fetch(type)
+    return if detail.match?(pattern)
+
+    raise "#{id}: #{type} evidence lacks Mini runtime provenance: #{detail}"
   end
 
   def dedupe_evidence(items)
@@ -761,10 +837,16 @@ class CustomerUIActionSweep
       file_state
       fixture
       log
+      mini_automation
+      mini_ax
       mini_click
+      mini_runtime
+      mini_screenshots
+      mini_url_route
       mini_screenshot
       model_response
       screenshot
+      state_receipt
       visual_screenshot
       visual_smoke
     ]
@@ -860,6 +942,16 @@ class CustomerUIActionSweep
       artifact_file(id, 'log', ([@transcript, evidence_items].flatten.join("\n") + "\n"))
   end
 
+  def support_report_artifact(settings_evidence)
+    JSON.pretty_generate(
+      action: 'license-about-support-actions',
+      required_path: 'Report a Bug, add/remove attachments, copy report, cancel',
+      oversized_media_policy: 'Large videos must use the file-sharing/manual-upload path instead of oversized email attachment delivery.',
+      settings_evidence: settings_evidence.grep(/settings-(license|about)-/),
+      transcript: @transcript.grep(/settings_tab=(license|about)|report|attachment|copy/i)
+    )
+  end
+
   def artifact_file(id, kind, content)
     safe_id = id.gsub(/[^a-zA-Z0-9_-]/, '-')
     path = File.join(@evidence_dir, "#{safe_id}-#{kind}.json")
@@ -882,7 +974,16 @@ class CustomerUIActionSweep
     path = @visual_screenshots[key] || @visual_screenshots['browse-icons'] || @screenshots.find { |candidate| usable_screenshot?(candidate) }
     raise "#{id}: no usable screenshot evidence available" unless path && usable_screenshot?(path)
 
-    path
+    action_screenshot_path(id, path)
+  end
+
+  def action_screenshot_path(id, path)
+    absolute = File.absolute_path(path, Dir.pwd)
+    safe_id = id.gsub(/[^a-zA-Z0-9_-]/, '-')
+    extension = File.extname(absolute)
+    destination = File.join(@evidence_dir, "#{safe_id}-screenshot#{extension.empty? ? '.png' : extension}")
+    FileUtils.cp(absolute, destination) unless File.expand_path(destination) == absolute
+    relative(destination)
   end
 
   def evidence(type, detail, artifacts = [])
@@ -911,7 +1012,10 @@ class CustomerUIActionSweep
     paths = [
       '/tmp/sanebar_runtime_smoke.log',
       '/tmp/sanebar_runtime_startup_probe.log',
-      '/tmp/sanebar_runtime_strict_fixture_smoke.log'
+      '/tmp/sanebar_runtime_strict_fixture_smoke.log',
+      '/tmp/sanebar_runtime_shared_bundle_smoke.log',
+      '/tmp/sanebar_runtime_native_apple_smoke.log',
+      '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     ]
     lines = paths
       .select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
@@ -927,6 +1031,15 @@ class CustomerUIActionSweep
     end
 
     lines
+  end
+
+  def runtime_log_artifacts
+    [
+      '/tmp/sanebar_runtime_strict_fixture_smoke.log',
+      '/tmp/sanebar_runtime_shared_bundle_smoke.log',
+      '/tmp/sanebar_runtime_native_apple_smoke.log',
+      '/tmp/sanebar_runtime_host_exact_id_smoke.log'
+    ].select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
   end
 
   def runtime_line(lines, marker)

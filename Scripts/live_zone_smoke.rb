@@ -60,6 +60,10 @@ class LiveZoneSmoke
   FOCUS_PROBE_TIMEOUT_SECONDS = 4.0
   FOCUS_PROBE_APP_NAME = 'Finder'
   FOCUS_PROBE_APP_BUNDLE = 'com.apple.finder'
+  # Customer-visible move failures can appear only after delayed pin
+  # reconciliation runs. Every runtime move must remain classified in the
+  # requested zone after that settle window, not only immediately after drop.
+  DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS = 2.2
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
@@ -156,6 +160,7 @@ class LiveZoneSmoke
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
+    @post_move_zone_stability_seconds = float_env('SANEBAR_SMOKE_POST_MOVE_ZONE_STABILITY_SECONDS') || DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
     @window_screenshot_tool = resolve_window_screenshot_tool
     @required_candidate_ids = ENV.fetch('SANEBAR_SMOKE_REQUIRED_IDS', '')
@@ -207,6 +212,7 @@ class LiveZoneSmoke
         begin
           puts "🎯 Candidate: #{candidate[:name]} (#{candidate[:bundle]}) zone=#{candidate[:zone]}"
           exercise_hidden_visible_moves(candidate)
+          exercise_hidden_always_hidden_round_trip(candidate)
           exercise_always_hidden_moves(candidate)
           passed_candidates << candidate
           post_budget_restore_candidate = candidate unless strict_candidate_mode?
@@ -1178,6 +1184,21 @@ class LiveZoneSmoke
     raise
   end
 
+  def exercise_hidden_always_hidden_round_trip(candidate)
+    move_and_verify('move icon to hidden', candidate, 'hidden')
+    move_and_verify('move icon to always hidden', candidate, 'alwaysHidden')
+    move_and_verify('move icon to hidden', candidate, 'hidden')
+    puts '✅ Hidden/Always Hidden round-trip ok'
+  rescue StandardError => e
+    raise if @require_always_hidden
+
+    if always_hidden_optional_failure?(e)
+      puts "ℹ️ Skipping hidden/always-hidden round-trip check (likely free mode): #{e.message}"
+      return
+    end
+    raise
+  end
+
   def restore_zone(candidate)
     target = candidate[:zone]
     case target
@@ -1203,6 +1224,31 @@ class LiveZoneSmoke
     end
 
     wait_for_zone(icon_unique_id, candidate, expected_zone)
+    assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)
+  end
+
+  def assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)
+    return true unless @post_move_zone_stability_seconds.positive?
+
+    sleep_with_watchdog(@post_move_zone_stability_seconds)
+    zones = list_icon_zones
+
+    if exact_move_identity_lost?(candidate, icon_unique_id, zones)
+      live_ids = same_bundle_movable_candidates(zones, candidate).map { |item| item[:unique_id] }
+      raise "Post-settle move verification lost exact identity: requested=#{icon_unique_id} bundle=#{candidate[:bundle]} live=#{live_ids.join(', ')}"
+    end
+
+    matched = matched_move_candidate(zones, icon_unique_id, candidate)
+    if matched.nil?
+      raise "Post-settle move verification could not find #{candidate[:bundle]} (#{candidate[:name]}) after move to #{expected_zone}"
+    end
+
+    unless matched[:zone] == expected_zone
+      raise "Post-settle move verification drifted: #{candidate[:bundle]} (#{candidate[:name]}) expected #{expected_zone}, got #{matched[:zone]}"
+    end
+
+    puts "✅ Post-settle zone stability ok: #{icon_unique_id} stayed #{expected_zone}"
+    true
   end
 
   def wait_for_zone(icon_unique_id, candidate, expected_zone)

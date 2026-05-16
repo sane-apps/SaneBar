@@ -169,6 +169,11 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertTrue(tileSource.contains(label) || secondMenuBarSource.contains(label), "Expected icon context action \(label)")
             XCTAssertTrue(contract.contains(label), "Contract must name icon context action \(label)")
         }
+        XCTAssertTrue(
+            contract.contains("delayed post-move settle window") &&
+                contract.contains("Moved items stay in the requested zone after delayed reconciliation runs"),
+            "Customer UI contract must require post-settle zone stability, not only immediate move success"
+        )
 
         for label in ["How Browse Icons works", "Open Accessibility Settings", "Try Again"] {
             XCTAssertTrue(searchSource.contains(label) || secondMenuBarSource.contains(label), "Expected Browse/Second Menu Bar action \(label)")
@@ -201,6 +206,8 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertTrue(section.contains("assertions:"), "\(id) must describe customer-visible assertions")
             XCTAssertTrue(section.contains("evidence:"), "\(id) must require evidence")
             XCTAssertTrue(section.contains("Mini"), "\(id) must require Mini-side evidence")
+            XCTAssertFalse(section.contains("required_proof_level: fixture_completion"), "\(id) must not ship with fixture-only proof")
+            XCTAssertTrue(section.contains("required_proof_level: full_runtime_completion"), "\(id) must require full runtime completion")
         }
     }
 
@@ -224,10 +231,77 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertNotNil(result["workflow"] as? [String: Any], "\(id) must include structured workflow proof")
             let evidence = try XCTUnwrap(result["evidence"] as? [[String: Any]], "\(id) must have structured evidence")
             XCTAssertFalse(evidence.isEmpty, "\(id) must not rely on a coarse smoke bucket")
+            let evidenceTypes = Set(evidence.compactMap { $0["type"] as? String })
+            for requiredType in requiredEvidenceTypes(in: source, id: id) {
+                XCTAssertTrue(evidenceTypes.contains(requiredType), "\(id) receipt must include required evidence type \(requiredType)")
+            }
             for item in evidence {
-                XCTAssertFalse((item["type"] as? String ?? "").isEmpty, "\(id) evidence must name its type")
-                XCTAssertFalse((item["detail"] as? String ?? "").isEmpty, "\(id) evidence must include detail")
+                let type = item["type"] as? String ?? ""
+                let detail = item["detail"] as? String ?? ""
+                XCTAssertFalse(type.isEmpty, "\(id) evidence must name its type")
+                XCTAssertFalse(detail.isEmpty, "\(id) evidence must include detail")
+                assertPathBackedEvidenceHasArtifact(item, type: type, actionID: id)
+                assertStrictMiniEvidenceIsReal(type: type, detail: detail, actionID: id)
             }
         }
+    }
+
+    private func requiredEvidenceTypes(in source: String, id: String) -> [String] {
+        guard let section = source.components(separatedBy: "\n  - id: \(id)\n").dropFirst().first else {
+            return []
+        }
+        guard let requiredBlock = section.components(separatedBy: "required_evidence_types:").dropFirst().first else {
+            return []
+        }
+
+        return requiredBlock
+            .split(separator: "\n")
+            .prefix { line in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                return trimmed.hasPrefix("- ")
+            }
+            .map { line in
+                line.trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "- ", with: "")
+            }
+    }
+
+    private func assertStrictMiniEvidenceIsReal(type: String, detail: String, actionID: String) {
+        let strictTypes: Set<String> = ["mini_click", "mini_automation", "mini_ax", "mini_url_route", "mini_runtime"]
+        guard strictTypes.contains(type) else { return }
+
+        let lowercasedDetail = detail.lowercased()
+        for placeholder in ["verified by source", "source-verified", "source guard", "guard fixture", "covered by", "without performing", "not opened during"] {
+            XCTAssertFalse(lowercasedDetail.contains(placeholder), "\(actionID) \(type) evidence is a placeholder: \(detail)")
+        }
+
+        let allowedPrefixesByType: [String: [String]] = [
+            "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
+            "mini_automation": ["applescript=", "url_route=", "settings_ax_tab_index=", "icon_hotkeys_groups_"],
+            "mini_ax": ["settings_ax_tab_index="],
+            "mini_url_route": ["url_route="],
+            "mini_runtime": ["/tmp/sanebar_runtime_"]
+        ]
+        let allowedPrefixes = allowedPrefixesByType[type] ?? []
+        XCTAssertTrue(
+            allowedPrefixes.contains { detail.hasPrefix($0) },
+            "\(actionID) \(type) evidence must come from Mini runtime output, not prose: \(detail)"
+        )
+    }
+
+    private func assertPathBackedEvidenceHasArtifact(_ item: [String: Any], type: String, actionID: String) {
+        let pathBackedTypes: Set<String> = [
+            "actual_output", "api_response", "automation_transcript", "file_state", "fixture", "log",
+            "mini_automation", "mini_ax", "mini_click", "mini_runtime", "mini_screenshots",
+            "mini_screenshot", "mini_url_route", "model_response", "screenshot", "state_receipt",
+            "support_report", "visual_screenshot", "visual_smoke"
+        ]
+        guard pathBackedTypes.contains(type) else { return }
+
+        let directPath = (item["path"] as? String)?.isEmpty == false ||
+            (item["artifact"] as? String)?.isEmpty == false ||
+            (item["file"] as? String)?.isEmpty == false
+        let artifactList = (item["artifacts"] as? [String] ?? []).contains { !$0.isEmpty }
+        XCTAssertTrue(directPath || artifactList, "\(actionID) \(type) evidence must point at a real artifact, not prose-only notes")
     }
 }

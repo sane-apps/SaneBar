@@ -125,7 +125,7 @@ class ProjectQATest < Minitest::Test
   def test_open_regression_query_requests_labels_for_blocking_policy
     source = File.read(File.join(__dir__, 'qa.rb'))
 
-    assert_includes source, "'--json', 'number,title,url,labels,createdAt,updatedAt'"
+    assert_includes source, "'--json', 'number,title,url,labels,createdAt,updatedAt,comments'"
   end
 
   def test_post_closure_regression_query_requests_labels_for_release_disposition
@@ -147,7 +147,7 @@ class ProjectQATest < Minitest::Test
     source = File.read(File.join(__dir__, 'qa.rb'))
 
     refute_includes source, 'filter_map do |url|'
-    assert_includes source, 'urls.each do |url|'
+    assert_includes source, 'urls.each_with_index do |url, index|'
   end
 
   def test_customer_facing_copy_guardrails_exist
@@ -294,6 +294,69 @@ end
     :runtime_smoke_available_required_candidate_ids,
     target,
     required_ids: ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display']
+  )
+
+  assert_equal ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display'], ids
+end
+
+  def test_shared_bundle_runtime_smoke_requires_at_least_two_same_bundle_items
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'visible',
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.focusmode'
+      },
+      {
+        zone: 'visible',
+        bundle: 'com.apple.Spotlight',
+        unique_id: 'com.apple.menuextra.spotlight'
+      }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_shared_bundle_candidate_ids,
+    target,
+    required_ids: ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display']
+  )
+
+  assert_empty ids
+end
+
+  def test_shared_bundle_runtime_smoke_uses_only_the_present_same_bundle_group
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'visible',
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.focusmode'
+      },
+      {
+        zone: 'hidden',
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display'
+      },
+      {
+        zone: 'visible',
+        bundle: 'com.apple.Spotlight',
+        unique_id: 'com.apple.menuextra.spotlight'
+      }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_shared_bundle_candidate_ids,
+    target,
+    required_ids: [
+      'com.apple.menuextra.focusmode',
+      'com.apple.menuextra.display',
+      'com.apple.menuextra.spotlight'
+    ]
   )
 
   assert_equal ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display'], ids

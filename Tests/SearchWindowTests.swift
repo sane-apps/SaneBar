@@ -716,7 +716,7 @@ struct SearchWindowTests {
         #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
     }
 
-    @Test("Move verification classification can ignore optimistic always-hidden pins")
+    @Test("Move verification classification does not collapse always-hidden into hidden")
     @MainActor
     func moveVerificationClassificationIgnoresPinnedAlwaysHiddenState() {
         let optimistic = RunningApp(
@@ -727,16 +727,40 @@ struct SearchWindowTests {
             xPosition: 900,
             width: 24
         )
+        let alwaysHidden = RunningApp(
+            id: "com.example.always-hidden",
+            name: "Pinned",
+            icon: nil,
+            menuExtraIdentifier: "com.example.always-hidden.status",
+            xPosition: 860,
+            width: 24
+        )
         let classified = SearchClassifiedApps(
             visible: [],
             hidden: [optimistic],
-            alwaysHidden: []
+            alwaysHidden: [alwaysHidden]
         )
 
         let physical = SearchService.shared.classifyAppsForMoveVerification(classified)
 
         #expect(physical.hidden.map(\.uniqueId) == [optimistic.uniqueId])
-        #expect(physical.alwaysHidden.isEmpty)
+        #expect(physical.alwaysHidden.map(\.uniqueId) == [alwaysHidden.uniqueId])
+    }
+
+    @Test("Hidden-state classification ignores always-hidden separator geometry")
+    func hiddenStateClassificationUsesPinsInsteadOfAlwaysHiddenGeometry() {
+        #expect(
+            SearchService.alwaysHiddenSeparatorForClassification(
+                hidingState: .hidden,
+                alwaysHiddenSeparatorX: 1329
+            ) == nil
+        )
+        #expect(
+            SearchService.alwaysHiddenSeparatorForClassification(
+                hidingState: .expanded,
+                alwaysHiddenSeparatorX: 1329
+            ) == 1329
+        )
     }
 
     @Test("Zoned menu bar views keep fallback-only entries but drop coarse duplicates")

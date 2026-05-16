@@ -184,4 +184,4 @@ If you find any privacy concern, please open an issue.
 
 ## Contact
 
-Questions about privacy? Open an issue on GitHub or email: hi@saneapps.com
+Questions about privacy? Email hi@saneapps.com. Do not put private file names, paths, screenshots, or customer data in a public issue.

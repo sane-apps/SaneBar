@@ -235,6 +235,9 @@ struct MenuBarAppearanceServiceTests {
     func testSuppressOverlayForFullscreenContentWindow() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowLayer as String: NSNumber(value: 0),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
             kCGWindowBounds as String: [
                 "X": NSNumber(value: 0),
                 "Y": NSNumber(value: 0),
@@ -251,6 +254,29 @@ struct MenuBarAppearanceServiceTests {
                 windowInfos: infos,
                 selfPID: 9999
             )
+        )
+    }
+
+    @Test("Fullscreen content suppression is deferred to avoid transition blink")
+    func testFullscreenContentSuppressionIsDeferred() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.google.Chrome",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == .fullscreenContentWindow
         )
     }
 
@@ -281,6 +307,9 @@ struct MenuBarAppearanceServiceTests {
     func testDoesNotSuppressOverlayForDesktopMaximizedWindowBelowMenuBar() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowLayer as String: NSNumber(value: 0),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
             kCGWindowBounds as String: [
                 "X": NSNumber(value: 0),
                 "Y": NSNumber(value: 25),
@@ -298,6 +327,87 @@ struct MenuBarAppearanceServiceTests {
                 selfPID: 9999
             ),
             "A large desktop app window below the menu bar should not hide Custom Appearance tint"
+        )
+    }
+
+    @Test("Appearance overlay ignores fullscreen-shaped transition snapshots")
+    func testIgnoresFullscreenShapedTransitionSnapshotWindows() {
+        let infos: [[String: Any]] = [
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 25),
+                    "Width": NSNumber(value: 1728),
+                    "Height": NSNumber(value: 1068)
+                ]
+            ],
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 24),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1728),
+                    "Height": NSNumber(value: 1117)
+                ]
+            ]
+        ]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.anthropic.claudefordesktop",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil,
+            "A fullscreen-shaped transition/snapshot window must not hide the custom tint"
+        )
+    }
+
+    @Test("Appearance overlay ignores offscreen or transparent fullscreen-shaped windows")
+    func testIgnoresInvisibleFullscreenShapedWindows() {
+        let infos: [[String: Any]] = [
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: false),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1920),
+                    "Height": NSNumber(value: 1080)
+                ]
+            ],
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowAlpha as String: NSNumber(value: 0),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1920),
+                    "Height": NSNumber(value: 1080)
+                ]
+            ]
+        ]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.google.Chrome",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil
         )
     }
 
@@ -346,6 +456,17 @@ struct MenuBarAppearanceServiceTests {
                 windowInfos: infos,
                 selfPID: 9999
             )
+        )
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.example.MenuBarHost",
+                frontmostIsAccessoryApp: true,
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == .thinTopHost
         )
     }
 
@@ -585,6 +706,33 @@ struct MenuBarAppearanceServiceTests {
         #expect(source.contains("NSWorkspace.screensDidWakeNotification"))
         #expect(source.contains("NSWorkspace.sessionDidBecomeActiveNotification"))
         #expect(source.contains("func refreshAfterStatusItemRecovery()"))
+    }
+
+    @Test("Overlay hides immediately only for thin top hosts, not fullscreen transitions")
+    func testFullscreenSuppressionIsNotImmediateInRefreshPath() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = root.appendingPathComponent("Core/Services/MenuBarAppearanceService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        guard let refreshStart = source.range(of: "private func refreshOverlayVisibility()"),
+              let refreshEnd = source.range(of: "private func scheduleOverlayVisibilityRefreshes()") else {
+            Issue.record("Could not find refreshOverlayVisibility source")
+            return
+        }
+
+        let refreshBody = String(source[refreshStart.lowerBound..<refreshEnd.lowerBound])
+        #expect(refreshBody.contains("if suppressionReason == .fullscreenContentWindow"))
+        #expect(refreshBody.contains("scheduleStableFullscreenSuppression()"))
+        #expect(refreshBody.contains("if suppressionReason == .thinTopHost"))
+        #expect(refreshBody.contains("window.orderOut(nil)"))
+        #expect(source.contains(".optionOnScreenOnly"))
+        #expect(source.contains("kCGWindowLayer"))
+        #expect(source.contains("kCGWindowIsOnscreen"))
+        #expect(source.contains("kCGWindowAlpha"))
+        #expect(source.contains("internal nonisolated static let stableFullscreenSuppressionDelay"))
+        #expect(MenuBarAppearanceService.stableFullscreenSuppressionDelay >= 1.0)
     }
 
     // MARK: - Mock Tests

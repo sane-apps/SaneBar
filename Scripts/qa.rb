@@ -81,6 +81,8 @@ class ProjectQA
     'Init clears persisted status-item visibility overrides'
   ].freeze
   STABILITY_TEST_TARGETS = [
+    'SaneBarTests/IconMovingTests',
+    'SaneBarTests/SearchWindowTests',
     'SaneBarTests/StatusBarControllerTests',
     'SaneBarTests/ReleaseRegressionTests',
     'SaneBarTests/SecondMenuBarTests',
@@ -155,13 +157,25 @@ class ProjectQA
       'REGRESSION: Hidden→visible must use showAll(), not show()',
       'REGRESSION: Drag uses 20 steps, not 6'
     ],
+    'Tests/SearchWindowTests.swift' => [
+      'Move verification classification does not collapse always-hidden into hidden'
+    ],
     'Tests/MenuBarSearchDropXCTests.swift' => [
       'testAllTabBoundaryPrefersSeparatorRightEdge',
       'testSourceResolutionUsesAllModeZoneClassifierOnFallback'
     ],
     'Tests/RuntimeGuardXCTests.swift' => [
       'testStartupHideContinuesWhenAccessibilityPermissionIsMissing',
-      'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers'
+      'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers',
+      'Post-settle move verification drifted',
+      'Hidden/Always Hidden round-trip ok',
+      'MenuBarManager should own queued zone-move planning'
+    ],
+    'Scripts/live_zone_smoke.rb' => [
+      'assert_zone_stays_stable_after_move',
+      'exercise_hidden_always_hidden_round_trip',
+      'Post-settle move verification drifted',
+      'Hidden/Always Hidden round-trip ok'
     ],
     'Tests/SecondMenuBarTests.swift' => [
       'Each item belongs to exactly one zone',
@@ -824,7 +838,7 @@ class ProjectQA
 
       File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
       focused_runtime_smoke_ran = false
-      shared_bundle_ids = runtime_smoke_available_required_candidate_ids(
+      shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(
         target,
         required_ids: RUNTIME_SHARED_BUNDLE_IDS
       )
@@ -840,7 +854,7 @@ class ProjectQA
           )
           puts "   ↳ shared-bundle focused smoke unavailable after default fixture miss; checking native/host exact-id lanes"
         else
-          puts '   ↳ shared-bundle focused smoke skipped (Wi-Fi/Battery/Focus/Display not present on this host)'
+          puts '   ↳ shared-bundle focused smoke skipped (need at least two Wi-Fi/Battery/Focus/Display items on this host)'
         end
       else
         focused_runtime_smoke_ran = true
@@ -1294,6 +1308,25 @@ def runtime_smoke_available_required_candidate_ids(target, required_ids:)
   end
 end
 
+def runtime_smoke_available_shared_bundle_candidate_ids(target, required_ids:)
+  snapshot = runtime_smoke_layout_snapshot(target) || {}
+  allow_always_hidden = snapshot['licenseIsPro'] == true
+  zones = runtime_smoke_list_icon_zones(target)
+  candidates = []
+  required_ids.each do |required_id|
+    zone = zones.find { |item| item[:unique_id] == required_id }
+    next unless zone
+    next unless allow_always_hidden || zone[:zone] != 'alwaysHidden'
+
+    candidates << zone
+  end
+  grouped = candidates.group_by { |item| item[:bundle] }
+  shared_group = grouped.values.find { |items| items.length >= 2 }
+  return [] unless shared_group
+
+  shared_group.map { |item| item[:unique_id] }
+end
+
 def runtime_smoke_list_icon_zone_ids(target)
   runtime_smoke_list_icon_zones(target).map { |item| item[:unique_id] }
 end
@@ -1582,7 +1615,7 @@ def applescript_commands_for_app(app_path)
       '--repo', 'sane-apps/SaneBar',
       '--state', 'open',
       '--limit', '100',
-      '--json', 'number,title,url,labels,createdAt,updatedAt'
+      '--json', 'number,title,url,labels,createdAt,updatedAt,comments'
     )
 
     unless list_status.success?
@@ -1625,9 +1658,38 @@ def applescript_commands_for_app(app_path)
 
   def open_issue_blocks_release?(issue)
     return true if release_blocker_disposition?(issue['labels'])
+    return true if patched_pending_has_newer_external_negative?(issue)
     return false if release_nonblocking_disposition?(issue['labels'])
 
     regression_like_title?(issue['title']) || release_blocking_issue_labels?(issue['labels'])
+  end
+
+  def patched_pending_has_newer_external_negative?(issue)
+    labels = normalized_issue_label_names(issue['labels'])
+    return false unless labels.include?('release:patched-pending')
+
+    comments = Array(issue['comments'])
+    latest_trusted_patch = comments.map do |comment|
+      association = comment['authorAssociation'].to_s.upcase
+      body = comment['body'].to_s
+      next unless trusted_issue_author_associations.include?(association)
+      next unless body.match?(/fixed|patched|release|version|build/i)
+
+      Time.parse(comment['createdAt'].to_s).utc
+    rescue StandardError
+      nil
+    end.compact.max
+    return false unless latest_trusted_patch
+
+    comments.any? do |comment|
+      association = comment['authorAssociation'].to_s.upcase
+      next false if trusted_issue_author_associations.include?(association)
+      next false unless reporter_negative_regression_text?(comment['body'])
+
+      Time.parse(comment['createdAt'].to_s).utc > latest_trusted_patch
+    rescue StandardError
+      false
+    end
   end
 
   def release_blocking_issue_labels?(labels)
@@ -1728,7 +1790,8 @@ def applescript_commands_for_app(app_path)
       /not resolved/i,
       /does(?:n'?t| not) (?:work|resolve)/i,
       /status-item windows are invalid/i,
-      /scene-reconnection-loop|reconnection loop|reconnect loop/i
+      /scene-reconnection-loop|reconnection loop|reconnect loop/i,
+      /turns? black|black bar|dark tint/i
     ]
     patterns.any? { |pattern| text.match?(pattern) }
   end

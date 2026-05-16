@@ -733,6 +733,11 @@ extension MenuBarManager {
         separatorOverrideX: CGFloat?,
         maxAttempts: Int = 20
     ) async -> (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) {
+        if toHidden {
+            await warmSeparatorPositionCache(maxAttempts: 16)
+            await warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
+        }
+
         var lastTargets: (separatorX: CGFloat?, visibleBoundaryX: CGFloat?) = (nil, nil)
 
         for attempt in 1 ... maxAttempts {
@@ -750,7 +755,10 @@ extension MenuBarManager {
             lastTargets = targets
 
             if let separatorX = targets.separatorX, separatorX > 0 {
-                if toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0) {
+                let hiddenLaneBoundaryReady = await MainActor.run {
+                    !toHidden || !self.regularHiddenMoveRequiresAlwaysHiddenBoundary() || (targets.visibleBoundaryX ?? 0) > 0
+                }
+                if hiddenLaneBoundaryReady && (toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0)) {
                     let canUseCachedVisibleTarget = !toHidden && Self.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
                         visibleBoundaryX: targets.visibleBoundaryX,
                         sourceFrameIsOnScreen: sourceFrameIsOnScreen,
@@ -774,6 +782,9 @@ extension MenuBarManager {
                     if attempt == 1 || attempt % 5 == 0 {
                         logger.debug("🔧 Cached separator target available after \(attempt * 50)ms but live frame is still stale")
                         logger.debug("🔧 Waiting for live separator frame or an on-screen precise source icon before accepting cached move target")
+                        if toHidden && !hiddenLaneBoundaryReady {
+                            logger.debug("🔧 Waiting for always-hidden boundary before accepting regular hidden move target")
+                        }
                     }
                 }
             }
@@ -781,7 +792,22 @@ extension MenuBarManager {
             try? await Task.sleep(for: .milliseconds(50))
         }
 
+        let requiresHiddenLaneBoundary = await MainActor.run {
+            toHidden && self.regularHiddenMoveRequiresAlwaysHiddenBoundary()
+        }
+        if requiresHiddenLaneBoundary && (lastTargets.visibleBoundaryX ?? 0) <= 0 {
+            logger.error("🔧 Regular hidden move target resolution failed without always-hidden boundary")
+            return (nil, nil)
+        }
         return lastTargets
+    }
+
+    @MainActor
+    private func regularHiddenMoveRequiresAlwaysHiddenBoundary() -> Bool {
+        Self.effectiveAlwaysHiddenSectionEnabled(
+            isPro: LicenseService.shared.isPro,
+            alwaysHiddenSectionEnabled: settings.alwaysHiddenSectionEnabled
+        ) && alwaysHiddenSeparatorItem != nil
     }
 
     private func resolveAlwaysHiddenMoveTargetsWithRetries(
@@ -1317,6 +1343,21 @@ extension MenuBarManager {
                 try? await Task.sleep(for: .milliseconds(50))
             }
 
+            let needsRegularHiddenBoundary: Bool
+            if toHidden {
+                needsRegularHiddenBoundary = await MainActor.run {
+                    manager.regularHiddenMoveRequiresAlwaysHiddenBoundary()
+                }
+            } else {
+                needsRegularHiddenBoundary = false
+            }
+            if needsRegularHiddenBoundary && !usedShowAllShield {
+                logger.info("🔧 Expanding ALL icons to resolve regular Hidden lane boundary...")
+                await manager.hidingService.showAll()
+                usedShowAllShield = true
+                try? await Task.sleep(for: .milliseconds(300))
+            }
+
             let accessibilityService = await MainActor.run { AccessibilityService.shared }
             let referenceScreenFrame = await MainActor.run { manager.currentRecoveryReferenceScreen()?.frame }
             let sourceIdentity = MoveSourceIdentity(
@@ -1558,15 +1599,27 @@ extension MenuBarManager {
             // any hide transition pushes separators off-screen.
             await manager.refreshSeparatorCacheAfterMove()
 
+            let shouldPreservePreHideMoveSnapshot = success && toHidden && usedShowAllShield
+            if shouldPreservePreHideMoveSnapshot {
+                logger.info("🔧 Capturing regular Hidden move snapshot before re-hide")
+                await manager.refreshAccessibilityCacheAfterMove()
+            }
+
             // Restore shield pattern and re-hide (only when the original state was hidden).
             // This MUST complete before refreshing — otherwise the AX scan
             // sees items mid-transition and returns stale positions.
             await restoreShieldIfNeeded()
 
-            // Allow positions to settle after re-hide, then refresh.
-            try? await Task.sleep(for: .milliseconds(300))
-            logger.debug("🔧 Triggering post-move refresh...")
-            await manager.refreshAccessibilityCacheAfterMove()
+            if !shouldPreservePreHideMoveSnapshot {
+                // Allow positions to settle after re-hide, then refresh.
+                try? await Task.sleep(for: .milliseconds(300))
+                logger.debug("🔧 Triggering post-move refresh...")
+                await manager.refreshAccessibilityCacheAfterMove()
+            } else {
+                await MainActor.run {
+                    AccessibilityService.shared.preserveFreshMenuBarItemPositionsAfterManualMove()
+                }
+            }
 
             logger.debug("🔧 ========== MOVE ICON END ==========")
             return success
