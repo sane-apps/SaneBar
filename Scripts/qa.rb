@@ -51,6 +51,7 @@ class ProjectQA
   DEVELOPMENT_MD = File.join(PROJECT_ROOT, 'DEVELOPMENT.md')
   PROJECT_YML = File.join(PROJECT_ROOT, 'project.yml')
   APPCAST_XML = File.join(PROJECT_ROOT, 'docs', 'appcast.xml')
+  SETTINGS_PATH = File.expand_path("~/Library/Application Support/#{PROJECT_NAME}/settings.json")
   STATUS_BAR_CONTROLLER_SWIFT = File.join(PROJECT_ROOT, 'Core', 'Controllers', 'StatusBarController.swift')
   STATUS_BAR_CONTROLLER_TESTS = File.join(PROJECT_ROOT, 'Tests', 'StatusBarControllerTests.swift')
   SANEMASTER_CLI = File.join(__dir__, 'SaneMaster.rb')
@@ -466,6 +467,18 @@ class ProjectQA
       if (match = content.match(/MARKETING_VERSION:\s*["']?(\d+\.\d+\.\d+)/))
         versions['project.yml'] = match[1]
       end
+      if (match = content.match(/CURRENT_PROJECT_VERSION:\s*["']?(\d+)["']?/))
+        versions['project.yml build'] = match[1]
+      end
+    end
+
+    pbxproj = File.join(PROJECT_XCODEPROJ, 'project.pbxproj')
+    if File.exist?(pbxproj)
+      content = File.read(pbxproj)
+      marketing_versions = content.scan(/MARKETING_VERSION\s*=\s*([0-9]+\.[0-9]+\.[0-9]+);/).flatten.uniq
+      build_versions = content.scan(/CURRENT_PROJECT_VERSION\s*=\s*(\d+);/).flatten.uniq
+      versions['xcodeproj'] = marketing_versions.join('/') unless marketing_versions.empty?
+      versions['xcodeproj build'] = build_versions.join('/') unless build_versions.empty?
     end
 
     # Check README.md
@@ -482,13 +495,16 @@ class ProjectQA
       return
     end
 
-    unique_versions = versions.values.uniq
-    if unique_versions.count <= 1
-      puts "✅ Version #{unique_versions.first || 'consistent'}"
+    marketing_versions = versions.reject { |key, _| key.end_with?(' build') }
+    build_versions = versions.select { |key, _| key.end_with?(' build') }
+    unique_marketing_versions = marketing_versions.values.uniq
+    unique_build_versions = build_versions.values.uniq
+    if unique_marketing_versions.count <= 1 && unique_build_versions.count <= 1
+      puts "✅ Version #{unique_marketing_versions.first || 'consistent'}"
     else
       details = versions.map { |f, v| "#{f}=v#{v}" }.join(', ')
-      @warnings << "Version mismatch: #{details}"
-      puts "⚠️  Mismatch: #{details}"
+      @errors << "Version mismatch: #{details}. Run xcodegen generate after bumping project.yml."
+      puts "❌ Mismatch: #{details}"
     end
   end
 
@@ -689,6 +705,7 @@ class ProjectQA
     end
 
     restore_mode = nil
+    appearance_settings_backup = nil
 
     begin
       restore_mode, mode_error = ensure_runtime_smoke_pro_mode!
@@ -706,6 +723,7 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
+      appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
 
       launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
       File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
@@ -767,6 +785,7 @@ class ProjectQA
         'SANEBAR_SMOKE_ACTIVE_AVG_CPU_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX.to_s,
         'SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX.to_s,
         'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0',
+        'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path]
@@ -935,6 +954,8 @@ class ProjectQA
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
         end
         missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
+        appearance_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*.png'))
+        missing << 'appearance-transition' if appearance_screenshots.empty?
         unless missing.empty?
           @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
           puts "❌ missing screenshot(s): #{missing.join(', ')}"
@@ -949,6 +970,7 @@ class ProjectQA
         puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots skipped on this host)"
       end
     ensure
+      restore_runtime_smoke_appearance_settings!(appearance_settings_backup)
       restore_runtime_smoke_mode(restore_mode)
     end
   end
@@ -956,15 +978,45 @@ class ProjectQA
   def runtime_screenshot_capture_available?(screenshot_dir)
     return true if internal_runtime_snapshot_supported?
 
-    probe_path = File.join(screenshot_dir, '.sanebar-runtime-smoke-probe.png')
-    FileUtils.rm_f(probe_path)
-    _out, status = Open3.capture2e('/usr/sbin/screencapture', '-x', probe_path)
-    native_capture_ok = status.success? && File.exist?(probe_path) && !File.zero?(probe_path)
-    return true if native_capture_ok
-
     !resolve_runtime_screenshot_tool.nil?
-  ensure
-    FileUtils.rm_f(probe_path) if probe_path
+  end
+
+  def prepare_runtime_smoke_appearance_settings!
+    backup = {
+      existed: File.exist?(SETTINGS_PATH),
+      content: File.exist?(SETTINGS_PATH) ? File.read(SETTINGS_PATH) : nil
+    }
+    settings = backup[:content].to_s.empty? ? {} : JSON.parse(backup[:content])
+    appearance = settings['menuBarAppearance'].is_a?(Hash) ? settings['menuBarAppearance'] : {}
+    settings['hasCompletedOnboarding'] = true
+    settings['menuBarAppearance'] = appearance.merge(
+      'isEnabled' => true,
+      'useLiquidGlass' => false,
+      'tintColor' => '#FF5500',
+      'tintOpacity' => 0.35,
+      'tintColorDark' => '#FF5500',
+      'tintOpacityDark' => 0.35,
+      'hasShadow' => false,
+      'hasBorder' => false,
+      'hasRoundedCorners' => false
+    )
+    FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
+    File.write(SETTINGS_PATH, JSON.pretty_generate(settings))
+    backup
+  rescue JSON::ParserError
+    backup
+  end
+
+  def restore_runtime_smoke_appearance_settings!(backup)
+    return if backup.nil?
+
+    if backup[:existed]
+      File.write(SETTINGS_PATH, backup[:content])
+    else
+      FileUtils.rm_f(SETTINGS_PATH)
+    end
+  rescue StandardError
+    nil
   end
 
   def retryable_runtime_smoke_failure?(smoke_output)

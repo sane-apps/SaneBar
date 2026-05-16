@@ -40,6 +40,9 @@ struct GroupTabButton: View {
             Text(title)
                 .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                 .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.92))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 148)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(

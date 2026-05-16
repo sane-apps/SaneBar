@@ -1,10 +1,23 @@
 # Session Handoff — SaneBar
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-16
 **Current public release:** `v2.1.54` (build `2154`)
-**Next release candidate:** Matthew Longbottom reports `2.1.54` did not fix his issue; do not treat the `2.1.54` customer fix as confirmed for him.
+**Next release candidate:** `v2.1.55` (build `2155`) is the local/Mini fix candidate. Do not release or ask customers to retest until a new `2.1.55` artifact is built/published and the release gates below are handled.
 
 ## Current State
+
+- 2026-05-16 `v2.1.55` patch candidate:
+  - Fixes the remaining `#142` custom appearance blink path by keeping the overlay visible through fullscreen-shaped transition/content windows and adding `.fullScreenAuxiliary` so the overlay can exist in fullscreen Spaces.
+  - Fixes wake/screen/session recovery so default stability-mode users also get validation after wake/display changes; missing-coordinate recovery now escalates through bounded recreate/repair/autosave paths instead of stopping with the user still broken.
+  - Replays persisted visibility intent after status-item recreation so Always Hidden pins and hide-all-other behavior are not lost during recovery.
+  - Hardens the Browse Icons / Second Menu Bar UI: no dynamic drag text/scale on the second-menu-bar empty drop target; long custom group labels are constrained without clipping built-in tabs or `+ Custom`.
+  - Version bump is complete in both `project.yml` and `SaneBar.xcodeproj/project.pbxproj` after `xcodegen generate`. Project QA now fails if those drift again.
+
+- 2026-05-16 release status:
+  - Mini `./scripts/SaneMaster.rb verify --timeout 600` passed `935` tests after the final QA guard.
+  - Mini `ruby Scripts/customer_ui_action_sweep.rb` passed on a fresh launched `2.1.55 (2155)` build; `./scripts/SaneMaster.rb customer_ui_contract --no-exit` passed `20` release-required action families at `2026-05-16T18:58:13Z`.
+  - Mini release preflight runtime smoke passed the native exact-ID route with Siri and Spotlight through Hidden/Visible, Hidden -> Always Hidden -> Hidden, Always Hidden -> Visible, post-settle checks, and startup layout probe.
+  - Release preflight remains blocked: `#142` is still open with fresh negative customer evidence after `2.1.54`; one appcast enclosure URL for `2.1.54` is dead; Homebrew/appcast/website/worker channels still point at `2.1.54` while the project is `2.1.55`; live email worker snapshot still warns that SaneBar is missing/no signed download URL. These are release-state blockers, not currently observed runtime failures in the `2.1.55` Mini build.
 
 - 2026-05-13 active release-blocker work after `v2.1.52`:
   - Found and fixed a real customer-facing no-op in Browse Icons: the visible `+ Custom` group button could fail to activate from the release-like NSPanel. The action is now outside the horizontal scroll area and opens a native `NSAlert` prompt; the Mini sweep creates a QA group, verifies it persisted, captures a screenshot, and restores the user's settings file.
@@ -103,3 +116,10 @@
 - Blockers recorded from the gate: SaneBar already used its meaningful Product Hunt/Hacker News launch, support/layout stability should settle before amplification, and the launch gate reported latest `release_preflight` as not green in this context (1 issue, 4 warnings).
 - Existing live support-surface URLs remain unchanged: [Product Hunt](https://www.producthunt.com/posts/sanebar), [PayOnce.tools](https://www.payonce.tools/tools/sanebar), [OnMyMenubar.app](https://onmymenubar.app/sanebar/), and [MacMenuBar.com](https://macmenubar.com/sanebar/).
 - Next launch-ops date stays weekly monitoring only, with no broad relaunch before `v2.1.53` is live and support noise is stable.
+
+## Launch Ops Calendar - 2026-05-16
+
+- Mini `./scripts/SaneMaster.rb launch_readiness --json` stayed red for SaneBar, so no launch, directory, scheduling, or public reply action was taken.
+- Fresh blocker receipt: SaneBar is already meaningfully launched, support/layout stability still makes amplification weak, and `outputs/release_preflight_status.json` remains failed with 1 issue (`Project QA guardrails failed (Scripts/qa.rb)`) plus 5 warnings.
+- Existing live support-surface URLs remain unchanged: [Product Hunt](https://www.producthunt.com/posts/sanebar), [PayOnce.tools](https://www.payonce.tools/tools/sanebar), [OnMyMenubar.app](https://onmymenubar.app/sanebar/), and [MacMenuBar.com](https://macmenubar.com/sanebar/).
+- Next launch-ops state remains monitoring only until support noise settles and the launch gate is green again.

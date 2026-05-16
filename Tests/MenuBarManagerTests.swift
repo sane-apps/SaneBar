@@ -78,7 +78,7 @@ struct MenuBarManagerTests {
 
     @Test("Status-item validation timing stays more conservative for wake and screen changes")
     func statusItemValidationDelayBackoff() {
-        #expect(MenuBarManager.maxStatusItemRecoveryCount == 3)
+        #expect(MenuBarManager.maxStatusItemRecoveryCount == 4)
         #expect(
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .startupFollowUp,
@@ -213,13 +213,21 @@ struct MenuBarManagerTests {
     @Test("Startup recovery hard-resets poisoned startup geometry but not general geometry drift")
     func statusItemRecoveryResetDecisionMatrix() {
         #expect(
-            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
-                reason: .invalidStatusItems
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidStatusItems,
+                validationContext: .wakeResume
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .missingCoordinates,
+                validationContext: .manualLayoutRestore
             )
         )
         #expect(
             MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
-                reason: .missingCoordinates
+                reason: .missingCoordinates,
+                validationContext: .startupFollowUp
             )
         )
         #expect(

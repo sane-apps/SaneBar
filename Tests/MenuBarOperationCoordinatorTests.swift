@@ -237,7 +237,7 @@ struct MenuBarOperationCoordinatorTests {
         )
     }
 
-    @Test("Screen-change geometry drift stays bounded after one failed repair")
+    @Test("Screen-change geometry drift escalates once before stopping")
     func runtimeValidationBoundsGeometryDriftForScreenChanges() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
@@ -264,11 +264,19 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 2,
+                maxRecoveryCount: 2
             ) == .stop(.invalidGeometry)
         )
     }
 
-    @Test("Wake validation stays bounded after one failed repair")
+    @Test("Wake validation escalates once before stopping")
     func wakeValidationBoundsGeometryDrift() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
@@ -295,12 +303,20 @@ struct MenuBarOperationCoordinatorTests {
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 1,
                 maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 2,
+                maxRecoveryCount: 2
             ) == .stop(.invalidGeometry)
         )
     }
 
-    @Test("Wake validation waits briefly then stops when only the separator anchor is estimated")
-    func wakeValidationStopsWithoutAutosaveRecoveryForEstimatedSeparatorAnchor() {
+    @Test("Wake validation waits briefly then recreates when only the separator anchor is estimated")
+    func wakeValidationRecreatesForEstimatedSeparatorAnchor() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .cached,
             separatorAnchorSource: .estimated,
@@ -317,7 +333,7 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 0,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
             ) == .waitForLiveAnchor
         )
         #expect(
@@ -325,21 +341,37 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 1,
-                maxRecoveryCount: 3
-            ) == .waitForLiveAnchor
+                maxRecoveryCount: 4
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 2,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 3,
+                maxRecoveryCount: 4
+            ) == .bumpAutosaveVersion(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 4,
+                maxRecoveryCount: 4
             ) == .stop(.missingCoordinates)
         )
     }
 
-    @Test("Screen-change validation waits briefly then stops when only the separator anchor is estimated")
-    func screenChangeValidationStopsWithoutAutosaveRecoveryForEstimatedSeparatorAnchor() {
+    @Test("Screen-change validation waits briefly then recreates when only the separator anchor is estimated")
+    func screenChangeValidationRecreatesForEstimatedSeparatorAnchor() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .cached,
             separatorAnchorSource: .estimated,
@@ -357,7 +389,7 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 0,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
             ) == .waitForLiveAnchor
         )
         #expect(
@@ -365,21 +397,37 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 1,
-                maxRecoveryCount: 3
-            ) == .waitForLiveAnchor
+                maxRecoveryCount: 4
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 2,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 3,
+                maxRecoveryCount: 4
+            ) == .bumpAutosaveVersion(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 4,
+                maxRecoveryCount: 4
             ) == .stop(.missingCoordinates)
         )
     }
 
-    @Test("Wake validation stops without autosave recovery when coordinates are missing after wake")
-    func wakeValidationStopsWithoutAutosaveRecoveryForMissingCoordinates() {
+    @Test("Wake validation recreates persisted layout when coordinates are missing after wake")
+    func wakeValidationRecreatesForMissingCoordinates() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .missing,
             separatorAnchorSource: .missing,
@@ -396,7 +444,7 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 0,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
             ) == .waitForLiveAnchor
         )
         #expect(
@@ -404,21 +452,37 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 1,
-                maxRecoveryCount: 3
-            ) == .waitForLiveAnchor
+                maxRecoveryCount: 4
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 2,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 3,
+                maxRecoveryCount: 4
+            ) == .bumpAutosaveVersion(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 4,
+                maxRecoveryCount: 4
             ) == .stop(.missingCoordinates)
         )
     }
 
-    @Test("Screen-change validation stops without autosave recovery when coordinates are missing")
-    func screenChangeValidationStopsWithoutAutosaveRecoveryForMissingCoordinates() {
+    @Test("Screen-change validation recreates persisted layout when coordinates are missing")
+    func screenChangeValidationRecreatesForMissingCoordinates() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .missing,
             separatorAnchorSource: .missing,
@@ -435,7 +499,7 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 0,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
             ) == .waitForLiveAnchor
         )
         #expect(
@@ -443,15 +507,31 @@ struct MenuBarOperationCoordinatorTests {
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 1,
-                maxRecoveryCount: 3
-            ) == .waitForLiveAnchor
+                maxRecoveryCount: 4
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(.screenParametersChanged),
                 recoveryCount: 2,
-                maxRecoveryCount: 3
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 3,
+                maxRecoveryCount: 4
+            ) == .bumpAutosaveVersion(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 4,
+                maxRecoveryCount: 4
             ) == .stop(.missingCoordinates)
         )
     }
