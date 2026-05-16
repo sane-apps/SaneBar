@@ -214,7 +214,7 @@ enum MenuBarOperationCoordinator {
             snapshot: snapshot,
             validationContext: validationContext,
             recoveryReason: recoveryReason
-        ) && recoveryCount < 2
+        ) && recoveryCount == 0
     }
 
     static func isRuntimeMissingCoordinateState(
@@ -284,6 +284,15 @@ enum MenuBarOperationCoordinator {
                 validationContext: validationContext,
                 recoveryReason: recoveryReason
             ) {
+                if recoveryCount == 1 {
+                    return .recreateFromPersistedLayout(recoveryReason)
+                }
+                if recoveryCount == 2 {
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+                if recoveryCount < maxRecoveryCount {
+                    return .bumpAutosaveVersion(recoveryReason)
+                }
                 return .stop(recoveryReason)
             }
 
@@ -319,7 +328,9 @@ enum MenuBarOperationCoordinator {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }
 
-                if validationContext == .startupFollowUp,
+                if validationContext == .startupFollowUp ||
+                    validationContext == .screenParametersChanged ||
+                    validationContext == .wakeResume,
                    recoveryCount < maxRecoveryCount {
                     return .bumpAutosaveVersion(recoveryReason)
                 }

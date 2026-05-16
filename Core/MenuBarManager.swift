@@ -257,7 +257,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         return majorOSVersion >= 26 ? 0.35 : 0.1
     }
 
-    nonisolated static let maxStatusItemRecoveryCount = 3
+    nonisolated static let maxStatusItemRecoveryCount = 4
     nonisolated static let unexpectedVisibilityRecoveryDebounceSeconds: TimeInterval = 1.0
 
     private enum StatusItemVisibilityRole: String {
@@ -324,7 +324,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     ) -> Bool {
         switch reason {
         case .invalidStatusItems, .missingCoordinates:
-            true
+            isStartupRecovery || validationContext == .startupFollowUp
         case .invalidGeometry:
             isStartupRecovery || validationContext == .startupFollowUp
         case nil:
@@ -696,6 +696,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             self.updateAlwaysHiddenSeparator()
             self.updateSpacers()
             self.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)
+            self.schedulePostRecoveryVisibilityIntentReplay(reason: "status-item-recreate")
 
             if shouldRestoreHidden {
                 logger.info("Preserved hidden state during status item recovery")
@@ -1466,9 +1467,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self?.clearCachedSeparatorGeometry()
                 logger.debug("Screen parameters changed — invalidated cached separator positions")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
-                if self?.settings.layoutMode == .live {
-                    self?.schedulePositionValidation(context: .screenParametersChanged)
-                }
+                self?.schedulePositionValidation(context: .screenParametersChanged)
             }
             .store(in: &cancellables)
 
@@ -1502,9 +1501,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.clearCachedSeparatorGeometry()
                 logger.debug("System did wake — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                if self.settings.layoutMode == .live {
-                    self.schedulePositionValidation(context: .wakeResume)
-                }
+                self.schedulePositionValidation(context: .wakeResume)
             }
             .store(in: &cancellables)
 
@@ -1516,9 +1513,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 self.clearCachedSeparatorGeometry()
                 logger.debug("Screens did wake — invalidated cached separator positions")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                if self.settings.layoutMode == .live {
-                    self.schedulePositionValidation(context: .wakeResume)
-                }
+                self.schedulePositionValidation(context: .wakeResume)
             }
             .store(in: &cancellables)
 
@@ -1530,9 +1525,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                 clearCachedSeparatorGeometry()
                 logger.debug("Session became active — invalidated cached separator positions")
                 enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-                if settings.layoutMode == .live {
-                    schedulePositionValidation(context: .wakeResume)
-                }
+                schedulePositionValidation(context: .wakeResume)
             }
             .store(in: &cancellables)
 
@@ -1807,6 +1800,15 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         } else {
             hideAllOtherRuleEnforcementTask?.cancel()
             hideAllOtherRuleEnforcementTask = nil
+        }
+    }
+
+    private func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
+        if !settings.alwaysHiddenPinnedItemIds.isEmpty {
+            scheduleAlwaysHiddenPinEnforcement(reason: reason, delay: .milliseconds(900))
+        }
+        if settings.hideAllOtherMenuBarItems {
+            scheduleHideAllOtherRuleEnforcement(reason: reason, delay: .milliseconds(1_200))
         }
     }
 

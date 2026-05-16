@@ -159,6 +159,7 @@ class LiveZoneSmoke
     @require_candidate = ENV['SANEBAR_SMOKE_REQUIRE_CANDIDATE'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
+    @require_appearance_transitions = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS'] == '1'
     @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
     @post_move_zone_stability_seconds = float_env('SANEBAR_SMOKE_POST_MOVE_ZONE_STABILITY_SECONDS') || DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
@@ -587,6 +588,7 @@ class LiveZoneSmoke
     end
 
     exercise_settings_window_visual_check
+    exercise_appearance_transition_visual_check
   ensure
     if forced_activation_candidates
       forced_activation_candidates.each do |candidate|
@@ -791,6 +793,100 @@ class LiveZoneSmoke
     puts '✅ Settings window visual check ok'
   ensure
     close_settings_window_safely
+  end
+
+  def exercise_appearance_transition_visual_check
+    return unless @capture_screenshots
+
+    unless supports_applescript_command?('capture appearance overlay snapshot')
+      raise 'Appearance transition smoke requires capture appearance overlay snapshot' if @require_appearance_transitions
+
+      puts 'ℹ️ Skipping appearance transition visual check: capture command unavailable'
+      return
+    end
+
+    baseline = capture_appearance_overlay_screenshot('baseline')
+    unless baseline
+      raise 'Appearance transition smoke requires a visible custom appearance overlay' if @require_appearance_transitions
+
+      puts 'ℹ️ Skipping appearance transition visual check: custom appearance overlay is not visible'
+      return
+    end
+
+    open_full_width_transition_probe_window
+    sleep_with_watchdog(0.5)
+    maximized = capture_appearance_overlay_screenshot('maximized-host')
+    raise 'Appearance overlay was not visible over a maximized/full-width host window' unless maximized
+
+    if toggle_native_fullscreen_probe_window
+      sleep_with_watchdog(1.5)
+      fullscreen = capture_appearance_overlay_screenshot('native-fullscreen-host')
+      raise 'Appearance overlay was not visible during native fullscreen transition' unless fullscreen
+      toggle_native_fullscreen_probe_window
+      sleep_with_watchdog(0.8)
+    elsif @require_appearance_transitions
+      raise 'Native fullscreen transition probe could not be triggered'
+    end
+
+    puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
+  ensure
+    close_transition_probe_window_safely
+  end
+
+  def capture_appearance_overlay_screenshot(label)
+    FileUtils.mkdir_p(@screenshot_dir)
+    path = File.join(
+      @screenshot_dir,
+      "sanebar-appearance-#{label}-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
+    )
+    result = app_script(%(capture appearance overlay snapshot "#{escape_quotes(path)}")).strip.downcase
+    return await_screenshot_file(path) if %w[true 1].include?(result)
+
+    FileUtils.rm_f(path)
+    nil
+  rescue StandardError
+    FileUtils.rm_f(path) if path
+    nil
+  end
+
+  def open_full_width_transition_probe_window
+    script = <<~APPLESCRIPT
+      tell application "Finder" to set screenBounds to bounds of window of desktop
+      tell application "TextEdit"
+        activate
+        make new document with properties {text:"SaneBar appearance transition probe"}
+        set bounds of front window to screenBounds
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not open appearance transition probe window: #{out.strip}" unless code.success?
+  end
+
+  def toggle_native_fullscreen_probe_window
+    script = <<~APPLESCRIPT
+      tell application "TextEdit" to activate
+      tell application "System Events"
+        tell process "TextEdit"
+          set frontmost to true
+          keystroke "f" using {control down, command down}
+        end tell
+      end tell
+    APPLESCRIPT
+    _out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    code.success?
+  rescue StandardError
+    false
+  end
+
+  def close_transition_probe_window_safely
+    script = <<~APPLESCRIPT
+      tell application "TextEdit"
+        if (count of windows) > 0 then close front window saving no
+      end tell
+    APPLESCRIPT
+    capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+  rescue StandardError
+    nil
   end
 
   def browse_activation_succeeded?(diagnostics, expected_mode)
@@ -1012,16 +1108,12 @@ class LiveZoneSmoke
     internal_error = capture_internal_browse_screenshot(path)
     return await_screenshot_file(path) if internal_error.nil?
 
-    display_error = capture_display_screenshot(path)
-    return await_screenshot_file(path) if display_error.nil?
-
     window_error = capture_window_screenshot(expected_mode, path)
     return await_screenshot_file(path) if window_error.nil?
 
     disable_screenshot_capture!(
       [
         ("internal capture failed: #{internal_error}" unless internal_error.nil? || internal_error.empty?),
-        ("display capture failed: #{display_error}" unless display_error.nil? || display_error.empty?),
         ("window capture failed: #{window_error}" unless window_error.nil? || window_error.empty?)
       ].compact.join(' | '),
       path
@@ -1041,16 +1133,12 @@ class LiveZoneSmoke
     internal_error = capture_internal_settings_screenshot(path)
     return await_screenshot_file(path) if internal_error.nil?
 
-    display_error = capture_display_screenshot(path)
-    return await_screenshot_file(path) if display_error.nil?
-
     window_error = capture_window_screenshot('settings', path)
     return await_screenshot_file(path) if window_error.nil?
 
     disable_screenshot_capture!(
       [
         ("internal settings capture failed: #{internal_error}" unless internal_error.nil? || internal_error.empty?),
-        ("display capture failed: #{display_error}" unless display_error.nil? || display_error.empty?),
         ("window capture failed: #{window_error}" unless window_error.nil? || window_error.empty?)
       ].compact.join(' | '),
       path
@@ -1098,19 +1186,6 @@ class LiveZoneSmoke
       ~/Library/Python/3.10/bin/screenshot
       ~/Library/Python/3.9/bin/screenshot
     ].map { |candidate| File.expand_path(candidate) }.find { |candidate| File.executable?(candidate) }
-  end
-
-  def capture_display_screenshot(path)
-    command = "screencapture -x #{Shellwords.escape(path)}"
-    script = <<~APPLESCRIPT
-      do shell script #{command.inspect}
-    APPLESCRIPT
-
-    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS)
-    return nil if code.success?
-
-    FileUtils.rm_f(path)
-    out.strip
   end
 
   def capture_window_screenshot(expected_mode, path)

@@ -539,6 +539,7 @@ class CustomerUIActionSweep
       manifest_sha256: report.fetch('manifest_sha256'),
       source_fingerprint: report.fetch('source_fingerprint'),
       tested_action_ids: @action_ids,
+      runtime_state_results: runtime_state_results(report),
       action_results: @action_results,
       screenshots: @screenshots.uniq.select { |path| usable_screenshot?(path) },
       evidence: {
@@ -560,6 +561,30 @@ class CustomerUIActionSweep
     transcript_path = File.join(OUTPUT_DIR, "customer-ui-action-sweep-#{@timestamp}.txt")
     File.write(transcript_path, @transcript.join("\n") + "\n")
     puts "🧾 Transcript: #{relative(transcript_path)}"
+  end
+
+  def runtime_state_results(report)
+    manifest = YAML.safe_load(File.read(MANIFEST_PATH), permitted_classes: [Date, Time], aliases: true) || {}
+    matrix = manifest.fetch('runtime_state_matrix', {})
+    matrix.map do |id, row|
+      action_ids = Array(row['action_ids']).map(&:to_s)
+      required_types = Array(row['required_evidence_types']).map(&:to_s)
+      evidence = action_ids.flat_map do |action_id|
+        Array(@action_results.dig(action_id, :evidence) || @action_results.dig(action_id, 'evidence'))
+      end.compact
+      evidence_types = evidence.map { |item| item[:type] || item['type'] if item.is_a?(Hash) }.compact.map(&:to_s)
+      evidence_paths = evidence.flat_map { |item| Array(item[:paths] || item['paths']) if item.is_a?(Hash) }.compact
+      status = (required_types - evidence_types).empty? && evidence_paths.any? ? 'passed' : 'failed'
+      {
+        id: id.to_s,
+        status: status,
+        action_ids: action_ids,
+        required_evidence_types: required_types,
+        evidence_types: evidence_types.uniq,
+        evidence_paths: evidence_paths.uniq,
+        manifest_sha256: report.fetch('manifest_sha256')
+      }
+    end
   end
 
   def write_failure_artifact(error)

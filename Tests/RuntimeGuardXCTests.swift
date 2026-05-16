@@ -126,8 +126,11 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("let separatorAnchorSource = self.currentSeparatorAnchorSource()") &&
                 source.contains("separatorAnchorSource == .live || separatorAnchorSource == .cached") &&
                 source.contains("self.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
+                source.contains("self.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
+                source.contains("scheduleAlwaysHiddenPinEnforcement(reason: reason") &&
+                source.contains("scheduleHideAllOtherRuleEnforcement(reason: reason") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
-            "Structural recovery should re-warm separator geometry from a trustworthy anchor, then refresh appearance overlay visibility"
+            "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, then refresh appearance overlay visibility"
         )
         XCTAssertTrue(
             source.contains("self.statusBarController.configureStatusItems(") &&
@@ -1726,8 +1729,12 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
                 source.contains("capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available") &&
-                source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'"),
-            "Project QA runtime smoke should probe screenshot capability but keep capture opt-in so screenshot flakiness does not block release"
+                source.contains("appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
+                source.contains("restore_runtime_smoke_appearance_settings!(appearance_settings_backup)") &&
+                source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
+                !source.contains("screencapture"),
+            "Project QA runtime smoke should probe app/window-scoped screenshot capability, seed custom appearance only for visual smoke, restore settings, and keep capture opt-in so screenshot flakiness does not block release"
         )
         XCTAssertTrue(
             source.contains("return true if internal_runtime_snapshot_supported?") &&
@@ -1741,7 +1748,7 @@ final class RuntimeGuardXCTests: XCTestCase {
         XCTAssertTrue(
             source.contains("resolve_runtime_screenshot_tool") &&
                 source.contains("command -v screenshot"),
-            "Project QA runtime smoke should retain a host-level screenshot fallback when in-app snapshot support is unavailable"
+            "Project QA runtime smoke should retain a window-scoped screenshot fallback when in-app snapshot support is unavailable"
         )
         XCTAssertTrue(
             source.contains("screenshots skipped on this host"),
@@ -2523,6 +2530,34 @@ final class RuntimeGuardXCTests: XCTestCase {
             source.contains("Color.green.opacity"),
             "Top row toggles should not fall back to a bright green status color that overwhelms the panel"
         )
+        XCTAssertFalse(
+            source.contains("Text(isTargeted ? \"Drop here\" : \"Drag icons here\")") ||
+                source.contains(".scaleEffect(isTargeted ?"),
+            "Second menu bar drop targets should not change text or size while dragging over Hidden, Visible, or Always Hidden"
+        )
+    }
+
+    func testBrowseIconGroupTabsConstrainLongLabels() throws {
+        let tabURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchTabs.swift")
+        let source = try String(contentsOf: tabURL, encoding: .utf8)
+        guard let groupTabBody = source.components(separatedBy: "struct GroupTabButton: View").last else {
+            XCTFail("GroupTabButton should remain the dedicated custom group tab view")
+            return
+        }
+
+        XCTAssertTrue(
+            groupTabBody.contains(".lineLimit(1)") &&
+                groupTabBody.contains(".truncationMode(.tail)") &&
+                groupTabBody.contains(".frame(maxWidth: 148)"),
+            "Browse Icons tabs should keep long QA/custom group names from overflowing or clipping neighboring controls"
+        )
+        let smartTabBody = source
+            .components(separatedBy: "struct GroupTabButton: View")
+            .first ?? source
+        XCTAssertFalse(
+            smartTabBody.contains(".frame(maxWidth: 148)"),
+            "Built-in Browse Icons tabs and the + Custom button should keep their natural width"
+        )
     }
 
     func testSaneBarUsesSharedPanelBackgroundsFromSaneUI() throws {
@@ -2659,6 +2694,20 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testProjectQABlocksProjectYmlXcodeprojVersionDrift() throws {
+        let qaURL = projectRootURL().appendingPathComponent("Scripts/qa.rb")
+        let source = try String(contentsOf: qaURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("PROJECT_XCODEPROJ") &&
+                source.contains("MARKETING_VERSION\\s*=\\s*") &&
+                source.contains("CURRENT_PROJECT_VERSION\\s*=\\s*") &&
+                source.contains("Run xcodegen generate after bumping project.yml") &&
+                source.contains("@errors << \"Version mismatch:"),
+            "Project QA should fail, not warn, when project.yml and the generated xcodeproj disagree on version/build"
+        )
+    }
+
     func testLiveSmokeCoversBothBrowseModesWithScreenshots() throws {
         let fileURL = projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -2677,8 +2726,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("exercise_settings_window_visual_check") &&
-                source.contains("capture_settings_screenshot"),
-            "Live smoke should also open settings, capture it, and close it as part of standard visual QA"
+                source.contains("capture_settings_screenshot") &&
+                source.contains("exercise_appearance_transition_visual_check"),
+            "Live smoke should also open settings, capture it, exercise appearance transitions, and close it as part of standard visual QA"
         )
         XCTAssertTrue(
             source.contains("capture_internal_browse_screenshot") &&
@@ -2689,9 +2739,17 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should prefer the app's internal browse and settings snapshot commands before falling back to host capture"
         )
         XCTAssertTrue(
+            source.contains("capture appearance overlay snapshot") &&
+                source.contains("open_full_width_transition_probe_window") &&
+                source.contains("toggle_native_fullscreen_probe_window") &&
+                source.contains("@require_appearance_transitions"),
+            "Live smoke should prove custom appearance survives maximized and fullscreen-style host transitions before release"
+        )
+        XCTAssertTrue(
             source.contains("capture_window_screenshot") &&
-                source.contains("WINDOW_SCREENSHOT_TITLES"),
-            "Live smoke should keep a window-level screenshot fallback for hosts where direct browse-panel snapshots are unavailable"
+                source.contains("WINDOW_SCREENSHOT_TITLES") &&
+                !source.contains("screencapture -x"),
+            "Live smoke should keep a window-level screenshot fallback for hosts where direct browse-panel snapshots are unavailable, without full-display capture"
         )
         XCTAssertTrue(
             source.contains("exercise_browse_activation('activate browse icon'"),
@@ -2994,9 +3052,10 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Runtime validation should log attached-but-drifted status items so leftward shoves are distinguishable from missing windows"
         )
         XCTAssertTrue(
-            coordinatorSource.contains("if validationContext == .startupFollowUp,") &&
-                coordinatorSource.contains("return .stop(recoveryReason)"),
-            "Wake and screen-change invalid geometry should stay bounded instead of bumping autosave after one failed repair"
+            coordinatorSource.contains("validationContext == .screenParametersChanged") &&
+                coordinatorSource.contains("validationContext == .wakeResume") &&
+                coordinatorSource.contains("return .bumpAutosaveVersion(recoveryReason)"),
+            "Wake and screen-change invalid geometry should escalate through bounded autosave recovery after repair fails"
         )
         XCTAssertTrue(
             source.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
@@ -3192,9 +3251,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("NSWorkspace.screensDidWakeNotification") &&
                 source.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
                 source.contains("self.schedulePositionValidation(context: .wakeResume)") &&
+                !source.contains("settings.layoutMode == .live") &&
                 source.contains("positionValidationGeneration += 1") &&
                 source.contains("guard self.positionValidationGeneration == validationGeneration else"),
-            "Screen and wake topology changes should invalidate stale validation work, then schedule a wake-aware validation pass instead of letting overlapping recovery tasks race each other"
+            "Screen and wake topology changes should invalidate stale validation work, then schedule a wake-aware validation pass for every customer layout mode instead of letting overlapping recovery tasks race each other"
         )
     }
 

@@ -385,7 +385,7 @@ struct SecondMenuBarView: View {
         return HStack(spacing: 6) {
             Image(systemName: isTargeted ? "arrow.down.circle.fill" : "tray")
                 .font(.system(size: 11, weight: .semibold))
-            Text(isTargeted ? "Drop here" : "Drag icons here")
+            Text("Drag icons here")
                 .font(.system(size: 10, weight: .semibold))
         }
         .foregroundStyle(isTargeted ? textPrimary : textMuted)
@@ -407,7 +407,6 @@ struct SecondMenuBarView: View {
                 )
         )
         .shadow(color: isTargeted ? accentHighlight.opacity(0.18) : .clear, radius: 6, y: 2)
-        .scaleEffect(isTargeted ? 1.01 : 1)
         .animation(.easeOut(duration: 0.12), value: isTargeted)
     }
 

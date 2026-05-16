@@ -172,7 +172,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var screensDidWakeObserver: Any?
     private var sessionDidBecomeActiveObserver: Any?
     private var pendingOverlayRefreshWorkItems: [DispatchWorkItem] = []
-    private var pendingFullscreenSuppressionWorkItem: DispatchWorkItem?
 
     // MARK: - Initialization
 
@@ -215,7 +214,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             sessionDidBecomeActiveObserver = nil
         }
         cancelPendingOverlayVisibilityRefreshes()
-        cancelPendingFullscreenSuppression()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
     }
@@ -359,12 +357,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             windowInfos: currentWindowInfos()
         )
 
-        if suppressionReason == .fullscreenContentWindow {
-            scheduleStableFullscreenSuppression()
-        } else {
-            cancelPendingFullscreenSuppression()
-        }
-
         if suppressionReason == .thinTopHost {
             logger.debug("Suppressing menu bar appearance overlay for active full-width top host")
             window.orderOut(nil)
@@ -397,48 +389,12 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         pendingOverlayRefreshWorkItems.removeAll()
     }
 
-    private func scheduleStableFullscreenSuppression() {
-        guard pendingFullscreenSuppressionWorkItem == nil else { return }
-
-        let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
-                guard let self, let window = self.overlayWindow else { return }
-                guard self.overlayViewModel?.settings.isEnabled == true else { return }
-
-                let frontmostApp = NSWorkspace.shared.frontmostApplication
-                let reason = Self.overlaySuppressionReason(
-                    frontmostPID: frontmostApp?.processIdentifier,
-                    frontmostBundleID: frontmostApp?.bundleIdentifier,
-                    frontmostIsAccessoryApp: frontmostApp?.activationPolicy != .regular,
-                    targetScreenFrame: self.preferredMenuBarScreen()?.frame,
-                    windowInfos: self.currentWindowInfos()
-                )
-
-                if reason == .fullscreenContentWindow {
-                    logger.debug("Suppressing menu bar appearance overlay after stable fullscreen confirmation")
-                    window.orderOut(nil)
-                }
-                self.pendingFullscreenSuppressionWorkItem = nil
-            }
-        }
-
-        pendingFullscreenSuppressionWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.stableFullscreenSuppressionDelay, execute: workItem)
-    }
-
-    private func cancelPendingFullscreenSuppression() {
-        pendingFullscreenSuppressionWorkItem?.cancel()
-        pendingFullscreenSuppressionWorkItem = nil
-    }
-
     internal nonisolated static let overlayVisibilityRefreshRetryDelays: [TimeInterval] = [
         0.15,
         0.5,
         1.5,
         3.0
     ]
-
-    internal nonisolated static let stableFullscreenSuppressionDelay: TimeInterval = 1.0
 
     private func currentWindowInfos() -> [[String: Any]] {
         (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
@@ -463,7 +419,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     }
 
     internal enum OverlaySuppressionReason: Equatable {
-        case fullscreenContentWindow
         case thinTopHost
     }
 
@@ -498,17 +453,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             }
         }
 
-        func int(_ value: Any?) -> Int? {
-            switch value {
-            case let number as NSNumber:
-                return number.intValue
-            case let value as Int:
-                return value
-            default:
-                return nil
-            }
-        }
-
         func bool(_ value: Any?) -> Bool? {
             switch value {
             case let number as NSNumber:
@@ -522,12 +466,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
         let targetFrame = targetScreenFrame.standardized
         let minimumCoveredWidth = targetFrame.width * 0.97
-        let minimumCoveredHeight = targetFrame.height * 0.92
         let maximumHorizontalDrift: CGFloat = 8
         let maximumTopDrift: CGFloat = 2
-        let maximumFullscreenEdgeDrift: CGFloat = 8
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
-        let suppressFullscreenHost = !frontmostIsAccessoryApp
 
         for info in windowInfos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
@@ -546,22 +487,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             let coveredRect = rect.intersection(targetFrame)
             let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
             let alpha = number(info[kCGWindowAlpha as String]) ?? 1
-            let layer = int(info[kCGWindowLayer as String]) ?? 0
             guard isOnscreen, alpha > 0 else { continue }
-
-            let fillsScreenEdges =
-                abs(rect.minX - targetFrame.minX) <= maximumFullscreenEdgeDrift &&
-                abs(rect.minY - targetFrame.minY) <= maximumFullscreenEdgeDrift &&
-                abs(rect.maxX - targetFrame.maxX) <= maximumFullscreenEdgeDrift &&
-                abs(rect.maxY - targetFrame.maxY) <= maximumFullscreenEdgeDrift
-
-            if suppressFullscreenHost,
-               layer == 0,
-               fillsScreenEdges,
-               coveredRect.width >= minimumCoveredWidth,
-               coveredRect.height >= minimumCoveredHeight {
-                return .fullscreenContentWindow
-            }
 
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
@@ -721,7 +647,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         // Liquid Glass can visually obscure icons.
         window.level = .statusBar - 1
         window.ignoresMouseEvents = true // Click-through
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
         // Set SwiftUI view as content
         let hostingView = NSHostingView(rootView: view)
