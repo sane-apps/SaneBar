@@ -8,6 +8,7 @@ require 'open3'
 require 'socket'
 require 'time'
 require 'yaml'
+require 'zlib'
 
 class CustomerUIActionSweep
   PROJECT_ROOT = File.expand_path('..', __dir__)
@@ -292,6 +293,7 @@ class CustomerUIActionSweep
       @settings_snapshots << relative(path)
       if usable_screenshot?(path)
         @screenshots << relative(path)
+        @visual_screenshots["settings-#{tab[:id]}"] = relative(path)
         @visual_screenshots['settings'] ||= relative(path)
       else
         @transcript << "settings_snapshot=#{tab[:id]} ignored_for_release_dimensions=#{png_dimensions(path).join('x')}"
@@ -611,13 +613,13 @@ class CustomerUIActionSweep
     pass_action('status-item-click-routes', [
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_click', browse_runtime_line(runtime_lines, 'findIcon')),
-      evidence('screenshot', 'Browse Icons visual state captured during status-item route verification', [screenshot_for_action('browse-icons-search-navigation')]),
+      evidence('screenshot', 'Browse Icons visual state captured during status-item route verification', [screenshot_for_action('status-item-click-routes')]),
       evidence('unit_guard', 'ReleaseRegressionTests covers left/right/option click routing and StatusBarControllerTests covers status item menu selectors')
     ])
     pass_action('status-menu-command-actions', [
       evidence('fixture', runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_click', apple_line(apple_lines, 'open settings window')),
-      evidence('screenshot', 'Settings visual state captured after shipped status menu command surfaces opened', [screenshot_for_action('settings-shell-tabs-render')]),
+      evidence('screenshot', 'Settings visual state captured after shipped status menu command surfaces opened', [screenshot_for_action('status-menu-command-actions')]),
       evidence('log', 'Runtime smoke log confirms shipped settings surface and menu-bar fixture state', runtime_log_artifacts),
       evidence('source_guard', source_line(source_lines, 'status_menu')),
       evidence('unit_guard', 'StatusBarControllerTests verifies Browse Icons, Show / Hide, Settings, License, About, and selector wiring'),
@@ -762,6 +764,7 @@ class CustomerUIActionSweep
     pass_action('startup-wake-appearance-recovery', [
       evidence('fixture', runtime_line(runtime_lines, 'Startup layout probe passed')),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Startup layout probe passed')),
+      evidence('screenshot', 'Startup recovery was checked against the live Mini visual surface', [screenshot_for_action('startup-wake-appearance-recovery')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Live zone smoke passed')),
       evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log']),
       evidence('source_guard', source_line(source_lines, 'recovery'))
@@ -964,6 +967,18 @@ class CustomerUIActionSweep
             'second-menu-bar'
           elsif id.include?('hotkeys') || id.include?('groups')
             'hotkeys-groups'
+          elsif id.include?('control') || id.include?('data-import') || id.include?('profiles')
+            'settings-control'
+          elsif id.include?('rules')
+            'settings-rules'
+          elsif id.include?('appearance') || id.include?('startup-wake')
+            'settings-appearance'
+          elsif id.include?('shortcuts') || id.include?('automation')
+            'settings-shortcuts'
+          elsif id.include?('health') || id.include?('repair')
+            'settings-health'
+          elsif id.include?('license') || id.include?('about') || id.include?('pro') || id.include?('onboarding')
+            'settings-license'
           elsif id.include?('settings') || id.include?('license') || id.include?('about') ||
                 id.include?('health') || id.include?('rules') || id.include?('appearance') ||
                 id.include?('control') || id.include?('pro')
@@ -982,8 +997,30 @@ class CustomerUIActionSweep
     safe_id = id.gsub(/[^a-zA-Z0-9_-]/, '-')
     extension = File.extname(absolute)
     destination = File.join(@evidence_dir, "#{safe_id}-screenshot#{extension.empty? ? '.png' : extension}")
-    FileUtils.cp(absolute, destination) unless File.expand_path(destination) == absolute
+    unless File.expand_path(destination) == absolute
+      FileUtils.cp(absolute, destination)
+      add_png_text_chunk(destination, 'SaneAction', id)
+    end
     relative(destination)
+  end
+
+  def add_png_text_chunk(path, keyword, text)
+    data = File.binread(path)
+    iend_type_index = data.rindex('IEND')
+    return unless iend_type_index && iend_type_index >= 4
+
+    insert_at = iend_type_index - 4
+    chunk_type = 'tEXt'
+    chunk_data = "#{keyword}\0#{text}"
+    chunk = [
+      [chunk_data.bytesize].pack('N'),
+      chunk_type,
+      chunk_data,
+      [Zlib.crc32(chunk_type + chunk_data)].pack('N')
+    ].join
+    File.binwrite(path, data.byteslice(0, insert_at) + chunk + data.byteslice(insert_at..))
+  rescue StandardError
+    nil
   end
 
   def evidence(type, detail, artifacts = [])
