@@ -279,6 +279,13 @@ final class SearchService: SearchServiceProtocol {
         return midX < (separatorX - margin) ? .hidden : .visible
     }
 
+    nonisolated static func alwaysHiddenSeparatorForClassification(
+        hidingState: HidingState,
+        alwaysHiddenSeparatorX: CGFloat?
+    ) -> CGFloat? {
+        hidingState == .hidden ? nil : alwaysHiddenSeparatorX
+    }
+
     func getRunningApps() async -> [RunningApp] {
         // Run on main actor because accessing NSWorkspace.runningApplications is main-thread bound
         await MainActor.run {
@@ -585,11 +592,7 @@ final class SearchService: SearchServiceProtocol {
 
     @MainActor
     func classifyAppsForMoveVerification(_ classified: SearchClassifiedApps) -> SearchClassifiedApps {
-        SearchClassifiedApps(
-            visible: classified.visible,
-            hidden: classified.hidden + classified.alwaysHidden,
-            alwaysHidden: []
-        )
+        classified
     }
 
     /// Single-pass classification for all items.
@@ -622,13 +625,17 @@ final class SearchService: SearchServiceProtocol {
             var visible: [RunningApp] = []
             var hidden: [RunningApp] = []
             var alwaysHidden: [RunningApp] = []
+            let alwaysHiddenSeparatorX = Self.alwaysHiddenSeparatorForClassification(
+                hidingState: MenuBarManager.shared.hidingService.state,
+                alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+            )
 
             for item in zonedItems {
                 let zone = classifyZone(
                     itemX: item.x,
                     itemWidth: item.app.width,
                     separatorX: positions.separatorX,
-                    alwaysHiddenSeparatorX: positions.alwaysHiddenSeparatorX
+                    alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
                 )
                 switch zone {
                 case .visible: visible.append(item.app)

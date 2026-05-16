@@ -827,18 +827,9 @@ struct MenuBarSearchView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
-            HStack(spacing: 8) {
-                if shouldShowMoveHint {
-                    Text("Move to")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(accentHighlight.opacity(0.78))
-                        .transition(.opacity.combined(with: .move(edge: .leading)))
-                }
-
-                HStack(spacing: 6) {
-                    ForEach(availableModes) { segmentMode in
-                        modeSegment(segmentMode)
-                    }
+            HStack(spacing: 6) {
+                ForEach(availableModes) { segmentMode in
+                    modeSegment(segmentMode)
                 }
             }
 
@@ -952,13 +943,12 @@ struct MenuBarSearchView: View {
                 radius: isValidMoveTarget ? 8 : 4,
                 y: 1
             )
-            .scaleEffect(isTargeted ? 1.015 : 1)
             .animation(.easeOut(duration: 0.12), value: isTargeted)
             .animation(.easeOut(duration: 0.12), value: isValidMoveTarget)
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(ChromePressablePlainStyle())
-        .help(isValidMoveTarget ? (isTargeted ? "Drop to \(segmentMode.title)" : "Move to \(segmentMode.title)") : segmentMode.title)
+        .help(isValidMoveTarget ? (isTargeted ? "Drop to \(segmentMode.title)" : "Drop on \(segmentMode.title)") : segmentMode.title)
 
         if isValidMoveTarget {
             chip

@@ -13,6 +13,7 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.instance_variable_set(:@app_pid, Process.pid)
     smoke.instance_variable_set(:@active_avg_cpu_max, LiveZoneSmoke::DEFAULT_ACTIVE_AVG_CPU_MAX)
     smoke.instance_variable_set(:@active_avg_rss_mb_max, LiveZoneSmoke::DEFAULT_ACTIVE_AVG_RSS_MB_MAX)
+    smoke.instance_variable_set(:@post_move_zone_stability_seconds, LiveZoneSmoke::DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS)
     smoke.send(:reset_resource_watchdog_state)
     smoke
   end
@@ -484,6 +485,92 @@ class LiveZoneSmokeTest < Minitest::Test
 
     assert_equal zones, smoke.send(:wait_for_zone_api_ready)
     assert_equal 2, attempts
+  end
+
+  def test_post_move_zone_stability_rejects_delayed_zone_drift
+    smoke = build_smoke
+    candidate = {
+      zone: 'visible',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget'
+        }
+      ]
+    end
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(
+        :assert_zone_stays_stable_after_move,
+        'com.example.widget::statusItem:0',
+        candidate,
+        'visible'
+      )
+    end
+    assert_match(/Post-settle move verification drifted/, error.message)
+  end
+
+  def test_post_move_zone_stability_accepts_same_zone_after_settle
+    smoke = build_smoke
+    candidate = {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'hidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget'
+        }
+      ]
+    end
+
+    assert smoke.send(
+      :assert_zone_stays_stable_after_move,
+      'com.example.widget::statusItem:0',
+      candidate,
+      'hidden'
+    )
+  end
+
+  def test_hidden_always_hidden_round_trip_uses_exact_customer_sequence
+    smoke = build_smoke
+    candidate = {
+      zone: 'visible',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    calls = []
+    smoke.define_singleton_method(:move_and_verify) do |command, move_candidate, expected_zone|
+      calls << [command, move_candidate.fetch(:unique_id), expected_zone]
+    end
+
+    smoke.send(:exercise_hidden_always_hidden_round_trip, candidate)
+
+    assert_equal [
+      ['move icon to hidden', 'com.example.widget::statusItem:0', 'hidden'],
+      ['move icon to always hidden', 'com.example.widget::statusItem:0', 'alwaysHidden'],
+      ['move icon to hidden', 'com.example.widget::statusItem:0', 'hidden']
+    ], calls
   end
 
   def test_launch_idle_budget_accepts_small_peak_only_cpu_spike

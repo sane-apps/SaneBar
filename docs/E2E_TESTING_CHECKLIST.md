@@ -44,6 +44,8 @@ If the Mini falls back to an unsigned `~/Applications/SaneBar.app` build because
 
 These checks are mandatory for the current startup / browse / move bug class. Do not call this class fixed without them.
 
+The source of truth is `Tests/CustomerUIActions.yml` under `runtime_state_matrix`. This checklist is only the human-readable summary. Release proof must cover the standard rows: `upgrade_update`, `cold_launch_relaunch`, `wake_unlock`, `display_topology`, `fullscreen_maximize_transition`, `basic_pro_mode`, and `support_report_media`.
+
 | Check | Why it exists | Must prove |
 |------|------|------|
 | Cold-start restore with valid current-width backup and poisoned `main=0 / separator=1` | Catches startup recovery collapse family (`#111/#113/#114/#115`) | backup restore beats ordinal reseed, visible lane stays sane |
@@ -52,6 +54,9 @@ These checks are mandatory for the current startup / browse / move bug class. Do
 | Hidden-visible move under stale geometry | Catches wrong-zone false success | retry or fail cleanly, never report wrong success |
 | Shared-bundle exact-ID move | Catches `#117` class drift | requested `unique_id` is what moved, not a sibling |
 | Restart/update recovery replay | Catches persistence drift | current-width backup survives relaunch and autosave churn |
+| Fullscreen/maximize transition | Catches transient menu-bar repaint/blackout during normal window transitions | appearance suppression ignores transient fullscreen/maximize windows and restores color correctly |
+| Basic/Pro action parity | Catches silent gated-action drift | Basic clearly gates Pro-only work; Pro completes and persists the same action |
+| Support report media path | Catches bug reports that cannot reach support | oversized media uses the safe file-sharing/manual-upload path instead of an oversized email attachment |
 
 Release rule:
 - if smoke says `No movable candidate icon found; skipping move checks`, treat that as incomplete coverage, not a pass

@@ -316,6 +316,24 @@ extension AccessibilityService {
         logger.debug("Menu bar item position cache invalidated")
     }
 
+    /// Keep a deliberately refreshed pre-hide item-position snapshot alive after
+    /// a manual move restores the hidden state. Hidden-state AX geometry pushes
+    /// regular Hidden items far offscreen, which can otherwise look identical to
+    /// Always Hidden during the immediate post-move AppleScript verification.
+    @MainActor
+    func preserveFreshMenuBarItemPositionsAfterManualMove() {
+        guard !menuBarItemCache.isEmpty else { return }
+        menuBarItemCacheTime = Date()
+        menuBarItemsRefreshTask?.cancel()
+        menuBarKnownItemsRefreshTask?.cancel()
+        menuBarCacheWarmupTask?.cancel()
+        menuBarItemsRefreshTask = nil
+        menuBarKnownItemsRefreshTask = nil
+        menuBarCacheWarmupTask = nil
+        deferredMenuBarCacheWarmupReason = nil
+        logger.debug("Preserved fresh menu bar item position cache after manual move")
+    }
+
     private func dedupedMenuBarOwners(from owners: [RunningApp]) -> [RunningApp] {
         var seenBundleIDs = Set<String>()
         var deduped: [RunningApp] = []

@@ -51,7 +51,7 @@ struct ExperimentalSettingsView: View {
                 Text("·")
                     .foregroundStyle(.white.opacity(0.92))
 
-                Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues/new?template=bug_report.md")!) {
+                Link(destination: URL(string: "https://github.com/sane-apps/SaneBar/issues")!) {
                     Label("View Issues", systemImage: "arrow.up.right.square")
                 }
             }

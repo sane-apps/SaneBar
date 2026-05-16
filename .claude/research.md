@@ -8,6 +8,12 @@
 - Decision: SaneBar import/migration work must preserve Bartender/Setapp shape assumptions.
 - Promotion target: ARCHITECTURE/DEVELOPMENT once the import lane is finalized.
 
+## sanebar-customer-reality-audit-scale | Updated: 2026-05-15 | Status: verified | TTL: 14d
+- Trigger: user asked whether the audit was comprehensive enough and wanted gates that push the product forward instead of false-green release confidence.
+- Finding: the prior broad customer UI contract still allowed weak evidence classes to hide customer risk: stale receipts, fixture/source/prose-only `full_runtime_completion`, pathless Mini evidence, generic/reused screenshots, and support/report media proof that did not prove large media delivery handling.
+- Decision: SaneBar's `Tests/CustomerUIActions.yml` is the source of truth and now declares a standard `runtime_state_matrix` for `upgrade_update`, `cold_launch_relaunch`, `wake_unlock`, `display_topology`, `fullscreen_maximize_transition`, `basic_pro_mode`, and `support_report_media`. Shared SaneProcess Q13 makes those contract failures red in the global validation report.
+- Current evidence state: stricter `customer_ui_contract --json --no-exit` is intentionally red until Dock menu, Control settings, Appearance customization, startup/wake/recovery, path-backed Mini artifacts, support-report evidence, and action-specific screenshots are actually generated.
+
 ## Release-Deployed Root-Cause Gate | Updated: 2026-04-28 | Status: active | TTL: 7d
 - Keep active until 2026-05-05.
 - Decision: release confidence must include field-confirmed issue state, exact build/version proof, and current Mini verification.
@@ -65,8 +71,9 @@
 
 ## sanebar-custom-appearance-fullscreen-suppression | Updated: 2026-05-15 | Status: verified | TTL: 14d
 - Trigger: GitHub #142 reported SaneBar 2.1.53 still turning the custom dark tint black when launching apps such as Claude, while SaneBar 2.1.37 kept the tint stable.
-- Local finding: `MenuBarAppearanceService.shouldSuppressOverlay` treated any near-screen-filling frontmost window as fullscreen, including large desktop windows that start below the menu bar. That could order out the Custom Appearance overlay during ordinary app activation.
-- Decision: fullscreen suppression must require the frontmost content window to fill all screen edges within a small drift tolerance. Large desktop windows below the menu bar keep the overlay visible; thin third-party top-host strips still suppress it.
+- Local finding: `MenuBarAppearanceService.shouldSuppressOverlay` first treated large desktop windows below the menu bar as fullscreen; `2.1.54` fixed that settled geometry case but still hid the overlay immediately when the same frontmost app produced a transient fullscreen-shaped animation/snapshot window during maximize/fullscreen transitions.
+- Testing hole: coverage used static synthetic window-info snapshots and the release smoke never sampled the custom tint during maximize/fullscreen transition frames, so it proved settled classification but not "no black blink between frames."
+- Decision: fullscreen suppression now requires an onscreen, nontransparent, layer-0 content window and is delayed through stable recheck before hiding. Non-content/offscreen/transparent transition windows are ignored; thin third-party top-host strips still suppress immediately.
 
 ## sanebar-always-hidden-move-verification | Updated: 2026-05-15 | Status: verified | TTL: 14d
 - Trigger: refund email #720 reported Hidden/Always Hidden moves failing and the Icon Panel flipping categories within seconds.

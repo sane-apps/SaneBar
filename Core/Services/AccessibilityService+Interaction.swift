@@ -343,8 +343,7 @@ extension AccessibilityService {
         // click there immediately instead of AX frame polling.
         if allowImmediateFallbackCenter,
            let fallbackCenter,
-           isAccessibilityPointOnAnyScreen(fallbackCenter)
-        {
+           isAccessibilityPointOnAnyScreen(fallbackCenter) {
             logger.info("Hardware click fallback: using immediate spatial center for \(bundleID)")
             let point = normalizedCGEventPoint(fromAccessibilityPoint: fallbackCenter)
             return simulateHardwareClick(at: point, isRightClick: isRightClick)
@@ -484,8 +483,7 @@ extension AccessibilityService {
         if AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
            let sVal = sizeValue,
            CFGetTypeID(sVal) == AXValueGetTypeID(),
-           let axSizeVal = safeAXValue(sVal)
-        {
+           let axSizeVal = safeAXValue(sVal) {
             var s = CGSize.zero
             if AXValueGetValue(axSizeVal, .cgSize, &s) {
                 size = CGSize(width: max(1, s.width), height: max(1, s.height))
@@ -511,8 +509,7 @@ extension AccessibilityService {
 
             var children: CFTypeRef?
             if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-               let childItems = children as? [AXUIElement]
-            {
+               let childItems = children as? [AXUIElement] {
                 for child in childItems {
                     if performShowMenu(on: child) { return true }
                     if performPress(on: child) {
@@ -530,8 +527,7 @@ extension AccessibilityService {
 
         var children: CFTypeRef?
         if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-           let childItems = children as? [AXUIElement]
-        {
+           let childItems = children as? [AXUIElement] {
             for child in childItems where performPress(on: child) {
                 return true
             }
@@ -544,8 +540,7 @@ extension AccessibilityService {
         var actionNames: CFArray?
         if AXUIElementCopyActionNames(element, &actionNames) == .success,
            let names = actionNames as? [String],
-           names.contains("AXShowMenu")
-        {
+           names.contains("AXShowMenu") {
             let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
             if menuError == .success {
                 logger.info("AXShowMenu successful")
@@ -566,8 +561,7 @@ extension AccessibilityService {
         var actionNames: CFArray?
         if AXUIElementCopyActionNames(element, &actionNames) == .success,
            let names = actionNames as? [String],
-           names.contains("AXShowMenu")
-        {
+           names.contains("AXShowMenu") {
             let menuError = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
             if menuError == .success {
                 logger.info("AXShowMenu successful")
@@ -601,8 +595,7 @@ extension AccessibilityService {
                mouseType: .mouseMoved,
                mouseCursorPosition: restorePoint,
                mouseButton: .left
-           )
-        {
+           ) {
             restoreEvent.post(tap: .cgSessionEventTap)
         }
 
@@ -736,10 +729,52 @@ extension AccessibilityService {
     /// Shared zone-edge verification used after cmd-drag moves.
     /// Uses icon midpoint (same basis as UI zone classification) to avoid
     /// false negatives when macOS lands just to the right of the separator.
-    nonisolated static func frameIsInTargetZone(afterFrame: CGRect, separatorX: CGFloat, toHidden: Bool, margin: CGFloat = 6) -> Bool {
+    nonisolated static func frameIsInTargetZone(
+        afterFrame: CGRect,
+        separatorX: CGFloat,
+        toHidden: Bool,
+        margin: CGFloat = 6,
+        alwaysHiddenBoundaryX: CGFloat? = nil
+    ) -> Bool {
         let midpointX = afterFrame.midX
         let threshold = separatorX - margin
-        return toHidden ? midpointX < threshold : midpointX >= threshold
+        guard toHidden else {
+            guard let alwaysHiddenBoundaryX,
+                  alwaysHiddenBoundaryX.isFinite,
+                  alwaysHiddenBoundaryX > separatorX
+            else {
+                return midpointX >= threshold
+            }
+            let laneWidth = alwaysHiddenBoundaryX - separatorX
+            guard laneWidth > 0 else { return midpointX >= threshold }
+            let laneMargin = min(margin, max(1, laneWidth * 0.25))
+            let lowerBound = separatorX + laneMargin
+            let upperBound = alwaysHiddenBoundaryX - laneMargin
+            guard lowerBound < upperBound else {
+                return midpointX > separatorX && midpointX < alwaysHiddenBoundaryX
+            }
+            return midpointX >= lowerBound && midpointX <= upperBound
+        }
+        guard let alwaysHiddenBoundaryX,
+              alwaysHiddenBoundaryX.isFinite,
+              alwaysHiddenBoundaryX > 0
+        else {
+            guard midpointX < threshold else {
+                return false
+            }
+            return true
+        }
+        let laneWidth = separatorX - alwaysHiddenBoundaryX
+        guard laneWidth > 0 else {
+            return midpointX < threshold
+        }
+        let laneMargin = min(margin, max(1, laneWidth * 0.25))
+        let lowerBound = alwaysHiddenBoundaryX + laneMargin
+        let upperBound = separatorX - laneMargin
+        guard lowerBound < upperBound else {
+            return midpointX > alwaysHiddenBoundaryX && midpointX < separatorX
+        }
+        return midpointX >= lowerBound && midpointX <= upperBound
     }
 
     /// Detect direction mismatches for post-drag verification without penalizing
@@ -829,14 +864,25 @@ extension AccessibilityService {
             }
 
             // Hidden lane is between AH separator right edge and main separator left edge.
-            // Keep enough room from separator so midpoint verification is reliable.
-            let minRegularHiddenX = ahBoundary + 2
+            let hiddenLaneWidth = separatorX - ahBoundary
+            guard hiddenLaneWidth > 0 else {
+                return farHiddenX
+            }
+            let laneMidX = ahBoundary + (hiddenLaneWidth * 0.5)
+            let laneMargin = min(CGFloat(6), max(CGFloat(1), hiddenLaneWidth * 0.25))
+            let minRegularHiddenX = ahBoundary + laneMargin
             let separatorSafety = max(20, (iconWidth * 0.5) + 12)
-            let maxRegularHiddenX = separatorX - separatorSafety
+            let boundedSeparatorSafety = min(separatorSafety, max(laneMargin, hiddenLaneWidth * 0.45))
+            let maxRegularHiddenX = separatorX - boundedSeparatorSafety
 
-            // If the lane is too narrow, prioritize landing left of separator.
+            // If the lane is too narrow for the normal bias/safety margins, target
+            // the actual lane midpoint instead of falling into always-hidden space.
+            let narrowRegularHiddenLaneThreshold = max(CGFloat(24), (iconWidth * 0.5) + 12)
+            if hiddenLaneWidth <= narrowRegularHiddenLaneThreshold {
+                return laneMidX
+            }
             guard minRegularHiddenX <= maxRegularHiddenX else {
-                return maxRegularHiddenX
+                return laneMidX
             }
             // Bias toward the main separator side of the hidden lane so a
             // subsequent re-hide transition doesn't nudge the icon into the
@@ -845,9 +891,11 @@ extension AccessibilityService {
             let preferredRegularHiddenX = maxRegularHiddenX - rightBiasInset
             let boundedPreferredX = min(max(preferredRegularHiddenX, minRegularHiddenX), maxRegularHiddenX)
 
-            // Keep the old far-hidden fallback available for extremely wide
-            // icons where right-bias would under-move.
-            return max(boundedPreferredX, min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX))
+            // Keep the deeper fallback available for wide icons where the
+            // separator-side bias can under-move native text-style extras.
+            let wideRegularHiddenThreshold: CGFloat = 56
+            let fallbackRegularHiddenX = min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)
+            return iconWidth >= wideRegularHiddenThreshold ? fallbackRegularHiddenX : boundedPreferredX
 
         case .alwaysHidden:
             // Always-hidden insertion should stay close to the AH separator instead
@@ -1114,7 +1162,8 @@ extension AccessibilityService {
         var movedToExpectedSide = Self.frameIsInTargetZone(
             afterFrame: afterFrame,
             separatorX: separatorX,
-            toHidden: toHidden
+            toHidden: toHidden,
+            alwaysHiddenBoundaryX: visibleBoundaryX
         )
 
         // Guard against stale-boundary false positives/negatives by ensuring motion

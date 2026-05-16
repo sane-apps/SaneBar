@@ -476,6 +476,64 @@ struct AppleScriptCommandsTests {
         #expect(zones.first?.zone == .hidden)
     }
 
+    @Test("Script icon zone listing keeps fresh cached zones without mutating AX cache")
+    func preferredScriptListingZonesDoesNotRefreshFreshCachedZones() {
+        let app = RunningApp(
+            id: "com.apple.systemuiserver",
+            name: "Siri",
+            icon: nil,
+            menuExtraIdentifier: "com.apple.menuextra.siri",
+            statusItemIndex: nil,
+            xPosition: 1480,
+            width: 34
+        )
+        var refreshCalled = false
+
+        let zones = preferredScriptListingZones(
+            cached: [(app, .hidden)],
+            refreshed: {
+                refreshCalled = true
+                return [(app, .alwaysHidden)]
+            }(),
+            cacheAge: 0.8,
+            cacheValiditySeconds: 15.0
+        )
+
+        #expect(!refreshCalled)
+        #expect(zones.count == 1)
+        #expect(zones.first?.app.uniqueId == app.uniqueId)
+        #expect(zones.first?.zone == .hidden)
+    }
+
+    @Test("Script icon zone listing prefers a stale exact identity zone move")
+    func preferredScriptListingZonesPrefersStaleExactIdentityZoneMove() {
+        let app = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: nil,
+            xPosition: 220,
+            width: 24
+        )
+        var refreshCalled = false
+
+        let zones = preferredScriptListingZones(
+            cached: [(app, .alwaysHidden)],
+            refreshed: {
+                refreshCalled = true
+                return [(app, .hidden)]
+            }(),
+            cacheAge: 15.8,
+            cacheValiditySeconds: 15.0
+        )
+
+        #expect(refreshCalled)
+        #expect(zones.count == 1)
+        #expect(zones.first?.app.uniqueId == app.uniqueId)
+        #expect(zones.first?.zone == .hidden)
+    }
+
     @Test("Script icon zone listing refreshes when cached zones are empty")
     func preferredScriptListingZonesRefreshesWhenCacheIsEmpty() {
         let refreshedApp = RunningApp(

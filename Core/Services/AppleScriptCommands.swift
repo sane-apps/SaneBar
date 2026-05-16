@@ -522,6 +522,14 @@ func shouldPreferRefreshedScriptListingZones(
     let cachedQuality = scriptListingZoneQuality(cached)
     let refreshedQuality = scriptListingZoneQuality(refreshed)
 
+    if refreshedContainsMovedPreciseScriptZone(cached: cached, refreshed: refreshed) {
+        return true
+    }
+
+    if refreshedContainsHiddenToAlwaysHiddenScriptArtifact(cached: cached, refreshed: refreshed) {
+        return false
+    }
+
     if refreshedQuality.alwaysHiddenCount != cachedQuality.alwaysHiddenCount {
         return refreshedQuality.alwaysHiddenCount > cachedQuality.alwaysHiddenCount
     }
@@ -537,6 +545,35 @@ func shouldPreferRefreshedScriptListingZones(
     return false
 }
 
+func refreshedContainsMovedPreciseScriptZone(
+    cached: [ScriptZonedIcon],
+    refreshed: [ScriptZonedIcon]
+) -> Bool {
+    for cachedZone in cached where cachedZone.app.hasPreciseMenuBarIdentity {
+        if let refreshedZone = refreshed.first(where: { $0.app.uniqueId == cachedZone.app.uniqueId }),
+           refreshedZone.zone != cachedZone.zone {
+            if cachedZone.zone == .hidden, refreshedZone.zone == .alwaysHidden {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+func refreshedContainsHiddenToAlwaysHiddenScriptArtifact(
+    cached: [ScriptZonedIcon],
+    refreshed: [ScriptZonedIcon]
+) -> Bool {
+    for cachedZone in cached where cachedZone.app.hasPreciseMenuBarIdentity && cachedZone.zone == .hidden {
+        if let refreshedZone = refreshed.first(where: { $0.app.uniqueId == cachedZone.app.uniqueId }),
+           refreshedZone.zone == .alwaysHidden {
+            return true
+        }
+    }
+    return false
+}
+
 func preferredScriptListingZones(
     cached: [ScriptZonedIcon],
     refreshed: @autoclosure () -> [ScriptZonedIcon],
@@ -549,6 +586,9 @@ func preferredScriptListingZones(
         cacheValiditySeconds: cacheValiditySeconds
     )
     guard shouldRefresh else {
+        // Fresh post-move snapshots are intentionally authoritative. Calling the
+        // refresher here mutates the AX position cache and can replace a valid
+        // shown-state regular Hidden snapshot with hidden-state offscreen geometry.
         return sortedScriptZones(cached)
     }
 

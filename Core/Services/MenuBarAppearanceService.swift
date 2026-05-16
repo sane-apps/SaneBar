@@ -172,6 +172,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var screensDidWakeObserver: Any?
     private var sessionDidBecomeActiveObserver: Any?
     private var pendingOverlayRefreshWorkItems: [DispatchWorkItem] = []
+    private var pendingFullscreenSuppressionWorkItem: DispatchWorkItem?
 
     // MARK: - Initialization
 
@@ -214,6 +215,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             sessionDidBecomeActiveObserver = nil
         }
         cancelPendingOverlayVisibilityRefreshes()
+        cancelPendingFullscreenSuppression()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
     }
@@ -349,13 +351,21 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
 
         let frontmostApp = NSWorkspace.shared.frontmostApplication
-        if Self.shouldSuppressOverlay(
+        let suppressionReason = Self.overlaySuppressionReason(
             frontmostPID: frontmostApp?.processIdentifier,
             frontmostBundleID: frontmostApp?.bundleIdentifier,
             frontmostIsAccessoryApp: frontmostApp?.activationPolicy != .regular,
             targetScreenFrame: preferredMenuBarScreen()?.frame,
             windowInfos: currentWindowInfos()
-        ) {
+        )
+
+        if suppressionReason == .fullscreenContentWindow {
+            scheduleStableFullscreenSuppression()
+        } else {
+            cancelPendingFullscreenSuppression()
+        }
+
+        if suppressionReason == .thinTopHost {
             logger.debug("Suppressing menu bar appearance overlay for active full-width top host")
             window.orderOut(nil)
             return
@@ -387,6 +397,40 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         pendingOverlayRefreshWorkItems.removeAll()
     }
 
+    private func scheduleStableFullscreenSuppression() {
+        guard pendingFullscreenSuppressionWorkItem == nil else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard let self, let window = self.overlayWindow else { return }
+                guard self.overlayViewModel?.settings.isEnabled == true else { return }
+
+                let frontmostApp = NSWorkspace.shared.frontmostApplication
+                let reason = Self.overlaySuppressionReason(
+                    frontmostPID: frontmostApp?.processIdentifier,
+                    frontmostBundleID: frontmostApp?.bundleIdentifier,
+                    frontmostIsAccessoryApp: frontmostApp?.activationPolicy != .regular,
+                    targetScreenFrame: self.preferredMenuBarScreen()?.frame,
+                    windowInfos: self.currentWindowInfos()
+                )
+
+                if reason == .fullscreenContentWindow {
+                    logger.debug("Suppressing menu bar appearance overlay after stable fullscreen confirmation")
+                    window.orderOut(nil)
+                }
+                self.pendingFullscreenSuppressionWorkItem = nil
+            }
+        }
+
+        pendingFullscreenSuppressionWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.stableFullscreenSuppressionDelay, execute: workItem)
+    }
+
+    private func cancelPendingFullscreenSuppression() {
+        pendingFullscreenSuppressionWorkItem?.cancel()
+        pendingFullscreenSuppressionWorkItem = nil
+    }
+
     internal nonisolated static let overlayVisibilityRefreshRetryDelays: [TimeInterval] = [
         0.15,
         0.5,
@@ -394,8 +438,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         3.0
     ]
 
+    internal nonisolated static let stableFullscreenSuppressionDelay: TimeInterval = 1.0
+
     private func currentWindowInfos() -> [[String: Any]] {
-        (CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+        (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
     }
 
     internal nonisolated static func shouldSuppressOverlay(
@@ -406,13 +452,36 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         windowInfos: [[String: Any]],
         selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
     ) -> Bool {
+        overlaySuppressionReason(
+            frontmostPID: frontmostPID,
+            frontmostBundleID: frontmostBundleID,
+            frontmostIsAccessoryApp: frontmostIsAccessoryApp,
+            targetScreenFrame: targetScreenFrame,
+            windowInfos: windowInfos,
+            selfPID: selfPID
+        ) != nil
+    }
+
+    internal enum OverlaySuppressionReason: Equatable {
+        case fullscreenContentWindow
+        case thinTopHost
+    }
+
+    internal nonisolated static func overlaySuppressionReason(
+        frontmostPID: pid_t?,
+        frontmostBundleID: String?,
+        frontmostIsAccessoryApp: Bool = false,
+        targetScreenFrame: CGRect?,
+        windowInfos: [[String: Any]],
+        selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
+    ) -> OverlaySuppressionReason? {
         guard let frontmostPID,
               let bundleID = frontmostBundleID,
               let targetScreenFrame else {
-            return false
+            return nil
         }
 
-        guard frontmostPID != selfPID else { return false }
+        guard frontmostPID != selfPID else { return nil }
 
         func number(_ value: Any?) -> CGFloat? {
             switch value {
@@ -424,6 +493,28 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
                 return value
             case let value as Int:
                 return CGFloat(value)
+            default:
+                return nil
+            }
+        }
+
+        func int(_ value: Any?) -> Int? {
+            switch value {
+            case let number as NSNumber:
+                return number.intValue
+            case let value as Int:
+                return value
+            default:
+                return nil
+            }
+        }
+
+        func bool(_ value: Any?) -> Bool? {
+            switch value {
+            case let number as NSNumber:
+                return number.boolValue
+            case let value as Bool:
+                return value
             default:
                 return nil
             }
@@ -453,6 +544,11 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
             let rect = CGRect(x: x, y: y, width: width, height: height).standardized
             let coveredRect = rect.intersection(targetFrame)
+            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
+            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
+            let layer = int(info[kCGWindowLayer as String]) ?? 0
+            guard isOnscreen, alpha > 0 else { continue }
+
             let fillsScreenEdges =
                 abs(rect.minX - targetFrame.minX) <= maximumFullscreenEdgeDrift &&
                 abs(rect.minY - targetFrame.minY) <= maximumFullscreenEdgeDrift &&
@@ -460,10 +556,11 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
                 abs(rect.maxY - targetFrame.maxY) <= maximumFullscreenEdgeDrift
 
             if suppressFullscreenHost,
+               layer == 0,
                fillsScreenEdges,
                coveredRect.width >= minimumCoveredWidth,
                coveredRect.height >= minimumCoveredHeight {
-                return true
+                return .fullscreenContentWindow
             }
 
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
@@ -471,10 +568,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             guard suppressThinTopHost else { continue }
             guard height >= 20, height <= 26 else { continue }
             guard coveredRect.width >= minimumCoveredWidth else { continue }
-            return true
+            return .thinTopHost
         }
 
-        return false
+        return nil
     }
 
     private func applyResolvedAppearance() {
