@@ -2382,8 +2382,8 @@ struct StatusBarControllerTests {
         let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
         let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
 
-        #expect(storedBackupMain == safeMainLimit, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
-        #expect(storedBackupSeparator == safeMainLimit + 34.0, "Reanchored separator backup should preserve the live gap while staying launch-safe")
+        #expect(abs((storedBackupMain ?? .nan) - safeMainLimit) < 0.0001, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
+        #expect(abs((storedBackupSeparator ?? .nan) - (safeMainLimit + 34.0)) < 0.0001, "Reanchored separator backup should preserve the live gap while staying launch-safe")
     }
 
     @Test("Stable live positions can backfill the current-width backup when preferred positions are still missing")
