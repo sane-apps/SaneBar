@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.56] - 2026-05-18
+
+Improves license key entry in Settings, onboarding, and Pro upgrade prompts. Keeps menu bar appearance steadier during fullscreen and maximize transitions. Improves wake, restart, and display-change layout handling so icons stay where expected. Improves Browse Icons and Second Menu Bar reliability for custom groups and moves between Visible, Hidden, and Always Hidden.
+
+---
+
 ## [2.1.55] - 2026-05-16
 
 Keeps custom menu bar colors more stable during fullscreen and window changes, improves SaneBar after wake and display changes, and makes moving items in Browse Icons smoother.
