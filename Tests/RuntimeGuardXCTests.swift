@@ -15,6 +15,14 @@ final class RuntimeGuardXCTests: XCTestCase {
             .deletingLastPathComponent() // SaneApps/
     }
 
+    private func readShared(_ relativePath: String) throws -> String {
+        let fileURL = saneAppsRootURL().appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw XCTSkip("Shared SaneApps checkout is not available at \(fileURL.path)")
+        }
+        return try String(contentsOf: fileURL, encoding: .utf8)
+    }
+
     func testPublicRepoHygieneGuardsLocalAgentState() throws {
         let gitignoreURL = projectRootURL().appendingPathComponent(".gitignore")
         let gitignore = try String(contentsOf: gitignoreURL, encoding: .utf8)
@@ -2003,8 +2011,7 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testReleasePreflightForwardsRuntimeSmokeToProjectQA() throws {
-        let fileURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/release.rb")
-        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let source = try readShared("infra/SaneProcess/scripts/sanemaster/release.rb")
 
         XCTAssertTrue(
             source.contains("'SANEPROCESS_RUN_RUNTIME_SMOKE' => '1'"),
@@ -2017,8 +2024,7 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testVerifyExplainsRuntimeSmokeWhenNoXCUITargetExists() throws {
-        let fileURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/verify.rb")
-        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let source = try readShared("infra/SaneProcess/scripts/sanemaster/verify.rb")
 
         XCTAssertTrue(
             source.contains("def runtime_smoke_coverage_present?"),
@@ -2087,8 +2093,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA should record whether the latest gate passed or failed"
         )
 
-        let validationURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/validation_report.rb")
-        let validationSource = try String(contentsOf: validationURL, encoding: .utf8)
+        let validationSource = try readShared("infra/SaneProcess/scripts/validation_report.rb")
         XCTAssertTrue(
             validationSource.contains("latest_project_qa_status(project_path)"),
             "Shared validation should read the latest per-project QA status when available"
@@ -2106,15 +2111,13 @@ final class RuntimeGuardXCTests: XCTestCase {
             "A failed project QA gate should prevent validation_report from claiming the app is ready to ship"
         )
 
-        let saneMasterURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/SaneMaster.rb")
-        let saneMasterSource = try String(contentsOf: saneMasterURL, encoding: .utf8)
+        let saneMasterSource = try readShared("infra/SaneProcess/scripts/SaneMaster.rb")
         XCTAssertTrue(
             saneMasterSource.contains("sync_outputs_from_mini!(Dir.pwd, execution_repo)"),
             "Mini-first routing should sync output artifacts back from the actual routed workspace so local reporting sees the same QA truth"
         )
 
-        let releaseURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/release.rb")
-        let releaseSource = try String(contentsOf: releaseURL, encoding: .utf8)
+        let releaseSource = try readShared("infra/SaneProcess/scripts/sanemaster/release.rb")
         XCTAssertTrue(
             releaseSource.contains("outputs', 'release_preflight_status.json"),
             "Shared release preflight should persist its own status snapshot so apps without custom qa.rb support still feed validation"
@@ -2126,8 +2129,7 @@ final class RuntimeGuardXCTests: XCTestCase {
     }
 
     func testReleasePreflightDowngradesAuthNoiseToStructuredSkips() throws {
-        let releaseURL = saneAppsRootURL().appendingPathComponent("infra/SaneProcess/scripts/sanemaster/release.rb")
-        let source = try String(contentsOf: releaseURL, encoding: .utf8)
+        let source = try readShared("infra/SaneProcess/scripts/sanemaster/release.rb")
 
         XCTAssertTrue(
             source.contains("def gh_auth_unavailable?(output)"),

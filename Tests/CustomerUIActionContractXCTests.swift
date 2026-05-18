@@ -22,10 +22,11 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     private func readShared(_ relativePath: String) throws -> String {
-        try String(
-            contentsOf: saneAppsRootURL().appendingPathComponent(relativePath),
-            encoding: .utf8
-        )
+        let fileURL = saneAppsRootURL().appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw XCTSkip("Shared SaneApps checkout is not available at \(fileURL.path)")
+        }
+        return try String(contentsOf: fileURL, encoding: .utf8)
     }
 
     private func contract() throws -> String {
