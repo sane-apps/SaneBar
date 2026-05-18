@@ -173,9 +173,9 @@ You'll only see traffic for update checks, license validation, or simple anonymo
 
 ---
 
-## 100% Transparent Code
+## Transparent Source
 
-Every line of SaneBar's code is public and auditable:
+SaneBar's source is public and auditable under the PolyForm Shield License:
 https://github.com/sane-apps/SaneBar
 
 If you find any privacy concern, please open an issue.

@@ -61,7 +61,7 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 
 1. **Read Rule #0 first** (Section "The Rules") - It's about HOW to use all other rules
 2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneApps/apps/SaneBar/` unless user explicitly requests it
-3. **Use SaneMaster.rb for everything** - `./scripts/SaneMaster.rb verify` for build+test, never raw `xcodebuild`
+3. **Use SaneMaster.rb for project work** - `./scripts/SaneMaster.rb verify` for build+test. Public GitHub CI may call `xcodebuild test` only in the checked-in no-secrets workflow because SaneMaster is local infrastructure.
 4. **Self-rate after every task** - Rate yourself 1-10 on SOP adherence (see Self-Rating section)
 
 Bootstrap runs automatically via SessionStart hook. If it fails, run `./scripts/SaneMaster.rb doctor`.
@@ -153,12 +153,14 @@ Stopping IS compliance. Guessing a 3rd time is the violation. See **Research Pro
 
 ### #5: SANEMASTER OR DISASTER
 
-✅ DO: Use `./scripts/SaneMaster.rb` for all build/test operations
-❌ DON'T: Use raw xcodebuild or swift commands
+✅ DO: Use `./scripts/SaneMaster.rb` for local build/test operations
+✅ DO: Keep the public GitHub CI workflow no-secrets and code-signing disabled if it uses `xcodebuild test`
+❌ DON'T: Use raw xcodebuild or swift commands in local/release work
 
 ```
 🟢 RIGHT: ./scripts/SaneMaster.rb verify
 🟢 RIGHT: ./scripts/SaneMaster.rb test_mode
+🟢 RIGHT: .github/workflows/ci.yml runs xcodebuild test with CODE_SIGNING_ALLOWED=NO
 🔴 WRONG: xcodebuild -scheme SaneBar build
 🔴 WRONG: swift build (bypassing project tools)
 ```

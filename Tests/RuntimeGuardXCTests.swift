@@ -15,6 +15,92 @@ final class RuntimeGuardXCTests: XCTestCase {
             .deletingLastPathComponent() // SaneApps/
     }
 
+    func testPublicRepoHygieneGuardsLocalAgentState() throws {
+        let gitignoreURL = projectRootURL().appendingPathComponent(".gitignore")
+        let gitignore = try String(contentsOf: gitignoreURL, encoding: .utf8)
+
+        XCTAssertTrue(gitignore.contains(".build-logs"), "Local build-log symlinks should never be tracked")
+        XCTAssertTrue(gitignore.contains(".claude/"), "Private Claude agent state should stay local")
+        XCTAssertTrue(gitignore.contains(".agent/"), "Private agent workflow state should stay local")
+        XCTAssertTrue(gitignore.contains(".gemini"), "Gemini mirrors should stay local unless intentionally sanitized")
+        XCTAssertTrue(gitignore.contains("SESSION_HANDOFF.md"), "Session handoff state should not be published")
+    }
+
+    func testPublicCIWorkflowExistsForBuildAndTestVisibility() throws {
+        let workflowURL = projectRootURL().appendingPathComponent(".github/workflows/ci.yml")
+        let workflow = try String(contentsOf: workflowURL, encoding: .utf8)
+
+        XCTAssertTrue(workflow.contains("name: CI"), "Public CI should be visible in GitHub Actions")
+        XCTAssertTrue(workflow.contains("SANEAPPS_GITHUB_HOSTED_EXCEPTION"), "Automatic public CI should document the SaneApps workflow exception")
+        XCTAssertTrue(workflow.contains("xcodegen generate"), "CI should regenerate the project from project.yml")
+        XCTAssertTrue(workflow.contains("xcodebuild test"), "CI should run the app test scheme")
+        XCTAssertTrue(workflow.contains("CODE_SIGNING_ALLOWED=NO"), "CI should not require private signing credentials")
+    }
+
+    func testSaneUIPackageIsPinnedForReproducibleBuilds() throws {
+        let projectURL = projectRootURL().appendingPathComponent("project.yml")
+        let project = try String(contentsOf: projectURL, encoding: .utf8)
+        let resolvedURL = projectRootURL()
+            .appendingPathComponent("SaneBar.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")
+        let resolved = try String(contentsOf: resolvedURL, encoding: .utf8)
+
+        XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
+        XCTAssertTrue(
+            project.contains("revision: da41307e5bede4a000c24a90f0d8724390631a7a"),
+            "SaneUI should pin the license-entry fix revision for release reproducibility"
+        )
+        XCTAssertFalse(
+            project.contains("SaneUI:\n    url: https://github.com/sane-apps/SaneUI.git\n    branch: main"),
+            "SaneUI should not track a moving branch in release configuration"
+        )
+        XCTAssertTrue(
+            resolved.contains("\"revision\" : \"da41307e5bede4a000c24a90f0d8724390631a7a\""),
+            "Package.resolved should resolve SaneUI to the release-tested revision"
+        )
+        XCTAssertFalse(
+            resolved.contains("\"branch\" : \"main\""),
+            "Package.resolved should not preserve SaneUI as a moving branch pin"
+        )
+    }
+
+    func testURLHandlingLogsDoNotExposeQueryText() throws {
+        let appURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let source = try String(contentsOf: appURL, encoding: .utf8)
+
+        XCTAssertFalse(
+            source.contains("url.absoluteString, privacy: .public"),
+            "URL handler should not publicly log full URL payloads"
+        )
+        XCTAssertFalse(
+            source.contains("searchQuery ?? \"\", privacy: .public"),
+            "URL handler should not publicly log user-supplied search query text"
+        )
+        XCTAssertTrue(
+            source.contains("queryPresent: \\(searchQuery != nil, privacy: .public)"),
+            "URL handler can log query presence without exposing the query value"
+        )
+    }
+
+    func testPublicDocsUseCurrentSecurityAndSourceAvailableWording() throws {
+        let security = try String(
+            contentsOf: projectRootURL().appendingPathComponent("SECURITY.md"),
+            encoding: .utf8
+        )
+        let readme = try String(
+            contentsOf: projectRootURL().appendingPathComponent("README.md"),
+            encoding: .utf8
+        )
+        let website = try String(
+            contentsOf: projectRootURL().appendingPathComponent("docs/index.html"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(security.contains("| 2.x"), "Security policy should track the current major version")
+        XCTAssertFalse(security.contains("| 1.0.x"), "Security policy should not advertise stale 1.0.x support")
+        XCTAssertTrue(readme.contains("source-available under PolyForm Shield"), "README should avoid ambiguous open-source licensing claims")
+        XCTAssertTrue(website.contains("transparent source"), "Website metadata should avoid over-broad public-code wording")
+    }
+
     func testNormalizedEventYKeepsAlreadyFlippedMenuBarY() {
         let y = AccessibilityService.normalizedEventY(rawY: 15, globalMaxY: 1440, anchorY: 15)
         XCTAssertEqual(y, 15, accuracy: 0.001)
@@ -2338,17 +2424,12 @@ final class RuntimeGuardXCTests: XCTestCase {
         let healthSource = try String(contentsOf: healthURL, encoding: .utf8)
         let generalURL = projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsView.swift")
         let generalSource = try String(contentsOf: generalURL, encoding: .utf8)
-        let saneHelpURL = projectRootURL()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("infra/SaneUI/Sources/SaneUI/Components/SaneHelp.swift")
-        let saneHelpSource = try String(contentsOf: saneHelpURL, encoding: .utf8)
 
         XCTAssertTrue(
-            saneHelpSource.contains("public struct SaneHelpModifier") &&
-                saneHelpSource.contains(".help(text)") &&
-                saneHelpSource.contains(".accessibilityHint(text)") &&
-                saneHelpSource.contains("public struct SaneInlineHelp") &&
+            healthSource.contains("import SaneUI") &&
+                generalSource.contains("import SaneUI") &&
+                healthSource.contains(".saneHelp(") &&
+                healthSource.contains("SaneInlineHelp(") &&
                 !healthSource.contains("overlay(alignment: .bottomTrailing)") &&
                 !healthSource.contains("QuickActionHelpModifier"),
             "Settings should use the shared SaneUI native Apple hover-help standard instead of fragile app-local overlays"
@@ -2488,7 +2569,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Upsell windows should keep the existing-customer escape hatch visible"
         )
         XCTAssertTrue(
-            upsellSource.contains("Button(\"Activate\")"),
+            upsellSource.contains("LicenseEntryView(licenseService: SaneBarLicenseSettingsAdapter.shared)") &&
+                upsellSource.contains(".sheet(isPresented: $showingLicenseEntry)") &&
+                upsellSource.contains("import SaneUI"),
             "The direct license-entry sheet should still expose an explicit Activate action"
         )
     }

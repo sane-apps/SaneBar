@@ -153,7 +153,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
-        appLogger.log("🌐 URL open request: \(url.absoluteString, privacy: .public)")
+        appLogger.log("🌐 URL open request received")
         handleURL(url)
     }
 
@@ -231,7 +231,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         let searchQuery = queryItems?.first(where: { $0.name == "q" })?.value
 
-        appLogger.log("🌐 URL command: \(command, privacy: .public) query: \(searchQuery ?? "", privacy: .public)")
+        appLogger.log("🌐 URL command: \(command, privacy: .public) queryPresent: \(searchQuery != nil, privacy: .public)")
 
         Task { @MainActor in
             switch command {

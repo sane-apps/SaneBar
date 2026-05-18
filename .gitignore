@@ -32,6 +32,7 @@ Packages/**/.swiftpm/
 # Build
 build/
 .build/
+.build-logs
 .build-logs/
 .build-minimal/
 *.backup*
@@ -52,9 +53,11 @@ releases/
 # Nested CLAUDE.md files are auto-generated context — only root CLAUDE.md is real
 **/CLAUDE.md
 !/CLAUDE.md
+SESSION_HANDOFF.md
 
 # Agent artifacts
 .agent/
+.claude/
 .claude-mem/
 
 # ═══════════════════════════════════════════════════════════════
@@ -62,6 +65,7 @@ releases/
 # ═══════════════════════════════════════════════════════════════
 
 # Gemini/Agentic
+.gemini
 .gemini/
 .mcp.json
 

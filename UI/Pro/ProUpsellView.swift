@@ -143,7 +143,7 @@ struct ProUpsellView: View {
         .onExitCommand { closeView() }
         .onKeyPress(.escape) { closeView(); return .handled }
         .sheet(isPresented: $showingLicenseEntry) {
-            LicenseEntryView()
+            LicenseEntryView(licenseService: SaneBarLicenseSettingsAdapter.shared)
         }
         .onChange(of: licenseService.isPro) { _, newValue in
             if newValue { closeView() }
@@ -227,107 +227,10 @@ enum ProUpsellWindow {
     }
 }
 
-// MARK: - License Entry View
-
-/// Simple form for entering a license key. Shown from ProUpsellView or Settings.
-struct LicenseEntryView: View {
-    @ObservedObject private var licenseService = LicenseService.shared
-    @Environment(\.dismiss) private var dismiss
-    @State private var licenseKey = ""
-    @State private var showingSuccess = false
-
-    var body: some View {
-        VStack(spacing: 16) {
-            if showingSuccess {
-                // Success state — brief confirmation before auto-dismiss
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.green)
-                Text("Pro Activated!")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                if let email = licenseService.licenseEmail {
-                    Text(email)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.92))
-                }
-            } else {
-                HStack {
-                    Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close")
-                }
-
-                Text(["Enter", LicenseService.licenseKeyLabel()].joined(separator: " "))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                Text(LicenseService.licenseEmailInstruction())
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                TextField("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX", text: $licenseKey)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13, design: .monospaced))
-
-                if let error = licenseService.validationError {
-                    Text(error)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                HStack(spacing: 12) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .keyboardShortcut(.cancelAction)
-                    .font(.system(size: 13))
-
-                    Button("Activate") {
-                        Task {
-                            await licenseService.activate(key: licenseKey)
-                        }
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .font(.system(size: 13))
-                    .disabled(licenseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || licenseService.isValidating)
-
-                    if licenseService.isValidating {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                }
-            }
-        }
-        .padding(24)
-        .frame(width: 400)
-        .fixedSize(horizontal: false, vertical: true)
-        .onChange(of: licenseService.isPro) { _, newValue in
-            if newValue {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showingSuccess = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    dismiss()
-                }
-            }
-        }
-    }
-}
-
 #Preview("Upsell") {
     ProUpsellView(feature: .iconActivation)
 }
 
 #Preview("License Entry") {
-    LicenseEntryView()
+    LicenseEntryView(licenseService: SaneBarLicenseSettingsAdapter.shared)
 }
