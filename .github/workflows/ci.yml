@@ -1,0 +1,33 @@
+name: CI
+
+# SANEAPPS_GITHUB_HOSTED_EXCEPTION: SaneBar is a public source-available repo and needs visible build/test signal for outside contributors; this workflow uses no secrets and disables code signing.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project SaneBar.xcodeproj \
+            -scheme SaneBar \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO

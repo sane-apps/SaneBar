@@ -735,7 +735,7 @@ private struct FreeVsProPage: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 8)
         .sheet(isPresented: $showingLicenseEntry) {
-            LicenseEntryView()
+            LicenseEntryView(licenseService: SaneBarLicenseSettingsAdapter.shared)
         }
     }
 

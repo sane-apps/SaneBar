@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
-[![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-open--source--mac--os--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
+[![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-macOS--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
 > **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $14.99 once](https://sanebar.com)** · Keeps development alive
 
@@ -214,7 +214,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 **Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates, license validation, and a few simple anonymous app counts such as app version, build, OS version, channel, and update availability.
 
-![100% On-Device](docs/images/settings-about.png)
+![On-Device Core Behavior](docs/images/settings-about.png)
 
 [Full privacy details](PRIVACY.md)
 
@@ -353,7 +353,15 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 
 [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0) — see [LICENSE](LICENSE)
 
-Copyright (c) 2025-2026 SaneApps. 100% transparent code — read, audit, and learn from it. Use it for anything except building a competing product.
+Copyright (c) 2025-2026 SaneApps. SaneBar is source-available under PolyForm Shield: read it, audit it, learn from it, and use it for personal projects. Do not sell or distribute a competing menu bar manager based on this code.
+
+### License FAQ
+
+**Can I fork SaneBar for personal use?** Yes.
+
+**Can I study the code, audit it, or submit pull requests?** Yes.
+
+**Can I sell a competing product based on this code?** No. The PolyForm Shield license is intentionally source-available, not permissive.
 
 ## Third-Party Notices
 
