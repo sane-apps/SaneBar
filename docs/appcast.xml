@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                <item>
+            <title>2.1.56</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 18 May 2026 13:10:43 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves license key entry in Settings, onboarding, and Pro upgrade prompts. Keeps menu bar appearance steadier during fullscreen and maximize transitions. Improves wake, restart, and display-change layout handling so icons stay where expected. Improves Browse Icons and Second Menu Bar reliability for custom groups and moves between Visible, Hidden, and Always Hidden.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.56.zip"
+                       sparkle:version="2156"
+                       sparkle:shortVersionString="2.1.56"
+                       length="8995596"
+                       type="application/octet-stream"
+                       sparkle:edSignature="sy3yopOjDLQeOojfVFTTgEu43bTMShGj9eDcKTPrjeHqhksfo+9WzXGnRZ+1VHOsgDzG+elLVaGVfI9D4iVdBw=="/>
+        </item>
+<item>
             <title>2.1.55</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Sat, 16 May 2026 16:31:47 -0400</pubDate>
