@@ -54,7 +54,7 @@ final class RuntimeGuardXCTests: XCTestCase {
 
         XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
         XCTAssertTrue(
-            project.contains("revision: da41307e5bede4a000c24a90f0d8724390631a7a"),
+            project.contains("revision: 5a9c02152cfe155e3d6d06c1a489ef426e2250e1"),
             "SaneUI should pin the license-entry fix revision for release reproducibility"
         )
         XCTAssertFalse(
@@ -62,7 +62,7 @@ final class RuntimeGuardXCTests: XCTestCase {
             "SaneUI should not track a moving branch in release configuration"
         )
         XCTAssertTrue(
-            resolved.contains("\"revision\" : \"da41307e5bede4a000c24a90f0d8724390631a7a\""),
+            resolved.contains("\"revision\" : \"5a9c02152cfe155e3d6d06c1a489ef426e2250e1\""),
             "Package.resolved should resolve SaneUI to the release-tested revision"
         )
         XCTAssertFalse(
@@ -2524,7 +2524,9 @@ final class RuntimeGuardXCTests: XCTestCase {
         let settingsSource = try String(contentsOf: settingsURL, encoding: .utf8)
 
         XCTAssertTrue(
-            appSource.contains("window.styleMask = [.titled, .closable, .resizable, .miniaturizable]") &&
+            appSource.contains("let window = SaneSettingsWindow(") &&
+                appSource.contains("styleMask: [.titled, .closable, .resizable, .miniaturizable]") &&
+                appSource.contains("window.contentViewController = hostingController") &&
                 appSource.contains("SaneSettingsWindowDefaults.minWidth") &&
                 appSource.contains("SaneBarSettingsWindowMetrics.idealHeight") &&
                 settingsSource.contains("SaneSettingsContainer(defaultTab: defaultTab, windowSizing: .embedded)") &&

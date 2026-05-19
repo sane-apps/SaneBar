@@ -321,10 +321,15 @@ enum SettingsOpener {
         let settingsView = SettingsView(defaultTab: defaultTab)
         let hostingController = NSHostingController(rootView: settingsView)
 
-        let window = NSWindow(contentViewController: hostingController)
+        let window = SaneSettingsWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = hostingController
         window.title = "SaneBar Settings"
         window.appearance = NSAppearance(named: .darkAqua)
-        window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         enforceUsableWindowSize(window, preferIdealSize: true)
         window.center()
         window.isReleasedWhenClosed = false
