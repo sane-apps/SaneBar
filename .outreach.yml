@@ -108,13 +108,13 @@ launch_calendar:
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
   last_launch_readiness:
-    date: "2026-05-18"
+    date: "2026-05-19"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Already launched on Product Hunt/Hacker News; a repost without a major new story would be weak."
+      - "Fresh Mini launch_readiness on 2026-05-19 stayed red because SaneBar already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
-      - "Latest Mini release_preflight passed with warnings, but this remains a broad-launch no-go until the patch is published and support noise is stable."
+      - "Latest Mini release_preflight is still not green and launch_readiness reported 1 issue plus 3 warnings on 2026-05-19."
     next_date: "2026-05-25"
 
 x_search_keywords:
