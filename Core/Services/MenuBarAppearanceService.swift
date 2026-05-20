@@ -470,6 +470,35 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let maximumTopDrift: CGFloat = 2
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
 
+        func isCompanionContentWindow(_ info: [String: Any], excluding thinRect: CGRect) -> Bool {
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
+            let ownerPID = pid_t(ownerPIDValue.intValue)
+            guard ownerPID == frontmostPID else { return false }
+
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let x = number(bounds["X"]),
+                  let y = number(bounds["Y"]),
+                  let width = number(bounds["Width"]),
+                  let height = number(bounds["Height"]) else {
+                return false
+            }
+
+            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
+            guard rect != thinRect else { return false }
+            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
+            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
+            let layer = number(info[kCGWindowLayer as String]) ?? 0
+            guard isOnscreen else { return false }
+            guard alpha > 0 else { return false }
+            guard layer == 0 else { return false }
+
+            let coveredRect = rect.intersection(targetFrame)
+            guard coveredRect.width >= targetFrame.width * 0.25 else { return false }
+            guard coveredRect.height >= 80 else { return false }
+            guard rect.minY >= targetFrame.minY + 20 || rect.height >= targetFrame.height * 0.5 else { return false }
+            return true
+        }
+
         for info in windowInfos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
             let ownerPID = pid_t(ownerPIDValue.intValue)
@@ -494,6 +523,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             guard suppressThinTopHost else { continue }
             guard height >= 20, height <= 26 else { continue }
             guard coveredRect.width >= minimumCoveredWidth else { continue }
+            guard !windowInfos.contains(where: { isCompanionContentWindow($0, excluding: rect) }) else { continue }
             return .thinTopHost
         }
 

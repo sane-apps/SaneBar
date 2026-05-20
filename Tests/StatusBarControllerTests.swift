@@ -1778,6 +1778,18 @@ struct StatusBarControllerTests {
                 screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 956)
             )
         )
+        #expect(
+            !StatusBarController.isStatusItemWindowFrameValid(
+                windowFrame: CGRect(x: -3780, y: 923, width: 30, height: 33),
+                screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 956)
+            )
+        )
+        #expect(
+            StatusBarController.isStatusItemWindowFrameValid(
+                windowFrame: CGRect(x: -3000, y: 923, width: 5001, height: 33),
+                screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 956)
+            )
+        )
     }
 
     @Test("Init restores matching display backup instead of resetting to ordinals")
