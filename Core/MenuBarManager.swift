@@ -1812,6 +1812,25 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
+    func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool {
+        if isExecutingStatusItemRecovery {
+            logger.debug("Visibility intent enforcement skipped during status-item recovery (\(reason, privacy: .public))")
+            return false
+        }
+
+        let snapshot = currentStatusItemRecoverySnapshot()
+        guard snapshot.structuralState == .ready,
+              snapshot.hasTrustworthyBootstrapAnchors,
+              snapshot.visibilityPhase != .transitioning else {
+            logger.warning(
+                "Visibility intent enforcement skipped until status-item anchors are healthy (\(reason, privacy: .public), structure=\(snapshot.structuralState.rawValue, privacy: .public), geometry=\(snapshot.geometryConfidence.rawValue, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
+            )
+            return false
+        }
+
+        return true
+    }
+
     private func applyAutoRehideSettingsChange(from oldSettings: SaneBarSettings, to newSettings: SaneBarSettings) {
         if oldSettings.autoRehide, !newSettings.autoRehide {
             hidingService.cancelRehide()

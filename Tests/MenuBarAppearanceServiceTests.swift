@@ -371,6 +371,47 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Appearance overlay ignores thin transition strip when same app has a content window")
+    func testDoesNotSuppressThinTopHostWithCompanionContentWindow() {
+        let infos: [[String: Any]] = [
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 24),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1728),
+                    "Height": NSNumber(value: 24)
+                ]
+            ],
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 25),
+                    "Width": NSNumber(value: 1728),
+                    "Height": NSNumber(value: 1068)
+                ]
+            ]
+        ]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.anthropic.claudefordesktop",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil,
+            "A titlebar/top transition strip should not hide Custom Appearance while the same app has a normal content window"
+        )
+    }
+
     @Test("Appearance overlay ignores offscreen or transparent fullscreen-shaped windows")
     func testIgnoresInvisibleFullscreenShapedWindows() {
         let infos: [[String: Any]] = [

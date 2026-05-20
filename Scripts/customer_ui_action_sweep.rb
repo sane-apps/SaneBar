@@ -15,6 +15,7 @@ class CustomerUIActionSweep
   SANEAPPS_ROOT = File.expand_path('../..', PROJECT_ROOT)
   OUTPUT_DIR = File.join(PROJECT_ROOT, 'outputs', 'customer-ui')
   RECEIPT_PATH = File.join(PROJECT_ROOT, '.sane', 'customer_ui_action_receipt.json')
+  OUTPUT_RECEIPT_PATH = File.join(PROJECT_ROOT, 'outputs', 'customer_ui_action_receipt.json')
   MANIFEST_PATH = File.join(PROJECT_ROOT, 'Tests', 'CustomerUIActions.yml')
   SANEMASTER = File.join(PROJECT_ROOT, 'scripts', 'SaneMaster.rb')
   APP_NAME = 'SaneBar'
@@ -555,8 +556,11 @@ class CustomerUIActionSweep
         release_note: 'Customer UI sweep records only evidence produced by this Mini run; missing required action evidence blocks release.'
       }
     }
-    FileUtils.mkdir_p(File.dirname(RECEIPT_PATH))
-    File.write(RECEIPT_PATH, JSON.pretty_generate(receipt) + "\n")
+    receipt_json = JSON.pretty_generate(receipt) + "\n"
+    [RECEIPT_PATH, OUTPUT_RECEIPT_PATH].each do |path|
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, receipt_json)
+    end
 
     transcript_path = File.join(OUTPUT_DIR, "customer-ui-action-sweep-#{@timestamp}.txt")
     File.write(transcript_path, @transcript.join("\n") + "\n")

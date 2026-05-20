@@ -106,6 +106,7 @@ extension MenuBarManager {
             return
         }
         guard settings.hideAllOtherMenuBarItems else { return }
+        guard shouldRunVisibilityIntentEnforcement(reason: reason) else { return }
         guard !shouldSkipHideForExternalMonitor else {
             logger.info("Hide-all-other enforcement skipped by external monitor policy (\(reason, privacy: .public))")
             return
@@ -502,6 +503,7 @@ extension MenuBarManager {
             )
             return
         }
+        guard shouldRunVisibilityIntentEnforcement(reason: reason) else { return }
         guard alwaysHiddenSeparatorItem != nil else { return }
         guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return }
 

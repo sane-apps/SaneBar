@@ -189,8 +189,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         guard let windowFrame, let screenFrame else {
             return false
         }
-        let tolerance: CGFloat = 50
-        return abs(screenFrame.maxY - windowFrame.maxY) <= tolerance
+        let verticalTolerance: CGFloat = 50
+        let horizontalTolerance: CGFloat = 8
+        let verticalMatch = abs(screenFrame.maxY - windowFrame.maxY) <= verticalTolerance
+        let horizontalOverlap = windowFrame.maxX >= (screenFrame.minX - horizontalTolerance) &&
+            windowFrame.minX <= (screenFrame.maxX + horizontalTolerance)
+        return verticalMatch && horizontalOverlap
     }
 
     /// Checks whether a status item window appears in the menu bar area.

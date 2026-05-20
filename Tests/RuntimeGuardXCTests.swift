@@ -221,6 +221,8 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("separatorAnchorSource == .live || separatorAnchorSource == .cached") &&
                 source.contains("self.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
                 source.contains("self.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
+                source.contains("func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool") &&
+                source.contains("snapshot.hasTrustworthyBootstrapAnchors") &&
                 source.contains("scheduleAlwaysHiddenPinEnforcement(reason: reason") &&
                 source.contains("scheduleHideAllOtherRuleEnforcement(reason: reason") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
