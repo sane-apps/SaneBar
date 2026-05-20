@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                <item>
+            <title>2.1.58</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Wed, 20 May 2026 15:21:34 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Keeps Custom Appearance tint stable through fullscreen, maximize, and app-switch transitions. Removes stale release-tool dependencies that triggered the Ruby JWT security alert.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.58.zip"
+                       sparkle:version="2158"
+                       sparkle:shortVersionString="2.1.58"
+                       length="9020227"
+                       type="application/octet-stream"
+                       sparkle:edSignature="u442zx1QP+VgKVPXFoIDthu4aCade/dJV7LxOEZbsSo3Hw0aTWdPmjxDDyXZo4dNlchk+rzaNYfNRTafelZCBw=="/>
+        </item>
+<item>
             <title>2.1.57</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 19 May 2026 14:56:56 -0400</pubDate>
