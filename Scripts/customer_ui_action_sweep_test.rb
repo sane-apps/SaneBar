@@ -75,4 +75,38 @@ class CustomerUIActionSweepTest < Minitest::Test
       { type: 'mini_click', detail: '/tmp/sanebar_runtime_native_apple_smoke.log: ✅ Hidden/Always Hidden round-trip ok' }
     ])
   end
+
+  def test_appearance_actions_cannot_fall_back_to_settings_screenshot
+    error = assert_raises(RuntimeError) do
+      @sweep.send(:screenshot_for_action, 'appearance-customization-actions')
+    end
+
+    assert_includes error.message, 'no usable appearance overlay screenshot evidence'
+  end
+
+  def test_runtime_state_results_read_artifact_backed_evidence_paths
+    @sweep.instance_variable_set(:@action_results, {
+      'startup-wake-appearance-recovery' => {
+        evidence: [
+          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_startup_probe.log: Startup layout probe passed', artifacts: ['/tmp/sanebar_runtime_startup_probe.log'] },
+          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
+          { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] },
+          { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
+        ]
+      },
+      'appearance-customization-actions' => {
+        evidence: [
+          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['/tmp/sanebar_runtime.log'] },
+          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
+          { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] }
+        ]
+      }
+    })
+
+    rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+    transition = rows.find { |row| row[:id] == 'fullscreen_maximize_transition' }
+
+    assert_equal 'passed', transition[:status]
+    assert_includes transition[:evidence_paths], '/tmp/sanebar_runtime.log'
+  end
 end

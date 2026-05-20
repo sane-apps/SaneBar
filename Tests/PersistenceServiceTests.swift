@@ -664,6 +664,8 @@ final class PersistenceServiceTests: XCTestCase {
         settings.menuBarAppearance.isEnabled = true
         settings.menuBarAppearance.tintColor = "#FF5500"
         settings.menuBarAppearance.tintOpacity = 0.25
+        settings.menuBarAppearance.tintColorDark = "#224466"
+        settings.menuBarAppearance.tintOpacityDark = 0.65
         settings.menuBarAppearance.hasShadow = true
         settings.menuBarAppearance.hasBorder = true
         settings.menuBarAppearance.hasRoundedCorners = true
@@ -679,6 +681,8 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertTrue(decoded.menuBarAppearance.isEnabled)
         XCTAssertEqual(decoded.menuBarAppearance.tintColor, "#FF5500")
         XCTAssertEqual(decoded.menuBarAppearance.tintOpacity, 0.25, accuracy: 0.001)
+        XCTAssertEqual(decoded.menuBarAppearance.tintColorDark, "#224466")
+        XCTAssertEqual(decoded.menuBarAppearance.tintOpacityDark, 0.65, accuracy: 0.001)
         XCTAssertTrue(decoded.menuBarAppearance.hasShadow)
         XCTAssertTrue(decoded.menuBarAppearance.hasBorder)
         XCTAssertTrue(decoded.menuBarAppearance.hasRoundedCorners)
@@ -707,6 +711,7 @@ final class PersistenceServiceTests: XCTestCase {
         // Then: appearance defaults correctly
         XCTAssertFalse(settings.menuBarAppearance.isEnabled)
         XCTAssertEqual(settings.menuBarAppearance.tintColor, "#000000")
+        XCTAssertEqual(settings.menuBarAppearance.tintColorDark, "#FFFFFF")
     }
 
     // MARK: - Network Trigger Settings

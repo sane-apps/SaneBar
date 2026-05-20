@@ -130,6 +130,7 @@ class CustomerUIActionSweep
       ['UI/Settings/AppearanceSettingsView.swift', 'Menu Bar Icon'],
       ['UI/Settings/AppearanceSettingsView.swift', 'Custom Appearance'],
       ['Core/Services/MenuBarAppearanceService.swift', 'captureSnapshotPNG'],
+      ['Scripts/live_zone_smoke.rb', 'Appearance tint pixels ok'],
       ['Tests/RuntimeGuardXCTests.swift', 'appearance']
     ],
     shortcuts: [
@@ -577,7 +578,11 @@ class CustomerUIActionSweep
         Array(@action_results.dig(action_id, :evidence) || @action_results.dig(action_id, 'evidence'))
       end.compact
       evidence_types = evidence.map { |item| item[:type] || item['type'] if item.is_a?(Hash) }.compact.map(&:to_s)
-      evidence_paths = evidence.flat_map { |item| Array(item[:paths] || item['paths']) if item.is_a?(Hash) }.compact
+      evidence_paths = evidence.flat_map do |item|
+        next [] unless item.is_a?(Hash)
+
+        Array(item[:paths] || item['paths'] || item[:artifacts] || item['artifacts'] || item[:path] || item['path'])
+      end.compact
       status = (required_types - evidence_types).empty? && evidence_paths.any? ? 'passed' : 'failed'
       {
         id: id.to_s,
@@ -735,10 +740,10 @@ class CustomerUIActionSweep
     pass_action('appearance-customization-actions', [
       evidence('fixture', source_line(source_lines, 'appearance')),
       evidence('mini_click', @transcript.grep(/\Asettings_tab=appearance/).first),
-      evidence('screenshot', 'Appearance settings visual state captured in the Mini settings sweep', [screenshot_for_action('appearance-customization-actions')]),
-      evidence('state_receipt', runtime_line(runtime_lines, 'Settings window visual check ok')),
+      evidence('screenshot', 'Custom Appearance overlay tint pixels captured by Mini runtime smoke', [screenshot_for_action('appearance-customization-actions')]),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('source_guard', source_line(source_lines, 'appearance')),
-      evidence('mini_runtime', runtime_line(runtime_lines, 'Settings window visual check ok')),
+      evidence('mini_runtime', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('unit_guard', 'MenuBarAppearanceService and RuntimeGuardXCTests cover overlay refresh and appearance recovery')
     ])
     pass_action('shortcuts-and-automation-actions', [
@@ -793,8 +798,8 @@ class CustomerUIActionSweep
     pass_action('startup-wake-appearance-recovery', [
       evidence('fixture', runtime_line(runtime_lines, 'Startup layout probe passed')),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Startup layout probe passed')),
-      evidence('screenshot', 'Startup recovery was checked against the live Mini visual surface', [screenshot_for_action('startup-wake-appearance-recovery')]),
-      evidence('state_receipt', runtime_line(runtime_lines, 'Live zone smoke passed')),
+      evidence('screenshot', 'Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke', [screenshot_for_action('startup-wake-appearance-recovery')]),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log']),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
@@ -992,6 +997,8 @@ class CustomerUIActionSweep
   end
 
   def screenshot_for_action(id)
+    return action_screenshot_path(id, appearance_overlay_screenshot_for_action(id)) if appearance_overlay_action?(id)
+
     key = if id.include?('second-menu-bar')
             'second-menu-bar'
           elsif id.include?('hotkeys') || id.include?('groups')
@@ -1000,8 +1007,6 @@ class CustomerUIActionSweep
             'settings-control'
           elsif id.include?('rules')
             'settings-rules'
-          elsif id.include?('appearance') || id.include?('startup-wake')
-            'settings-appearance'
           elsif id.include?('shortcuts') || id.include?('automation')
             'settings-shortcuts'
           elsif id.include?('health') || id.include?('repair')
@@ -1021,6 +1026,26 @@ class CustomerUIActionSweep
     action_screenshot_path(id, path)
   end
 
+  def appearance_overlay_action?(id)
+    id.include?('appearance-customization') || id.include?('startup-wake-appearance')
+  end
+
+  def appearance_overlay_screenshot_for_action(id)
+    preferred_prefix = id.include?('startup-wake') ? 'sanebar-appearance-native-fullscreen-host-' : 'sanebar-appearance-maximized-host-'
+    path = latest_runtime_screenshots
+      .select { |candidate| File.basename(candidate).start_with?('sanebar-appearance-') }
+      .select { |candidate| usable_appearance_screenshot?(candidate) }
+      .select { |candidate| File.basename(candidate).start_with?(preferred_prefix) }
+      .max_by { |candidate| File.mtime(candidate) }
+    path ||= latest_runtime_screenshots
+      .select { |candidate| File.basename(candidate).start_with?('sanebar-appearance-') }
+      .select { |candidate| usable_appearance_screenshot?(candidate) }
+      .max_by { |candidate| File.mtime(candidate) }
+    raise "#{id}: no usable appearance overlay screenshot evidence available" unless path
+
+    path
+  end
+
   def action_screenshot_path(id, path)
     absolute = File.absolute_path(path, Dir.pwd)
     safe_id = id.gsub(/[^a-zA-Z0-9_-]/, '-')
@@ -1028,6 +1053,7 @@ class CustomerUIActionSweep
     destination = File.join(@evidence_dir, "#{safe_id}-screenshot#{extension.empty? ? '.png' : extension}")
     unless File.expand_path(destination) == absolute
       FileUtils.cp(absolute, destination)
+      add_png_text_chunk(destination, 'SaneSource', absolute)
       add_png_text_chunk(destination, 'SaneAction', id)
     end
     relative(destination)
@@ -1153,13 +1179,17 @@ class CustomerUIActionSweep
   def latest_runtime_screenshots
     Dir.glob(File.join(File.expand_path("~/Desktop/Screenshots/#{APP_NAME}"), 'sanebar-*.png'))
       .select { |path| File.mtime(path) >= @started_at - 30 * 60 }
-      .select { |path| usable_screenshot?(path) }
       .sort_by { |path| File.mtime(path) }
   end
 
   def usable_screenshot?(path)
     width, height = png_dimensions(path)
     width >= 80 && height >= 80
+  end
+
+  def usable_appearance_screenshot?(path)
+    width, height = png_dimensions(path)
+    width >= 80 && height >= 20
   end
 
   def png_dimensions(path)

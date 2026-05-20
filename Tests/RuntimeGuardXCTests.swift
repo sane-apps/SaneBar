@@ -1857,13 +1857,15 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
-                source.contains("capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available") &&
+                source.contains("release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'") &&
+                source.contains("capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available") &&
                 source.contains("appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
                 source.contains("restore_runtime_smoke_appearance_settings!(appearance_settings_backup)") &&
                 source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
                 !source.contains("screencapture"),
-            "Project QA runtime smoke should probe app/window-scoped screenshot capability, seed custom appearance only for visual smoke, restore settings, and keep capture opt-in so screenshot flakiness does not block release"
+            "Project QA runtime smoke should require app/window-scoped screenshot and tint-pixel proof by default, seed custom appearance only for visual smoke, and restore settings"
         )
         XCTAssertTrue(
             source.contains("return true if internal_runtime_snapshot_supported?") &&
@@ -1880,13 +1882,9 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Project QA runtime smoke should retain a window-scoped screenshot fallback when in-app snapshot support is unavailable"
         )
         XCTAssertTrue(
-            source.contains("screenshots skipped on this host"),
-            "Project QA runtime smoke should explicitly report when host screenshot capture is unavailable"
-        )
-        XCTAssertTrue(
-            source.contains("screenshots disabled for release smoke") &&
-                source.contains("smoke screenshots disabled for release gating"),
-            "Project QA runtime smoke should explain when screenshot capture is intentionally disabled for release gating"
+            source.contains("Runtime smoke screenshot/tint evidence is required but unavailable on this host.") &&
+                source.contains("runtime smoke screenshot/tint evidence unavailable"),
+            "Project QA runtime smoke should fail clearly when required screenshot/tint proof cannot be captured"
         )
         XCTAssertTrue(
             source.contains("expected_screenshots = runtime_smoke_expected_modes(target).to_h"),

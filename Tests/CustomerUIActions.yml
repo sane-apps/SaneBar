@@ -1140,6 +1140,7 @@ actions:
   required_proof_level: full_runtime_completion
   required_evidence_types:
   - mini_runtime
+  - screenshot
   - fixture
   - state_receipt
   - log

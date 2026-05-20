@@ -64,6 +64,91 @@ class SaneBarScriptCommand: NSScriptCommand {
     }
 }
 
+enum ScriptSnapshotPathPolicy {
+    enum ValidationError: LocalizedError {
+        case empty
+        case unsupportedExtension
+        case outsideAllowedRoots(String)
+        case invalidExistingTarget
+
+        var errorDescription: String? {
+            switch self {
+            case .empty:
+                "Expected a filesystem path string."
+            case .unsupportedExtension:
+                "Snapshot path must end in .png."
+            case let .outsideAllowedRoots(roots):
+                "Snapshot path must be under one of: \(roots)."
+            case .invalidExistingTarget:
+                "Snapshot target must not be a directory or symlink."
+            }
+        }
+    }
+
+    static func validatedOutputPath(from rawPath: String) throws -> String {
+        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else { throw ValidationError.empty }
+        guard URL(fileURLWithPath: path).pathExtension.lowercased() == "png" else {
+            throw ValidationError.unsupportedExtension
+        }
+
+        let fileManager = FileManager.default
+        let expandedPath = (path as NSString).expandingTildeInPath
+        let outputURL = URL(fileURLWithPath: expandedPath)
+        let parentURL = outputURL.deletingLastPathComponent()
+
+        var isDirectory: ObjCBool = false
+        if fileManager.fileExists(atPath: outputURL.path, isDirectory: &isDirectory) {
+            guard !isDirectory.boolValue else { throw ValidationError.invalidExistingTarget }
+            if (try? fileManager.destinationOfSymbolicLink(atPath: outputURL.path)) != nil {
+                throw ValidationError.invalidExistingTarget
+            }
+            let attributes = try fileManager.attributesOfItem(atPath: outputURL.path)
+            guard attributes[.type] as? FileAttributeType != .typeSymbolicLink else {
+                throw ValidationError.invalidExistingTarget
+            }
+        }
+
+        let resolvedParent = parentURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let roots = allowedRoots().map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
+        guard roots.contains(where: { resolvedParent == $0 || resolvedParent.hasPrefix("\($0)/") }) else {
+            throw ValidationError.outsideAllowedRoots(roots.joined(separator: ", "))
+        }
+
+        return outputURL.standardizedFileURL.path
+    }
+
+    private static func allowedRoots() -> [URL] {
+        [
+            URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true),
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Desktop/Screenshots", isDirectory: true),
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Caches/com.sanebar.app", isDirectory: true),
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("SaneApps/apps/SaneBar/outputs/customer-ui", isDirectory: true)
+        ]
+    }
+}
+
+private extension SaneBarScriptCommand {
+    func validatedSnapshotPath() -> String? {
+        guard let rawPath = directParameter as? String else {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = "Expected a filesystem path string."
+            return nil
+        }
+
+        do {
+            return try ScriptSnapshotPathPolicy.validatedOutputPath(from: rawPath)
+        } catch {
+            scriptErrorNumber = errOSAGeneralError
+            scriptErrorString = error.localizedDescription
+            return nil
+        }
+    }
+}
+
 @MainActor
 private func runScriptRead<T>(
     timeoutSeconds: TimeInterval = 15.0,
@@ -206,18 +291,7 @@ final class CloseSettingsWindowCommand: SaneBarScriptCommand {
 @objc(CaptureBrowsePanelSnapshotCommand)
 final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
+        guard let path = validatedSnapshotPath() else { return nil }
 
         let didCapture: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -244,18 +318,7 @@ final class CaptureBrowsePanelSnapshotCommand: SaneBarScriptCommand {
 @objc(CaptureSettingsWindowSnapshotCommand)
 final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
+        guard let path = validatedSnapshotPath() else { return nil }
 
         let didCapture: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -302,18 +365,7 @@ final class CaptureSettingsWindowSnapshotCommand: SaneBarScriptCommand {
 @objc(CaptureAppearanceOverlaySnapshotCommand)
 final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
+        guard let path = validatedSnapshotPath() else { return nil }
 
         let didCapture: Bool = if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -340,18 +392,7 @@ final class CaptureAppearanceOverlaySnapshotCommand: SaneBarScriptCommand {
 @objc(QueueBrowsePanelSnapshotCommand)
 final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
+        guard let path = validatedSnapshotPath() else { return nil }
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(700))
@@ -364,18 +405,7 @@ final class QueueBrowsePanelSnapshotCommand: SaneBarScriptCommand {
 @objc(QueueSettingsWindowSnapshotCommand)
 final class QueueSettingsWindowSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        guard let rawPath = directParameter as? String else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
-
-        let path = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !path.isEmpty else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Expected a filesystem path string."
-            return nil
-        }
+        guard let path = validatedSnapshotPath() else { return nil }
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(700))
