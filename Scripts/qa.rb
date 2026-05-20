@@ -722,8 +722,14 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
-      capture_runtime_smoke_screenshots = ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1' && screenshot_capture_available
+      release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
+      capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available
       appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
+      if release_smoke_screenshots_required && !capture_runtime_smoke_screenshots
+        @errors << 'Runtime smoke screenshot/tint evidence is required but unavailable on this host.'
+        puts '❌ runtime smoke screenshot/tint evidence unavailable'
+        return
+      end
 
       launch_out, launch_status = Open3.capture2e(SANEMASTER_CLI, 'test_mode', '--release', '--no-logs')
       File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
@@ -786,6 +792,7 @@ class ProjectQA
         'SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX' => RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX.to_s,
         'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0',
+        'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path]
@@ -964,10 +971,8 @@ class ProjectQA
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
         puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (#{artifact_summary})"
-      elsif screenshot_capture_available
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots disabled for release smoke)"
       else
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (screenshots skipped on this host)"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe"
       end
     ensure
       restore_runtime_smoke_appearance_settings!(appearance_settings_backup)

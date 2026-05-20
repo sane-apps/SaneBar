@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.58] - 2026-05-20
+
+Keeps Custom Appearance tint stable through fullscreen, maximize, and app-switch transitions. Removes stale release-tool dependencies that triggered the Ruby JWT security alert.
+
+---
+
 ## [2.1.57] - 2026-05-19
 
 Fixes license-key paste reliability in activation and settings.

@@ -650,6 +650,31 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
+    @Test("Appearance overlay does not suppress lone transition layer top strips")
+    func testDoesNotSuppressLoneTransitionLayerThinTopStrip() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowLayer as String: NSNumber(value: 24),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 24)
+            ]
+        ]]
+
+        #expect(
+            !MenuBarAppearanceService.shouldSuppressOverlay(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.anthropic.claudefordesktop",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ),
+            "A fullscreen/app-switch transition strip above layer 0 should not hide the customer tint overlay"
+        )
+    }
+
     @Test("Overlay appearance resolves dark matches to a concrete dark appearance")
     func testResolvedOverlayAppearanceDarkMatch() {
         let source = NSAppearance(named: .darkAqua)
@@ -684,6 +709,134 @@ struct MenuBarAppearanceServiceTests {
         #expect(
             resolved?.bestMatch(from: MenuBarAppearanceService.supportedOverlayAppearances) == .darkAqua,
             "App activation can report Aqua briefly; the menu-bar overlay should keep the system dark tint"
+        )
+    }
+
+    @Test("Unknown system interface style falls back to effective appearance")
+    func testResolvedOverlayAppearanceIgnoresUnknownSystemInterfaceStyle() {
+        let source = NSAppearance(named: .darkAqua)
+
+        let resolved = MenuBarAppearanceService.resolvedOverlayAppearance(
+            from: source,
+            systemInterfaceStyleName: "Automatic"
+        )
+
+        #expect(
+            resolved?.bestMatch(from: MenuBarAppearanceService.supportedOverlayAppearances) == .darkAqua,
+            "Unknown or unavailable system style names must not force the overlay into the light/black tint path"
+        )
+    }
+
+    @Test("Dark effective appearance keeps dark tint when system style is unavailable")
+    func testDarkTintDoesNotFallBackToLightTintWhenSystemStyleUnavailable() {
+        var settings = MenuBarAppearanceSettings()
+        settings.tintColor = "#000000"
+        settings.tintColorDark = "#FF5500"
+
+        #expect(
+            MenuBarAppearanceService.resolvedTintColorHex(
+                settings: settings,
+                appearance: NSAppearance(named: .darkAqua),
+                systemInterfaceStyleName: nil
+            ) == "#FF5500"
+        )
+    }
+
+    @Test("Appearance tint colors are normalized before rendering")
+    func testAppearanceTintColorsNormalizeInvalidPersistedValues() throws {
+        let json = """
+        {
+          "isEnabled": true,
+          "tintColor": "f50",
+          "tintColorDark": "not-a-color",
+          "tintOpacity": 0.2,
+          "tintOpacityDark": 0.3
+        }
+        """
+
+        let settings = try JSONDecoder().decode(
+            MenuBarAppearanceSettings.self,
+            from: Data(json.utf8)
+        )
+
+        #expect(settings.tintColor == "#FF5500")
+        #expect(settings.tintColorDark == "#FFFFFF")
+    }
+
+    @Test("Tint mode matrix preserves dark and high contrast dark choices")
+    func testTintModeMatrixPreservesDarkChoices() {
+        var settings = MenuBarAppearanceSettings()
+        settings.tintColor = "#000000"
+        settings.tintColorDark = "#FF5500"
+
+        let darkInputs: [(NSAppearance?, String?)] = [
+            (NSAppearance(named: .darkAqua), nil),
+            (NSAppearance(named: .aqua), "Dark"),
+            (NSAppearance(named: .accessibilityHighContrastDarkAqua), nil),
+            (NSAppearance(named: .accessibilityHighContrastAqua), "Dark"),
+            (NSAppearance(named: .darkAqua), "Automatic")
+        ]
+
+        for input in darkInputs {
+            #expect(
+                MenuBarAppearanceService.resolvedTintColorHex(
+                    settings: settings,
+                    appearance: input.0,
+                    systemInterfaceStyleName: input.1
+                ) == "#FF5500"
+            )
+        }
+    }
+
+    @Test("Reduce Transparency raises tint opacity and plain tint level")
+    func testReduceTransparencyOpacityAndWindowLevel() {
+        var settings = MenuBarAppearanceSettings()
+        settings.useLiquidGlass = true
+        settings.tintOpacity = 0.15
+        settings.tintOpacityDark = 0.25
+
+        #expect(
+            MenuBarAppearanceService.resolvedTintOpacity(
+                settings: settings,
+                isDarkAppearance: true,
+                reduceTransparency: true
+            ) == 0.5
+        )
+        #expect(
+            MenuBarAppearanceService.resolvedTintOpacity(
+                settings: settings,
+                isDarkAppearance: true,
+                reduceTransparency: false
+            ) == 0.25
+        )
+        #expect(
+            MenuBarAppearanceService.resolvedOverlayWindowLevel(
+                settings: settings,
+                reduceTransparency: true
+            ) == .statusBar
+        )
+
+        settings.useLiquidGlass = false
+        #expect(
+            MenuBarAppearanceService.resolvedOverlayWindowLevel(
+                settings: settings,
+                reduceTransparency: false
+            ) == .statusBar
+        )
+    }
+
+    @Test("Liquid Glass keeps overlay below status items only when transparency is available")
+    func testLiquidGlassWindowLevelIsConditional() {
+        var settings = MenuBarAppearanceSettings()
+        settings.useLiquidGlass = true
+
+        let expectedLevel: NSWindow.Level = MenuBarAppearanceSettings.supportsLiquidGlass ? .statusBar - 1 : .statusBar
+
+        #expect(
+            MenuBarAppearanceService.resolvedOverlayWindowLevel(
+                settings: settings,
+                reduceTransparency: false
+            ) == expectedLevel
         )
     }
 
@@ -724,6 +877,7 @@ struct MenuBarAppearanceServiceTests {
         #expect(appearanceCall.lowerBound < orderFrontCall.lowerBound)
         #expect(refreshBody.contains("if !window.isVisible"))
         #expect(source.contains("systemInterfaceStyleName: Self.currentSystemInterfaceStyleName()"))
+        #expect(!source.contains("string(forKey: \"AppleInterfaceStyle\") ?? \"Light\""))
         #expect(!source.contains(#"@Environment(\.colorScheme)"#))
         #expect(!source.contains("colorScheme"))
     }

@@ -119,6 +119,7 @@
 		F3CF0B2E82F641BEE867C5A8 /* BartenderImportService+Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0F393788F31906EE3733BB /* BartenderImportService+Preview.swift */; };
 		F402B2ABCBDD881FB3385E47 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386A8722235E682FD58BF6B6 /* StatusBarController.swift */; };
 		F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */; };
+		F7BA27229D32EEA18FB0B952 /* MenuBarAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 687209986141F3E438230A39 /* MenuBarAppearanceSettings.swift */; };
 		F7ED414431C97B5A1BA9FA84 /* CustomerUIActionContractXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB47B74A70ECF1C07DE9899 /* CustomerUIActionContractXCTests.swift */; };
 		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
 		F9052AA7B4B05AF38C20D134 /* LicenseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03C6BAC13E153AFBB2FC78C /* LicenseService.swift */; };
@@ -188,6 +189,7 @@
 		612ACB28DDD7735827CAF657 /* MenuBarManager+Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Updates.swift"; sourceTree = "<group>"; };
 		67AFF893E4BCBB6A30235E67 /* SaneBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SaneBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6809B5CEB27A3D7829FEE1DC /* RunningApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningApp.swift; sourceTree = "<group>"; };
+		687209986141F3E438230A39 /* MenuBarAppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppearanceSettings.swift; sourceTree = "<group>"; };
 		6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6E21CBEE4E5EB06526FED9AD /* MenuBarAppTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppTile.swift; sourceTree = "<group>"; };
 		6EF84C872ACF6C085B017A78 /* MenuBarManager+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarManager+Actions.swift"; sourceTree = "<group>"; };
@@ -503,6 +505,7 @@
 				08E316C04216C2AD8C7A83A0 /* LayoutSnapshotGeometry.swift */,
 				F03C6BAC13E153AFBB2FC78C /* LicenseService.swift */,
 				ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */,
+				687209986141F3E438230A39 /* MenuBarAppearanceSettings.swift */,
 				0A082B5A938BDAC46C4462DC /* MenuBarOperationCoordinator.swift */,
 				BEC85BEE463917C4615F54D0 /* MenuBarOverlayView.swift */,
 				104A6DAC73E277437FB01EA0 /* MenuBarSpacingService.swift */,
@@ -749,6 +752,7 @@
 				F9052AA7B4B05AF38C20D134 /* LicenseService.swift in Sources */,
 				BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */,
 				4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */,
+				F7BA27229D32EEA18FB0B952 /* MenuBarAppearanceSettings.swift in Sources */,
 				15889E6AE2438B01F6972FC7 /* MenuBarManager+Actions.swift in Sources */,
 				6E0B7CF73817D0F8657CD4FD /* MenuBarManager+AlwaysHidden.swift in Sources */,
 				FEBDB811798D1032E6ED595E /* MenuBarManager+IconMoving.swift in Sources */,
@@ -827,7 +831,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -837,7 +841,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D SETAPP";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
@@ -995,7 +999,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1005,7 +1009,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1175,7 +1179,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1185,7 +1189,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.dev;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1223,7 +1227,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1233,7 +1237,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1254,7 +1258,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = NO;
@@ -1266,7 +1270,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D APP_STORE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
@@ -1358,7 +1362,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2157;
+				CURRENT_PROJECT_VERSION = 2158;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1368,7 +1372,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 2.1.57;
+				MARKETING_VERSION = 2.1.58;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;

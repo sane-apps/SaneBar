@@ -4,142 +4,6 @@ import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarAppearance")
 
-// MARK: - MenuBarAppearanceSettings
-
-/// Settings for customizing the menu bar appearance
-struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
-    /// Whether custom appearance is enabled
-    var isEnabled: Bool = false
-
-    /// Use Liquid Glass effect (macOS 26+ only, falls back to tint on older systems)
-    var useLiquidGlass: Bool = true
-
-    /// Tint color for light mode (hex string like "#FF0000")
-    var tintColor: String = "#000000"
-
-    /// Tint opacity for light mode (0.0 - 1.0)
-    var tintOpacity: Double = 0.15
-
-    /// Tint color for dark mode (hex string)
-    var tintColorDark: String = "#FFFFFF"
-
-    /// Tint opacity for dark mode (0.0 - 1.0)
-    var tintOpacityDark: Double = 0.15
-
-    /// Whether to add a shadow below the menu bar
-    var hasShadow: Bool = false
-
-    /// Shadow opacity (0.0 - 1.0)
-    var shadowOpacity: Double = 0.3
-
-    /// Whether to add a bottom border
-    var hasBorder: Bool = false
-
-    /// Border color (hex string)
-    var borderColor: String = "#808080"
-
-    /// Border width
-    var borderWidth: Double = 1.0
-
-    /// Whether to use rounded corners on the overlay
-    var hasRoundedCorners: Bool = false
-
-    /// Corner radius
-    var cornerRadius: Double = 8.0
-
-    private enum CodingKeys: String, CodingKey {
-        case isEnabled
-        case useLiquidGlass
-        case tintColor
-        case tintOpacity
-        case tintColorDark
-        case tintOpacityDark
-        case hasShadow
-        case shadowOpacity
-        case hasBorder
-        case borderColor
-        case borderWidth
-        case hasRoundedCorners
-        case cornerRadius
-    }
-
-    init(
-        isEnabled: Bool = false,
-        useLiquidGlass: Bool = true,
-        tintColor: String = "#000000",
-        tintOpacity: Double = 0.15,
-        tintColorDark: String = "#FFFFFF",
-        tintOpacityDark: Double = 0.15,
-        hasShadow: Bool = false,
-        shadowOpacity: Double = 0.3,
-        hasBorder: Bool = false,
-        borderColor: String = "#808080",
-        borderWidth: Double = 1.0,
-        hasRoundedCorners: Bool = false,
-        cornerRadius: Double = 8.0
-    ) {
-        self.isEnabled = isEnabled
-        self.useLiquidGlass = useLiquidGlass
-        self.tintColor = tintColor
-        self.tintOpacity = tintOpacity
-        self.tintColorDark = tintColorDark
-        self.tintOpacityDark = tintOpacityDark
-        self.hasShadow = hasShadow
-        self.shadowOpacity = shadowOpacity
-        self.hasBorder = hasBorder
-        self.borderColor = borderColor
-        self.borderWidth = borderWidth
-        self.hasRoundedCorners = hasRoundedCorners
-        self.cornerRadius = cornerRadius
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
-        useLiquidGlass = try container.decodeIfPresent(Bool.self, forKey: .useLiquidGlass) ?? true
-        tintColor = try container.decodeIfPresent(String.self, forKey: .tintColor) ?? "#000000"
-        tintOpacity = try container.decodeIfPresent(Double.self, forKey: .tintOpacity) ?? 0.15
-        tintColorDark = try container.decodeIfPresent(String.self, forKey: .tintColorDark) ?? "#FFFFFF"
-        tintOpacityDark = try container.decodeIfPresent(Double.self, forKey: .tintOpacityDark) ?? 0.15
-        hasShadow = try container.decodeIfPresent(Bool.self, forKey: .hasShadow) ?? false
-        shadowOpacity = try container.decodeIfPresent(Double.self, forKey: .shadowOpacity) ?? 0.3
-        hasBorder = try container.decodeIfPresent(Bool.self, forKey: .hasBorder) ?? false
-        borderColor = try container.decodeIfPresent(String.self, forKey: .borderColor) ?? "#808080"
-        borderWidth = try container.decodeIfPresent(Double.self, forKey: .borderWidth) ?? 1.0
-        hasRoundedCorners = try container.decodeIfPresent(Bool.self, forKey: .hasRoundedCorners) ?? false
-        cornerRadius = try container.decodeIfPresent(Double.self, forKey: .cornerRadius) ?? 8.0
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(isEnabled, forKey: .isEnabled)
-        try container.encode(useLiquidGlass, forKey: .useLiquidGlass)
-        try container.encode(tintColor, forKey: .tintColor)
-        try container.encode(tintOpacity, forKey: .tintOpacity)
-        try container.encode(tintColorDark, forKey: .tintColorDark)
-        try container.encode(tintOpacityDark, forKey: .tintOpacityDark)
-        try container.encode(hasShadow, forKey: .hasShadow)
-        try container.encode(shadowOpacity, forKey: .shadowOpacity)
-        try container.encode(hasBorder, forKey: .hasBorder)
-        try container.encode(borderColor, forKey: .borderColor)
-        try container.encode(borderWidth, forKey: .borderWidth)
-        try container.encode(hasRoundedCorners, forKey: .hasRoundedCorners)
-        try container.encode(cornerRadius, forKey: .cornerRadius)
-    }
-
-    /// Check if running on macOS 26+ for Liquid Glass support (and compiled with Swift 6.2+)
-    static var supportsLiquidGlass: Bool {
-        #if swift(>=6.2)
-            if #available(macOS 26.0, *) {
-                return true
-            }
-            return false
-        #else
-            return false
-        #endif
-    }
-}
-
 // MARK: - MenuBarAppearanceServiceProtocol
 
 /// @mockable
@@ -516,8 +380,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             let coveredRect = rect.intersection(targetFrame)
             let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
             let alpha = number(info[kCGWindowAlpha as String]) ?? 1
+            let layer = number(info[kCGWindowLayer as String]) ?? 0
             guard isOnscreen, alpha > 0 else { continue }
 
+            guard layer == 0 else { continue }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
             guard suppressThinTopHost else { continue }
@@ -589,9 +455,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
     internal nonisolated static let supportedOverlayAppearances: [NSAppearance.Name] = [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua]
 
-    private nonisolated static func currentSystemInterfaceStyleName() -> String {
+    private nonisolated static func currentSystemInterfaceStyleName() -> String? {
         UserDefaults(suiteName: UserDefaults.globalDomain)?
-            .string(forKey: "AppleInterfaceStyle") ?? "Light"
+            .string(forKey: "AppleInterfaceStyle")
     }
 
     internal nonisolated static func resolvedOverlayAppearance(
@@ -602,9 +468,15 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             let currentMatch = appearance?.bestMatch(from: supportedOverlayAppearances)
             let highContrast = currentMatch == .accessibilityHighContrastAqua ||
                 currentMatch == .accessibilityHighContrastDarkAqua
-            let resolvedName: NSAppearance.Name = systemInterfaceStyleName == "Dark"
-                ? (highContrast ? .accessibilityHighContrastDarkAqua : .darkAqua)
-                : (highContrast ? .accessibilityHighContrastAqua : .aqua)
+            let normalizedStyleName = systemInterfaceStyleName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let resolvedName: NSAppearance.Name
+            if normalizedStyleName == "dark" {
+                resolvedName = highContrast ? .accessibilityHighContrastDarkAqua : .darkAqua
+            } else if normalizedStyleName == "light" {
+                resolvedName = highContrast ? .accessibilityHighContrastAqua : .aqua
+            } else {
+                return resolvedOverlayAppearance(from: appearance)
+            }
             return NSAppearance(named: resolvedName) ?? appearance
         }
 
@@ -621,6 +493,48 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         return match == .darkAqua || match == .accessibilityHighContrastDarkAqua
     }
 
+    internal nonisolated static func resolvedTintColorHex(
+        settings: MenuBarAppearanceSettings,
+        isDarkAppearance: Bool
+    ) -> String {
+        isDarkAppearance ? settings.tintColorDark : settings.tintColor
+    }
+
+    internal nonisolated static func resolvedTintColorHex(
+        settings: MenuBarAppearanceSettings,
+        appearance: NSAppearance?,
+        systemInterfaceStyleName: String? = nil
+    ) -> String {
+        resolvedTintColorHex(
+            settings: settings,
+            isDarkAppearance: isDarkAppearance(
+                resolvedOverlayAppearance(
+                    from: appearance,
+                    systemInterfaceStyleName: systemInterfaceStyleName
+                )
+            )
+        )
+    }
+
+    internal nonisolated static func resolvedTintOpacity(
+        settings: MenuBarAppearanceSettings,
+        isDarkAppearance: Bool,
+        reduceTransparency: Bool
+    ) -> Double {
+        let baseOpacity = isDarkAppearance ? settings.tintOpacityDark : settings.tintOpacity
+        return reduceTransparency ? max(baseOpacity, 0.5) : baseOpacity
+    }
+
+    internal nonisolated static func resolvedOverlayWindowLevel(
+        settings: MenuBarAppearanceSettings,
+        reduceTransparency: Bool
+    ) -> NSWindow.Level {
+        let useGlass = settings.useLiquidGlass &&
+            MenuBarAppearanceSettings.supportsLiquidGlass &&
+            !reduceTransparency
+        return useGlass ? .statusBar - 1 : .statusBar
+    }
+
     // MARK: - Window Level
 
     /// Adjust the overlay window level based on the active appearance mode.
@@ -635,14 +549,13 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private func updateWindowLevel() {
         guard let window = overlayWindow, let vm = overlayViewModel else { return }
 
-        let useGlass = vm.settings.useLiquidGlass
-            && MenuBarAppearanceSettings.supportsLiquidGlass
-            && !vm.reduceTransparency
-
-        let newLevel: NSWindow.Level = useGlass ? .statusBar - 1 : .statusBar
+        let newLevel = Self.resolvedOverlayWindowLevel(
+            settings: vm.settings,
+            reduceTransparency: vm.reduceTransparency
+        )
         if window.level != newLevel {
             window.level = newLevel
-            logger.debug("Overlay window level → \(newLevel.rawValue) (glass=\(useGlass))")
+            logger.debug("Overlay window level → \(newLevel.rawValue)")
         }
     }
 

@@ -2,7 +2,9 @@
 # frozen_string_literal: true
 
 require 'minitest/autorun'
+require 'tempfile'
 require_relative 'qa'
+require_relative 'live_zone_smoke'
 
 class ProjectQATest < Minitest::Test
   def setup
@@ -70,6 +72,52 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:regression_like_title?, "Can't build from source again")
     assert @qa.send(:regression_like_title?, 'App update direct to latest version')
     assert @qa.send(:regression_like_title?, '[Bug]: Status items invisible on macOS Tahoe')
+  end
+
+  def test_release_runtime_smoke_requires_tint_pixel_evidence_by_default
+    source = File.read(File.join(__dir__, 'qa.rb'))
+
+    assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
+    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
+    refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
+  end
+
+  def test_live_zone_smoke_rejects_black_appearance_snapshot_pixels
+    Tempfile.create(['black-tint', '.bmp']) do |file|
+      write_test_bmp(file.path, Array.new(25) { [0, 0, 0, 96] })
+
+      stats = LiveZoneSmoke.appearance_tint_pixel_stats(file.path)
+
+      refute LiveZoneSmoke.orange_tint_pixel_stats?(stats)
+    end
+  end
+
+  def test_live_zone_smoke_accepts_orange_appearance_snapshot_pixels
+    Tempfile.create(['orange-tint', '.bmp']) do |file|
+      write_test_bmp(file.path, Array.new(25) { [255, 85, 0, 96] })
+
+      stats = LiveZoneSmoke.appearance_tint_pixel_stats(file.path)
+
+      assert LiveZoneSmoke.orange_tint_pixel_stats?(stats)
+    end
+  end
+
+  def write_test_bmp(path, rgba_pixels)
+    width = Math.sqrt(rgba_pixels.length).to_i
+    height = width
+    raise "Test BMP requires square pixels" unless width * height == rgba_pixels.length
+    bits_per_pixel = 32
+    pixel_offset = 54
+    row_stride = width * 4
+    image_size = row_stride * height
+    file_size = pixel_offset + image_size
+    header = +'BM'
+    header << [file_size, 0, 0, pixel_offset].pack('VvvV')
+    header << [40, width, height, 1, bits_per_pixel, 0, image_size, 2835, 2835, 0, 0].pack('VllvvVVllVV')
+    # Positive-height BMP stores rows bottom-up.
+    rows = rgba_pixels.each_slice(width).to_a.reverse
+    pixel_data = rows.flatten(1).map { |r, g, b, a| [b, g, r, a].pack('C4') }.join
+    File.binwrite(path, header + pixel_data)
   end
 
   def test_release_blocking_issue_detection_uses_labels_not_only_titles

@@ -160,6 +160,7 @@ class LiveZoneSmoke
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @require_appearance_transitions = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS'] == '1'
+    @require_appearance_tint_pixels = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS'] == '1'
     @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
     @post_move_zone_stability_seconds = float_env('SANEBAR_SMOKE_POST_MOVE_ZONE_STABILITY_SECONDS') || DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
@@ -812,16 +813,19 @@ class LiveZoneSmoke
       puts 'ℹ️ Skipping appearance transition visual check: custom appearance overlay is not visible'
       return
     end
+    assert_appearance_tint_snapshot!(baseline, 'baseline')
 
     open_full_width_transition_probe_window
     sleep_with_watchdog(0.5)
     maximized = capture_appearance_overlay_screenshot('maximized-host')
     raise 'Appearance overlay was not visible over a maximized/full-width host window' unless maximized
+    assert_appearance_tint_snapshot!(maximized, 'maximized-host')
 
     if toggle_native_fullscreen_probe_window
       sleep_with_watchdog(1.5)
       fullscreen = capture_appearance_overlay_screenshot('native-fullscreen-host')
       raise 'Appearance overlay was not visible during native fullscreen transition' unless fullscreen
+      assert_appearance_tint_snapshot!(fullscreen, 'native-fullscreen-host')
       toggle_native_fullscreen_probe_window
       sleep_with_watchdog(0.8)
     elsif @require_appearance_transitions
@@ -831,6 +835,17 @@ class LiveZoneSmoke
     puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
   ensure
     close_transition_probe_window_safely
+  end
+
+  def assert_appearance_tint_snapshot!(path, label)
+    return unless @require_appearance_tint_pixels
+
+    stats = self.class.appearance_tint_pixel_stats(path)
+    unless self.class.orange_tint_pixel_stats?(stats)
+      raise "Appearance overlay #{label} did not contain the expected orange tint pixels: #{stats.inspect}"
+    end
+
+    puts "✅ Appearance tint pixels ok (#{label}): #{stats.inspect}"
   end
 
   def capture_appearance_overlay_screenshot(label)
@@ -847,6 +862,83 @@ class LiveZoneSmoke
   rescue StandardError
     FileUtils.rm_f(path) if path
     nil
+  end
+
+  def self.orange_tint_pixel_stats?(stats)
+    return false unless stats[:sampled_pixels].to_i >= 20
+
+    stats[:avg_r] >= 70 &&
+      stats[:avg_g] >= 15 &&
+      stats[:avg_r] > stats[:avg_g] * 1.35 &&
+      stats[:avg_g] > stats[:avg_b] * 1.8 &&
+      stats[:avg_b] <= 45
+  end
+
+  def self.appearance_tint_pixel_stats(path)
+    bmp_path = path
+    cleanup_path = nil
+    unless File.extname(path).casecmp('.bmp').zero?
+      cleanup_path = File.join(Dir.tmpdir, "sanebar-appearance-#{Process.pid}-#{Time.now.to_i}.bmp")
+      out, status = Open3.capture2e('/usr/bin/sips', '-s', 'format', 'bmp', path, '--out', cleanup_path)
+      raise "Could not convert tint snapshot to BMP: #{out.strip}" unless status.success? && File.size?(cleanup_path)
+
+      bmp_path = cleanup_path
+    end
+
+    parse_bmp_pixel_stats(bmp_path)
+  ensure
+    FileUtils.rm_f(cleanup_path) if cleanup_path
+  end
+
+  def self.parse_bmp_pixel_stats(path)
+    data = File.binread(path)
+    raise "Not a BMP file: #{path}" unless data.start_with?('BM')
+
+    pixel_offset = data.byteslice(10, 4).unpack1('V')
+    width = data.byteslice(18, 4).unpack1('l<')
+    raw_height = data.byteslice(22, 4).unpack1('l<')
+    bits_per_pixel = data.byteslice(28, 2).unpack1('v')
+    raise "Unsupported BMP depth #{bits_per_pixel}" unless [24, 32].include?(bits_per_pixel)
+    raise "Invalid BMP dimensions #{width}x#{raw_height}" if width <= 0 || raw_height == 0
+
+    height = raw_height.abs
+    bytes_per_pixel = bits_per_pixel / 8
+    row_stride = ((width * bits_per_pixel + 31) / 32) * 4
+    max_samples_per_row = [width, 400].min
+    step = [width / max_samples_per_row, 1].max
+    totals = { r: 0.0, g: 0.0, b: 0.0, alpha: 0.0, sampled_pixels: 0 }
+
+    height.times do |row|
+      storage_row = raw_height.positive? ? (height - 1 - row) : row
+      row_offset = pixel_offset + (storage_row * row_stride)
+      x = 0
+      while x < width
+        pixel_offset_for_x = row_offset + (x * bytes_per_pixel)
+        b = data.getbyte(pixel_offset_for_x).to_i
+        g = data.getbyte(pixel_offset_for_x + 1).to_i
+        r = data.getbyte(pixel_offset_for_x + 2).to_i
+        alpha = bits_per_pixel == 32 ? data.getbyte(pixel_offset_for_x + 3).to_i : 255
+        if alpha >= 8 || bits_per_pixel == 24
+          totals[:r] += r
+          totals[:g] += g
+          totals[:b] += b
+          totals[:alpha] += alpha
+          totals[:sampled_pixels] += 1
+        end
+        x += step
+      end
+    end
+
+    count = totals[:sampled_pixels]
+    raise "No nontransparent pixels found in #{path}" if count.zero?
+
+    {
+      sampled_pixels: count,
+      avg_r: (totals[:r] / count).round(1),
+      avg_g: (totals[:g] / count).round(1),
+      avg_b: (totals[:b] / count).round(1),
+      avg_alpha: (totals[:alpha] / count).round(1)
+    }
   end
 
   def open_full_width_transition_probe_window

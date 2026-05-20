@@ -20,7 +20,10 @@ struct MenuBarOverlayView: View {
 
     /// Active tint color based on the overlay window appearance.
     private var activeTintColor: String {
-        viewModel.isDarkAppearance ? viewModel.settings.tintColorDark : viewModel.settings.tintColor
+        MenuBarAppearanceService.resolvedTintColorHex(
+            settings: viewModel.settings,
+            isDarkAppearance: viewModel.isDarkAppearance
+        )
     }
 
     /// Active tint opacity based on the overlay window appearance.
@@ -28,13 +31,11 @@ struct MenuBarOverlayView: View {
     /// instead of blur — low-opacity tints are invisible on solid backgrounds. Use at least 50%
     /// opacity to ensure the tint is perceptible while not completely obscuring icons.
     private var activeTintOpacity: Double {
-        let baseOpacity = viewModel.isDarkAppearance
-            ? viewModel.settings.tintOpacityDark
-            : viewModel.settings.tintOpacity
-        if viewModel.reduceTransparency {
-            return max(baseOpacity, 0.5)
-        }
-        return baseOpacity
+        MenuBarAppearanceService.resolvedTintOpacity(
+            settings: viewModel.settings,
+            isDarkAppearance: viewModel.isDarkAppearance,
+            reduceTransparency: viewModel.reduceTransparency
+        )
     }
 
     var body: some View {

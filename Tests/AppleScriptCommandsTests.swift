@@ -133,6 +133,46 @@ struct AppleScriptCommandsTests {
         #expect(queueSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
     }
 
+    @Test("Snapshot path policy accepts PNGs under allowed capture roots")
+    func snapshotPathPolicyAcceptsAllowedPngRoots() throws {
+        let tempPath = NSTemporaryDirectory() + "sanebar-script-snapshot-test.png"
+        let screenshotsPath = NSHomeDirectory() + "/Desktop/Screenshots/SaneBar/script-snapshot-test.png"
+        let customerUIPath = NSHomeDirectory() + "/SaneApps/apps/SaneBar/outputs/customer-ui/script-snapshot-test.png"
+
+        #expect(try ScriptSnapshotPathPolicy.validatedOutputPath(from: tempPath).hasSuffix(".png"))
+        #expect(try ScriptSnapshotPathPolicy.validatedOutputPath(from: screenshotsPath).hasSuffix(".png"))
+        #expect(try ScriptSnapshotPathPolicy.validatedOutputPath(from: customerUIPath).hasSuffix(".png"))
+    }
+
+    @Test("Snapshot path policy rejects non-PNG and outside capture roots")
+    func snapshotPathPolicyRejectsUnsafeTargets() {
+        #expect(throws: (any Error).self) {
+            try ScriptSnapshotPathPolicy.validatedOutputPath(from: "/tmp/sanebar-script-snapshot-test.plist")
+        }
+        #expect(throws: (any Error).self) {
+            try ScriptSnapshotPathPolicy.validatedOutputPath(from: NSHomeDirectory() + "/Library/LaunchAgents/test.png")
+        }
+    }
+
+    @Test("Snapshot path policy rejects existing symlink target")
+    func snapshotPathPolicyRejectsExistingSymlinkTarget() throws {
+        let fileManager = FileManager.default
+        let target = NSTemporaryDirectory() + "sanebar-script-snapshot-target.png"
+        let link = NSTemporaryDirectory() + "sanebar-script-snapshot-link.png"
+        try? fileManager.removeItem(atPath: target)
+        try? fileManager.removeItem(atPath: link)
+        try Data("png".utf8).write(to: URL(fileURLWithPath: target))
+        try fileManager.createSymbolicLink(atPath: link, withDestinationPath: target)
+        defer {
+            try? fileManager.removeItem(atPath: target)
+            try? fileManager.removeItem(atPath: link)
+        }
+
+        #expect(throws: (any Error).self) {
+            try ScriptSnapshotPathPolicy.validatedOutputPath(from: link)
+        }
+    }
+
     // MARK: - Command Return Value Tests
 
     @Test("ToggleCommand returns nil from performDefaultImplementation")
