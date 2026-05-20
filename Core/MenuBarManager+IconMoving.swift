@@ -1998,7 +1998,13 @@ extension MenuBarManager {
             // Keep classification boundary caches aligned with the new layout.
             await manager.refreshSeparatorCacheAfterMove()
 
-            // 4. Restore shield and re-hide (BEFORE refresh)
+            let shouldPreservePreHideMoveSnapshot = success
+            if shouldPreservePreHideMoveSnapshot {
+                logger.info("🔧 Capturing AH-to-Hidden move snapshot before re-hide")
+                await manager.refreshAccessibilityCacheAfterMove()
+            }
+
+            // 4. Restore shield and re-hide.
             await manager.hidingService.restoreFromShowAll()
 
             let shouldSkipHide = await MainActor.run { manager.shouldSkipHideForExternalMonitor }
@@ -2006,11 +2012,17 @@ extension MenuBarManager {
                 await manager.hidingService.hide()
             }
 
-            // 5. Refresh after positions settle
-            try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
-                NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
+            if shouldPreservePreHideMoveSnapshot {
+                await MainActor.run {
+                    AccessibilityService.shared.preserveFreshMenuBarItemPositionsAfterManualMove()
+                }
+            } else {
+                // 5. Refresh after positions settle
+                try? await Task.sleep(for: .milliseconds(300))
+                await MainActor.run {
+                    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
+                    NotificationCenter.default.post(name: .menuBarIconsDidChange, object: nil)
+                }
             }
 
             return success

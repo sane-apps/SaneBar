@@ -667,6 +667,39 @@ final class RuntimeGuardXCTests: XCTestCase {
         )
     }
 
+    func testAlwaysHiddenToHiddenMovePreservesPreHideSnapshot() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager+IconMoving.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Capturing AH-to-Hidden move snapshot before re-hide") &&
+                source.contains("await manager.refreshAccessibilityCacheAfterMove()") &&
+                source.contains("AccessibilityService.shared.preserveFreshMenuBarItemPositionsAfterManualMove()"),
+            "AH-to-Hidden moves should preserve the shown-state post-move cache so immediate AppleScript verification does not reclassify regular Hidden as Always Hidden after re-hide"
+        )
+    }
+
+    func testRuntimeSmokeRequiresNoKeychainProForFocusedExactIdLanes() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Scripts/qa.rb")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("focused_runtime_smoke_pro_error(target, lane_name)") &&
+                source.contains("licenseIsPro") &&
+                source.contains("runtime_smoke_target_process_detail(target)") &&
+                source.contains("runtime_smoke_fallback_defaults_detail"),
+            "Focused exact-ID runtime smoke should fail early with Pro/process/defaults diagnostics before moving Apple menu extras"
+        )
+        XCTAssertTrue(
+            source.contains("require_no_keychain && !command.include?('--sane-no-keychain')"),
+            "Runtime smoke should not accept a real-keychain process when the target was launched for no-keychain release automation"
+        )
+        XCTAssertFalse(
+            source.contains(".filter_map"),
+            "Project QA must avoid newer Ruby helpers because the Mini runtime can be older than the controller machine"
+        )
+    }
+
     func testHiddenStateClassificationUsesPinnedFallbackForAlwaysHidden() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)

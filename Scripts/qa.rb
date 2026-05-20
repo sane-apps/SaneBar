@@ -1072,9 +1072,18 @@ class ProjectQA
   end
 
   def run_focused_runtime_smoke_exact_ids(target:, smoke_env:, smoke_script:, exact_ids:, log_path:, lane_name:, retryable_failure_method:)
+    focused_outputs = []
     unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
       @errors << "Focused #{lane_name} smoke could not relaunch target #{target[:app_path]}. See #{RUNTIME_LAUNCH_LOG_PATH}"
       puts "❌ #{lane_name} relaunch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
+      return false
+    end
+
+    if (pro_error = focused_runtime_smoke_pro_error(target, lane_name))
+      focused_outputs << pro_error
+      File.write(log_path, focused_outputs.join("\n\n"))
+      @errors << "#{pro_error} See #{log_path}."
+      puts "❌ #{lane_name} Pro precheck failed (#{log_path})"
       return false
     end
 
@@ -1086,7 +1095,6 @@ class ProjectQA
     if lane_name == 'host exact-id'
       focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
     end
-    focused_outputs = []
     focused_attempt = 0
 
     loop do
@@ -1115,6 +1123,13 @@ class ProjectQA
           puts "❌ #{lane_name} retry relaunch failed (#{log_path})"
           return false
         end
+        if (pro_error = focused_runtime_smoke_pro_error(target, "#{lane_name} retry"))
+          focused_outputs << pro_error
+          File.write(log_path, focused_outputs.join("\n\n"))
+          @errors << "#{pro_error} See #{log_path}."
+          puts "❌ #{lane_name} retry Pro precheck failed (#{log_path})"
+          return false
+        end
         next
       end
 
@@ -1130,6 +1145,14 @@ class ProjectQA
 
     puts "✅ focused #{lane_name} smoke passed (#{exact_ids.join(', ')})"
     true
+  end
+
+  def focused_runtime_smoke_pro_error(target, lane_name)
+    snapshot = runtime_smoke_layout_snapshot(target)
+    return nil if snapshot && snapshot['licenseIsPro'] == true
+
+    detail = snapshot.nil? ? 'snapshot unavailable' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
+    "Focused #{lane_name} smoke requires a Pro no-keychain target before moving exact IDs; #{detail}. #{runtime_smoke_target_process_detail(target)} #{runtime_smoke_fallback_defaults_detail}".strip
   end
 
   def internal_runtime_snapshot_supported?
@@ -1305,21 +1328,51 @@ class ProjectQA
 
     deadline = Time.now + 8
     while Time.now < deadline
-      processes, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,command=')
-      break unless status.success?
-
-      matches = processes.lines.any? do |line|
-        _pid, command = line.strip.split(/\s+/, 2)
-        next false unless command
-
-        command.split(/\s+/, 2).first.to_s == target[:process_path]
-      end
+      matches = runtime_smoke_target_processes(target)
       return true if matches
+      if target[:no_keychain] && !runtime_smoke_target_processes(target, require_no_keychain: false).empty?
+        # Launch Services can briefly keep the old instance around. Keep polling,
+        # but do not accept a real-keychain process for release smoke.
+        sleep 0.5
+        next
+      end
 
       sleep 0.5
     end
 
     false
+  end
+
+  def runtime_smoke_target_processes(target, require_no_keychain: target[:no_keychain])
+    processes, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,command=')
+    return [] unless status.success?
+
+    processes.lines.each_with_object([]) do |line, result|
+      pid, command = line.strip.split(/\s+/, 2)
+      next unless pid && command
+      next unless command.split(/\s+/, 2).first.to_s == target[:process_path]
+      next if require_no_keychain && !command.include?('--sane-no-keychain')
+
+      result << "#{pid} #{command}"
+    end
+  end
+
+  def runtime_smoke_target_process_detail(target)
+    matches = runtime_smoke_target_processes(target, require_no_keychain: false)
+    return 'process=none' if matches.empty?
+
+    "process=#{matches.join(' | ')}"
+  rescue StandardError => e
+    "process=unavailable(#{e.class}: #{e.message})"
+  end
+
+  def runtime_smoke_fallback_defaults_detail
+    key = 'sane.no-keychain.com.sanebar.app.pro_license_key'
+    value, status = Open3.capture2e('defaults', 'read', 'com.sanebar.app', key)
+    value = status.success? ? value.strip : 'missing'
+    "fallbackDefaults.#{key}=#{value}"
+  rescue StandardError => e
+    "fallbackDefaults=unavailable(#{e.class}: #{e.message})"
   end
 
   def validate_runtime_smoke_target(target)
