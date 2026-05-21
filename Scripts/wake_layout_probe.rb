@@ -10,6 +10,8 @@ require 'time'
 class WakeLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
   SNAPSHOT_DELAYS = [1.0, 5.0, 15.0].freeze
+  SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 6.0
+  SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
   BLOCKED_LOG_PATTERNS = [
     /Status item remained off-menu-bar/i,
@@ -131,7 +133,7 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
-    snapshots = snapshots_after_wake(wake_time, label: 'hidden')
+    snapshots = snapshots_after_wake(wake_time, label: 'hidden', expected_state: 'hidden')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'hidden', label: "hidden #{entry[:delay]}s")
       assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "hidden #{entry[:delay]}s")
@@ -160,7 +162,7 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
-    snapshots = snapshots_after_wake(wake_time, label: 'expanded')
+    snapshots = snapshots_after_wake(wake_time, label: 'expanded', expected_state: 'expanded')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'expanded', label: "expanded #{entry[:delay]}s")
       assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "expanded #{entry[:delay]}s")
@@ -202,11 +204,19 @@ class WakeLayoutProbe
     Time.now.utc
   end
 
-  def snapshots_after_wake(wake_time, label:)
+  def snapshots_after_wake(wake_time, label:, expected_state:)
     SNAPSHOT_DELAYS.map do |delay|
       remaining = (wake_time + delay) - Time.now.utc
       sleep remaining if remaining.positive?
-      snapshot = read_layout_snapshot!
+      snapshot = wait_for_snapshot(
+        label: "#{label} #{delay}s",
+        timeout: SNAPSHOT_SETTLE_TIMEOUT_SECONDS,
+        interval: SNAPSHOT_SETTLE_POLL_SECONDS
+      ) do |candidate|
+        candidate['hidingState'] == expected_state && snapshot_healthy?(candidate) &&
+          (!candidate.key?('startupItemsValid') || truthy?(candidate['startupItemsValid'])) &&
+          !truthy?(candidate['possibleSystemMenuBarSuppression'])
+      end
       log(
         "#{label} snapshot after #{delay}s: hidingState=#{snapshot['hidingState']} " \
         "mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']} " \

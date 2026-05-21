@@ -89,6 +89,7 @@ class CustomerUIActionSweepTest < Minitest::Test
       'startup-wake-appearance-recovery' => {
         evidence: [
           { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_startup_probe.log: Startup layout probe passed', artifacts: ['/tmp/sanebar_runtime_startup_probe.log'] },
+          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_wake_probe.log: Wake layout probe passed', artifacts: ['/tmp/sanebar_runtime_wake_probe.log'] },
           { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
           { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] },
           { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }

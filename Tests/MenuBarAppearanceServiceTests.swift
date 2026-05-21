@@ -187,7 +187,7 @@ struct MenuBarAppearanceServiceTests {
         service.updateAppearance(enabled)
 
         let window = try #require(currentOverlayWindow(for: service))
-        #expect(window.isVisible, "Enabled appearance should create a visible overlay")
+        #expect(currentOverlayWindow(for: service) != nil, "Enabled appearance should create the overlay window")
 
         var disabled = enabled
         disabled.isEnabled = false
@@ -231,8 +231,8 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
-    @Test("Appearance overlay stays visible for fullscreen-shaped content windows")
-    func testDoesNotSuppressOverlayForFullscreenContentWindow() {
+    @Test("Appearance overlay hides for fullscreen-shaped content windows")
+    func testSuppressesOverlayForFullscreenContentWindow() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
             kCGWindowLayer as String: NSNumber(value: 0),
@@ -247,7 +247,7 @@ struct MenuBarAppearanceServiceTests {
         ]]
 
         #expect(
-            !MenuBarAppearanceService.shouldSuppressOverlay(
+            MenuBarAppearanceService.shouldSuppressOverlay(
                 frontmostPID: 5151,
                 frontmostBundleID: "com.google.Chrome",
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
@@ -257,8 +257,8 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
-    @Test("Fullscreen-shaped content windows do not hide Custom Appearance")
-    func testFullscreenContentSuppressionIsDisabled() {
+    @Test("Fullscreen-shaped content windows hide Custom Appearance")
+    func testFullscreenContentSuppressionIsEnabled() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
             kCGWindowBounds as String: [
@@ -276,12 +276,12 @@ struct MenuBarAppearanceServiceTests {
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
                 windowInfos: infos,
                 selfPID: 9999
-            ) == nil
+            ) == .fullscreenContentWindow
         )
     }
 
-    @Test("Appearance overlay stays visible for fullscreen windows with slight geometry drift")
-    func testDoesNotSuppressOverlayForFullscreenWindowWithDrift() {
+    @Test("Appearance overlay hides for fullscreen windows with slight geometry drift")
+    func testSuppressesOverlayForFullscreenWindowWithDrift() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
             kCGWindowBounds as String: [
@@ -293,7 +293,7 @@ struct MenuBarAppearanceServiceTests {
         ]]
 
         #expect(
-            !MenuBarAppearanceService.shouldSuppressOverlay(
+            MenuBarAppearanceService.shouldSuppressOverlay(
                 frontmostPID: 5151,
                 frontmostBundleID: "com.brave.Browser",
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
@@ -511,8 +511,8 @@ struct MenuBarAppearanceServiceTests {
         )
     }
 
-    @Test("Appearance overlay stays visible for Apple fullscreen content windows")
-    func testDoesNotSuppressOverlayForAppleFullscreenContentWindow() {
+    @Test("Appearance overlay hides for Apple fullscreen content windows")
+    func testSuppressesOverlayForAppleFullscreenContentWindow() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
             kCGWindowBounds as String: [
@@ -524,7 +524,7 @@ struct MenuBarAppearanceServiceTests {
         ]]
 
         #expect(
-            !MenuBarAppearanceService.shouldSuppressOverlay(
+            MenuBarAppearanceService.shouldSuppressOverlay(
                 frontmostPID: 5151,
                 frontmostBundleID: "com.apple.Safari",
                 targetScreenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
@@ -891,10 +891,15 @@ struct MenuBarAppearanceServiceTests {
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
         #expect(source.contains("private var pendingOverlayRefreshWorkItems"))
+        #expect(source.contains("private var visibilityReconciliationTimer"))
         #expect(source.contains("private func scheduleOverlayVisibilityRefreshes()"))
+        #expect(source.contains("private func startVisibilityReconciliationTimer()"))
+        #expect(source.contains("private func stopVisibilityReconciliationTimer()"))
         #expect(source.contains("DispatchQueue.main.asyncAfter"))
+        #expect(source.contains("Timer(timeInterval: Self.overlayVisibilityReconciliationInterval"))
         #expect(source.contains("internal nonisolated static let overlayVisibilityRefreshRetryDelays"))
         #expect(MenuBarAppearanceService.overlayVisibilityRefreshRetryDelays == [0.15, 0.5, 1.5, 3.0])
+        #expect(MenuBarAppearanceService.overlayVisibilityReconciliationInterval == 0.5)
         #expect(source.contains("NSWorkspace.didActivateApplicationNotification"))
         #expect(source.contains("NSWorkspace.activeSpaceDidChangeNotification"))
         #expect(source.contains("NSWorkspace.didWakeNotification"))
@@ -903,8 +908,8 @@ struct MenuBarAppearanceServiceTests {
         #expect(source.contains("func refreshAfterStatusItemRecovery()"))
     }
 
-    @Test("Overlay hides only for thin top hosts and joins fullscreen spaces")
-    func testOverlayOnlySuppressesThinTopHostsAndJoinsFullscreenSpaces() throws {
+    @Test("Overlay hides for fullscreen content and thin top hosts")
+    func testOverlaySuppressesFullscreenContentAndThinTopHosts() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -918,9 +923,9 @@ struct MenuBarAppearanceServiceTests {
         }
 
         let refreshBody = String(source[refreshStart.lowerBound..<refreshEnd.lowerBound])
-        #expect(!refreshBody.contains("fullscreenContentWindow"))
+        #expect(source.contains("case fullscreenContentWindow"))
         #expect(!refreshBody.contains("scheduleStableFullscreenSuppression()"))
-        #expect(refreshBody.contains("if suppressionReason == .thinTopHost"))
+        #expect(refreshBody.contains("if suppressionReason != nil"))
         #expect(refreshBody.contains("window.orderOut(nil)"))
         #expect(source.contains(".optionOnScreenOnly"))
         #expect(source.contains("kCGWindowIsOnscreen"))

@@ -79,6 +79,8 @@ class ProjectQATest < Minitest::Test
 
     assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
+    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
+    assert_includes source, "missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?"
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
   end
 
@@ -168,6 +170,64 @@ class ProjectQATest < Minitest::Test
     }
 
     assert @qa.send(:open_issue_blocks_release?, issue)
+  end
+
+  def test_patched_pending_with_fresh_negative_blocks_without_current_release_evidence
+    issue = patched_pending_issue_with_fresh_negative
+    @qa.define_singleton_method(:open_regression_release_evidence_text) { '' }
+
+    assert @qa.send(:open_issue_blocks_release?, issue)
+  end
+
+  def test_patched_pending_with_fresh_negative_allows_current_verified_release_evidence
+    issue = patched_pending_issue_with_fresh_negative
+    today = Date.today.strftime('%Y-%m-%d')
+    @qa.define_singleton_method(:open_regression_release_evidence_text) do
+      <<~MARKDOWN
+        ## SaneBar issue #147 release evidence | Updated: #{today}
+        - Trigger: GitHub #147 reported visible items moving into Hidden after wake.
+        - #147 local root cause: wake recovery stopped after missing live coordinates.
+        - Current patch addresses the pending release by escalating bounded missing-coordinate recovery.
+        - Current proof: Mini ./scripts/SaneMaster.rb verify --timeout 900 passed 953 tests and the wake layout probe passed.
+      MARKDOWN
+    end
+
+    refute @qa.send(:open_issue_blocks_release?, issue)
+  end
+
+  def test_patched_pending_with_fresh_negative_requires_recent_release_evidence
+    issue = patched_pending_issue_with_fresh_negative
+    stale_date = (Date.today - 30).strftime('%Y-%m-%d')
+    @qa.define_singleton_method(:open_regression_release_evidence_text) do
+      <<~MARKDOWN
+        ## SaneBar issue #147 release evidence | Updated: #{stale_date}
+        - #147 local root cause: old recovery hypothesis.
+        - Current patch addresses the pending release.
+        - Current proof: Mini verify passed.
+      MARKDOWN
+    end
+
+    assert @qa.send(:open_issue_blocks_release?, issue)
+  end
+
+  def patched_pending_issue_with_fresh_negative
+    {
+      'number' => 147,
+      'title' => 'Icons jumping from shown to hidden',
+      'labels' => [{ 'name' => 'bug' }, { 'name' => 'release:patched-pending' }],
+      'comments' => [
+        {
+          'authorAssociation' => 'OWNER',
+          'createdAt' => '2026-05-20T10:00:00Z',
+          'body' => 'Fixed in the next release build.'
+        },
+        {
+          'authorAssociation' => 'NONE',
+          'createdAt' => '2026-05-20T12:00:00Z',
+          'body' => 'The same issue is still reproducing with fresh logs.'
+        }
+      ]
+    }
   end
 
   def test_open_regression_query_requests_labels_for_blocking_policy
@@ -271,13 +331,17 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
   end
 
-  def test_runtime_smoke_requires_startup_layout_probe
+  def test_runtime_smoke_requires_startup_and_wake_layout_probes
     source = File.read(File.join(__dir__, 'qa.rb'))
 
     assert_includes source, "startup_probe_script = File.join(__dir__, 'startup_layout_probe.rb')"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"
     assert_includes source, "runtime startup layout probe"
+    assert_includes source, "wake_probe_script = File.join(__dir__, 'wake_layout_probe.rb')"
+    assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
+    assert_includes source, "'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH"
+    assert_includes source, "runtime wake layout probe"
   end
 
   def test_preflight_mode_accepts_saneprocess_env_names

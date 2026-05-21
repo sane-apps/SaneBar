@@ -65,6 +65,11 @@ class LiveZoneSmoke
   # requested zone after that settle window, not only immediately after drop.
   DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS = 2.2
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
+  FULLSCREEN_APPEARANCE_SETTLE_SECONDS = 2.1
+  FULLSCREEN_TRANSITION_PROBE_APPS = [
+    { label: 'safari', app: 'Safari', process: 'Safari' },
+    { label: 'textedit', app: 'TextEdit', process: 'TextEdit' }
+  ].freeze
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
     com.apple.systemuiserver
@@ -161,6 +166,7 @@ class LiveZoneSmoke
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @require_appearance_transitions = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS'] == '1'
     @require_appearance_tint_pixels = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS'] == '1'
+    @require_visible_appearance_pixels = ENV['SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS'] == '1'
     @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
     @post_move_zone_stability_seconds = float_env('SANEBAR_SMOKE_POST_MOVE_ZONE_STABILITY_SECONDS') || DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
@@ -821,20 +827,52 @@ class LiveZoneSmoke
     raise 'Appearance overlay was not visible over a maximized/full-width host window' unless maximized
     assert_appearance_tint_snapshot!(maximized, 'maximized-host')
 
-    if toggle_native_fullscreen_probe_window
-      sleep_with_watchdog(1.5)
-      fullscreen = capture_appearance_overlay_screenshot('native-fullscreen-host')
-      raise 'Appearance overlay was not visible during native fullscreen transition' unless fullscreen
-      assert_appearance_tint_snapshot!(fullscreen, 'native-fullscreen-host')
-      toggle_native_fullscreen_probe_window
-      sleep_with_watchdog(0.8)
-    elsif @require_appearance_transitions
-      raise 'Native fullscreen transition probe could not be triggered'
-    end
+    exercise_visible_fullscreen_transition_pixel_check
 
     puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
   ensure
     close_transition_probe_window_safely
+  end
+
+  def exercise_visible_fullscreen_transition_pixel_check
+    return unless @require_visible_appearance_pixels
+
+    FULLSCREEN_TRANSITION_PROBE_APPS.each do |probe|
+      open_visible_transition_probe_window(probe)
+      sleep_with_watchdog(0.4)
+
+      set_fullscreen_probe_window(probe, true)
+      sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
+      assert_fullscreen_probe_window_state!(probe, true)
+      assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
+
+      sleep_with_watchdog(0.8)
+
+      set_fullscreen_probe_window(probe, false)
+      sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
+      assert_fullscreen_probe_window_state!(probe, false)
+      assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
+    ensure
+      set_fullscreen_probe_window(probe, false) if probe
+      close_visible_transition_probe_window_safely(probe)
+    end
+
+    puts '✅ Visible fullscreen transition contract ok (Safari + TextEdit)'
+  end
+
+  def assert_appearance_overlay_hidden_after_fullscreen_settle!(label)
+    path = capture_appearance_overlay_screenshot(label.gsub(/\s+/, '-'))
+    return if path.nil?
+
+    stats = self.class.appearance_tint_pixel_stats(path)
+    raise "Appearance overlay remained visible after #{label}: #{File.basename(path)} #{stats.inspect}"
+  end
+
+  def assert_appearance_overlay_restored_after_fullscreen_settle!(label)
+    path = capture_appearance_overlay_screenshot(label)
+    raise "Appearance overlay did not restore after #{label}" unless path
+
+    assert_appearance_tint_snapshot!(path, label)
   end
 
   def assert_appearance_tint_snapshot!(path, label)
@@ -954,6 +992,75 @@ class LiveZoneSmoke
     raise "Could not open appearance transition probe window: #{out.strip}" unless code.success?
   end
 
+  def open_visible_transition_probe_window(probe)
+    case probe[:app]
+    when 'Safari'
+      open_safari_transition_probe_window
+    when 'TextEdit'
+      open_textedit_transition_probe_window
+    else
+      raise "Unsupported visible transition probe app: #{probe[:app]}"
+    end
+  end
+
+  def open_safari_transition_probe_window
+    probe_html = File.join(Dir.tmpdir, 'sanebar-fullscreen-probe.html')
+    File.write(
+      probe_html,
+      '<!doctype html><title>SaneBar Fullscreen Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar fullscreen transition probe</body>'
+    )
+    script = <<~APPLESCRIPT
+      tell application "Safari"
+        activate
+        make new document with properties {URL:"file://#{probe_html}"}
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not open Safari transition probe window: #{out.strip}" unless code.success?
+  end
+
+  def open_textedit_transition_probe_window
+    open_full_width_transition_probe_window
+  end
+
+  def set_fullscreen_probe_window(probe, enabled)
+    return unless probe
+
+    script = <<~APPLESCRIPT
+      tell application "#{probe[:app]}" to activate
+      delay 0.2
+      tell application "System Events"
+        tell process "#{probe[:process]}"
+          set frontmost to true
+          if (count of windows) = 0 then error "No #{probe[:process]} windows available for fullscreen probe"
+          set value of attribute "AXFullScreen" of window 1 to #{enabled ? 'true' : 'false'}
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not set #{probe[:app]} fullscreen=#{enabled}: #{out.strip}" unless code.success?
+  rescue StandardError
+    raise if enabled
+  end
+
+  def assert_fullscreen_probe_window_state!(probe, expected)
+    script = <<~APPLESCRIPT
+      tell application "System Events"
+        tell process "#{probe[:process]}"
+          if (count of windows) = 0 then return "no-window"
+          return ((value of attribute "AXFullScreen" of window 1) as text)
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not read #{probe[:app]} fullscreen state: #{out.strip}" unless code.success?
+
+    actual = out.strip.casecmp('true').zero?
+    return if actual == expected
+
+    raise "#{probe[:app]} fullscreen probe state mismatch: expected #{expected}, got #{out.strip.inspect}"
+  end
+
   def toggle_native_fullscreen_probe_window
     script = <<~APPLESCRIPT
       tell application "TextEdit" to activate
@@ -977,6 +1084,31 @@ class LiveZoneSmoke
       end tell
     APPLESCRIPT
     capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+  rescue StandardError
+    nil
+  end
+
+  def close_visible_transition_probe_window_safely(probe)
+    return unless probe
+
+    case probe[:app]
+    when 'Safari'
+      script = <<~APPLESCRIPT
+        tell application "Safari"
+          repeat with candidateWindow in windows
+            try
+              if URL of current tab of candidateWindow starts with "file:///tmp/sanebar-fullscreen-probe.html" then
+                close candidateWindow
+                exit repeat
+              end if
+            end try
+          end repeat
+        end tell
+      APPLESCRIPT
+      capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    when 'TextEdit'
+      close_transition_probe_window_safely
+    end
   rescue StandardError
     nil
   end

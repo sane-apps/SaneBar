@@ -223,8 +223,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("self.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
                 source.contains("func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool") &&
                 source.contains("snapshot.hasTrustworthyBootstrapAnchors") &&
-                source.contains("scheduleAlwaysHiddenPinEnforcement(reason: reason") &&
-                source.contains("scheduleHideAllOtherRuleEnforcement(reason: reason") &&
+                source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
+                source.contains("for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts") &&
+                source.contains("await self.enforceAlwaysHiddenPinnedItems(reason: replayReason)") &&
+                source.contains("await self.enforceHideAllOtherMenuBarItems(reason: replayReason)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
             "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, then refresh appearance overlay visibility"
         )
@@ -1862,6 +1864,7 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
                 source.contains("restore_runtime_smoke_appearance_settings!(appearance_settings_backup)") &&
                 source.contains("'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
                 !source.contains("screencapture"),
@@ -2859,11 +2862,16 @@ final class RuntimeGuardXCTests: XCTestCase {
             "Live smoke should prefer the app's internal browse and settings snapshot commands before falling back to host capture"
         )
         XCTAssertTrue(
-            source.contains("capture appearance overlay snapshot") &&
+                source.contains("capture appearance overlay snapshot") &&
                 source.contains("open_full_width_transition_probe_window") &&
-                source.contains("toggle_native_fullscreen_probe_window") &&
+                source.contains("FULLSCREEN_TRANSITION_PROBE_APPS") &&
+                source.contains("set_fullscreen_probe_window") &&
+                source.contains("AXFullScreen") &&
+                source.contains("assert_fullscreen_probe_window_state!") &&
+                source.contains("assert_appearance_overlay_hidden_after_fullscreen_settle!") &&
+                source.contains("assert_appearance_overlay_restored_after_fullscreen_settle!") &&
                 source.contains("@require_appearance_transitions"),
-            "Live smoke should prove custom appearance survives maximized and fullscreen-style host transitions before release"
+            "Live smoke should prove custom appearance survives maximized desktop windows, verifies real AX fullscreen state, hides in fullscreen, and restores after fullscreen exit before release"
         )
         XCTAssertTrue(
             source.contains("capture_window_screenshot") &&
@@ -3363,7 +3371,8 @@ final class RuntimeGuardXCTests: XCTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("Screen parameters changed — invalidated cached separator positions") &&
+            source.contains("clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
+                source.contains("Preserving cached separator geometry during") &&
                 source.contains("self?.schedulePositionValidation(context: .screenParametersChanged)") &&
                 source.contains("NSWorkspace.willSleepNotification") &&
                 source.contains("NSWorkspace.screensDidSleepNotification") &&
@@ -3374,7 +3383,18 @@ final class RuntimeGuardXCTests: XCTestCase {
                 !source.contains("settings.layoutMode == .live") &&
                 source.contains("positionValidationGeneration += 1") &&
                 source.contains("guard self.positionValidationGeneration == validationGeneration else"),
-            "Screen and wake topology changes should invalidate stale validation work, then schedule a wake-aware validation pass for every customer layout mode instead of letting overlapping recovery tasks race each other"
+            "Screen and wake topology changes should invalidate stale validation work while preserving trustworthy hidden-state anchors, then schedule a wake-aware validation pass for every customer layout mode"
+        )
+
+        let wakeProbeURL = projectRootURL().appendingPathComponent("Scripts/wake_layout_probe.rb")
+        let wakeProbeSource = try String(contentsOf: wakeProbeURL, encoding: .utf8)
+        XCTAssertTrue(
+            wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS") &&
+                wakeProbeSource.contains("expected_state: 'hidden'") &&
+                wakeProbeSource.contains("expected_state: 'expanded'") &&
+                wakeProbeSource.contains("wait_for_snapshot(") &&
+                wakeProbeSource.contains("!truthy?(candidate['possibleSystemMenuBarSuppression'])"),
+            "Wake runtime proof should wait through bounded post-wake recovery until the expected customer-visible state is healthy instead of sampling one transient frame"
         )
     }
 

@@ -660,19 +660,28 @@ struct SeparatorCachingTests {
         #expect(result == nil, "No cached AH origin should avoid invalid drag targets")
     }
 
-    @Test("Screen parameter change invalidates cache")
-    func screenChangeInvalidatesCache() {
-        // When display configuration changes (monitor connect/disconnect),
-        // cached positions are stale
-        var lastKnownSeparatorX: CGFloat? = 500
-        var lastKnownAlwaysHiddenSeparatorX: CGFloat? = 300
-
-        // Simulate screen parameter change
-        lastKnownSeparatorX = nil
-        lastKnownAlwaysHiddenSeparatorX = nil
-
-        #expect(lastKnownSeparatorX == nil, "Main separator cache must be cleared on screen change")
-        #expect(lastKnownAlwaysHiddenSeparatorX == nil, "AH separator cache must be cleared on screen change")
+    @Test("Hidden wake preserves trustworthy cache while display removal invalidates it")
+    func hiddenWakePreservesTrustworthyCacheWhileDisplayRemovalInvalidatesIt() {
+        #expect(
+            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 560,
+                displayStillPresent: true
+            ),
+            "Hidden wake should preserve the last trustworthy separator cache until live anchors return"
+        )
+        #expect(
+            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 560,
+                displayStillPresent: false
+            ),
+            "If the display disappeared, cached separator geometry must be invalidated"
+        )
     }
 }
 
