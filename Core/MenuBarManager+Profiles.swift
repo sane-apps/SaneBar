@@ -222,7 +222,7 @@ extension MenuBarManager {
                 profileLogger.info(
                     "Health repair reached healthy snapshot after \(attempt, privacy: .public) check(s) reason=\(reason, privacy: .public)"
                 )
-                scheduleHideAllOtherRuleEnforcement(reason: "repair-\(reason)", delay: .milliseconds(250))
+                schedulePostRecoveryVisibilityIntentReplay(reason: "repair-\(reason)")
                 return snapshot
             }
         }
@@ -231,7 +231,7 @@ extension MenuBarManager {
         profileLogger.warning(
             "Health repair still needs attention reason=\(reason, privacy: .public) geometry=\(finalSnapshot.geometryConfidence.rawValue, privacy: .public) structure=\(finalSnapshot.structuralState.rawValue, privacy: .public)"
         )
-        scheduleHideAllOtherRuleEnforcement(reason: "repair-\(reason)", delay: .milliseconds(250))
+        schedulePostRecoveryVisibilityIntentReplay(reason: "repair-\(reason)")
         return finalSnapshot
     }
 

@@ -36,6 +36,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var screensDidWakeObserver: Any?
     private var sessionDidBecomeActiveObserver: Any?
     private var pendingOverlayRefreshWorkItems: [DispatchWorkItem] = []
+    private var visibilityReconciliationTimer: Timer?
 
     // MARK: - Initialization
 
@@ -78,6 +79,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             sessionDidBecomeActiveObserver = nil
         }
         cancelPendingOverlayVisibilityRefreshes()
+        stopVisibilityReconciliationTimer()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
     }
@@ -183,11 +185,13 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     func updateAppearance(_ settings: MenuBarAppearanceSettings) {
         if settings.isEnabled {
             ensureOverlayExists()
+            startVisibilityReconciliationTimer()
             overlayViewModel?.settings = settings
             updateWindowLevel()
             refreshOverlayVisibility()
         } else {
             overlayViewModel?.settings = settings
+            stopVisibilityReconciliationTimer()
             hide()
         }
     }
@@ -221,8 +225,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             windowInfos: currentWindowInfos()
         )
 
-        if suppressionReason == .thinTopHost {
-            logger.debug("Suppressing menu bar appearance overlay for active full-width top host")
+        if suppressionReason != nil {
+            logger.debug("Suppressing menu bar appearance overlay: \(String(describing: suppressionReason), privacy: .public)")
             window.orderOut(nil)
             return
         }
@@ -253,12 +257,31 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         pendingOverlayRefreshWorkItems.removeAll()
     }
 
+    private func startVisibilityReconciliationTimer() {
+        guard visibilityReconciliationTimer == nil else { return }
+
+        let timer = Timer(timeInterval: Self.overlayVisibilityReconciliationInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshOverlayVisibility()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        visibilityReconciliationTimer = timer
+    }
+
+    private func stopVisibilityReconciliationTimer() {
+        visibilityReconciliationTimer?.invalidate()
+        visibilityReconciliationTimer = nil
+    }
+
     internal nonisolated static let overlayVisibilityRefreshRetryDelays: [TimeInterval] = [
         0.15,
         0.5,
         1.5,
         3.0
     ]
+
+    internal nonisolated static let overlayVisibilityReconciliationInterval: TimeInterval = 0.5
 
     private func currentWindowInfos() -> [[String: Any]] {
         (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
@@ -283,6 +306,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     }
 
     internal enum OverlaySuppressionReason: Equatable {
+        case fullscreenContentWindow
         case thinTopHost
     }
 
@@ -331,7 +355,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let targetFrame = targetScreenFrame.standardized
         let minimumCoveredWidth = targetFrame.width * 0.97
         let maximumHorizontalDrift: CGFloat = 8
-        let maximumTopDrift: CGFloat = 2
+        let maximumTopDrift: CGFloat = 8
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
 
         func isCompanionContentWindow(_ info: [String: Any], excluding thinRect: CGRect) -> Bool {
@@ -386,6 +410,11 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             guard layer == 0 else { continue }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
+            if !frontmostIsAccessoryApp,
+               coveredRect.width >= minimumCoveredWidth,
+               coveredRect.height >= targetFrame.height * 0.9 {
+                return .fullscreenContentWindow
+            }
             guard suppressThinTopHost else { continue }
             guard height >= 20, height <= 26 else { continue }
             guard coveredRect.width >= minimumCoveredWidth else { continue }

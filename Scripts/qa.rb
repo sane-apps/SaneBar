@@ -21,6 +21,7 @@ require 'uri'
 require 'json'
 require 'open3'
 require 'time'
+require 'date'
 require 'fileutils'
 require 'socket'
 
@@ -100,6 +101,8 @@ class ProjectQA
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
   RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
   RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
+  RUNTIME_WAKE_PROBE_LOG_PATH = '/tmp/sanebar_runtime_wake_probe.log'
+  RUNTIME_WAKE_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_wake_probe.json'
   RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
   RUNTIME_NATIVE_APPLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_native_apple_smoke.log'
   RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
@@ -135,6 +138,33 @@ class ProjectQA
     release:compat-limited
     release:needs-evidence
     release:deferred
+  ].freeze
+  OPEN_REGRESSION_RELEASE_EVIDENCE_FILES = [
+    File.join(PROJECT_ROOT, 'SESSION_HANDOFF.md'),
+    File.join(PROJECT_ROOT, '.claude', 'research.md'),
+    File.join(PROJECT_ROOT, 'DEVELOPMENT.md')
+  ].freeze
+  OPEN_REGRESSION_RELEASE_EVIDENCE_TTL_DAYS = 14
+  OPEN_REGRESSION_ADDRESSING_PATTERNS = [
+    /local root cause/i,
+    /current patch/i,
+    /current fix/i,
+    /pending (?:build|release|patch)/i,
+    /release candidate/i,
+    /fix(?:es|ed)?\b/i,
+    /address(?:es|ed|ing)?\b/i
+  ].freeze
+  OPEN_REGRESSION_PROOF_PATTERNS = [
+    /current proof/i,
+    /verification/i,
+    /verified/i,
+    /passed \d+ tests/i,
+    /release preflight/i,
+    /runtime smoke/i,
+    /customer ui/i,
+    /wake layout probe/i,
+    /fullscreen/i,
+    /mini\b/i
   ].freeze
   RUNTIME_SMOKE_MAX_CPU_PERCENT = 120.0
   RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES = 4
@@ -703,6 +733,12 @@ class ProjectQA
       puts '❌ missing startup_layout_probe.rb'
       return
     end
+    wake_probe_script = File.join(__dir__, 'wake_layout_probe.rb')
+    unless File.exist?(wake_probe_script)
+      @errors << "Wake layout probe missing: #{wake_probe_script}"
+      puts '❌ missing wake_layout_probe.rb'
+      return
+    end
 
     restore_mode = nil
     appearance_settings_backup = nil
@@ -720,6 +756,8 @@ class ProjectQA
       Dir.glob(File.join(screenshot_dir, 'sanebar-*.png')).each { |path| FileUtils.rm_f(path) }
       FileUtils.rm_f(RUNTIME_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
@@ -793,6 +831,7 @@ class ProjectQA
         'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0',
+        'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0',
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path]
@@ -956,6 +995,23 @@ class ProjectQA
         return
       end
 
+      wake_probe_env = {
+        'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
+        'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH,
+        'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH
+      }
+      wake_probe_out, wake_probe_status = capture2e_with_progress(
+        wake_probe_env,
+        wake_probe_script,
+        heartbeat_label: 'runtime wake layout probe'
+      )
+      File.write(RUNTIME_WAKE_PROBE_LOG_PATH, wake_probe_out)
+      unless wake_probe_status.success?
+        @errors << "Wake layout probe failed. See #{RUNTIME_WAKE_PROBE_LOG_PATH} and #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
+        puts "❌ wake probe failed (#{RUNTIME_WAKE_PROBE_LOG_PATH})"
+        return
+      end
+
       if capture_runtime_smoke_screenshots
         expected_screenshots = runtime_smoke_expected_modes(target).to_h do |mode|
           [mode, Dir.glob(File.join(screenshot_dir, "sanebar-#{mode}-*.png")).max_by { |path| File.mtime(path) }]
@@ -963,6 +1019,8 @@ class ProjectQA
         missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
         appearance_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*.png'))
         missing << 'appearance-transition' if appearance_screenshots.empty?
+        fullscreen_restore_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*-fullscreen-exit-*.png'))
+        missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?
         unless missing.empty?
           @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
           puts "❌ missing screenshot(s): #{missing.join(', ')}"
@@ -970,9 +1028,9 @@ class ProjectQA
         end
 
         artifact_summary = expected_screenshots.map { |mode, path| "#{mode}=#{File.basename(path)}" }.join(', ')
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe (#{artifact_summary})"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup+wake layout probes (#{artifact_summary})"
       else
-        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup layout probe"
+        puts "✅ staged release browse smoke x#{RUNTIME_SMOKE_PASSES} + startup+wake layout probes"
       end
     ensure
       restore_runtime_smoke_appearance_settings!(appearance_settings_backup)
@@ -1768,10 +1826,56 @@ def applescript_commands_for_app(app_path)
 
   def open_issue_blocks_release?(issue)
     return true if release_blocker_disposition?(issue['labels'])
-    return true if patched_pending_has_newer_external_negative?(issue)
+    if patched_pending_has_newer_external_negative?(issue)
+      return false if patched_pending_issue_addressed_by_pending_release?(issue)
+
+      return true
+    end
     return false if release_nonblocking_disposition?(issue['labels'])
 
     regression_like_title?(issue['title']) || release_blocking_issue_labels?(issue['labels'])
+  end
+
+  def patched_pending_issue_addressed_by_pending_release?(issue)
+    labels = normalized_issue_label_names(issue['labels'])
+    return false unless labels.include?('release:patched-pending')
+
+    issue_number = issue['number'].to_s
+    return false if issue_number.empty?
+
+    evidence = open_regression_release_evidence_for_issue(issue_number)
+    return false if evidence.empty?
+    return false unless recent_open_regression_release_evidence?(evidence)
+    return false unless OPEN_REGRESSION_ADDRESSING_PATTERNS.any? { |pattern| evidence.match?(pattern) }
+
+    OPEN_REGRESSION_PROOF_PATTERNS.any? { |pattern| evidence.match?(pattern) }
+  end
+
+  def open_regression_release_evidence_for_issue(issue_number)
+    issue_ref = /##{Regexp.escape(issue_number)}\b/
+    open_regression_release_evidence_text
+      .split(/\n(?=##\s|\z)/)
+      .select { |section| section.match?(issue_ref) }
+      .join("\n")
+  end
+
+  def open_regression_release_evidence_text
+    chunks = []
+    OPEN_REGRESSION_RELEASE_EVIDENCE_FILES.each do |path|
+      chunks << File.read(path) if File.exist?(path)
+    rescue StandardError
+      next
+    end
+    chunks.join("\n")
+  end
+
+  def recent_open_regression_release_evidence?(text)
+    cutoff = Date.today - OPEN_REGRESSION_RELEASE_EVIDENCE_TTL_DAYS
+    text.scan(/\b20\d{2}-\d{2}-\d{2}\b/).any? do |date_string|
+      Date.parse(date_string) >= cutoff
+    rescue StandardError
+      false
+    end
   end
 
   def patched_pending_has_newer_external_negative?(issue)

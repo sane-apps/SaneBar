@@ -147,6 +147,46 @@ struct MenuBarManagerTests {
         )
     }
 
+    @Test("Hidden lifecycle preserves trustworthy cached separator geometry")
+    func hiddenLifecyclePreservesTrustworthyCachedSeparatorGeometry() {
+        #expect(
+            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 560,
+                displayStillPresent: true
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .expanded,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 560,
+                displayStillPresent: true
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 560,
+                displayStillPresent: false
+            )
+        )
+        #expect(
+            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: 500,
+                separatorRightEdgeX: 520,
+                mainStatusItemX: 510,
+                displayStillPresent: true
+            )
+        )
+    }
+
     @Test("Layout rescue restore points require healthy status item anchors")
     func layoutRescueRestorePointEligibilityMatrix() {
         let healthy = MenuBarRuntimeSnapshot(

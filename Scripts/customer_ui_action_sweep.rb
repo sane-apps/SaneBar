@@ -131,6 +131,7 @@ class CustomerUIActionSweep
       ['UI/Settings/AppearanceSettingsView.swift', 'Custom Appearance'],
       ['Core/Services/MenuBarAppearanceService.swift', 'captureSnapshotPNG'],
       ['Scripts/live_zone_smoke.rb', 'Appearance tint pixels ok'],
+      ['Scripts/live_zone_smoke.rb', 'Visible fullscreen transition contract ok'],
       ['Tests/RuntimeGuardXCTests.swift', 'appearance']
     ],
     shortcuts: [
@@ -463,11 +464,12 @@ class CustomerUIActionSweep
   def verify_recent_runtime_smoke
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
     startup_log = '/tmp/sanebar_runtime_startup_probe.log'
+    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     native_log = '/tmp/sanebar_runtime_native_apple_smoke.log'
     host_log = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     strict_fixture_log = '/tmp/sanebar_runtime_strict_fixture_smoke.log'
-    [smoke_log, startup_log].each do |path|
+    [smoke_log, startup_log, wake_log].each do |path|
       raise "Missing runtime evidence #{path}" unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
     end
     exact_logs = [strict_fixture_log, shared_log, native_log, host_log]
@@ -477,7 +479,7 @@ class CustomerUIActionSweep
       raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
     end
 
-    runtime = [smoke_log, startup_log, *exact_logs]
+    runtime = [smoke_log, startup_log, wake_log, *exact_logs]
       .select { |path| File.exist?(path) }
       .map { |path| File.read(path) }
       .join("\n")
@@ -521,6 +523,7 @@ class CustomerUIActionSweep
     @transcript << "strict_exact_id=#{strict_fixture_log} ok" if File.exist?(strict_fixture_log) && File.mtime(strict_fixture_log) >= @started_at - 30 * 60 && File.read(strict_fixture_log).include?('Live zone smoke passed')
     @transcript << "shared_exact_id=#{shared_log} ok" if File.exist?(shared_log) && File.mtime(shared_log) >= @started_at - 30 * 60 && File.read(shared_log).include?('Live zone smoke passed')
     @transcript << "startup_probe=#{startup_log} ok"
+    @transcript << "wake_probe=#{wake_log} ok"
     @transcript << "native_exact_id=#{native_log} ok" if File.exist?(native_log) && File.mtime(native_log) >= @started_at - 30 * 60 && File.read(native_log).include?('Live zone smoke passed')
     @transcript << "host_exact_id=#{host_log} ok" if File.exist?(host_log) && File.mtime(host_log) >= @started_at - 30 * 60 && File.read(host_log).include?('Live zone smoke passed')
   end
@@ -742,6 +745,7 @@ class CustomerUIActionSweep
       evidence('mini_click', @transcript.grep(/\Asettings_tab=appearance/).first),
       evidence('screenshot', 'Custom Appearance overlay tint pixels captured by Mini runtime smoke', [screenshot_for_action('appearance-customization-actions')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
       evidence('source_guard', source_line(source_lines, 'appearance')),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('unit_guard', 'MenuBarAppearanceService and RuntimeGuardXCTests cover overlay refresh and appearance recovery')
@@ -798,9 +802,11 @@ class CustomerUIActionSweep
     pass_action('startup-wake-appearance-recovery', [
       evidence('fixture', runtime_line(runtime_lines, 'Startup layout probe passed')),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Startup layout probe passed')),
+      evidence('mini_runtime', runtime_line(runtime_lines, 'Wake layout probe passed')),
       evidence('screenshot', 'Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke', [screenshot_for_action('startup-wake-appearance-recovery')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
-      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log']),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
+      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log', '/tmp/sanebar_runtime_wake_probe.log']),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
   end
@@ -1104,6 +1110,7 @@ class CustomerUIActionSweep
     paths = [
       '/tmp/sanebar_runtime_smoke.log',
       '/tmp/sanebar_runtime_startup_probe.log',
+      '/tmp/sanebar_runtime_wake_probe.log',
       '/tmp/sanebar_runtime_strict_fixture_smoke.log',
       '/tmp/sanebar_runtime_shared_bundle_smoke.log',
       '/tmp/sanebar_runtime_native_apple_smoke.log',
@@ -1119,6 +1126,15 @@ class CustomerUIActionSweep
       if payload['status'] == 'pass'
         case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
         lines << "#{startup_artifact}: Startup layout probe passed (#{case_names})"
+      end
+    end
+
+    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
+    if File.exist?(wake_artifact) && File.mtime(wake_artifact) >= @started_at - 30 * 60
+      payload = JSON.parse(File.read(wake_artifact))
+      if payload['status'] == 'pass'
+        case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
+        lines << "#{wake_artifact}: Wake layout probe passed (#{case_names})"
       end
     end
 

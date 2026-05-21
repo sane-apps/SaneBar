@@ -82,6 +82,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
     /// Best-effort enforcement task for hide-all-other profile rules.
     var hideAllOtherRuleEnforcementTask: Task<Void, Never>?
+    /// Retries persisted visibility intent replay after wake/recovery until anchors are healthy.
+    var visibilityIntentReplayTask: Task<Void, Never>?
     var lastAlwaysHiddenRepairAt: Date?
     var isRepairingAlwaysHiddenSeparator = false
     var mainStatusItemHoverTrackingArea: NSTrackingArea?
@@ -258,6 +260,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     nonisolated static let maxStatusItemRecoveryCount = 4
+    nonisolated static let maxVisibilityIntentReplayAttempts = 8
     nonisolated static let unexpectedVisibilityRecoveryDebounceSeconds: TimeInterval = 1.0
 
     private enum StatusItemVisibilityRole: String {
@@ -826,6 +829,42 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         lastKnownAlwaysHiddenSeparatorRightEdgeX = nil
     }
 
+    nonisolated static func shouldPreserveCachedGeometryForHiddenLifecycle(
+        hidingState: HidingState,
+        separatorX: CGFloat?,
+        separatorRightEdgeX: CGFloat?,
+        mainStatusItemX: CGFloat?,
+        displayStillPresent: Bool
+    ) -> Bool {
+        guard hidingState == .hidden, displayStillPresent else { return false }
+        guard let separatorX, separatorX > 0,
+              let separatorRightEdgeX, separatorRightEdgeX > separatorX,
+              let mainStatusItemX, mainStatusItemX > separatorRightEdgeX else {
+            return false
+        }
+        return true
+    }
+
+    @MainActor
+    private func clearCachedSeparatorGeometryForLifecycleTransition(reason: String) {
+        let displayStillPresent = lastKnownStatusItemDisplayID.map { displayID in
+            NSScreen.screens.contains { screenDisplayID($0) == displayID }
+        } ?? true
+
+        guard !Self.shouldPreserveCachedGeometryForHiddenLifecycle(
+            hidingState: hidingService.state,
+            separatorX: lastKnownSeparatorX,
+            separatorRightEdgeX: lastKnownSeparatorRightEdgeX,
+            mainStatusItemX: lastKnownMainStatusItemX,
+            displayStillPresent: displayStillPresent
+        ) else {
+            logger.info("Preserving cached separator geometry during \(reason, privacy: .public) while hidden")
+            return
+        }
+
+        clearCachedSeparatorGeometry()
+    }
+
     @MainActor
     private func installStatusItemVisibilityObservers() {
         mainStatusItemVisibilityObservation = makeVisibilityObservation(
@@ -1273,6 +1312,7 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
                             "Status item validation reached a healthy layout without a current-width backup for \(context.rawValue, privacy: .public)"
                         )
                     }
+                    schedulePostRecoveryVisibilityIntentReplay(reason: "healthy-validation-\(context.rawValue)")
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
@@ -1464,8 +1504,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.clearCachedSeparatorGeometry()
-                logger.debug("Screen parameters changed — invalidated cached separator positions")
+                self?.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screenParametersChanged")
+                logger.debug("Screen parameters changed — refreshed cached separator policy")
                 self?.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
                 self?.schedulePositionValidation(context: .screenParametersChanged)
             }
@@ -1477,8 +1517,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.positionValidationGeneration += 1
-                self.clearCachedSeparatorGeometry()
-                logger.debug("System will sleep — cancelled pending position validation and invalidated cached separator positions")
+                self.clearCachedSeparatorGeometryForLifecycleTransition(reason: "willSleep")
+                logger.debug("System will sleep — cancelled pending position validation and refreshed cached separator policy")
             }
             .store(in: &cancellables)
 
@@ -1488,8 +1528,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.positionValidationGeneration += 1
-                self.clearCachedSeparatorGeometry()
-                logger.debug("Screens did sleep — cancelled pending position validation and invalidated cached separator positions")
+                self.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screensDidSleep")
+                logger.debug("Screens did sleep — cancelled pending position validation and refreshed cached separator policy")
             }
             .store(in: &cancellables)
 
@@ -1498,8 +1538,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.clearCachedSeparatorGeometry()
-                logger.debug("System did wake — invalidated cached separator positions")
+                self.clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
+                logger.debug("System did wake — refreshed cached separator policy")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
                 self.schedulePositionValidation(context: .wakeResume)
             }
@@ -1510,8 +1550,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.clearCachedSeparatorGeometry()
-                logger.debug("Screens did wake — invalidated cached separator positions")
+                self.clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
+                logger.debug("Screens did wake — refreshed cached separator policy")
                 self.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
                 self.schedulePositionValidation(context: .wakeResume)
             }
@@ -1522,8 +1562,8 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                clearCachedSeparatorGeometry()
-                logger.debug("Session became active — invalidated cached separator positions")
+                clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
+                logger.debug("Session became active — refreshed cached separator policy")
                 enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
                 schedulePositionValidation(context: .wakeResume)
             }
@@ -1803,12 +1843,37 @@ final class MenuBarManager: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
-        if !settings.alwaysHiddenPinnedItemIds.isEmpty {
-            scheduleAlwaysHiddenPinEnforcement(reason: reason, delay: .milliseconds(900))
-        }
-        if settings.hideAllOtherMenuBarItems {
-            scheduleHideAllOtherRuleEnforcement(reason: reason, delay: .milliseconds(1_200))
+    func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
+        let shouldReplayAlwaysHidden = !settings.alwaysHiddenPinnedItemIds.isEmpty
+        let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems
+        guard shouldReplayAlwaysHidden || shouldReplayHideAllOther else { return }
+
+        visibilityIntentReplayTask?.cancel()
+        visibilityIntentReplayTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts {
+                let delayMs = attempt == 1 ? 900 : 500
+                try? await Task.sleep(for: .milliseconds(delayMs))
+                guard !Task.isCancelled else { return }
+
+                let replayReason = "\(reason)-attempt-\(attempt)"
+                guard self.shouldRunVisibilityIntentEnforcement(reason: replayReason) else {
+                    continue
+                }
+
+                if shouldReplayAlwaysHidden {
+                    await self.enforceAlwaysHiddenPinnedItems(reason: replayReason)
+                }
+                if shouldReplayHideAllOther {
+                    await self.enforceHideAllOtherMenuBarItems(reason: replayReason)
+                }
+                return
+            }
+
+            logger.warning(
+                "Visibility intent replay gave up after \(Self.maxVisibilityIntentReplayAttempts, privacy: .public) attempts (\(reason, privacy: .public))"
+            )
         }
     }
 
