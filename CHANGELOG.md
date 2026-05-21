@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.59] - 2026-05-21
+
+Improves menu bar tint behavior in fullscreen apps, including Claude Desktop, and helps Hidden and Visible menu bar items keep their layout after wake or display changes.
+
+---
+
 ## [2.1.58] - 2026-05-20
 
 Keeps Custom Appearance tint stable through fullscreen, maximize, and app-switch transitions. Removes stale release-tool dependencies that triggered the Ruby JWT security alert.
