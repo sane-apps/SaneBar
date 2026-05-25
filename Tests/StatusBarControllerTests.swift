@@ -1838,7 +1838,7 @@ struct StatusBarControllerTests {
             for: currentWidth,
             screenHasTopSafeAreaInset: false
         )
-        let expectedSeparator = screenHasTopSafeAreaInset ? 300.0 : expectedMain + 120.0
+        let expectedSeparator = expectedMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(restoredMain == expectedMain, "Matching display backup should restore or safely reanchor the main position")
         #expect(restoredSeparator == expectedSeparator, "Matching display backup should restore or safely reanchor the separator position")
@@ -1846,6 +1846,58 @@ struct StatusBarControllerTests {
             abs(storedWidth - expectedWidth) < 0.001,
             "Restoring a matching backup should stamp the current display width"
         )
+    }
+
+    @Test("Init widens launch-safe but narrow display backup")
+    @MainActor
+    func initWidensLaunchSafeNarrowDisplayBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width else {
+            Issue.record("Expected a main screen for narrow display backup test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let screenWidthKey = "SaneBar_CalibratedScreenWidth"
+        let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let safeMain = screenHasTopSafeAreaInset ? 180.0 : StatusBarController.launchSafePreferredMainPositionLimit(
+            for: currentWidth,
+            screenHasTopSafeAreaInset: false
+        )
+        let safeGap = StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
+        let narrowGap = max(24.0, safeGap - 9.0)
+
+        defaults.set(true, forKey: migrationKey)
+        defaults.set(currentWidth * 1.6, forKey: screenWidthKey)
+        defaults.set(2200.0, forKey: mainKey)
+        defaults.set(2100.0, forKey: separatorKey)
+        defaults.set(safeMain, forKey: backupMainKey)
+        defaults.set(safeMain + narrowGap, forKey: backupSeparatorKey)
+
+        _ = StatusBarController()
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == safeMain)
+        #expect(restoredSeparator == safeMain + safeGap)
     }
 
     @Test("Init uses launch-safe current-display recovery when width changed and no backup exists")
@@ -1940,7 +1992,7 @@ struct StatusBarControllerTests {
             for: currentWidth,
             screenHasTopSafeAreaInset: false
         )
-        let expectedSeparator = screenHasTopSafeAreaInset ? 300.0 : expectedMain + 120.0
+        let expectedSeparator = expectedMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(restoredMain == expectedMain, "Ordinal seed main position should be replaced with a safe current-width backup")
         #expect(restoredSeparator == expectedSeparator, "Ordinal seed separator position should be replaced with a safe current-width backup")
@@ -2032,7 +2084,7 @@ struct StatusBarControllerTests {
             for: currentWidth,
             screenHasTopSafeAreaInset: false
         )
-        let expectedSeparator = screenHasTopSafeAreaInset ? 300.0 : expectedMain + 120.0
+        let expectedSeparator = expectedMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(restoredMain == expectedMain, "Startup recovery should prefer a safe current-width backup over ordinal reseeds")
         #expect(restoredSeparator == expectedSeparator, "Startup recovery should restore or safely reanchor the separator from the current-width backup")
@@ -2133,11 +2185,44 @@ struct StatusBarControllerTests {
             for: currentWidth,
             screenHasTopSafeAreaInset: false
         )
-        let expectedSeparator = screenHasTopSafeAreaInset ? 300.0 : expectedMain + 120.0
+        let expectedSeparator = expectedMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(defaults.integer(forKey: versionKey) == 11)
         #expect(restoredMain == expectedMain, "Autosave recovery should hydrate the new namespace from a safe current-width backup")
         #expect(restoredSeparator == expectedSeparator, "Autosave recovery should restore or safely reanchor separator ordering into the new namespace")
+    }
+
+    @Test("Launch-safe recovery preserves enough visible lane for leftmost shown items")
+    func launchSafeRecoveryUsesWiderVisibleLane() {
+        let externalDisplayPair = StatusBarController.launchSafeCurrentDisplayRecoveryPair(
+            screenWidth: 2560,
+            screenHasTopSafeAreaInset: false
+        )
+        let smallDisplayPair = StatusBarController.launchSafeCurrentDisplayRecoveryPair(
+            screenWidth: 1512,
+            screenHasTopSafeAreaInset: true
+        )
+
+        #expect(externalDisplayPair?.main == 160)
+        #expect((externalDisplayPair?.separator ?? 0) - (externalDisplayPair?.main ?? 0) >= 220)
+        #expect(smallDisplayPair?.main == 180)
+        #expect((smallDisplayPair?.separator ?? 0) - (smallDisplayPair?.main ?? 0) >= 136)
+    }
+
+    @Test("App Shortcuts registration is skipped in test hosts")
+    func appShortcutsRegistrationIsSkippedInTests() {
+        #expect(!SaneBarAppDelegate.shouldUpdateAppShortcutParameters(
+            environment: ["XCTestConfigurationFilePath": "/tmp/test.xctestconfiguration"],
+            isRunningTests: false
+        ))
+        #expect(!SaneBarAppDelegate.shouldUpdateAppShortcutParameters(
+            environment: [:],
+            isRunningTests: true
+        ))
+        #expect(SaneBarAppDelegate.shouldUpdateAppShortcutParameters(
+            environment: [:],
+            isRunningTests: false
+        ))
     }
 
     @Test("Autosave namespace recovery falls back to launch-safe positions without backup")
@@ -2328,7 +2413,7 @@ struct StatusBarControllerTests {
                 for: currentWidth,
                 screenHasTopSafeAreaInset: false
             )
-        let safeSeparator = screenHasTopSafeAreaInset ? 300.0 : safeMain + 120.0
+        let safeSeparator = safeMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         defaults.set(safeMain, forKey: mainKey)
         defaults.set(safeSeparator, forKey: separatorKey)
@@ -2436,7 +2521,7 @@ struct StatusBarControllerTests {
                 for: currentWidth,
                 screenHasTopSafeAreaInset: false
             )
-        let liveSeparator = screenHasTopSafeAreaInset ? 300.0 : liveMain + 120.0
+        let liveSeparator = liveMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(
             StatusBarController.captureCurrentDisplayPositionBackupIfPossible(

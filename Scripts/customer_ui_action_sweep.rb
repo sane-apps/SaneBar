@@ -37,6 +37,7 @@ class CustomerUIActionSweep
     ['layout snapshot', /separatorBeforeMain/],
     ['list icons', /./],
     ['list icon zones', /\t/],
+    ['list authoritative icon zones', /\t/],
     ['open icon panel', /true|false/],
     ['quick search "Sane"', /true|false/],
     ['close browse panel', /true|false/],
@@ -56,6 +57,15 @@ class CustomerUIActionSweep
     'health',
     'repair',
     'search?q=Sane'
+  ].freeze
+
+  HEALTH_WARNING_LABELS = [
+    'Needs Action',
+    'Needs Check',
+    'Needs Repair',
+    'Missing Items',
+    'Hidden by macOS',
+    'Detached'
   ].freeze
 
   STRICT_MINI_EVIDENCE_TYPES = %w[
@@ -284,7 +294,11 @@ class CustomerUIActionSweep
   def exercise_settings_tabs
     app_script('open settings window')
     SETTINGS_TABS.each do |tab|
-      text = press_settings_tab(tab[:index])
+      text = if tab[:id] == 'health'
+               wait_for_clean_health_tab(tab[:index])
+             else
+               press_settings_tab(tab[:index])
+             end
       tab[:expected].each do |expected|
         raise "Settings #{tab[:id]} tab missing #{expected.inspect}: #{text}" unless text.include?(expected)
       end
@@ -323,6 +337,27 @@ class CustomerUIActionSweep
     run_osascript(script, timeout: 10).tap do |text|
       @transcript << "settings_ax_tab_index=#{index} text=#{text.gsub(/\s+/, ' ')[0, 500]}"
     end
+  end
+
+  def wait_for_clean_health_tab(index, timeout: 8.0)
+    deadline = Time.now + timeout
+    last_text = nil
+    loop do
+      last_text = press_settings_tab(index)
+      warnings = health_tab_warnings(last_text)
+      return last_text if warnings.empty?
+
+      break if Time.now >= deadline
+
+      sleep 0.5
+    end
+
+    raise "Health tab is not release-clean: #{health_tab_warnings(last_text).join(', ')}"
+  end
+
+  def health_tab_warnings(text)
+    value = text.to_s
+    HEALTH_WARNING_LABELS.select { |label| value.include?(label) }
   end
 
   def exercise_url_routes
@@ -586,7 +621,16 @@ class CustomerUIActionSweep
 
         Array(item[:paths] || item['paths'] || item[:artifacts] || item['artifacts'] || item[:path] || item['path'])
       end.compact
-      status = (required_types - evidence_types).empty? && evidence_paths.any? ? 'passed' : 'failed'
+      runtime_artifact = runtime_state_artifact(id.to_s)
+      if runtime_artifact
+        evidence_types |= Array(runtime_artifact[:evidence_types])
+        evidence_paths |= Array(runtime_artifact[:evidence_paths])
+      end
+      completed_scenarios = Array(runtime_artifact && runtime_artifact[:completed_scenarios]).map(&:to_s)
+      required_scenarios = Array(row['required_scenarios']).map(&:to_s)
+      status = (required_types - evidence_types).empty? &&
+               (required_scenarios - completed_scenarios).empty? &&
+               evidence_paths.any? ? 'passed' : 'failed'
       {
         id: id.to_s,
         status: status,
@@ -594,9 +638,52 @@ class CustomerUIActionSweep
         required_evidence_types: required_types,
         evidence_types: evidence_types.uniq,
         evidence_paths: evidence_paths.uniq,
+        completed_scenarios: completed_scenarios.uniq,
         manifest_sha256: report.fetch('manifest_sha256')
       }
     end
+  end
+
+  def runtime_state_artifact(id)
+    case id
+    when 'fullscreen_maximize_transition'
+      fullscreen_matrix_artifact
+    when 'wake_visible_zone_persistence'
+      wake_visible_zone_artifact
+    end
+  end
+
+  def fullscreen_matrix_artifact
+    path = '/tmp/sanebar_runtime_fullscreen_matrix.json'
+    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+
+    payload = JSON.parse(File.read(path))
+    return nil unless payload['status'] == 'pass'
+
+    {
+      evidence_types: Array(payload['evidence_types']).map(&:to_s),
+      evidence_paths: ([path] + Array(payload['evidence_paths'])).map(&:to_s),
+      completed_scenarios: Array(payload['completed_scenarios']).map(&:to_s)
+    }
+  rescue JSON::ParserError
+    nil
+  end
+
+  def wake_visible_zone_artifact
+    path = '/tmp/sanebar_runtime_wake_probe.json'
+    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+
+    payload = JSON.parse(File.read(path))
+    proof = payload['visible_zone_persistence']
+    return nil unless payload['status'] == 'pass' && proof.is_a?(Hash) && proof['status'] == 'pass'
+
+    {
+      evidence_types: %w[mini_runtime screenshot log],
+      evidence_paths: [path, '/tmp/sanebar_runtime_wake_probe.log'].select { |candidate| File.exist?(candidate) },
+      completed_scenarios: Array(proof['completed_scenarios']).map(&:to_s)
+    }
+  rescue JSON::ParserError
+    nil
   end
 
   def write_failure_artifact(error)

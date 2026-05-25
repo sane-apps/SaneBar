@@ -13,6 +13,7 @@ class WakeLayoutProbe
   SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 6.0
   SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
+  REQUIRED_VISIBLE_ID_LIMIT = 6
   BLOCKED_LOG_PATTERNS = [
     /Status item remained off-menu-bar/i,
     /Bumping autosave version .*status item recovery/i,
@@ -43,6 +44,7 @@ class WakeLayoutProbe
     @had_settings_file = false
     @was_running = false
     @state_restored = false
+    @visible_zone_proofs = []
   end
 
   def run
@@ -130,6 +132,7 @@ class WakeLayoutProbe
     baseline = wait_for_snapshot(label: 'hidden baseline') do |snapshot|
       snapshot['hidingState'] == 'hidden' && snapshot_healthy?(snapshot)
     end
+    visible_baseline = capture_visible_zone_baseline!
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
@@ -137,6 +140,7 @@ class WakeLayoutProbe
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'hidden', label: "hidden #{entry[:delay]}s")
       assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "hidden #{entry[:delay]}s")
+      assert_visible_zone_persistence!(visible_baseline, entry[:delay])
     end
     log_scan = scan_logs_since(case_started_at)
 
@@ -145,6 +149,7 @@ class WakeLayoutProbe
     {
       name: 'hidden state survives display sleep wake',
       baseline: baseline,
+      visible_zone_persistence: @visible_zone_proofs,
       wake_time: wake_time.iso8601,
       snapshots: snapshots,
       log_scan: log_scan
@@ -224,6 +229,95 @@ class WakeLayoutProbe
       )
       { delay: delay, snapshot: snapshot }
     end
+  end
+
+  def capture_visible_zone_baseline!
+    zones = read_icon_zones!
+    visible = zones.select { |item| item[:zone] == 'visible' }
+    required = ENV.fetch('SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS', '')
+      .split(',')
+      .map(&:strip)
+      .reject(&:empty?)
+    if required.empty?
+      required = visible
+        .reject { |item| item[:bundle_id].to_s.start_with?('com.sanebar') || item[:unique_id].to_s.start_with?('com.sanebar') }
+        .map { |item| item[:unique_id].to_s.empty? ? item[:bundle_id] : item[:unique_id] }
+        .compact
+        .reject(&:empty?)
+        .first(REQUIRED_VISIBLE_ID_LIMIT)
+    end
+    raise 'Wake visible-zone proof could not find any baseline visible IDs' if required.empty?
+
+    proof = {
+      status: 'baseline',
+      delay: 0,
+      required_visible_ids: required,
+      zones: zones,
+      completed_scenario: 'baseline visible icon-zone snapshot before display sleep'
+    }
+    @visible_zone_proofs << proof
+    log("Visible-zone baseline IDs: #{required.join(', ')}")
+    proof
+  end
+
+  def assert_visible_zone_persistence!(baseline, delay)
+    zones = read_icon_zones!
+    by_id = {}
+    zones.each do |item|
+      [item[:unique_id], item[:bundle_id]].each do |identifier|
+        next if identifier.to_s.empty?
+
+        by_id[identifier] = item
+      end
+    end
+    required = Array(baseline[:required_visible_ids])
+    moved = required.map do |identifier|
+      item = by_id[identifier]
+      if item.nil?
+        "#{identifier}:missing"
+      elsif item[:zone] != 'visible'
+        "#{identifier}:#{item[:zone]}"
+      end
+    end.compact
+    raise "Visible-zone persistence failed after #{delay}s: #{moved.join(', ')}" unless moved.empty?
+
+    scenario = case delay.to_f
+               when 1.0 then 'fresh authoritative icon-zone snapshot at 1s after wake'
+               when 5.0 then 'fresh authoritative icon-zone snapshot at 5s after wake'
+               when 15.0 then 'fresh authoritative icon-zone snapshot at 15s after wake'
+               else "fresh authoritative icon-zone snapshot at #{delay}s after wake"
+               end
+    proof = {
+      status: 'passed',
+      delay: delay,
+      required_visible_ids: required,
+      zones: zones,
+      completed_scenarios: [
+        scenario,
+        'visible required IDs remain visible and are not moved into Hidden or Always Hidden'
+      ]
+    }
+    @visible_zone_proofs << proof
+    log("Visible-zone persistence ok after #{delay}s for #{required.join(', ')}")
+  end
+
+  def read_icon_zones!
+    raw = app_script('list authoritative icon zones')
+    zones = raw.each_line.map do |line|
+      parts = line.strip.split("\t", 5)
+      next if parts.length < 5
+
+      {
+        zone: parts[0],
+        movable: parts[1],
+        bundle_id: parts[2],
+        unique_id: parts[3],
+        name: parts[4]
+      }
+    end.compact
+    raise "list authoritative icon zones returned no parseable rows: #{raw.inspect}" if zones.empty?
+
+    zones
   end
 
   def scan_logs_since(started_at)
@@ -432,8 +526,33 @@ class WakeLayoutProbe
   end
 
   def write_artifact!(payload)
+    if @visible_zone_proofs.any?
+      completed = visible_zone_completed_scenarios
+      required = visible_zone_required_scenarios
+      payload[:visible_zone_persistence] = {
+        status: (required - completed).empty? ? 'pass' : 'fail',
+        completed_scenarios: completed,
+        proofs: @visible_zone_proofs
+      }
+    end
     FileUtils.mkdir_p(File.dirname(@artifact_path))
     File.write(@artifact_path, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def visible_zone_required_scenarios
+    [
+      'baseline visible icon-zone snapshot before display sleep',
+      'fresh authoritative icon-zone snapshot at 1s after wake',
+      'fresh authoritative icon-zone snapshot at 5s after wake',
+      'fresh authoritative icon-zone snapshot at 15s after wake',
+      'visible required IDs remain visible and are not moved into Hidden or Always Hidden'
+    ]
+  end
+
+  def visible_zone_completed_scenarios
+    @visible_zone_proofs.flat_map do |proof|
+      [proof[:completed_scenario], *Array(proof[:completed_scenarios])]
+    end.compact.map(&:to_s).uniq
   end
 end
 

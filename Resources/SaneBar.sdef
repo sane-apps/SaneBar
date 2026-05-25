@@ -92,6 +92,11 @@
             <result type="text" description="Newline-separated lines: zone, movable, bundleId, uniqueId, name"/>
         </command>
 
+        <command name="list authoritative icon zones" code="SBarlaiz" description="List detected menu bar icons with fresh authoritative visibility zones">
+            <cocoa class="ListAuthoritativeIconZonesCommand"/>
+            <result type="text" description="Newline-separated lines: zone, movable, bundleId, uniqueId, name"/>
+        </command>
+
         <!-- Layout Snapshot Command -->
         <command name="layout snapshot" code="SBarlyot" description="Return a JSON snapshot of menu bar launch/layout invariants">
             <cocoa class="LayoutSnapshotCommand"/>

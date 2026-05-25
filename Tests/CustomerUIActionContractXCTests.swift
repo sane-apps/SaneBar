@@ -110,7 +110,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         }
         XCTAssertTrue(contract.contains("App Intents"))
 
-        for command in ["toggle", "show hidden", "hide items", "open icon panel", "quick search", "show second menu bar", "list icon zones", "activate browse icon", "move icon to always hidden"] {
+        for command in ["toggle", "show hidden", "hide items", "open icon panel", "quick search", "show second menu bar", "list icon zones", "list authoritative icon zones", "activate browse icon", "move icon to always hidden"] {
             XCTAssertTrue(sdefSource.contains("command name=\"\(command)\""), "Expected AppleScript command \(command)")
         }
         XCTAssertTrue(contract.contains("AppleScript"))
@@ -153,6 +153,21 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         for label in ["Save Current Layout", "Restore Last Good Layout", "Arrange Now", "Copy Report"] {
             XCTAssertTrue(healthSource.contains(label), "Expected Health action \(label)")
             XCTAssertTrue(contract.contains(label), "Contract must name \(label)")
+        }
+    }
+
+    func testRuntimeMatrixCoversCurrentFullscreenAndWakeFieldGaps() throws {
+        let contract = try contract()
+
+        for marker in [
+            "wake_visible_zone_persistence",
+            "Dark appearance with Translucent Background enabled",
+            "Reduce Transparency enabled",
+            "customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots",
+            "fresh authoritative icon-zone snapshot at 15s after wake",
+            "visible required IDs remain visible and are not moved into Hidden or Always Hidden"
+        ] {
+            XCTAssertTrue(contract.contains(marker), "Runtime matrix must include \(marker)")
         }
     }
 

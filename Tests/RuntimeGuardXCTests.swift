@@ -1259,6 +1259,12 @@ final class RuntimeGuardXCTests: XCTestCase {
             "AppleScript zone refresh should still retain the authoritative full refresh as the fallback"
         )
         XCTAssertTrue(
+            commandsSource.contains("final class ListAuthoritativeIconZonesCommand") &&
+                commandsSource.contains("authoritativeScriptListingZonesForCommand()") &&
+                commandsSource.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()"),
+            "Wake proof needs a dedicated authoritative listing command so 1s/5s/15s checks cannot false-green from the normal cached zone listing"
+        )
+        XCTAssertTrue(
             searchSource.contains("func refreshKnownClassifiedApps() async -> SearchClassifiedApps"),
             "SearchService should expose a lighter classified refresh path for repeated script zone polling"
         )
@@ -2870,8 +2876,10 @@ final class RuntimeGuardXCTests: XCTestCase {
                 source.contains("assert_fullscreen_probe_window_state!") &&
                 source.contains("assert_appearance_overlay_hidden_after_fullscreen_settle!") &&
                 source.contains("assert_appearance_overlay_restored_after_fullscreen_settle!") &&
+                source.contains("assert_customer_visible_top_strip_tint!") &&
+                source.contains("FULLSCREEN_MATRIX_ARTIFACT_PATH") &&
                 source.contains("@require_appearance_transitions"),
-            "Live smoke should prove custom appearance survives maximized desktop windows, verifies real AX fullscreen state, hides in fullscreen, and restores after fullscreen exit before release"
+            "Live smoke should prove custom appearance survives maximized desktop windows, verifies real AX fullscreen state, hides in fullscreen, captures customer-visible top-strip proof, and restores after fullscreen exit before release"
         )
         XCTAssertTrue(
             source.contains("capture_window_screenshot") &&

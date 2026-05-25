@@ -99,7 +99,7 @@ launch_calendar:
   next_eligible_launch:
     status: "not_scheduled"
     trigger: "Major release only, such as a visible v2.2/v3 workflow change, new Touch ID/security story, or substantial user proof."
-    earliest_recommendation: "After the current v2.1.53 customer UI reliability patch is published and support noise is stable."
+    earliest_recommendation: "After the current customer UI reliability patch is published and support noise is stable."
   scheduled:
     - cadence: "weekly"
       channel: "Opportunity monitoring"
@@ -108,15 +108,16 @@ launch_calendar:
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
   last_launch_readiness:
-    date: "2026-05-20"
+    date: "2026-05-24"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Fresh Mini launch_readiness on 2026-05-20 stayed red because SaneBar already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
+      - "Canonical launch_readiness rerun at 2026-05-24 09:32 EDT exited nonzero and the wrapper reported 'Mac mini is unreachable. Falling back to local execution.'"
+      - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
-      - "Mini launch_readiness reported the latest release_preflight as failed with 1 issue and 4 warnings on 2026-05-20."
-      - "Global validation at 2026-05-20 09:02 EDT is still red for SaneBar because Lemon Squeezy hosted file `2.1.56` lags the live appcast/website `2.1.57`, and customer UI proof is stale."
-    next_date: "2026-05-25"
+      - "Local fallback launch_readiness still reported the latest release_preflight as passed but carrying 5 warnings, and the shared validation report at 2026-05-24 09:31 EDT still says BROKEN RELEASE PIPELINE because SaneBar customer UI proof is stale."
+      - "No weekly opportunity reply was executed on 2026-05-24 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
+    next_date: "2026-05-29"
 
 x_search_keywords:
   - "\"Bartender\" (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"
