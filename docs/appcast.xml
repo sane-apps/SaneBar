@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                <item>
+            <title>2.1.60</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 25 May 2026 00:34:23 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves fullscreen tint handling so the tint stays out of fullscreen apps, and improves wake and display layout recovery so Visible items stay where expected.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.60.zip"
+                       sparkle:version="2160"
+                       sparkle:shortVersionString="2.1.60"
+                       length="9027743"
+                       type="application/octet-stream"
+                       sparkle:edSignature="S2BAyqEuNgN4xAzoNhsqTESKWyj9rOlGmGEZT0dpNV/Ww1iLFJIfI9pbBLF6R8XJmX/41JuHp6JqzsYcmzf/AQ=="/>
+        </item>
+<item>
             <title>2.1.59</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 21 May 2026 15:06:42 -0400</pubDate>
