@@ -153,8 +153,14 @@ class StartupLayoutProbe
     t5 = snapshot_after_delay(5.0)
     restored_main = numeric_default(main_key)
     restored_separator = numeric_default(separator_key)
-    assert_close!(restored_main, backup_main, label: 'restored main preferred position')
-    assert_close!(restored_separator, backup_separator, label: 'restored separator preferred position')
+    assert_restored_backup_pair!(
+      main: restored_main,
+      separator: restored_separator,
+      backup_main: backup_main,
+      backup_separator: backup_separator,
+      width: width,
+      label: 'restored preferred positions'
+    )
     assert_snapshot_healthy!(t2, label: 'poisoned-startup T+2s')
     assert_snapshot_healthy!(t5, label: 'poisoned-startup T+5s')
     assert_main_right_gap_stable!(t2, t5, label: 'poisoned-startup T+2s→T+5s')
@@ -165,8 +171,14 @@ class StartupLayoutProbe
     replay = snapshot_after_delay(2.0)
     replay_main = numeric_default(main_key)
     replay_separator = numeric_default(separator_key)
-    assert_close!(replay_main, backup_main, label: 'restart replay main preferred position')
-    assert_close!(replay_separator, backup_separator, label: 'restart replay separator preferred position')
+    assert_restored_backup_pair!(
+      main: replay_main,
+      separator: replay_separator,
+      backup_main: backup_main,
+      backup_separator: backup_separator,
+      width: width,
+      label: 'restart replay preferred positions'
+    )
     assert_snapshot_healthy!(replay, label: 'restart replay T+2s')
     assert_main_right_gap_stable!(t5, replay, label: 'poisoned-startup T+5s→restart replay T+2s')
 
@@ -385,6 +397,30 @@ class StartupLayoutProbe
   def assert_close!(actual, expected, label:, epsilon: 0.001)
     raise "#{label}: missing actual value" if actual.nil?
     raise "#{label}: expected #{expected}, got #{actual}" if (actual - expected).abs > epsilon
+  end
+
+  def assert_restored_backup_pair!(main:, separator:, backup_main:, backup_separator:, width:, label:)
+    raise "#{label}: missing restored main value" if main.nil?
+    raise "#{label}: missing restored separator value" if separator.nil?
+    raise "#{label}: separator is not after main (main=#{main}, separator=#{separator})" unless separator > main
+    if main > backup_main + 0.001
+      raise "#{label}: main moved away from Control Center (backup=#{backup_main}, restored=#{main})"
+    end
+    if separator < backup_separator - 0.001
+      raise "#{label}: separator narrowed the visible lane (backup=#{backup_separator}, restored=#{separator})"
+    end
+
+    gap = separator - main
+    minimum_gap = preferred_visible_lane_gap(width)
+    return if gap + 0.001 >= minimum_gap
+
+    raise "#{label}: visible lane too narrow after recovery (gap=#{gap.round(2)}, minimum=#{minimum_gap.round(2)})"
+  end
+
+  def preferred_visible_lane_gap(width)
+    return 120.0 unless width.to_f.positive?
+
+    [[width.to_f * 0.09, 180.0].max, 240.0].min
   end
 
   def numeric_default(key)

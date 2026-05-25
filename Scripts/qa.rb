@@ -758,6 +758,7 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       FileUtils.rm_f(RUNTIME_WAKE_PROBE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
+      FileUtils.rm_f('/tmp/sanebar_runtime_fullscreen_matrix.json')
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
@@ -1021,6 +1022,10 @@ class ProjectQA
         missing << 'appearance-transition' if appearance_screenshots.empty?
         fullscreen_restore_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*-fullscreen-exit-*.png'))
         missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?
+        fullscreen_matrix_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
+        unless runtime_fullscreen_matrix_artifact_passed?(fullscreen_matrix_artifact)
+          missing << 'fullscreen-customer-visible-matrix'
+        end
         unless missing.empty?
           @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
           puts "❌ missing screenshot(s): #{missing.join(', ')}"
@@ -1044,17 +1049,37 @@ class ProjectQA
     !resolve_runtime_screenshot_tool.nil?
   end
 
+  def runtime_fullscreen_matrix_artifact_passed?(path)
+    return false unless File.exist?(path)
+
+    payload = JSON.parse(File.read(path))
+    required = [
+      'native fullscreen enter and exit',
+      'maximized desktop window below the menu bar',
+      'Dark appearance with Translucent Background enabled',
+      'Reduce Transparency enabled',
+      'customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots'
+    ]
+    payload['status'] == 'pass' &&
+      (required - Array(payload['completed_scenarios']).map(&:to_s)).empty? &&
+      Array(payload['evidence_paths']).any?
+  rescue JSON::ParserError
+    false
+  end
+
   def prepare_runtime_smoke_appearance_settings!
     backup = {
       existed: File.exist?(SETTINGS_PATH),
-      content: File.exist?(SETTINGS_PATH) ? File.read(SETTINGS_PATH) : nil
+      content: File.exist?(SETTINGS_PATH) ? File.read(SETTINGS_PATH) : nil,
+      dark_mode: runtime_smoke_dark_mode_enabled?,
+      reduce_transparency: runtime_smoke_reduce_transparency_value
     }
     settings = backup[:content].to_s.empty? ? {} : JSON.parse(backup[:content])
     appearance = settings['menuBarAppearance'].is_a?(Hash) ? settings['menuBarAppearance'] : {}
     settings['hasCompletedOnboarding'] = true
     settings['menuBarAppearance'] = appearance.merge(
       'isEnabled' => true,
-      'useLiquidGlass' => false,
+      'useLiquidGlass' => true,
       'tintColor' => '#FF5500',
       'tintOpacity' => 0.35,
       'tintColorDark' => '#FF5500',
@@ -1065,6 +1090,8 @@ class ProjectQA
     )
     FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
     File.write(SETTINGS_PATH, JSON.pretty_generate(settings))
+    set_runtime_smoke_dark_mode!(true)
+    set_runtime_smoke_reduce_transparency!(true)
     backup
   rescue JSON::ParserError
     backup
@@ -1078,8 +1105,48 @@ class ProjectQA
     else
       FileUtils.rm_f(SETTINGS_PATH)
     end
+    set_runtime_smoke_dark_mode!(backup[:dark_mode]) unless backup[:dark_mode].nil?
+    restore_runtime_smoke_reduce_transparency!(backup[:reduce_transparency])
   rescue StandardError
     nil
+  end
+
+  def runtime_smoke_dark_mode_enabled?
+    script = 'tell application "System Events" to tell appearance preferences to get dark mode'
+    out, status = Open3.capture2e('/usr/bin/osascript', '-e', script)
+    raise "Could not read dark mode setting: #{out.strip}" unless status.success?
+
+    out.strip.casecmp('true').zero?
+  end
+
+  def set_runtime_smoke_dark_mode!(enabled)
+    script = "tell application \"System Events\" to tell appearance preferences to set dark mode to #{enabled ? 'true' : 'false'}"
+    out, status = Open3.capture2e('/usr/bin/osascript', '-e', script)
+    raise "Could not set dark mode=#{enabled}: #{out.strip}" unless status.success?
+  end
+
+  def runtime_smoke_reduce_transparency_value
+    out, status = Open3.capture2e('/usr/bin/defaults', 'read', 'com.apple.universalaccess', 'reduceTransparency')
+    return nil unless status.success?
+
+    out.strip
+  end
+
+  def set_runtime_smoke_reduce_transparency!(enabled)
+    out, status = Open3.capture2e('/usr/bin/defaults', 'write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', enabled ? 'true' : 'false')
+    raise "Could not set Reduce Transparency=#{enabled}: #{out.strip}" unless status.success?
+
+    Open3.capture2e('/usr/bin/killall', 'cfprefsd')
+  end
+
+  def restore_runtime_smoke_reduce_transparency!(value)
+    if value.nil?
+      Open3.capture2e('/usr/bin/defaults', 'delete', 'com.apple.universalaccess', 'reduceTransparency')
+    else
+      normalized = %w[1 true TRUE].include?(value.to_s) ? 'true' : 'false'
+      Open3.capture2e('/usr/bin/defaults', 'write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', normalized)
+    end
+    Open3.capture2e('/usr/bin/killall', 'cfprefsd')
   end
 
   def retryable_runtime_smoke_failure?(smoke_output)

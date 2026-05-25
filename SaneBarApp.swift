@@ -1,5 +1,4 @@
 import AppKit
-import AppIntents
 import KeyboardShortcuts
 import os.log
 import SaneUI
@@ -36,14 +35,25 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     // No @main - using main.swift instead
 
+    nonisolated static func shouldUpdateAppShortcutParameters(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        isRunningTests: Bool = NSClassFromString("XCTestCase") != nil
+    ) -> Bool {
+        guard environment["XCTestConfigurationFilePath"] == nil else { return false }
+        guard !isRunningTests else { return false }
+        return true
+    }
+
     func applicationDidFinishLaunching(_: Notification) {
         appLogger.info("🏁 applicationDidFinishLaunching START")
 
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+        #if !DEBUG
+        if Self.shouldUpdateAppShortcutParameters() {
             SaneBarAppShortcuts.updateAppShortcutParameters()
         }
+        #endif
 
         // Keep the menu bar process alive across idle periods.
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(

@@ -50,7 +50,7 @@ runtime_state_matrix:
     - state_receipt
     runner: Scripts/live_zone_smoke.rb
   fullscreen_maximize_transition:
-    why: Fullscreen and maximize transition windows can hide or repaint menu-bar state incorrectly during normal customer use.
+    why: Fullscreen and maximize transition windows can hide or repaint menu-bar state incorrectly during normal customer use, especially with Dark appearance, Translucent Background, and Reduce Transparency enabled.
     action_ids:
     - startup-wake-appearance-recovery
     - appearance-customization-actions
@@ -59,7 +59,30 @@ runtime_state_matrix:
     - mini_runtime
     - screenshot
     - log
-    runner: Scripts/live_zone_smoke.rb fullscreen/maximize transition probe
+    runner: Scripts/live_zone_smoke.rb fullscreen/maximize transition probe plus customer-visible top-strip pixel proof
+    required_scenarios:
+    - native fullscreen enter and exit
+    - maximized desktop window below the menu bar
+    - Dark appearance with Translucent Background enabled
+    - Reduce Transparency enabled
+    - customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots
+  wake_visible_zone_persistence:
+    why: Wake and screen-saver recovery can leave SaneBar anchors healthy while customer-visible third-party icons drift from Visible to Hidden after delayed reconciliation.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - browse-icons-icon-context-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - log
+    runner: Scripts/wake_layout_probe.rb visible-zone snapshots after wake
+    required_scenarios:
+    - baseline visible icon-zone snapshot before display sleep
+    - fresh authoritative icon-zone snapshot at 1s after wake
+    - fresh authoritative icon-zone snapshot at 5s after wake
+    - fresh authoritative icon-zone snapshot at 15s after wake
+    - visible required IDs remain visible and are not moved into Hidden or Always Hidden
   basic_pro_mode:
     why: The same customer action must either work in Pro or clearly gate in Basic without pretending the change succeeded.
     action_ids:

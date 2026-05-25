@@ -662,6 +662,26 @@ private func scriptListingZonesForCommand() -> [ScriptZonedIcon] {
 }
 
 @MainActor
+private func authoritativeScriptListingZonesForCommand() -> [ScriptZonedIcon] {
+    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
+    let result = ScriptResultBox<ScriptClassifiedApps?>(nil)
+    Task { @MainActor in
+        result.value = await SearchService.shared.refreshClassifiedApps()
+    }
+
+    let deadline = Date().addingTimeInterval(5.0)
+    while result.value == nil, Date() < deadline {
+        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+    }
+
+    if let classified = result.value {
+        return sortedScriptZones(zones(from: classified))
+    }
+
+    return []
+}
+
+@MainActor
 private func runScriptMove(timeoutSeconds: TimeInterval = 9.0, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
     Task { @MainActor in
@@ -903,6 +923,32 @@ final class ListIconZonesCommand: SaneBarScriptCommand {
         } else {
             DispatchQueue.main.sync {
                 return scriptListingZonesForCommand()
+            }
+        }
+
+        let lines = zones.map { item in
+            let movable = item.app.isUnmovableSystemItem ? "false" : "true"
+            return "\(item.zone.rawValue)\t\(movable)\t\(item.app.bundleId)\t\(item.app.uniqueId)\t\(item.app.name)"
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+@objc(ListAuthoritativeIconZonesCommand)
+final class ListAuthoritativeIconZonesCommand: SaneBarScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard checkAccessibilityTrusted() else {
+            setAccessibilityError()
+            return nil
+        }
+
+        let zones: [ScriptZonedIcon] = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                return authoritativeScriptListingZonesForCommand()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                return authoritativeScriptListingZonesForCommand()
             }
         }
 

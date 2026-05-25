@@ -783,6 +783,36 @@ final class StatusBarController: StatusBarControllerProtocol {
         return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
     }
 
+    nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double {
+        guard screenWidth > 0 else { return 120.0 }
+        // Recovery is allowed to move SaneBar back beside Control Center, but it
+        // must not collapse the user's visible lane so far that leftmost shown
+        // items wake up hidden. Keep a moderate lane on external displays while
+        // bounding it on smaller screens.
+        return min(240.0, max(180.0, screenWidth * 0.09))
+    }
+
+    private nonisolated static func migratedLegacyNarrowRecoveryPair(
+        mainPosition: Double,
+        separatorPosition: Double,
+        screenWidth: Double,
+        screenHasTopSafeAreaInset: Bool
+    ) -> (main: Double, separator: Double)? {
+        let safeMain = launchSafePreferredMainPositionLimit(
+            for: screenWidth,
+            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
+        )
+        let targetGap = launchSafePreferredSeparatorGap(for: screenWidth)
+        guard targetGap > 0 else { return nil }
+        guard abs(mainPosition - safeMain) < 0.5 else { return nil }
+        let currentGap = separatorPosition - mainPosition
+        guard currentGap < targetGap - 0.5 else { return nil }
+
+        let widenedSeparator = min(screenWidth - 24.0, safeMain + targetGap)
+        guard widenedSeparator > safeMain else { return nil }
+        return (main: safeMain, separator: widenedSeparator)
+    }
+
     nonisolated static func launchSafeCurrentDisplayRecoveryPair(
         screenWidth: Double,
         screenHasTopSafeAreaInset: Bool
@@ -793,7 +823,10 @@ final class StatusBarController: StatusBarControllerProtocol {
             for: screenWidth,
             screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
         )
-        let safeSeparator = min(screenWidth - 24.0, safeMain + 120.0)
+        let safeSeparator = min(
+            screenWidth - 24.0,
+            safeMain + launchSafePreferredSeparatorGap(for: screenWidth)
+        )
         guard safeSeparator > safeMain else { return nil }
         return (main: safeMain, separator: safeSeparator)
     }
@@ -929,16 +962,22 @@ final class StatusBarController: StatusBarControllerProtocol {
                 screenWidth: width,
                 screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
             ) {
-                setPreferredPosition(reanchored.main, forAutosaveName: mainAutosaveName)
-                setPreferredPosition(reanchored.separator, forAutosaveName: separatorAutosaveName)
-                saveDisplayPositionBackupIfNeeded(
-                    for: width,
+                let restoredPair = migratedLegacyNarrowRecoveryPair(
                     mainPosition: reanchored.main,
                     separatorPosition: reanchored.separator,
+                    screenWidth: width,
+                    screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+                ) ?? reanchored
+                setPreferredPosition(restoredPair.main, forAutosaveName: mainAutosaveName)
+                setPreferredPosition(restoredPair.separator, forAutosaveName: separatorAutosaveName)
+                saveDisplayPositionBackupIfNeeded(
+                    for: width,
+                    mainPosition: restoredPair.main,
+                    separatorPosition: restoredPair.separator,
                     referenceScreen: referenceScreen
                 )
                 logger.warning(
-                    "Display validation: reanchored unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public) -> \(reanchored.main, privacy: .public), separator=\(separatorBackup, privacy: .public) -> \(reanchored.separator, privacy: .public))"
+                    "Display validation: reanchored unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public) -> \(restoredPair.main, privacy: .public), separator=\(separatorBackup, privacy: .public) -> \(restoredPair.separator, privacy: .public))"
                 )
                 return true
             }
@@ -948,6 +987,26 @@ final class StatusBarController: StatusBarControllerProtocol {
                 "Display validation: discarding unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public), separator=\(separatorBackup, privacy: .public))"
             )
             return false
+        }
+
+        if let migrated = migratedLegacyNarrowRecoveryPair(
+            mainPosition: mainBackup,
+            separatorPosition: separatorBackup,
+            screenWidth: width,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+        ) {
+            setPreferredPosition(migrated.main, forAutosaveName: mainAutosaveName)
+            setPreferredPosition(migrated.separator, forAutosaveName: separatorAutosaveName)
+            setDisplayPositionBackup(
+                for: width,
+                mainPosition: migrated.main,
+                separatorPosition: migrated.separator,
+                referenceScreen: resolvedReferenceScreen
+            )
+            logger.warning(
+                "Display validation: widened legacy narrow recovery backup for width \(width, privacy: .public) (separator=\(separatorBackup, privacy: .public) -> \(migrated.separator, privacy: .public))"
+            )
+            return true
         }
 
         setPreferredPosition(mainBackup, forAutosaveName: mainAutosaveName)

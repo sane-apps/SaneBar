@@ -81,7 +81,11 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?"
+    assert_includes source, "runtime_fullscreen_matrix_artifact_passed?"
+    assert_includes source, "'useLiquidGlass' => true"
+    assert_includes source, "set_runtime_smoke_reduce_transparency!(true)"
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
+    refute_includes source, "'useLiquidGlass' => false"
   end
 
   def test_live_zone_smoke_rejects_black_appearance_snapshot_pixels
@@ -371,6 +375,14 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "unless @state_restored"
     assert_includes source, 'log("⚠️ Restore failed: #{e.message}")'
     assert_includes source, "persist_log!"
+  end
+
+  def test_startup_layout_probe_requires_visible_lane_after_recovery
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'assert_restored_backup_pair!'
+    assert_includes source, 'visible lane too narrow after recovery'
+    assert_includes source, 'preferred_visible_lane_gap'
   end
 
   def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro

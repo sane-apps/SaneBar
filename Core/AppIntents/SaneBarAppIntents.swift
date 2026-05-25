@@ -1,3 +1,4 @@
+#if !DEBUG
 import AppIntents
 import Foundation
 
@@ -145,3 +146,5 @@ struct SaneBarAppShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+#endif

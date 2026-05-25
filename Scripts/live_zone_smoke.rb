@@ -66,6 +66,9 @@ class LiveZoneSmoke
   DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS = 2.2
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   FULLSCREEN_APPEARANCE_SETTLE_SECONDS = 2.1
+  CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT = 40
+  FULLSCREEN_MATRIX_ARTIFACT_PATH = '/tmp/sanebar_runtime_fullscreen_matrix.json'
+  TOP_STRIP_CAPTURE_WORKDIR = '/tmp/sanebar-top-strip-capture'
   FULLSCREEN_TRANSITION_PROBE_APPS = [
     { label: 'safari', app: 'Safari', process: 'Safari' },
     { label: 'textedit', app: 'TextEdit', process: 'TextEdit' }
@@ -175,6 +178,8 @@ class LiveZoneSmoke
       .split(',')
       .map(&:strip)
       .reject(&:empty?)
+    @fullscreen_matrix_scenarios = []
+    @fullscreen_matrix_artifacts = []
     @supported_applescript_commands = detect_supported_applescript_commands
     reset_resource_watchdog_state
   end
@@ -820,14 +825,19 @@ class LiveZoneSmoke
       return
     end
     assert_appearance_tint_snapshot!(baseline, 'baseline')
+    assert_customer_visible_top_strip_tint!('baseline', expected_visible: true)
 
     open_full_width_transition_probe_window
     sleep_with_watchdog(0.5)
     maximized = capture_appearance_overlay_screenshot('maximized-host')
     raise 'Appearance overlay was not visible over a maximized/full-width host window' unless maximized
     assert_appearance_tint_snapshot!(maximized, 'maximized-host')
+    assert_customer_visible_top_strip_tint!('maximized-host', expected_visible: true)
+    mark_fullscreen_matrix_scenario('maximized desktop window below the menu bar')
 
     exercise_visible_fullscreen_transition_pixel_check
+    assert_required_fullscreen_runtime_settings!
+    write_fullscreen_matrix_artifact!
 
     puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
   ensure
@@ -845,6 +855,7 @@ class LiveZoneSmoke
       sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
       assert_fullscreen_probe_window_state!(probe, true)
       assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
+      assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false)
 
       sleep_with_watchdog(0.8)
 
@@ -852,12 +863,31 @@ class LiveZoneSmoke
       sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
       assert_fullscreen_probe_window_state!(probe, false)
       assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
+      assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true)
+      mark_fullscreen_matrix_scenario('native fullscreen enter and exit')
     ensure
       set_fullscreen_probe_window(probe, false) if probe
       close_visible_transition_probe_window_safely(probe)
     end
 
     puts '✅ Visible fullscreen transition contract ok (Safari + TextEdit)'
+  end
+
+  def assert_customer_visible_top_strip_tint!(label, expected_visible:)
+    return unless @require_visible_appearance_pixels
+
+    path = capture_customer_visible_top_strip(label)
+    stats = self.class.appearance_tint_pixel_stats(path, max_rows: CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT)
+    visible = self.class.visible_orange_tint_pixel_stats?(stats)
+    if expected_visible && !visible
+      raise "Customer-visible top-strip tint missing for #{label}: #{stats.inspect}"
+    elsif !expected_visible && visible
+      raise "Customer-visible top-strip tint still visible for #{label}: #{stats.inspect}"
+    end
+
+    message = expected_visible ? 'tint pixels ok' : 'overlay absent'
+    puts "✅ Customer-visible top-strip #{message} (#{label}): #{stats.inspect}"
+    mark_fullscreen_matrix_scenario('customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots')
   end
 
   def assert_appearance_overlay_hidden_after_fullscreen_settle!(label)
@@ -902,6 +932,139 @@ class LiveZoneSmoke
     nil
   end
 
+  def capture_customer_visible_top_strip(label)
+    FileUtils.mkdir_p(@screenshot_dir)
+    path = File.join(
+      @screenshot_dir,
+      "sanebar-appearance-top-strip-#{label}-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
+    )
+    if (screen_path = capture_customer_visible_screen_via_peekaboo(label, output_path: path))
+      @fullscreen_matrix_artifacts << screen_path
+      return screen_path
+    end
+
+    rect = main_display_top_strip_rect
+    out, status = capture2e_with_timeout(
+      '/usr/sbin/screencapture',
+      '-x',
+      "-R#{rect.join(',')}",
+      path,
+      timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
+    )
+    raise "Could not capture customer-visible top strip #{label}: #{out.strip}" unless status.success?
+
+    screenshot = await_screenshot_file(path)
+    raise "Customer-visible top strip screenshot missing for #{label}" unless screenshot
+
+    @fullscreen_matrix_artifacts << screenshot
+    screenshot
+  end
+
+  def capture_customer_visible_screen_via_peekaboo(label, output_path: nil)
+    peekaboo = resolve_peekaboo_capture_tool
+    return nil unless peekaboo
+
+    FileUtils.mkdir_p(TOP_STRIP_CAPTURE_WORKDIR)
+    stamp = Time.now.utc.strftime('%Y%m%d-%H%M%S')
+    safe_label = label.gsub(/[^A-Za-z0-9._-]+/, '-')
+    screen_path = output_path || File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.png")
+    status_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.status")
+    stdout_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.stdout")
+    stderr_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.stderr")
+    script_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.zsh")
+    File.write(
+      script_path,
+      [
+        '#!/bin/zsh',
+        'set +e',
+        '/usr/bin/osascript -e \'tell application "System Events" to if exists process "Terminal" then set visible of process "Terminal" to false\' >/dev/null 2>&1',
+        'sleep 0.4',
+        "#{Shellwords.escape(peekaboo)} image --mode screen --path #{Shellwords.escape(screen_path)} > #{Shellwords.escape(stdout_path)} 2> #{Shellwords.escape(stderr_path)}",
+        "echo $? > #{Shellwords.escape(status_path)}"
+      ].join("\n")
+    )
+    File.chmod(0o700, script_path)
+
+    apple_script = <<~APPLESCRIPT
+      on run argv
+        tell application "Terminal"
+          do script item 1 of argv
+        end tell
+      end run
+    APPLESCRIPT
+    _out, launch_status = capture2e_with_timeout(
+      '/usr/bin/osascript',
+      '-e',
+      apple_script,
+      "/bin/zsh #{Shellwords.escape(script_path)}; exit",
+      timeout: APPLESCRIPT_TIMEOUT_SECONDS
+    )
+    return nil unless launch_status.success?
+
+    hide_terminal_capture_host
+    deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
+    sleep 0.2 until File.exist?(status_path) || Time.now >= deadline
+    close_terminal_capture_host
+    return nil unless File.exist?(status_path)
+
+    exit_status = File.read(status_path).to_i
+    return nil unless exit_status.zero? && File.size?(screen_path)
+
+    screen_path
+  ensure
+    close_terminal_capture_host
+  end
+
+  def resolve_peekaboo_capture_tool
+    requested = ENV.fetch('PEEKABOO_BIN', 'peekaboo')
+    if requested.include?(File::SEPARATOR)
+      path = File.expand_path(requested)
+      return path if File.executable?(path)
+    end
+
+    ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).concat(['/opt/homebrew/bin', '/usr/local/bin']).uniq.each do |dir|
+      candidate = File.join(dir, requested)
+      return candidate if File.executable?(candidate) && !File.directory?(candidate)
+    end
+
+    nil
+  end
+
+  def hide_terminal_capture_host
+    apple_script = 'tell application "System Events" to if exists process "Terminal" then set visible of process "Terminal" to false'
+    capture2e_with_timeout('/usr/bin/osascript', '-e', apple_script, timeout: 2)
+  rescue StandardError
+    nil
+  end
+
+  def close_terminal_capture_host
+    apple_script = <<~APPLESCRIPT
+      tell application "Terminal"
+        close every window
+        quit
+      end tell
+    APPLESCRIPT
+    capture2e_with_timeout('/usr/bin/osascript', '-e', apple_script, timeout: 2)
+    system('/usr/bin/pkill', '-x', 'Terminal', out: File::NULL, err: File::NULL)
+  rescue StandardError
+    nil
+  end
+
+  def main_display_top_strip_rect
+    script = 'tell application "Finder" to get bounds of window of desktop'
+    out, status = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not read desktop bounds for top-strip capture: #{out.strip}" unless status.success?
+
+    values = out.scan(/-?\d+/).map(&:to_i)
+    raise "Unexpected desktop bounds: #{out.inspect}" unless values.length >= 4
+
+    x1, y1, x2, _y2 = values.first(4)
+    width = x2 - x1
+    raise "Invalid desktop width for top-strip capture: #{out.inspect}" unless width.positive?
+
+    [x1, y1, width, CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT]
+  end
+
   def self.orange_tint_pixel_stats?(stats)
     return false unless stats[:sampled_pixels].to_i >= 20
 
@@ -912,7 +1075,14 @@ class LiveZoneSmoke
       stats[:avg_b] <= 45
   end
 
-  def self.appearance_tint_pixel_stats(path)
+  def self.visible_orange_tint_pixel_stats?(stats)
+    return false unless stats[:sampled_pixels].to_i >= 20
+
+    ratio = stats[:orange_pixel_ratio].to_f
+    ratio >= 0.04 || orange_tint_pixel_stats?(stats)
+  end
+
+  def self.appearance_tint_pixel_stats(path, max_rows: nil)
     bmp_path = path
     cleanup_path = nil
     unless File.extname(path).casecmp('.bmp').zero?
@@ -923,12 +1093,12 @@ class LiveZoneSmoke
       bmp_path = cleanup_path
     end
 
-    parse_bmp_pixel_stats(bmp_path)
+    parse_bmp_pixel_stats(bmp_path, max_rows: max_rows)
   ensure
     FileUtils.rm_f(cleanup_path) if cleanup_path
   end
 
-  def self.parse_bmp_pixel_stats(path)
+  def self.parse_bmp_pixel_stats(path, max_rows: nil)
     data = File.binread(path)
     raise "Not a BMP file: #{path}" unless data.start_with?('BM')
 
@@ -945,8 +1115,10 @@ class LiveZoneSmoke
     max_samples_per_row = [width, 400].min
     step = [width / max_samples_per_row, 1].max
     totals = { r: 0.0, g: 0.0, b: 0.0, alpha: 0.0, sampled_pixels: 0 }
+    orange_pixels = 0
 
-    height.times do |row|
+    rows_to_sample = max_rows ? [max_rows.to_i, height].min : height
+    rows_to_sample.times do |row|
       storage_row = raw_height.positive? ? (height - 1 - row) : row
       row_offset = pixel_offset + (storage_row * row_stride)
       x = 0
@@ -962,6 +1134,7 @@ class LiveZoneSmoke
           totals[:b] += b
           totals[:alpha] += alpha
           totals[:sampled_pixels] += 1
+          orange_pixels += 1 if r >= 70 && r > g * 1.25 && g > b * 1.3 && b <= 80
         end
         x += step
       end
@@ -975,8 +1148,68 @@ class LiveZoneSmoke
       avg_r: (totals[:r] / count).round(1),
       avg_g: (totals[:g] / count).round(1),
       avg_b: (totals[:b] / count).round(1),
-      avg_alpha: (totals[:alpha] / count).round(1)
+      avg_alpha: (totals[:alpha] / count).round(1),
+      orange_pixels: orange_pixels,
+      orange_pixel_ratio: (orange_pixels.to_f / count).round(4)
     }
+  end
+
+  def assert_required_fullscreen_runtime_settings!
+    settings = load_settings_json
+    appearance = settings['menuBarAppearance'].is_a?(Hash) ? settings['menuBarAppearance'] : {}
+    unless appearance['useLiquidGlass'] == true
+      raise 'Fullscreen matrix requires Translucent Background / Liquid Glass enabled'
+    end
+
+    if macos_dark_mode_enabled?
+      mark_fullscreen_matrix_scenario('Dark appearance with Translucent Background enabled')
+    else
+      raise 'Fullscreen matrix requires Dark appearance enabled'
+    end
+
+    if reduce_transparency_enabled?
+      mark_fullscreen_matrix_scenario('Reduce Transparency enabled')
+    else
+      raise 'Fullscreen matrix requires Reduce Transparency enabled'
+    end
+  end
+
+  def load_settings_json
+    settings_path = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+    return {} unless File.exist?(settings_path)
+
+    JSON.parse(File.read(settings_path))
+  rescue JSON::ParserError
+    {}
+  end
+
+  def macos_dark_mode_enabled?
+    script = 'tell application "System Events" to tell appearance preferences to get dark mode'
+    out, status = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    status.success? && out.strip.casecmp('true').zero?
+  end
+
+  def reduce_transparency_enabled?
+    out, status = capture2e_with_timeout('/usr/bin/defaults', 'read', 'com.apple.universalaccess', 'reduceTransparency', timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    status.success? && %w[1 true TRUE].include?(out.strip)
+  end
+
+  def mark_fullscreen_matrix_scenario(name)
+    @fullscreen_matrix_scenarios << name
+    @fullscreen_matrix_scenarios.uniq!
+  end
+
+  def write_fullscreen_matrix_artifact!
+    payload = {
+      status: 'pass',
+      generated_at: Time.now.utc.iso8601,
+      completed_scenarios: @fullscreen_matrix_scenarios,
+      evidence_paths: @fullscreen_matrix_artifacts.uniq,
+      evidence_types: %w[mini_runtime screenshot log],
+      note: 'Customer-visible top-strip screenshots are full-screen crops captured with screencapture, not internal overlay snapshots.'
+    }
+    File.write(FULLSCREEN_MATRIX_ARTIFACT_PATH, JSON.pretty_generate(payload) + "\n")
+    puts "✅ Fullscreen runtime matrix proof written: #{FULLSCREEN_MATRIX_ARTIFACT_PATH}"
   end
 
   def open_full_width_transition_probe_window
