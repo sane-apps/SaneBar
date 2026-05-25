@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.60] - 2026-05-25
+
+Improves fullscreen tint handling so the tint stays out of fullscreen apps, and improves wake and display layout recovery so Visible items stay where expected.
+
+---
+
 ## [2.1.59] - 2026-05-21
 
 Improves menu bar tint behavior in fullscreen apps, including Claude Desktop, and helps Hidden and Visible menu bar items keep their layout after wake or display changes.
