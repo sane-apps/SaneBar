@@ -10,6 +10,8 @@ require 'time'
 class StartupLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
   SNAPSHOT_DELAYS = [2.0, 5.0].freeze
+  SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0
+  SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
 
   def initialize
@@ -149,8 +151,8 @@ class StartupLayoutProbe
     log("Seeded poisoned startup prefs with backup width=#{width_bucket} main=#{backup_main} separator=#{backup_separator}")
     launch_app
 
-    t2 = snapshot_after_delay(2.0)
-    t5 = snapshot_after_delay(5.0)
+    t2 = snapshot_after_delay(2.0, label: 'poisoned-startup T+2s')
+    t5 = snapshot_after_delay(5.0, label: 'poisoned-startup T+5s')
     restored_main = numeric_default(main_key)
     restored_separator = numeric_default(separator_key)
     assert_restored_backup_pair!(
@@ -168,7 +170,7 @@ class StartupLayoutProbe
     quit_app
     launch_app
 
-    replay = snapshot_after_delay(2.0)
+    replay = snapshot_after_delay(2.0, label: 'restart replay T+2s')
     replay_main = numeric_default(main_key)
     replay_separator = numeric_default(separator_key)
     assert_restored_backup_pair!(
@@ -207,7 +209,7 @@ class StartupLayoutProbe
     log("Seeded currentHost visibility overrides for autosave version #{version}")
     launch_app
 
-    snapshot = snapshot_after_delay(2.0)
+    snapshot = snapshot_after_delay(2.0, label: 'currentHost visibility override T+2s')
     assert_snapshot_healthy!(snapshot, label: 'currentHost visibility override T+2s')
     keys.each { |key| assert_current_host_default_cleared!(key) }
 
@@ -229,8 +231,8 @@ class StartupLayoutProbe
     log('Updated settings.json for startup probe: autoRehide=false')
     launch_app
 
-    t2 = snapshot_after_delay(2.0)
-    t5 = snapshot_after_delay(5.0)
+    t2 = snapshot_after_delay(2.0, label: 'autoRehide=false T+2s')
+    t5 = snapshot_after_delay(5.0, label: 'autoRehide=false T+5s')
     unless t2['autoRehideEnabled'] == false && t5['autoRehideEnabled'] == false
       raise "autoRehide=false probe did not stick (T+2=#{t2['autoRehideEnabled'].inspect}, T+5=#{t5['autoRehideEnabled'].inspect})"
     end
@@ -362,25 +364,52 @@ class StartupLayoutProbe
     raise "layout snapshot returned invalid JSON: #{e.message}"
   end
 
-  def snapshot_after_delay(delay_seconds)
+  def snapshot_after_delay(delay_seconds, label:)
     sleep delay_seconds
-    snapshot = read_layout_snapshot!
-    log(
-      "Snapshot after #{delay_seconds}s: hidingState=#{snapshot['hidingState']} " \
-      "mainRightGap=#{snapshot['mainRightGap']} separatorBeforeMain=#{snapshot['separatorBeforeMain']} " \
-      "startupItemsValid=#{snapshot['startupItemsValid']}"
-    )
-    snapshot
+    wait_for_healthy_snapshot(label: label)
   end
 
   def assert_snapshot_healthy!(snapshot, label:)
-    raise "#{label}: geometry unavailable" unless snapshot['geometryAvailable']
-    raise "#{label}: separator not before main" unless snapshot['separatorBeforeMain']
-    raise "#{label}: main icon not near Control Center" unless snapshot['mainNearControlCenter']
-    raise "#{label}: status items are not attached to valid menu bar windows" if snapshot.key?('startupItemsValid') && !truthy?(snapshot['startupItemsValid'])
-    if truthy?(snapshot['possibleSystemMenuBarSuppression'])
-      raise "#{label}: macOS may be suppressing SaneBar in System Settings > Menu Bar > Allow in Menu Bar"
+    error = snapshot_health_error(snapshot, label: label)
+    raise error if error
+  end
+
+  def wait_for_healthy_snapshot(label:)
+    deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS
+    last_snapshot = nil
+    last_error = nil
+
+    loop do
+      last_snapshot = read_layout_snapshot!
+      last_error = snapshot_health_error(last_snapshot, label: label)
+      log(
+        "#{label} snapshot: hidingState=#{last_snapshot['hidingState']} " \
+        "mainRightGap=#{last_snapshot['mainRightGap']} separatorBeforeMain=#{last_snapshot['separatorBeforeMain']} " \
+        "startupItemsValid=#{last_snapshot['startupItemsValid']} " \
+        "suppression=#{last_snapshot['possibleSystemMenuBarSuppression']}"
+      )
+      return last_snapshot unless last_error
+
+      break if Time.now >= deadline
+
+      sleep SNAPSHOT_SETTLE_POLL_SECONDS
     end
+
+    raise "#{last_error} (last snapshot: #{last_snapshot.inspect})"
+  end
+
+  def snapshot_health_error(snapshot, label:)
+    return "#{label}: geometry unavailable" unless snapshot['geometryAvailable']
+    return "#{label}: separator not before main" unless snapshot['separatorBeforeMain']
+    return "#{label}: main icon not near Control Center" unless snapshot['mainNearControlCenter']
+    if snapshot.key?('startupItemsValid') && !truthy?(snapshot['startupItemsValid'])
+      return "#{label}: status items are not attached to valid menu bar windows"
+    end
+    if truthy?(snapshot['possibleSystemMenuBarSuppression'])
+      return "#{label}: macOS may be suppressing SaneBar in System Settings > Menu Bar > Allow in Menu Bar"
+    end
+
+    nil
   end
 
   def assert_main_right_gap_stable!(baseline, current, label:)

@@ -1,84 +1,10 @@
 import AppKit
 import SwiftUI
 
-enum BrowsePanelRestrictedAction {
-    case rightClick
-    case zoneMove
-    case perIconHotkey
-
-    static func upsellFeature(for action: BrowsePanelRestrictedAction, isPro: Bool) -> ProFeature? {
-        guard !isPro else { return nil }
-
-        switch action {
-        case .rightClick:
-            return .rightClickFromPanels
-        case .zoneMove:
-            return .zoneMoves
-        case .perIconHotkey:
-            return .perIconHotkeys
-        }
-    }
-}
-
 // MARK: - Zone Classification, Action Factories & Keyboard Navigation
 
 extension MenuBarSearchView {
     // MARK: - Zone Classification (for All tab context menus)
-
-    enum AppZone { case visible, hidden, alwaysHidden }
-
-    static func separatorBoundaryForAllTabClassification(
-        separatorRightEdgeX: CGFloat?,
-        separatorOriginX: CGFloat?
-    ) -> CGFloat? {
-        if let separatorRightEdgeX, separatorRightEdgeX > 0 {
-            return separatorRightEdgeX
-        }
-        if let separatorOriginX, separatorOriginX > 0 {
-            return separatorOriginX
-        }
-        return nil
-    }
-
-    static func classifyAllTabZone(
-        midX: CGFloat,
-        separatorBoundaryX: CGFloat?,
-        alwaysHiddenSeparatorX: CGFloat?,
-        margin: CGFloat = 6
-    ) -> AppZone {
-        guard let separatorBoundaryX else { return .visible }
-
-        if let alwaysHiddenSeparatorX,
-           alwaysHiddenSeparatorX > 0,
-           alwaysHiddenSeparatorX < separatorBoundaryX,
-           midX < (alwaysHiddenSeparatorX - margin) {
-            return .alwaysHidden
-        }
-
-        return midX < (separatorBoundaryX - margin) ? .hidden : .visible
-    }
-
-    static func alwaysHiddenBoundaryForAllTabClassification(
-        separatorBoundaryX: CGFloat?,
-        alwaysHiddenBoundaryX: CGFloat?,
-        alwaysHiddenOriginX: CGFloat?
-    ) -> CGFloat? {
-        guard let separatorBoundaryX else { return nil }
-
-        let preferredBoundary = SearchService.normalizedAlwaysHiddenBoundary(
-            alwaysHiddenBoundaryX,
-            separatorX: separatorBoundaryX
-        )
-        if preferredBoundary != nil {
-            return preferredBoundary
-        }
-
-        guard let alwaysHiddenOriginX, alwaysHiddenOriginX > 0 else { return nil }
-        return SearchService.normalizedAlwaysHiddenBoundary(
-            alwaysHiddenOriginX + 20,
-            separatorX: separatorBoundaryX
-        )
-    }
 
     /// Classify an app's current zone based on its X position vs separator positions.
     func appZone(for app: RunningApp) -> AppZone {
@@ -89,17 +15,17 @@ extension MenuBarSearchView {
 
         guard let xPos = app.xPosition else { return .visible }
         let midX = xPos + ((app.width ?? 22) / 2)
-        let separatorBoundaryX = Self.separatorBoundaryForAllTabClassification(
-            separatorRightEdgeX: menuBarManager.getSeparatorRightEdgeX(),
-            separatorOriginX: menuBarManager.getSeparatorOriginX()
+        let separatorBoundaryX = BrowsePanelZoneClassifier.separatorBoundaryForAllTab(
+            separatorRightEdgeX: menuBarManager.geometryResolver.separatorRightEdgeX(),
+            separatorOriginX: menuBarManager.geometryResolver.separatorOriginX()
         )
-        let alwaysHiddenBoundaryX = Self.alwaysHiddenBoundaryForAllTabClassification(
+        let alwaysHiddenBoundaryX = BrowsePanelZoneClassifier.alwaysHiddenBoundaryForAllTab(
             separatorBoundaryX: separatorBoundaryX,
-            alwaysHiddenBoundaryX: menuBarManager.getAlwaysHiddenSeparatorBoundaryX(),
-            alwaysHiddenOriginX: menuBarManager.getAlwaysHiddenSeparatorOriginX()
+            alwaysHiddenBoundaryX: menuBarManager.geometryResolver.alwaysHiddenSeparatorBoundaryX(),
+            alwaysHiddenOriginX: menuBarManager.geometryResolver.alwaysHiddenSeparatorOriginX()
         )
 
-        return Self.classifyAllTabZone(
+        return BrowsePanelZoneClassifier.classifyAllTabZone(
             midX: midX,
             separatorBoundaryX: separatorBoundaryX,
             alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
@@ -161,96 +87,46 @@ extension MenuBarSearchView {
         }
     }
 
-    private func observeQueuedMoveResult(_ task: Task<Bool, Never>) {
-        Task { @MainActor in
-            let moved = await task.value
-            if !moved {
-                movingAppId = nil
-            }
-        }
-    }
-
-    private func observeQueuedReorderResult(_ task: Task<Bool, Never>) {
-        Task { @MainActor in
-            let moved = await task.value
-            if !moved {
-                movingAppId = nil
-            }
-        }
-    }
-
-    private func zoneMoveRequest(from sourceZone: AppZone, to targetZone: AppZone) -> MenuBarManager.ZoneMoveRequest? {
-        switch (sourceZone, targetZone) {
-        case (.visible, .hidden):
-            return .visibleToHidden
-        case (.hidden, .visible):
-            return .hiddenToVisible
-        case (.visible, .alwaysHidden):
-            return isAlwaysHiddenEnabled ? .visibleToAlwaysHidden : nil
-        case (.hidden, .alwaysHidden):
-            return isAlwaysHiddenEnabled ? .hiddenToAlwaysHidden : nil
-        case (.alwaysHidden, .visible):
-            return .alwaysHiddenToVisible
-        case (.alwaysHidden, .hidden):
-            return .alwaysHiddenToHidden
-        case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            return nil
-        }
-    }
-
     private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
-        let request = zoneMoveRequest(from: sourceZone, to: targetZone)
-
-        guard let request,
-              let task = menuBarManager.queueZoneMove(app: app, request: request) else { return false }
-
-        movingAppId = app.uniqueId
-        observeQueuedMoveResult(task)
-        return true
+        BrowsePanelMoveQueue.queueMove(
+            app: app,
+            from: sourceZone,
+            to: targetZone,
+            context: moveContext
+        )
     }
 
     private func queueMoveAfterDrop(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
-        guard let request = zoneMoveRequest(from: sourceZone, to: targetZone) else { return false }
-        movingAppId = app.uniqueId
-        Task { @MainActor in
-            await Task.yield()
-            guard let task = await menuBarManager.queueZoneMoveAfterDrop(app: app, request: request) else {
-                movingAppId = nil
-                return
-            }
-            observeQueuedMoveResult(task)
-        }
-        return true
+        BrowsePanelMoveQueue.queueMoveAfterDrop(
+            app: app,
+            from: sourceZone,
+            to: targetZone,
+            context: moveContext
+        )
     }
 
     private func queueReorder(_ sourceApp: RunningApp, targetApp: RunningApp) -> Bool {
-        let sourceX = sourceApp.xPosition ?? 0
-        let targetX = targetApp.xPosition ?? 0
-        let placeAfterTarget = sourceX < targetX
-
-        guard let task = menuBarManager.queueReorderIcon(
-            sourceBundleID: sourceApp.bundleId,
-            sourceMenuExtraID: sourceApp.menuExtraIdentifier,
-            sourceStatusItemIndex: sourceApp.statusItemIndex,
-            targetBundleID: targetApp.bundleId,
-            targetMenuExtraID: targetApp.menuExtraIdentifier,
-            targetStatusItemIndex: targetApp.statusItemIndex,
-            placeAfterTarget: placeAfterTarget
-        ) else {
-            return false
-        }
-
-        movingAppId = sourceApp.uniqueId
-        observeQueuedReorderResult(task)
-        return true
+        BrowsePanelMoveQueue.queueReorder(
+            sourceApp: sourceApp,
+            targetApp: targetApp,
+            context: moveContext
+        )
     }
 
     private func queueReorderAfterDrop(_ sourceApp: RunningApp, targetApp: RunningApp) -> Bool {
-        Task { @MainActor in
-            await Task.yield()
-            _ = queueReorder(sourceApp, targetApp: targetApp)
-        }
-        return true
+        BrowsePanelMoveQueue.queueReorderAfterDrop(
+            sourceApp: sourceApp,
+            targetApp: targetApp,
+            context: moveContext
+        )
+    }
+
+    private var moveContext: BrowsePanelMoveContext {
+        BrowsePanelMoveContext(
+            isAlwaysHiddenEnabled: isAlwaysHiddenEnabled,
+            manager: menuBarManager,
+            setMovingAppID: { movingAppId = $0 }
+        )
     }
 
     @MainActor
@@ -283,7 +159,7 @@ extension MenuBarSearchView {
 
         // Pull from the shared cache so zone drops work regardless of current tab.
         let classified = service.cachedClassifiedApps()
-        guard let source = Self.sourceForDropPayload(
+        guard let source = BrowsePanelDropResolver.sourceForDropPayload(
             sourceID,
             classified: classified,
             filteredApps: filteredApps,
@@ -308,42 +184,6 @@ extension MenuBarSearchView {
         }
     }
 
-    static func sourceForDropPayload(
-        _ sourceID: String,
-        classified: SearchClassifiedApps,
-        filteredApps: [RunningApp] = [],
-        mode: Mode? = nil,
-        zoneForAllMode: ((RunningApp) -> AppZone)? = nil
-    ) -> (app: RunningApp, zone: AppZone)? {
-        if let app = classified.visible.first(where: { $0.uniqueId == sourceID }) {
-            return (app, .visible)
-        }
-        if let app = classified.hidden.first(where: { $0.uniqueId == sourceID }) {
-            return (app, .hidden)
-        }
-        if let app = classified.alwaysHidden.first(where: { $0.uniqueId == sourceID }) {
-            return (app, .alwaysHidden)
-        }
-        guard let app = filteredApps.first(where: { $0.uniqueId == sourceID }),
-              let mode else {
-            return nil
-        }
-
-        switch mode {
-        case .visible:
-            return (app, .visible)
-        case .hidden:
-            return (app, .hidden)
-        case .alwaysHidden:
-            return (app, .alwaysHidden)
-        case .all:
-            if let zone = zoneForAllMode?(app) {
-                return (app, zone)
-            }
-            return (app, .visible)
-        }
-    }
-
     // MARK: - Keyboard Navigation
 
     /// Whether keyboard navigation should be active (not when modals are open)
@@ -352,72 +192,22 @@ extension MenuBarSearchView {
     }
 
     func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
-        // Don't capture keys when modals/popovers are open
-        // Let them handle their own keyboard events
         guard isKeyboardNavigationActive else {
             return .ignored
         }
 
-        // If search field is focused, let it handle most keys
-        if isSearchFieldFocused {
-            switch keyPress.key {
-            case .downArrow:
-                // Exit search field and select first app
-                isSearchFieldFocused = false
-                selectedAppIndex = filteredApps.isEmpty ? nil : 0
-                return .handled
-            case .upArrow:
-                // Exit search field and select last app
-                isSearchFieldFocused = false
-                selectedAppIndex = filteredApps.isEmpty ? nil : filteredApps.count - 1
-                return .handled
-            case .return:
-                // Activate first match while typing
-                if let first = filteredApps.first {
-                    activateApp(first)
-                    return .handled
-                }
-                return .ignored
-            default:
-                return .ignored // Let TextField handle it
-            }
-        }
-
-        // Grid navigation mode
-        switch keyPress.key {
-        case .downArrow:
-            moveSelection(by: 1)
-            return .handled
-        case .upArrow:
-            moveSelection(by: -1)
-            return .handled
-        case .leftArrow:
-            moveSelectionHorizontal(by: -1)
-            return .handled
-        case .rightArrow:
-            moveSelectionHorizontal(by: 1)
-            return .handled
-        case .return:
-            // Activate selected app, then clear selection so repeat Enter
-            // doesn't re-trigger the same icon (window now persists after activation)
-            if let index = selectedAppIndex, index < filteredApps.count {
-                activateApp(filteredApps[index])
-                selectedAppIndex = nil
-                return .handled
-            } else if let first = filteredApps.first {
-                activateApp(first)
-                return .handled
-            }
-            return .ignored
-        default:
-            // Letter keys auto-show search and start typing
-            if let char = keyPress.characters.first, char.isLetter || char.isNumber {
-                showSearchAndFocus()
-                // The character will be typed into the now-focused search field
-                return .ignored // Let the character through to TextField
-            }
-            return .ignored
-        }
+        return BrowsePanelKeyboardNavigation.handleKeyPress(
+            keyPress,
+            context: BrowsePanelKeyboardNavigationContext(
+                isSearchFieldFocused: isSearchFieldFocused,
+                setSearchFieldFocused: { isSearchFieldFocused = $0 },
+                selectedAppIndex: selectedAppIndex,
+                setSelectedAppIndex: { selectedAppIndex = $0 },
+                filteredApps: filteredApps,
+                activate: { activateApp($0) },
+                showSearchAndFocus: showSearchAndFocus
+            )
+        )
     }
 
     func showSearchAndFocus() {
@@ -430,23 +220,4 @@ extension MenuBarSearchView {
         }
     }
 
-    func moveSelection(by delta: Int) {
-        guard !filteredApps.isEmpty else { return }
-
-        if let current = selectedAppIndex {
-            let newIndex = current + delta
-            if newIndex >= 0, newIndex < filteredApps.count {
-                selectedAppIndex = newIndex
-            }
-        } else {
-            // No selection - start from first or last
-            selectedAppIndex = delta > 0 ? 0 : filteredApps.count - 1
-        }
-    }
-
-    func moveSelectionHorizontal(by delta: Int) {
-        // For now, treat left/right same as up/down (linear navigation)
-        // Could be enhanced later with grid-aware navigation using column count
-        moveSelection(by: delta)
-    }
 }

@@ -88,7 +88,7 @@ final class NetworkTriggerService: NSObject, NetworkTriggerServiceProtocol, CWEv
         let triggerNetworks = manager.settings.triggerNetworks
         if triggerNetworks.contains(ssid) {
             logger.info("Connected to trigger network: \(ssid, privacy: .private)")
-            manager.runTriggerAction(
+            manager.profileWorkflow.runTriggerAction(
                 manager.settings.networkTriggerAction,
                 profileId: manager.settings.networkTriggerProfileId,
                 reason: "network"

@@ -165,7 +165,7 @@ enum BartenderImportService {
 
         let wasHidden = menuBarManager.hidingService.state == .hidden
         if wasHidden {
-            let revealed = await menuBarManager.showHiddenItemsNow(trigger: .settingsButton)
+            let revealed = await menuBarManager.visibilityWorkflow.showHiddenItemsNow(trigger: .settingsButton)
             if !revealed, menuBarManager.hidingService.state == .hidden {
                 throw ImportError.authRequired
             }
@@ -177,7 +177,7 @@ enum BartenderImportService {
                 summary.skippedDuplicates += 1
                 continue
             }
-            let didMove = await menuBarManager.moveIconAndWait(
+            let didMove = await menuBarManager.moveQueueWorkflow.moveIconAndWait(
                 bundleID: resolved.bundleId,
                 menuExtraId: resolved.menuExtraId,
                 statusItemIndex: resolved.statusItemIndex,
@@ -196,7 +196,7 @@ enum BartenderImportService {
                     summary.skippedDuplicates += 1
                     continue
                 }
-                let didMove = await menuBarManager.moveIconAndWait(
+                let didMove = await menuBarManager.moveQueueWorkflow.moveIconAndWait(
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
@@ -234,7 +234,7 @@ enum BartenderImportService {
                     summary.skippedDuplicates += 1
                     continue
                 }
-                let didMove = await menuBarManager.moveIconAlwaysHiddenAndWait(
+                let didMove = await menuBarManager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
@@ -254,7 +254,7 @@ enum BartenderImportService {
                     summary.skippedDuplicates += 1
                     continue
                 }
-                let didMove = await menuBarManager.moveIconAndWait(
+                let didMove = await menuBarManager.moveQueueWorkflow.moveIconAndWait(
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
@@ -285,7 +285,7 @@ enum BartenderImportService {
         }
 
         if wasHidden {
-            menuBarManager.hideHiddenItems()
+            menuBarManager.visibilityWorkflow.hideHiddenItems()
         }
 
         logger.log("🍸 Bartender import complete. \(summary.totalMoved) moved. Not running: \(summary.skippedNotRunning)")
@@ -308,7 +308,7 @@ enum BartenderImportService {
         let separatorX: CGFloat?
         let visibleBoundaryX: CGFloat?
         if toHidden {
-            separatorX = menuBarManager.getSeparatorOriginX()
+            separatorX = menuBarManager.geometryResolver.separatorOriginX()
 
             if let ahItem = menuBarManager.alwaysHiddenSeparatorItem,
                let ahButton = ahItem.button,
@@ -319,8 +319,8 @@ enum BartenderImportService {
                 visibleBoundaryX = nil
             }
         } else {
-            separatorX = menuBarManager.getSeparatorRightEdgeX()
-            visibleBoundaryX = menuBarManager.getMainStatusItemLeftEdgeX()
+            separatorX = menuBarManager.geometryResolver.separatorRightEdgeX()
+            visibleBoundaryX = menuBarManager.geometryResolver.mainStatusItemLeftEdgeX()
         }
 
         guard let separatorX else { return false }
@@ -759,15 +759,6 @@ extension BartenderImportService {
             context: context,
             preservedRawItems: preservedRawItems.compactMap(parseItem)
         )
-    }
-
-    static func _test_previewPlan(
-        profile: Profile,
-        root: [String: Any],
-        fileName: String,
-        context: ResolutionContext
-    ) -> SaneBarImportPreviewPlan {
-        previewPlan(profile: profile, root: root, fileName: fileName, context: context)
     }
 
     static func _test_storedRuleItemId(

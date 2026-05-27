@@ -83,6 +83,82 @@ runtime_state_matrix:
     - fresh authoritative icon-zone snapshot at 5s after wake
     - fresh authoritative icon-zone snapshot at 15s after wake
     - visible required IDs remain visible and are not moved into Hidden or Always Hidden
+    - hidden required IDs remain hidden and are not moved into Visible or Always Hidden
+  dynamic_helper_wake_drift:
+    why: Helper-owned menu extras such as Lungo can drift across wake/display replay even when stable Apple extras and SaneBar anchors look correct.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - browse-icons-icon-context-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - screenshot
+    - log
+    - state_receipt
+    runner: Scripts/wake_layout_probe.rb helper-specific visible-zone snapshots after wake
+    required_scenarios:
+    - dynamic helper required IDs are present before wake
+    - dynamic helper required IDs remain in intended zones after wake
+    - helper-specific Hidden to Visible drift is rejected as a release blocker
+  shared_bundle_exact_id_moves:
+    why: Control Center, Clock, Focus, Wi-Fi, Battery, and Display share bundles; moving by bundle or stale geometry can target the wrong icon while native exact-ID lanes still pass.
+    action_ids:
+    - startup-wake-appearance-recovery
+    - browse-icons-icon-context-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - log
+    - state_receipt
+    runner: Scripts/qa.rb shared-bundle focused exact-ID smoke
+    required_scenarios:
+    - shared-bundle exact-id smoke ran with non-empty required_ids
+    - every required shared-bundle candidate moved by unique ID, not sibling fallback
+  hover_auto_rehide:
+    why: Hover reveal and delayed auto-rehide are timing-sensitive customer flows that source guards and screenshots do not exercise.
+    action_ids:
+    - control-settings-actions
+    - startup-wake-appearance-recovery
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_click
+    - mini_runtime
+    - log
+    - state_receipt
+    runner: Mini hover/auto-rehide runtime probe
+    required_scenarios:
+    - hover reveal opens hidden items
+    - leaving the reveal zone auto-rehides after the configured delay
+    - repeated hover cycles do not leave stale visible items
+  license_clipboard_paste:
+    why: A license field can render correctly while failing real paste/focus activation, which blocks paid conversion.
+    action_ids:
+    - license-about-support-actions
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_click
+    - screenshot
+    - log
+    - state_receipt
+    runner: Mini license clipboard paste runtime probe
+    required_scenarios:
+    - license sheet accepts clipboard paste into the key field
+    - Activate uses the pasted value instead of an empty or stale field
+    - invalid test key shows a visible validation result without dismissing the sheet
+  resource_soak_growth:
+    why: Short watchdogs catch acute spikes but not scanner, observer, or helper growth that appears over normal long-running use.
+    action_ids:
+    - startup-wake-appearance-recovery
+    required_proof_level: full_runtime_completion
+    required_evidence_types:
+    - mini_runtime
+    - log
+    - state_receipt
+    runner: SaneMaster Mini resource soak probe
+    required_scenarios:
+    - at least 2h Mini soak completed on the release candidate
+    - average CPU remains within idle budget
+    - RSS and physical footprint do not grow beyond the release slope budget
   basic_pro_mode:
     why: The same customer action must either work in Pro or clearly gate in Basic without pretending the change succeeded.
     action_ids:

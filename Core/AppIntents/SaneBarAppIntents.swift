@@ -9,7 +9,7 @@ struct ToggleHiddenItemsIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        MenuBarManager.shared.toggleHiddenItems()
+        MenuBarManager.shared.visibilityWorkflow.toggleHiddenItems()
         return .result()
     }
 }
@@ -21,7 +21,7 @@ struct ShowHiddenItemsIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        MenuBarManager.shared.showHiddenItems()
+        MenuBarManager.shared.visibilityWorkflow.showHiddenItems()
         return .result()
     }
 }
@@ -33,7 +33,7 @@ struct HideHiddenItemsIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        MenuBarManager.shared.hideHiddenItems()
+        MenuBarManager.shared.visibilityWorkflow.hideHiddenItems()
         return .result()
     }
 }
@@ -61,12 +61,12 @@ struct ApplySaneBarProfileIntent: AppIntent {
             return .result(dialog: "Choose a SaneBar profile name.")
         }
 
-        let profiles = MenuBarManager.shared.savedProfiles()
+        let profiles = MenuBarManager.shared.profileWorkflow.savedProfiles()
         guard let profile = profiles.first(where: { $0.name.localizedCaseInsensitiveCompare(trimmedName) == .orderedSame }) else {
             return .result(dialog: "SaneBar could not find a profile named \(trimmedName).")
         }
 
-        MenuBarManager.shared.applyProfile(profile, preserveAutomation: false, reason: "app-intent")
+        MenuBarManager.shared.profileWorkflow.applyProfile(profile, preserveAutomation: false, reason: "app-intent")
         return .result(dialog: "Applied \(profile.name).")
     }
 }
@@ -89,7 +89,7 @@ struct QuickSearchSaneBarIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        _ = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
+        _ = await MenuBarManager.shared.visibilityWorkflow.showHiddenItemsNow(trigger: .search)
         SearchWindowController.shared.show(mode: .findIcon, prefill: query.trimmingCharacters(in: .whitespacesAndNewlines))
         return .result()
     }

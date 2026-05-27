@@ -33,6 +33,14 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         return othersAfterGrace > 0 ? .terminateCurrent : .noConflict
     }
 
+    nonisolated static func shouldSkipDuplicateTerminationForAutomation(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        environment["SANEAPPS_DISABLE_KEYCHAIN"] == "1" ||
+            arguments.contains("--sane-no-keychain")
+    }
+
     // No @main - using main.swift instead
 
     nonisolated static func shouldUpdateAppShortcutParameters(
@@ -88,7 +96,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         // Initialize MenuBarManager (creates status items) - MUST be after activation policy is set
         _ = MenuBarManager.shared
-        MenuBarManager.shared.normalizeLicenseDependentDefaults()
+        MenuBarManager.shared.actionWorkflow.normalizeLicenseDependentDefaults()
 
         // Configure keyboard shortcuts
         let shortcutsService = KeyboardShortcutsService.shared
@@ -125,6 +133,10 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func scheduleDuplicateInstanceTerminationCheckIfNeeded() {
+        guard !Self.shouldSkipDuplicateTerminationForAutomation() else {
+            appLogger.info("Skipping duplicate-instance termination guard for no-keychain automation launch.")
+            return
+        }
         guard let bundleID = Bundle.main.bundleIdentifier else { return }
         let currentPID = ProcessInfo.processInfo.processIdentifier
         let initialOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID)
@@ -210,7 +222,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     @objc private func checkForUpdatesFromDock(_: Any?) {
-        MenuBarManager.shared.userDidClickCheckForUpdates()
+        MenuBarManager.shared.actionWorkflow.userDidClickCheckForUpdates()
     }
 
     @MainActor
@@ -246,20 +258,20 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             switch command {
             case "toggle":
-                MenuBarManager.shared.toggleHiddenItems()
+                MenuBarManager.shared.visibilityWorkflow.toggleHiddenItems()
             case "show":
-                MenuBarManager.shared.showHiddenItems()
+                MenuBarManager.shared.visibilityWorkflow.showHiddenItems()
             case "hide":
-                MenuBarManager.shared.hideHiddenItems()
+                MenuBarManager.shared.visibilityWorkflow.hideHiddenItems()
             case "search":
                 if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
-                    let ok = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                    let ok = await MenuBarManager.shared.visibilityWorkflow.authenticate(reason: "Unlock hidden icons")
                     guard ok else {
                         appLogger.log("🌐 URL command blocked by auth: search")
                         return
                     }
                 }
-                _ = await MenuBarManager.shared.showHiddenItemsNow(trigger: .search)
+                _ = await MenuBarManager.shared.visibilityWorkflow.showHiddenItemsNow(trigger: .search)
                 SearchWindowController.shared.show(mode: .findIcon, prefill: searchQuery)
             case "settings":
                 SettingsOpener.open()

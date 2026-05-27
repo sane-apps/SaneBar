@@ -25,7 +25,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             alwaysHidden: [RunningApp]()
         )
 
-        let resolved = MenuBarSearchView.sourceForDropPayload(hiddenApp.uniqueId, classified: classified)
+        let resolved = BrowsePanelDropResolver.sourceForDropPayload(hiddenApp.uniqueId, classified: classified)
         XCTAssertNotNil(resolved)
         XCTAssertEqual(resolved?.app.uniqueId, hiddenApp.uniqueId)
         if let zone = resolved?.zone {
@@ -45,7 +45,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             alwaysHidden: [RunningApp]()
         )
 
-        let resolved = MenuBarSearchView.sourceForDropPayload("com.unknown.app", classified: classified)
+        let resolved = BrowsePanelDropResolver.sourceForDropPayload("com.unknown.app", classified: classified)
         XCTAssertNil(resolved)
     }
 
@@ -62,7 +62,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             alwaysHidden: [RunningApp]()
         )
 
-        let resolved = MenuBarSearchView.sourceForDropPayload(
+        let resolved = BrowsePanelDropResolver.sourceForDropPayload(
             hiddenApp.uniqueId,
             classified: classified,
             filteredApps: [hiddenApp],
@@ -94,7 +94,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
             alwaysHidden: [RunningApp]()
         )
 
-        let resolved = MenuBarSearchView.sourceForDropPayload(
+        let resolved = BrowsePanelDropResolver.sourceForDropPayload(
             app.uniqueId,
             classified: classified,
             filteredApps: [app],
@@ -115,17 +115,17 @@ final class MenuBarSearchDropXCTests: XCTestCase {
 
     func testBundleIdExtractionFromPayload() {
         XCTAssertEqual(
-            MenuBarSearchView.bundleIDFromPayload("com.apple.controlcenter::statusItem:1"),
+            BrowsePanelDropPayload.bundleID(from: "com.apple.controlcenter::statusItem:1"),
             "com.apple.controlcenter"
         )
         XCTAssertEqual(
-            MenuBarSearchView.bundleIDFromPayload("com.apple.menuextra.battery"),
+            BrowsePanelDropPayload.bundleID(from: "com.apple.menuextra.battery"),
             "com.apple.menuextra.battery"
         )
     }
 
     func testAllTabBoundaryPrefersSeparatorRightEdge() {
-        let boundary = MenuBarSearchView.separatorBoundaryForAllTabClassification(
+        let boundary = BrowsePanelZoneClassifier.separatorBoundaryForAllTab(
             separatorRightEdgeX: 1205,
             separatorOriginX: 454
         )
@@ -133,7 +133,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testAllTabBoundaryFallsBackToOrigin() {
-        let boundary = MenuBarSearchView.separatorBoundaryForAllTabClassification(
+        let boundary = BrowsePanelZoneClassifier.separatorBoundaryForAllTab(
             separatorRightEdgeX: nil,
             separatorOriginX: 1170
         )
@@ -141,7 +141,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testAllTabClassificationIgnoresAlwaysHiddenSeparatorWhenMisordered() {
-        let zone = MenuBarSearchView.classifyAllTabZone(
+        let zone = BrowsePanelZoneClassifier.classifyAllTabZone(
             midX: 320,
             separatorBoundaryX: 1200,
             alwaysHiddenSeparatorX: 1400
@@ -156,7 +156,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testAllTabClassificationUsesAlwaysHiddenWhenOrdered() {
-        let zone = MenuBarSearchView.classifyAllTabZone(
+        let zone = BrowsePanelZoneClassifier.classifyAllTabZone(
             midX: 180,
             separatorBoundaryX: 1200,
             alwaysHiddenSeparatorX: 250
@@ -171,7 +171,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testAllTabAlwaysHiddenBoundaryPrefersNormalizedBoundaryHelper() {
-        let boundary = MenuBarSearchView.alwaysHiddenBoundaryForAllTabClassification(
+        let boundary = BrowsePanelZoneClassifier.alwaysHiddenBoundaryForAllTab(
             separatorBoundaryX: 1200,
             alwaysHiddenBoundaryX: 240,
             alwaysHiddenOriginX: 80
@@ -180,7 +180,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
     }
 
     func testAllTabAlwaysHiddenBoundaryFallsBackFromOriginUsingRuntimeNormalization() {
-        let boundary = MenuBarSearchView.alwaysHiddenBoundaryForAllTabClassification(
+        let boundary = BrowsePanelZoneClassifier.alwaysHiddenBoundaryForAllTab(
             separatorBoundaryX: 1200,
             alwaysHiddenBoundaryX: nil,
             alwaysHiddenOriginX: 180
@@ -217,7 +217,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
         )
 
         XCTAssertFalse(
-            MenuBarSearchView.shouldSuggestSecondMenuBarForVisibleLane(
+            BrowseVisibleLaneCrowdingAdvisor.shouldSuggestSecondMenuBar(
                 visibleApps: visibleApps,
                 movedApp: movedApp,
                 separatorRightEdgeX: 1100,
@@ -271,7 +271,7 @@ final class MenuBarSearchDropXCTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            MenuBarSearchView.shouldSuggestSecondMenuBarForVisibleLane(
+            BrowseVisibleLaneCrowdingAdvisor.shouldSuggestSecondMenuBar(
                 visibleApps: visibleApps,
                 movedApp: movedApp,
                 separatorRightEdgeX: 1100,

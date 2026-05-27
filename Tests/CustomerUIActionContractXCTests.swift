@@ -33,6 +33,31 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         try read("Tests/CustomerUIActions.yml")
     }
 
+    private func welcomeOnboardingSource() throws -> String {
+        try [
+            "UI/Onboarding/WelcomeView.swift",
+            "UI/Onboarding/WelcomeOnboardingStyle.swift",
+            "UI/Onboarding/WelcomeActionPage.swift",
+            "UI/Onboarding/WelcomeWorkflowPages.swift",
+            "UI/Onboarding/WelcomePermissionPage.swift",
+            "UI/Onboarding/WelcomePlanPage.swift",
+            "UI/Onboarding/WelcomePromisePage.swift",
+            "UI/Onboarding/WelcomeViewPreviews.swift"
+        ]
+        .map { try read($0) }
+        .joined(separator: "\n")
+    }
+
+    private func secondMenuBarSource() throws -> String {
+        try [
+            "UI/SearchWindow/SecondMenuBarView.swift",
+            "UI/SearchWindow/SecondMenuBarSupport.swift",
+            "UI/SearchWindow/SecondMenuBarPanelIconTile.swift"
+        ]
+        .map { try read($0) }
+        .joined(separator: "\n")
+    }
+
     private func normalizedContract(_ source: String) -> String {
         source
             .replacingOccurrences(
@@ -165,18 +190,64 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "Reduce Transparency enabled",
             "customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots",
             "fresh authoritative icon-zone snapshot at 15s after wake",
-            "visible required IDs remain visible and are not moved into Hidden or Always Hidden"
+            "visible required IDs remain visible and are not moved into Hidden or Always Hidden",
+            "hidden required IDs remain hidden and are not moved into Visible or Always Hidden",
+            "dynamic_helper_wake_drift",
+            "helper-specific Hidden to Visible drift is rejected as a release blocker",
+            "shared_bundle_exact_id_moves",
+            "shared-bundle exact-id smoke ran with non-empty required_ids",
+            "hover_auto_rehide",
+            "license_clipboard_paste",
+            "resource_soak_growth",
+            "at least 2h Mini soak completed on the release candidate"
         ] {
             XCTAssertTrue(contract.contains(marker), "Runtime matrix must include \(marker)")
         }
+    }
+
+    func testCustomerUISweepAllowsPostVisualRehideSettleSlack() throws {
+        let source = try read("Scripts/customer_ui_action_sweep.rb")
+
+        XCTAssertTrue(
+            source.contains("rehide_timeout = [revealed.fetch('rehideDelay', 5).to_f + 8.0, 15.0].max") &&
+                source.contains("wait_for_hiding_state('hidden', timeout: rehide_timeout)") &&
+                source.contains("timeout=#{rehide_timeout}") &&
+                source.contains("settle_runtime_ui_for_rehide_probe") &&
+                source.contains("park_pointer_away_from_menu_bar") &&
+                source.contains("Pointer parking left the cursor in the menu-bar interaction region") &&
+                source.contains("snapshot_summary(last)") &&
+                source.contains("autoRehideBlockReason"),
+            "Customer UI sweep should allow enough Mini settle time and report the exact runtime guard before failing auto-rehide proof"
+        )
+    }
+
+    func testLayoutSnapshotReportsAutoRehideBlockReason() throws {
+        let visibilitySource = try read("Core/Services/MenuBarVisibilityWorkflow.swift")
+        let snapshotSource = try read("Core/Services/LayoutSnapshotCommand.swift")
+
+        XCTAssertTrue(
+            visibilitySource.contains("func autoRehideBlockReason() -> String") &&
+                visibilitySource.contains("return \"move-in-progress\"") &&
+                visibilitySource.contains("return \"browse-session-active\"") &&
+                visibilitySource.contains("return \"browse-visible\"") &&
+                visibilitySource.contains("return \"status-menu-open\"") &&
+                visibilitySource.contains("return \"mouse-in-menu-bar-interaction-region\"") &&
+                visibilitySource.contains("func canAutoRehideAtFireTime() -> Bool {\n        autoRehideBlockReason() == \"none\""),
+            "Auto-rehide fire-time guards should have one inspectable reason source instead of duplicated boolean branches"
+        )
+        XCTAssertTrue(
+            snapshotSource.contains("\"autoRehideBlockReason\": manager.visibilityWorkflow.autoRehideBlockReason()"),
+            "Layout snapshot must expose the exact auto-rehide block reason for release sweep and customer diagnostics"
+        )
     }
 
     func testContractTracksBrowseContextOnboardingAndSharedSaneUI() throws {
         let contract = normalizedContract(try contract())
         let tileSource = try read("UI/SearchWindow/MenuBarAppTile.swift")
         let searchSource = try read("UI/SearchWindow/MenuBarSearchView.swift")
-        let secondMenuBarSource = try read("UI/SearchWindow/SecondMenuBarView.swift")
-        let onboardingSource = try read("UI/Onboarding/WelcomeView.swift")
+        let browseChromeSource = try read("UI/SearchWindow/BrowsePanelChromeViews.swift")
+        let secondMenuBarSource = try secondMenuBarSource()
+        let onboardingSource = try welcomeOnboardingSource()
         let saneUICatalog = try readShared("infra/SaneUI/Sources/SaneUICatalog/SaneUICatalogApp.swift")
         let aboutSource = try readShared("infra/SaneUI/Sources/SaneUI/Components/SaneAboutView.swift")
         let licenseSource = try readShared("infra/SaneUI/Sources/SaneUI/License/LicenseSettingsView.swift")
@@ -192,7 +263,10 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         )
 
         for label in ["How Browse Icons works", "Open Accessibility Settings", "Try Again"] {
-            XCTAssertTrue(searchSource.contains(label) || secondMenuBarSource.contains(label), "Expected Browse/Second Menu Bar action \(label)")
+            XCTAssertTrue(
+                searchSource.contains(label) || browseChromeSource.contains(label) || secondMenuBarSource.contains(label),
+                "Expected Browse/Second Menu Bar action \(label)"
+            )
         }
 
         for label in ["Import Layout", "Import Settings", "Open Accessibility Settings", "Unlock Pro", "Restore Purchases"] {

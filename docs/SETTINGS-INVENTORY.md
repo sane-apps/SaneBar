@@ -1,61 +1,39 @@
 # SaneBar Settings Inventory (Current)
 
 > Source of truth for current settings UI and labels.
-> Last updated: 2026-03-28
+> Last updated: 2026-05-27
 
 ## Sidebar Tabs
-- `General`
+- `Control`
 - `Rules`
 - `Appearance`
 - `Shortcuts`
+- `Health`
+- `License`
 - `About`
 
 Code: `UI/SettingsView.swift`
 
 ---
 
-## General
+## Control
 
 ### Browse Icons
 - `Browse Icons view`: `Icon Panel` / `Second Menu Bar`
-- `Visible rows` presets (Pro + Second Menu Bar only):
-  - `Minimal` (Hidden)
-  - `Balanced` (Hidden + Visible)
-  - `Power` (Hidden + Visible + Always Hidden)
-- `Customize rows` (Power preset only):
-  - `Include visible icons`
-  - `Include always-hidden icons`
-- `Left-click SaneBar icon`:
-  - `Toggle Hidden`
-  - `Open Icon Panel` or `Open Second Menu Bar` (dynamic label)
-- Tip text: right-click opens app menu
+- Second Menu Bar row presets and custom row controls
+- `Left-click SaneBar icon`: toggle hidden icons or open the selected Browse Icons view
 
-### Security
-- `Touch ID to unlock hidden icons` (Pro)
-
-### Startup
+### Startup And Updates
 - `Start automatically at login`
-- `Show app in Dock`
-
-### Software Updates
-- `Check for updates automatically`
+- Dock visibility control
+- Automatic update check controls
 - `Check Now`
 
-### Saved Profiles (Pro)
-- Save current settings as profile
-- Load/delete saved profiles
-
-### Data (Pro)
+### Data And Profiles
+- Save, load, delete, and apply profiles
 - Export/import settings JSON
 - Import from Bartender / Ice
-
-### Pro License
-- Status: `Free` or `Pro`
-- Free: `Unlock Pro`, `Enter Key`
-- Pro: licensed email, `Deactivate License`
-
-### Maintenance
-- `Reset to Defaults…`
+- Reset to defaults
 
 Code: `UI/Settings/GeneralSettingsView.swift`
 
@@ -64,25 +42,23 @@ Code: `UI/Settings/GeneralSettingsView.swift`
 ## Rules
 
 ### Hiding Behavior
-- `Hide icons automatically`
-- Pro customizations:
-  - `Wait before hiding`
-  - `Wait after Browse Icons`
-  - `Hide when app changes`
-  - `Always show on external monitors`
+- Automatic hide controls
+- Rehide delay controls
+- Hide on app change
+- External monitor behavior
 
 ### Revealing
-- `Show when mouse hovers top edge`
-- `Show when scrolling on menu bar`
-- Pro: gesture behavior (`Show only` / `Show and Hide`)
-- `Show when rearranging icons`
+- Hover reveal
+- Scroll reveal
+- Drag/rearrange reveal
+- Hide app menus during inline reveal
 
-### Automatic Triggers (Pro)
+### Automatic Triggers
 - Low battery threshold
-- Specific app launch trigger list
-- Schedule (days + start/end)
-- Wi-Fi trigger list
-- Focus Mode trigger list
+- App launch triggers
+- Schedule triggers
+- Wi-Fi triggers
+- Focus Mode triggers
 - Script trigger path
 
 Code: `UI/Settings/RulesSettingsView.swift`
@@ -92,23 +68,21 @@ Code: `UI/Settings/RulesSettingsView.swift`
 ## Appearance
 
 ### Menu Bar Icon
-- Built-in icon styles + custom image (Pro)
+- Built-in icon styles
+- Custom image
 
-### Divider Style
-- Primary divider style
-- Pro: extra dividers + extra divider style
+### Divider And Tint
+- Divider style
+- Extra dividers
+- Custom Appearance
+- Translucent Background
+- Light/Dark tint controls
+- Shadow, border, rounded corners, and radius
 
-### Menu Bar Style (Pro)
-- `Custom Appearance`
-- `Translucent Background` (when supported)
-- Light/Dark tint + intensity
-- Shadow / Border / Rounded corners
-- Corner radius control
-
-### Menu Bar Layout (Pro)
-- `Reduce space between icons`
-- Item spacing + click area
-- logout reminder
+### Layout
+- Reduce space between icons
+- Item spacing
+- Click area
 
 Code: `UI/Settings/AppearanceSettingsView.swift`
 
@@ -119,25 +93,54 @@ Code: `UI/Settings/AppearanceSettingsView.swift`
 ### Global Hotkeys
 - Browse Icons
 - Show/Hide icons
-- Show icons (Pro)
-- Hide icons (Pro)
-- Open Settings (Pro)
+- Show icons
+- Hide icons
+- Open Settings
 
 ### Automation
-- AppleScript command row + copy
+- AppleScript command row
+- Copy command controls
 - Pro automation command set
 
 Code: `UI/Settings/ShortcutsSettingsView.swift`
 
 ---
 
+## Health
+
+### Status And Repair
+- Accessibility status
+- Menu bar geometry status
+- SaneBar item status
+- Save Current Layout
+- Restore Last Good Layout
+- Arrange Now
+- Copy Report
+
+Code: `UI/Settings/HealthSettingsView.swift`
+
+---
+
+## License
+
+### Basic And Pro
+- Basic/Pro status
+- Unlock Pro
+- Restore Purchases
+- Enter License Key
+- Activate
+- Deactivate when licensed
+
+Code: shared SaneUI license surface via `UI/SettingsView.swift`
+
+---
+
 ## About
 
-### Identity + Trust
-- App icon, version
-- `Made with ❤️ in 🇺🇸`
-- `On-Device by Default`
-- `No Personal Data`
+### Identity And Trust
+- App icon and version
+- Source/license links
+- Privacy and on-device claims
 
 ### Actions
 - GitHub
@@ -145,25 +148,21 @@ Code: `UI/Settings/ShortcutsSettingsView.swift`
 - Report a Bug
 - View Issues
 
-### Sheets
-- Third-party license text
-- Feedback form
-
-Code: `UI/Settings/AboutSettingsView.swift`
+Code: shared SaneUI About surface via `UI/Settings/AboutSettingsView.swift`
 
 ---
 
 ## Browse Window Modes
 
 ### Icon Panel
-- Modes: `Hidden`, `Visible`, `Always Hidden` (if enabled), `All`
-- Search + category tabs + icon grid
+- Modes: `Hidden`, `Visible`, `Always Hidden`, `All`
+- Search, category tabs, and icon grid
 - Drag reorder and drag between zones
 
 ### Second Menu Bar
-- Inline row layout under menu bar
-- Search + close button
-- Row visibility depends on General preset/toggles
+- Inline row layout under the menu bar
+- Search and close controls
+- Row visibility follows Control presets
 - Drag reorder and drag between zones
 
 Code: `UI/SearchWindow/MenuBarSearchView.swift`, `UI/SearchWindow/SearchWindowController.swift`

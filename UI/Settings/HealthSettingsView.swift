@@ -313,9 +313,9 @@ struct HealthSettingsView: View {
         repairInProgress = true
         layoutRescueMessage = "Repairing layout..."
         Task { @MainActor in
-            let snapshot = await menuBarManager.repairMenuBarHealth(reason: reason)
+            let snapshot = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: reason)
             lastRepairDate = Date()
-            layoutRescueMessage = MenuBarManager.canCreateLayoutRescueRestorePoint(from: snapshot)
+            layoutRescueMessage = MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: snapshot)
                 ? (message ?? "Layout is healthy.")
                 : "Layout still needs attention."
             await refreshCounts()
@@ -324,17 +324,17 @@ struct HealthSettingsView: View {
     }
 
     private func createRestorePoint() {
-        if menuBarManager.createLayoutRescueRestorePoint(reason: "health") {
+        if menuBarManager.profileWorkflow.createLayoutRescueRestorePoint(reason: "health") {
             layoutRescueMessage = "Restore point saved."
         }
     }
 
     private func restoreLayout() {
-        if menuBarManager.restoreLayoutRescueRestorePoint(reason: "health") {
+        if menuBarManager.profileWorkflow.restoreLayoutRescueRestorePoint(reason: "health") {
             lastRepairDate = Date()
             layoutRescueMessage = "Last good layout restored."
             Task {
-                _ = await menuBarManager.repairMenuBarHealth(reason: "health-restore-layout")
+                _ = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: "health-restore-layout")
                 await refreshCounts()
             }
         } else {
@@ -346,7 +346,7 @@ struct HealthSettingsView: View {
         guard menuBarManager.settings.layoutMode != mode else { return }
         Task { @MainActor in
             layoutRescueMessage = mode == .live ? "Live checks enabled. Verifying layout..." : ""
-            _ = await menuBarManager.setLayoutMode(mode, reason: "health")
+            _ = await menuBarManager.profileWorkflow.setLayoutMode(mode, reason: "health")
             if mode == .live {
                 lastRepairDate = Date()
                 layoutRescueMessage = "Live checks enabled."

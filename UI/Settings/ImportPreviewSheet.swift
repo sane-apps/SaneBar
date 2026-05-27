@@ -13,6 +13,10 @@ struct ImportPreviewSheet: View {
             !plan.alwaysHideItemIds.isEmpty
     }
 
+    private var enablesScriptTrigger: Bool {
+        plan.behavioralSettings.contains { $0.localizedCaseInsensitiveContains("script trigger") }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
@@ -70,6 +74,12 @@ struct ImportPreviewSheet: View {
                 Text("This import will keep the shown items visible and hide newly detected menu bar items by default.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.94))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if enablesScriptTrigger {
+                Text("This import enables script-based control. Only import files you trust.")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

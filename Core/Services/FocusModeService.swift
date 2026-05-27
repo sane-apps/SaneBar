@@ -151,7 +151,7 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
 
         if let mode = newFocusMode, triggerModes.contains(mode) {
             logger.info("Focus '\(mode)' is in trigger list")
-            manager.runTriggerAction(
+            manager.profileWorkflow.runTriggerAction(
                 manager.settings.focusTriggerAction,
                 profileId: manager.settings.focusTriggerProfileId,
                 reason: "focus:\(mode)"
@@ -159,7 +159,7 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
         } else if newFocusMode == nil && triggerModes.contains("(Focus Off)") {
             // Special case: trigger when Focus turns OFF
             logger.info("Focus turned off and '(Focus Off)' is in trigger list")
-            manager.runTriggerAction(
+            manager.profileWorkflow.runTriggerAction(
                 manager.settings.focusTriggerAction,
                 profileId: manager.settings.focusTriggerProfileId,
                 reason: "focus-off"

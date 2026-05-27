@@ -107,17 +107,20 @@ launch_calendar:
       action: "Scan competitor issues and high-fit X/HN/Reddit threads; do not post unless the user is asking for a menu bar manager/Bartender/Ice alternative and the reply discloses 'I built SaneBar'."
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
+      last_reviewed: "2026-05-27"
+      result: "At 09:35 EDT on 2026-05-27, canonical Mini `launch_readiness` reran and exited nonzero again. The gate still says SaneBar already spent the real Product Hunt/Hacker News launch, open layout/icon-movement support issues still make a broad relaunch weak, Mini `release_preflight` still carries 7 warnings, and the shared validation report at 2026-05-27 09:33:20 EDT still says BROKEN RELEASE PIPELINE while flagging SaneBar customer UI proof as stale after the latest code change, older than 12 hours, and missing required runtime states. No opportunity-monitoring reply, public post, scheduling action, or directory action was executed."
   last_launch_readiness:
-    date: "2026-05-24"
+    date: "2026-05-27"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Canonical launch_readiness rerun at 2026-05-24 09:32 EDT exited nonzero and the wrapper reported 'Mac mini is unreachable. Falling back to local execution.'"
+      - "Canonical launch_readiness rerun at 2026-05-27 09:35 EDT used Mini-first routing and exited nonzero."
       - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
-      - "Local fallback launch_readiness still reported the latest release_preflight as passed but carrying 5 warnings, and the shared validation report at 2026-05-24 09:31 EDT still says BROKEN RELEASE PIPELINE because SaneBar customer UI proof is stale."
-      - "No weekly opportunity reply was executed on 2026-05-24 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
-    next_date: "2026-05-29"
+      - "Mini launch_readiness still reported the latest release_preflight as passed but carrying 7 warnings."
+      - "The shared validation report at 2026-05-27 09:33:20 EDT still says BROKEN RELEASE PIPELINE and flags SaneBar customer UI proof as stale after the latest code change, older than 12 hours, and missing required runtime states."
+      - "No weekly opportunity reply was executed on 2026-05-27 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
+    next_date: "2026-06-03"
 
 x_search_keywords:
   - "\"Bartender\" (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"

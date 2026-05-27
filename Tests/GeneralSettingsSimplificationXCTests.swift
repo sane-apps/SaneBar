@@ -51,7 +51,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     func testFreeSecondMenuBarCanKeepLeftClickOpenBrowse() {
-        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+        let normalized = MenuBarActionWorkflow.normalizedLeftClickOpensBrowseIcons(
             isPro: false,
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: true
@@ -60,7 +60,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     func testProSecondMenuBarKeepsLeftClickOpenBrowse() {
-        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+        let normalized = MenuBarActionWorkflow.normalizedLeftClickOpensBrowseIcons(
             isPro: true,
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: true
@@ -69,7 +69,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     func testFreeIconPanelCanKeepLeftClickOpenBrowse() {
-        let normalized = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+        let normalized = MenuBarActionWorkflow.normalizedLeftClickOpensBrowseIcons(
             isPro: false,
             useSecondMenuBar: false,
             leftClickOpensBrowseIcons: true
@@ -78,7 +78,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     func testFreeModeNormalizesSecondMenuBarRowsToVisibleAndHidden() {
-        let normalized = MenuBarManager.normalizedSecondMenuBarRows(
+        let normalized = MenuBarActionWorkflow.normalizedSecondMenuBarRows(
             isPro: false,
             showVisible: false,
             showAlwaysHidden: true
@@ -88,7 +88,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     func testProModeKeepsSecondMenuBarRows() {
-        let normalized = MenuBarManager.normalizedSecondMenuBarRows(
+        let normalized = MenuBarActionWorkflow.normalizedSecondMenuBarRows(
             isPro: true,
             showVisible: true,
             showAlwaysHidden: false
@@ -99,7 +99,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
 
     func testFreeModeDisablesAlwaysHiddenSectionEffectively() {
         XCTAssertFalse(
-            MenuBarManager.effectiveAlwaysHiddenSectionEnabled(
+            MenuBarActionWorkflow.effectiveAlwaysHiddenSectionEnabled(
                 isPro: false,
                 alwaysHiddenSectionEnabled: true
             )
@@ -108,7 +108,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
 
     func testProModeKeepsAlwaysHiddenSectionWhenEnabled() {
         XCTAssertTrue(
-            MenuBarManager.effectiveAlwaysHiddenSectionEnabled(
+            MenuBarActionWorkflow.effectiveAlwaysHiddenSectionEnabled(
                 isPro: true,
                 alwaysHiddenSectionEnabled: true
             )
@@ -129,7 +129,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
         manager.settings.secondMenuBarShowAlwaysHidden = true
         manager.settings.leftClickOpensBrowseIcons = true
 
-        manager.normalizeLicenseDependentDefaults()
+        manager.actionWorkflow.normalizeLicenseDependentDefaults()
 
         XCTAssertTrue(manager.settings.secondMenuBarShowVisible)
         XCTAssertFalse(manager.settings.secondMenuBarShowAlwaysHidden)
@@ -163,15 +163,15 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
 
     func testUpdateUnavailableTooltipMatchesDistributionChannel() {
         XCTAssertEqual(
-            MenuBarManager.updateUnavailableTooltip(for: .direct),
+            MenuBarActionWorkflow.updateUnavailableTooltip(for: .direct),
             "Updates are available from the installed /Applications/SaneBar.app build."
         )
         XCTAssertEqual(
-            MenuBarManager.updateUnavailableTooltip(for: .appStore),
+            MenuBarActionWorkflow.updateUnavailableTooltip(for: .appStore),
             "Updates are managed by the App Store."
         )
         XCTAssertEqual(
-            MenuBarManager.updateUnavailableTooltip(for: .setapp),
+            MenuBarActionWorkflow.updateUnavailableTooltip(for: .setapp),
             "Updates are managed by Setapp."
         )
     }

@@ -12,7 +12,7 @@ func scriptCombinedDiagnosticsSnapshot() -> String {
 private func performScriptActivation(
     app: RunningApp,
     isRightClick: Bool,
-    activationOrigin: SearchService.ActivationOrigin
+    activationOrigin: SearchServiceSupport.ActivationOrigin
 ) async {
     await SearchService.shared.activate(
         app: app,
@@ -83,7 +83,7 @@ final class BrowsePanelDiagnosticsCommand: SaneBarScriptCommand {
 
 class ActivateIconScriptCommand: SaneBarScriptCommand {
     var isRightClick: Bool { false }
-    var activationOrigin: SearchService.ActivationOrigin { .automation }
+    var activationOrigin: SearchServiceSupport.ActivationOrigin { .automation }
 
     override func performDefaultImplementation() -> Any? {
         guard let trimmedId = parseIconIdentifier(directParameter) else {
@@ -159,11 +159,11 @@ final class RightClickIconCommand: ActivateIconScriptCommand {
 
 @objc(ActivateBrowseIconCommand)
 final class ActivateBrowseIconCommand: ActivateIconScriptCommand {
-    override var activationOrigin: SearchService.ActivationOrigin { .browsePanel }
+    override var activationOrigin: SearchServiceSupport.ActivationOrigin { .browsePanel }
 }
 
 @objc(RightClickBrowseIconCommand)
 final class RightClickBrowseIconCommand: ActivateIconScriptCommand {
     override var isRightClick: Bool { true }
-    override var activationOrigin: SearchService.ActivationOrigin { .browsePanel }
+    override var activationOrigin: SearchServiceSupport.ActivationOrigin { .browsePanel }
 }

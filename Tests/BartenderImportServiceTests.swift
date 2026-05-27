@@ -262,7 +262,7 @@ struct BartenderImportServiceTests {
             ]
         )
 
-        let plan = BartenderImportService._test_previewPlan(
+        let plan = BartenderImportPreviewPlanner.previewPlan(
             profile: BartenderImportService.Profile(
                 hide: ["special.AllOtherItems", "com.surteesstudios.Bartender-setapp-statusItem"],
                 show: ["com.example.visible-VisibleAX"],

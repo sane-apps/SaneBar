@@ -6,7 +6,7 @@ import Testing
 struct MenuExtraIdentifierNormalizationTests {
     @Test("Keeps canonical Apple menu extra identifiers")
     func keepsCanonicalAppleIdentifier() {
-        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+        let id = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
             ownerBundleId: "com.apple.controlcenter",
             rawIdentifier: "com.apple.menuextra.wifi",
             rawLabel: "Wi-Fi",
@@ -17,7 +17,7 @@ struct MenuExtraIdentifierNormalizationTests {
 
     @Test("Maps Siri from label fallback when AXIdentifier is missing")
     func mapsSiriFromLabelFallback() {
-        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+        let id = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
             ownerBundleId: "com.apple.controlcenter",
             rawIdentifier: nil,
             rawLabel: "Siri",
@@ -28,7 +28,7 @@ struct MenuExtraIdentifierNormalizationTests {
 
     @Test("Rejects zero-width Apple extras with no identifier")
     func rejectsZeroWidthUnknownAppleExtra() {
-        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+        let id = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
             ownerBundleId: "com.apple.controlcenter",
             rawIdentifier: nil,
             rawLabel: nil,
@@ -39,7 +39,7 @@ struct MenuExtraIdentifierNormalizationTests {
 
     @Test("Preserves non-Apple identifiers")
     func preservesNonAppleIdentifier() {
-        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+        let id = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
             ownerBundleId: "com.vendor.menuagent",
             rawIdentifier: "com.vendor.menuagent.status",
             rawLabel: "Vendor Status",
@@ -50,7 +50,7 @@ struct MenuExtraIdentifierNormalizationTests {
 
     @Test("Builds synthetic third-party identifier from label when explicitly allowed")
     func buildsSyntheticThirdPartyIdentifierFromLabel() {
-        let id = AccessibilityService.canonicalMenuExtraIdentifier(
+        let id = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
             ownerBundleId: "at.obdev.littlesnitch.agent",
             rawIdentifier: nil,
             rawLabel: "Little Snitch",
@@ -63,13 +63,13 @@ struct MenuExtraIdentifierNormalizationTests {
     @Test("Third-party top-bar fallback rejects ordinary app menu rows")
     func thirdPartyTopBarFallbackRejectsStandardAppMenuRows() {
         #expect(
-            !AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+            !AccessibilityMenuExtraService.shouldAcceptThirdPartyTopBarFallbackItem(
                 rawIdentifier: "_NS:1118",
                 rawSubrole: nil
             )
         )
         #expect(
-            !AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+            !AccessibilityMenuExtraService.shouldAcceptThirdPartyTopBarFallbackItem(
                 rawIdentifier: nil,
                 rawSubrole: nil
             )
@@ -79,13 +79,13 @@ struct MenuExtraIdentifierNormalizationTests {
     @Test("Third-party top-bar fallback keeps real helper-host identifiers")
     func thirdPartyTopBarFallbackKeepsRealHelperIdentifiers() {
         #expect(
-            AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+            AccessibilityMenuExtraService.shouldAcceptThirdPartyTopBarFallbackItem(
                 rawIdentifier: "com.obdev.LittleSnitchUIAgent-Item-0",
                 rawSubrole: nil
             )
         )
         #expect(
-            AccessibilityService.shouldAcceptThirdPartyTopBarFallbackItem(
+            AccessibilityMenuExtraService.shouldAcceptThirdPartyTopBarFallbackItem(
                 rawIdentifier: nil,
                 rawSubrole: "AXMenuExtra"
             )
@@ -187,7 +187,7 @@ struct MenuExtraIdentifierNormalizationTests {
         ]
 
         for item in cases {
-            let actual = AccessibilityService.canonicalMenuExtraIdentifier(
+            let actual = AccessibilityMenuExtraService.canonicalMenuExtraIdentifier(
                 ownerBundleId: item.ownerBundleId,
                 rawIdentifier: item.rawIdentifier,
                 rawLabel: item.rawLabel,
