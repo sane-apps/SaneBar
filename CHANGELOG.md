@@ -8,6 +8,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.62] - 2026-05-27
 
+Improves wake recovery for dynamic menu bar items, strengthens Hide All Other and Always Hidden replay, and adds release-blocking checks for activation tint, exact-ID moves, auto-rehide, and display wake behavior.
+
+---
+
+## [2.1.62] - 2026-05-27
+
 Adds stricter release checks for wake recovery, helper-owned menu extras, shared-bundle system icons, license activation, and long-running resource use so recurring layout and conversion issues cannot ship without direct Mini proof.
 
 ---
