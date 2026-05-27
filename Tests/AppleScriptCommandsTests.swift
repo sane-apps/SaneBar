@@ -299,7 +299,7 @@ struct AppleScriptCommandsTests {
         let fileURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+            .appendingPathComponent("Core/Services/AppleScriptIconMoveCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         #expect(!source.contains("waitForScriptZone("))
