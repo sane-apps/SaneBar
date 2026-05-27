@@ -6,6 +6,18 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.62] - 2026-05-27
+
+Adds stricter release checks for wake recovery, helper-owned menu extras, shared-bundle system icons, license activation, and long-running resource use so recurring layout and conversion issues cannot ship without direct Mini proof.
+
+---
+
+## [2.1.61] - 2026-05-26
+
+Improves Selective Profile reliability after wake and display changes so saved Visible and Hidden items stay in their chosen sections. Also improves profile loading from Settings and adds stricter release checks for saved visibility layouts.
+
+---
+
 ## [2.1.60] - 2026-05-25
 
 Improves fullscreen tint handling so the tint stays out of fullscreen apps, and improves wake and display layout recovery so Visible items stay where expected.
@@ -15,12 +27,6 @@ Improves fullscreen tint handling so the tint stays out of fullscreen apps, and 
 ## [2.1.59] - 2026-05-21
 
 Improves menu bar tint behavior in fullscreen apps, including Claude Desktop, and helps Hidden and Visible menu bar items keep their layout after wake or display changes.
-
----
-
-## [2.1.58] - 2026-05-20
-
-Keeps Custom Appearance tint stable through fullscreen, maximize, and app-switch transitions. Removes stale release-tool dependencies that triggered the Ruby JWT security alert.
 
 ---
 
@@ -50,13 +56,7 @@ Keeps custom menu bar colors more stable during fullscreen and window changes, i
 
 ## [2.1.54] - 2026-05-15
 
-Improves Custom Appearance tint when switching to large desktop apps. Improves Hidden and Always Hidden icon moves so icons stay in the section you choose after SaneBar checks the menu bar position.
-
----
-
-## [2.1.54] - 2026-05-15
-
-Keeps Custom Appearance tint stable when launching or switching to large desktop apps, and makes Hidden / Always Hidden icon moves verify physical menu bar position before updating saved pin state.
+Keeps Custom Appearance tint stable when launching or switching to large desktop apps. Improves Hidden and Always Hidden icon moves so icons stay in the section you choose after SaneBar verifies the physical menu bar position.
 
 ---
 
@@ -104,15 +104,7 @@ Adds a first-run Health wizard and layout rescue tools, improves Bartender impor
 
 ## [2.1.46] - 2026-04-28
 
-Makes SaneBar more reliable when moving hidden icons, waking your Mac, or switching displays.
-
----
-
-## [2.1.46] - 2026-04-28
-
-Improves hidden-to-visible drag reliability on multi-display setups.
-Improves startup, wake, and display-change recovery when menu bar items attach slowly or saved positions drift.
-Adds clearer diagnostics for macOS menu bar visibility edge cases.
+Makes SaneBar more reliable when moving hidden icons, waking your Mac, or switching displays. Improves hidden-to-visible drag reliability on multi-display setups, improves recovery when menu bar items attach slowly or saved positions drift, and adds clearer diagnostics for macOS menu bar visibility edge cases.
 
 ---
 
@@ -166,12 +158,6 @@ Improves startup, wake, and display-change layout recovery so menu bar icons sta
 
 ---
 
-## [2.1.38] - 2026-04-01
-
-Improves startup, wake, and display-change layout recovery so menu bar icons stay more stable and easier to recover.
-
----
-
 ## [2.1.37] - 2026-03-27
 
 Keeps the SaneBar icon and hidden layout in place more reliably after login, wake, and display changes.
@@ -200,27 +186,13 @@ Improved layout recovery after sleep, wake, and display changes. Fixed the dark 
 
 ## [2.1.33] - 2026-03-19
 
-Fixes focus jumps after hover reveal.
-Improves menu bar reliability after sleep, wake, and display changes.
-Makes startup layout restore more reliable on notch Macs and external monitors.
-
----
-
-## [2.1.33] - 2026-03-19
-
-Separates passive hover reveal from inline app-menu suppression so hover no longer steals focus through the overlap path. Adds wake-aware position validation with stale-task cancellation, which makes restart, sleep, and display-change recovery more reliable. Also tightens release proof on both the notch MacBook Air and the external-display Mini against the staged Release app.
+Fixes focus jumps after hover reveal by separating passive hover reveal from inline app-menu suppression. Adds wake-aware position validation with stale-task cancellation, improves restart, sleep, display-change, notch Mac, and external monitor recovery, and tightens release proof against the staged Release app.
 
 ---
 
 ## [2.1.32] - 2026-03-18
 
-Fixes startup/layout resets after launch and display changes. Tightens shared-bundle identity handling so Browse Icons and moves fail safely instead of targeting the wrong sibling. Adds stronger staged-app startup and runtime release checks before shipping.
-
----
-
-## [2.1.32] - 2026-03-18
-
-Hardens startup/layout recovery so poisoned relaunch state restores from current-width backups instead of collapsing visible items into hidden. Serializes the first launch-time validation pass behind the startup hide/recovery path so they do not race each other. Tightens shared-bundle move identity so SaneBar will not silently move the wrong Control Center-family sibling, and refuses same-bundle browse fallback when precise identity is lost. Also adds a real Mini startup relaunch probe to release preflight, so poisoned prefs and `autoRehide=false` are checked on the staged app before shipping.
+Fixes startup and layout resets after launch and display changes by restoring poisoned relaunch state from current-width backups instead of collapsing Visible items into Hidden. Serializes launch-time validation behind startup hide/recovery, tightens shared-bundle identity so Browse Icons and moves fail safely instead of targeting the wrong sibling, and adds a Mini startup relaunch probe to release preflight.
 
 ---
 
@@ -236,18 +208,6 @@ Improves startup and layout recovery after display and profile changes so icons 
 Improves crowded menu bar guidance when Visible gets tight and the Second Menu Bar is a better fit.
 Improves runtime validation and release smoke stability for icon movement and Browse Icons activation.
 Improves Menu Bar Appearance so the overlay is less likely to stay visible over full-width apps like World of Warcraft.
-
----
-
-## [2.1.28] - 2026-03-13
-
-Improves startup placement and layout recovery, especially on Tahoe and external displays. Also improves Browse Icons clarity and general stability.
-
----
-
-## [2.1.28] - 2026-03-13
-
-Improves startup placement and layout recovery, especially on Tahoe and external displays. Also improves Browse Icons clarity and general stability.
 
 ---
 

@@ -122,47 +122,18 @@ final class AccessibilityService: ObservableObject {
     var knownOwnerRefreshDiagnostics = KnownOwnerRefreshDiagnostics()
 
     nonisolated static func cacheWarmupDelay(for reason: CacheWarmupReason) -> TimeInterval {
-        switch reason {
-        case .launch:
-            return 0
-        case .reveal:
-            // Let WindowServer finish the reveal relayout before scanning.
-            return 0.2
-        case .conceal:
-            return 0.1
-        case .structuralChange:
-            return 0.25
-        }
+        AccessibilityMenuBarCacheStore.cacheWarmupDelay(for: reason)
     }
 
     nonisolated static func cacheWarmupUsesKnownOwnerRefresh(for reason: CacheWarmupReason) -> Bool {
-        switch reason {
-        case .launch:
-            return false
-        case .reveal, .conceal, .structuralChange:
-            return true
-        }
+        AccessibilityMenuBarCacheStore.cacheWarmupUsesKnownOwnerRefresh(for: reason)
     }
 
     nonisolated static func mergedDeferredCacheWarmupReason(
         current: CacheWarmupReason?,
         new: CacheWarmupReason
     ) -> CacheWarmupReason {
-        func priority(for reason: CacheWarmupReason) -> Int {
-            switch reason {
-            case .launch:
-                0
-            case .conceal:
-                1
-            case .reveal:
-                2
-            case .structuralChange:
-                3
-            }
-        }
-
-        guard let current else { return new }
-        return priority(for: new) >= priority(for: current) ? new : current
+        AccessibilityMenuBarCacheStore.mergedDeferredCacheWarmupReason(current: current, new: new)
     }
 
     func bundlesWithoutExtrasMenuBarSnapshot() -> [String] {

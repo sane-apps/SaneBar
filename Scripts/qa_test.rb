@@ -11,6 +11,22 @@ class ProjectQATest < Minitest::Test
     @qa = ProjectQA.new
   end
 
+  def qa_source
+    @qa_source ||= source_bundle('qa.rb', 'project_qa_*.rb')
+  end
+
+  def live_zone_smoke_source
+    @live_zone_smoke_source ||= source_bundle('live_zone_smoke.rb', 'live_zone_smoke_*.rb')
+  end
+
+  def source_bundle(entrypoint, partial_pattern)
+    paths = [
+      File.join(__dir__, entrypoint),
+      *Dir.glob(File.join(__dir__, 'lib', partial_pattern)).sort
+    ]
+    paths.map { |path| File.read(path) }.join("\n")
+  end
+
   def test_reporter_confirmation_accepts_plain_working_reply
     assert @qa.send(:reporter_confirmation_text?, "It's working. The updates are a bit slow in the UI but that's ok.")
   end
@@ -75,17 +91,63 @@ class ProjectQATest < Minitest::Test
   end
 
   def test_release_runtime_smoke_requires_tint_pixel_evidence_by_default
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?"
     assert_includes source, "runtime_fullscreen_matrix_artifact_passed?"
+    assert_includes source, "'app activation keeps dark custom tint visible'"
     assert_includes source, "'useLiquidGlass' => true"
     assert_includes source, "set_runtime_smoke_reduce_transparency!(true)"
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
     refute_includes source, "'useLiquidGlass' => false"
+  end
+
+  def test_live_zone_smoke_checks_activation_tint_stability
+    source = live_zone_smoke_source
+
+    assert_includes source, 'exercise_app_activation_tint_stability_check'
+    assert_includes source, 'activation-immediate'
+    assert_includes source, 'activation-settled'
+    assert_includes source, 'app activation keeps dark custom tint visible'
+  end
+
+  def test_release_hygiene_guardrails_cover_changelog_privacy_and_local_artifacts
+    source = qa_source
+
+    assert_includes source, 'check_release_hygiene_guardrails'
+    assert_includes source, 'changelog_duplicate_heading_failures'
+    assert_includes source, 'Duplicate CHANGELOG version heading'
+    assert_includes source, 'privacy_manifest_failures'
+    assert_includes source, 'settings_docs_parity_failures'
+    assert_includes source, 'README settings table missing tab'
+    assert_includes source, 'NSPrivacyAccessedAPICategoryUserDefaults'
+    assert_includes source, 'CA92.1'
+    assert_includes source, 'NSPrivacyAccessedAPICategoryFileTimestamp'
+    assert_includes source, 'attributesOfItem'
+    assert_includes source, 'C617.1'
+    assert_includes source, 'large_local_artifact_warnings'
+  end
+
+  def test_release_hygiene_runs_shared_saneui_guard
+    source = qa_source
+
+    assert_includes source, 'check_saneui_guardrails'
+    assert_includes source, "'saneui_guard', PROJECT_ROOT"
+    assert_includes source, 'SaneUI guard warnings'
+    assert_includes source, 'shared settings UI drift'
+  end
+
+  def test_privacy_manifest_declares_required_reasons
+    manifest = File.read(File.join(ProjectQA::PROJECT_ROOT, 'SaneBar', 'PrivacyInfo.xcprivacy'))
+
+    assert_includes manifest, 'NSPrivacyAccessedAPICategoryUserDefaults'
+    assert_includes manifest, 'CA92.1'
+    assert_includes manifest, 'NSPrivacyAccessedAPICategoryFileTimestamp'
+    assert_includes manifest, 'C617.1'
+    assert_includes manifest, '3B52.1'
   end
 
   def test_live_zone_smoke_rejects_black_appearance_snapshot_pixels
@@ -189,10 +251,10 @@ class ProjectQATest < Minitest::Test
     @qa.define_singleton_method(:open_regression_release_evidence_text) do
       <<~MARKDOWN
         ## SaneBar issue #147 release evidence | Updated: #{today}
-        - Trigger: GitHub #147 reported visible items moving into Hidden after wake.
-        - #147 local root cause: wake recovery stopped after missing live coordinates.
-        - Current patch addresses the pending release by escalating bounded missing-coordinate recovery.
-        - Current proof: Mini ./scripts/SaneMaster.rb verify --timeout 900 passed 953 tests and the wake layout probe passed.
+        - Trigger: GitHub #147 latest evidence reported a helper-owned item such as Lungo moving from Hidden to Visible after wake.
+        - #147 local root cause: wake/display replay could prove generic anchors while missing helper-specific Hidden-zone drift.
+        - Current patch addresses the pending release by requiring helper-specific Hidden-zone proof before release.
+        - Current proof: Mini ./scripts/SaneMaster.rb verify --timeout 900 passed and the wake layout probe passed with dynamic helper required IDs.
       MARKDOWN
     end
 
@@ -235,19 +297,19 @@ class ProjectQATest < Minitest::Test
   end
 
   def test_open_regression_query_requests_labels_for_blocking_policy
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, "'--json', 'number,title,url,labels,createdAt,updatedAt,comments'"
   end
 
   def test_post_closure_regression_query_requests_labels_for_release_disposition
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, "'--json', 'number,title,closedAt,updatedAt,url,labels'"
   end
 
   def test_release_disposition_labels_are_source_controlled
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'release:blocker'
     assert_includes source, 'release:patched-pending'
@@ -256,14 +318,14 @@ class ProjectQATest < Minitest::Test
   end
 
   def test_appcast_download_url_check_avoids_filter_map_for_old_ruby
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     refute_includes source, 'filter_map do |url|'
     assert_includes source, 'urls.each_with_index do |url, index|'
   end
 
   def test_customer_facing_copy_guardrails_exist
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'def check_customer_facing_copy_guardrails'
     assert_includes source, '/works perfectly/i'
@@ -284,7 +346,7 @@ class ProjectQATest < Minitest::Test
   end
 
   def test_live_zone_smoke_waits_for_slow_release_zone_api_warmup
-    source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+    source = live_zone_smoke_source
     timeout = source[/ZONE_API_READY_TIMEOUT_SECONDS = (\d+)/, 1].to_i
 
     assert_operator timeout, :>=, 25
@@ -336,27 +398,60 @@ class ProjectQATest < Minitest::Test
   end
 
   def test_runtime_smoke_requires_startup_and_wake_layout_probes
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
-    assert_includes source, "startup_probe_script = File.join(__dir__, 'startup_layout_probe.rb')"
+    assert_includes source, "startup_probe_script = File.join(SCRIPTS_DIR, 'startup_layout_probe.rb')"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"
+    assert_includes source, 'startup_probe_env.merge!(runtime_probe_no_keychain_env(target))'
     assert_includes source, "runtime startup layout probe"
-    assert_includes source, "wake_probe_script = File.join(__dir__, 'wake_layout_probe.rb')"
+    assert_includes source, "wake_probe_script = File.join(SCRIPTS_DIR, 'wake_layout_probe.rb')"
     assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH"
+    assert_includes source, "dynamic_helper_ids = ensure_runtime_dynamic_helper_wake_fixture!(target)"
+    assert_includes source, "'SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS' => dynamic_helper_ids.join(',')"
+    assert_includes source, "visible_dynamic_helper_ids = ensure_runtime_visible_dynamic_helper_wake_fixture!(target)"
+    assert_includes source, "'SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS' => visible_dynamic_helper_ids.join(',')"
+    assert_includes source, 'wake_probe_env.merge!(runtime_probe_no_keychain_env(target))'
+    assert_includes source, "'SANEBAR_PROBE_FORCE_NO_KEYCHAIN' => '1'"
+    assert_includes source, 'Lungo-style Hidden-to-Visible wake drift is release-blocking'
+    assert_includes source, 'SwiftBar-style Visible-to-Hidden wake drift is release-blocking'
     assert_includes source, "runtime wake layout probe"
   end
 
+  def test_runtime_smoke_builds_lungo_style_dynamic_helper_fixture
+    source = qa_source
+
+    assert_includes source, "RUNTIME_DYNAMIC_HELPER_FIXTURE_ID = 'com.sindresorhus.Lungo-setapp'"
+    assert_includes source, "RUNTIME_DYNAMIC_HELPER_FIXTURE_IDS = %w[\n    com.sindresorhus.Lungo-setapp::statusItem:0"
+    assert_includes source, 'prelaunch_runtime_dynamic_helper_fixture!'
+    assert_includes source, 'prelaunch_skipped=external-helper-running'
+    assert_includes source, 'runtime_dynamic_helper_external_process_detail'
+    assert_includes source, 'def ensure_runtime_dynamic_helper_wake_fixture!(target)'
+    assert_includes source, 'statusItem.button?.title = "Lungo"'
+    assert_includes source, 'cleanup_runtime_dynamic_helper_fixture!'
+  end
+
+  def test_runtime_smoke_builds_swiftbar_style_visible_dynamic_helper_fixture
+    source = qa_source
+
+    assert_includes source, "RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_ID = 'com.ameba.SwiftBar'"
+    assert_includes source, "RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_IDS = %w[\n    com.ameba.SwiftBar::statusItem:0"
+    assert_includes source, 'prelaunch_runtime_visible_dynamic_helper_fixture!'
+    assert_includes source, 'def ensure_runtime_visible_dynamic_helper_wake_fixture!(target)'
+    assert_includes source, 'statusItem.button?.title = "11"'
+    assert_includes source, 'SwiftBar dynamic counter'
+  end
+
   def test_preflight_mode_accepts_saneprocess_env_names
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, "ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1'"
     assert_includes source, "ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1'"
   end
 
   def test_runtime_smoke_bootstraps_pro_for_always_hidden_checks
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
     assert_includes source, "target[:no_keychain] = true"
@@ -385,13 +480,33 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'preferred_visible_lane_gap'
   end
 
+  def test_startup_layout_probe_waits_through_bounded_status_item_attachment_recovery
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'SNAPSHOT_SETTLE_TIMEOUT_SECONDS'
+    assert_includes source, 'wait_for_healthy_snapshot(label:'
+    assert_includes source, 'snapshot_health_error(last_snapshot, label: label)'
+    assert_includes source, 'startupItemsValid=#{last_snapshot[\'startupItemsValid\']}'
+    assert_includes source, 'possibleSystemMenuBarSuppression'
+  end
+
+  def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions
+    source = File.read(File.join(__dir__, 'wake_layout_probe.rb'))
+
+    assert_includes source, "wait_for_healthy_snapshot(label: 'hidden launch baseline')"
+    assert_includes source, "wait_for_healthy_snapshot(label: 'expanded launch baseline')"
+    assert_includes source, "wait_for_healthy_snapshot(label: 'hide-all-other seeded launch baseline')"
+    assert_includes source, "(!snapshot.key?('startupItemsValid') || truthy?(snapshot['startupItemsValid']))"
+    assert_includes source, "!truthy?(snapshot['possibleSystemMenuBarSuppression'])"
+  end
+
   def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro
   target = { app_path: '/Applications/SaneBar.app' }
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => false } }
   @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
     [
-      { zone: 'hidden', unique_id: 'com.apple.menuextra.focusmode' },
-      { zone: 'alwaysHidden', unique_id: 'com.apple.menuextra.display' }
+      { zone: 'hidden', movable: true, unique_id: 'com.apple.menuextra.focusmode' },
+      { zone: 'alwaysHidden', movable: true, unique_id: 'com.apple.menuextra.display' }
     ]
   end
 
@@ -409,8 +524,8 @@ end
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
   @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
     [
-      { zone: 'hidden', unique_id: 'com.apple.menuextra.focusmode' },
-      { zone: 'alwaysHidden', unique_id: 'com.apple.menuextra.display' }
+      { zone: 'hidden', movable: true, unique_id: 'com.apple.menuextra.focusmode' },
+      { zone: 'alwaysHidden', movable: true, unique_id: 'com.apple.menuextra.display' }
     ]
   end
 
@@ -450,18 +565,20 @@ end
   assert_empty ids
 end
 
-  def test_shared_bundle_runtime_smoke_uses_only_the_present_same_bundle_group
+def test_shared_bundle_runtime_smoke_uses_only_the_present_same_bundle_group
   target = { app_path: '/Applications/SaneBar.app' }
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
   @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
     [
       {
         zone: 'visible',
+        movable: true,
         bundle: 'com.apple.controlcenter',
         unique_id: 'com.apple.menuextra.focusmode'
       },
       {
         zone: 'hidden',
+        movable: true,
         bundle: 'com.apple.controlcenter',
         unique_id: 'com.apple.menuextra.display'
       },
@@ -486,8 +603,108 @@ end
   assert_equal ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display'], ids
 end
 
+def test_shared_bundle_runtime_smoke_rejects_nonmovable_control_center_clock_cluster
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.focusmode'
+      },
+      {
+        zone: 'visible',
+        movable: false,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.controlcenter'
+      },
+      {
+        zone: 'visible',
+        movable: false,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.clock'
+      }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_shared_bundle_candidate_ids,
+    target,
+    required_ids: [
+      'com.apple.menuextra.wifi',
+      'com.apple.menuextra.battery',
+      'com.apple.menuextra.focusmode',
+      'com.apple.menuextra.display',
+      'com.apple.menuextra.controlcenter',
+      'com.apple.menuextra.clock'
+    ]
+  )
+
+  assert_empty ids
+end
+
+def test_required_runtime_smoke_rejects_nonmovable_dynamic_helper_fixture
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'visible',
+        movable: false,
+        bundle: 'com.sindresorhus.Lungo-setapp',
+        unique_id: 'com.sindresorhus.Lungo-setapp::statusItem:0'
+      }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_required_candidate_ids,
+    target,
+    required_ids: ['com.sindresorhus.Lungo-setapp::statusItem:0']
+  )
+
+  assert_empty ids
+end
+
+def test_shared_bundle_runtime_smoke_accepts_deterministic_fixture_cluster
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sanebar.sharedfixture',
+        unique_id: 'com.sanebar.sharedfixture::statusItem:1'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sanebar.sharedfixture',
+        unique_id: 'com.sanebar.sharedfixture::statusItem:0'
+      }
+    ]
+  end
+
+  ids = @qa.send(
+    :runtime_smoke_available_shared_bundle_candidate_ids,
+    target,
+    required_ids: [
+      'com.sanebar.sharedfixture::statusItem:0',
+      'com.sanebar.sharedfixture::statusItem:1'
+    ]
+  )
+
+  assert_equal [
+    'com.sanebar.sharedfixture::statusItem:0',
+    'com.sanebar.sharedfixture::statusItem:1'
+  ], ids
+end
+
   def test_runtime_smoke_list_icon_zones_targets_exact_app_path
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)'
     assert_includes source, 'using terms from application id "#{expected_bundle_id}"'
@@ -495,7 +712,7 @@ end
   end
 
   def test_runtime_smoke_tracks_native_apple_and_host_exact_id_lanes
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'RUNTIME_NATIVE_APPLE_IDS = %w['
     assert_includes source, 'com.apple.menuextra.siri'
@@ -508,14 +725,14 @@ end
   end
 
   def test_focused_runtime_smoke_preserves_screenshot_setting
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, "'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     refute_includes source, "'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0'"
   end
 
   def test_runtime_smoke_status_snapshot_records_all_exact_id_lanes
-    source = File.read(File.join(__dir__, 'qa.rb'))
+    source = qa_source
 
     assert_includes source, 'runtimeSmokeFocusedExactIdSets: ['
     assert_includes source, "lane: 'shared-bundle'"
@@ -523,8 +740,41 @@ end
     assert_includes source, "lane: 'host-exact-id'"
   end
 
+  def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys
+    @qa.define_singleton_method(:app_bundle_metadata) do |_path|
+      { short_version: '2.1.62', build_version: '2162' }
+    end
+
+    lines = @qa.send(
+      :runtime_smoke_candidate_lines,
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar'
+    )
+
+    assert_includes lines, 'candidate_app_version=2.1.62'
+    assert_includes lines, 'candidate_app_build=2162'
+  end
+
+  def test_shared_bundle_exact_id_smoke_launches_fixture_instead_of_skipping
+    source = qa_source
+
+    assert_includes source, 'shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)'
+    assert_includes source, 'Shared-bundle move regressions are release-blocking'
+    refute_includes source, 'shared-bundle focused smoke skipped'
+  end
+
+  def test_focused_exact_id_runtime_smoke_uses_move_only_no_keychain_guard
+    source = qa_source
+
+    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => target[:no_keychain] ? '1' : '0'"
+    assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '1'"
+    assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'"
+  end
+
   def test_live_zone_smoke_second_menu_bar_prefers_precise_non_apple_candidates
-    source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+    source = live_zone_smoke_source
 
     assert_includes source, "if expected_mode == 'secondMenuBar'"
     assert_includes source, 'precise_non_apple + coarse_non_apple + exact_apple + preferred + fallback'
@@ -532,7 +782,7 @@ end
   end
 
   def test_live_zone_smoke_allows_exact_menumeters_fixture_for_browse_activation
-    source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+    source = live_zone_smoke_source
 
     assert_includes source, "item[:bundle].casecmp('com.yujitach.MenuMeters').zero?"
     assert_includes source, 'Exact MenuMeters rows are stable browse fixtures on the Mini in both'

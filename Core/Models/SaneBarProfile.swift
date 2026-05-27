@@ -1,13 +1,13 @@
 import Foundation
 
-struct SaneBarCustomIconSnapshot: Codable, Sendable, Equatable {
+struct SaneBarCustomIconSnapshot: Codable, Equatable {
     /// Raw PNG payload for the current custom icon asset.
     /// `nil` means the snapshot was taken with no saved custom icon file.
     var pngData: Data?
 }
 
-struct SaneBarLayoutSnapshot: Codable, Sendable, Equatable {
-    struct DisplayBackup: Codable, Sendable, Equatable {
+struct SaneBarLayoutSnapshot: Codable, Equatable {
+    struct DisplayBackup: Codable, Equatable {
         var widthBucket: Int
         var mainPosition: Double?
         var separatorPosition: Double?
@@ -21,7 +21,7 @@ struct SaneBarLayoutSnapshot: Codable, Sendable, Equatable {
     var displayBackups: [DisplayBackup] = []
 }
 
-struct SaneBarSettingsArchive: Codable, Sendable {
+struct SaneBarSettingsArchive: Codable {
     let version: Int
     let exportedAt: Date
     let settings: SaneBarSettings
@@ -65,13 +65,13 @@ struct SaneBarSettingsArchive: Codable, Sendable {
     }
 }
 
-enum SaneBarSettingsImportPayload: Sendable {
+enum SaneBarSettingsImportPayload {
     case archive(SaneBarSettingsArchive)
     case legacySettings(SaneBarSettings)
 }
 
-struct SaneBarImportPreviewPlan: Identifiable, Sendable, Equatable {
-    enum SourceKind: String, Sendable, Equatable {
+struct SaneBarImportPreviewPlan: Identifiable, Equatable {
+    enum SourceKind: String, Equatable {
         case saneBarArchive = "SaneBar Archive"
         case saneBarLegacySettings = "SaneBar Settings"
         case bartender = "Bartender"
@@ -143,14 +143,14 @@ extension SaneBarSettingsArchive {
     ) throws -> SaneBarSettingsImportPayload {
         if looksLikeArchivePayload(data) {
             do {
-                return .archive(try decoder.decode(SaneBarSettingsArchive.self, from: data))
+                return try .archive(decoder.decode(SaneBarSettingsArchive.self, from: data))
             } catch {
                 throw SaneBarSettingsImportError.invalidArchive(underlying: error)
             }
         }
 
         do {
-            return .legacySettings(try decoder.decode(SaneBarSettings.self, from: data))
+            return try .legacySettings(decoder.decode(SaneBarSettings.self, from: data))
         } catch {
             throw SaneBarSettingsImportError.invalidLegacySettings(underlying: error)
         }
@@ -181,6 +181,7 @@ extension SaneBarSettingsImportPayload {
                 fileName: fileName,
                 showItemIds: archive.settings.hideAllOtherVisibleItemIds,
                 hideAllOtherItems: archive.settings.hideAllOtherMenuBarItems,
+                behavioralSettings: Self.behavioralSettings(from: archive.settings),
                 savedProfileCount: archive.savedProfiles.count,
                 includesLayoutSnapshot: archive.layoutSnapshot != nil,
                 includesCustomIconSnapshot: archive.customIconSnapshot?.pngData != nil
@@ -190,16 +191,26 @@ extension SaneBarSettingsImportPayload {
                 sourceKind: .saneBarLegacySettings,
                 fileName: fileName,
                 showItemIds: settings.hideAllOtherVisibleItemIds,
-                hideAllOtherItems: settings.hideAllOtherMenuBarItems
+                hideAllOtherItems: settings.hideAllOtherMenuBarItems,
+                behavioralSettings: Self.behavioralSettings(from: settings)
             )
         }
+    }
+
+    private static func behavioralSettings(from settings: SaneBarSettings) -> [String] {
+        var changes: [String] = []
+        if settings.scriptTriggerEnabled {
+            let path = settings.scriptTriggerPath.trimmingCharacters(in: .whitespacesAndNewlines)
+            changes.append(path.isEmpty ? "Script trigger: on" : "Script trigger: \(path)")
+        }
+        return changes
     }
 }
 
 // MARK: - SaneBarProfile
 
 /// A saved configuration profile
-struct SaneBarProfile: Codable, Identifiable, Sendable {
+struct SaneBarProfile: Codable, Identifiable {
     /// Unique identifier
     let id: UUID
 
@@ -233,8 +244,8 @@ struct SaneBarProfile: Codable, Identifiable, Sendable {
         self.settings = settings
         self.layoutSnapshot = layoutSnapshot
         self.customIconSnapshot = customIconSnapshot
-        self.createdAt = Date()
-        self.modifiedAt = Date()
+        createdAt = Date()
+        modifiedAt = Date()
     }
 }
 

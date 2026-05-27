@@ -85,96 +85,12 @@ struct SettingsView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            SettingsResizeGrip()
+            SaneSettingsResizeGrip()
                 .frame(width: 22, height: 22)
                 .padding(.trailing, 7)
                 .padding(.bottom, 7)
                 .saneHelp("Drag the corner to resize Settings.")
         }
-    }
-}
-
-private struct SettingsResizeGrip: NSViewRepresentable {
-    func makeNSView(context: Context) -> SettingsResizeGripView {
-        SettingsResizeGripView()
-    }
-
-    func updateNSView(_ nsView: SettingsResizeGripView, context: Context) {
-        nsView.needsDisplay = true
-    }
-}
-
-private final class SettingsResizeGripView: NSView {
-    private var initialFrame: NSRect?
-    private var initialMouseLocation: NSPoint?
-
-    override var isFlipped: Bool { false }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        setAccessibilityRole(.handle)
-        setAccessibilityLabel("Resize Settings window")
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        let path = NSBezierPath()
-        path.lineWidth = 1.15
-        path.lineCapStyle = .round
-
-        for offset in [5.0, 10.0, 15.0] {
-            path.move(to: NSPoint(x: bounds.maxX - CGFloat(offset), y: 4))
-            path.line(to: NSPoint(x: bounds.maxX - 4, y: CGFloat(offset)))
-        }
-
-        NSColor.white.withAlphaComponent(0.34).setStroke()
-        path.stroke()
-    }
-
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .resizeLeftRight)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        initialFrame = window?.frame
-        initialMouseLocation = NSEvent.mouseLocation
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard
-            let window,
-            let initialFrame,
-            let initialMouseLocation
-        else { return }
-
-        let currentLocation = NSEvent.mouseLocation
-        let deltaX = currentLocation.x - initialMouseLocation.x
-        let deltaY = currentLocation.y - initialMouseLocation.y
-        let minContentSize = window.contentMinSize
-        let minFrameSize = window.frameRect(
-            forContentRect: NSRect(origin: .zero, size: minContentSize)
-        ).size
-        let newWidth = max(minFrameSize.width, initialFrame.width + deltaX)
-        let newHeight = max(minFrameSize.height, initialFrame.height - deltaY)
-        let frame = NSRect(
-            x: initialFrame.minX,
-            y: initialFrame.maxY - newHeight,
-            width: newWidth,
-            height: newHeight
-        )
-        window.setFrame(frame, display: true, animate: false)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        initialFrame = nil
-        initialMouseLocation = nil
     }
 }
 

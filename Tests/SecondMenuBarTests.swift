@@ -279,7 +279,7 @@ struct AlwaysHiddenZoneDetectionTests {
         let manager = MenuBarManager.shared
         // Item at x=30, width=22 → midX=41. AH separator at x=100. margin=max(4, 22*0.3)=6.6
         // midX(41) < (100 - 6.6 = 93.4) → true → in AH zone
-        let result = manager.isInAlwaysHiddenZone(itemX: 30, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        let result = manager.alwaysHiddenPinWorkflow.isInZone(itemX: 30, itemWidth: 22, alwaysHiddenSeparatorX: 100)
         #expect(result == true)
     }
 
@@ -289,7 +289,7 @@ struct AlwaysHiddenZoneDetectionTests {
         let manager = MenuBarManager.shared
         // Item at x=200, width=22 → midX=211. AH separator at x=100.
         // midX(211) < (100 - 6.6 = 93.4) → false → NOT in AH zone
-        let result = manager.isInAlwaysHiddenZone(itemX: 200, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        let result = manager.alwaysHiddenPinWorkflow.isInZone(itemX: 200, itemWidth: 22, alwaysHiddenSeparatorX: 100)
         #expect(result == false)
     }
 
@@ -299,11 +299,11 @@ struct AlwaysHiddenZoneDetectionTests {
         let manager = MenuBarManager.shared
         // Item at x=80, width=22 → midX=91. AH separator at x=100. margin=6.6
         // midX(91) < (100 - 6.6 = 93.4) → true → in AH zone
-        let inZone = manager.isInAlwaysHiddenZone(itemX: 80, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        let inZone = manager.alwaysHiddenPinWorkflow.isInZone(itemX: 80, itemWidth: 22, alwaysHiddenSeparatorX: 100)
         #expect(inZone == true)
 
         // Item at x=90, width=22 → midX=101. 101 < 93.4 → false → NOT in AH zone
-        let outsideZone = manager.isInAlwaysHiddenZone(itemX: 90, itemWidth: 22, alwaysHiddenSeparatorX: 100)
+        let outsideZone = manager.alwaysHiddenPinWorkflow.isInZone(itemX: 90, itemWidth: 22, alwaysHiddenSeparatorX: 100)
         #expect(outsideZone == false)
     }
 
@@ -312,7 +312,7 @@ struct AlwaysHiddenZoneDetectionTests {
     func nilWidthDefaultsInAHCheck() {
         let manager = MenuBarManager.shared
         // width nil → max(1, 22) = 22, midX = 30 + 11 = 41. margin = max(4, 22*0.3) = 6.6
-        let result = manager.isInAlwaysHiddenZone(itemX: 30, itemWidth: nil, alwaysHiddenSeparatorX: 100)
+        let result = manager.alwaysHiddenPinWorkflow.isInZone(itemX: 30, itemWidth: nil, alwaysHiddenSeparatorX: 100)
         #expect(result == true)
     }
 }
@@ -338,10 +338,10 @@ struct PinIdentityTests {
             statusItemIndex: 0
         )
 
-        manager.pinAlwaysHidden(app: app)
+        manager.alwaysHiddenPinWorkflow.pin(app: app)
         #expect(!manager.settings.alwaysHiddenPinnedItemIds.isEmpty)
 
-        manager.unpinAlwaysHidden(app: app)
+        manager.alwaysHiddenPinWorkflow.unpin(app: app)
         #expect(manager.settings.alwaysHiddenPinnedItemIds.isEmpty)
     }
 
@@ -356,10 +356,10 @@ struct PinIdentityTests {
 
         let app = RunningApp(id: "com.test.app", name: "Test", icon: nil)
 
-        manager.pinAlwaysHidden(app: app)
+        manager.alwaysHiddenPinWorkflow.pin(app: app)
         let countAfterFirst = manager.settings.alwaysHiddenPinnedItemIds.count
 
-        manager.pinAlwaysHidden(app: app)
+        manager.alwaysHiddenPinWorkflow.pin(app: app)
         let countAfterSecond = manager.settings.alwaysHiddenPinnedItemIds.count
 
         #expect(countAfterFirst == countAfterSecond)

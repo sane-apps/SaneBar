@@ -1,0 +1,447 @@
+@testable import SaneBar
+import XCTest
+
+@MainActor
+final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
+    func testVisibleAndAlwaysHiddenRetriesReResolveTargets() throws {
+        let standardURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStandardIconMoveWorkflow.swift")
+        let standardSource = try String(contentsOf: standardURL, encoding: .utf8)
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+        let resolverURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
+        let resolverSource = try String(contentsOf: resolverURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            standardSource.contains("let retryTargets = await manager.moveTargetResolver.resolveMoveTargetsWithRetries("),
+            "Standard retry path should refresh move targets before retrying"
+        )
+        XCTAssertTrue(
+            standardSource.contains("let retryLabel = request.toHidden ? \"hidden\" : \"visible\""),
+            "Standard retry path should label hidden and visible re-resolution distinctly in logs"
+        )
+        XCTAssertTrue(
+            standardSource.contains("Re-resolved \\(retryLabel) move targets for retry"),
+            "Standard retry path should log the re-resolved target set for both hidden and visible retries"
+        )
+        XCTAssertFalse(
+            standardSource.contains("if !success,\n               !request.toHidden,\n               actionableMoveSafety.allowsClassifiedZoneFallback"),
+            "Standard retry path should not special-case visible moves before the extra drag"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("Re-resolved always-hidden move targets for retry"),
+            "Always-hidden retry path should refresh separator targets before retrying"
+        )
+        XCTAssertTrue(
+            resolverSource.contains("Waiting for live always-hidden separator geometry before move target acceptance"),
+            "Always-hidden moves should wait for live AH separator geometry before trusting cached drag targets"
+        )
+        XCTAssertTrue(
+            resolverSource.contains("Always-hidden move target resolution failed without live separator geometry"),
+            "Always-hidden move target resolution must fail closed instead of returning cached-only targets at the retry limit"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries("),
+            "Always-hidden move pipelines should use the dedicated always-hidden target resolver instead of a one-shot separator lookup"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("Re-resolved AH-to-Hidden targets for retry"),
+            "AH-to-Hidden retry path should refresh separator targets before retrying"
+        )
+        XCTAssertTrue(
+            standardSource.contains("Move accepted after classification verification"),
+            "Standard move path should reconcile verification failures with classified zones before returning false"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("Always-hidden move accepted after classification verification"),
+            "Always-hidden move path should reconcile verification failures with classified zones before returning false"
+        )
+        XCTAssertTrue(
+            standardSource.contains("let shouldAttemptShieldFallback = !success && (request.toHidden ? !usedShowAllShield : true)"),
+            "Visible moves should get one shield-backed final retry even when the standard retry already ran"
+        )
+        XCTAssertTrue(
+            standardSource.contains("Visible move still failed after standard retry while already using showAll shield - refreshing move targets once more"),
+            "Visible moves that were already using the shield path should still get one last target refresh before failing"
+        )
+        XCTAssertTrue(
+            standardSource.contains("Shield fallback could not resolve visible boundary - keeping failure"),
+            "Visible shield fallback should refuse to retry with a missing visible boundary"
+        )
+        XCTAssertTrue(
+            resolverSource.contains("func verifyVisibleMoveWithFreshGeometry("),
+            "Visible return moves should have a narrow fresh-geometry recheck before spending another drag"
+        )
+        XCTAssertTrue(
+            resolverSource.contains("Visible move accepted after fresh geometry recheck"),
+            "Fresh geometry acceptance should stay explicit in source so stale-separator fixes do not silently regress"
+        )
+        XCTAssertTrue(
+            standardSource.contains("if !success, !request.toHidden {") &&
+                standardSource.contains("success = await manager.moveTargetResolver.verifyVisibleMoveWithFreshGeometry(") &&
+                standardSource.contains("identity: sourceIdentity,"),
+            "Regular visible returns should attempt the fresh-geometry recheck before the retry drag"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("if !success, !toAlwaysHidden {") &&
+                alwaysHiddenSource.contains("success = await manager.moveTargetResolver.verifyVisibleMoveWithFreshGeometry("),
+            "Always-hidden visible returns should attempt the same fresh-geometry recheck before retrying"
+        )
+    }
+
+    func testAppleScriptMoveTimeoutAllowsShieldFallbackPath() throws {
+        let source = try appleScriptCommandSource()
+
+        XCTAssertTrue(
+            source.contains("func runScriptMove(timeoutSeconds: TimeInterval = 9.0"),
+            "AppleScript move commands should allow enough time for the hardened fallback path before reporting a timeout"
+        )
+    }
+
+    func testMoveTargetResolutionWaitsForLiveSeparatorFrame() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("let liveSeparatorReady = separatorOverrideX != nil || manager.geometryResolver.currentLiveSeparatorFrame() != nil"),
+            "Move target resolution should wait for a live separator window when the main separator should already be visible"
+        )
+        XCTAssertTrue(
+            source.contains("Waiting for live separator frame or an on-screen precise source icon before accepting cached move target"),
+            "Visible moves should keep polling until the separator is live or the source icon is safely on-screen with a precise identity"
+        )
+        XCTAssertTrue(
+            source.contains("Accepting cached visible move target because source icon is already on-screen with a precise identity"),
+            "Visible moves should have a narrow fallback for precise on-screen items when the separator frame is still stale"
+        )
+    }
+
+    func testAppleScriptAlwaysHiddenMovesUseStandardMovePath() throws {
+        let source = try appleScriptCommandSource()
+        let alwaysHiddenVisibleBranch = """
+                    case .alwaysHidden:
+                        let removedPin = manager.alwaysHiddenPinWorkflow.unpin(
+                            bundleID: icon.bundleId,
+                            menuExtraId: icon.menuExtraIdentifier,
+                            statusItemIndex: icon.statusItemIndex
+                        ) || (!icon.bundleId.hasPrefix("com.apple.controlcenter") &&
+                            manager.alwaysHiddenPinWorkflow.unpin(bundleID: icon.bundleId))
+                        if removedPin {
+                            manager.saveSettings()
+                        }
+                        let moved = runScriptMove {
+                            await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
+                                bundleID: icon.bundleId,
+                                menuExtraId: icon.menuExtraIdentifier,
+                                statusItemIndex: icon.statusItemIndex,
+                                preferredCenterX: icon.preferredCenterX,
+                                toAlwaysHidden: false
+                            )
+                        }
+        """
+
+        XCTAssertTrue(
+            source.contains("var skipZoneWait: Bool = false"),
+            "AppleScript move routing should track no-op moves and skip zone wait when no move is needed"
+        )
+        XCTAssertTrue(
+            source.contains("if outcome.skipZoneWait {"),
+            "No-op move requests should return success without polling for zone convergence"
+        )
+        XCTAssertTrue(
+            source.contains("sourceZone == targetZone"),
+            "AppleScript routing should detect when an icon is already in the requested zone"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                source.contains("await manager.moveQueueWorkflow.moveIconFromAlwaysHiddenToHiddenAndWait("),
+            "Always-hidden sources should route through the dedicated manager move helpers instead of rolling their own pin mutation first"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.moveQueueWorkflow.moveIconFromAlwaysHiddenToHiddenAndWait("),
+            "Always-hidden to hidden should use the dedicated helper so showAll runs even when the bar is merely expanded"
+        )
+        XCTAssertTrue(
+            source.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                source.contains("toAlwaysHidden: false"),
+            "Always-hidden to visible should use the dedicated helper so showAll runs even when the bar is merely expanded"
+        )
+        XCTAssertFalse(
+            alwaysHiddenVisibleBranch.contains("moveIconAndWait("),
+            "Always-hidden to visible should not route through the standard move helper"
+        )
+        XCTAssertFalse(
+            source.contains("manager.moveIconFromAlwaysHidden("),
+            "AppleScript move routing should avoid the fire-and-forget always-hidden visible helper"
+        )
+    }
+
+    func testAlwaysHiddenToHiddenMovePreservesPreHideSnapshot() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("Capturing AH-to-Hidden move snapshot before re-hide") &&
+                source.contains("await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()") &&
+                source.contains("AccessibilityService.shared.preserveFreshMenuBarItemPositionsAfterManualMove()"),
+            "AH-to-Hidden moves should preserve the shown-state post-move cache so immediate AppleScript verification does not reclassify regular Hidden as Always Hidden after re-hide"
+        )
+    }
+
+    func testRuntimeSmokeRequiresNoKeychainProForFocusedExactIdLanes() throws {
+        let source = try scriptSource(entrypoint: "qa.rb", partialPrefix: "project_qa")
+
+        XCTAssertTrue(
+            source.contains("focused_runtime_smoke_pro_error(target, lane_name)") &&
+                source.contains("licenseIsPro") &&
+                source.contains("runtime_smoke_target_process_detail(target)") &&
+                source.contains("runtime_smoke_fallback_defaults_detail"),
+            "Focused exact-ID runtime smoke should fail early with Pro/process/defaults diagnostics before moving Apple menu extras"
+        )
+        XCTAssertTrue(
+            source.contains("require_no_keychain && !command.include?('--sane-no-keychain')"),
+            "Runtime smoke should not accept a real-keychain process when the target was launched for no-keychain release automation"
+        )
+        XCTAssertFalse(
+            source.contains(".filter_map"),
+            "Project QA must avoid newer Ruby helpers because the Mini runtime can be older than the controller machine"
+        )
+    }
+
+    func testHiddenStateClassificationUsesPinnedFallbackForAlwaysHidden() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let classifierURL = projectRootURL().appendingPathComponent("Core/Services/SearchMenuBarZoneClassifier.swift")
+        let classifierSource = try String(contentsOf: classifierURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("shouldUsePinnedAlwaysHiddenFallback"),
+            "Hidden and browse-session classification should centralize the pinned-ID fallback policy"
+        )
+        XCTAssertTrue(
+            source.contains("MenuBarManager.shared.geometryResolver.alwaysHiddenSeparatorBoundaryX() == nil") &&
+                source.contains("return (separatorX, nil)"),
+            "Pinned-ID fallback should force two-zone split only when live always-hidden geometry is unavailable"
+        )
+        XCTAssertTrue(
+            classifierSource.contains("post-pass moved"),
+            "When AH geometry is disabled, pinned IDs should still populate always-hidden classification"
+        )
+    }
+
+    func testShouldSkipHideForExternalMonitorPolicy() {
+        XCTAssertTrue(MenuBarVisibilityPolicy.shouldSkipHide(disableOnExternalMonitor: true, isOnExternalMonitor: true))
+        XCTAssertFalse(MenuBarVisibilityPolicy.shouldSkipHide(disableOnExternalMonitor: false, isOnExternalMonitor: true))
+        XCTAssertFalse(MenuBarVisibilityPolicy.shouldSkipHide(disableOnExternalMonitor: true, isOnExternalMonitor: false))
+    }
+
+    func testStartupRecoveryTriggersWhenSeparatorIsRightOfMain() {
+        XCTAssertTrue(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 1200,
+                mainX: 1100
+            )
+        )
+    }
+
+    func testStartupRecoveryDoesNotTriggerForHealthyOrdering() {
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100
+            )
+        )
+    }
+
+    func testStartupRecoveryTriggersWhenMainIconIsTooFarFromRightEdge() {
+        XCTAssertTrue(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 900,
+                screenWidth: 1440
+            )
+        )
+    }
+
+    func testStartupRecoveryAllowsReasonableRightEdgeGap() {
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 300,
+                screenWidth: 1440
+            )
+        )
+    }
+
+    func testStartupRecoveryTriggersWhenMainIconDriftsIntoNotchDeadZone() {
+        XCTAssertTrue(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1300,
+                mainRightGap: 220,
+                screenWidth: 1728,
+                notchRightSafeMinX: 1450
+            )
+        )
+    }
+
+    func testStartupRecoveryAllowsMainIconInsideNotchSafeRightZone() {
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1462,
+                mainRightGap: 220,
+                screenWidth: 1728,
+                notchRightSafeMinX: 1450
+            )
+        )
+    }
+
+    func testStartupRecoveryFallsBackToRightGapWhenNoNotchBoundary() {
+        XCTAssertTrue(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: 1100,
+                mainRightGap: 301,
+                screenWidth: 1440,
+                notchRightSafeMinX: nil
+            )
+        )
+    }
+
+    func testStartupRecoveryAllowsCrowdedNotchedRightZone() {
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 1050,
+                mainX: 1219,
+                mainRightGap: 290,
+                screenWidth: 1470,
+                notchRightSafeMinX: 825
+            )
+        )
+    }
+
+    func testStartupRecoveryDoesNotTriggerWithMissingCoordinates() {
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: nil,
+                mainX: 1100
+            )
+        )
+        XCTAssertFalse(
+            MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+                separatorX: 900,
+                mainX: nil
+            )
+        )
+    }
+
+    func testSearchServiceRefreshesTargetAfterReveal() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let diagnosticsURL = projectRootURL().appendingPathComponent("Core/Services/SearchServiceSupport.swift")
+        let diagnosticsSource = try String(contentsOf: diagnosticsURL, encoding: .utf8)
+        let resolverURL = projectRootURL().appendingPathComponent("Core/Services/SearchActivationTargetResolver.swift")
+        let resolverSource = try String(contentsOf: resolverURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("SearchActivationTargetResolver.waitForIconOnScreen(app: app") &&
+                resolverSource.contains("static func waitForIconOnScreen("),
+            "SearchService.activate should wait for icon re-layout after reveal (#102)"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("static func shouldForceFreshTargetResolution"),
+            "SearchService should centralize reveal/browse-session refresh policy (#102/#105)"
+        )
+        XCTAssertTrue(
+            source.contains("forceRefresh: forceFreshTargetResolution"),
+            "SearchService.activate should force-refresh click target identity after reveal or browse-session activation (#102/#105)"
+        )
+        XCTAssertTrue(
+            source.contains("app: initialTarget"),
+            "SearchService.activate should derive hardware-vs-AX click strategy from the resolved target identity so second-menu-bar clicks do not reuse stale off-screen requested coordinates (#101)"
+        )
+    }
+
+    func testSearchServiceDebouncesBackToBackActivationRequests() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let gateURL = projectRootURL().appendingPathComponent("Core/Services/SearchActivationGate.swift")
+        let gateSource = try String(contentsOf: gateURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("SearchActivationGate(debounceInterval: 0.45)") &&
+                gateSource.contains("debounceInterval: TimeInterval"),
+            "SearchService.activate should debounce rapid duplicate requests to prevent panel lockups on double-click"
+        )
+        XCTAssertTrue(
+            source.contains("activationGate.begin(for: app.uniqueId"),
+            "SearchService.activate should pass through shared activation guard logic"
+        )
+    }
+
+    func testSearchServiceSkipsActivationWhenAnotherActivationIsInFlight() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchActivationGate.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if let inFlightAppID"),
+            "SearchService.activate should reject overlapping activation workflows while one request is in progress"
+        )
+    }
+
+    func testSearchServiceRunsClickOffMainAndSkipsSlowRetry() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let clickURL = projectRootURL().appendingPathComponent("Core/Services/SearchClickAttemptService.swift")
+        let clickSource = try String(contentsOf: clickURL, encoding: .utf8)
+        let diagnosticsURL = projectRootURL().appendingPathComponent("Core/Services/SearchServiceSupport.swift")
+        let diagnosticsSource = try String(contentsOf: diagnosticsURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            clickSource.contains("withTaskGroup(of: SearchClickAttemptResult.self)"),
+            "SearchService.activate should run click path through a bounded background task group to avoid UI stalls during AX calls"
+        )
+        XCTAssertTrue(
+            source.contains("Click failed after slow attempt; skipping forced-refresh retry"),
+            "SearchService.activate should avoid compounding delays by skipping retry after a slow failed click"
+        )
+        XCTAssertTrue(
+            source.contains("Click failed after timeout; skipping forced-refresh retry"),
+            "SearchService.activate should skip retry when a click attempt times out to avoid duplicate delayed activations"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("shouldPreferHardwareFirst("),
+            "SearchService should expose a reusable hardware-vs-AX policy helper"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("shouldUseWorkspaceActivationFallback("),
+            "SearchService should centralize workspace-fallback policy so browse-panel right-click failures do not steal focus"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("MenuBarOperationCoordinator.browseActivationPlan("),
+            "Browse activation policy should route through the shared runtime coordinator instead of being rebuilt inline"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("if origin == .browsePanel {") &&
+                diagnosticsSource.contains("return true"),
+            "Browse-panel hardware-vs-AX policy should route all panel clicks through hardware-first so unverified AXPress successes get a real click attempt"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("if app.menuExtraIdentifier == nil"),
+            "Direct activation should still prefer hardware-first when a status item lacks stable AX per-item identity"
+        )
+        XCTAssertTrue(
+            source.contains("let activationPlan = SearchServiceSupport.activationPlan(") &&
+                source.contains("if activationPlan.allowWorkspaceActivationFallback"),
+            "SearchService.activate should drive fallback policy from one activation plan so browse-panel right-click failures do not steal focus"
+        )
+        XCTAssertTrue(
+            source.contains("NSApp.yieldActivation(to: runningApp)") &&
+                source.contains("runningApp.activate(options: [])"),
+            "Workspace activation fallback should use cooperative activation on modern macOS before requesting the target app to activate"
+        )
+    }
+
+}

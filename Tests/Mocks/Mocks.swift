@@ -373,24 +373,24 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
 
     private let activateState = MockoloMutex(
         MockoloHandlerState<
-            (RunningApp, Bool, SearchService.ActivationOrigin),
-            @Sendable (RunningApp, Bool, SearchService.ActivationOrigin) async -> Void
+            (RunningApp, Bool, SearchServiceSupport.ActivationOrigin),
+            @Sendable (RunningApp, Bool, SearchServiceSupport.ActivationOrigin) async -> Void
         >()
     )
     var activateCallCount: Int {
         activateState.withLock(\.callCount)
     }
 
-    var activateArgValues: [(RunningApp, Bool, SearchService.ActivationOrigin)] {
+    var activateArgValues: [(RunningApp, Bool, SearchServiceSupport.ActivationOrigin)] {
         activateState.withLock(\.argValues).map(\.value)
     }
 
-    var activateHandler: (@Sendable (RunningApp, Bool, SearchService.ActivationOrigin) async -> Void)? {
+    var activateHandler: (@Sendable (RunningApp, Bool, SearchServiceSupport.ActivationOrigin) async -> Void)? {
         get { activateState.withLock(\.handler) }
         set { activateState.withLock { $0.handler = newValue } }
     }
 
-    func activate(app: RunningApp, isRightClick: Bool, origin: SearchService.ActivationOrigin) async {
+    func activate(app: RunningApp, isRightClick: Bool, origin: SearchServiceSupport.ActivationOrigin) async {
         warnIfNotSendable(app, isRightClick, origin)
         let activateHandler = activateState.withLock { state in
             state.callCount += 1

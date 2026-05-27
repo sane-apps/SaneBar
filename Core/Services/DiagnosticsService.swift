@@ -39,7 +39,7 @@ private func collectSaneBarSettings() -> String {
         windowFrame: separatorWindowFrame,
         screenFrame: separatorScreenFrame
     )
-    let menuBarSuppressionHint = StatusBarController.systemMenuBarSuppressionHint(
+    let menuBarSuppressionHint = StatusBarDiagnostics.systemMenuBarSuppressionHint(
         main: .init(
             isVisibleFlag: manager.mainStatusItem?.isVisible,
             windowFrame: mainWindowFrame,
@@ -51,8 +51,8 @@ private func collectSaneBarSettings() -> String {
             screenFrame: separatorScreenFrame
         )
     )
-    let missionControlSpaces = StatusBarController.missionControlSpacesDiagnostic()
-    let visibilityOverrideSnapshots = StatusBarController.statusItemVisibilityOverrideSnapshots()
+    let missionControlSpaces = StatusBarDiagnostics.missionControlSpacesDiagnostic()
+    let visibilityOverrideSnapshots = StatusBarDiagnostics.statusItemVisibilityOverrideSnapshots()
     let visibilityOverrideSummary = visibilityOverrideSnapshots.isEmpty
         ? "none"
         : visibilityOverrideSnapshots
@@ -130,9 +130,9 @@ private func collectSaneBarSettings() -> String {
     isOnExternalMonitor: \(manager.isOnExternalMonitor)
     accessibilityGranted: \(AccessibilityService.shared.isGranted)
 
-    separatorOriginX: \(formatCGFloat(manager.getSeparatorOriginX()))
-    alwaysHiddenSeparatorOriginX: \(formatCGFloat(manager.getAlwaysHiddenSeparatorOriginX()))
-    mainIconLeftEdgeX: \(formatCGFloat(manager.getMainStatusItemLeftEdgeX()))
+    separatorOriginX: \(formatCGFloat(manager.geometryResolver.separatorOriginX()))
+    alwaysHiddenSeparatorOriginX: \(formatCGFloat(manager.geometryResolver.alwaysHiddenSeparatorOriginX()))
+    mainIconLeftEdgeX: \(formatCGFloat(manager.geometryResolver.mainStatusItemLeftEdgeX()))
 
     mainStatusItemVisible: \(manager.mainStatusItem?.isVisible ?? false)
     statusMenuItemCount: \(manager.statusMenu?.items.count ?? 0)

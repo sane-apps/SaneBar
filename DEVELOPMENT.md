@@ -24,7 +24,7 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-→ Full philosophy: `~/SaneApps/meta/Brand/NORTH_STAR.md`
+→ Full philosophy: see the private SaneApps operator overlay.
 
 ---
 
@@ -129,7 +129,7 @@ ruby scripts/qa.rb                      # Pre-release QA checks
 | Situation | Tool |
 |-----------|------|
 | Build/test | `./scripts/SaneMaster.rb verify` (Rule #5) |
-| Launch for testing | `sane_test.rb SaneBar` (prefers Mac Mini) |
+| Launch for testing | `sane_test.rb SaneBar` (prefers the configured remote build host) |
 | API signature check | `./scripts/SaneMaster.rb verify_api` (Rule #2) |
 | API usage examples | `apple-docs` MCP |
 | Library docs | `context7` MCP |
@@ -139,14 +139,14 @@ ruby scripts/qa.rb                      # Pre-release QA checks
 ### Build Strategy
 
 ```bash
-# Prefer Mac Mini for builds and testing (home network only)
-ssh -o ConnectTimeout=3 mini 'echo ok' 2>/dev/null && echo "MINI" || echo "LOCAL"
+# Prefer the configured remote build host for builds and testing
+ssh -o ConnectTimeout=3 "$SANEAPPS_BUILD_HOST" 'echo ok' 2>/dev/null && echo "REMOTE" || echo "LOCAL"
 
-# Mac Mini (preferred)
-ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar
+# Remote build host (preferred)
+ruby "$SANEAPPS_INFRA/scripts/sane_test.rb" SaneBar
 
-# Local fallback (only if Mini unreachable)
-ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
+# Local fallback (only if the remote host is unreachable)
+ruby "$SANEAPPS_INFRA/scripts/sane_test.rb" SaneBar --local
 ```
 
 ---
@@ -162,7 +162,7 @@ ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local
      customer-facing action family with structured evidence, not just list IDs.
    - Runs dedicated stability suite (upgrade-state + second-menu-bar paths)
    - Runs the staged-app runtime lane plus focused exact-ID smokes when those IDs are present on the Mini:
-     - shared-bundle Apple extras: Wi-Fi / Battery / Focus / Display
+     - shared-bundle Apple extras: Control Center / Clock / Focus / Wi-Fi / Battery / Display
      - native Apple extras: Siri / Spotlight
      - host exact-id sentinel: Codex
    - For arrangement / drag / display-recovery patches, keep one manual external-monitor disconnect/reconnect cycle in the release checklist until that path is automated
@@ -194,6 +194,20 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
   tabs/actions, profiles, rules, appearance, shortcuts, health/repair, data
   import/export/reset, onboarding, license/about/support, Basic/Pro gates, and
   startup/wake recovery.
+- Issue-history regression backtest:
+  - Before release, every open or recently recurring GitHub issue family must map
+    to a current automated or Mini runtime gate in `Tests/CustomerUIActions.yml`,
+    `Scripts/live_zone_smoke.rb`, `Scripts/wake_layout_probe.rb`, or focused unit
+    tests. If there is no gate that would fail if the root cause returned, the
+    release is blocked.
+  - The current release-blocking families are saved Visible/Hidden persistence
+    after wake or display changes, helper-owned Hidden-to-Visible drift such as
+    Lungo, shared-bundle exact-ID moves, Hidden vs Always Hidden move
+    classification, Browse Icons / Second Menu Bar activation and rehide,
+    hover/auto-rehide timing, profile apply parity, license paste/activation,
+    installer Move to Applications behavior, and resource growth. Compatibility-
+    limited third-party conflicts can be exempted only with an explicit issue
+    label and a written reason.
 - E2E checklist: `docs/E2E_TESTING_CHECKLIST.md`
 - Button mapping: `ruby scripts/button_map.rb`
 - Flow tracing: `ruby scripts/trace_flow.rb <function>`

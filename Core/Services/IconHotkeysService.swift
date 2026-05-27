@@ -80,7 +80,7 @@ final class IconHotkeysService {
 
         guard let manager = menuBarManager else { return }
         Task { @MainActor in
-            let didReveal = await manager.showHiddenItemsNow(trigger: .hotkey)
+            let didReveal = await manager.visibilityWorkflow.showHiddenItemsNow(trigger: .hotkey)
             guard didReveal else { return }
 
             // Activate the target app (this may trigger its status bar menu)

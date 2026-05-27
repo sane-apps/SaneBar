@@ -128,10 +128,43 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal ['com.apple.menuextra.siri::axid:3'], candidates.map { |candidate| candidate[:unique_id] }
   end
 
+  def test_required_shared_fixture_remains_available_for_exact_id_move_smoke
+    required_id = 'com.sanebar.sharedfixture::statusItem:0'
+    smoke = build_smoke(required_ids: [required_id])
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sanebar.sharedfixture',
+        unique_id: required_id,
+        name: 'SaneBarSharedFixture'
+      }
+    ]
+
+    candidates = smoke.send(:selected_candidates, zones)
+
+    assert_equal [required_id], candidates.map { |candidate| candidate[:unique_id] }
+  end
+
   def test_required_ids_enable_focused_smoke_mode
     smoke = build_smoke(required_ids: ['com.apple.menuextra.focusmode'])
 
     assert smoke.send(:focused_required_id_mode?)
+  end
+
+  def test_matching_process_requires_no_keychain_when_requested
+    smoke = build_smoke
+    smoke.instance_variable_set(:@process_path, '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+    smoke.instance_variable_set(:@require_no_keychain_process, true)
+
+    assert smoke.send(
+      :matching_app_process?,
+      '/Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain'
+    )
+    refute smoke.send(
+      :matching_app_process?,
+      '/Applications/SaneBar.app/Contents/MacOS/SaneBar'
+    )
   end
 
   def test_default_smoke_does_not_require_move_candidates
@@ -152,9 +185,16 @@ class LiveZoneSmokeTest < Minitest::Test
     refute smoke.send(:browse_activation_candidates_required?)
   end
 
-  def test_required_candidate_smoke_requires_browse_activation_candidates
+  def test_required_candidate_smoke_does_not_require_browse_activation_candidates
     smoke = build_smoke
     smoke.instance_variable_set(:@require_candidate, true)
+
+    refute smoke.send(:browse_activation_candidates_required?)
+  end
+
+  def test_required_browse_activation_candidate_smoke_requires_browse_activation_candidates
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_browse_activation_candidate, true)
 
     assert smoke.send(:browse_activation_candidates_required?)
   end
@@ -312,6 +352,37 @@ class LiveZoneSmokeTest < Minitest::Test
     candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
 
     refute_includes candidate_ids, 'com.apple.menuextra.audiovideo'
+    assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
+  def test_browse_activation_candidates_exclude_shared_fixture
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.sanebar.sharedfixture',
+        unique_id: 'com.sanebar.sharedfixture::statusItem:0',
+        name: 'SaneBarSharedFixture'
+      },
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.apple.controlcenter',
+        unique_id: 'com.apple.menuextra.display',
+        name: 'Display'
+      }
+    ]
+
+    candidates = smoke.send(
+      :browse_activation_candidates,
+      zones,
+      expected_mode: 'secondMenuBar',
+      activation_command: 'activate browse icon'
+    )
+    candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
+
+    refute_includes candidate_ids, 'com.sanebar.sharedfixture::statusItem:0'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 

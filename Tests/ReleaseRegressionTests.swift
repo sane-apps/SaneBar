@@ -102,20 +102,20 @@ struct ReleaseRegressionTests {
         #expect(right != option, "rightClick and optionClick must be distinct")
     }
 
-    // MARK: - RevealTrigger Enum Completeness (#50)
+    // MARK: - MenuBarRevealTrigger Enum Completeness (#50)
 
-    @Test("RevealTrigger has all expected cases with correct raw values")
+    @Test("MenuBarRevealTrigger has all expected cases with correct raw values")
     func revealTriggerCases() {
         // These triggers control how showHiddenItemsNow behaves (pin vs auto-rehide)
-        #expect(MenuBarManager.RevealTrigger.hotkey.rawValue == "hotkey")
-        #expect(MenuBarManager.RevealTrigger.search.rawValue == "search")
-        #expect(MenuBarManager.RevealTrigger.automation.rawValue == "automation")
-        #expect(MenuBarManager.RevealTrigger.hover.rawValue == "hover")
-        #expect(MenuBarManager.RevealTrigger.scroll.rawValue == "scroll")
-        #expect(MenuBarManager.RevealTrigger.click.rawValue == "click")
-        #expect(MenuBarManager.RevealTrigger.userDrag.rawValue == "userDrag")
-        #expect(MenuBarManager.RevealTrigger.settingsButton.rawValue == "settingsButton")
-        #expect(MenuBarManager.RevealTrigger.findIcon.rawValue == "findIcon")
+        #expect(MenuBarRevealTrigger.hotkey.rawValue == "hotkey")
+        #expect(MenuBarRevealTrigger.search.rawValue == "search")
+        #expect(MenuBarRevealTrigger.automation.rawValue == "automation")
+        #expect(MenuBarRevealTrigger.hover.rawValue == "hover")
+        #expect(MenuBarRevealTrigger.scroll.rawValue == "scroll")
+        #expect(MenuBarRevealTrigger.click.rawValue == "click")
+        #expect(MenuBarRevealTrigger.userDrag.rawValue == "userDrag")
+        #expect(MenuBarRevealTrigger.settingsButton.rawValue == "settingsButton")
+        #expect(MenuBarRevealTrigger.findIcon.rawValue == "findIcon")
     }
 
     // MARK: - IconZone Enum (Second Menu Bar Panel)
@@ -351,9 +351,9 @@ struct LeftClickRoutingTests {
     func toggleDoesPhysicalToggle() {
         // This is a structural/documentation test.
         // The fix removed ALL useSecondMenuBar branches from:
-        //   - toggleHiddenItems() in MenuBarManager+Visibility.swift
-        //   - showHiddenItemsNow() in MenuBarManager+Visibility.swift
-        //   - hideHiddenItems() in MenuBarManager+Visibility.swift
+        //   - toggleHiddenItems() in MenuBarVisibilityWorkflow.swift
+        //   - showHiddenItemsNow() in MenuBarVisibilityWorkflow.swift
+        //   - hideHiddenItems() in MenuBarVisibilityWorkflow.swift
         //
         // Verified by code review: left-click now always calls
         // hidingService.toggle() without any mode checks.
@@ -373,7 +373,7 @@ struct LeftClickRoutingTests {
 
     @Test("Second menu bar fallback opens only when reveal remains hidden")
     func secondMenuBarFallbackWhenRevealStaysHidden() {
-        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+        let shouldFallback = MenuBarActionWorkflow.shouldOpenSecondMenuBarFallback(
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: false,
             requireAuthToShowHiddenIcons: false,
@@ -387,7 +387,7 @@ struct LeftClickRoutingTests {
 
     @Test("Second menu bar fallback is blocked when auth is required")
     func secondMenuBarFallbackBlockedByAuth() {
-        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+        let shouldFallback = MenuBarActionWorkflow.shouldOpenSecondMenuBarFallback(
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: false,
             requireAuthToShowHiddenIcons: true,
@@ -401,7 +401,7 @@ struct LeftClickRoutingTests {
 
     @Test("Second menu bar fallback is skipped when reveal succeeds")
     func secondMenuBarFallbackSkippedWhenRevealSucceeds() {
-        let shouldFallback = MenuBarManager.shouldOpenSecondMenuBarFallback(
+        let shouldFallback = MenuBarActionWorkflow.shouldOpenSecondMenuBarFallback(
             useSecondMenuBar: true,
             leftClickOpensBrowseIcons: false,
             requireAuthToShowHiddenIcons: false,

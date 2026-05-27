@@ -54,7 +54,7 @@ final class HealthWizardController: NSObject, NSWindowDelegate {
     func windowWillClose(_: Notification) {
         guard window != nil else { return }
         window = nil
-        MenuBarManager.shared.completeHealthWizard()
+        MenuBarManager.shared.profileWorkflow.completeHealthWizard()
         SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
     }
 }
@@ -151,7 +151,7 @@ private struct FirstRunHealthWizardView: View {
 
             Button("Arrange Now") {
                 Task { @MainActor in
-                    _ = await menuBarManager.repairMenuBarHealth(reason: "health-wizard")
+                    _ = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: "health-wizard")
                     repairRan = true
                 }
             }
@@ -174,7 +174,7 @@ private struct FirstRunHealthWizardView: View {
     }
 
     private func saveRestorePoint() {
-        rescuePointSaved = menuBarManager.createLayoutRescueRestorePoint(reason: "health-wizard")
+        rescuePointSaved = menuBarManager.profileWorkflow.createLayoutRescueRestorePoint(reason: "health-wizard")
         rescueMessage = rescuePointSaved
             ? "Restore point saved."
             : "Run Arrange Now after Accessibility is granted, then save a restore point."

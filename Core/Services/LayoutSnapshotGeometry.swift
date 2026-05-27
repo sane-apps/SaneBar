@@ -21,7 +21,7 @@ extension LayoutSnapshotCommand {
 
         if let liveFrameOriginX,
            let liveFrameWidth,
-           MenuBarManager.mainStatusItemFrameLooksLive(originX: liveFrameOriginX, width: liveFrameWidth) {
+           MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: liveFrameOriginX, width: liveFrameWidth) {
             return referenceScreenRightEdge - liveFrameOriginX
         }
 

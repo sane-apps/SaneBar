@@ -20,8 +20,6 @@ struct MenuConfiguration {
     let quitAction: Selector
 }
 
-// swiftlint:enable file_length
-
 // MARK: - StatusBarControllerProtocol
 
 /// @mockable
@@ -94,46 +92,84 @@ final class StatusBarController: StatusBarControllerProtocol {
         .removalAllowed,
         .terminationOnRemoval,
     ]
-    private nonisolated static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
-    private nonisolated static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
-    private static let stablePositionMigrationKey = "SaneBar_PositionRecovery_Migration_v1"
-    private static let legacyMigrationKeys = [
-        "SaneBar_PositionMigration_v4",
-        "SaneBar_PositionMigration_v5",
-        "SaneBar_PositionMigration_v6",
-        "SaneBar_PositionMigration_v7",
-    ]
-    private static let minimumSafeAlwaysHiddenPosition = 200.0
-
-    private nonisolated static func resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil) -> NSScreen? {
-        if let referenceScreen {
-            return referenceScreen
-        }
-
-        if let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) {
-            return pointerScreen
-        }
-
-        return NSScreen.main ?? NSScreen.screens.first
-    }
+nonisolated static func seedAlwaysHiddenSeparatorPositionIfNeeded() { StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded() }
+nonisolated static func resetPositionsToOrdinals() { StatusBarPositionRecoveryStore.resetPositionsToOrdinals() }
+nonisolated static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
+    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen)
+}
+nonisolated static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil, freshAutosaveNamespace: Bool) {
+    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen, freshAutosaveNamespace: freshAutosaveNamespace)
+}
+nonisolated static func recoverStartupPositions(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
+    StatusBarPositionRecoveryStore.recoverStartupPositions(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen)
+}
+nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool { StatusBarPositionStore.isPixelLikePosition(value) }
+nonisolated static func isOrdinalSeedLikePosition(_ value: Double?) -> Bool { StatusBarPositionStore.isOrdinalSeedLikePosition(value) }
+nonisolated static func hasOrdinalSeedPair(mainPosition: Double?, separatorPosition: Double?) -> Bool {
+    StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: mainPosition, separatorPosition: separatorPosition)
+}
+nonisolated static func isSignificantWidthChange(stored: Double, current: Double) -> Bool { StatusBarPositionStore.isSignificantWidthChange(stored: stored, current: current) }
+nonisolated static func shouldResetForDisplayChange(storedWidth: Double, currentWidth: Double, hasPixelPositions: Bool, screenCount: Int) -> Bool {
+    StatusBarPositionStore.shouldResetForDisplayChange(storedWidth: storedWidth, currentWidth: currentWidth, hasPixelPositions: hasPixelPositions, screenCount: screenCount)
+}
+nonisolated static func displayWidthBucket(_ width: Double) -> Int { StatusBarPositionStore.displayWidthBucket(width) }
+nonisolated static func displayPositionBackupKey(for width: Double, slot: String) -> String { StatusBarPositionStore.displayPositionBackupKey(for: width, slot: slot) }
+nonisolated static func displayPositionBackupKey(for widthBucket: Int, screenSignature: String?, slot: String) -> String {
+    StatusBarPositionStore.displayPositionBackupKey(for: widthBucket, screenSignature: screenSignature, slot: slot)
+}
+nonisolated static func shouldAllowLegacyDisplayBackupFallback(widthBucket: Int, activeWidthBuckets: [Int]) -> Bool {
+    StatusBarPositionStore.shouldAllowLegacyDisplayBackupFallback(widthBucket: widthBucket, activeWidthBuckets: activeWidthBuckets)
+}
+nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
+    StatusBarPositionStore.hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup)
+}
+nonisolated static func fitsDisplayBackupWithinScreenWidth(mainBackup: Double, separatorBackup: Double, screenWidth: Double, trailingPadding: Double = 24) -> Bool {
+    StatusBarPositionStore.fitsDisplayBackupWithinScreenWidth(mainBackup: mainBackup, separatorBackup: separatorBackup, screenWidth: screenWidth, trailingPadding: trailingPadding)
+}
+nonisolated static func screenHasTopSafeAreaInset(_ screen: NSScreen?) -> Bool { StatusBarPositionStore.screenHasTopSafeAreaInset(screen) }
+nonisolated static func launchSafePreferredMainPositionLimit(for screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> Double {
+    StatusBarPositionStore.launchSafePreferredMainPositionLimit(for: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
+}
+nonisolated static func isLaunchSafeDisplayBackup(mainBackup: Double?, separatorBackup: Double?, screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> Bool {
+    StatusBarPositionStore.isLaunchSafeDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup, screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
+}
+nonisolated static func reanchoredPreferredPositionsTowardControlCenter(mainPosition: Double?, separatorPosition: Double?, screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> (main: Double, separator: Double)? {
+    StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(mainPosition: mainPosition, separatorPosition: separatorPosition, screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
+}
+nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double { StatusBarPositionStore.launchSafePreferredSeparatorGap(for: screenWidth) }
+nonisolated static func launchSafeCurrentDisplayRecoveryPair(screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> (main: Double, separator: Double)? {
+    StatusBarPositionStore.launchSafeCurrentDisplayRecoveryPair(screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
+}
+nonisolated static func hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: NSScreen? = nil) -> Bool {
+    StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: referenceScreen)
+}
+@discardableResult
+nonisolated static func captureCurrentDisplayPositionBackupIfPossible(referenceScreen: NSScreen? = nil, mainPosition overrideMainPosition: Double? = nil, separatorPosition overrideSeparatorPosition: Double? = nil) -> Bool {
+    StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: referenceScreen, mainPosition: overrideMainPosition, separatorPosition: overrideSeparatorPosition)
+}
+nonisolated static func captureLayoutSnapshot() -> SaneBarLayoutSnapshot { StatusBarLayoutSnapshotStore.captureLayoutSnapshot() }
+nonisolated static func applyLayoutSnapshot(_ snapshot: SaneBarLayoutSnapshot) { StatusBarLayoutSnapshotStore.applyLayoutSnapshot(snapshot) }
+nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
+    StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(appValue: appValue, byHostValue: byHostValue)
+}
 
     // MARK: - Initialization
 
     init() {
         // Cmd-drag can persist NSStatusItem visibility overrides. Clear them on
         // every launch so a single drag-out cannot permanently hide SaneBar.
-        Self.clearPersistedVisibilityOverrides()
+        StatusBarPositionStore.clearPersistedVisibilityOverrides()
 
         // One-time migration for known corrupted position state.
         // Healthy user layouts are preserved.
-        Self.migrateCorruptedPositionsIfNeeded()
+        StatusBarPositionStore.migrateCorruptedPositionsIfNeeded()
 
         // Display-aware validation: reset pixel positions from a different screen
-        if Self.positionsNeedDisplayReset() {
-            if !Self.applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
-                Self.resetPositionsToOrdinals()
-                if let w = Self.resolvedReferenceScreen()?.frame.width {
-                    UserDefaults.standard.set(w, forKey: Self.screenWidthKey)
+        if StatusBarPositionStore.positionsNeedDisplayReset() {
+            if !StatusBarPositionStore.applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
+                StatusBarPositionRecoveryStore.resetPositionsToOrdinals()
+                if let w = StatusBarPositionStore.resolvedReferenceScreen()?.frame.width {
+                    UserDefaults.standard.set(w, forKey: StatusBarPositionStore.screenWidthKey)
                 }
             }
         }
@@ -142,12 +178,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Control Center until onboarding is completed.
         // This prevents stale machine-specific placement state from shoving the
         // SaneBar icon to the far-left side on install/setup.
-        if Self.shouldForceAnchorNearControlCenterOnLaunch() {
-            Self.forceMainAndSeparatorAnchorSeed()
+        if StatusBarPositionRecoveryStore.shouldForceAnchorNearControlCenterOnLaunch() {
+            StatusBarPositionRecoveryStore.forceMainAndSeparatorAnchorSeed()
         } else {
             // Seed positions BEFORE creating items (position pre-seeding)
             // Position 0 = rightmost (main), Position 1 = second from right (separator)
-            Self.seedPositionsIfNeeded()
+            StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
         }
 
         // Create main item (rightmost, near Control Center)
@@ -200,7 +236,7 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// Checks whether a status item window appears in the menu bar area.
     static func validateItemPosition(_ item: NSStatusItem) -> Bool {
         let window = item.button?.window
-        let screenFrame = window?.screen?.frame ?? Self.resolvedReferenceScreen()?.frame
+        let screenFrame = window?.screen?.frame ?? StatusBarPositionStore.resolvedReferenceScreen()?.frame
         return isStatusItemWindowFrameValid(windowFrame: window?.frame, screenFrame: screenFrame)
     }
 
@@ -228,7 +264,7 @@ final class StatusBarController: StatusBarControllerProtocol {
             recycledNamespace = false
         } else {
             logger.error("Autosave version cap reached (\(Self.maxAutosaveVersion)) — recycling autosave namespace")
-            Self.clearHistoricalAutosaveNamespaces()
+            StatusBarPositionDefaultsStore.clearHistoricalAutosaveNamespaces()
             nextVersion = Self.baseAutosaveVersion
             recycledNamespace = true
         }
@@ -236,13 +272,13 @@ final class StatusBarController: StatusBarControllerProtocol {
         let resolvedReferenceScreen = referenceScreen ??
             mainItem.button?.window?.screen ??
             separatorItem.button?.window?.screen ??
-            Self.resolvedReferenceScreen()
+            StatusBarPositionStore.resolvedReferenceScreen()
         let currentWidth = resolvedReferenceScreen.map { Double($0.frame.width) }
         let currentScreenHasTopSafeAreaInset = Self.screenHasTopSafeAreaInset(resolvedReferenceScreen)
         let reanchoredCurrentPair = currentWidth.flatMap { width in
-            Self.reanchoredPreferredPositionsTowardControlCenter(
-                mainPosition: Self.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
-                separatorPosition: Self.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
+            StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
+                mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
+                separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
                 screenWidth: width,
                 screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
             )
@@ -264,19 +300,19 @@ final class StatusBarController: StatusBarControllerProtocol {
         removeSpacerItems()
 
         if !recycledNamespace {
-            Self.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
-            Self.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
-            Self.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
+            StatusBarPositionDefaultsStore.removePreferredPosition(forAutosaveName: "SaneBar_Main_v\(oldVersion)")
+            StatusBarPositionDefaultsStore.removePreferredPosition(forAutosaveName: "SaneBar_Separator_v\(oldVersion)")
+            StatusBarPositionDefaultsStore.removePreferredPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator_v\(oldVersion)")
         }
 
         let restoredCurrentDisplayBackup = allowCurrentDisplayBackup &&
-            Self.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
+            StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
         if !restoredCurrentDisplayBackup {
             if let reanchoredCurrentPair {
-                Self.setPreferredPosition(reanchoredCurrentPair.main, forAutosaveName: Self.mainAutosaveName)
-                Self.setPreferredPosition(reanchoredCurrentPair.separator, forAutosaveName: Self.separatorAutosaveName)
+                StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredCurrentPair.main, forAutosaveName: Self.mainAutosaveName)
+                StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredCurrentPair.separator, forAutosaveName: Self.separatorAutosaveName)
                 if let currentWidth {
-                    Self.saveDisplayPositionBackupIfNeeded(
+                    StatusBarPositionStore.saveDisplayPositionBackupIfNeeded(
                         for: currentWidth,
                         mainPosition: reanchoredCurrentPair.main,
                         separatorPosition: reanchoredCurrentPair.separator,
@@ -285,15 +321,15 @@ final class StatusBarController: StatusBarControllerProtocol {
                 }
                 logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
             } else {
-                if Self.applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: resolvedReferenceScreen) {
+                if StatusBarPositionStore.applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: resolvedReferenceScreen) {
                     logger.info("Recreated status items with autosave version \(nextVersion) using launch-safe recovery positions")
                 } else {
-                    Self.seedPositionsIfNeeded()
+                    StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
                 }
             }
         }
         if hadAlwaysHiddenSeparator {
-            Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
+            StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
         }
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -378,7 +414,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
         guard alwaysHiddenSeparatorItem == nil else { return }
 
-        Self.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
 
         let item = NSStatusBar.system.statusItem(withLength: 14)
         Self.enforceNonRemovableBehavior(for: item, role: "always-hidden-separator")
@@ -393,1271 +429,10 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("Always-hidden separator created at ordinal 2")
     }
 
-    // MARK: - Position Pre-Seeding
-
-    /// Seed ordinal positions BEFORE creating status items.
-    /// Only seed when positions are missing/invalid. Re-seeding on every launch
-    /// destroys user-arranged visible/hidden layouts.
-    private static func seedPositionsIfNeeded() {
-        let mainValues = preferredPositionValues(forAutosaveName: mainAutosaveName)
-        let separatorValues = preferredPositionValues(forAutosaveName: separatorAutosaveName)
-
-        let seedMain = shouldSeedPreferredPosition(appValue: mainValues.appValue, byHostValue: mainValues.byHostValue)
-        let seedSeparator = shouldSeedPreferredPosition(appValue: separatorValues.appValue, byHostValue: separatorValues.byHostValue)
-
-        if seedMain {
-            logger.info("Seeding main position (main=0)")
-            setPreferredPosition(0, forAutosaveName: mainAutosaveName)
-        }
-        if seedSeparator {
-            logger.info("Seeding separator position (separator=1)")
-            setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
-        }
-
-        if !seedMain, !seedSeparator {
-            logger.debug("Preserving existing main/separator positions")
-        }
-    }
-
-    private static func forceMainAndSeparatorAnchorSeed() {
-        logger.info("Onboarding startup: forcing main/separator anchor seeds near Control Center")
-        setPreferredPosition(0, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(1, forAutosaveName: separatorAutosaveName)
-    }
-
-    private static func shouldForceAnchorNearControlCenterOnLaunch() -> Bool {
-        if let forced = ProcessInfo.processInfo.environment["SANEBAR_FORCE_ANCHOR_ON_LAUNCH"] {
-            return forced == "1"
-        }
-
-        // Unit tests intentionally exercise migration/seed behavior with crafted
-        // defaults and should not be affected by onboarding-first-run policy.
-        if NSClassFromString("XCTestCase") != nil ||
-            ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        {
-            return false
-        }
-
-        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return true
-        }
-        let settingsURL = base.appendingPathComponent("SaneBar", isDirectory: true)
-            .appendingPathComponent("settings.json")
-
-        guard let data = try? Data(contentsOf: settingsURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
-            // No settings file yet => true first launch.
-            return true
-        }
-
-        // Legacy upgrade path:
-        // Older installs may have a settings file without onboarding keys.
-        // Treat those users as completed so we do NOT re-force anchor seeds.
-        if json["hasCompletedOnboarding"] == nil {
-            logger.info("Legacy settings detected (missing hasCompletedOnboarding) — skipping forced anchor seed")
-            return false
-        }
-
-        // Keep forcing anchor until onboarding is fully complete.
-        let hasCompletedOnboarding = (json["hasCompletedOnboarding"] as? Bool) ?? false
-        return !hasCompletedOnboarding
-    }
-
-    static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
-        // AH separator must be FAR to the left of all menu bar items.
-        // UserDefaults positions are pixel offsets from the right screen edge.
-        // Small values (0, 1, 50) all land near the right edge — useless for AH.
-        //
-        // 10000 is safe: macOS clamps it to the actual screen width and places
-        // the item at the far left. Main/Separator use ordinals (0, 1) which
-        // macOS handles independently — the large AH value doesn't affect them.
-        logger.info("Seeding AH separator position (10000 = far left)")
-        setPreferredPosition(10000, forAutosaveName: alwaysHiddenSeparatorAutosaveName)
-    }
-
-    /// Reset all status item positions to ordinal seeds. Call when positions are
-    /// corrupted (e.g., display-specific pixel values from a different screen).
-    static func resetPositionsToOrdinals() {
-        removePreferredPosition(forAutosaveName: mainAutosaveName)
-        removePreferredPosition(forAutosaveName: separatorAutosaveName)
-        removePreferredPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName)
-        logger.info("Reset all status item positions — will reseed on next creation")
-    }
-
-    /// Resets persisted status-item state to a clean, launch-safe baseline.
-    /// Use this for explicit user recovery actions such as Reset to Defaults.
-    static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
-        resetPersistentStatusItemState(
-            alwaysHiddenEnabled: alwaysHiddenEnabled,
-            referenceScreen: referenceScreen,
-            freshAutosaveNamespace: false
-        )
-    }
-
-    /// Resets persisted status-item state to a clean, launch-safe baseline.
-    /// When `freshAutosaveNamespace` is true, the reset also advances the
-    /// autosave identity so recovery can escape a poisoned WindowServer cache.
-    static func resetPersistentStatusItemState(
-        alwaysHiddenEnabled: Bool,
-        referenceScreen: NSScreen? = nil,
-        freshAutosaveNamespace: Bool
-    ) {
-        clearPersistedVisibilityOverrides()
-        clearHistoricalAutosaveNamespaces()
-        clearDisplayPositionBackups()
-
-        let defaults = UserDefaults.standard
-        if freshAutosaveNamespace {
-            defaults.set(nextFreshAutosaveVersion(after: autosaveVersion), forKey: autosaveVersionKey)
-        } else {
-            defaults.removeObject(forKey: autosaveVersionKey)
-        }
-        defaults.removeObject(forKey: screenWidthKey)
-
-        if !applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: referenceScreen) {
-            seedPositionsIfNeeded()
-        }
-
-        if alwaysHiddenEnabled {
-            seedAlwaysHiddenSeparatorPositionIfNeeded()
-        }
-
-        if freshAutosaveNamespace {
-            logger.info(
-                "Reset persistent status item state to a startup-safe baseline with fresh autosave namespace v\(autosaveVersion)"
-            )
-        } else {
-            logger.info("Reset persistent status item state to a startup-safe baseline")
-        }
-    }
-
-    /// Best-effort startup recovery used when runtime invariants detect a bad
-    /// separator layout. This keeps the current session usable and seeds safe
-    /// positions for the next status-item relayout/restart.
-    static func recoverStartupPositions(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
-        if restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: referenceScreen) {
-            if alwaysHiddenEnabled {
-                seedAlwaysHiddenSeparatorPositionIfNeeded()
-            }
-            logger.info("Recovered startup positions from current-width display backup")
-            return
-        }
-        if let currentWidth = resolvedReferenceScreen(referenceScreen)?.frame.width,
-           reanchorCurrentDisplayPositionsIfNeeded(for: currentWidth, referenceScreen: referenceScreen)
-        {
-            if alwaysHiddenEnabled {
-                seedAlwaysHiddenSeparatorPositionIfNeeded()
-            }
-            logger.info("Recovered startup positions by reanchoring persisted positions toward Control Center")
-            return
-        }
-        if !applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: referenceScreen) {
-            resetPositionsToOrdinals()
-            seedPositionsIfNeeded()
-            logger.info("Applied startup position recovery ordinal seeds")
-        } else {
-            logger.info("Applied launch-safe startup recovery positions")
-        }
-        if alwaysHiddenEnabled {
-            seedAlwaysHiddenSeparatorPositionIfNeeded()
-        }
-    }
-
-    // MARK: - Display-Aware Position Validation
-
-    /// Returns true if a position value looks like a pixel offset rather than an ordinal seed.
-    /// Ordinals are small integers (0, 1, 2). The AH sentinel is 10000.
-    /// Pixel offsets from macOS fall in the range ~50–5000 for typical displays.
-    nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool {
-        guard let v = value else { return false }
-        return v > 10 && v < 9000
-    }
-
-    nonisolated static func isOrdinalSeedLikePosition(_ value: Double?) -> Bool {
-        guard let v = value else { return false }
-        return v >= 0 && v <= 10
-    }
-
-    nonisolated static func hasOrdinalSeedPair(mainPosition: Double?, separatorPosition: Double?) -> Bool {
-        isOrdinalSeedLikePosition(mainPosition) && isOrdinalSeedLikePosition(separatorPosition)
-    }
-
-    /// Returns true if the stored and current screen widths differ by more than 10%.
-    nonisolated static func isSignificantWidthChange(stored: Double, current: Double) -> Bool {
-        guard stored > 0 else { return false }
-        let ratio = abs(current - stored) / stored
-        return ratio > 0.10
-    }
-
-    /// Decide whether a display-change-based position reset is safe to apply.
-    /// We only auto-reset when all of the following are true:
-    /// - width change is significant
-    /// - stored values look pixel-based (not ordinal seeds)
-    /// - user is on a single-display setup
-    ///
-    /// Multi-display setups frequently report different "main" widths across restarts
-    /// even when layout is healthy. Resetting there causes avoidable layout regressions.
-    nonisolated static func shouldResetForDisplayChange(
-        storedWidth: Double,
-        currentWidth: Double,
-        hasPixelPositions: Bool,
-        screenCount: Int
-    ) -> Bool {
-        guard hasPixelPositions else { return false }
-        guard isSignificantWidthChange(stored: storedWidth, current: currentWidth) else { return false }
-        guard screenCount <= 1 else { return false }
-        return true
-    }
-
-    nonisolated static func displayWidthBucket(_ width: Double) -> Int {
-        Int(width.rounded())
-    }
-
-    nonisolated static func displayPositionBackupKey(for width: Double, slot: String) -> String {
-        "\(positionBackupKeyPrefix)_\(displayWidthBucket(width))_\(slot)"
-    }
-
-    private nonisolated static func displayPositionBackupKey(for widthBucket: Int, slot: String) -> String {
-        "\(positionBackupKeyPrefix)_\(widthBucket)_\(slot)"
-    }
-
-    nonisolated static func displayPositionBackupKey(
-        for widthBucket: Int,
-        screenSignature: String?,
-        slot: String
-    ) -> String {
-        guard let screenSignature,
-              !screenSignature.isEmpty
-        else {
-            return displayPositionBackupKey(for: widthBucket, slot: slot)
-        }
-        return "\(positionBackupKeyPrefix)_\(widthBucket)_\(screenSignature)_\(slot)"
-    }
-
-    nonisolated static func shouldAllowLegacyDisplayBackupFallback(
-        widthBucket: Int,
-        activeWidthBuckets: [Int]
-    ) -> Bool {
-        activeWidthBuckets.filter { $0 == widthBucket }.count <= 1
-    }
-
-    private nonisolated static func displayBackupScreenSignature(for screen: NSScreen?) -> String? {
-        guard let screen else { return nil }
-        let heightBucket = displayWidthBucket(screen.frame.height)
-        let safeAreaToken = screenHasTopSafeAreaInset(screen) ? "safe-top" : "plain"
-        if let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
-            return "d\(displayID)-h\(heightBucket)-\(safeAreaToken)"
-        }
-        return "h\(heightBucket)-\(safeAreaToken)"
-    }
-
-    private nonisolated static func displayPositionBackupKey(
-        for width: Double,
-        referenceScreen: NSScreen?,
-        slot: String
-    ) -> String {
-        displayPositionBackupKey(
-            for: displayWidthBucket(width),
-            screenSignature: displayBackupScreenSignature(for: referenceScreen),
-            slot: slot
-        )
-    }
-
-    private nonisolated static func shouldAllowLegacyDisplayBackupFallback(
-        for width: Double,
-        referenceScreen: NSScreen?
-    ) -> Bool {
-        let widthBucket = displayWidthBucket(width)
-        return shouldAllowLegacyDisplayBackupFallback(
-            widthBucket: widthBucket,
-            activeWidthBuckets: NSScreen.screens.map { displayWidthBucket($0.frame.width) }
-        ) || displayBackupScreenSignature(for: referenceScreen) == nil
-    }
-
-    nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
-        isPixelLikePosition(mainBackup) && isPixelLikePosition(separatorBackup)
-    }
-
-    nonisolated static func fitsDisplayBackupWithinScreenWidth(
-        mainBackup: Double,
-        separatorBackup: Double,
-        screenWidth: Double,
-        trailingPadding: Double = 24
-    ) -> Bool {
-        guard screenWidth > 0 else { return false }
-        let maxPosition = max(10.0, screenWidth - trailingPadding)
-        return mainBackup <= maxPosition && separatorBackup <= maxPosition
-    }
-
-    nonisolated static func screenHasTopSafeAreaInset(_ screen: NSScreen?) -> Bool {
-        guard let screen else { return false }
-        return screen.safeAreaInsets.top > 0
-    }
-
-    nonisolated static func launchSafePreferredMainPositionLimit(
-        for screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> Double {
-        guard screenWidth > 0 else { return 0 }
-        if !screenHasTopSafeAreaInset {
-            // Plain external displays need a much tighter recovery anchor than
-            // notched displays. On the mini's 1920-wide external panel, values
-            // around 140–144 stay pinned beside Control Center while 200 drifts
-            // left into the bad startup lane again.
-            return min(160, max(60, screenWidth * 0.075))
-        }
-
-        // On notched 14/16" MacBook displays, wider preferred-position values
-        // like 216 on a 1512-wide screen can still relaunch noticeably left of
-        // Control Center. Keep the startup recovery anchor tighter here.
-        return 180
-    }
-
-    nonisolated static func isLaunchSafeDisplayBackup(
-        mainBackup: Double?,
-        separatorBackup: Double?,
-        screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> Bool {
-        guard screenWidth > 0,
-              hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup),
-              let mainBackup,
-              let separatorBackup
-        else { return false }
-
-        guard separatorBackup > mainBackup else { return false }
-        guard fitsDisplayBackupWithinScreenWidth(
-            mainBackup: mainBackup,
-            separatorBackup: separatorBackup,
-            screenWidth: screenWidth
-        ) else { return false }
-        return mainBackup <= launchSafePreferredMainPositionLimit(
-            for: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        )
-    }
-
-    private nonisolated static func canSeedCurrentDisplayBackup(
-        mainPosition: Double?,
-        separatorPosition: Double?,
-        screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> Bool {
-        isLaunchSafeDisplayBackup(
-            mainBackup: mainPosition,
-            separatorBackup: separatorPosition,
-            screenWidth: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        ) || reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
-            screenWidth: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        ) != nil
-    }
-
-    nonisolated static func reanchoredPreferredPositionsTowardControlCenter(
-        mainPosition: Double?,
-        separatorPosition: Double?,
-        screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> (main: Double, separator: Double)? {
-        guard screenWidth > 0,
-              let mainPosition,
-              let separatorPosition,
-              isPixelLikePosition(mainPosition),
-              isPixelLikePosition(separatorPosition),
-              separatorPosition > mainPosition
-        else { return nil }
-
-        let safeMainLimit = launchSafePreferredMainPositionLimit(
-            for: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        )
-        guard mainPosition > safeMainLimit else { return nil }
-
-        let maxSeparator = max(safeMainLimit + 24.0, screenWidth - 24.0)
-        let maxGap = max(24.0, maxSeparator - safeMainLimit)
-        let preservedGap = min(max(24.0, separatorPosition - mainPosition), maxGap)
-        return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
-    }
-
-    nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double {
-        guard screenWidth > 0 else { return 120.0 }
-        // Recovery is allowed to move SaneBar back beside Control Center, but it
-        // must not collapse the user's visible lane so far that leftmost shown
-        // items wake up hidden. Keep a moderate lane on external displays while
-        // bounding it on smaller screens.
-        return min(240.0, max(180.0, screenWidth * 0.09))
-    }
-
-    private nonisolated static func migratedLegacyNarrowRecoveryPair(
-        mainPosition: Double,
-        separatorPosition: Double,
-        screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> (main: Double, separator: Double)? {
-        let safeMain = launchSafePreferredMainPositionLimit(
-            for: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        )
-        let targetGap = launchSafePreferredSeparatorGap(for: screenWidth)
-        guard targetGap > 0 else { return nil }
-        guard abs(mainPosition - safeMain) < 0.5 else { return nil }
-        let currentGap = separatorPosition - mainPosition
-        guard currentGap < targetGap - 0.5 else { return nil }
-
-        let widenedSeparator = min(screenWidth - 24.0, safeMain + targetGap)
-        guard widenedSeparator > safeMain else { return nil }
-        return (main: safeMain, separator: widenedSeparator)
-    }
-
-    nonisolated static func launchSafeCurrentDisplayRecoveryPair(
-        screenWidth: Double,
-        screenHasTopSafeAreaInset: Bool
-    ) -> (main: Double, separator: Double)? {
-        guard screenWidth > 0 else { return nil }
-
-        let safeMain = launchSafePreferredMainPositionLimit(
-            for: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        )
-        let safeSeparator = min(
-            screenWidth - 24.0,
-            safeMain + launchSafePreferredSeparatorGap(for: screenWidth)
-        )
-        guard safeSeparator > safeMain else { return nil }
-        return (main: safeMain, separator: safeSeparator)
-    }
-
-    @discardableResult
-    private static func applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: NSScreen? = nil) -> Bool {
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen),
-              let currentWidth = Optional(resolvedReferenceScreen.frame.width),
-              let recoveryPair = launchSafeCurrentDisplayRecoveryPair(
-                  screenWidth: currentWidth,
-                  screenHasTopSafeAreaInset: screenHasTopSafeAreaInset(resolvedReferenceScreen)
-              )
-        else { return false }
-
-        setPreferredPosition(recoveryPair.main, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(recoveryPair.separator, forAutosaveName: separatorAutosaveName)
-        saveDisplayPositionBackupIfNeeded(
-            for: currentWidth,
-            mainPosition: recoveryPair.main,
-            separatorPosition: recoveryPair.separator,
-            referenceScreen: resolvedReferenceScreen
-        )
-        UserDefaults.standard.set(currentWidth, forKey: screenWidthKey)
-        logger.info(
-            "Applied launch-safe recovery positions for width \(currentWidth, privacy: .public) (main=\(recoveryPair.main, privacy: .public), separator=\(recoveryPair.separator, privacy: .public))"
-        )
-        return true
-    }
-
-    private static func saveDisplayPositionBackupIfNeeded(
-        for width: Double,
-        mainPosition: Double?,
-        separatorPosition: Double?,
-        referenceScreen: NSScreen? = nil
-    ) {
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(Self.resolvedReferenceScreen(referenceScreen))
-        guard let mainPosition,
-              let separatorPosition,
-              isPixelLikePosition(mainPosition),
-              isPixelLikePosition(separatorPosition)
-        else {
-            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen(referenceScreen))
-            return
-        }
-
-        guard isLaunchSafeDisplayBackup(
-            mainBackup: mainPosition,
-            separatorBackup: separatorPosition,
-            screenWidth: width,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) else {
-            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen(referenceScreen))
-            logger.warning(
-                "Display validation: refusing to save unsafe current-width backup for width \(width, privacy: .public) (main=\(mainPosition, privacy: .public), separator=\(separatorPosition, privacy: .public))"
-            )
-            return
-        }
-
-        setDisplayPositionBackup(
-            for: width,
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
-            referenceScreen: resolvedReferenceScreen(referenceScreen)
-        )
-    }
-
-    private static func setDisplayPositionBackup(
-        for width: Double,
-        mainPosition: Double,
-        separatorPosition: Double,
-        referenceScreen: NSScreen? = nil
-    ) {
-        let defaults = UserDefaults.standard
-        defaults.set(
-            mainPosition,
-            forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "main")
-        )
-        defaults.set(
-            separatorPosition,
-            forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "separator")
-        )
-
-        if shouldAllowLegacyDisplayBackupFallback(for: width, referenceScreen: referenceScreen) {
-            defaults.set(mainPosition, forKey: displayPositionBackupKey(for: width, slot: "main"))
-            defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: width, slot: "separator"))
-        } else {
-            defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "main"))
-            defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "separator"))
-        }
-    }
-
-    private nonisolated static func displayPositionBackupValue(
-        for width: Double,
-        referenceScreen: NSScreen?,
-        slot: String
-    ) -> Double? {
-        let defaults = UserDefaults.standard
-        let scopedKey = displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: slot)
-        let legacyKey = displayPositionBackupKey(for: width, slot: slot)
-
-        if scopedKey != legacyKey,
-           let scoped = numericPositionValue(defaults.object(forKey: scopedKey))
-        {
-            return scoped
-        }
-
-        guard shouldAllowLegacyDisplayBackupFallback(for: width, referenceScreen: referenceScreen) else {
-            return nil
-        }
-        return numericPositionValue(defaults.object(forKey: legacyKey))
-    }
-
-    private static func restoreDisplayPositionBackupIfAvailable(for width: Double, referenceScreen: NSScreen? = nil) -> Bool {
-        let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen)
-        let mainBackup = displayPositionBackupValue(for: width, referenceScreen: resolvedReferenceScreen, slot: "main")
-        let separatorBackup = displayPositionBackupValue(for: width, referenceScreen: resolvedReferenceScreen, slot: "separator")
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(resolvedReferenceScreen)
-
-        guard hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup),
-              let mainBackup,
-              let separatorBackup
-        else { return false }
-
-        if !isLaunchSafeDisplayBackup(
-            mainBackup: mainBackup,
-            separatorBackup: separatorBackup,
-            screenWidth: width,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            if let reanchored = reanchoredPreferredPositionsTowardControlCenter(
-                mainPosition: mainBackup,
-                separatorPosition: separatorBackup,
-                screenWidth: width,
-                screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-            ) {
-                let restoredPair = migratedLegacyNarrowRecoveryPair(
-                    mainPosition: reanchored.main,
-                    separatorPosition: reanchored.separator,
-                    screenWidth: width,
-                    screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-                ) ?? reanchored
-                setPreferredPosition(restoredPair.main, forAutosaveName: mainAutosaveName)
-                setPreferredPosition(restoredPair.separator, forAutosaveName: separatorAutosaveName)
-                saveDisplayPositionBackupIfNeeded(
-                    for: width,
-                    mainPosition: restoredPair.main,
-                    separatorPosition: restoredPair.separator,
-                    referenceScreen: referenceScreen
-                )
-                logger.warning(
-                    "Display validation: reanchored unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public) -> \(restoredPair.main, privacy: .public), separator=\(separatorBackup, privacy: .public) -> \(restoredPair.separator, privacy: .public))"
-                )
-                return true
-            }
-
-            removeDisplayPositionBackup(for: width, referenceScreen: resolvedReferenceScreen)
-            logger.warning(
-                "Display validation: discarding unsafe backup for width \(width, privacy: .public) (main=\(mainBackup, privacy: .public), separator=\(separatorBackup, privacy: .public))"
-            )
-            return false
-        }
-
-        if let migrated = migratedLegacyNarrowRecoveryPair(
-            mainPosition: mainBackup,
-            separatorPosition: separatorBackup,
-            screenWidth: width,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            setPreferredPosition(migrated.main, forAutosaveName: mainAutosaveName)
-            setPreferredPosition(migrated.separator, forAutosaveName: separatorAutosaveName)
-            setDisplayPositionBackup(
-                for: width,
-                mainPosition: migrated.main,
-                separatorPosition: migrated.separator,
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.warning(
-                "Display validation: widened legacy narrow recovery backup for width \(width, privacy: .public) (separator=\(separatorBackup, privacy: .public) -> \(migrated.separator, privacy: .public))"
-            )
-            return true
-        }
-
-        setPreferredPosition(mainBackup, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(separatorBackup, forAutosaveName: separatorAutosaveName)
-        logger.info("Display validation: restored backup positions for width \(width)")
-        return true
-    }
-
-    private static func restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: NSScreen? = nil) -> Bool {
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
-        let currentWidth = resolvedReferenceScreen.frame.width
-        guard restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) else { return false }
-        UserDefaults.standard.set(currentWidth, forKey: screenWidthKey)
-        return true
-    }
-
-    nonisolated static func hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: NSScreen? = nil) -> Bool {
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
-        let currentWidth = resolvedReferenceScreen.frame.width
-        let mainBackup = displayPositionBackupValue(for: currentWidth, referenceScreen: resolvedReferenceScreen, slot: "main")
-        let separatorBackup = displayPositionBackupValue(for: currentWidth, referenceScreen: resolvedReferenceScreen, slot: "separator")
-        return isLaunchSafeDisplayBackup(
-            mainBackup: mainBackup,
-            separatorBackup: separatorBackup,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset(resolvedReferenceScreen)
-        )
-    }
-
-    @discardableResult
-    static func captureCurrentDisplayPositionBackupIfPossible(
-        referenceScreen: NSScreen? = nil,
-        mainPosition overrideMainPosition: Double? = nil,
-        separatorPosition overrideSeparatorPosition: Double? = nil
-    ) -> Bool {
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
-        let currentWidth = resolvedReferenceScreen.frame.width
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(resolvedReferenceScreen)
-        let persistedMainPosition = resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
-        let persistedSeparatorPosition = resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
-        let hasExplicitOverride = overrideMainPosition != nil || overrideSeparatorPosition != nil
-        let overridePairCanSeedBackup = canSeedCurrentDisplayBackup(
-            mainPosition: overrideMainPosition,
-            separatorPosition: overrideSeparatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        )
-        let persistedPairCanSeedBackup = canSeedCurrentDisplayBackup(
-            mainPosition: persistedMainPosition,
-            separatorPosition: persistedSeparatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        )
-        let shouldIgnoreOverridePair = hasExplicitOverride && !overridePairCanSeedBackup && persistedPairCanSeedBackup
-        let mainPosition = shouldIgnoreOverridePair ? persistedMainPosition : (overrideMainPosition ?? persistedMainPosition)
-        let separatorPosition = shouldIgnoreOverridePair ? persistedSeparatorPosition : (overrideSeparatorPosition ?? persistedSeparatorPosition)
-
-        if shouldIgnoreOverridePair {
-            logger.warning(
-                "Display validation: ignoring invalid override positions during current-width backup capture (main=\(overrideMainPosition ?? -1, privacy: .public), separator=\(overrideSeparatorPosition ?? -1, privacy: .public))"
-            )
-        }
-
-        if isLaunchSafeDisplayBackup(
-            mainBackup: mainPosition,
-            separatorBackup: separatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            saveDisplayPositionBackupIfNeeded(
-                for: currentWidth,
-                mainPosition: mainPosition,
-                separatorPosition: separatorPosition,
-                referenceScreen: referenceScreen
-            )
-            return true
-        }
-
-        if let reanchored = reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            setDisplayPositionBackup(
-                for: currentWidth,
-                mainPosition: reanchored.main,
-                separatorPosition: reanchored.separator,
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.info(
-                "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
-            )
-            return true
-        }
-
-        if let recoveryPair = launchSafeCurrentDisplayRecoveryPair(
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            setDisplayPositionBackup(
-                for: currentWidth,
-                mainPosition: recoveryPair.main,
-                separatorPosition: recoveryPair.separator,
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.info(
-                "Display validation: captured launch-safe current-width backup from clean startup state (main=\(recoveryPair.main, privacy: .public), separator=\(recoveryPair.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
-            )
-            return true
-        }
-
-        return hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: referenceScreen)
-    }
-
-    private static func reanchorCurrentDisplayPositionsIfNeeded(for width: Double, referenceScreen: NSScreen? = nil) -> Bool {
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(Self.resolvedReferenceScreen(referenceScreen))
-        guard let reanchored = reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-            separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
-            screenWidth: width,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) else { return false }
-
-        setPreferredPosition(reanchored.main, forAutosaveName: mainAutosaveName)
-        setPreferredPosition(reanchored.separator, forAutosaveName: separatorAutosaveName)
-        saveDisplayPositionBackupIfNeeded(
-            for: width,
-            mainPosition: reanchored.main,
-            separatorPosition: reanchored.separator,
-            referenceScreen: referenceScreen
-        )
-        logger.warning(
-            "Display validation: reanchored current persisted positions toward Control Center (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(width, privacy: .public))"
-        )
-        return true
-    }
-
-    /// Check if positions need a display reset due to a screen width change.
-    /// - First launch after update (no stored width): stamps current width, returns false.
-    /// - Same screen (width matches within 10%): returns false.
-    /// - Different screen AND pixel-like positions: returns true (triggers reset).
-    private static func positionsNeedDisplayReset(referenceScreen: NSScreen? = nil) -> Bool {
-        let defaults = UserDefaults.standard
-        let storedWidth = defaults.double(forKey: screenWidthKey)
-
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
-        let currentWidth = resolvedReferenceScreen.frame.width
-        let screenCount = max(1, NSScreen.screens.count)
-
-        let mainKey = preferredPositionKey(for: mainAutosaveName)
-        let sepKey = preferredPositionKey(for: separatorAutosaveName)
-        let mainPos = numericPositionValue(defaults.object(forKey: mainKey))
-        let sepPos = numericPositionValue(defaults.object(forKey: sepKey))
-        let hasPixelPositions = isPixelLikePosition(mainPos) || isPixelLikePosition(sepPos)
-        let hasOrdinalSeedPositions = hasOrdinalSeedPair(mainPosition: mainPos, separatorPosition: sepPos)
-
-        if storedWidth == 0 {
-            // First launch after update — stamp current width, accept positions as-is
-            // Do not eager-reanchor here: the persisted preferred-position values are
-            // not a trustworthy proxy for bad live launch geometry, and mutating them
-            // before status items exist can collapse the user's visible lane.
-            defaults.set(currentWidth, forKey: screenWidthKey)
-            saveDisplayPositionBackupIfNeeded(
-                for: currentWidth,
-                mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.info("Display validation: first run, stamping screen width \(currentWidth)")
-            return false
-        }
-
-        if hasOrdinalSeedPositions, restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) {
-            defaults.set(currentWidth, forKey: screenWidthKey)
-            logger.info("Display validation: restored current-width backup over ordinal startup seeds")
-            return false
-        }
-
-        guard isSignificantWidthChange(stored: storedWidth, current: currentWidth) else {
-            saveDisplayPositionBackupIfNeeded(
-                for: currentWidth,
-                mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-                separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
-                referenceScreen: resolvedReferenceScreen
-            )
-            return false
-        }
-
-        // Preserve the last known-good layout for the previous display width
-        // before we evaluate whether the current width should reset.
-        saveDisplayPositionBackupIfNeeded(
-            for: storedWidth,
-            mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-            separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
-        )
-
-        // If we have a known-good layout for this display width, restore it and skip reset.
-        if restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) {
-            defaults.set(currentWidth, forKey: screenWidthKey)
-            return false
-        }
-
-        let shouldReset = shouldResetForDisplayChange(
-            storedWidth: storedWidth,
-            currentWidth: currentWidth,
-            hasPixelPositions: hasPixelPositions,
-            screenCount: screenCount
-        )
-
-        if shouldReset {
-            logger.info(
-                "Display validation: screen width changed (\(storedWidth) → \(currentWidth)) with pixel positions on single display — resetting"
-            )
-            return true
-        }
-
-        // Preserve healthy layouts on multi-display setups where "main" width
-        // can legitimately vary between launches. Re-stamp width to avoid
-        // repeatedly re-evaluating the same benign drift.
-        if hasPixelPositions, screenCount > 1 {
-            logger.info(
-                "Display validation: width changed (\(storedWidth) → \(currentWidth)) on multi-display setup (\(screenCount) screens) — preserving layout"
-            )
-            defaults.set(currentWidth, forKey: screenWidthKey)
-        }
-
-        if !hasPixelPositions {
-            logger.info(
-                "Display validation: width changed (\(storedWidth) → \(currentWidth)) with ordinal positions — preserving layout"
-            )
-            defaults.set(currentWidth, forKey: screenWidthKey)
-        }
-
-        return false
-    }
-
-    /// Clears persisted visibility overrides written by macOS after cmd-dragging
-    /// a status item out of the menu bar.
-    private static func clearPersistedVisibilityOverrides() {
-        var clearedAny = false
-
-        // App-domain cleanup: all known SaneBar item namespaces, historical
-        // versions, spacer items, and macOS 26 VisibleCC variants.
-        if removeAllAppKeys(matchingPrefixes: [
-            "NSStatusItem Visible SaneBar_",
-            "NSStatusItem VisibleCC SaneBar_",
-        ]) {
-            clearedAny = true
-        }
-
-        // ByHost cleanup: wildcard enumeration catches ALL variants
-        if removeAllByHostVisibilityOverrides() {
-            clearedAny = true
-        }
-
-        if clearedAny {
-            logger.info("Cleared persisted NSStatusItem visibility overrides")
-        }
-    }
-
-    /// One-time recovery migration.
-    /// Important: do not version-bump this key for routine patch releases.
-    /// Position resets must be gated on explicit corruption checks.
-    private static func migrateCorruptedPositionsIfNeeded() {
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: stablePositionMigrationKey) else { return }
-
-        if shouldResetPositionsForKnownCorruption() {
-            logger.info("Applying status item position recovery for known corrupted state")
-            if !applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
-                resetPositionsToOrdinals()
-            }
-        } else {
-            logger.info("Skipping status item position reset (no known corruption)")
-        }
-
-        clearPersistedVisibilityOverrides()
-
-        defaults.set(true, forKey: stablePositionMigrationKey)
-
-        // Backfill legacy migration sentinels so downgrades/older builds don't
-        // re-run broad reset paths on healthy layouts.
-        for key in legacyMigrationKeys {
-            defaults.set(true, forKey: key)
-        }
-    }
-
-    private static func shouldResetPositionsForKnownCorruption() -> Bool {
-        if hasInvalidPositionValue(forAutosaveName: mainAutosaveName) {
-            return true
-        }
-        if hasInvalidPositionValue(forAutosaveName: separatorAutosaveName) {
-            return true
-        }
-        if hasTooSmallAlwaysHiddenPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName) {
-            return true
-        }
-        if hasTooSmallAlwaysHiddenPosition(forAutosaveName: "SaneBar_AlwaysHiddenSeparator") {
-            return true
-        }
-        return false
-    }
-
-    nonisolated static func captureLayoutSnapshot() -> SaneBarLayoutSnapshot {
-        let defaults = UserDefaults.standard
-        var spacerPositions: [Int: Double] = [:]
-        for index in 0 ..< maxSpacerCount {
-            if let position = resolvedPreferredPosition(forAutosaveName: spacerAutosaveName(index: index)) {
-                spacerPositions[index] = position
-            }
-        }
-
-        return SaneBarLayoutSnapshot(
-            mainPosition: resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
-            separatorPosition: resolvedPreferredPosition(forAutosaveName: separatorAutosaveName),
-            alwaysHiddenSeparatorPosition: resolvedPreferredPosition(forAutosaveName: alwaysHiddenSeparatorAutosaveName),
-            spacerPositions: spacerPositions,
-            calibratedScreenWidth: numericPositionValue(defaults.object(forKey: screenWidthKey)),
-            displayBackups: displayBackupSnapshots()
-        )
-    }
-
-    nonisolated static func applyLayoutSnapshot(_ snapshot: SaneBarLayoutSnapshot) {
-        applyPreferredPosition(snapshot.mainPosition, forAutosaveName: mainAutosaveName)
-        applyPreferredPosition(snapshot.separatorPosition, forAutosaveName: separatorAutosaveName)
-        applyPreferredPosition(snapshot.alwaysHiddenSeparatorPosition, forAutosaveName: alwaysHiddenSeparatorAutosaveName)
-
-        for index in 0 ..< maxSpacerCount {
-            applyPreferredPosition(snapshot.spacerPositions[index], forAutosaveName: spacerAutosaveName(index: index))
-        }
-
-        let defaults = UserDefaults.standard
-        if let calibratedScreenWidth = snapshot.calibratedScreenWidth {
-            defaults.set(calibratedScreenWidth, forKey: screenWidthKey)
-        } else {
-            defaults.removeObject(forKey: screenWidthKey)
-        }
-
-        clearDisplayPositionBackups()
-        for backup in snapshot.displayBackups {
-            guard let mainPosition = backup.mainPosition,
-                  let separatorPosition = backup.separatorPosition,
-                  hasRestorableDisplayBackup(mainBackup: mainPosition, separatorBackup: separatorPosition),
-                  separatorPosition > mainPosition,
-                  fitsDisplayBackupWithinScreenWidth(
-                      mainBackup: mainPosition,
-                      separatorBackup: separatorPosition,
-                      screenWidth: Double(backup.widthBucket)
-                  )
-            else { continue }
-
-            defaults.set(mainPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "main"))
-            defaults.set(separatorPosition, forKey: displayPositionBackupKey(for: backup.widthBucket, slot: "separator"))
-        }
-    }
-
-    private static func hasInvalidPositionValue(forAutosaveName autosaveName: String) -> Bool {
-        let values = preferredPositionValues(forAutosaveName: autosaveName)
-        return isInvalidPosition(values.appValue) || isInvalidPosition(values.byHostValue)
-    }
-
-    private static func hasTooSmallAlwaysHiddenPosition(forAutosaveName autosaveName: String) -> Bool {
-        let values = preferredPositionValues(forAutosaveName: autosaveName)
-        return isTooSmallAlwaysHiddenPosition(values.appValue) || isTooSmallAlwaysHiddenPosition(values.byHostValue)
-    }
-
     private func removeSpacerItems() {
         while let item = spacerItems.popLast() {
             NSStatusBar.system.removeStatusItem(item)
         }
-    }
-
-    private static func isInvalidPosition(_ value: Any?) -> Bool {
-        guard let number = numericPositionValue(value) else { return false }
-        return !number.isFinite || number < 0
-    }
-
-    private static func isTooSmallAlwaysHiddenPosition(_ value: Any?) -> Bool {
-        guard let number = numericPositionValue(value), number.isFinite else { return false }
-        return number > 0 && number < minimumSafeAlwaysHiddenPosition
-    }
-
-    // MARK: - Preferred Position Storage
-
-    private nonisolated static func preferredPositionKey(for autosaveName: String) -> String {
-        "NSStatusItem Preferred Position \(autosaveName)"
-    }
-
-    private nonisolated static func byHostAutosaveName(for autosaveName: String) -> String {
-        // macOS stores autosave keys in ByHost global prefs using a suffixed
-        // v6 token (e.g. SaneBar_Main -> SaneBar_main_v6).
-        guard let underscore = autosaveName.firstIndex(of: "_") else {
-            return "\(autosaveName)_v6"
-        }
-        let prefix = autosaveName[..<underscore]
-        var suffix = String(autosaveName[autosaveName.index(after: underscore)...])
-        if let first = suffix.first {
-            suffix.replaceSubrange(suffix.startIndex ... suffix.startIndex, with: String(first).lowercased())
-        }
-        return "\(prefix)_\(suffix)_v6"
-    }
-
-    private nonisolated static func byHostPreferredPositionKey(for autosaveName: String) -> String {
-        "NSStatusItem Preferred Position \(byHostAutosaveName(for: autosaveName))"
-    }
-
-    nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
-        if let appNumber = numericPositionValue(appValue), appNumber.isFinite {
-            return false
-        }
-        if let byHostNumber = numericPositionValue(byHostValue), byHostNumber.isFinite {
-            return false
-        }
-        return true
-    }
-
-    private nonisolated static func numericPositionValue(_ value: Any?) -> Double? {
-        if let number = value as? NSNumber {
-            return number.doubleValue
-        }
-        if let doubleValue = value as? Double {
-            return doubleValue
-        }
-        if let intValue = value as? Int {
-            return Double(intValue)
-        }
-        if let stringValue = value as? String {
-            return Double(stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        return nil
-    }
-
-    private nonisolated static func preferredPositionValues(forAutosaveName autosaveName: String) -> (appValue: Any?, byHostValue: Any?) {
-        let appKey = preferredPositionKey(for: autosaveName)
-        let byHostKey = byHostPreferredPositionKey(for: autosaveName) as CFString
-        let globalDomain = ".GlobalPreferences" as CFString
-        let appValue = UserDefaults.standard.object(forKey: appKey)
-        let byHostValue = CFPreferencesCopyValue(
-            byHostKey,
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-        return (appValue, byHostValue)
-    }
-
-    private nonisolated static func resolvedPreferredPosition(forAutosaveName autosaveName: String) -> Double? {
-        let values = preferredPositionValues(forAutosaveName: autosaveName)
-        return numericPositionValue(values.appValue) ?? numericPositionValue(values.byHostValue)
-    }
-
-    private nonisolated static func applyPreferredPosition(_ value: Double?, forAutosaveName autosaveName: String) {
-        if let value {
-            setPreferredPosition(value, forAutosaveName: autosaveName)
-        } else {
-            removePreferredPosition(forAutosaveName: autosaveName)
-        }
-    }
-
-    private nonisolated static func displayBackupSnapshots() -> [SaneBarLayoutSnapshot.DisplayBackup] {
-        let defaults = UserDefaults.standard
-        let prefix = "\(positionBackupKeyPrefix)_"
-        let backupKeys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(prefix) }
-
-        let bucketPattern = /SaneBar_Position_Backup_(\d+)_(main|separator)/
-        var backups: [Int: SaneBarLayoutSnapshot.DisplayBackup] = [:]
-
-        for key in backupKeys {
-            guard let match = key.wholeMatch(of: bucketPattern),
-                  let widthBucket = Int(match.1)
-            else { continue }
-
-            var backup = backups[widthBucket] ?? SaneBarLayoutSnapshot.DisplayBackup(
-                widthBucket: widthBucket,
-                mainPosition: nil,
-                separatorPosition: nil
-            )
-            let position = numericPositionValue(defaults.object(forKey: key))
-            if match.2 == "main" {
-                backup.mainPosition = position
-            } else {
-                backup.separatorPosition = position
-            }
-            backups[widthBucket] = backup
-        }
-
-        return backups.values
-            .filter { backup in
-                guard let mainPosition = backup.mainPosition,
-                      let separatorPosition = backup.separatorPosition,
-                      hasRestorableDisplayBackup(mainBackup: mainPosition, separatorBackup: separatorPosition),
-                      separatorPosition > mainPosition
-                else { return false }
-
-                return fitsDisplayBackupWithinScreenWidth(
-                    mainBackup: mainPosition,
-                    separatorBackup: separatorPosition,
-                    screenWidth: Double(backup.widthBucket)
-                )
-            }
-            .sorted { $0.widthBucket < $1.widthBucket }
-    }
-
-    private nonisolated static func clearDisplayPositionBackups() {
-        let defaults = UserDefaults.standard
-        let prefix = "\(positionBackupKeyPrefix)_"
-        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
-            defaults.removeObject(forKey: key)
-        }
-    }
-
-    private nonisolated static func clearHistoricalAutosaveNamespaces() {
-        for version in baseAutosaveVersion ... maxAutosaveVersion {
-            for autosaveName in autosaveNamesForCleanup(version: version) {
-                removePreferredPosition(forAutosaveName: autosaveName)
-            }
-        }
-        _ = removeAllAppKeys(matchingPrefixes: [
-            "NSStatusItem Preferred Position SaneBar_",
-            "NSStatusItem Visible SaneBar_",
-            "NSStatusItem VisibleCC SaneBar_",
-        ])
-        _ = removeAllByHostPreferredPositionOverrides()
-        _ = removeAllByHostVisibilityOverrides()
-    }
-
-    private nonisolated static func nextFreshAutosaveVersion(after currentVersion: Int) -> Int {
-        let normalizedVersion = max(baseAutosaveVersion, currentVersion)
-        if normalizedVersion >= maxAutosaveVersion {
-            return baseAutosaveVersion
-        }
-        return normalizedVersion + 1
-    }
-
-    private nonisolated static func removeDisplayPositionBackup(
-        for width: Double,
-        referenceScreen: NSScreen? = nil
-    ) {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "main"))
-        defaults.removeObject(forKey: displayPositionBackupKey(for: width, referenceScreen: referenceScreen, slot: "separator"))
-        defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "main"))
-        defaults.removeObject(forKey: displayPositionBackupKey(for: width, slot: "separator"))
-    }
-
-    private nonisolated static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
-        let appKey = preferredPositionKey(for: autosaveName)
-        UserDefaults.standard.set(value, forKey: appKey)
-        UserDefaults.standard.synchronize()
-        setByHostPreferredPosition(value, forAutosaveName: autosaveName)
-    }
-
-    private nonisolated static func removePreferredPosition(forAutosaveName autosaveName: String) {
-        let appKey = preferredPositionKey(for: autosaveName)
-        UserDefaults.standard.removeObject(forKey: appKey)
-        UserDefaults.standard.synchronize()
-        removeByHostPreferredPosition(forAutosaveName: autosaveName)
-    }
-
-    private nonisolated static func setByHostPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
-        let key = byHostPreferredPositionKey(for: autosaveName) as CFString
-        let globalDomain = ".GlobalPreferences" as CFString
-        CFPreferencesSetValue(
-            key,
-            value as NSNumber,
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-        CFPreferencesSynchronize(
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-    }
-
-    private nonisolated static func removeByHostPreferredPosition(forAutosaveName autosaveName: String) {
-        let key = byHostPreferredPositionKey(for: autosaveName) as CFString
-        let globalDomain = ".GlobalPreferences" as CFString
-        CFPreferencesSetValue(
-            key,
-            nil,
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-        CFPreferencesSynchronize(
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-    }
-
-    private nonisolated static func removeAllAppKeys(matchingPrefixes prefixes: [String]) -> Bool {
-        let defaults = UserDefaults.standard
-        let keysToRemove = defaults.dictionaryRepresentation().keys.filter { key in
-            prefixes.contains(where: { key.hasPrefix($0) })
-        }
-        guard !keysToRemove.isEmpty else { return false }
-
-        for key in keysToRemove {
-            defaults.removeObject(forKey: key)
-        }
-        return true
-    }
-
-    private nonisolated static func removeAllByHostPreferredPositionOverrides() -> Bool {
-        removeAllByHostKeys(matchingPrefixes: [
-            "NSStatusItem Preferred Position SaneBar_",
-        ])
-    }
-
-    /// Enumerate ALL ByHost keys matching SaneBar visibility prefixes and remove them.
-    /// This catches every variant macOS may write — known casing, legacy lowercased,
-    /// future `_vN` suffixes, spacer items, and macOS 26's `VisibleCC` keys.
-    private nonisolated static func removeAllByHostVisibilityOverrides() -> Bool {
-        removeAllByHostKeys(matchingPrefixes: [
-            "NSStatusItem Visible SaneBar_",
-            "NSStatusItem VisibleCC SaneBar_",
-        ])
-    }
-
-    private nonisolated static func removeAllByHostKeys(matchingPrefixes prefixes: [String]) -> Bool {
-        let globalDomain = ".GlobalPreferences" as CFString
-        guard let allKeys = CFPreferencesCopyKeyList(
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        ) as? [String] else { return false }
-
-        let keysToRemove = allKeys.filter { key in
-            prefixes.contains(where: { key.hasPrefix($0) })
-        }
-        guard !keysToRemove.isEmpty else { return false }
-
-        for key in keysToRemove {
-            CFPreferencesSetValue(
-                key as CFString,
-                nil,
-                globalDomain,
-                kCFPreferencesCurrentUser,
-                kCFPreferencesCurrentHost
-            )
-        }
-        CFPreferencesSynchronize(
-            globalDomain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        )
-        return true
     }
 
     // MARK: - Configuration

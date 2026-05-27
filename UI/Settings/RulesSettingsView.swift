@@ -342,7 +342,7 @@ struct RulesSettingsView: View {
             ProUpsellView(feature: feature)
         }
         .onAppear {
-            savedProfiles = menuBarManager.savedProfiles()
+            savedProfiles = menuBarManager.profileWorkflow.savedProfiles()
         }
     }
 

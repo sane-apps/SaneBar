@@ -27,7 +27,9 @@ struct GeneralSettingsView: View {
         case saneBar(SaneBarSettingsImportPayload, SaneBarImportPreviewPlan)
         case bartender(URL, SaneBarImportPreviewPlan)
 
-        var id: UUID { preview.id }
+        var id: UUID {
+            preview.id
+        }
 
         var preview: SaneBarImportPreviewPlan {
             switch self {
@@ -37,33 +39,8 @@ struct GeneralSettingsView: View {
         }
     }
 
-    enum BrowseLeftClickMode: String, CaseIterable, Identifiable {
-        case toggleHidden
-        case openBrowseIcons
-
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .toggleHidden: "Toggle Hidden"
-            case .openBrowseIcons: "Open Browse"
-            }
-        }
-    }
-
-    enum SecondMenuBarPreset: String, CaseIterable, Identifiable {
-        case minimal
-        case balanced
-        case power
-
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .minimal: "Hidden Row"
-            case .balanced: "Hidden + Visible"
-            case .power: "All Rows"
-            }
-        }
-    }
+    typealias BrowseLeftClickMode = GeneralSettingsBrowseLeftClickMode
+    typealias SecondMenuBarPreset = GeneralSettingsSecondMenuBarPreset
 
     private var showDockIconBinding: Binding<Bool> {
         Binding(
@@ -104,56 +81,10 @@ struct GeneralSettingsView: View {
             get: { menuBarManager.settings.layoutMode == .live },
             set: { enabled in
                 Task { @MainActor in
-                    _ = await menuBarManager.setLayoutMode(enabled ? .live : .stability, reason: "control")
+                    _ = await menuBarManager.profileWorkflow.setLayoutMode(enabled ? .live : .stability, reason: "control")
                 }
             }
         )
-    }
-
-    private var browseDestinationLabel: String {
-        menuBarManager.settings.useSecondMenuBar ? "Second Menu Bar" : "Icon Panel"
-    }
-
-    private var isBasicSecondMenuBar: Bool {
-        !licenseService.isPro && menuBarManager.settings.useSecondMenuBar
-    }
-
-    private var browseOpenActionLabel: String {
-        menuBarManager.settings.useSecondMenuBar ? "Open Second Menu Bar" : "Open Icon Panel"
-    }
-
-    private func leftClickModeTitle(_ mode: BrowseLeftClickMode) -> String {
-        switch mode {
-        case .toggleHidden:
-            "Toggle Hidden"
-        case .openBrowseIcons:
-            browseOpenActionLabel
-        }
-    }
-
-    private var secondMenuBarRowsSummary: String {
-        var rows = ["Hidden"]
-        if menuBarManager.settings.secondMenuBarShowVisible {
-            rows.append("Visible")
-        }
-        if menuBarManager.settings.secondMenuBarShowAlwaysHidden {
-            rows.append("Always Hidden")
-        }
-        return rows.joined(separator: " + ")
-    }
-
-    private func browseIconsViewOptionHelp(useSecondMenuBar: Bool) -> String {
-        if useSecondMenuBar {
-            if licenseService.isPro {
-                return "Open a row-based strip under the menu bar."
-            }
-            return "Open a row-based strip under the menu bar. Basic includes browsing and clicking there. Pro adds moving icons and Always Hidden."
-        }
-
-        if licenseService.isPro {
-            return "Open the Icon Panel window with search and icon actions."
-        }
-        return "Open the Icon Panel window with search and icon clicking. Pro adds moving icons and Always Hidden."
     }
 
     private var layoutModeDescription: String {
@@ -169,92 +100,7 @@ struct GeneralSettingsView: View {
         }
     }
 
-    private func secondMenuBarPresetHelp(_ preset: SecondMenuBarPreset) -> String {
-        switch preset {
-        case .minimal:
-            "Show only the Hidden row in the Second Menu Bar."
-        case .balanced:
-            "Show Hidden and Visible rows in the Second Menu Bar."
-        case .power:
-            "Show Hidden, Visible, and Always Hidden rows in the Second Menu Bar."
-        }
-    }
-
-    private var rehideDelayLabel: String {
-        let value = Int(menuBarManager.settings.rehideDelay)
-        switch value {
-        case 1 ... 5: return "Quick (\(value)s)"
-        case 6 ... 15: return "Normal (\(value)s)"
-        case 16 ... 30: return "Leisurely (\(value)s)"
-        default: return "Extended (\(value)s)"
-        }
-    }
-
-    private var findIconDelayLabel: String {
-        let value = Int(menuBarManager.settings.findIconRehideDelay)
-        switch value {
-        case 1 ... 5: return "Quick (\(value)s)"
-        case 6 ... 15: return "Normal (\(value)s)"
-        case 16 ... 30: return "Leisurely (\(value)s)"
-        default: return "Extended (\(value)s)"
-        }
-    }
-
-    private var hoverDelayLabel: String {
-        let ms = Int(menuBarManager.settings.hoverDelay * 1000)
-        switch ms {
-        case 0 ... 150: return "Instant"
-        case 151 ... 350: return "Quick"
-        case 351 ... 600: return "Normal"
-        default: return "Patient"
-        }
-    }
-
-    private var hideApplicationMenusHelp: String {
-        "Temporarily hides File/Edit/View if needed to make room in the menu bar. Only affects inline reveal."
-    }
-
-    private var hideAllOtherMenuBarItemsBinding: Binding<Bool> {
-        Binding(
-            get: { menuBarManager.settings.hideAllOtherMenuBarItems },
-            set: { isEnabled in
-                if isEnabled {
-                    menuBarManager.enableHideAllOtherMenuBarItemsFromCurrentLayout()
-                } else {
-                    menuBarManager.settings.hideAllOtherMenuBarItems = false
-                }
-            }
-        )
-    }
-
-    private var gestureModeSummary: String {
-        menuBarManager.settings.gestureMode == .showOnly
-            ? "Gestures reveal hidden icons."
-            : "Scroll up shows icons, scroll down hides icons."
-    }
-
-    private func gestureModeHelp(_ mode: SaneBarSettings.GestureMode) -> String {
-        switch mode {
-        case .showOnly:
-            return "Gestures only reveal hidden icons."
-        case .showAndHide:
-            return "Gestures toggle visibility. Scroll up shows icons, scroll down hides them."
-        }
-    }
-
-    private func leftClickModeHelp(_ mode: BrowseLeftClickMode) -> String {
-        switch mode {
-        case .toggleHidden:
-            return "Left-click the SaneBar icon to show or hide icons."
-        case .openBrowseIcons:
-            if licenseService.isPro {
-                return "Left-click the SaneBar icon to open \(browseDestinationLabel)."
-            }
-            return "Left-click the SaneBar icon to open \(browseDestinationLabel) for browsing and clicking icons."
-        }
-    }
-
-    /// Custom binding that requires auth to DISABLE the security setting
+    /// Custom binding that requires auth to disable the security setting.
     private var requireAuthBinding: Binding<Bool> {
         Binding(
             get: { menuBarManager.settings.requireAuthToShowHiddenIcons },
@@ -305,234 +151,24 @@ struct GeneralSettingsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // 1. Browse Icons
-                CompactSection("Browse Icons") {
-                    CompactRow("Browse Icons view") {
-                        HStack(spacing: 6) {
-                            segmentedChoiceButton(
-                                "Icon Panel",
-                                isSelected: !menuBarManager.settings.useSecondMenuBar
-                            ) {
-                                applyBrowseIconsViewSelection(false)
-                            }
-                            .help(browseIconsViewOptionHelp(useSecondMenuBar: false))
-
-                            segmentedChoiceButton(
-                                "Second Menu Bar",
-                                isSelected: menuBarManager.settings.useSecondMenuBar
-                            ) {
-                                applyBrowseIconsViewSelection(true)
-                            }
-                            .help(browseIconsViewOptionHelp(useSecondMenuBar: true))
-                        }
-                        .frame(width: 260)
-                    }
-
-                    if licenseService.isPro, menuBarManager.settings.useSecondMenuBar {
-                        CompactDivider()
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 5) {
-                                Text("Rows shown in Second Menu Bar")
-                                    .foregroundStyle(.white.opacity(0.94))
-
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(SaneBarChrome.accentHighlight.opacity(0.86))
-                                    .help(secondMenuBarRowsSummary)
-                            }
-
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 112), spacing: 6, alignment: .leading)],
-                                alignment: .leading,
-                                spacing: 6
-                            ) {
-                                ForEach(SecondMenuBarPreset.allCases) { preset in
-                                    segmentedChoiceButton(
-                                        preset.title,
-                                        isSelected: secondMenuBarPresetBinding.wrappedValue == preset
-                                    ) {
-                                        secondMenuBarPresetBinding.wrappedValue = preset
-                                    }
-                                    .help(secondMenuBarPresetHelp(preset))
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        if secondMenuBarPresetBinding.wrappedValue == .power {
-                            CompactDivider()
-                            CompactRow("Custom rows") {
-                                Button(showBrowseRowCustomization ? "Hide" : "Show") {
-                                    withAnimation(.easeInOut(duration: 0.18)) {
-                                        showBrowseRowCustomization.toggle()
-                                    }
-                                }
-                                .buttonStyle(ChromeActionButtonStyle())
-                                .help("Show or hide row-level options.")
-                            }
-
-                            if showBrowseRowCustomization {
-                                CompactDivider()
-                                CompactToggle(
-                                    label: "Show Visible row",
-                                    isOn: $menuBarManager.settings.secondMenuBarShowVisible
-                                )
-                                .help("Show the Visible destination row in the Second Menu Bar.")
-
-                                CompactDivider()
-                                CompactToggle(
-                                    label: "Show Always Hidden row",
-                                    isOn: $menuBarManager.settings.secondMenuBarShowAlwaysHidden
-                                )
-                                .help("Show the Always Hidden destination row in the Second Menu Bar.")
-                            }
-                        }
-                    } else if isBasicSecondMenuBar {
-                        CompactDivider()
-                        CompactRow("Rows shown in Second Menu Bar") {
-                                Text("Hidden + Visible")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.94))
-                        }
-                        CompactDivider()
-                        proGatedRow(feature: .alwaysHidden, label: "Always Hidden row")
-                    } else if !licenseService.isPro {
-                        CompactDivider()
-                        proGatedRow(feature: .zoneMoves, label: "Move icons between Visible, Hidden, and Always Hidden")
-                    }
-                    CompactDivider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            HStack(spacing: 5) {
-                                Text("Left-click SaneBar icon")
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(SaneBarChrome.accentHighlight.opacity(0.86))
-                                    .help("Right-click the SaneBar icon to open the app menu.")
-                            }
-                            Spacer()
-                        }
-                        .foregroundStyle(.white.opacity(0.94))
-                        HStack(spacing: 6) {
-                            ForEach(BrowseLeftClickMode.allCases) { mode in
-                                segmentedChoiceButton(
-                                    leftClickModeTitle(mode),
-                                    isSelected: leftClickModeBinding.wrappedValue == mode
-                                ) {
-                                    leftClickModeBinding.wrappedValue = mode
-                                }
-                                .help(leftClickModeHelp(mode))
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                }
+                GeneralSettingsBrowseSection(
+                    menuBarManager: menuBarManager,
+                    licenseService: licenseService,
+                    showBrowseRowCustomization: $showBrowseRowCustomization,
+                    leftClickMode: leftClickModeBinding,
+                    secondMenuBarPreset: secondMenuBarPresetBinding,
+                    applyBrowseIconsViewSelection: applyBrowseIconsViewSelection,
+                    showProUpsell: { proUpsellFeature = $0 }
+                )
 
                 // 2. Everyday Hiding
-                CompactSection("Hiding Behavior") {
-                    CompactToggle(label: "Hide icons automatically", isOn: $menuBarManager.settings.autoRehide)
-                        .help("Hide revealed icons again after the delay below.")
+                GeneralSettingsHidingSection(
+                    menuBarManager: menuBarManager,
+                    licenseService: licenseService,
+                    showProUpsell: { proUpsellFeature = $0 }
+                )
 
-                    if menuBarManager.settings.autoRehide {
-                        if licenseService.isPro {
-                            CompactDivider()
-                            CompactRow("Wait before hiding") {
-                                HStack {
-                                    Text(rehideDelayLabel)
-                                        .frame(width: 95, alignment: .trailing)
-                                    Stepper("", value: $menuBarManager.settings.rehideDelay, in: 1 ... 60, step: 1)
-                                        .labelsHidden()
-                                }
-                            }
-                            CompactDivider()
-                            CompactRow("Wait after Browse Icons") {
-                                HStack {
-                                    Text(findIconDelayLabel)
-                                        .frame(width: 95, alignment: .trailing)
-                                    Stepper("", value: $menuBarManager.settings.findIconRehideDelay, in: 5 ... 60, step: 5)
-                                        .labelsHidden()
-                                }
-                            }
-                            CompactDivider()
-                            CompactToggle(label: "Hide when app changes", isOn: $menuBarManager.settings.rehideOnAppChange)
-                        } else {
-                            CompactDivider()
-                            proGatedRow(feature: .autoRehideCustomization, label: "Customize auto-hide timing")
-                        }
-                    }
-
-                    CompactDivider()
-                    if licenseService.isPro {
-                        CompactToggle(label: "Always show on external monitors", isOn: $menuBarManager.settings.disableOnExternalMonitor)
-                            .help("Keep icons visible on external displays where menu bar space is less constrained.")
-                    } else {
-                        proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
-                    }
-
-                    CompactDivider()
-                    CompactToggle(label: "Reveal hidden icons on hover", isOn: $menuBarManager.settings.showOnHover)
-                        .help("Hover near the menu bar to reveal hidden icons inline. Click the SaneBar icon to open or toggle manually.")
-                    if menuBarManager.settings.showOnHover {
-                        CompactDivider()
-                        CompactRow("Hover delay") {
-                            HStack {
-                                Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 1.0, step: 0.05)
-                                    .frame(width: 80)
-                                Text(hoverDelayLabel)
-                                    .frame(width: 55, alignment: .trailing)
-                            }
-                        }
-                    }
-
-                    CompactDivider()
-                    CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
-                    if menuBarManager.settings.showOnScroll {
-                        CompactDivider()
-                        if licenseService.isPro {
-                            CompactRow("Gesture behavior") {
-                                HStack(spacing: 6) {
-                                    ForEach(SaneBarSettings.GestureMode.allCases, id: \.self) { mode in
-                                        segmentedChoiceButton(
-                                            mode.rawValue,
-                                            isSelected: menuBarManager.settings.gestureMode == mode
-                                        ) {
-                                            menuBarManager.settings.gestureMode = mode
-                                        }
-                                        .help(gestureModeHelp(mode))
-                                    }
-                                }
-                                .frame(width: 220)
-                            }
-                            Text(gestureModeSummary)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.92))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .multilineTextAlignment(.leading)
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 4)
-                        } else {
-                            proGatedRow(feature: .gestureCustomization, label: "Customize gesture behavior")
-                        }
-                    }
-
-                    CompactDivider()
-                    CompactToggle(label: "Show when rearranging icons", isOn: $menuBarManager.settings.showOnUserDrag)
-
-                    CompactDivider()
-                    CompactToggle(label: "Hide app menus during inline reveal", isOn: $menuBarManager.settings.hideApplicationMenusOnInlineReveal)
-                        .help(hideApplicationMenusHelp)
-
-                    CompactDivider()
-                    if licenseService.isPro {
-                        CompactToggle(label: "Hide new/unlisted items by default", isOn: hideAllOtherMenuBarItemsBinding)
-                            .help("Keep only the explicitly visible items shown; move other detected menu bar items to Hidden.")
-                    } else {
-                        proGatedRow(feature: .zoneMoves, label: "Hide new/unlisted items by default")
-                    }
-                }
-
-                // 3. Profiles — Pro
+                // 3. Profiles                // 3. Profiles — Pro
                 CompactSection("Saved Profiles") {
                     if licenseService.isPro {
                         if savedProfiles.isEmpty {
@@ -600,7 +236,7 @@ struct GeneralSettingsView: View {
                     CompactRow("Arrange Now") {
                         Button("Run") {
                             Task { @MainActor in
-                                _ = await menuBarManager.repairMenuBarHealth(reason: "control")
+                                _ = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: "control")
                             }
                         }
                         .buttonStyle(ChromeActionButtonStyle())
@@ -716,7 +352,6 @@ struct GeneralSettingsView: View {
 
     // MARK: - Pro Gating Helper
 
-    @ViewBuilder
     private var softwareUpdatesSection: some View {
         CompactSection("Software Updates") {
             if licenseService.distributionChannel.supportsInAppUpdates {
@@ -766,14 +401,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    private func segmentedChoiceButton(
-        _ title: String,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        ChromeSegmentedChoiceButton(title: title, isSelected: isSelected, action: action)
-    }
-
     private func applyBrowseIconsViewSelection(_ useSecondMenuBar: Bool) {
         let wasBrowseVisible = SearchWindowController.shared.isVisible
         menuBarManager.settings.useSecondMenuBar = useSecondMenuBar
@@ -792,7 +419,7 @@ struct GeneralSettingsView: View {
     }
 
     private func normalizeBrowseModeSettingsForCurrentPlan() {
-        let normalizedLeftClick = MenuBarManager.normalizedLeftClickOpensBrowseIcons(
+        let normalizedLeftClick = MenuBarActionWorkflow.normalizedLeftClickOpensBrowseIcons(
             isPro: licenseService.isPro,
             useSecondMenuBar: menuBarManager.settings.useSecondMenuBar,
             leftClickOpensBrowseIcons: menuBarManager.settings.leftClickOpensBrowseIcons
@@ -801,7 +428,7 @@ struct GeneralSettingsView: View {
             menuBarManager.settings.leftClickOpensBrowseIcons = normalizedLeftClick
         }
 
-        let normalizedRows = MenuBarManager.normalizedSecondMenuBarRows(
+        let normalizedRows = MenuBarActionWorkflow.normalizedSecondMenuBarRows(
             isPro: licenseService.isPro,
             showVisible: menuBarManager.settings.secondMenuBarShowVisible,
             showAlwaysHidden: menuBarManager.settings.secondMenuBarShowAlwaysHidden
@@ -847,7 +474,7 @@ struct GeneralSettingsView: View {
     private func triggerManualUpdateCheck() {
         guard !isCheckingForUpdates else { return }
         isCheckingForUpdates = true
-        menuBarManager.userDidClickCheckForUpdates()
+        menuBarManager.actionWorkflow.userDidClickCheckForUpdates()
 
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))
@@ -883,13 +510,13 @@ struct GeneralSettingsView: View {
     }
 
     private func loadProfile(_ profile: SaneBarProfile) {
-        applyConfiguration(
-            settings: profile.settings,
-            layoutSnapshot: profile.layoutSnapshot,
-            customIconSnapshot: profile.customIconSnapshot,
-            importedProfiles: nil,
-            successLog: "📁 Profile applied"
+        menuBarManager.profileWorkflow.applyProfile(
+            profile,
+            preserveAutomation: false,
+            preserveProtectedSettings: true,
+            reason: "settings"
         )
+        loadProfiles()
     }
 
     private func deleteProfile(_ profile: SaneBarProfile) {
@@ -1053,7 +680,7 @@ struct GeneralSettingsView: View {
         successLog: String
     ) {
         do {
-            _ = menuBarManager.createLayoutRescueRestorePoint(reason: "pre-import")
+            _ = menuBarManager.profileWorkflow.createLayoutRescueRestorePoint(reason: "pre-import")
             if let importedProfiles {
                 try PersistenceService.shared.upsertProfiles(importedProfiles)
             }
@@ -1096,7 +723,7 @@ struct GeneralSettingsView: View {
 
         Task { @MainActor in
             do {
-                let preview = try await BartenderImportService.previewImport(from: url)
+                let preview = try await BartenderImportPreviewPlanner.previewImport(from: url)
                 pendingImport = .bartender(url, preview)
             } catch {
                 showError(title: "Bartender Import Failed", error: error)
@@ -1151,20 +778,5 @@ struct GeneralSettingsView: View {
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         alert.runModal()
-    }
-}
-
-// swiftlint:enable file_length
-
-extension GeneralSettingsView.SecondMenuBarPreset {
-    static func resolve(showVisible: Bool, showAlwaysHidden: Bool) -> Self {
-        switch (showVisible, showAlwaysHidden) {
-        case (false, false):
-            .minimal
-        case (true, false):
-            .balanced
-        case (true, true), (false, true):
-            .power
-        }
     }
 }

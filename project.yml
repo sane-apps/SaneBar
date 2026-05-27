@@ -25,7 +25,7 @@ packages:
     from: 2.8.0
   SaneUI:
     url: https://github.com/sane-apps/SaneUI.git
-    revision: 5a9c02152cfe155e3d6d06c1a489ef426e2250e1
+    revision: f1a8f67b9a53eb267a1e218b8807bd2ebddacaab
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
@@ -110,6 +110,7 @@ targets:
         excludes:
           - "**/CLAUDE.md"
       - Resources
+      - SaneBar/PrivacyInfo.xcprivacy
     dependencies:
       - package: KeyboardShortcuts
       - package: Setapp
@@ -122,6 +123,8 @@ targets:
         OSAScriptingDefinition: SaneBar.sdef
         NSAppleEventsUsageDescription: "SaneBar needs to control other applications to manage your menu bar items."
         NSAccessibilityUsageDescription: "SaneBar needs accessibility permissions to detect and manage menu bar items."
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleURLTypes:
           - CFBundleURLName: "com.sanebar.app"
             CFBundleURLSchemes:
@@ -135,8 +138,8 @@ targets:
       base:
         PRODUCT_NAME: SaneBar
         PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-        MARKETING_VERSION: "2.1.60"
-        CURRENT_PROJECT_VERSION: "2160"
+        MARKETING_VERSION: "2.1.62"
+        CURRENT_PROJECT_VERSION: "2162"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: NO
         ENABLE_XOJIT_PREVIEWS: NO

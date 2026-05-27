@@ -193,10 +193,12 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 
 | Tab | What's there |
 |-----|--------------|
-| **General** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (second menu bar), software updates, saved profiles, import from Bartender/Ice, settings export/import, reset to defaults |
+| **Control** | Launch at login, show in Dock, security (Touch ID/password lock), hiding options (second menu bar), software updates, saved profiles, import from Bartender/Ice, settings export/import, reset to defaults |
 | **Rules** | Auto-hide behavior, revealing gestures (hover, scroll), automatic triggers (battery, apps, Wi-Fi, app change, external monitor) |
 | **Appearance** | Custom menu bar icon, divider style, extra dividers, menu bar styling (tint, opacity per light/dark mode, shadow, border, corners), space analyzer, icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
+| **Health** | Menu bar health status, repair actions, layout rescue, diagnostics, stability/live mode |
+| **License** | Pro status, license activation, restore, and purchase actions |
 | **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Icon Spacing (Settings → Appearance)
@@ -400,8 +402,6 @@ Important:
 - Keep it focused on this one issue/idea.
 - Do not make unrelated changes.
 ```
-
-If needed, you can also just email the pull request link to hi@saneapps.com.
 
 I review and test every pull request before merge.
 

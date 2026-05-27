@@ -68,7 +68,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         KeyboardShortcuts.onKeyUp(for: .toggleHiddenItems) { [weak self] in
             logger.info("Hotkey: toggleHiddenItems")
             Task { @MainActor in
-                self?.menuBarManager?.toggleHiddenItems()
+                self?.menuBarManager?.visibilityWorkflow.toggleHiddenItems()
             }
         }
 
@@ -76,7 +76,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         KeyboardShortcuts.onKeyUp(for: .showHiddenItems) { [weak self] in
             logger.info("Hotkey: showHiddenItems")
             Task { @MainActor in
-                self?.menuBarManager?.showHiddenItems()
+                self?.menuBarManager?.visibilityWorkflow.showHiddenItems()
             }
         }
 
@@ -84,7 +84,7 @@ final class KeyboardShortcutsService: KeyboardShortcutsServiceProtocol {
         KeyboardShortcuts.onKeyUp(for: .hideItems) { [weak self] in
             logger.info("Hotkey: hideItems")
             Task { @MainActor in
-                self?.menuBarManager?.hideHiddenItems()
+                self?.menuBarManager?.visibilityWorkflow.hideHiddenItems()
             }
         }
 

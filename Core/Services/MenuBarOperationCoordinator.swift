@@ -93,7 +93,7 @@ enum MenuBarOperationCoordinator {
             return .missingCoordinates
         }
 
-        if MenuBarManager.shouldRecoverStartupPositions(
+        if MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
             separatorX: separatorX,
             mainX: mainX,
             mainRightGap: snapshot.mainRightGap,
@@ -358,7 +358,7 @@ enum MenuBarOperationCoordinator {
 
     static func browseActivationPlan(
         snapshot: MenuBarRuntimeSnapshot,
-        origin: SearchService.ActivationOrigin,
+        origin: SearchServiceSupport.ActivationOrigin,
         isRightClick: Bool,
         didReveal: Bool,
         requestedApp: RunningApp

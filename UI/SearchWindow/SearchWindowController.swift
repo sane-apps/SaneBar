@@ -136,7 +136,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let screenFrame = screen?.frame
         let visibleFrame = screen?.visibleFrame
         let rightEdge = MenuBarManager.shared.mainStatusItem?.button?.window?.frame.maxX
-        let delta = Self.browseWindowAnchorDelta(
+        let delta = SearchWindowLayoutPolicy.browseWindowAnchorDelta(
             windowFrame: frame,
             screenFrame: screenFrame,
             visibleFrame: visibleFrame,
@@ -151,7 +151,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         return [
             "browseWindowMode": Self.diagnosticsMode(currentMode),
             "browseWindowFrame": Self.diagnosticsRect(frame),
-            "browseWindowAnchorValid": Self.isBrowseWindowAnchoredCorrectly(
+            "browseWindowAnchorValid": SearchWindowLayoutPolicy.isBrowseWindowAnchoredCorrectly(
                 windowFrame: frame,
                 screenFrame: screenFrame,
                 visibleFrame: visibleFrame,
@@ -182,7 +182,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         } else if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
             // Auth required — must be async
             Task {
-                let authorized = await MenuBarManager.shared.authenticate(reason: "Unlock hidden icons")
+                let authorized = await MenuBarManager.shared.visibilityWorkflow.authenticate(reason: "Unlock hidden icons")
                 guard authorized else { return }
                 show(mode: mode)
             }
@@ -265,7 +265,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     private func normalizeBrowseModeSettings(for mode: SearchWindowMode) {
         let manager = MenuBarManager.shared
-        if Self.shouldForceAlwaysHiddenForIconPanel(
+        if SearchWindowLayoutPolicy.shouldForceAlwaysHiddenForIconPanel(
             mode: mode,
             isPro: LicenseService.shared.isPro,
             useSecondMenuBar: manager.settings.useSecondMenuBar,
@@ -380,7 +380,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
     private func remainingActivationGracePeriod(for mode: SearchWindowMode?, now: Date = Date()) -> TimeInterval {
         guard mode == .secondMenuBar else { return 0 }
-        let grace = Self.panelIdleCloseActivationGracePeriod(for: .secondMenuBar)
+        let grace = SearchWindowLayoutPolicy.panelIdleCloseActivationGracePeriod(for: .secondMenuBar)
         if browseActivationInFlightCount > 0 {
             return grace
         }
@@ -433,7 +433,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 let pointerInsidePanel = self.window?.frame.contains(NSEvent.mouseLocation) == true
                 let secondsSinceLastActivation = self.lastBrowseActivationFinishedAt.map { Date().timeIntervalSince($0) }
 
-                if Self.shouldDeferPanelIdleClose(
+                if SearchWindowLayoutPolicy.shouldDeferPanelIdleClose(
                     mode: mode,
                     pointerInsidePanel: pointerInsidePanel,
                     activationInFlight: self.browseActivationInFlightCount > 0,
@@ -572,7 +572,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             if useContentFittingSize {
                 window.contentView?.layoutSubtreeIfNeeded()
             }
-            let panelSize = Self.clampedSecondMenuBarSize(
+            let panelSize = SearchWindowLayoutPolicy.clampedSecondMenuBarSize(
                 currentWindowSize: window.frame.size,
                 fittingSize: window.contentView?.fittingSize,
                 visibleFrame: visibleFrame,

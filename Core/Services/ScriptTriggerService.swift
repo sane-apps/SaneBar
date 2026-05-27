@@ -133,12 +133,12 @@ final class ScriptTriggerService {
             }
             if manager.hidingService.state == .hidden {
                 logger.info("Script trigger: exit 0, showing hidden items")
-                manager.showHiddenItems()
+                manager.visibilityWorkflow.showHiddenItems()
             }
         } else {
             if manager.hidingService.state != .hidden {
                 logger.info("Script trigger: exit \(exitCode), hiding items")
-                manager.hideHiddenItems()
+                manager.visibilityWorkflow.hideHiddenItems()
             }
         }
     }
