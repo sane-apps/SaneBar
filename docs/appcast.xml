@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                <item>
+                                                                                                                                                                                                                                                                        <item>
+            <title>2.1.62</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Wed, 27 May 2026 16:25:13 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves wake recovery for dynamic menu bar items, strengthens Hide All Other and Always Hidden replay, and adds release-blocking checks for activation tint, exact-ID moves, auto-rehide, and display wake behavior.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.62.zip"
+                       sparkle:version="2162"
+                       sparkle:shortVersionString="2.1.62"
+                       length="9076764"
+                       type="application/octet-stream"
+                       sparkle:edSignature="YWyQJi7MSmbOPywSEIZPhxNFs6y0h2l9PCY7P+LkiA9X9PSkIIkpAIBx6OhrWKYrp6dDPxusPHGPn1rKtuOjDA=="/>
+        </item>
+<item>
             <title>2.1.60</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 25 May 2026 00:34:23 -0400</pubDate>
