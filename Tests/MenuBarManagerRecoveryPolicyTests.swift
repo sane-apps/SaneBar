@@ -248,16 +248,17 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(!MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: detached))
     }
 
-    @Test("Startup recovery hard-resets poisoned startup geometry but not general geometry drift")
+    @Test("Bad data during any recovery context forces hard reset to live anchor; nil-reason paths preserve persisted state")
     func statusItemRecoveryResetDecisionMatrix() {
+        // Bad data cases now reset for wake/screen/manual recovery contexts (fixes #147/#142/#150 dynamic + post-arrange jumps)
         #expect(
-            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .invalidStatusItems,
                 validationContext: .wakeResume
             )
         )
         #expect(
-            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .missingCoordinates,
                 validationContext: .manualLayoutRestore
             )
@@ -275,7 +276,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .invalidGeometry,
                 validationContext: .wakeResume
             )

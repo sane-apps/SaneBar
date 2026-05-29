@@ -68,10 +68,12 @@ final class MenuBarStatusItemRecoveryWorkflow {
         validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
     ) -> Bool {
         switch reason {
-        case .invalidStatusItems, .missingCoordinates:
-            isStartupRecovery || validationContext == .startupFollowUp
-        case .invalidGeometry:
-            isStartupRecovery || validationContext == .startupFollowUp
+        case .invalidStatusItems, .missingCoordinates, .invalidGeometry:
+            // Bad data (missing coordinates, invalid items/geometry) during any recovery context
+            // (startup, wake, screen change, manual arrange) forces hard reset to current live
+            // left-edge anchor instead of replaying stale persisted layout. This fixes dynamic
+            // item jumps (#147) and post-Spotlight/arrange reordering (#150, #142).
+            true
         case nil:
             false
         }
