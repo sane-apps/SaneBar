@@ -162,6 +162,7 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
+    park_pointer_away_from_menu_bar!(label: 'hidden wake')
     snapshots = snapshots_after_wake(wake_time, label: 'hidden', expected_state: 'hidden')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'hidden', label: "hidden #{entry[:delay]}s")
@@ -196,6 +197,7 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
+    park_pointer_away_from_menu_bar!(label: 'expanded wake')
     snapshots = snapshots_after_wake(wake_time, label: 'expanded', expected_state: 'expanded')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'expanded', label: "expanded #{entry[:delay]}s")
@@ -316,6 +318,24 @@ class WakeLayoutProbe
     end
   end
 
+  def park_pointer_away_from_menu_bar!(label:)
+    cliclick = ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick']
+      .find { |path| File.executable?(path) }
+    raise 'Wake probe requires cliclick on the Mini to park the pointer away from the menu bar' unless cliclick
+
+    out, status = capture(cliclick, 'm:400,400')
+    raise "Pointer parking failed after #{label}: #{out}" unless status.success?
+
+    snapshot = wait_for_snapshot(
+      label: "#{label} pointer parked",
+      timeout: SNAPSHOT_SETTLE_TIMEOUT_SECONDS,
+      interval: 0.25
+    ) do |candidate|
+      candidate['autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'
+    end
+    log("#{label} pointer parked outside menu-bar interaction region: autoRehideBlockReason=#{snapshot['autoRehideBlockReason']}")
+  end
+
   def capture_visible_zone_baseline!(required_override: nil)
     zones = read_icon_zones!
     visible = zones.select { |item| item[:zone] == 'visible' }
@@ -361,6 +381,7 @@ class WakeLayoutProbe
           item[:movable].to_s == 'true' &&
           !item[:bundle_id].to_s.start_with?('com.sanebar') &&
           !item[:unique_id].to_s.start_with?('com.sanebar') &&
+          !item[:bundle_id].to_s.start_with?('com.apple.') &&
           !allowed.include?(item[:unique_id].to_s) &&
           !allowed.include?(item[:bundle_id].to_s)
       end

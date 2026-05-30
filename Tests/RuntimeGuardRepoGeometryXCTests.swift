@@ -223,8 +223,12 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(reason: replayReason)") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
+                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
+                source.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
+                source.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
+                source.contains("hidingService.scheduleRehide(after: 0.5)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
-            "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, then refresh appearance overlay visibility"
+            "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
         )
         XCTAssertTrue(
             setupSource.contains("manager.statusBarController.configureStatusItems(") &&
@@ -498,11 +502,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("hideAllOtherVisibleItemIds") &&
                 source.contains("wait_for_hide_all_other_zone_settle!") &&
                 source.contains("Hide-all-other seeded baseline did not settle before wake proof") &&
+                source.contains("!item[:bundle_id].to_s.start_with?('com.apple.')") &&
+                source.contains("park_pointer_away_from_menu_bar!(label: 'hidden wake')") &&
+                source.contains("Wake probe requires cliclick on the Mini to park the pointer away from the menu bar") &&
+                source.contains("autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'") &&
+                !source.contains("!truthy?(candidate['isMoveInProgress'])") &&
                 source.contains("capture_visible_zone_baseline!(required_override: seeded_visible_ids)") &&
                 source.contains("Wake probe did not observe app wake logs or system display off/on events") &&
                 source.contains("Display is turned off") &&
                 source.contains("Display is turned on"),
-            "Wake proof should settle the seeded hide-all-other baseline, fail if a required regular Hidden icon moves into Visible or Always Hidden, and prove a display wake cycle happened"
+            "Wake proof should settle the seeded hide-all-other baseline, park the pointer so automation does not block rehide without treating expected wake replay movement as a pointer failure, ignore Apple-owned system extras in the customer fixture, fail if a required regular Hidden icon moves into Visible or Always Hidden, and prove a display wake cycle happened"
         )
         let seededVisibleRange = try XCTUnwrap(source.range(of: "seeded_visible_ids = seed_hide_all_other_allowlist!"))
         let settleRange = try XCTUnwrap(source.range(of: "wait_for_hide_all_other_zone_settle!(seeded_visible_ids)"))

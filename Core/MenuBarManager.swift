@@ -660,6 +660,7 @@ final class MenuBarManager: NSObject, ObservableObject {
                 if shouldRetryVisibilityReplay {
                     continue
                 }
+                self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)
                 return
             }
 
@@ -667,6 +668,13 @@ final class MenuBarManager: NSObject, ObservableObject {
                 "Visibility intent replay gave up after \(Self.maxVisibilityIntentReplayAttempts, privacy: .public) attempts (\(reason, privacy: .public))"
             )
         }
+    }
+
+    func schedulePostRecoveryAutoRehideIfNeeded(reason: String) {
+        if reason.contains("wakeResume") { isRevealPinned = false }
+        guard settings.autoRehide, hidingService.state == .expanded, !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
+        logger.info("Auto-rehide rearmed after recovery replay (\(reason, privacy: .public))")
+        hidingService.scheduleRehide(after: 0.5)
     }
 
     private func alwaysHiddenAnchorsNeedReplayRetry() -> Bool {
