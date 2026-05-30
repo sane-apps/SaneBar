@@ -325,6 +325,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("NSWorkspace.screensDidWakeNotification") &&
                 observerSource.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .wakeResume)") &&
+                observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"wakeResume\")") &&
                 observerSource.contains("Replay pinned visibility intent only after validation reports healthy anchors.") &&
                 observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"wakeResume\")") &&
@@ -333,7 +334,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 !source.contains("settings.layoutMode == .live") &&
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 recoverySource.contains("guard self.manager.positionValidationGeneration == validationGeneration else"),
-            "Screen and wake topology changes should invalidate stale validation work while preserving trustworthy hidden-state anchors, then replay visibility intent only after wake-aware validation confirms healthy anchors"
+            "Screen and wake topology changes should invalidate stale validation work while preserving trustworthy hidden-state anchors, rearm auto-rehide after wake movement, then replay visibility intent only after wake-aware validation confirms healthy anchors"
         )
 
         let wakeProbeURL = projectRootURL().appendingPathComponent("Scripts/wake_layout_probe.rb")

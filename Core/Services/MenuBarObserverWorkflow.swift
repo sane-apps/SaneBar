@@ -200,6 +200,7 @@ final class MenuBarObserverWorkflow {
         manager.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
         // Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.
         manager.schedulePositionValidation(context: .wakeResume)
+        manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "wakeResume")
     }
 
     private func installLaunchObservers() {
