@@ -133,41 +133,24 @@ final class MenuBarStatusItemRecoveryWorkflow {
             return .ready
         }()
 
-        let geometryConfidence: MenuBarGeometryConfidence = {
-            if structuralState != .ready {
-                switch structuralState {
-                case .missingItems:
-                    return .missing
-                case .invisibleItems:
-                    return .missing
-                case .unattachedWindows:
-                    return .stale
-                case .ready:
-                    break
-                }
-            }
-            guard separatorX != nil, mainX != nil else { return .missing }
-            guard !alwaysHiddenSeparatorMisordered else { return .stale }
-            if MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
-                separatorX: separatorX,
-                mainX: mainX,
-                mainRightGap: mainRightGap,
-                screenWidth: screenWidth,
-                notchRightSafeMinX: notchRightSafeMinX
-            ) {
-                return .stale
-            }
-            guard separatorAnchorSource.isTrustworthySeparatorAnchor else {
-                return .stale
-            }
-            if separatorAnchorSource == .live, mainAnchorSource == .live {
-                return .live
-            }
-            if separatorAnchorSource == .missing || mainAnchorSource == .missing {
-                return .missing
-            }
-            return .cached
-        }()
+        let geometrySnapshot = MenuBarRuntimeSnapshot(
+            structuralState: structuralState,
+            separatorAnchorSource: separatorAnchorSource,
+            mainAnchorSource: mainAnchorSource,
+            startupItemsValid: startupItemsValid,
+            hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
+            separatorX: separatorX,
+            alwaysHiddenSeparatorX: alwaysHiddenSeparatorX,
+            mainX: mainX,
+            mainRightGap: mainRightGap,
+            screenWidth: screenWidth,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
+        let geometryConfidence = Self.resolvedGeometryConfidence(
+            for: geometrySnapshot,
+            hidingState: manager.hidingService.state,
+            alwaysHiddenSeparatorMisordered: alwaysHiddenSeparatorMisordered
+        )
         let bootstrapPhase = resolveStatusItemBootstrapPhase(
             structuralState: structuralState,
             separatorAnchorSource: separatorAnchorSource,
@@ -208,6 +191,67 @@ final class MenuBarStatusItemRecoveryWorkflow {
 
     func currentStatusItemRecoverySnapshot() -> MenuBarRuntimeSnapshot {
         currentRuntimeSnapshot()
+    }
+
+    nonisolated static func resolvedGeometryConfidence(
+        for snapshot: MenuBarRuntimeSnapshot,
+        hidingState: HidingState,
+        alwaysHiddenSeparatorMisordered: Bool
+    ) -> MenuBarGeometryConfidence {
+        if snapshot.structuralState != .ready {
+            switch snapshot.structuralState {
+            case .missingItems:
+                return .missing
+            case .invisibleItems:
+                return .missing
+            case .unattachedWindows:
+                return .stale
+            case .ready:
+                break
+            }
+        }
+        guard snapshot.separatorX != nil, snapshot.mainX != nil else { return .missing }
+        guard !alwaysHiddenSeparatorMisordered else { return .stale }
+        if MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: snapshot.separatorX,
+            mainX: snapshot.mainX,
+            mainRightGap: snapshot.mainRightGap,
+            screenWidth: snapshot.screenWidth,
+            notchRightSafeMinX: snapshot.notchRightSafeMinX
+        ) {
+            if hiddenPresentationCanShieldGeometryDrift(
+                snapshot: snapshot,
+                hidingState: hidingState
+            ) {
+                return .shielded
+            }
+            return .stale
+        }
+        guard snapshot.separatorAnchorSource.isTrustworthySeparatorAnchor else {
+            return .stale
+        }
+        if snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live {
+            return .live
+        }
+        if snapshot.separatorAnchorSource == .missing || snapshot.mainAnchorSource == .missing {
+            return .missing
+        }
+        return .cached
+    }
+
+    private nonisolated static func hiddenPresentationCanShieldGeometryDrift(
+        snapshot: MenuBarRuntimeSnapshot,
+        hidingState: HidingState
+    ) -> Bool {
+        guard hidingState == .hidden else { return false }
+        guard snapshot.separatorAnchorSource.isTrustworthySeparatorAnchor else { return false }
+        guard snapshot.mainAnchorSource != .missing else { return false }
+        return MenuBarVisibilityPolicy.isMainNearControlCenter(
+            mainX: snapshot.mainX,
+            mainRightGap: snapshot.mainRightGap,
+            screenWidth: snapshot.screenWidth,
+            notchRightSafeMinX: snapshot.notchRightSafeMinX
+        )
     }
 
     func logStatusItemRecoveryReason(

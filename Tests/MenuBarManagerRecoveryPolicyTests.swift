@@ -378,6 +378,44 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(cachedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
     }
 
+    @Test("Hidden near-control-center presentation is protected instead of stale")
+    func hiddenNearControlCenterPresentationIsShielded() {
+        let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
+            for: MenuBarRuntimeSnapshot(
+                structuralState: .ready,
+                separatorAnchorSource: .live,
+                mainAnchorSource: .live,
+                separatorX: 1667,
+                mainX: 1660,
+                mainRightGap: 260,
+                screenWidth: 1920
+            ),
+            hidingState: .hidden,
+            alwaysHiddenSeparatorMisordered: false
+        )
+
+        #expect(confidence == .shielded)
+    }
+
+    @Test("Expanded misordered geometry still needs repair")
+    func expandedMisorderedGeometryIsStillStale() {
+        let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
+            for: MenuBarRuntimeSnapshot(
+                structuralState: .ready,
+                separatorAnchorSource: .live,
+                mainAnchorSource: .live,
+                separatorX: 1667,
+                mainX: 1660,
+                mainRightGap: 260,
+                screenWidth: 1920
+            ),
+            hidingState: .expanded,
+            alwaysHiddenSeparatorMisordered: false
+        )
+
+        #expect(confidence == .stale)
+    }
+
     @Test("Main icon fallback can derive its left edge from a visible separator")
     func estimatedMainStatusItemLeftEdgeUsesSeparatorGeometry() {
         #expect(
