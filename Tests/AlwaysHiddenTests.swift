@@ -290,6 +290,46 @@ struct AlwaysHiddenTests {
         )
     }
 
+    @Test("hide-all-other final verification repairs visible allow-list after hidden restore")
+    func hideAllOtherFinalVerificationRepairsVisibleAllowListAfterHiddenRestore() {
+        #expect(
+            !MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .visible,
+                shouldShow: true
+            )
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .hidden,
+                shouldShow: true
+            )
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .alwaysHidden,
+                shouldShow: true
+            )
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .visible,
+                shouldShow: false
+            )
+        )
+        #expect(
+            !MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .hidden,
+                shouldShow: false
+            )
+        )
+        #expect(
+            !MenuBarHideAllOtherWorkflow.hideAllOtherFinalMoveNeeded(
+                currentZone: .alwaysHidden,
+                shouldShow: false
+            )
+        )
+    }
+
     @Test("hide-all-other visible allow-list wins over Always Hidden pin replay")
     func hideAllOtherVisibleAllowListWinsOverAlwaysHiddenPins() {
         let visibleIds: Set<String> = [

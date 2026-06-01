@@ -100,6 +100,16 @@ final class MenuBarHideAllOtherWorkflow {
         return initialZone == .visible
     }
 
+    nonisolated static func hideAllOtherFinalMoveNeeded(
+        currentZone: HideAllOtherZone,
+        shouldShow: Bool
+    ) -> Bool {
+        if shouldShow {
+            return currentZone != .visible
+        }
+        return currentZone == .visible
+    }
+
     nonisolated static func visibleItemIds(from apps: [RunningApp]) -> [String] {
         var ids = Set<String>()
         for app in apps {
@@ -270,11 +280,14 @@ final class MenuBarHideAllOtherWorkflow {
             await manager.hidingService.hide()
         }
 
-        if !wasHidden {
-            try? await Task.sleep(for: .milliseconds(250))
+        try? await Task.sleep(for: .milliseconds(250))
+        var finalMoveFailedUniqueIds = Set<String>()
+        for pass in 1 ... 2 {
             let verificationSeparatorX = manager.geometryResolver.separatorOriginX() ?? manager.geometryResolver.separatorRightEdgeX() ?? separatorX
+            let verificationAlwaysHiddenBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()
             let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
-            var unsettledVisibleIds = Set<String>()
+            var movedAnyItem = false
+
             for item in verificationItems {
                 let app = item.app
                 if let filterBundleId, app.bundleId != filterBundleId { continue }
@@ -287,14 +300,50 @@ final class MenuBarHideAllOtherWorkflow {
                 }
 
                 let shouldShow = Self.shouldShowItem(app: app, visibleIds: visibleIds)
-                let midX = item.x + (max(1, app.width ?? 22) / 2)
-                let isCurrentlyVisible = midX >= (verificationSeparatorX - 4)
-                if shouldShow != isCurrentlyVisible {
-                    unsettledVisibleIds.insert(app.uniqueId)
+                let currentZone = Self.hideAllOtherZone(
+                    itemX: item.x,
+                    itemWidth: app.width,
+                    separatorX: verificationSeparatorX,
+                    alwaysHiddenBoundaryX: verificationAlwaysHiddenBoundaryX
+                )
+                guard Self.hideAllOtherFinalMoveNeeded(currentZone: currentZone, shouldShow: shouldShow) else {
+                    finalMoveFailedUniqueIds.remove(app.uniqueId)
+                    continue
                 }
+
+                movedAnyItem = true
+                let moveSucceeded: Bool
+                if shouldShow, currentZone == .alwaysHidden {
+                    moveSucceeded = await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
+                        bundleID: app.bundleId,
+                        menuExtraId: app.menuExtraIdentifier,
+                        statusItemIndex: app.statusItemIndex,
+                        preferredCenterX: app.preferredCenterX,
+                        toAlwaysHidden: false
+                    )
+                } else {
+                    moveSucceeded = await manager.moveQueueWorkflow.moveIconAndWait(
+                        bundleID: app.bundleId,
+                        menuExtraId: app.menuExtraIdentifier,
+                        statusItemIndex: app.statusItemIndex,
+                        preferredCenterX: app.preferredCenterX,
+                        toHidden: !shouldShow
+                    )
+                }
+                if moveSucceeded {
+                    finalMoveFailedUniqueIds.remove(app.uniqueId)
+                } else {
+                    finalMoveFailedUniqueIds.insert(app.uniqueId)
+                }
+                try? await Task.sleep(for: .milliseconds(150))
             }
-            failedMoveUniqueIds.formUnion(unsettledVisibleIds)
+
+            if !movedAnyItem { break }
+            if pass == 1 {
+                try? await Task.sleep(for: .milliseconds(250))
+            }
         }
+        failedMoveUniqueIds.formUnion(finalMoveFailedUniqueIds)
 
         if !failedMoveUniqueIds.isEmpty {
             logger.warning(
