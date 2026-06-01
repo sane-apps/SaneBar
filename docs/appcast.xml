@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                                <item>
+            <title>2.1.63</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 01 Jun 2026 04:15:44 -0400</pubDate>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes dynamic menu bar item arrangement after wake, display changes, and Spotlight/helper recovery. Improves recovery replay and auto-hide reliability after wake.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.63.zip"
+                       sparkle:version="2163"
+                       sparkle:shortVersionString="2.1.63"
+                       length="9081400"
+                       type="application/octet-stream"
+                       sparkle:edSignature="BUNb2utZD7sJZn/xuOMxm3VZW29gGhLYQBxlAs9aoeHrDe/AXP4bNVtbEKYUKXzrENzUF7SEX1cnDpArBrZlDA=="/>
+        </item>
+<item>
             <title>2.1.62</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Wed, 27 May 2026 16:25:13 -0400</pubDate>
