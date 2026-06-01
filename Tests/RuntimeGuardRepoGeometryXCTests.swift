@@ -396,13 +396,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("moveIconAlwaysHiddenAndWait(") &&
                 source.contains("for pass in 1 ... 2") &&
                 source.contains("let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()") &&
-                source.contains("failedMoveUniqueIds.formUnion(unsettledVisibleIds)") &&
+                source.contains("hideAllOtherFinalMoveNeeded(currentZone: currentZone, shouldShow: shouldShow)") &&
+                source.contains("if shouldShow, currentZone == .alwaysHidden") &&
+                source.contains("failedMoveUniqueIds.formUnion(finalMoveFailedUniqueIds)") &&
                 source.contains("var failedMoveUniqueIds = Set<String>()") &&
+                source.contains("var finalMoveFailedUniqueIds = Set<String>()") &&
                 source.contains("failedMoveUniqueIds.insert(app.uniqueId)") &&
                 source.contains("Hide-all-other enforcement incomplete") &&
                 source.contains("return false") &&
                 source.contains("return !Task.isCancelled"),
-            "Hide-all-other replay must report failed post-wake moves so visibility intent replay keeps retrying instead of silently accepting exposed icons"
+            "Hide-all-other replay must repair and report failed post-wake visible allow-list moves so visibility intent replay keeps retrying instead of silently accepting exposed or hidden icons"
         )
     }
 
