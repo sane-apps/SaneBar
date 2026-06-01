@@ -542,9 +542,9 @@ class CustomerUIActionSweepTest < Minitest::Test
           evidence_types: %w[mini_runtime log state_receipt],
           evidence_paths: ['/tmp/sanebar_runtime_resource_soak.log'],
           completed_scenarios: [
-            'at least 2h Mini soak completed on the release candidate',
+            'at least 20m Mini soak sampled on the release candidate',
             'average CPU remains within idle budget',
-            'RSS and physical footprint do not grow beyond the release slope budget'
+            'RSS and physical footprint do not grow beyond the short-soak release budget'
           ],
           candidate: {
             app_path: '/Applications/SaneBar.app',

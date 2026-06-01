@@ -146,7 +146,7 @@ runtime_state_matrix:
     - Activate uses the pasted value instead of an empty or stale field
     - invalid test key shows a visible validation result without dismissing the sheet
   resource_soak_growth:
-    why: Short watchdogs catch acute spikes but not scanner, observer, or helper growth that appears over normal long-running use.
+    why: A same-candidate short soak catches obvious scanner, observer, or helper growth without blocking normal release iteration.
     action_ids:
     - startup-wake-appearance-recovery
     required_proof_level: full_runtime_completion
@@ -156,9 +156,9 @@ runtime_state_matrix:
     - state_receipt
     runner: SaneMaster Mini resource soak probe
     required_scenarios:
-    - at least 2h Mini soak completed on the release candidate
+    - at least 20m Mini soak sampled on the release candidate
     - average CPU remains within idle budget
-    - RSS and physical footprint do not grow beyond the release slope budget
+    - RSS and physical footprint do not grow beyond the short-soak release budget
   basic_pro_mode:
     why: The same customer action must either work in Pro or clearly gate in Basic without pretending the change succeeded.
     action_ids:

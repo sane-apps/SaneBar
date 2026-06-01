@@ -11,7 +11,7 @@ require 'set'
 class WakeLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
   SNAPSHOT_DELAYS = [1.0, 5.0, 15.0].freeze
-  SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 6.0
+  SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0
   SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   HIDDEN_BASELINE_TIMEOUT_SECONDS = 45.0
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0

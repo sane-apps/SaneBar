@@ -341,6 +341,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let wakeProbeSource = try String(contentsOf: wakeProbeURL, encoding: .utf8)
         XCTAssertTrue(
                 wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS") &&
+                wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0") &&
                 wakeProbeSource.contains("HIDDEN_BASELINE_TIMEOUT_SECONDS") &&
                 wakeProbeSource.contains("expected_state: 'hidden'") &&
                 wakeProbeSource.contains("expected_state: 'expanded'") &&
