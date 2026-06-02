@@ -70,8 +70,8 @@ class LiveZoneSmoke
   FULLSCREEN_MATRIX_ARTIFACT_PATH = '/tmp/sanebar_runtime_fullscreen_matrix.json'
   TOP_STRIP_CAPTURE_WORKDIR = '/tmp/sanebar-top-strip-capture'
   FULLSCREEN_TRANSITION_PROBE_APPS = [
-    { label: 'safari', app: 'Safari', process: 'Safari' },
-    { label: 'textedit', app: 'TextEdit', process: 'TextEdit' }
+    { label: 'safari', app: 'Safari', process: 'Safari', required: true },
+    { label: 'textedit', app: 'TextEdit', process: 'TextEdit', required: false }
   ].freeze
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter

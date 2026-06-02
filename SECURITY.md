@@ -75,7 +75,7 @@ An independent code review was conducted in January 2026. Key findings:
 | Plaintext SSID storage | Low | Accepted (local only) |
 | Force casts in AX code | Medium | ✅ Fixed (v1.0.17) |
 
-Full audit report: [outputs/SECURITY_AUDIT_2026-01-25.md](outputs/SECURITY_AUDIT_2026-01-25.md)
+The internal audit summary is kept here so the public security policy does not depend on local build-output artifacts.
 
 ### Third-Party Audit — January 2026
 
