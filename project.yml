@@ -2,7 +2,7 @@ name: SaneBar
 options:
   bundleIdPrefix: com.sanebar
   deploymentTarget:
-    macOS: 15.0
+    macOS: 14.0
   xcodeVersion: 16.0
 
 configs:
@@ -98,7 +98,7 @@ targets:
     platform: macOS
     bundleId: com.sanebar.app
     deploymentTarget:
-      macOS: 15.0
+      macOS: 14.0
     sources:
       - main.swift
       - SaneBarApp.swift
@@ -144,7 +144,7 @@ targets:
         ENABLE_PREVIEWS: NO
         ENABLE_XOJIT_PREVIEWS: NO
         SWIFT_VERSION: 6.0
-        MACOSX_DEPLOYMENT_TARGET: 15.0
+        MACOSX_DEPLOYMENT_TARGET: 14.0
         ARCHS: arm64
         VALID_ARCHS: arm64
         CODE_SIGN_STYLE: Manual
@@ -240,7 +240,7 @@ targets:
     platform: macOS
     bundleId: com.sanebar.appTests
     deploymentTarget:
-      macOS: 15.0
+      macOS: 14.0
     testTarget: SaneBar
     sources:
       - path: Tests

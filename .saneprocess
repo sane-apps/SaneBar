@@ -15,7 +15,7 @@ release:
   site_host: sanebar.com
   r2_bucket: sanebar-downloads
   use_sparkle: true
-  min_system_version: "15.0"
+  min_system_version: "14.0"
   reviewed_auto_reconcile_stashes:
     - stash_sha: "eac8e7000572fa141151aaa51349e92dfabc8ec5"
       subject: "On main: auto-reconcile-20260508-215519-stephans-mac-mini"
