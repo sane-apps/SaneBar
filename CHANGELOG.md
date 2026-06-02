@@ -12,7 +12,7 @@ Fixes dynamic menu bar item arrangement after wake, display changes, and Spotlig
 
 ---
 
-## [2.1.63] - 2026-05-29
+### Earlier 2.1.63 notes - 2026-05-29
 
 Fixes dynamic menu bar item jumps on wake, arrange, and Spotlight for 3rd-party helpers (SwiftBar, Fantastical, Lungo, etc.). Broadens shouldResetPersistentStateForStatusItemRecovery to force hard reset to live left-edge anchor on any bad-data reason (missing coordinates, invalid items/geometry) during .wakeResume / .screenParametersChanged / .manualLayoutRestore. Updates recovery policy tests. (Addresses #147, #142, #150)
 

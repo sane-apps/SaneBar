@@ -117,9 +117,11 @@ final class RuntimeGuardQASmokeXCTests: RuntimeGuardTestCase {
             "Live smoke should prefer the app's internal browse and settings snapshot commands before falling back to host capture"
         )
         XCTAssertTrue(
-            source.contains("capture appearance overlay snapshot") &&
+                source.contains("capture appearance overlay snapshot") &&
                 source.contains("open_full_width_transition_probe_window") &&
                 source.contains("FULLSCREEN_TRANSITION_PROBE_APPS") &&
+                source.contains("required: false") &&
+                source.contains("handle_transition_probe_failure") &&
                 source.contains("set_fullscreen_probe_window") &&
                 source.contains("AXFullScreen") &&
                 source.contains("assert_fullscreen_probe_window_state!") &&

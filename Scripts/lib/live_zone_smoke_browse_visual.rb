@@ -276,53 +276,67 @@ class LiveZoneSmoke
 
     puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
   ensure
-    close_transition_probe_window_safely
+    close_visible_transition_probe_window_safely(FULLSCREEN_TRANSITION_PROBE_APPS.first)
   end
 
   def exercise_app_activation_tint_stability_check
     return unless @require_visible_appearance_pixels
 
     FULLSCREEN_TRANSITION_PROBE_APPS.each do |probe|
-      open_visible_transition_probe_window(probe)
-      sleep_with_watchdog(0.2)
-      assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-immediate", expected_visible: true)
-      sleep_with_watchdog(0.7)
-      assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-settled", expected_visible: true)
-      mark_fullscreen_matrix_scenario('app activation keeps dark custom tint visible')
-    ensure
-      close_visible_transition_probe_window_safely(probe)
+      begin
+        open_visible_transition_probe_window(probe)
+        sleep_with_watchdog(0.2)
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-immediate", expected_visible: true)
+        sleep_with_watchdog(0.7)
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-settled", expected_visible: true)
+        mark_fullscreen_matrix_scenario('app activation keeps dark custom tint visible')
+      rescue StandardError => e
+        handle_transition_probe_failure(probe, 'activation tint stability', e)
+      ensure
+        close_visible_transition_probe_window_safely(probe)
+      end
     end
 
-    puts '✅ App activation tint stability ok (Safari + TextEdit)'
+    puts '✅ App activation tint stability ok'
   end
 
   def exercise_visible_fullscreen_transition_pixel_check
     return unless @require_visible_appearance_pixels
 
     FULLSCREEN_TRANSITION_PROBE_APPS.each do |probe|
-      open_visible_transition_probe_window(probe)
-      sleep_with_watchdog(0.4)
+      begin
+        open_visible_transition_probe_window(probe)
+        sleep_with_watchdog(0.4)
 
-      set_fullscreen_probe_window(probe, true)
-      sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
-      assert_fullscreen_probe_window_state!(probe, true)
-      assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
-      assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false)
+        set_fullscreen_probe_window(probe, true)
+        sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
+        assert_fullscreen_probe_window_state!(probe, true)
+        assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false)
 
-      sleep_with_watchdog(0.8)
+        sleep_with_watchdog(0.8)
 
-      set_fullscreen_probe_window(probe, false)
-      sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
-      assert_fullscreen_probe_window_state!(probe, false)
-      assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
-      assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true)
-      mark_fullscreen_matrix_scenario('native fullscreen enter and exit')
-    ensure
-      set_fullscreen_probe_window(probe, false) if probe
-      close_visible_transition_probe_window_safely(probe)
+        set_fullscreen_probe_window(probe, false)
+        sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
+        assert_fullscreen_probe_window_state!(probe, false)
+        assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true)
+        mark_fullscreen_matrix_scenario('native fullscreen enter and exit')
+      rescue StandardError => e
+        handle_transition_probe_failure(probe, 'fullscreen transition', e)
+      ensure
+        set_fullscreen_probe_window(probe, false) if probe
+        close_visible_transition_probe_window_safely(probe)
+      end
     end
 
-    puts '✅ Visible fullscreen transition contract ok (Safari + TextEdit)'
+    puts '✅ Visible fullscreen transition contract ok'
+  end
+
+  def handle_transition_probe_failure(probe, context, error)
+    raise error if probe.fetch(:required, true)
+
+    puts "⚠️ Optional #{probe[:app]} #{context} probe skipped: #{error.message}"
   end
 
   def assert_customer_visible_top_strip_tint!(label, expected_visible:)

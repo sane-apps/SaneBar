@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class LiveZoneSmoke
+  TRANSITION_PROBE_APPLESCRIPT_TIMEOUT_SECONDS = 20
+
   private
 
   def resolve_peekaboo_capture_tool
@@ -219,15 +221,20 @@ class LiveZoneSmoke
   end
 
   def open_full_width_transition_probe_window
+    probe_html = File.join(Dir.tmpdir, 'sanebar-fullscreen-probe.html')
+    File.write(
+      probe_html,
+      '<!doctype html><title>SaneBar Full Width Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar full-width transition probe</body>'
+    )
     script = <<~APPLESCRIPT
       tell application "Finder" to set screenBounds to bounds of window of desktop
-      tell application "TextEdit"
+      tell application "Safari"
         activate
-        make new document with properties {text:"SaneBar appearance transition probe"}
+        make new document with properties {URL:"file://#{probe_html}"}
         set bounds of front window to screenBounds
       end tell
     APPLESCRIPT
-    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: TRANSITION_PROBE_APPLESCRIPT_TIMEOUT_SECONDS)
     raise "Could not open appearance transition probe window: #{out.strip}" unless code.success?
   end
 
