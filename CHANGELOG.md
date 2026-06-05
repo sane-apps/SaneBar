@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.64] - 2026-06-05
+
+Fixes menu bar recovery after wake and display changes; prevents stale geometry from moving visible or always-hidden items when live anchors are missing; keeps hide-all-other boundaries consistent.
+
+---
+
 ## [2.1.63] - 2026-06-01
 
 Fixes dynamic menu bar item arrangement after wake, display changes, and Spotlight/helper recovery. Improves recovery replay and auto-hide reliability after wake.
