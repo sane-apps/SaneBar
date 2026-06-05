@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                <item>
+                                                                                                                                                                                                                                                                                        <item>
+            <title>2.1.64</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Fri, 05 Jun 2026 04:51:46 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes menu bar recovery after wake and display changes; prevents stale geometry from moving visible or always-hidden items when live anchors are missing; keeps hide-all-other boundaries consistent.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.64.zip"
+                       sparkle:version="2164"
+                       sparkle:shortVersionString="2.1.64"
+                       length="9088785"
+                       type="application/octet-stream"
+                       sparkle:edSignature="RDqONfUkjNS3MGThrrQNX0gkU0SQ70E8XT8UXj0VlA1Srjo2a1oGa1oEXJuH9RLd7pPjFeLVZBRec4Bak4uvAw=="/>
+        </item>
+<item>
             <title>2.1.63</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 01 Jun 2026 04:15:44 -0400</pubDate>
