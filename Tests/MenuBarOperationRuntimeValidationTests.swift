@@ -373,4 +373,40 @@ struct MenuBarOperationRuntimeValidationTests {
             ) == .bumpAutosaveVersion(.invalidStatusItems)
         )
     }
+
+    @Test("Position validation stops instead of resetting autosave state for likely macOS suppression")
+    func positionValidationStopsForLikelySystemSuppressedStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: false,
+            likelySystemSuppressedStatusItems: true,
+            separatorX: nil,
+            mainX: nil
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .stop(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .stop(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .manualLayoutRestoreRequest,
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .stop(.invalidStatusItems)
+        )
+    }
 }

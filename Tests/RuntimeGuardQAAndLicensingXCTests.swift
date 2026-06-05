@@ -473,9 +473,9 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             alwaysHiddenManagerSource.contains(
-                "manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()"
+                "manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()"
             ),
-            "Pin reconciliation should prefer AH boundary (right edge) so auto-pin/unpin decisions match zone classification"
+            "Pin reconciliation should require a live AH boundary (right edge) so auto-pin/unpin decisions cannot use stale geometry"
         )
         XCTAssertTrue(
             alwaysHiddenManagerSource.contains("StatusBarController.recoverStartupPositions(") &&

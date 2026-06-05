@@ -145,6 +145,34 @@ struct MenuBarOperationStartupRecoveryTests {
         )
     }
 
+    @Test("Startup does not reset autosave state when macOS appears to suppress visible status items")
+    func startupHoldsForLikelySystemSuppressedStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            startupItemsValid: false,
+            likelySystemSuppressedStatusItems: true,
+            separatorX: nil,
+            mainX: nil
+        )
+
+        let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
+            snapshot: snapshot,
+            context: .startupInitial(.init(
+                hasCompletedOnboarding: true,
+                autoRehideEnabled: true,
+                shouldSkipHideForExternalMonitor: false,
+                hasConnectedExternalMonitorWithAlwaysShow: false
+            )),
+            recoveryCount: 0,
+            maxRecoveryCount: 2
+        )
+
+        guard case .keepExpanded(.waitingForLiveCoordinates) = action else {
+            Issue.record("Expected startup to wait instead of resetting autosave state for likely macOS suppression")
+            return
+        }
+    }
+
     @Test("Startup repairs immediately when a required status item is invisible")
     func startupRepairsInvisibleStatusItems() {
         let snapshot = MenuBarRuntimeSnapshot(

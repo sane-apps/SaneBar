@@ -77,7 +77,7 @@ final class MenuBarMoveTargetResolver {
                         hasLiveSeparatorAnchor: liveSeparatorReady
                     )
 
-                    if liveSeparatorReady || canUseCachedVisibleTarget || attempt == maxAttempts {
+                    if liveSeparatorReady || canUseCachedVisibleTarget {
                         if attempt > 1 {
                             logger.info("Resolved separator target after \(attempt * 50)ms")
                         }
@@ -105,6 +105,10 @@ final class MenuBarMoveTargetResolver {
             regularHiddenMoveRequiresAlwaysHiddenBoundary()
         if requiresHiddenLaneBoundary, (lastTargets.visibleBoundaryX ?? 0) <= 0 {
             logger.error("Regular hidden move target resolution failed without separator or always-hidden boundary")
+            return (nil, nil)
+        }
+        if !toHidden, manager.geometryResolver.currentLiveSeparatorFrame() == nil {
+            logger.error("Visible move target resolution failed without live separator geometry")
             return (nil, nil)
         }
         return lastTargets

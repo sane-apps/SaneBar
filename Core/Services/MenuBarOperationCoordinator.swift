@@ -239,6 +239,9 @@ enum MenuBarOperationCoordinator {
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
                 switch recoveryReason {
                 case .invalidStatusItems where inputs.hasCompletedOnboarding:
+                    if snapshot.likelySystemSuppressedStatusItems {
+                        return .keepExpanded(.waitingForLiveCoordinates)
+                    }
                     if snapshot.structuralState == .unattachedWindows,
                        snapshot.separatorX != nil || snapshot.mainX != nil {
                         return .keepExpanded(.waitingForLiveCoordinates)
@@ -268,6 +271,11 @@ enum MenuBarOperationCoordinator {
         case let .positionValidation(validationContext):
             guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
                 return .captureCurrentDisplayBackup
+            }
+
+            if recoveryReason == .invalidStatusItems,
+               snapshot.likelySystemSuppressedStatusItems {
+                return .stop(recoveryReason)
             }
 
             if shouldWaitForLiveSeparatorAnchor(
@@ -350,6 +358,10 @@ enum MenuBarOperationCoordinator {
 
         case .manualLayoutRestoreRequest:
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
+                if recoveryReason == .invalidStatusItems,
+                   snapshot.likelySystemSuppressedStatusItems {
+                    return .stop(recoveryReason)
+                }
                 return .repairPersistedLayoutAndRecreate(recoveryReason)
             }
             return .recreateFromPersistedLayout(nil)

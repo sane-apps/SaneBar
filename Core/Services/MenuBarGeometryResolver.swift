@@ -93,6 +93,26 @@ final class MenuBarGeometryResolver {
         return frame
     }
 
+    func currentLiveAlwaysHiddenSeparatorBoundaryX() -> CGFloat? {
+        guard let alwaysHiddenFrame = currentLiveAlwaysHiddenSeparatorFrame(),
+              let separatorFrame = currentLiveSeparatorFrame()
+        else {
+            return nil
+        }
+
+        let separatorBoundaryX = separatorFrame.origin.x + separatorFrame.width
+        let normalized = MenuBarMoveGeometryPolicy.normalizedAlwaysHiddenBoundary(
+            cachedRightEdge: alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width,
+            cachedOrigin: alwaysHiddenFrame.origin.x,
+            separatorX: separatorBoundaryX
+        )
+        if let normalized {
+            cache.lastKnownAlwaysHiddenSeparatorX = alwaysHiddenFrame.origin.x
+            cache.lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+        }
+        return normalized
+    }
+
     func currentSeparatorAnchorSource() -> MenuBarAnchorSource {
         guard let separatorItem = manager.separatorItem else {
             if cache.lastKnownSeparatorX != nil { return .cached }
@@ -347,7 +367,6 @@ final class MenuBarGeometryResolver {
             }
 
             if let estimated = estimatedMainStatusItemLeftEdgeFromSeparator() {
-                cache.lastKnownMainStatusItemX = estimated
                 logger.warning("getMainStatusItemLeftEdgeX: mainStatusItem or window is nil, using separator fallback \(estimated)")
                 return estimated
             }
@@ -372,7 +391,6 @@ final class MenuBarGeometryResolver {
         }
 
         if let estimated = estimatedMainStatusItemLeftEdgeFromSeparator() {
-            cache.lastKnownMainStatusItemX = estimated
             if !cache.hasLoggedStaleMainStatusItemFallback {
                 logger.warning("getMainStatusItemLeftEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using separator fallback \(estimated)")
                 cache.hasLoggedStaleMainStatusItemFallback = true

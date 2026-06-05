@@ -22,7 +22,7 @@ launches:
     url: "https://www.producthunt.com/posts/sanebar"
     date: "2026-01-24"
     status: "live"
-    notes: "Received PH badge. Peak sales day was Jan 25 (42 orders)."
+    notes: "Received PH badge. Peak sales day was Jan 25 (42 orders). 2026-06-03 API check: post is live but unfeatured (`featuredAt: null`) with 3 votes, 1 comment, daily rank 121, weekly rank 362, monthly rank 2756, 6 images, 1 YouTube video, and maker reply present."
 
   - platform: "LaunchIgniter"
     url: "https://launchigniter.com/product/sanebar"

@@ -377,17 +377,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         await manager.hidingService.showAll()
         try? await Task.sleep(for: .milliseconds(300))
 
-        guard let alwaysHiddenSeparatorOriginX = manager.geometryResolver.alwaysHiddenSeparatorOriginX() else {
-            logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): separator position unavailable")
-            await manager.hidingService.restoreFromShowAll()
-            if wasHidden { await manager.hidingService.hide() }
-            return false
-        }
-        let alwaysHiddenBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? alwaysHiddenSeparatorOriginX
-
-        if let mainSeparatorX = manager.geometryResolver.separatorOriginX(), alwaysHiddenSeparatorOriginX >= mainSeparatorX {
-            logger.error("Always-hidden separator (\(alwaysHiddenSeparatorOriginX)) is not left of main separator (\(mainSeparatorX)) - skipping enforcement")
-            repairSeparatorPositionIfNeeded(reason: "pinEnforcement")
+        guard let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() else {
+            logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): live separator boundary unavailable")
             await manager.hidingService.restoreFromShowAll()
             if wasHidden { await manager.hidingService.hide() }
             return false
@@ -430,7 +421,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             let uniqueId = item.app.uniqueId
             guard seenUniqueIds.insert(uniqueId).inserted else { continue }
 
-            let currentAHBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? alwaysHiddenBoundaryX
+            let currentAHBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() ?? alwaysHiddenBoundaryX
             let alreadyAlwaysHidden = isInZone(
                 itemX: item.x,
                 itemWidth: item.app.width,
@@ -485,8 +476,13 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         try? await Task.sleep(for: .milliseconds(400))
 
-        guard let ahSeparatorX = (manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()) else {
-            logger.debug("reconcilePins: AH separator not found - skipping")
+        guard manager.shouldRunVisibilityIntentEnforcement(reason: "reconcilePins") else {
+            logger.debug("reconcilePins: skipped until status-item anchors are healthy")
+            return
+        }
+
+        guard let ahSeparatorX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() else {
+            logger.debug("reconcilePins: live AH separator boundary not found - skipping")
             return
         }
 

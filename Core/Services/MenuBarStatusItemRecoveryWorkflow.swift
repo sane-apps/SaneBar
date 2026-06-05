@@ -88,14 +88,50 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let alwaysHiddenSeparatorX = manager.geometryResolver.alwaysHiddenSeparatorOriginX()
         let startupItemsValid: Bool = {
             guard let mainItem, let separator else { return false }
-            return StatusBarController.validateStartupItems(
-                main: mainItem,
-                separator: separator
-            )
+            let mainWindow = mainItem.button?.window
+            let runtimeScreen = mainWindow?.screen ?? manager.currentRecoveryReferenceScreen()
+            let mainFrameIsLive: Bool = {
+                guard let frame = mainWindow?.frame else { return false }
+                return MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width)
+            }()
+            let mainRightGap: CGFloat? = {
+                guard mainFrameIsLive, let mainWindow else { return nil }
+                guard let rightEdge = runtimeScreen?.frame.maxX else { return nil }
+                return rightEdge - mainWindow.frame.origin.x
+            }()
+            let mainWindowValid = StatusBarController.validateItemPosition(mainItem)
+            let separatorWindowValid = StatusBarController.validateItemPosition(separator)
+            let hiddenCollapsedSeparatorHealthy = StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: manager.hidingService.state,
+                mainWindowValid: mainWindowValid,
+                separatorVisible: separator.isVisible,
+                separatorX: manager.geometryResolver.separatorOriginX(allowEstimatedFallback: false),
+                mainX: manager.geometryResolver.mainStatusItemLeftEdgeX(),
+                mainRightGap: mainRightGap,
+                screenWidth: runtimeScreen?.frame.width,
+                notchRightSafeMinX: runtimeScreen?.auxiliaryTopRightArea?.minX
+            ))
+            return mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)
         }()
         let mainItemVisible = mainItem?.isVisible
         let separatorItemVisible = separator?.isVisible
         let alwaysHiddenSeparatorVisible = manager.alwaysHiddenSeparatorItem?.isVisible
+        let likelySystemSuppressedStatusItems: Bool = {
+            guard !startupItemsValid else { return false }
+            let mainWindow = mainItem?.button?.window
+            let separatorWindow = separator?.button?.window
+            let mainScreenFrame = mainWindow?.screen?.frame ?? manager.currentRecoveryReferenceScreen()?.frame
+            let separatorScreenFrame = separatorWindow?.screen?.frame ?? mainScreenFrame
+            return StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+                isVisibleFlag: mainItemVisible,
+                windowFrame: mainWindow?.frame,
+                screenFrame: mainScreenFrame
+            ) || StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+                isVisibleFlag: separatorItemVisible,
+                windowFrame: separatorWindow?.frame,
+                screenFrame: separatorScreenFrame
+            )
+        }()
         let separatorX = manager.geometryResolver.separatorOriginX(allowEstimatedFallback: false)
         let separatorAnchorSource = manager.geometryResolver.currentSeparatorAnchorSource()
         let mainX = manager.geometryResolver.mainStatusItemLeftEdgeX()
@@ -139,6 +175,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             mainAnchorSource: mainAnchorSource,
             startupItemsValid: startupItemsValid,
             hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
+            likelySystemSuppressedStatusItems: likelySystemSuppressedStatusItems,
             separatorX: separatorX,
             alwaysHiddenSeparatorX: alwaysHiddenSeparatorX,
             mainX: mainX,
@@ -173,6 +210,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             mainItemVisible: mainItemVisible,
             separatorItemVisible: separatorItemVisible,
             alwaysHiddenSeparatorVisible: alwaysHiddenSeparatorVisible,
+            likelySystemSuppressedStatusItems: likelySystemSuppressedStatusItems,
             separatorX: separatorX,
             alwaysHiddenSeparatorX: alwaysHiddenSeparatorX,
             mainX: mainX,
@@ -366,6 +404,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             manager.isExecutingStatusItemRecovery = true
             manager.positionValidationGeneration += 1
             defer { manager.isExecutingStatusItemRecovery = false }
+            manager.clearCachedSeparatorGeometry()
             let (newMain, newSep) = manager.statusBarController.recreateItemsWithBumpedVersion(
                 referenceScreen: manager.currentRecoveryReferenceScreen(),
                 allowCurrentDisplayBackup: false
