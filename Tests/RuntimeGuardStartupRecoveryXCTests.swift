@@ -168,6 +168,12 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             "Status-item recovery should hard-reset poisoned startup geometry into a fresh autosave namespace while keeping non-startup geometry recovery on the lighter path"
         )
         XCTAssertTrue(
+            recoverySource.contains("case .bumpAutosaveVersion:") &&
+                recoverySource.contains("manager.clearCachedSeparatorGeometry()") &&
+                recoverySource.contains("recreateItemsWithBumpedVersion("),
+            "Autosave-version recovery should clear old geometry caches before recreating status items"
+        )
+        XCTAssertTrue(
             screenResolverSource.contains("lastKnownStatusItemDisplayID") &&
                 screenResolverSource.contains("private static func displayID(_ screen: NSScreen?)") &&
                 screenResolverSource.contains("let cachedScreen = NSScreen.screens.first(where: { Self.displayID($0) == lastKnownStatusItemDisplayID })"),

@@ -145,6 +145,58 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
+    @Test("Hidden collapsed separator can remain structurally healthy while offscreen")
+    func hiddenCollapsedSeparatorStructuralHealth() {
+        #expect(
+            StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .hidden,
+                mainWindowValid: true,
+                separatorVisible: true,
+                separatorX: 1640,
+                mainX: 1660,
+                mainRightGap: 260,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil
+            ))
+        )
+        #expect(
+            !StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .expanded,
+                mainWindowValid: true,
+                separatorVisible: true,
+                separatorX: 1640,
+                mainX: 1660,
+                mainRightGap: 260,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil
+            ))
+        )
+        #expect(
+            !StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .hidden,
+                mainWindowValid: false,
+                separatorVisible: true,
+                separatorX: 1640,
+                mainX: 1660,
+                mainRightGap: 260,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil
+            ))
+        )
+        #expect(
+            !StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .hidden,
+                mainWindowValid: true,
+                separatorVisible: true,
+                separatorX: 1660,
+                mainX: 1640,
+                mainRightGap: 260,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil
+            ))
+        )
+    }
+
     @Test("Hidden lifecycle preserves trustworthy cached separator geometry")
     func hiddenLifecyclePreservesTrustworthyCachedSeparatorGeometry() {
         #expect(
@@ -361,7 +413,7 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(snapshot.startupItemsValid == false)
     }
 
-    @Test("Bootstrap trust requires a real separator anchor")
+    @Test("Bootstrap trust requires non-estimated separator and main anchors")
     func bootstrapTrustRequiresNonEstimatedSeparatorAnchor() {
         let estimatedSeparatorSnapshot = MenuBarRuntimeSnapshot(
             structuralState: .ready,
@@ -373,9 +425,15 @@ struct MenuBarManagerRecoveryPolicyTests {
             separatorAnchorSource: .cached,
             mainAnchorSource: .estimated
         )
+        let cachedAnchorSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .cached
+        )
 
         #expect(!estimatedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
-        #expect(cachedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(!cachedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(cachedAnchorSnapshot.hasTrustworthyBootstrapAnchors)
     }
 
     @Test("Hidden near-control-center presentation is protected instead of stale")

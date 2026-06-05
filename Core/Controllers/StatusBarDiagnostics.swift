@@ -28,6 +28,17 @@ struct StatusItemSuppressionInput: Equatable, Sendable {
     let screenFrame: CGRect?
 }
 
+struct HiddenCollapsedSeparatorHealthInput: Equatable, Sendable {
+    let hidingState: HidingState
+    let mainWindowValid: Bool
+    let separatorVisible: Bool?
+    let separatorX: CGFloat?
+    let mainX: CGFloat?
+    let mainRightGap: CGFloat?
+    let screenWidth: CGFloat?
+    let notchRightSafeMinX: CGFloat?
+}
+
 enum StatusBarDiagnostics {
     nonisolated static let statusItemVisibilityOverridePrefixes = [
         "NSStatusItem Visible SaneBar_",
@@ -70,6 +81,20 @@ enum StatusBarDiagnostics {
             return "possible macOS menu bar suppression: check System Settings > Menu Bar > Allow in Menu Bar for SaneBar"
         }
         return "none"
+    }
+
+    nonisolated static func hiddenCollapsedSeparatorIsStructurallyHealthy(
+        _ input: HiddenCollapsedSeparatorHealthInput
+    ) -> Bool {
+        guard input.hidingState == .hidden else { return false }
+        guard input.mainWindowValid, input.separatorVisible == true else { return false }
+        guard let separatorX = input.separatorX, let mainX = input.mainX, separatorX < mainX else { return false }
+        return MenuBarVisibilityPolicy.isMainNearControlCenter(
+            mainX: mainX,
+            mainRightGap: input.mainRightGap,
+            screenWidth: input.screenWidth,
+            notchRightSafeMinX: input.notchRightSafeMinX
+        )
     }
 
     nonisolated static func missionControlSpacesSummary(spansDisplays: Bool?) -> String {

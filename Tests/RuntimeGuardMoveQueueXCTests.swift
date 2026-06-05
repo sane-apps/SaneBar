@@ -26,6 +26,20 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testSeparatorDerivedMainFallbackDoesNotBecomeTrustedMainCache() throws {
+        let resolverURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarGeometryResolver.swift")
+        let resolverSource = try String(contentsOf: resolverURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            resolverSource.contains("using separator fallback"),
+            "Main status-item fallback should still diagnose separator-derived estimates"
+        )
+        XCTAssertFalse(
+            resolverSource.contains("cache.lastKnownMainStatusItemX = estimated"),
+            "Separator-derived main estimates must not be promoted into trusted main cache"
+        )
+    }
+
     func testBrowseViewsWaitOnQueuedMoveTasksInsteadOfGuessingWithDelays() throws {
         let iconPanelURL = projectRootURL().appendingPathComponent("UI/SearchWindow/BrowsePanelMoveQueue.swift")
         let iconPanelSource = try String(contentsOf: iconPanelURL, encoding: .utf8)
@@ -207,6 +221,22 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             resolverSource.contains("Ignoring AH boundary >= separator during hidden move target resolution"),
             "Hidden move target resolution should reject invalid AH boundaries that overlap the main separator"
+        )
+    }
+
+    func testVisibleMoveTargetResolutionFailsClosedWithoutLiveSeparatorGeometry() throws {
+        let resolverURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
+        let resolverSource = try String(contentsOf: resolverURL, encoding: .utf8)
+
+        XCTAssertFalse(
+            resolverSource.contains("liveSeparatorReady || canUseCachedVisibleTarget || attempt == maxAttempts"),
+            "Visible move target resolution must not accept stale cached geometry only because retries were exhausted"
+        )
+        XCTAssertTrue(
+            resolverSource.contains("if !toHidden, manager.geometryResolver.currentLiveSeparatorFrame() == nil") &&
+                resolverSource.contains("Visible move target resolution failed without live separator geometry") &&
+                resolverSource.contains("return (nil, nil)"),
+            "Visible move target resolution should fail closed when no live separator anchor appears"
         )
     }
 

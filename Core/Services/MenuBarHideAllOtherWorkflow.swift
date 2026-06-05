@@ -186,11 +186,11 @@ final class MenuBarHideAllOtherWorkflow {
         let visibleIds = Set(manager.settings.hideAllOtherVisibleItemIds)
         let wasHidden = manager.hidingService.state == .hidden
 
-        guard let separatorX = manager.geometryResolver.separatorOriginX() ?? manager.geometryResolver.separatorRightEdgeX() else {
+        guard let separatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() else {
             logger.warning("Hide-all-other enforcement (\(reason, privacy: .public)): separator position unavailable")
             return false
         }
-        let alwaysHiddenBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()
+        let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
         let baselineItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
         var initialZoneByUniqueId: [String: HideAllOtherZone] = [:]
         initialZoneByUniqueId.reserveCapacity(baselineItems.count)
@@ -283,8 +283,8 @@ final class MenuBarHideAllOtherWorkflow {
         try? await Task.sleep(for: .milliseconds(250))
         var finalMoveFailedUniqueIds = Set<String>()
         for pass in 1 ... 2 {
-            let verificationSeparatorX = manager.geometryResolver.separatorOriginX() ?? manager.geometryResolver.separatorRightEdgeX() ?? separatorX
-            let verificationAlwaysHiddenBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()
+            let verificationSeparatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() ?? separatorX
+            let verificationAlwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
             let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
             var movedAnyItem = false
 

@@ -157,8 +157,10 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "MenuBarManager should only create the default StatusBarController inside setupStatusItem"
         )
         XCTAssertTrue(
-            recoverySource.contains("StatusBarController.validateStartupItems("),
-            "Startup validation should require both the main icon and separator to attach to real status-item windows"
+                recoverySource.contains("StatusBarController.validateItemPosition(mainItem)") &&
+                recoverySource.contains("StatusBarController.validateItemPosition(separator)") &&
+                recoverySource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy"),
+            "Startup validation should require attached status-item windows except for the hidden collapsed separator state, where the main item must stay attached and ordered near Control Center"
         )
         XCTAssertFalse(
             source.contains("self.statusBarController = statusBarController ?? StatusBarController()"),
@@ -387,7 +389,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             source.contains("func enforce(reason: String, filterBundleId: String? = nil) async -> Bool") &&
-                source.contains("let alwaysHiddenBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ?? manager.geometryResolver.alwaysHiddenSeparatorOriginX()") &&
+                source.contains("let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
                 source.contains("var initialZoneByUniqueId: [String: HideAllOtherZone]") &&
                 source.contains("initialZoneByUniqueId[item.app.uniqueId] = Self.hideAllOtherZone(") &&
                 source.contains("guard Self.hideAllOtherMoveNeeded(initialZone: initialZone, shouldShow: shouldShow)") &&
@@ -406,6 +408,22 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("return false") &&
                 source.contains("return !Task.isCancelled"),
             "Hide-all-other replay must repair and report failed post-wake visible allow-list moves so visibility intent replay keeps retrying instead of silently accepting exposed or hidden icons"
+        )
+    }
+
+    func testHideAllOtherEnforcementUsesSameSeparatorBoundaryAsSearchClassification() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarHideAllOtherWorkflow.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX()"),
+            "Hide-all-other enforcement should use the same separator right-edge boundary as search/list classification"
+        )
+        XCTAssertFalse(
+            source.contains("manager.geometryResolver.separatorOriginX() ?? manager.geometryResolver.separatorRightEdgeX()"),
+            "Hide-all-other enforcement must not classify from separator origin first; that creates a disagreement band near the divider"
         )
     }
 

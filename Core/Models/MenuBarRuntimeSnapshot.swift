@@ -38,6 +38,15 @@ extension MenuBarAnchorSource {
             return false
         }
     }
+
+    var isTrustworthyMainAnchor: Bool {
+        switch self {
+        case .live, .cached:
+            return true
+        case .estimated, .missing:
+            return false
+        }
+    }
 }
 
 enum MenuBarBootstrapPhase: String, Sendable {
@@ -74,6 +83,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
     var mainItemVisible: Bool?
     var separatorItemVisible: Bool?
     var alwaysHiddenSeparatorVisible: Bool?
+    var likelySystemSuppressedStatusItems: Bool
     var separatorX: CGFloat?
     var alwaysHiddenSeparatorX: CGFloat?
     var mainX: CGFloat?
@@ -97,6 +107,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
         mainItemVisible: Bool? = nil,
         separatorItemVisible: Bool? = nil,
         alwaysHiddenSeparatorVisible: Bool? = nil,
+        likelySystemSuppressedStatusItems: Bool = false,
         separatorX: CGFloat? = nil,
         alwaysHiddenSeparatorX: CGFloat? = nil,
         mainX: CGFloat? = nil,
@@ -129,6 +140,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
         self.mainItemVisible = mainItemVisible
         self.separatorItemVisible = separatorItemVisible
         self.alwaysHiddenSeparatorVisible = alwaysHiddenSeparatorVisible
+        self.likelySystemSuppressedStatusItems = likelySystemSuppressedStatusItems
         self.separatorX = separatorX
         self.alwaysHiddenSeparatorX = alwaysHiddenSeparatorX
         self.mainX = mainX
@@ -140,6 +152,6 @@ struct MenuBarRuntimeSnapshot: Sendable {
     var hasTrustworthyBootstrapAnchors: Bool {
         guard structuralState == .ready else { return false }
         guard separatorAnchorSource.isTrustworthySeparatorAnchor else { return false }
-        return mainAnchorSource != .missing
+        return mainAnchorSource.isTrustworthyMainAnchor
     }
 }

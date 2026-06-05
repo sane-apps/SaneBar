@@ -57,18 +57,6 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             windowFrame: separatorWindow?.frame,
             screenFrame: separatorScreenFrame
         )
-        let suppressionHint = StatusBarDiagnostics.systemMenuBarSuppressionHint(
-            main: .init(
-                isVisibleFlag: manager.mainStatusItem?.isVisible,
-                windowFrame: mainWindow?.frame,
-                screenFrame: mainScreenFrame
-            ),
-            separator: .init(
-                isVisibleFlag: manager.separatorItem?.isVisible,
-                windowFrame: separatorWindow?.frame,
-                screenFrame: separatorScreenFrame
-            )
-        )
         let missionControlSpaces = StatusBarDiagnostics.missionControlSpacesDiagnostic()
         let knownOwnerRefresh = AccessibilityService.shared.knownOwnerRefreshDiagnosticsSnapshot()
         let rightGap = resolvedSnapshotMainRightGap(
@@ -94,6 +82,29 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             mainRightGap: rightGap,
             screenWidth: screenWidth,
             notchRightSafeMinX: notchRightSafeMinX
+        )
+        let hiddenCollapsedSeparatorHealthy = StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+            hidingState: manager.hidingService.state,
+            mainWindowValid: mainWindowValid,
+            separatorVisible: manager.separatorItem?.isVisible,
+            separatorX: separatorX,
+            mainX: mainX,
+            mainRightGap: rightGap,
+            screenWidth: screenWidth,
+            notchRightSafeMinX: notchRightSafeMinX
+        ))
+        let startupItemsValid = mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)
+        let suppressionHint = startupItemsValid ? "none" : StatusBarDiagnostics.systemMenuBarSuppressionHint(
+            main: .init(
+                isVisibleFlag: manager.mainStatusItem?.isVisible,
+                windowFrame: mainWindow?.frame,
+                screenFrame: mainScreenFrame
+            ),
+            separator: .init(
+                isVisibleFlag: manager.separatorItem?.isVisible,
+                windowFrame: separatorWindow?.frame,
+                screenFrame: separatorScreenFrame
+            )
         )
 
         var payload: [String: Any] = [
@@ -136,7 +147,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "separatorStatusItemVisibleFlag": manager.separatorItem?.isVisible ?? false,
             "mainStatusItemWindowValid": mainWindowValid,
             "separatorStatusItemWindowValid": separatorWindowValid,
-            "startupItemsValid": mainWindowValid && separatorWindowValid,
+            "startupItemsValid": startupItemsValid,
             "systemMenuBarSuppressionHint": suppressionHint,
             "possibleSystemMenuBarSuppression": suppressionHint != "none",
             "missionControlDisplaysHaveSeparateSpaces": missionControlSpaces.displaysHaveSeparateSpaces.map(String.init) ?? "unknown",
