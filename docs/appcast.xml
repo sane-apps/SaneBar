@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                                                <item>
+            <title>2.1.65</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Sat, 06 Jun 2026 01:05:44 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves reliability for Browse Icons moves out of Always Hidden and reduces background recovery cursor movement risk. Strengthens startup, wake, and exact-ID menu-bar verification.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.65.zip"
+                       sparkle:version="2165"
+                       sparkle:shortVersionString="2.1.65"
+                       length="9099613"
+                       type="application/octet-stream"
+                       sparkle:edSignature="69WvqoL9BBgpBsBH/nYSqbjkJCd1VfbrYfKjqHJ6E3BlGciF09i9K0W5GAhs9QFqOSvJRggcOKAyrGLXAOivDQ=="/>
+        </item>
+<item>
             <title>2.1.64</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Fri, 05 Jun 2026 04:51:46 -0400</pubDate>
