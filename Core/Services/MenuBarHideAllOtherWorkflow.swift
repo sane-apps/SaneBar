@@ -148,6 +148,7 @@ final class MenuBarHideAllOtherWorkflow {
                 }
                 manager.settings.hideAllOtherVisibleItemIds = refreshedIds
                 manager.settings.hideAllOtherMenuBarItems = true
+                manager.saveSettings()
             }
         }
     }
@@ -162,12 +163,25 @@ final class MenuBarHideAllOtherWorkflow {
         manager.hideAllOtherRuleEnforcementTask = Task { [weak manager] in
             guard let manager else { return }
             try? await Task.sleep(for: delay)
-            _ = await manager.hideAllOtherWorkflow.enforce(reason: reason, filterBundleId: filterBundleId)
+            _ = await manager.hideAllOtherWorkflow.enforce(
+                reason: reason,
+                filterBundleId: filterBundleId,
+                mode: .auditOnly
+            )
         }
     }
 
     @discardableResult
-    func enforce(reason: String, filterBundleId: String? = nil) async -> Bool {
+    func enforce(
+        reason: String,
+        filterBundleId: String? = nil,
+        mode: MenuBarVisibilityIntentMode = .auditOnly,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil
+    ) async -> Bool {
+        if mode == .repairWithPhysicalMoves, physicalMoveOrigin == nil {
+            logger.error("Physical menu bar moves rejected without an explicit user/automation origin")
+            return false
+        }
         if let activeMoveTask = manager.activeMoveTask, !activeMoveTask.isCancelled {
             logger.debug("Hide-all-other enforcement skipped while icon move is in progress (\(reason, privacy: .public))")
             return false
@@ -184,13 +198,25 @@ final class MenuBarHideAllOtherWorkflow {
         }
 
         let visibleIds = Set(manager.settings.hideAllOtherVisibleItemIds)
-        let wasHidden = manager.hidingService.state == .hidden
 
         guard let separatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() else {
             logger.warning("Hide-all-other enforcement (\(reason, privacy: .public)): separator position unavailable")
             return false
         }
         let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
+
+        if mode == .auditOnly {
+            return await auditHideAllOtherWithoutPhysicalMoves(
+                visibleIds: visibleIds,
+                separatorX: separatorX,
+                alwaysHiddenBoundaryX: alwaysHiddenBoundaryX,
+                filterBundleId: filterBundleId,
+                reason: reason
+            )
+        }
+        guard let repairOrigin = physicalMoveOrigin else { return false }
+
+        let wasHidden = manager.hidingService.state == .hidden
         let baselineItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
         var initialZoneByUniqueId: [String: HideAllOtherZone] = [:]
         initialZoneByUniqueId.reserveCapacity(baselineItems.count)
@@ -250,7 +276,8 @@ final class MenuBarHideAllOtherWorkflow {
                         menuExtraId: app.menuExtraIdentifier,
                         statusItemIndex: app.statusItemIndex,
                         preferredCenterX: app.preferredCenterX,
-                        toAlwaysHidden: false
+                        toAlwaysHidden: false,
+                        physicalMoveOrigin: repairOrigin
                     )
                 } else {
                     moveSucceeded = await manager.moveQueueWorkflow.moveIconAndWait(
@@ -258,7 +285,8 @@ final class MenuBarHideAllOtherWorkflow {
                         menuExtraId: app.menuExtraIdentifier,
                         statusItemIndex: app.statusItemIndex,
                         preferredCenterX: app.preferredCenterX,
-                        toHidden: !shouldShow
+                        toHidden: !shouldShow,
+                        physicalMoveOrigin: repairOrigin
                     )
                 }
                 if moveSucceeded {
@@ -319,7 +347,8 @@ final class MenuBarHideAllOtherWorkflow {
                         menuExtraId: app.menuExtraIdentifier,
                         statusItemIndex: app.statusItemIndex,
                         preferredCenterX: app.preferredCenterX,
-                        toAlwaysHidden: false
+                        toAlwaysHidden: false,
+                        physicalMoveOrigin: repairOrigin
                     )
                 } else {
                     moveSucceeded = await manager.moveQueueWorkflow.moveIconAndWait(
@@ -327,7 +356,8 @@ final class MenuBarHideAllOtherWorkflow {
                         menuExtraId: app.menuExtraIdentifier,
                         statusItemIndex: app.statusItemIndex,
                         preferredCenterX: app.preferredCenterX,
-                        toHidden: !shouldShow
+                        toHidden: !shouldShow,
+                        physicalMoveOrigin: repairOrigin
                     )
                 }
                 if moveSucceeded {
@@ -352,5 +382,53 @@ final class MenuBarHideAllOtherWorkflow {
             return false
         }
         return !Task.isCancelled
+    }
+
+    private func auditHideAllOtherWithoutPhysicalMoves(
+        visibleIds: Set<String>,
+        separatorX: CGFloat,
+        alwaysHiddenBoundaryX: CGFloat?,
+        filterBundleId: String?,
+        reason: String
+    ) async -> Bool {
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        var driftedItemCount = 0
+
+        for item in items {
+            let app = item.app
+            if let filterBundleId, app.bundleId != filterBundleId { continue }
+            guard !Self.shouldSkipItem(
+                bundleID: app.bundleId,
+                menuExtraId: app.menuExtraIdentifier,
+                name: app.name
+            ) else {
+                continue
+            }
+
+            let currentZone = Self.hideAllOtherZone(
+                itemX: item.x,
+                itemWidth: app.width,
+                separatorX: separatorX,
+                alwaysHiddenBoundaryX: alwaysHiddenBoundaryX
+            )
+            if Self.hideAllOtherFinalMoveNeeded(
+                currentZone: currentZone,
+                shouldShow: Self.shouldShowItem(app: app, visibleIds: visibleIds)
+            ) {
+                driftedItemCount += 1
+            }
+        }
+
+        if driftedItemCount > 0 {
+            logger.warning(
+                "Hide-all-other audit found \(driftedItemCount, privacy: .public) item(s) outside the allow-list intent without moving the cursor (\(reason, privacy: .public))"
+            )
+            return false
+        }
+
+        logger.info(
+            "Hide-all-other enforcement audited without physical moves (\(reason, privacy: .public)); explicit user or automation move required for cursor-moving repair"
+        )
+        return true
     }
 }

@@ -181,7 +181,8 @@ enum BartenderImportService {
                 bundleID: resolved.bundleId,
                 menuExtraId: resolved.menuExtraId,
                 statusItemIndex: resolved.statusItemIndex,
-                toHidden: true
+                toHidden: true,
+                physicalMoveOrigin: .explicitUserAction
             )
             if didMove {
                 summary.movedHidden += 1
@@ -200,7 +201,8 @@ enum BartenderImportService {
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
-                    toHidden: true
+                    toHidden: true,
+                    physicalMoveOrigin: .explicitUserAction
                 )
                 if didMove {
                     summary.movedHidden += 1
@@ -218,7 +220,8 @@ enum BartenderImportService {
                    await moveItemFromWindowFrame(
                        frame: frame,
                        menuBarManager: menuBarManager,
-                       toHidden: true
+                       toHidden: true,
+                       physicalMoveOrigin: .explicitUserAction
                    ) {
                     summary.movedHidden += 1
                     summary.movedViaWindowFallback += 1
@@ -238,7 +241,8 @@ enum BartenderImportService {
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
-                    toAlwaysHidden: true
+                    toAlwaysHidden: true,
+                    physicalMoveOrigin: .explicitUserAction
                 )
                 if didMove {
                     summary.movedAlwaysHidden += 1
@@ -258,7 +262,8 @@ enum BartenderImportService {
                     bundleID: resolved.bundleId,
                     menuExtraId: resolved.menuExtraId,
                     statusItemIndex: resolved.statusItemIndex,
-                    toHidden: false
+                    toHidden: false,
+                    physicalMoveOrigin: .explicitUserAction
                 )
                 if didMove {
                     summary.movedVisible += 1
@@ -274,7 +279,8 @@ enum BartenderImportService {
                    await moveItemFromWindowFrame(
                        frame: frame,
                        menuBarManager: menuBarManager,
-                       toHidden: false
+                       toHidden: false,
+                       physicalMoveOrigin: .explicitUserAction
                    ) {
                     summary.movedVisible += 1
                     summary.movedViaWindowFallback += 1
@@ -296,7 +302,8 @@ enum BartenderImportService {
     private static func moveItemFromWindowFrame(
         frame: CGRect,
         menuBarManager: MenuBarManager,
-        toHidden: Bool
+        toHidden: Bool,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) async -> Bool {
         guard AccessibilityService.shared.isTrusted else { return false }
 
@@ -332,6 +339,7 @@ enum BartenderImportService {
             separatorX: separatorX,
             visibleBoundaryX: visibleBoundaryX,
             originalMouseLocation: originalCGPoint,
+            physicalMoveOrigin: physicalMoveOrigin,
             referenceScreenFrame: referenceScreenFrame
         )
 
@@ -343,6 +351,7 @@ enum BartenderImportService {
                 separatorX: separatorX,
                 visibleBoundaryX: visibleBoundaryX,
                 originalMouseLocation: originalCGPoint,
+                physicalMoveOrigin: physicalMoveOrigin,
                 referenceScreenFrame: referenceScreenFrame
             )
         }

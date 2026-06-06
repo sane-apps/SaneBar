@@ -125,6 +125,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         guard inserted else { return }
 
         manager.settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+        manager.saveSettings()
         AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
@@ -154,6 +155,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         guard inserted else { return false }
 
         manager.settings.alwaysHiddenPinnedItemIds = Array(newIds).sorted()
+        manager.saveSettings()
         AccessibilityService.shared.invalidateMenuBarItemCache()
         return true
     }
@@ -165,6 +167,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         let newIds = manager.settings.alwaysHiddenPinnedItemIds.filter { $0 != id }
         guard newIds.count != manager.settings.alwaysHiddenPinnedItemIds.count else { return }
         manager.settings.alwaysHiddenPinnedItemIds = newIds
+        manager.saveSettings()
         AccessibilityService.shared.invalidateMenuBarItemCache()
     }
 
@@ -206,6 +209,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         guard filtered.count != pinCountBefore else { return false }
         manager.settings.alwaysHiddenPinnedItemIds = filtered
+        manager.saveSettings()
         AccessibilityService.shared.invalidateMenuBarItemCache()
         return true
     }
@@ -282,7 +286,11 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         manager.alwaysHiddenPinEnforcementTask = Task { @MainActor [weak manager] in
             guard let manager else { return }
             try? await Task.sleep(for: delay)
-            _ = await manager.alwaysHiddenPinWorkflow.enforce(reason: reason, filterBundleId: filterBundleId)
+            _ = await manager.alwaysHiddenPinWorkflow.enforce(
+                reason: reason,
+                filterBundleId: filterBundleId,
+                mode: .auditOnly
+            )
         }
     }
 
@@ -319,7 +327,16 @@ final class MenuBarAlwaysHiddenPinWorkflow {
     }
 
     @discardableResult
-    func enforce(reason: String, filterBundleId: String? = nil) async -> Bool {
+    func enforce(
+        reason: String,
+        filterBundleId: String? = nil,
+        mode: MenuBarVisibilityIntentMode = .auditOnly,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil
+    ) async -> Bool {
+        if mode == .repairWithPhysicalMoves, physicalMoveOrigin == nil {
+            logger.error("Physical menu bar moves rejected without an explicit user/automation origin")
+            return false
+        }
         if let activeMoveTask = manager.activeMoveTask, !activeMoveTask.isCancelled {
             logger.debug("Always-hidden pin enforcement skipped while icon move is in progress (\(reason, privacy: .public))")
             return false
@@ -351,9 +368,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             let validRaws = rawPins.filter { parse($0) != nil }
             logger.info("Removing \(rawPins.count - validRaws.count) unparseable pin IDs")
             manager.settings.alwaysHiddenPinnedItemIds = validRaws
+            manager.saveSettings()
         }
-
-        guard !pins.isEmpty else { return true }
 
         let hideAllOtherVisibleIds = manager.settings.hideAllOtherMenuBarItems
             ? Set(manager.settings.hideAllOtherVisibleItemIds)
@@ -371,6 +387,14 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             }
 
         guard !filteredPins.isEmpty else { return true }
+
+        if mode == .auditOnly {
+            return await auditPinnedItemsWithoutPhysicalMoves(
+                filteredPins,
+                reason: reason
+            )
+        }
+        guard let repairOrigin = physicalMoveOrigin else { return false }
 
         let wasHidden = manager.hidingService.state == .hidden
 
@@ -437,7 +461,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
                 statusItemIndex: item.app.statusItemIndex,
                 toHidden: true,
                 separatorOverrideX: currentAHBoundaryX,
-                clearAlwaysHiddenPinAfterMove: false
+                clearAlwaysHiddenPinAfterMove: false,
+                physicalMoveOrigin: repairOrigin
             )
             if !moveSucceeded {
                 failedMoveUniqueIds.insert(uniqueId)
@@ -458,6 +483,50 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             return false
         }
         return !Task.isCancelled
+    }
+
+    private func auditPinnedItemsWithoutPhysicalMoves(
+        _ filteredPins: [SaneBarAlwaysHiddenPin],
+        reason: String
+    ) async -> Bool {
+        guard let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() else {
+            logger.warning("Always-hidden pin audit (\(reason, privacy: .public)): live separator boundary unavailable")
+            return false
+        }
+
+        let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        var itemsByUniqueId: [String: AccessibilityService.MenuBarItemPosition] = [:]
+        itemsByUniqueId.reserveCapacity(items.count)
+        for item in items {
+            itemsByUniqueId[item.app.uniqueId] = item
+        }
+        let itemsByBundleId = Dictionary(grouping: items, by: { $0.app.bundleId })
+        var driftedPinnedItemCount = 0
+
+        for pin in filteredPins {
+            guard let item = findPinnedItem(pin: pin, itemsByUniqueId: itemsByUniqueId, itemsByBundleId: itemsByBundleId) else {
+                continue
+            }
+            if !isInZone(
+                itemX: item.x,
+                itemWidth: item.app.width,
+                alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
+            ) {
+                driftedPinnedItemCount += 1
+            }
+        }
+
+        if driftedPinnedItemCount > 0 {
+            logger.warning(
+                "Always-hidden pin audit found \(driftedPinnedItemCount, privacy: .public) pinned item(s) outside Always Hidden without moving the cursor (\(reason, privacy: .public))"
+            )
+            return false
+        }
+
+        logger.info(
+            "Always-hidden pin enforcement audited without physical moves (\(reason, privacy: .public)); explicit user or automation move required for cursor-moving repair"
+        )
+        return true
     }
 
     func reconcileAfterUserDrag() async {
@@ -521,6 +590,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         if changed {
             manager.settings.alwaysHiddenPinnedItemIds = Array(currentPins).sorted()
+            manager.saveSettings()
             let added = currentPins.subtracting(originalPins).count
             let removed = originalPins.subtracting(currentPins).count
             logger.info("reconcilePins: \(added) pinned, \(removed) unpinned")

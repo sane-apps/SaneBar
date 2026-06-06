@@ -640,7 +640,7 @@ final class MenuBarManager: NSObject, ObservableObject {
 
                 var shouldRetryVisibilityReplay = false
                 if shouldReplayAlwaysHidden {
-                    let alwaysHiddenPinsEnforced = await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason)
+                    let alwaysHiddenPinsEnforced = await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason, mode: .auditOnly)
                     shouldRetryVisibilityReplay = !alwaysHiddenPinsEnforced || self.alwaysHiddenAnchorsNeedReplayRetry()
                     if shouldRetryVisibilityReplay {
                         logger.warning(
@@ -649,7 +649,7 @@ final class MenuBarManager: NSObject, ObservableObject {
                     }
                 }
                 if shouldReplayHideAllOther {
-                    let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(reason: replayReason)
+                    let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(reason: replayReason, mode: .auditOnly)
                     if !hideAllOtherEnforced {
                         logger.warning(
                             "Visibility intent replay waiting for hide-all-other completion (\(replayReason, privacy: .public))"

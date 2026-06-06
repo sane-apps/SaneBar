@@ -77,7 +77,8 @@ final class MenuBarMoveQueueWorkflow {
 
     func queueZoneMove(
         app: RunningApp,
-        request: MenuBarZoneMoveRequest
+        request: MenuBarZoneMoveRequest,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
@@ -91,7 +92,8 @@ final class MenuBarMoveQueueWorkflow {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: preferredCenterX,
-                toHidden: true
+                toHidden: true,
+                physicalMoveOrigin: physicalMoveOrigin
             )
         case .hiddenToVisible:
             return queueMoveIcon(
@@ -99,35 +101,40 @@ final class MenuBarMoveQueueWorkflow {
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: preferredCenterX,
-                toHidden: false
+                toHidden: false,
+                physicalMoveOrigin: physicalMoveOrigin
             )
         case .visibleToAlwaysHidden, .hiddenToAlwaysHidden:
             return queueMoveIconToAlwaysHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: preferredCenterX,
+                physicalMoveOrigin: physicalMoveOrigin
             )
         case .alwaysHiddenToVisible:
             return queueMoveIconFromAlwaysHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: preferredCenterX,
+                physicalMoveOrigin: physicalMoveOrigin
             )
         case .alwaysHiddenToHidden:
             return queueMoveIconFromAlwaysHiddenToHidden(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: preferredCenterX,
+                physicalMoveOrigin: physicalMoveOrigin
             )
         }
     }
 
     func queueZoneMoveAfterDrop(
         app: RunningApp,
-        request: MenuBarZoneMoveRequest
+        request: MenuBarZoneMoveRequest,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) async -> Task<Bool, Never>? {
         let bundleID = app.bundleId
         let menuExtraId = app.menuExtraIdentifier
@@ -136,7 +143,7 @@ final class MenuBarMoveQueueWorkflow {
 
         switch request {
         case .visibleToHidden, .hiddenToVisible, .alwaysHiddenToHidden:
-            return queueZoneMove(app: app, request: request)
+            return queueZoneMove(app: app, request: request, physicalMoveOrigin: physicalMoveOrigin)
         case .visibleToAlwaysHidden, .hiddenToAlwaysHidden:
             let identityPrecision: MenuBarIdentityPrecision = MenuBarMoveGeometryPolicy.hasPreciseMoveIdentity(
                 menuExtraId: menuExtraId,
@@ -155,7 +162,8 @@ final class MenuBarMoveQueueWorkflow {
                         bundleID: bundleID,
                         menuExtraId: menuExtraId,
                         statusItemIndex: statusItemIndex,
-                        preferredCenterX: preferredCenterX
+                        preferredCenterX: preferredCenterX,
+                        physicalMoveOrigin: physicalMoveOrigin
                     ),
                     toAlwaysHidden: true,
                     preflightAlreadyPassed: true
@@ -179,7 +187,8 @@ final class MenuBarMoveQueueWorkflow {
                         bundleID: bundleID,
                         menuExtraId: menuExtraId,
                         statusItemIndex: statusItemIndex,
-                        preferredCenterX: preferredCenterX
+                        preferredCenterX: preferredCenterX,
+                        physicalMoveOrigin: physicalMoveOrigin
                     ),
                     toAlwaysHidden: false,
                     preflightAlreadyPassed: true
@@ -195,7 +204,8 @@ final class MenuBarMoveQueueWorkflow {
         preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
         separatorOverrideX: CGFloat? = nil,
-        clearAlwaysHiddenPinAfterMove: Bool = true
+        clearAlwaysHiddenPinAfterMove: Bool = true,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         queuedMoveTaskIfStarted(
             manager.standardIconMoveWorkflow.moveIcon(
@@ -206,7 +216,8 @@ final class MenuBarMoveQueueWorkflow {
                     preferredCenterX: preferredCenterX,
                     toHidden: toHidden,
                     separatorOverrideX: separatorOverrideX,
-                    clearAlwaysHiddenPinAfterMove: clearAlwaysHiddenPinAfterMove
+                    clearAlwaysHiddenPinAfterMove: clearAlwaysHiddenPinAfterMove,
+                    physicalMoveOrigin: physicalMoveOrigin
                 )
             )
         )
@@ -216,7 +227,8 @@ final class MenuBarMoveQueueWorkflow {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
-        preferredCenterX: CGFloat? = nil
+        preferredCenterX: CGFloat? = nil,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         queuedMoveTaskIfStarted(
             manager.alwaysHiddenIconMoveWorkflow.moveAlwaysHidden(
@@ -224,7 +236,8 @@ final class MenuBarMoveQueueWorkflow {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX
+                    preferredCenterX: preferredCenterX,
+                    physicalMoveOrigin: physicalMoveOrigin
                 ),
                 toAlwaysHidden: true
             )
@@ -235,7 +248,8 @@ final class MenuBarMoveQueueWorkflow {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
-        preferredCenterX: CGFloat? = nil
+        preferredCenterX: CGFloat? = nil,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         queuedMoveTaskIfStarted(
             manager.alwaysHiddenIconMoveWorkflow.moveAlwaysHidden(
@@ -243,7 +257,8 @@ final class MenuBarMoveQueueWorkflow {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX
+                    preferredCenterX: preferredCenterX,
+                    physicalMoveOrigin: physicalMoveOrigin
                 ),
                 toAlwaysHidden: false
             )
@@ -254,7 +269,8 @@ final class MenuBarMoveQueueWorkflow {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
-        preferredCenterX: CGFloat? = nil
+        preferredCenterX: CGFloat? = nil,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         queuedMoveTaskIfStarted(
             manager.alwaysHiddenIconMoveWorkflow.moveAlwaysHiddenToHidden(
@@ -262,7 +278,8 @@ final class MenuBarMoveQueueWorkflow {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX
+                    preferredCenterX: preferredCenterX,
+                    physicalMoveOrigin: physicalMoveOrigin
                 )
             )
         )
@@ -275,7 +292,8 @@ final class MenuBarMoveQueueWorkflow {
         targetBundleID: String,
         targetMenuExtraID: String? = nil,
         targetStatusItemIndex: Int? = nil,
-        placeAfterTarget: Bool
+        placeAfterTarget: Bool,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) -> Task<Bool, Never>? {
         queuedMoveTaskIfStarted(
             manager.iconReorderWorkflow.reorderIcon(
@@ -286,7 +304,8 @@ final class MenuBarMoveQueueWorkflow {
                     targetBundleID: targetBundleID,
                     targetMenuExtraID: targetMenuExtraID,
                     targetStatusItemIndex: targetStatusItemIndex,
-                    placeAfterTarget: placeAfterTarget
+                    placeAfterTarget: placeAfterTarget,
+                    physicalMoveOrigin: physicalMoveOrigin
                 )
             )
         )
@@ -299,7 +318,8 @@ final class MenuBarMoveQueueWorkflow {
         preferredCenterX: CGFloat? = nil,
         toHidden: Bool,
         separatorOverrideX: CGFloat? = nil,
-        clearAlwaysHiddenPinAfterMove: Bool = true
+        clearAlwaysHiddenPinAfterMove: Bool = true,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) async -> Bool {
         await waitForActiveMoveTaskIfNeeded()
 
@@ -310,7 +330,8 @@ final class MenuBarMoveQueueWorkflow {
             preferredCenterX: preferredCenterX,
             toHidden: toHidden,
             separatorOverrideX: separatorOverrideX,
-            clearAlwaysHiddenPinAfterMove: clearAlwaysHiddenPinAfterMove
+            clearAlwaysHiddenPinAfterMove: clearAlwaysHiddenPinAfterMove,
+            physicalMoveOrigin: physicalMoveOrigin
         ) else { return false }
         return await task.value
     }
@@ -320,7 +341,8 @@ final class MenuBarMoveQueueWorkflow {
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
         preferredCenterX: CGFloat? = nil,
-        toAlwaysHidden: Bool
+        toAlwaysHidden: Bool,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) async -> Bool {
         await waitForActiveMoveTaskIfNeeded()
 
@@ -330,7 +352,8 @@ final class MenuBarMoveQueueWorkflow {
                     bundleID: bundleID,
                     menuExtraId: menuExtraId,
                     statusItemIndex: statusItemIndex,
-                    preferredCenterX: preferredCenterX
+                    preferredCenterX: preferredCenterX,
+                    physicalMoveOrigin: physicalMoveOrigin
                 ),
                 toAlwaysHidden: toAlwaysHidden
             )
@@ -342,7 +365,8 @@ final class MenuBarMoveQueueWorkflow {
         bundleID: String,
         menuExtraId: String? = nil,
         statusItemIndex: Int? = nil,
-        preferredCenterX: CGFloat? = nil
+        preferredCenterX: CGFloat? = nil,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     ) async -> Bool {
         await waitForActiveMoveTaskIfNeeded()
 
@@ -350,7 +374,8 @@ final class MenuBarMoveQueueWorkflow {
             bundleID: bundleID,
             menuExtraId: menuExtraId,
             statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX
+            preferredCenterX: preferredCenterX,
+            physicalMoveOrigin: physicalMoveOrigin
         ) else { return false }
         return await task.value
     }

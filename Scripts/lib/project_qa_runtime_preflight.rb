@@ -273,12 +273,17 @@ class ProjectQA
         )
       end
 
+      host_fixture_ids = ensure_runtime_host_exact_id_fixture!(target)
       host_exact_id_ids = runtime_smoke_available_required_candidate_ids(
         target,
         required_ids: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS
       )
       if host_exact_id_ids.empty?
-        puts '   ↳ host exact-id smoke skipped (top-bar host sentinel not present on this host)'
+        @errors << "Runtime smoke had no host exact-id sentinel candidates. Host-specific menu item movement is release-blocking; install or launch a deterministic sentinel before release. See #{RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH} and #{RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH}."
+        puts "❌ host exact-id smoke unavailable (#{RUNTIME_HOST_EXACT_ID_SMOKE_LOG_PATH})"
+        return
+      elsif host_fixture_ids.empty? && (host_exact_id_ids & RUNTIME_HOST_EXACT_ID_FIXTURE_IDS).empty?
+        @warnings << "Host exact-id smoke used installed host item(s) only; deterministic sentinel unavailable. See #{RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH}."
       else
         focused_runtime_smoke_ran = true
         return unless run_focused_runtime_smoke_exact_ids(

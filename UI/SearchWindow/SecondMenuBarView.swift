@@ -538,7 +538,11 @@ struct SecondMenuBarView: View {
         let request = zoneMoveRequest(from: source, to: target)
 
         guard let request,
-              let task = menuBarManager.moveQueueWorkflow.queueZoneMove(app: app, request: request) else { return false }
+              let task = menuBarManager.moveQueueWorkflow.queueZoneMove(
+                  app: app,
+                  request: request,
+                  physicalMoveOrigin: .explicitUserAction
+              ) else { return false }
 
         observeQueuedMoveResult(task, target: target)
         return true
@@ -549,7 +553,11 @@ struct SecondMenuBarView: View {
         Task { @MainActor in
             await Task.yield()
             notePanelInteraction()
-            guard let task = await menuBarManager.moveQueueWorkflow.queueZoneMoveAfterDrop(app: app, request: request) else { return }
+            guard let task = await menuBarManager.moveQueueWorkflow.queueZoneMoveAfterDrop(
+                app: app,
+                request: request,
+                physicalMoveOrigin: .explicitUserAction
+            ) else { return }
             observeQueuedMoveResult(task, target: target)
         }
         return true
@@ -626,7 +634,8 @@ struct SecondMenuBarView: View {
                 targetBundleID: targetApp.bundleId,
                 targetMenuExtraID: targetApp.menuExtraIdentifier,
                 targetStatusItemIndex: targetApp.statusItemIndex,
-                placeAfterTarget: placeAfterTarget
+                placeAfterTarget: placeAfterTarget,
+                physicalMoveOrigin: .explicitUserAction
             ) else { return }
 
             observeQueuedReorderResult(task)

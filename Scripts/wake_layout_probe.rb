@@ -33,7 +33,6 @@ class WakeLayoutProbe
     /Display is turned off/i,
     /Display is turned on/i
   ].freeze
-
   def initialize
     @app_path = ENV.fetch('SANEBAR_SMOKE_APP_PATH', '').strip
     @log_path = ENV.fetch('SANEBAR_WAKE_PROBE_LOG_PATH', '/tmp/sanebar_wake_layout_probe.log')
@@ -60,20 +59,16 @@ class WakeLayoutProbe
       .map(&:strip)
       .reject(&:empty?)
   end
-
   def run
     validate_target!
     @bundle_id = bundle_identifier
     @app_name = File.basename(@app_path, '.app')
     @was_running = app_running?
     backup_state!
-
     @cases << run_hidden_case
     @cases << run_expanded_case
-
     restore_state!
     @state_restored = true
-
     write_artifact!(
       status: 'pass',
       bundle_id: @bundle_id,
@@ -105,14 +100,11 @@ class WakeLayoutProbe
     persist_log!
     FileUtils.remove_entry(@workspace) if @workspace && Dir.exist?(@workspace)
   end
-
   private
-
   def validate_target!
     raise 'SANEBAR_SMOKE_APP_PATH is required' if @app_path.empty?
     raise "Target app missing: #{@app_path}" unless File.directory?(@app_path)
   end
-
   def backup_state!
     if File.exist?(SETTINGS_PATH)
       FileUtils.mkdir_p(File.dirname(@settings_backup_path))
@@ -121,19 +113,15 @@ class WakeLayoutProbe
     end
     log("Backed up settings file=#{@had_settings_file}")
   end
-
   def restore_state!
     quit_app
-
     if @had_settings_file
       raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
-
       FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
       FileUtils.cp(@settings_backup_path, SETTINGS_PATH)
     else
       FileUtils.rm_f(SETTINGS_PATH)
     end
-
     launch_app if @was_running
     log('Restored wake probe state')
   end
@@ -162,7 +150,7 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
-    park_pointer_away_from_menu_bar!(label: 'hidden wake')
+    parked_cursor = park_pointer_away_from_menu_bar!(label: 'hidden wake')
     snapshots = snapshots_after_wake(wake_time, label: 'hidden', expected_state: 'hidden')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'hidden', label: "hidden #{entry[:delay]}s")
@@ -170,6 +158,7 @@ class WakeLayoutProbe
       assert_visible_zone_persistence!(visible_baseline, entry[:delay])
       assert_hidden_zone_persistence!(hidden_baseline, entry[:delay])
     end
+    cursor_proof = assert_cursor_stable!(parked_cursor, label: 'hidden passive wake recovery')
     log_scan = scan_logs_since(case_started_at)
 
     quit_app
@@ -179,6 +168,7 @@ class WakeLayoutProbe
       baseline: baseline,
       visible_zone_persistence: @visible_zone_proofs,
       hidden_zone_persistence: @hidden_zone_proofs,
+      cursor_proof: cursor_proof,
       wake_time: wake_time.iso8601,
       snapshots: snapshots,
       log_scan: log_scan
@@ -197,12 +187,13 @@ class WakeLayoutProbe
 
     case_started_at = Time.now.utc
     wake_time = trigger_display_sleep_cycle!
-    park_pointer_away_from_menu_bar!(label: 'expanded wake')
+    parked_cursor = park_pointer_away_from_menu_bar!(label: 'expanded wake')
     snapshots = snapshots_after_wake(wake_time, label: 'expanded', expected_state: 'expanded')
     snapshots.each do |entry|
       assert_snapshot_state!(entry[:snapshot], expected_state: 'expanded', label: "expanded #{entry[:delay]}s")
       assert_main_right_gap_stable!(baseline, entry[:snapshot], label: "expanded #{entry[:delay]}s")
     end
+    cursor_proof = assert_cursor_stable!(parked_cursor, label: 'expanded passive wake recovery')
     log_scan = scan_logs_since(case_started_at)
 
     quit_app
@@ -210,6 +201,7 @@ class WakeLayoutProbe
     {
       name: 'expanded state stays stable through display sleep wake',
       baseline: baseline,
+      cursor_proof: cursor_proof,
       wake_time: wake_time.iso8601,
       snapshots: snapshots,
       log_scan: log_scan
@@ -319,11 +311,7 @@ class WakeLayoutProbe
   end
 
   def park_pointer_away_from_menu_bar!(label:)
-    cliclick = ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick']
-      .find { |path| File.executable?(path) }
-    raise 'Wake probe requires cliclick on the Mini to park the pointer away from the menu bar' unless cliclick
-
-    out, status = capture(cliclick, 'm:400,400')
+    out, status = capture(cliclick_path, 'm:400,400')
     raise "Pointer parking failed after #{label}: #{out}" unless status.success?
 
     snapshot = wait_for_snapshot(
@@ -334,6 +322,7 @@ class WakeLayoutProbe
       candidate['autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'
     end
     log("#{label} pointer parked outside menu-bar interaction region: autoRehideBlockReason=#{snapshot['autoRehideBlockReason']}")
+    cursor_position
   end
 
   def capture_visible_zone_baseline!(required_override: nil)
@@ -683,7 +672,7 @@ class WakeLayoutProbe
     return unless app_running?
 
     capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-    deadline = Time.now + 10
+    deadline = Time.now + ENV.fetch('SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS', '20').to_f
     while app_running? && Time.now < deadline
       sleep 0.2
     end
@@ -783,25 +772,7 @@ class WakeLayoutProbe
     value == true || value.to_s.downcase == 'true'
   end
 
-  def capture(*cmd)
-    out, status = Open3.capture2e(*cmd)
-    log("$ #{cmd.join(' ')}")
-    log(out.strip) unless out.strip.empty?
-    [out, status]
-  end
-
-  def log(line)
-    @lines << "[#{Time.now.utc.iso8601}] #{line}"
-  end
-
-  def persist_log!
-    FileUtils.mkdir_p(File.dirname(@log_path))
-    File.write(@log_path, @lines.join("\n") + "\n")
-  end
-
 end
-
-
 require_relative 'lib/wake_layout_probe_artifacts'
 
 exit(WakeLayoutProbe.new.run ? 0 : 1) if __FILE__ == $PROGRAM_NAME

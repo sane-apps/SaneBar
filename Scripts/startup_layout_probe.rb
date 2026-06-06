@@ -150,6 +150,7 @@ class StartupLayoutProbe
 
     log("Seeded poisoned startup prefs with backup width=#{width_bucket} main=#{backup_main} separator=#{backup_separator}")
     launch_app
+    parked_startup_cursor = park_pointer_away_from_menu_bar!(label: 'poisoned startup')
 
     t2 = snapshot_after_delay(2.0, label: 'poisoned-startup T+2s')
     t5 = snapshot_after_delay(5.0, label: 'poisoned-startup T+5s')
@@ -166,9 +167,11 @@ class StartupLayoutProbe
     assert_snapshot_healthy!(t2, label: 'poisoned-startup T+2s')
     assert_snapshot_healthy!(t5, label: 'poisoned-startup T+5s')
     assert_main_right_gap_stable!(t2, t5, label: 'poisoned-startup T+2s→T+5s')
+    startup_cursor_proof = assert_cursor_stable!(parked_startup_cursor, label: 'poisoned startup passive recovery')
 
     quit_app
     launch_app
+    parked_replay_cursor = park_pointer_away_from_menu_bar!(label: 'restart replay')
 
     replay = snapshot_after_delay(2.0, label: 'restart replay T+2s')
     replay_main = numeric_default(main_key)
@@ -183,6 +186,7 @@ class StartupLayoutProbe
     )
     assert_snapshot_healthy!(replay, label: 'restart replay T+2s')
     assert_main_right_gap_stable!(t5, replay, label: 'poisoned-startup T+5s→restart replay T+2s')
+    replay_cursor_proof = assert_cursor_stable!(parked_replay_cursor, label: 'restart replay passive recovery')
 
     {
       name: 'current-width backup beats ordinal seeds',
@@ -191,6 +195,7 @@ class StartupLayoutProbe
       backup_separator: backup_separator,
       restored_main: restored_main,
       restored_separator: restored_separator,
+      cursor_proofs: [startup_cursor_proof, replay_cursor_proof],
       snapshots: {
         t2: t2,
         t5: t5,
@@ -208,14 +213,17 @@ class StartupLayoutProbe
     keys.each { |key| write_current_host_bool(key, false) }
     log("Seeded currentHost visibility overrides for autosave version #{version}")
     launch_app
+    parked_cursor = park_pointer_away_from_menu_bar!(label: 'currentHost visibility override startup')
 
     snapshot = snapshot_after_delay(2.0, label: 'currentHost visibility override T+2s')
     assert_snapshot_healthy!(snapshot, label: 'currentHost visibility override T+2s')
     keys.each { |key| assert_current_host_default_cleared!(key) }
+    cursor_proof = assert_cursor_stable!(parked_cursor, label: 'currentHost visibility override passive startup cleanup')
 
     {
       name: 'currentHost visibility overrides are cleared on startup',
       seeded_keys: keys,
+      cursor_proof: cursor_proof,
       snapshot: snapshot
     }
   ensure
@@ -230,6 +238,7 @@ class StartupLayoutProbe
     save_settings_json(settings)
     log('Updated settings.json for startup probe: autoRehide=false')
     launch_app
+    parked_cursor = park_pointer_away_from_menu_bar!(label: 'autoRehide=false startup')
 
     t2 = snapshot_after_delay(2.0, label: 'autoRehide=false T+2s')
     t5 = snapshot_after_delay(5.0, label: 'autoRehide=false T+5s')
@@ -242,9 +251,11 @@ class StartupLayoutProbe
     assert_snapshot_healthy!(t2, label: 'autoRehide=false T+2s')
     assert_snapshot_healthy!(t5, label: 'autoRehide=false T+5s')
     assert_main_right_gap_stable!(t2, t5, label: 'autoRehide=false T+2s→T+5s')
+    cursor_proof = assert_cursor_stable!(parked_cursor, label: 'autoRehide=false passive startup')
 
     {
       name: 'autoRehide=false prevents launch hide',
+      cursor_proof: cursor_proof,
       snapshots: {
         t2: t2,
         t5: t5
@@ -302,7 +313,7 @@ class StartupLayoutProbe
     return unless app_running?
 
     capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-    deadline = Time.now + 10
+    deadline = Time.now + ENV.fetch('SANEBAR_STARTUP_PROBE_QUIT_TIMEOUT_SECONDS', '20').to_f
     while app_running? && Time.now < deadline
       sleep 0.2
     end
@@ -367,6 +378,48 @@ class StartupLayoutProbe
   def snapshot_after_delay(delay_seconds, label:)
     sleep delay_seconds
     wait_for_healthy_snapshot(label: label)
+  end
+
+  def cliclick_path
+    cliclick = ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick']
+      .find { |path| File.executable?(path) }
+    raise 'Startup probe requires cliclick on the Mini to prove passive recovery does not move the cursor' unless cliclick
+    cliclick
+  end
+
+  def cursor_position
+    out, status = capture(cliclick_path, 'p')
+    raise "Could not read pointer position: #{out}" unless status.success?
+
+    match = out.strip.match(/\A(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\z/)
+    raise "Could not parse pointer position: #{out.inspect}" unless match
+
+    { x: match[1].to_f, y: match[2].to_f }
+  end
+
+  def park_pointer_away_from_menu_bar!(label:)
+    out, status = capture(cliclick_path, 'm:400,400')
+    raise "Pointer parking failed for #{label}: #{out}" unless status.success?
+
+    snapshot = wait_for_healthy_snapshot(label: "#{label} pointer parked")
+    log("#{label} pointer parked before passive startup proof: autoRehideBlockReason=#{snapshot['autoRehideBlockReason']}")
+    cursor_position
+  end
+
+  def assert_cursor_stable!(baseline, label:, tolerance: 3.0)
+    current = cursor_position
+    drift = Math.sqrt(((current[:x] - baseline[:x])**2) + ((current[:y] - baseline[:y])**2))
+    if drift > tolerance
+      raise "Passive startup recovery moved cursor during #{label}: #{baseline.inspect} → #{current.inspect} (#{drift.round(2)}px)"
+    end
+
+    {
+      status: 'passed',
+      baseline: baseline,
+      current: current,
+      tolerance: tolerance,
+      completed_scenario: 'passive startup recovery did not physically move the cursor'
+    }
   end
 
   def assert_snapshot_healthy!(snapshot, label:)

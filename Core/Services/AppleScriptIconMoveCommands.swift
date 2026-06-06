@@ -44,7 +44,11 @@ final class HideIconCommand: SaneBarScriptCommand {
                 manager.alwaysHiddenPinWorkflow.pin(app: match.app)
                 manager.saveSettings()
                 // Trigger enforcement to physically move the icon
-                await manager.alwaysHiddenPinWorkflow.enforce(reason: "AppleScript hide icon")
+                await manager.alwaysHiddenPinWorkflow.enforce(
+                    reason: "AppleScript hide icon",
+                    mode: .repairWithPhysicalMoves,
+                    physicalMoveOrigin: .appleScriptUserAction
+                )
                 box.value = true
             }
 
@@ -112,7 +116,8 @@ final class ShowIconCommand: SaneBarScriptCommand {
                 menuExtraId: source.app.menuExtraIdentifier,
                 statusItemIndex: source.app.statusItemIndex,
                 preferredCenterX: source.app.preferredCenterX,
-                toAlwaysHidden: false
+                toAlwaysHidden: false,
+                physicalMoveOrigin: .appleScriptUserAction
             )
             guard moved else {
                 completed.value = true
@@ -267,7 +272,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                     menuExtraId: icon.menuExtraIdentifier,
                     statusItemIndex: icon.statusItemIndex,
                     preferredCenterX: icon.preferredCenterX,
-                    toAlwaysHidden: true
+                    toAlwaysHidden: true,
+                    physicalMoveOrigin: .appleScriptUserAction
                 )
             }
 
@@ -279,7 +285,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                         bundleID: icon.bundleId,
                         menuExtraId: icon.menuExtraIdentifier,
                         statusItemIndex: icon.statusItemIndex,
-                        preferredCenterX: icon.preferredCenterX
+                        preferredCenterX: icon.preferredCenterX,
+                        physicalMoveOrigin: .appleScriptUserAction
                     )
                 }
             case .visible:
@@ -289,7 +296,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                         menuExtraId: icon.menuExtraIdentifier,
                         statusItemIndex: icon.statusItemIndex,
                         preferredCenterX: icon.preferredCenterX,
-                        toHidden: true
+                        toHidden: true,
+                        physicalMoveOrigin: .appleScriptUserAction
                     )
                 }
             case .hidden:
@@ -305,7 +313,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                         menuExtraId: icon.menuExtraIdentifier,
                         statusItemIndex: icon.statusItemIndex,
                         preferredCenterX: icon.preferredCenterX,
-                        toAlwaysHidden: false
+                        toAlwaysHidden: false,
+                        physicalMoveOrigin: .appleScriptUserAction
                     )
                 }
             case .hidden:
@@ -315,7 +324,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                         menuExtraId: icon.menuExtraIdentifier,
                         statusItemIndex: icon.statusItemIndex,
                         preferredCenterX: icon.preferredCenterX,
-                        toHidden: false
+                        toHidden: false,
+                        physicalMoveOrigin: .appleScriptUserAction
                     )
                 }
             case .visible:

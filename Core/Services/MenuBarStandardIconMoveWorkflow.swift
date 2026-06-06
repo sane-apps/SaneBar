@@ -13,6 +13,7 @@ final class MenuBarStandardIconMoveWorkflow {
         let toHidden: Bool
         let separatorOverrideX: CGFloat?
         let clearAlwaysHiddenPinAfterMove: Bool
+        let physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     }
 
     private struct DragContext {
@@ -209,6 +210,7 @@ final class MenuBarStandardIconMoveWorkflow {
                 separatorX: activeSeparatorX,
                 visibleBoundaryX: activeVisibleBoundaryX,
                 originalMouseLocation: originalCGPoint,
+                physicalMoveOrigin: request.physicalMoveOrigin,
                 referenceScreenFrame: referenceScreenFrame
             )
 
@@ -245,6 +247,7 @@ final class MenuBarStandardIconMoveWorkflow {
                     visibleBoundaryX: activeVisibleBoundaryX,
                     eventTap: .cgSessionEventTap,
                     originalMouseLocation: originalCGPoint,
+                    physicalMoveOrigin: request.physicalMoveOrigin,
                     referenceScreenFrame: referenceScreenFrame
                 )
             }
@@ -337,6 +340,7 @@ final class MenuBarStandardIconMoveWorkflow {
                     visibleBoundaryX: fallbackVisibleBoundaryX,
                     eventTap: .cgSessionEventTap,
                     originalMouseLocation: dragContext.originalMouseLocation,
+                    physicalMoveOrigin: request.physicalMoveOrigin,
                     referenceScreenFrame: dragContext.referenceScreenFrame
                 )
                 logger.info("Shield fallback returned: \(success, privacy: .public)")
