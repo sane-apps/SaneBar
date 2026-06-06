@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.66] - 2026-06-06
+
+Improves wake and display recovery for Hidden and hide-all-other layouts, including helper-owned menu extras.
+
+---
+
 ## [2.1.65] - 2026-06-06
 
 Improves reliability for Browse Icons moves out of Always Hidden and reduces background recovery cursor movement risk. Strengthens startup, wake, and exact-ID menu-bar verification.
