@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.65] - 2026-06-06
+
+Improves reliability for Browse Icons moves out of Always Hidden and reduces background recovery cursor movement risk. Strengthens startup, wake, and exact-ID menu-bar verification.
+
+---
+
 ## [2.1.64] - 2026-06-05
 
 Fixes menu bar recovery after wake and display changes; prevents stale geometry from moving visible or always-hidden items when live anchors are missing; keeps hide-all-other boundaries consistent.
