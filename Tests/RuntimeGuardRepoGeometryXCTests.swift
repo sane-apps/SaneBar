@@ -201,6 +201,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
     func testRecoveryRewireWarmsGeometryAndAccessibilityCaches() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let replayURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift")
+        let replaySource = try String(contentsOf: replayURL, encoding: .utf8)
         let setupURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemSetupWorkflow.swift")
         let setupSource = try String(contentsOf: setupURL, encoding: .utf8)
 
@@ -226,10 +228,13 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
+                replaySource.contains("func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String)") &&
+                replaySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
+                replaySource.contains("hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
-                source.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
-                source.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
-                source.contains("hidingService.scheduleRehide(after: 0.5)") &&
+                replaySource.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
+                replaySource.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
+                replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
             "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
         )
@@ -370,16 +375,24 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             contentsOf: projectRootURL().appendingPathComponent("Core/MenuBarManager.swift"),
             encoding: .utf8
         )
+        let replaySource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift"),
+            encoding: .utf8
+        )
 
         XCTAssertTrue(
             source.contains("var shouldRetryVisibilityReplay = false") &&
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
+                source.contains("let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
+                source.contains("physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin") &&
+                replaySource.contains("if reason.contains(\"wake-resume\")") &&
+                replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
                 source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
-            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, and avoid background physical cursor-moving drags"
+            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, and restrict physical repair to explicit wake recovery"
         )
     }
 
@@ -530,6 +543,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("hideAllOtherVisibleItemIds") &&
                 source.contains("wait_for_hide_all_other_zone_settle!") &&
                 source.contains("Hide-all-other seeded baseline did not settle before wake proof") &&
+                source.contains("hidden_baseline_skip_item?") &&
                 source.contains("!item[:bundle_id].to_s.start_with?('com.apple.')") &&
                 source.contains("park_pointer_away_from_menu_bar!(label: 'hidden wake')") &&
                 source.contains("Wake probe requires cliclick on the Mini to park the pointer away from the menu bar") &&
