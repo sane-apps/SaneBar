@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                <item>
+                                                                                                                                                                                                                                                                                                        <item>
+            <title>2.1.66</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Sat, 06 Jun 2026 07:15:46 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves wake and display recovery for Hidden and hide-all-other layouts, including helper-owned menu extras.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.66.zip"
+                       sparkle:version="2166"
+                       sparkle:shortVersionString="2.1.66"
+                       length="9101107"
+                       type="application/octet-stream"
+                       sparkle:edSignature="pS3O9bpKF69WZxhDNn7XwJVxZEbDQeWbcDZ9K1ZKWo/MCgwjbwKVIQbImwbVAY8FjrC74YQman/0NrtBhTTMBA=="/>
+        </item>
+<item>
             <title>2.1.65</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Sat, 06 Jun 2026 01:05:44 -0400</pubDate>
