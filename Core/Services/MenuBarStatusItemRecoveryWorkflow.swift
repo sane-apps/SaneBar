@@ -473,6 +473,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                             "Status item validation reached a healthy layout without a current-width backup for \(context.rawValue, privacy: .public)"
                         )
                     }
+                    self.manager.restoreHiddenStateAfterHealthyValidationIfNeeded(reason: "healthy-validation-\(context.rawValue)")
                     self.manager.schedulePostRecoveryVisibilityIntentReplay(reason: "healthy-validation-\(context.rawValue)")
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")

@@ -336,6 +336,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"wakeResume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
+                recoverySource.contains("restoreHiddenStateAfterHealthyValidationIfNeeded(reason: \"healthy-validation-\\(context.rawValue)\")") &&
                 recoverySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-\\(context.rawValue)\")") &&
                 !source.contains("settings.layoutMode == .live") &&
                 recoverySource.contains("positionValidationGeneration += 1") &&

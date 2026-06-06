@@ -1,4 +1,7 @@
 import AppKit
+import os.log
+
+private let visibilityReplayLogger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
 
 enum MenuBarVisibilityPolicy {
     nonisolated static let appMenuDockPolicyReassertionIntervalsNanoseconds: [UInt64] = [
@@ -208,5 +211,35 @@ enum MenuBarVisibilityPolicy {
         guard let mainRightGap, let screenWidth else { return nil }
         guard mainRightGap > 0, screenWidth > 0 else { return false }
         return mainRightGap <= maxAllowedStartupRightGap(screenWidth: screenWidth)
+    }
+}
+
+@MainActor
+extension MenuBarManager {
+    func visibilityIntentReplayHideAllOtherMode(
+        reason: String
+    ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
+        if reason.contains("wake-resume") {
+            return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        }
+        return (.auditOnly, nil)
+    }
+
+    func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String) {
+        guard MenuBarVisibilityPolicy.shouldRestoreHiddenAfterStatusItemRecovery(
+            hidingState: hidingService.state,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+        ) else { return }
+
+        hidingService.applyCurrentStateToLiveItems()
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+        visibilityReplayLogger.info("Reapplied hidden state after healthy validation (\(reason, privacy: .public))")
+    }
+
+    func schedulePostRecoveryAutoRehideIfNeeded(reason: String) {
+        if reason.contains("wakeResume") { isRevealPinned = false }
+        guard settings.autoRehide, hidingService.state == .expanded, !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
+        visibilityReplayLogger.info("Auto-rehide rearmed after recovery replay (\(reason, privacy: .public))")
+        hidingService.scheduleRehide(after: 0.5)
     }
 }

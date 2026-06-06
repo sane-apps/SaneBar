@@ -429,7 +429,7 @@ class WakeLayoutProbe
     required |= @dynamic_helper_ids
     if required.empty?
       required = hidden
-        .reject { |item| item[:bundle_id].to_s.start_with?('com.sanebar') || item[:unique_id].to_s.start_with?('com.sanebar') }
+        .reject { |item| hidden_baseline_skip_item?(item) }
         .map { |item| item[:unique_id].to_s.empty? ? item[:bundle_id] : item[:unique_id] }
         .compact
         .reject(&:empty?)
@@ -490,6 +490,15 @@ class WakeLayoutProbe
     }
     @hidden_zone_proofs << proof
     log("Hidden-zone persistence ok after #{delay}s for #{present_hidden.join(', ')}")
+  end
+
+  def hidden_baseline_skip_item?(item)
+    bundle_id = item[:bundle_id].to_s
+    unique_id = item[:unique_id].to_s
+    bundle_id.start_with?('com.sanebar') ||
+      unique_id.start_with?('com.sanebar') ||
+      bundle_id.start_with?('com.apple.') ||
+      unique_id.start_with?('com.apple.menuextra.')
   end
 
   def wait_for_icon_zone_persistence!(required, expected_zone:, delay:, failure_prefix:)
@@ -663,8 +672,7 @@ class WakeLayoutProbe
   end
 
   def app_running?
-    _out, status = capture('pgrep', '-x', @app_name.to_s)
-    status.success?
+    !app_pids.empty?
   end
 
   def quit_app
@@ -676,7 +684,38 @@ class WakeLayoutProbe
     while app_running? && Time.now < deadline
       sleep 0.2
     end
+    if app_running?
+      capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
+      deadline = Time.now + 5
+      while app_running? && Time.now < deadline
+        sleep 0.2
+      end
+    end
+    app_pids.each do |pid|
+      log("Force terminating lingering #{@app_name} test process pid=#{pid}")
+      Process.kill('TERM', pid)
+    rescue Errno::ESRCH
+      nil
+    end
+    deadline = Time.now + 3
+    while app_running? && Time.now < deadline
+      sleep 0.2
+    end
     raise "Timed out waiting for #{@app_name} to quit" if app_running?
+  end
+
+  def app_pids
+    return [] unless @app_name
+
+    process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)
+    out, status = Open3.capture2e('ps', '-axo', 'pid=,command=')
+    return [] unless status.success?
+
+    out.lines.map do |line|
+      next unless line.include?(process_path)
+
+      line.split.first.to_i
+    end.compact.select(&:positive?)
   end
 
   def launch_app

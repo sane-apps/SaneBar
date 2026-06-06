@@ -75,6 +75,7 @@ enum MenuBarVisibilityIntentMode: Sendable {
 enum MenuBarPhysicalMoveOrigin: Sendable {
     case explicitUserAction
     case appleScriptUserAction
+    case systemWakeRecovery
 }
 
 struct MenuBarRuntimeSnapshot: Sendable {

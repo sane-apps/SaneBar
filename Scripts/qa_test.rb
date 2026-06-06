@@ -445,6 +445,16 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "persist_log!"
   end
 
+  def test_startup_layout_probe_quit_cleanup_scopes_to_staged_app_path
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, "def app_pids"
+    assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
+    assert_includes source, "ps', '-axo', 'pid=,command='"
+    refute_includes source, "pgrep', '-x', @app_name.to_s"
+    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid}'
+  end
+
   def test_startup_layout_probe_requires_visible_lane_after_recovery
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
@@ -478,6 +488,16 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS'
     assert_includes source, 'Passive wake recovery moved cursor'
     assert_includes source, "completed_scenario: 'passive wake recovery did not physically move the cursor'"
+  end
+
+  def test_wake_layout_probe_quit_cleanup_scopes_to_staged_app_path
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    assert_includes source, "def app_pids"
+    assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
+    assert_includes source, "ps', '-axo', 'pid=,command='"
+    refute_includes source, "pgrep', '-x', @app_name.to_s"
+    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid}'
   end
 
   def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro

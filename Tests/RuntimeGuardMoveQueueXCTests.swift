@@ -46,12 +46,13 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             modeSource.contains("enum MenuBarPhysicalMoveOrigin") &&
+                modeSource.contains("case systemWakeRecovery") &&
                 alwaysHiddenSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
                 hideAllOtherSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
                 alwaysHiddenSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
                 hideAllOtherSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
                 scriptSource.contains("physicalMoveOrigin: .appleScriptUserAction"),
-            "Visibility intent repair should default to audit-only and require an explicit user/automation origin before any physical cursor-moving drag"
+            "Visibility intent repair should default to audit-only and require an explicit user/automation/wake-recovery origin before any physical cursor-moving drag"
         )
     }
 
