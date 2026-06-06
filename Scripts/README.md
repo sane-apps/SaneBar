@@ -120,10 +120,10 @@ Notes:
 - `SANEBAR_SMOKE_REQUIRED_IDS` forces an exact candidate set for scientific repro work.
 - Required IDs now bypass the normal move-candidate denylist, so native-item investigations can target Focus / Siri / Spotlight without changing the default release smoke policy.
 - Required-ID runs use compatibility browse checks (open/close only) so move investigations do not get blocked by unrelated browse-activation flakiness.
-- `release_preflight` now treats the focused exact-ID lanes as first-class release checks when those IDs are present on the host:
+- `release_preflight` now treats the focused exact-ID lanes as first-class release checks. Missing deterministic fixture/sentinel coverage blocks release:
   - shared-bundle Apple extras: Control Center / Clock / Focus / Wi-Fi / Battery / Display
   - native Apple extras: Siri / Spotlight
-  - host exact-id sentinel: Codex
+  - host exact-id sentinel: deterministic `SaneBarHostExactIDFixture` plus Little Snitch top-bar items when present
 - On Apple-heavy setups, the default conservative move pool can legitimately return `No movable candidate icon found`. That is a fixture-policy result, not proof that common native items are broken.
 - When that happens, keep the default release smoke conservative and switch to `SANEBAR_SMOKE_REQUIRED_IDS=...` for focused native-item verification.
 - browse panel mode + visibility + last relayout reason

@@ -152,6 +152,13 @@ class ProjectQA
     com.sanebar.sharedfixture::statusItem:0
     com.sanebar.sharedfixture::statusItem:1
   ].freeze
+  RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH = '/tmp/sanebar_runtime_host_exact_id_fixture.log'
+  RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH = '/tmp/SaneBarHostExactIDFixture.app'
+  RUNTIME_HOST_EXACT_ID_FIXTURE_SOURCE_PATH = '/tmp/sanebar_host_exact_id_fixture.swift'
+  RUNTIME_HOST_EXACT_ID_FIXTURE_ID = 'com.sanebar.hostsentinel'
+  RUNTIME_HOST_EXACT_ID_FIXTURE_IDS = %w[
+    com.sanebar.hostsentinel::statusItem:0
+  ].freeze
   RUNTIME_DYNAMIC_HELPER_FIXTURE_LOG_PATH = '/tmp/sanebar_runtime_dynamic_helper_fixture.log'
   RUNTIME_DYNAMIC_HELPER_FIXTURE_APP_PATH = '/tmp/SaneBarDynamicHelperFixture.app'
   RUNTIME_DYNAMIC_HELPER_FIXTURE_SOURCE_PATH = '/tmp/sanebar_dynamic_helper_fixture.swift'
@@ -184,6 +191,7 @@ class ProjectQA
     com.apple.menuextra.spotlight
   ].freeze
   RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w[
+    com.sanebar.hostsentinel::statusItem:0
     at.obdev.littlesnitch.networkmonitor
     at.obdev.littlesnitch.agent
   ].freeze
@@ -375,6 +383,10 @@ class ProjectQA
   end
 
   def manual_override_phrase(gate:)
+    'approved'
+  end
+
+  def legacy_manual_override_phrase(gate:)
     case gate
     when :release_cadence
       'MR. SANE APPROVES FAST RELEASE'
@@ -387,11 +399,16 @@ class ProjectQA
     end
   end
 
+  def manual_override_approved?(value, gate:, phrase:)
+    normalized = value.to_s.strip.downcase
+    normalized == phrase || normalized == legacy_manual_override_phrase(gate: gate).downcase
+  end
+
   def request_manual_override(gate:, summary:)
     phrase = manual_override_phrase(gate: gate)
 
     env_override = manual_override_from_env(gate)
-    return [true, phrase] if env_override == phrase
+    return [true, phrase] if manual_override_approved?(env_override, gate: gate, phrase: phrase)
 
     return [false, phrase] unless $stdin.tty? && $stdout.tty?
 
@@ -402,7 +419,7 @@ class ProjectQA
     print '> '
     response = $stdin.gets&.strip
 
-    [response == phrase, phrase]
+    [manual_override_approved?(response, gate: gate, phrase: phrase), phrase]
   end
 
   def manual_override_from_env(gate)

@@ -295,6 +295,7 @@ struct BartenderImportServiceTests {
 
         #expect(source.contains("let alwaysHideRaw = profile.alwaysHide"))
         #expect(source.contains("moveIconAlwaysHiddenAndWait("))
+        #expect(source.contains("physicalMoveOrigin: .explicitUserAction"))
         #expect(source.contains("summary.movedAlwaysHidden += 1"))
         #expect(!source.contains("let hideRaw = profile.hide + profile.alwaysHide"))
     }

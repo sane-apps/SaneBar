@@ -13,6 +13,7 @@ final class MenuBarIconReorderWorkflow {
         let targetMenuExtraID: String?
         let targetStatusItemIndex: Int?
         let placeAfterTarget: Bool
+        let physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     }
 
     private unowned let manager: MenuBarManager
@@ -68,6 +69,7 @@ final class MenuBarIconReorderWorkflow {
                 targetStatusItemIndex: request.targetStatusItemIndex,
                 placeAfterTarget: request.placeAfterTarget,
                 originalMouseLocation: originalCGPoint,
+                physicalMoveOrigin: request.physicalMoveOrigin,
                 referenceScreenFrame: referenceScreenFrame
             )
 
@@ -83,6 +85,7 @@ final class MenuBarIconReorderWorkflow {
                     targetStatusItemIndex: request.targetStatusItemIndex,
                     placeAfterTarget: request.placeAfterTarget,
                     originalMouseLocation: originalCGPoint,
+                    physicalMoveOrigin: request.physicalMoveOrigin,
                     referenceScreenFrame: referenceScreenFrame
                 )
             }

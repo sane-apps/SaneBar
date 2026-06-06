@@ -3,6 +3,58 @@ import XCTest
 
 @MainActor
 final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
+    func testPhysicalDragTimeoutCannotOverlapLateDragEvents() throws {
+        let dragURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityMenuBarDragService.swift")
+        let dragSource = try String(contentsOf: dragURL, encoding: .utf8)
+
+        XCTAssertTrue(
+                dragSource.contains("private final class DragTimeoutState") &&
+                dragSource.contains("timeoutState.markTimedOut()") &&
+                dragSource.contains("guard !timeoutState.shouldStop") &&
+                dragSource.contains("postMouseRestoreIfOnScreen") &&
+                dragSource.contains("Skipping cursor restore because the original pointer position is no longer on any current screen") &&
+                dragSource.contains("semaphore timed out") &&
+                dragSource.contains("force-release mouse button"),
+            "CGEvent drag timeout must tell the worker to stop before callers retry, otherwise late drag events can overlap with the next move and visibly take over the cursor"
+        )
+    }
+
+    func testVisibilityIntentMutationsPersistBeforeRecoveryReplay() throws {
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenPinWorkflow.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+        let hideAllOtherURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarHideAllOtherWorkflow.swift")
+        let hideAllOtherSource = try String(contentsOf: hideAllOtherURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            alwaysHiddenSource.components(separatedBy: "manager.saveSettings()").count >= 6 &&
+                hideAllOtherSource.contains("manager.settings.hideAllOtherVisibleItemIds = refreshedIds") &&
+                hideAllOtherSource.contains("manager.settings.hideAllOtherMenuBarItems = true") &&
+                hideAllOtherSource.contains("manager.saveSettings()"),
+            "Always Hidden pin/unpin/reconcile and Hide All Other allow-list mutations must persist immediately so profiles and recovery replay do not revert to stale intent"
+        )
+    }
+
+    func testPhysicalVisibilityIntentRepairRequiresExplicitOrigin() throws {
+        let modeURL = projectRootURL().appendingPathComponent("Core/Models/MenuBarRuntimeSnapshot.swift")
+        let modeSource = try String(contentsOf: modeURL, encoding: .utf8)
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenPinWorkflow.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+        let hideAllOtherURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarHideAllOtherWorkflow.swift")
+        let hideAllOtherSource = try String(contentsOf: hideAllOtherURL, encoding: .utf8)
+        let scriptURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconMoveCommands.swift")
+        let scriptSource = try String(contentsOf: scriptURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            modeSource.contains("enum MenuBarPhysicalMoveOrigin") &&
+                alwaysHiddenSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
+                hideAllOtherSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
+                alwaysHiddenSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
+                hideAllOtherSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
+                scriptSource.contains("physicalMoveOrigin: .appleScriptUserAction"),
+            "Visibility intent repair should default to audit-only and require an explicit user/automation origin before any physical cursor-moving drag"
+        )
+    }
+
     func testStaleGeometryFallbackLogsAreDeduplicated() throws {
         let cacheURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarGeometryCache.swift")
         let cacheSource = try String(contentsOf: cacheURL, encoding: .utf8)
@@ -66,8 +118,9 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "The move engine should keep queued zone-move planning, nonblocking drop preflight, classified physical verification, and post-success always-hidden pin mutation wired together"
         )
         XCTAssertTrue(
-            iconPanelSource.contains("queueZoneMove(app: app, request: request)") &&
-                iconPanelSource.contains("queueZoneMoveAfterDrop(app: app, request: request)") &&
+            iconPanelSource.contains("queueZoneMove(") &&
+                iconPanelSource.contains("queueZoneMoveAfterDrop(") &&
+                iconPanelSource.contains("physicalMoveOrigin: .explicitUserAction") &&
                 iconPanelSource.contains("guard let request,") &&
                 iconPanelSource.contains("let moved = await task.value") &&
                 iconPanelSource.contains("queueMoveAfterDrop") &&
@@ -78,9 +131,11 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "Icon panel move flows should delegate queue planning to MenuBarManager and defer drag-drop queueing until after SwiftUI finishes the drop callback"
         )
         XCTAssertTrue(
-            secondMenuBarSource.contains("queueZoneMove(app: app, request: request)") &&
-                secondMenuBarSource.contains("queueZoneMoveAfterDrop(app: app, request: request)") &&
-                secondMenuBarSource.contains("guard let request,") &&
+            secondMenuBarSource.contains("queueZoneMove(") &&
+                secondMenuBarSource.contains("queueZoneMoveAfterDrop(") &&
+                secondMenuBarSource.contains("queueReorderIcon(") &&
+                secondMenuBarSource.contains("physicalMoveOrigin: .explicitUserAction") &&
+                secondMenuBarSource.contains("guard let request = zoneMoveRequest(") &&
                 secondMenuBarSource.contains("let moved = await task.value") &&
                 secondMenuBarSource.contains("applySuccessfulMovePresentation") &&
                 secondMenuBarSource.contains("queueMoveAfterDrop") &&
@@ -572,6 +627,24 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             helperRegex.numberOfMatches(in: taskSource, range: helperRange),
             0,
             "Shared move-task helper must still cancel rehide before drag simulation begins"
+        )
+    }
+
+    func testAlwaysHiddenOutboundMovesPreparePinnedOffscreenSourceBeforeDrag() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("prepareOutboundAlwaysHiddenMove"),
+            "Moves out of Always Hidden should remove the persisted pin before trying to reveal and drag the source item"
+        )
+        XCTAssertTrue(
+            source.contains("repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded"),
+            "Moves out of Always Hidden should repair/recreate a stale AH separator before treating an off-screen source as unmovable"
+        )
+        XCTAssertTrue(
+            source.contains("sourceFrameIsOnScreen"),
+            "The outbound AH repair should be gated on live source geometry instead of running unconditionally"
         )
     }
 

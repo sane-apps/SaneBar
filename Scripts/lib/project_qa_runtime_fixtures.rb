@@ -445,6 +445,138 @@ class ProjectQA
     nil
   end
 
+  def ensure_runtime_host_exact_id_fixture!(target)
+    fixture_log = []
+    fixture_log << "app_path=#{RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH}"
+
+    unless start_runtime_host_exact_id_fixture!(fixture_log)
+      File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
+      return []
+    end
+
+    ids = wait_for_runtime_host_exact_id_fixture_ids(target, fixture_log)
+    File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
+    ids
+  end
+
+  def start_runtime_host_exact_id_fixture!(fixture_log)
+    Open3.capture2e('/usr/bin/killall', 'SaneBarHostExactIDFixture')
+    return false unless build_runtime_host_exact_id_fixture!(fixture_log)
+
+    launched = system('open', RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH, out: File::NULL, err: File::NULL)
+    fixture_log << "open=#{launched ? 'ok' : 'failed'}"
+    return false unless launched
+
+    sleep 1
+    runtime_host_exact_id_fixture_running?
+  end
+
+  def build_runtime_host_exact_id_fixture!(fixture_log)
+    app_contents = File.join(RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH, 'Contents')
+    executable_dir = File.join(app_contents, 'MacOS')
+    executable_path = File.join(executable_dir, 'SaneBarHostExactIDFixture')
+    FileUtils.rm_rf(RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH)
+    FileUtils.mkdir_p(executable_dir)
+    File.write(File.join(app_contents, 'Info.plist'), runtime_host_exact_id_fixture_plist)
+    File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_SOURCE_PATH, runtime_host_exact_id_fixture_source)
+
+    output, status = Open3.capture2e('swiftc', RUNTIME_HOST_EXACT_ID_FIXTURE_SOURCE_PATH, '-o', executable_path)
+    fixture_log << "swiftc_status=#{status.exitstatus}"
+    fixture_log << output.strip unless output.strip.empty?
+    return false unless status.success?
+
+    FileUtils.chmod('+x', executable_path)
+    true
+  rescue StandardError => e
+    fixture_log << "build_error=#{e.class}: #{e.message}"
+    false
+  end
+
+  def wait_for_runtime_host_exact_id_fixture_ids(target, fixture_log)
+    deadline = Time.now + 30
+    ids = []
+    while Time.now < deadline
+      refresh_output, refresh_status = refresh_runtime_smoke_icon_inventory(target)
+      fixture_log << "refresh_status=#{refresh_status&.exitstatus}"
+      fixture_log << refresh_output.lines.grep(/hostsentinel/i).join.strip unless refresh_output.to_s.lines.grep(/hostsentinel/i).empty?
+      fixture_log << "fixture_process=#{runtime_host_exact_id_fixture_process_detail}"
+      ids = runtime_smoke_available_required_candidate_ids(
+        target,
+        required_ids: RUNTIME_HOST_EXACT_ID_FIXTURE_IDS
+      )
+      fixture_log << "attempt_ids=#{ids.join(',')}" unless ids.empty?
+      break unless ids.empty?
+
+      sleep 0.5
+    end
+
+    fixture_log << "required_ids=#{RUNTIME_HOST_EXACT_ID_FIXTURE_IDS.join(',')}"
+    fixture_log << "resolved_ids=#{ids.join(',')}"
+    ids
+  end
+
+  def runtime_host_exact_id_fixture_process_detail
+    output, status = Open3.capture2e('pgrep', '-fl', 'SaneBarHostExactIDFixture')
+    return 'none' unless status.success?
+
+    output.lines.map(&:strip).reject(&:empty?).join(' | ')
+  rescue StandardError
+    'unavailable'
+  end
+
+  def runtime_host_exact_id_fixture_running?
+    runtime_host_exact_id_fixture_process_detail != 'none'
+  end
+
+  def runtime_host_exact_id_fixture_plist
+    <<~PLIST
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+        <key>CFBundleExecutable</key>
+        <string>SaneBarHostExactIDFixture</string>
+        <key>CFBundleIdentifier</key>
+        <string>#{RUNTIME_HOST_EXACT_ID_FIXTURE_ID}</string>
+        <key>CFBundleName</key>
+        <string>SaneBarHostExactIDFixture</string>
+        <key>CFBundlePackageType</key>
+        <string>APPL</string>
+        <key>LSUIElement</key>
+        <true/>
+      </dict>
+      </plist>
+    PLIST
+  end
+
+  def runtime_host_exact_id_fixture_source
+    <<~SWIFT
+      import AppKit
+
+      final class Delegate: NSObject, NSApplicationDelegate {
+          var item: NSStatusItem?
+
+          func applicationDidFinishLaunching(_ notification: Notification) {
+              let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+              statusItem.button?.title = "Host"
+              statusItem.button?.toolTip = "SaneBar Host Exact ID Fixture"
+              statusItem.button?.identifier = NSUserInterfaceItemIdentifier("com.sanebar.hostsentinel.statusItem")
+              let menu = NSMenu()
+              menu.addItem(NSMenuItem(title: "SaneBar Host Fixture", action: nil, keyEquivalent: ""))
+              menu.addItem(NSMenuItem(title: "Activation Probe", action: nil, keyEquivalent: ""))
+              statusItem.menu = menu
+              item = statusItem
+          }
+      }
+
+      let app = NSApplication.shared
+      let delegate = Delegate()
+      app.delegate = delegate
+      app.setActivationPolicy(.accessory)
+      app.run()
+    SWIFT
+  end
+
   def ensure_runtime_dynamic_helper_wake_fixture!(target)
     fixture_log = []
     fixture_log << "app_path=#{RUNTIME_DYNAMIC_HELPER_FIXTURE_APP_PATH}"

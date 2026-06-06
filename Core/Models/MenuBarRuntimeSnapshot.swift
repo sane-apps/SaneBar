@@ -67,6 +67,16 @@ enum MenuBarBrowsePhase: String, Sendable {
     case moveInProgress
 }
 
+enum MenuBarVisibilityIntentMode: Sendable {
+    case auditOnly
+    case repairWithPhysicalMoves
+}
+
+enum MenuBarPhysicalMoveOrigin: Sendable {
+    case explicitUserAction
+    case appleScriptUserAction
+}
+
 struct MenuBarRuntimeSnapshot: Sendable {
     var identityPrecision: MenuBarIdentityPrecision
     var geometryConfidence: MenuBarGeometryConfidence

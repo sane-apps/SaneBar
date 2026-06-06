@@ -57,7 +57,11 @@ enum BrowsePanelMoveQueue {
         )
 
         guard let request,
-              let task = context.manager.moveQueueWorkflow.queueZoneMove(app: app, request: request) else { return false }
+              let task = context.manager.moveQueueWorkflow.queueZoneMove(
+                  app: app,
+                  request: request,
+                  physicalMoveOrigin: .explicitUserAction
+              ) else { return false }
 
         context.setMovingAppID(app.uniqueId)
         observeMoveResult(task, setMovingAppID: context.setMovingAppID)
@@ -80,7 +84,11 @@ enum BrowsePanelMoveQueue {
         context.setMovingAppID(app.uniqueId)
         Task { @MainActor in
             await Task.yield()
-            guard let task = await context.manager.moveQueueWorkflow.queueZoneMoveAfterDrop(app: app, request: request) else {
+            guard let task = await context.manager.moveQueueWorkflow.queueZoneMoveAfterDrop(
+                app: app,
+                request: request,
+                physicalMoveOrigin: .explicitUserAction
+            ) else {
                 context.setMovingAppID(nil)
                 return
             }
@@ -106,7 +114,8 @@ enum BrowsePanelMoveQueue {
             targetBundleID: targetApp.bundleId,
             targetMenuExtraID: targetApp.menuExtraIdentifier,
             targetStatusItemIndex: targetApp.statusItemIndex,
-            placeAfterTarget: placeAfterTarget
+            placeAfterTarget: placeAfterTarget,
+            physicalMoveOrigin: .explicitUserAction
         ) else {
             return false
         }

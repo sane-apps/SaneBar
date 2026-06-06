@@ -10,6 +10,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         let menuExtraId: String?
         let statusItemIndex: Int?
         let preferredCenterX: CGFloat?
+        let physicalMoveOrigin: MenuBarPhysicalMoveOrigin
     }
 
     private struct DragContext {
@@ -86,8 +87,14 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
                 guard revealed else { return false }
             }
 
+            if !toAlwaysHidden {
+                await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
+            }
             await manager.hidingService.showAll()
             try? await Task.sleep(for: .milliseconds(300))
+            if !toAlwaysHidden {
+                await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
+            }
 
             let resolvedTargets = await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries(
                 toAlwaysHidden: toAlwaysHidden
@@ -198,8 +205,10 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
                 statusItemIndex: request.statusItemIndex
             )
         ) { manager in
+            await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
             await manager.hidingService.showAll()
             try? await Task.sleep(for: .milliseconds(300))
+            await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
 
             guard var targets = await self.currentAlwaysHiddenToHiddenTargets() else {
                 logger.error("Cannot resolve AH separator position for AH-to-Hidden move")
@@ -283,6 +292,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             separatorX: targets.separatorX,
             visibleBoundaryX: targets.visibleBoundaryX,
             originalMouseLocation: dragContext.originalMouseLocation,
+            physicalMoveOrigin: request.physicalMoveOrigin,
             referenceScreenFrame: dragContext.referenceScreenFrame
         )
     }
@@ -317,6 +327,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             visibleBoundaryX: targets.visibleBoundaryX,
             eventTap: .cgSessionEventTap,
             originalMouseLocation: dragContext.originalMouseLocation,
+            physicalMoveOrigin: request.physicalMoveOrigin,
             referenceScreenFrame: dragContext.referenceScreenFrame
         )
         logger.info("Always-hidden retry returned: \(success, privacy: .public)")
@@ -376,6 +387,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             separatorX: targets.alwaysHiddenSeparatorRightEdgeX,
             visibleBoundaryX: targets.mainSeparatorOriginX,
             originalMouseLocation: dragContext.originalMouseLocation,
+            physicalMoveOrigin: request.physicalMoveOrigin,
             referenceScreenFrame: dragContext.referenceScreenFrame
         )
     }
@@ -403,6 +415,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             visibleBoundaryX: targets.mainSeparatorOriginX,
             eventTap: .cgSessionEventTap,
             originalMouseLocation: dragContext.originalMouseLocation,
+            physicalMoveOrigin: request.physicalMoveOrigin,
             referenceScreenFrame: dragContext.referenceScreenFrame
         )
     }
@@ -426,6 +439,63 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             logger.info("Skipping AH-to-Hidden classified-zone fallback for ambiguous multi-item identity")
         }
         return false
+    }
+
+    private func prepareOutboundAlwaysHiddenMove(_ request: Request, wasHidden: Bool) async {
+        let removedPin = await MainActor.run {
+            manager.alwaysHiddenPinWorkflow.unpin(
+                bundleID: request.bundleID,
+                menuExtraId: request.menuExtraId,
+                statusItemIndex: request.statusItemIndex
+            )
+        }
+        if removedPin {
+            logger.info("Temporarily removed always-hidden pin before outbound move")
+        }
+
+        if wasHidden {
+            await manager.hidingService.restoreFromShowAll()
+        }
+    }
+
+    private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async {
+        if sourceFrameIsOnScreen(request) { return }
+
+        logger.warning("Outbound always-hidden source is still off-screen after showAll; recreating AH separator before retry")
+        await MainActor.run {
+            manager.clearCachedSeparatorGeometry()
+            manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
+            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+            manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+            manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
+            manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
+            manager.clearCachedSeparatorGeometry()
+            AccessibilityService.shared.invalidateMenuBarItemCache()
+        }
+
+        await manager.hidingService.showAll()
+        try? await Task.sleep(for: .milliseconds(400))
+        await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
+        await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
+        await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
+    }
+
+    private func sourceFrameIsOnScreen(_ request: Request) -> Bool {
+        guard let frame = AccessibilityMenuExtraService.getMenuBarIconFrame(
+            bundleID: request.bundleID,
+            menuExtraId: request.menuExtraId,
+            statusItemIndex: request.statusItemIndex,
+            preferredCenterX: request.preferredCenterX
+        ) else {
+            return false
+        }
+
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        return AccessibilityInteractionPolicy.isAccessibilityPointOnAnyScreen(
+            center,
+            screenFrames: NSScreen.screens.map(\.frame),
+            preferredScreenFrame: manager.currentRecoveryReferenceScreen()?.frame
+        )
     }
 
     private func restoreFromShield(wasHidden: Bool) async {

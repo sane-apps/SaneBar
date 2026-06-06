@@ -220,10 +220,11 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("snapshot.hasTrustworthyBootstrapAnchors") &&
                 source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
                 source.contains("for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts") &&
-                source.contains("await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason)") &&
+                source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
+                source.contains("mode: .auditOnly") &&
                 source.contains("alwaysHiddenAnchorsNeedReplayRetry()") &&
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
-                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(reason: replayReason)") &&
+                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
                 source.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
@@ -372,12 +373,13 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             source.contains("var shouldRetryVisibilityReplay = false") &&
-                source.contains("await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason)") &&
-                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(reason: replayReason)") &&
+                source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
+                source.contains("mode: .auditOnly") &&
+                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
                 source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
-            "Replay should still enforce the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other moves, and avoid stale geometry"
+            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, and avoid background physical cursor-moving drags"
         )
     }
 
@@ -388,7 +390,10 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-            source.contains("func enforce(reason: String, filterBundleId: String? = nil) async -> Bool") &&
+            source.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
+                source.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
+                source.contains("Physical menu bar moves rejected without an explicit user/automation origin") &&
+                source.contains("Hide-all-other enforcement audited without physical moves") &&
                 source.contains("let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
                 source.contains("var initialZoneByUniqueId: [String: HideAllOtherZone]") &&
                 source.contains("initialZoneByUniqueId[item.app.uniqueId] = Self.hideAllOtherZone(") &&
@@ -443,13 +448,18 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             alwaysHiddenSource.contains("clearAlwaysHiddenPinAfterMove: false") &&
+                alwaysHiddenSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
+                alwaysHiddenSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
+                alwaysHiddenSource.contains("Physical menu bar moves rejected without an explicit user/automation origin") &&
+                alwaysHiddenSource.contains("Always-hidden pin enforcement audited without physical moves") &&
+                alwaysHiddenSource.contains("mode: .auditOnly") &&
                 queueSource.contains("clearAlwaysHiddenPinAfterMove: Bool = true") &&
                 standardSource.contains("context.request.clearAlwaysHiddenPinAfterMove") &&
                 alwaysHiddenSource.contains("@discardableResult") &&
                 alwaysHiddenSource.contains("return false") &&
                 alwaysHiddenSource.contains("failedMoveUniqueIds.insert(uniqueId)") &&
                 alwaysHiddenSource.contains("Always-hidden pin enforcement incomplete"),
-            "Always Hidden pin replay should move pinned items without clearing the persisted pin it is enforcing"
+            "Always Hidden pin replay should move pinned items without clearing the persisted pin it is enforcing, but scheduled recovery must not perform background physical cursor-moving drags"
         )
     }
 
@@ -499,10 +509,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
     }
 
     func testWakeProbeProvesHiddenIconsRemainHidden() throws {
-        let source = try String(
-            contentsOf: projectRootURL().appendingPathComponent("Scripts/wake_layout_probe.rb"),
-            encoding: .utf8
-        )
+        let source = try scriptSource(entrypoint: "wake_layout_probe.rb", partialPrefix: "wake_layout_probe")
 
         XCTAssertTrue(
                 source.contains("SANEBAR_WAKE_PROBE_REQUIRED_HIDDEN_IDS") &&
@@ -527,12 +534,14 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("park_pointer_away_from_menu_bar!(label: 'hidden wake')") &&
                 source.contains("Wake probe requires cliclick on the Mini to park the pointer away from the menu bar") &&
                 source.contains("autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'") &&
+                source.contains("Passive wake recovery moved cursor") &&
+                source.contains("passive wake recovery did not physically move the cursor") &&
                 !source.contains("!truthy?(candidate['isMoveInProgress'])") &&
                 source.contains("capture_visible_zone_baseline!(required_override: seeded_visible_ids)") &&
                 source.contains("Wake probe did not observe app wake logs or system display off/on events") &&
                 source.contains("Display is turned off") &&
                 source.contains("Display is turned on"),
-            "Wake proof should settle the seeded hide-all-other baseline, park the pointer so automation does not block rehide without treating expected wake replay movement as a pointer failure, ignore Apple-owned system extras in the customer fixture, fail if a required regular Hidden icon moves into Visible or Always Hidden, and prove a display wake cycle happened"
+            "Wake proof should settle the seeded hide-all-other baseline, park the pointer, fail if passive recovery moves the cursor, ignore Apple-owned system extras in the customer fixture, fail if a required regular Hidden icon moves into Visible or Always Hidden, and prove a display wake cycle happened"
         )
         let seededVisibleRange = try XCTUnwrap(source.range(of: "seeded_visible_ids = seed_hide_all_other_allowlist!"))
         let settleRange = try XCTUnwrap(source.range(of: "wait_for_hide_all_other_zone_settle!(seeded_visible_ids)"))

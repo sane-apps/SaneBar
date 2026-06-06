@@ -161,10 +161,11 @@ ruby "$SANEAPPS_INFRA/scripts/sane_test.rb" SaneBar --local
      and `.sane/customer_ui_action_receipt.json`; the receipt must prove every
      customer-facing action family with structured evidence, not just list IDs.
    - Runs dedicated stability suite (upgrade-state + second-menu-bar paths)
-   - Runs the staged-app runtime lane plus focused exact-ID smokes when those IDs are present on the Mini:
+   - Runs the staged-app runtime lane plus focused exact-ID smokes. Missing
+     deterministic fixture/sentinel coverage is a release blocker, not a skip:
      - shared-bundle Apple extras: Control Center / Clock / Focus / Wi-Fi / Battery / Display
      - native Apple extras: Siri / Spotlight
-     - host exact-id sentinel: Codex
+     - host exact-id sentinel: Little Snitch top-bar items or a deterministic replacement fixture
    - For arrangement / drag / display-recovery patches, keep one manual external-monitor disconnect/reconnect cycle in the release checklist until that path is automated
    - If any guard fails: stop, fix root cause, verify, then rerun preflight (no workaround release)
 3. **Release** — `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project $(pwd) --full --version X.Y.Z --notes "..." --deploy`
@@ -200,6 +201,9 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
     `Scripts/live_zone_smoke.rb`, `Scripts/wake_layout_probe.rb`, or focused unit
     tests. If there is no gate that would fail if the root cause returned, the
     release is blocked.
+  - Passive startup/wake recovery must not physically move the cursor or third-party
+    menu extras. Use audit-only intent replay for recovery, and require explicit
+    user/automation origins for any Cmd-drag path.
   - The current release-blocking families are saved Visible/Hidden persistence
     after wake or display changes, helper-owned Hidden-to-Visible drift such as
     Lungo, shared-bundle exact-ID moves, Hidden vs Always Hidden move

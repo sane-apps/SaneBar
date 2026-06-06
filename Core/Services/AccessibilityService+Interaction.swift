@@ -219,6 +219,7 @@ extension AccessibilityService {
         visibleBoundaryX: CGFloat? = nil,
         eventTap: CGEventTapLocation = .cghidEventTap,
         originalMouseLocation: CGPoint,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         dragService.moveMenuBarIcon(
@@ -228,6 +229,7 @@ extension AccessibilityService {
             visibleBoundaryX: visibleBoundaryX,
             eventTap: eventTap,
             originalMouseLocation: originalMouseLocation,
+            physicalMoveOrigin: physicalMoveOrigin,
             referenceScreenFrame: referenceScreenFrame
         )
     }
@@ -241,6 +243,7 @@ extension AccessibilityService {
         targetStatusItemIndex: Int? = nil,
         placeAfterTarget: Bool,
         originalMouseLocation: CGPoint,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         dragService.reorderMenuBarIcon(
@@ -252,6 +255,7 @@ extension AccessibilityService {
             targetStatusItemIndex: targetStatusItemIndex,
             placeAfterTarget: placeAfterTarget,
             originalMouseLocation: originalMouseLocation,
+            physicalMoveOrigin: physicalMoveOrigin,
             referenceScreenFrame: referenceScreenFrame
         )
     }
@@ -267,6 +271,7 @@ extension AccessibilityService {
         visibleBoundaryX: CGFloat? = nil,
         eventTap: CGEventTapLocation = .cghidEventTap,
         originalMouseLocation: CGPoint,
+        physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
         dragService.moveMenuBarIcon(
@@ -280,6 +285,7 @@ extension AccessibilityService {
             visibleBoundaryX: visibleBoundaryX,
             eventTap: eventTap,
             originalMouseLocation: originalMouseLocation,
+            physicalMoveOrigin: physicalMoveOrigin,
             referenceScreenFrame: referenceScreenFrame
         )
     }

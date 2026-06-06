@@ -10,15 +10,12 @@ class ProjectQATest < Minitest::Test
   def setup
     @qa = ProjectQA.new
   end
-
   def qa_source
     @qa_source ||= source_bundle('qa.rb', 'project_qa_*.rb')
   end
-
   def live_zone_smoke_source
     @live_zone_smoke_source ||= source_bundle('live_zone_smoke.rb', 'live_zone_smoke_*.rb')
   end
-
   def source_bundle(entrypoint, partial_pattern)
     paths = [
       File.join(__dir__, entrypoint),
@@ -26,22 +23,18 @@ class ProjectQATest < Minitest::Test
     ]
     paths.map { |path| File.read(path) }.join("\n")
   end
-
   def test_reporter_confirmation_accepts_plain_working_reply
     assert @qa.send(:reporter_confirmation_text?, "It's working. The updates are a bit slow in the UI but that's ok.")
   end
-
   def test_reporter_confirmation_rejects_negative_reply
     refute @qa.send(:reporter_confirmation_text?, "It's not working. The same problem is still happening.")
   end
-
   def test_reporter_negative_regression_text_catches_post_closure_repro
     assert @qa.send(
       :reporter_negative_regression_text?,
       'Reopening per your closure criterion: same invisible-icon failure, still reproducing with fresh traces.'
     )
   end
-
   def test_post_closure_negative_reporter_comments_flags_untrusted_late_repro
     comments = [
       {
@@ -50,16 +43,13 @@ class ProjectQATest < Minitest::Test
         'body' => 'Reopening this: the same issue is still reproducing with fresh logs.'
       }
     ]
-
     flagged = @qa.send(
       :post_closure_negative_reporter_comments,
       comments,
       '2026-04-16T15:22:40Z'
     )
-
     assert_equal comments, flagged
   end
-
   def test_post_closure_negative_reporter_comments_ignores_owner_and_preclosure_comments
     comments = [
       {
@@ -73,26 +63,21 @@ class ProjectQATest < Minitest::Test
         'body' => 'Still reproducing before closure.'
       }
     ]
-
     flagged = @qa.send(
       :post_closure_negative_reporter_comments,
       comments,
       '2026-04-16T15:22:40Z'
     )
-
     assert_empty flagged
   end
-
   def test_release_blocking_title_detection_catches_tint_build_and_update_bugs
     assert @qa.send(:regression_like_title?, 'When opening an app, the custom dark tint turns black')
     assert @qa.send(:regression_like_title?, "Can't build from source again")
     assert @qa.send(:regression_like_title?, 'App update direct to latest version')
     assert @qa.send(:regression_like_title?, '[Bug]: Status items invisible on macOS Tahoe')
   end
-
   def test_release_runtime_smoke_requires_tint_pixel_evidence_by_default
     source = qa_source
-
     assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
@@ -104,19 +89,15 @@ class ProjectQATest < Minitest::Test
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
     refute_includes source, "'useLiquidGlass' => false"
   end
-
   def test_live_zone_smoke_checks_activation_tint_stability
     source = live_zone_smoke_source
-
     assert_includes source, 'exercise_app_activation_tint_stability_check'
     assert_includes source, 'activation-immediate'
     assert_includes source, 'activation-settled'
     assert_includes source, 'app activation keeps dark custom tint visible'
   end
-
   def test_release_hygiene_guardrails_cover_changelog_privacy_and_local_artifacts
     source = qa_source
-
     assert_includes source, 'check_release_hygiene_guardrails'
     assert_includes source, 'changelog_duplicate_heading_failures'
     assert_includes source, 'Duplicate CHANGELOG version heading'
@@ -130,19 +111,15 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'C617.1'
     assert_includes source, 'large_local_artifact_warnings'
   end
-
   def test_release_hygiene_runs_shared_saneui_guard
     source = qa_source
-
     assert_includes source, 'check_saneui_guardrails'
     assert_includes source, "'saneui_guard', PROJECT_ROOT"
     assert_includes source, 'SaneUI guard warnings'
     assert_includes source, 'shared settings UI drift'
   end
-
   def test_privacy_manifest_declares_required_reasons
     manifest = File.read(File.join(ProjectQA::PROJECT_ROOT, 'SaneBar', 'PrivacyInfo.xcprivacy'))
-
     assert_includes manifest, 'NSPrivacyAccessedAPICategoryUserDefaults'
     assert_includes manifest, 'CA92.1'
     assert_includes manifest, 'NSPrivacyAccessedAPICategoryFileTimestamp'
@@ -153,9 +130,7 @@ class ProjectQATest < Minitest::Test
   def test_live_zone_smoke_rejects_black_appearance_snapshot_pixels
     Tempfile.create(['black-tint', '.bmp']) do |file|
       write_test_bmp(file.path, Array.new(25) { [0, 0, 0, 96] })
-
       stats = LiveZoneSmoke.appearance_tint_pixel_stats(file.path)
-
       refute LiveZoneSmoke.orange_tint_pixel_stats?(stats)
     end
   end
@@ -163,9 +138,7 @@ class ProjectQATest < Minitest::Test
   def test_live_zone_smoke_accepts_orange_appearance_snapshot_pixels
     Tempfile.create(['orange-tint', '.bmp']) do |file|
       write_test_bmp(file.path, Array.new(25) { [255, 85, 0, 96] })
-
       stats = LiveZoneSmoke.appearance_tint_pixel_stats(file.path)
-
       assert LiveZoneSmoke.orange_tint_pixel_stats?(stats)
     end
   end
@@ -488,16 +461,23 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'snapshot_health_error(last_snapshot, label: label)'
     assert_includes source, 'startupItemsValid=#{last_snapshot[\'startupItemsValid\']}'
     assert_includes source, 'possibleSystemMenuBarSuppression'
+    assert_includes source, 'SANEBAR_STARTUP_PROBE_QUIT_TIMEOUT_SECONDS'
+    assert_includes source, 'Startup probe requires cliclick on the Mini to prove passive recovery does not move the cursor'
+    assert_includes source, 'Passive startup recovery moved cursor'
+    assert_includes source, "completed_scenario: 'passive startup recovery did not physically move the cursor'"
   end
 
   def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions
-    source = File.read(File.join(__dir__, 'wake_layout_probe.rb'))
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
 
     assert_includes source, "wait_for_healthy_snapshot(label: 'hidden launch baseline')"
     assert_includes source, "wait_for_healthy_snapshot(label: 'expanded launch baseline')"
     assert_includes source, "wait_for_healthy_snapshot(label: 'hide-all-other seeded launch baseline')"
     assert_includes source, "(!snapshot.key?('startupItemsValid') || truthy?(snapshot['startupItemsValid']))"
     assert_includes source, "!truthy?(snapshot['possibleSystemMenuBarSuppression'])"
+    assert_includes source, 'SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS'
+    assert_includes source, 'Passive wake recovery moved cursor'
+    assert_includes source, "completed_scenario: 'passive wake recovery did not physically move the cursor'"
   end
 
   def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro
@@ -718,10 +698,16 @@ end
     assert_includes source, 'com.apple.menuextra.siri'
     assert_includes source, 'com.apple.menuextra.spotlight'
     assert_includes source, 'RUNTIME_HOST_EXACT_ID_SENTINEL_IDS = %w['
+    assert_includes source, 'com.sanebar.hostsentinel::statusItem:0'
+    assert_includes source, "RUNTIME_HOST_EXACT_ID_FIXTURE_ID = 'com.sanebar.hostsentinel'"
     assert_includes source, 'at.obdev.littlesnitch.networkmonitor'
     assert_includes source, 'at.obdev.littlesnitch.agent'
     assert_includes source, "lane_name: 'native-apple exact-id'"
     assert_includes source, "lane_name: 'host exact-id'"
+    assert_includes source, 'host_fixture_ids = ensure_runtime_host_exact_id_fixture!(target)'
+    assert_includes source, 'statusItem.menu = menu'
+    assert_includes source, 'host exact-id smoke unavailable'
+    refute_includes source, 'host exact-id smoke skipped'
   end
 
   def test_focused_runtime_smoke_preserves_screenshot_setting
@@ -738,6 +724,8 @@ end
     assert_includes source, "lane: 'shared-bundle'"
     assert_includes source, "lane: 'native-apple'"
     assert_includes source, "lane: 'host-exact-id'"
+    assert_includes source, "def manual_override_approved?"
+    assert_includes source, "'approved'"
   end
 
   def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys

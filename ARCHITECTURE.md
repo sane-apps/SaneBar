@@ -327,6 +327,11 @@ NSStatusItems grow **leftward** — right edge stays fixed, left edge extends. W
 7. **Retry** — If verification fails, one retry with updated grab point.
 8. **Restore** — `restoreFromShowAll()` + `hide()` to collapse separators back.
 
+Physical Cmd+drag is only valid for explicit user actions and explicit automation
+commands. Passive startup/wake/screen recovery may audit visibility intent,
+rebuild SaneBar-owned anchors, and warm caches, but must not invoke cursor-moving
+third-party item drags.
+
 #### Geometry fallback guardrails:
 - Separator recovery may estimate the main icon edge from the separator's right edge, but only when the separator is still present in visual mode.
 - Do not reuse separator caches to invent a main-icon boundary when the separator itself is gone or still in blocking mode.

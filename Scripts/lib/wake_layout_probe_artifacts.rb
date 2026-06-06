@@ -3,6 +3,50 @@
 class WakeLayoutProbe
   private
 
+  def capture(*cmd)
+    out, status = Open3.capture2e(*cmd)
+    log("$ #{cmd.join(' ')}")
+    log(out.strip) unless out.strip.empty?
+    [out, status]
+  end
+
+  def log(line)
+    @lines << "[#{Time.now.utc.iso8601}] #{line}"
+  end
+
+  def persist_log!
+    FileUtils.mkdir_p(File.dirname(@log_path))
+    File.write(@log_path, @lines.join("\n") + "\n")
+  end
+
+  def cliclick_path
+    cliclick = ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick']
+      .find { |path| File.executable?(path) }
+    raise 'Wake probe requires cliclick on the Mini to park the pointer away from the menu bar' unless cliclick
+    cliclick
+  end
+
+  def cursor_position
+    out, status = capture(cliclick_path, 'p')
+    raise "Could not read pointer position: #{out}" unless status.success?
+    match = out.strip.match(/\A(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\z/)
+    raise "Could not parse pointer position: #{out.inspect}" unless match
+    { x: match[1].to_f, y: match[2].to_f }
+  end
+
+  def assert_cursor_stable!(baseline, label:, tolerance: 3.0)
+    current = cursor_position
+    drift = Math.sqrt(((current[:x] - baseline[:x])**2) + ((current[:y] - baseline[:y])**2))
+    raise "Passive wake recovery moved cursor during #{label}: #{baseline.inspect} -> #{current.inspect} (#{drift.round(2)}px)" if drift > tolerance
+    {
+      status: 'passed',
+      baseline: baseline,
+      current: current,
+      tolerance: tolerance,
+      completed_scenario: 'passive wake recovery did not physically move the cursor'
+    }
+  end
+
   def write_artifact!(payload)
     payload[:candidate] = runtime_candidate_metadata
     if @visible_zone_proofs.any?
