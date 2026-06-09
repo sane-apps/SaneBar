@@ -315,9 +315,13 @@ struct HealthSettingsView: View {
         Task { @MainActor in
             let snapshot = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: reason)
             lastRepairDate = Date()
-            layoutRescueMessage = MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: snapshot)
-                ? (message ?? "Layout is healthy.")
-                : "Layout still needs attention."
+            if MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: snapshot) {
+                layoutRescueMessage = message ?? "Layout is healthy."
+            } else if snapshot.likelySystemSuppressedStatusItems {
+                layoutRescueMessage = "macOS may be hiding SaneBar's icons. Check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."
+            } else {
+                layoutRescueMessage = "Layout still needs attention."
+            }
             await refreshCounts()
             repairInProgress = false
         }

@@ -374,6 +374,24 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
         removeSpacerItems()
         afterRemovingExistingItems?()
 
+        // Replaying stale persisted positions after wake/display changes can park
+        // the toggle and separator far from Control Center (#136). Clamp unsafe
+        // persisted positions toward the safe right zone before macOS replays them.
+        let resolvedReferenceScreen = StatusBarPositionStore.resolvedReferenceScreen()
+        if let screenWidth = resolvedReferenceScreen.map({ Double($0.frame.width) }),
+           let reanchoredPair = StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
+               mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
+               separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
+               screenWidth: screenWidth,
+               screenHasTopSafeAreaInset: Self.screenHasTopSafeAreaInset(resolvedReferenceScreen)
+           ) {
+            StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.main, forAutosaveName: Self.mainAutosaveName)
+            StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.separator, forAutosaveName: Self.separatorAutosaveName)
+            logger.warning(
+                "Reanchored unsafe persisted positions before replay (main=\(reanchoredPair.main, privacy: .public), separator=\(reanchoredPair.separator, privacy: .public))"
+            )
+        }
+
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated-layout)")
         mainItem.autosaveName = Self.mainAutosaveName

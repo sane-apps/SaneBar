@@ -1,33 +1,33 @@
 import Foundation
 
 enum MenuBarOperationCoordinator {
-    struct StartupInitialInputs: Equatable, Sendable {
+    struct StartupInitialInputs: Equatable {
         let hasCompletedOnboarding: Bool
         let autoRehideEnabled: Bool
         let shouldSkipHideForExternalMonitor: Bool
         let hasConnectedExternalMonitorWithAlwaysShow: Bool
     }
 
-    enum StartupRecoveryReason: String, Equatable, Sendable {
+    enum StartupRecoveryReason: String, Equatable {
         case invalidStatusItems = "invalid-status-items"
         case missingCoordinates = "missing-coordinates"
         case invalidGeometry = "invalid-geometry"
     }
 
-    enum StartupHoldReason: String, Equatable, Sendable {
+    enum StartupHoldReason: String, Equatable {
         case waitingForLiveCoordinates = "waiting-for-live-coordinates"
         case autoRehideDisabled = "auto-rehide-disabled"
         case externalMonitorPolicy = "external-monitor-policy"
         case externalMonitorConnectedAlwaysShow = "external-monitor-connected-always-show"
     }
 
-    enum StartupInitialAction: Equatable, Sendable {
+    enum StartupInitialAction: Equatable {
         case recoverAndKeepExpanded(StartupRecoveryReason)
         case keepExpanded(StartupHoldReason)
         case performInitialHide
     }
 
-    enum PositionValidationAction: Equatable, Sendable {
+    enum PositionValidationAction: Equatable {
         case stable
         case waitForLiveAnchor
         case repairPersistedLayoutAndRecreate
@@ -36,20 +36,20 @@ enum MenuBarOperationCoordinator {
         case stop
     }
 
-    enum PositionValidationContext: String, Equatable, Sendable {
+    enum PositionValidationContext: String, Equatable {
         case startupFollowUp = "startup-follow-up"
         case screenParametersChanged = "screen-parameters-changed"
         case wakeResume = "wake-resume"
         case manualLayoutRestore = "manual-layout-restore"
     }
 
-    enum StatusItemRecoveryContext: Equatable, Sendable {
+    enum StatusItemRecoveryContext: Equatable {
         case startupInitial(StartupInitialInputs)
         case positionValidation(PositionValidationContext)
         case manualLayoutRestoreRequest
     }
 
-    enum StatusItemRecoveryAction: Equatable, Sendable {
+    enum StatusItemRecoveryAction: Equatable {
         case keepExpanded(StartupHoldReason)
         case performInitialHide
         case captureCurrentDisplayBackup
@@ -60,7 +60,7 @@ enum MenuBarOperationCoordinator {
         case stop(StartupRecoveryReason?)
     }
 
-    struct BrowseActivationPlan: Equatable, Sendable {
+    struct BrowseActivationPlan: Equatable {
         let requireObservableReaction: Bool
         let forceFreshTargetResolution: Bool
         let allowImmediateFallbackCenter: Bool
@@ -68,7 +68,7 @@ enum MenuBarOperationCoordinator {
         let preferHardwareFirst: Bool
     }
 
-    enum MoveQueueDecision: Equatable, Sendable {
+    enum MoveQueueDecision: Equatable {
         case ready
         case rejectBusy
         case rejectInvalidStatusItems
@@ -160,19 +160,19 @@ enum MenuBarOperationCoordinator {
             maxRecoveryCount: maxRecoveryCount
         ) {
         case .captureCurrentDisplayBackup:
-            return .stable
+            .stable
         case .waitForLiveAnchor:
-            return .waitForLiveAnchor
+            .waitForLiveAnchor
         case .repairPersistedLayoutAndRecreate:
-            return .repairPersistedLayoutAndRecreate
+            .repairPersistedLayoutAndRecreate
         case .recreateFromPersistedLayout:
-            return .recreateFromPersistedLayout
+            .recreateFromPersistedLayout
         case .bumpAutosaveVersion:
-            return .bumpAutosaveVersion
+            .bumpAutosaveVersion
         case .stop:
-            return .stop
+            .stop
         case .keepExpanded, .performInitialHide:
-            return .stable
+            .stable
         }
     }
 
@@ -275,6 +275,12 @@ enum MenuBarOperationCoordinator {
 
             if recoveryReason == .invalidStatusItems,
                snapshot.likelySystemSuppressedStatusItems {
+                // One repair attempt is allowed so affected users are not left
+                // without any in-app recovery path (#152); further attempts stop
+                // to avoid autosave churn while macOS suppresses the items.
+                if recoveryCount == 0 {
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
                 return .stop(recoveryReason)
             }
 
@@ -339,7 +345,7 @@ enum MenuBarOperationCoordinator {
                 if validationContext == .startupFollowUp ||
                     validationContext == .screenParametersChanged ||
                     validationContext == .wakeResume,
-                   recoveryCount < maxRecoveryCount {
+                    recoveryCount < maxRecoveryCount {
                     return .bumpAutosaveVersion(recoveryReason)
                 }
 
@@ -358,10 +364,9 @@ enum MenuBarOperationCoordinator {
 
         case .manualLayoutRestoreRequest:
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
-                if recoveryReason == .invalidStatusItems,
-                   snapshot.likelySystemSuppressedStatusItems {
-                    return .stop(recoveryReason)
-                }
+                // An explicit user repair request always attempts the full
+                // repair, even when macOS suppression is suspected (#152) —
+                // a single user-initiated reset cannot churn autosave state.
                 return .repairPersistedLayoutAndRecreate(recoveryReason)
             }
             return .recreateFromPersistedLayout(nil)

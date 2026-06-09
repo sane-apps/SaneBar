@@ -4,6 +4,11 @@
 
 set -e
 
+# Hook/launchd shells often run with a C locale, which makes Ruby default to
+# US-ASCII and crash on UTF-8 Swift sources and xcodebuild output.
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 

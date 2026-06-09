@@ -374,8 +374,8 @@ struct MenuBarOperationRuntimeValidationTests {
         )
     }
 
-    @Test("Position validation stops instead of resetting autosave state for likely macOS suppression")
-    func positionValidationStopsForLikelySystemSuppressedStatusItems() {
+    @Test("Position validation attempts one repair then stops for likely macOS suppression")
+    func positionValidationRepairsOnceThenStopsForLikelySystemSuppressedStatusItems() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .stale,
             startupItemsValid: false,
@@ -390,7 +390,7 @@ struct MenuBarOperationRuntimeValidationTests {
                 context: .positionValidation(.startupFollowUp),
                 recoveryCount: 0,
                 maxRecoveryCount: 4
-            ) == .stop(.invalidStatusItems)
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
@@ -398,15 +398,43 @@ struct MenuBarOperationRuntimeValidationTests {
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 0,
                 maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 1,
+                maxRecoveryCount: 4
             ) == .stop(.invalidStatusItems)
         )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 2,
+                maxRecoveryCount: 4
+            ) == .stop(.invalidStatusItems)
+        )
+    }
+
+    @Test("Manual repair request always attempts repair even for likely macOS suppression")
+    func manualRepairRequestRepairsForLikelySystemSuppressedStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: false,
+            likelySystemSuppressedStatusItems: true,
+            separatorX: nil,
+            mainX: nil
+        )
+
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .manualLayoutRestoreRequest,
                 recoveryCount: 0,
                 maxRecoveryCount: 4
-            ) == .stop(.invalidStatusItems)
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
     }
 }
