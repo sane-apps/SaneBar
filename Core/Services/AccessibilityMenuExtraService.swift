@@ -499,11 +499,6 @@ enum AccessibilityMenuExtraService {
         }
 
         guard items.count > 1 else { return items.first }
-        if menuExtraId == nil,
-           let statusItemIndex,
-           items.indices.contains(statusItemIndex) {
-            return items[statusItemIndex]
-        }
         guard let preferredCenterX else {
             if let statusItemIndex, items.indices.contains(statusItemIndex) {
                 return items[statusItemIndex]

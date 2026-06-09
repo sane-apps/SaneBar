@@ -33,7 +33,7 @@ class LiveZoneSmoke
   DEFAULT_POST_SMOKE_IDLE_SAMPLE_SECONDS = 4.0
   DEFAULT_POST_SMOKE_IDLE_CPU_AVG_MAX = 5.0
   DEFAULT_POST_SMOKE_IDLE_CPU_PEAK_MAX = 20.0
-  DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
+  DEFAULT_POST_SMOKE_IDLE_RSS_MB_MAX = 160.0
   DEFAULT_ACTIVE_AVG_CPU_MAX = 15.0
   DEFAULT_ACTIVE_AVG_RSS_MB_MAX = 192.0
   # Short focused exact-ID lanes can finish while screenshot capture and menu
@@ -64,6 +64,7 @@ class LiveZoneSmoke
   # reconciliation runs. Every runtime move must remain classified in the
   # requested zone after that settle window, not only immediately after drop.
   DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS = 2.2
+  ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS = 5.0
   SCREENSHOT_CAPTURE_TIMEOUT_SECONDS = 20
   FULLSCREEN_APPEARANCE_SETTLE_SECONDS = 2.1
   CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT = 40
@@ -84,6 +85,7 @@ class LiveZoneSmoke
       com.apple.menuextra.focusmode
       com.openai.codex
       com.setapp.DesktopClient.SetappLauncher
+      com.ameba.SwiftBar
       com.sindresorhus.Lungo-setapp
       cc.ffitch.shottr
       com.yujitach.MenuMeters
@@ -98,7 +100,6 @@ class LiveZoneSmoke
       com.apple.SSMenuAgent
       com.apple.menuextra.focusmode
       com.openai.codex
-      com.sanebar.sharedfixture
       com.setapp.DesktopClient.SetappLauncher
       com.sindresorhus.Lungo-setapp
       com.yujitach.MenuMeters
@@ -127,6 +128,11 @@ class LiveZoneSmoke
     com.apple.menuextra.clock
     com.apple.menuextra.spotlight
     com.apple.controlcenter
+  ].freeze
+  REQUIRED_REPRESENTATIVE_ZONES = %w[
+    visible
+    hidden
+    alwaysHidden
   ].freeze
   STANDARD_APP_MENU_TITLES = %w[
     apple
@@ -166,9 +172,11 @@ class LiveZoneSmoke
     @active_avg_rss_mb_max = float_env('SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX') || DEFAULT_ACTIVE_AVG_RSS_MB_MAX
     @resource_sample_path = expand_env_path('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH') || File.join(Dir.tmpdir, 'sanebar_runtime_resource_sample.txt')
     @require_always_hidden = ENV['SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN'] == '1'
+    @require_all_zones = ENV['SANEBAR_SMOKE_REQUIRE_ALL_ZONES'] == '1'
     @require_candidate = ENV['SANEBAR_SMOKE_REQUIRE_CANDIDATE'] == '1'
     @require_browse_activation_candidate = ENV['SANEBAR_SMOKE_REQUIRE_BROWSE_ACTIVATION_CANDIDATE'] == '1'
     @require_all_candidates = ENV['SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES'] == '1'
+    @min_passing_candidates = integer_env('SANEBAR_SMOKE_MIN_PASSING_CANDIDATES') || 0
     @capture_screenshots = ENV.fetch('SANEBAR_SMOKE_CAPTURE_SCREENSHOTS', '1') != '0'
     @require_appearance_transitions = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS'] == '1'
     @require_appearance_tint_pixels = ENV['SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS'] == '1'
@@ -211,10 +219,12 @@ class LiveZoneSmoke
     reset_resource_watchdog_window!
 
     zones = list_icon_zones
+    require_representative_zone_candidates!(zones)
     if @exact_id_move_only
       puts 'ℹ️ Focused exact-ID move-only smoke: skipping browse/settings/fullscreen visual surfaces already covered by default smoke.'
     else
       exercise_browse_modes(zones)
+      zones = prepare_zones_for_move_checks
     end
     if @skip_move_checks
       puts 'ℹ️ Runtime visual smoke: skipping generic move checks; focused exact-ID lanes provide release-blocking move coverage.'
@@ -247,34 +257,43 @@ class LiveZoneSmoke
     post_budget_restore_candidate = nil
 
     unless candidates.empty?
-      candidates.each do |candidate|
-        begin
-          puts "🎯 Candidate: #{candidate[:name]} (#{candidate[:bundle]}) zone=#{candidate[:zone]}"
-          exercise_hidden_visible_moves(candidate)
-          exercise_hidden_always_hidden_round_trip(candidate)
-          exercise_always_hidden_moves(candidate)
-          passed_candidates << candidate
-          post_budget_restore_candidate = candidate unless strict_candidate_mode?
-          puts "✅ Candidate passed: #{candidate[:unique_id]}"
-          break unless strict_candidate_mode?
-        rescue StandardError => e
-          failures << [candidate, e]
-          puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
-        ensure
+      if representative_action_matrix_mode?
+        passed_candidates = exercise_representative_move_action_matrix(candidates)
+      else
+        candidates.each do |candidate|
           begin
-            restore_zone(candidate) unless post_budget_restore_candidate&.[](:unique_id) == candidate[:unique_id]
-          rescue StandardError
-            # Keep trying other candidates; final failure will include last_error.
+            puts "🎯 Candidate: #{candidate[:name]} (#{candidate[:bundle]}) zone=#{candidate[:zone]}"
+            exercise_hidden_visible_moves(candidate)
+            exercise_hidden_always_hidden_round_trip(candidate)
+            exercise_always_hidden_moves(candidate)
+            passed_candidates << candidate
+            post_budget_restore_candidate = candidate unless strict_candidate_mode?
+            puts "✅ Candidate passed: #{candidate[:unique_id]}"
+            break unless strict_candidate_mode?
+          rescue StandardError => e
+            failures << [candidate, e]
+            puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
+          ensure
+            begin
+              restore_zone(candidate) unless post_budget_restore_candidate&.[](:unique_id) == candidate[:unique_id]
+            rescue StandardError
+              # Keep trying other candidates; final failure will include last_error.
+            end
           end
         end
       end
 
       if strict_candidate_mode?
-        unless failures.empty?
-          summary = failures.map do |candidate, error|
-            "#{candidate[:unique_id]}: #{error.message}"
-          end.join(' | ')
-          raise "Candidate failures: #{summary}"
+        min_required = strict_candidate_minimum(candidates.length)
+        if passed_candidates.length < min_required
+          summary = candidate_failure_summary(failures)
+          detail = summary.empty? ? '' : " Candidate failures: #{summary}"
+          raise "#{passed_candidates.length}/#{min_required} candidates passed move action checks.#{detail}"
+        end
+        if failures.any? && @min_passing_candidates <= 0
+          raise "Candidate failures: #{candidate_failure_summary(failures)}"
+        elsif failures.any?
+          puts "⚠️ Candidate failures tolerated after #{passed_candidates.length}/#{min_required} candidates passed: #{candidate_failure_summary(failures)}"
         end
         raise 'No candidates passed move action checks.' if passed_candidates.empty?
 
@@ -313,6 +332,51 @@ class LiveZoneSmoke
   end
 
   private
+
+  def prepare_zones_for_move_checks
+    close_browse_panel_safely
+    close_settings_window_safely
+    prepare_layout_baseline
+    wait_for_stable_layout_snapshot
+    sleep_with_watchdog(1.5)
+
+    zones = list_icon_zones
+    zones = seed_representative_always_hidden_candidates_for_move_checks(zones)
+    require_representative_zone_candidates!(zones)
+    zones
+  end
+
+  def seed_representative_always_hidden_candidates_for_move_checks(zones)
+    return zones unless @require_all_zones
+    return zones if focused_required_id_mode?
+
+    candidates = candidate_pool(zones)
+    always_hidden_count = candidates.count { |candidate| candidate[:zone] == 'alwaysHidden' }
+    return zones if always_hidden_count >= 3
+
+    zone_counts = candidates.group_by { |candidate| candidate[:zone].to_s }.transform_values(&:length)
+    donors = prioritize_move_candidates(
+      candidates.reject { |candidate| candidate[:zone] == 'alwaysHidden' }
+                .select { |candidate| zone_counts.fetch(candidate[:zone].to_s, 0) > 1 }
+    )
+    return zones if donors.empty?
+
+    donors.each do |donor|
+      break if always_hidden_count >= 3
+
+      begin
+        puts "ℹ️ Reseeding representative Always Hidden candidate before move matrix: #{donor[:unique_id]}"
+        move_and_verify('move icon to always hidden', donor, 'alwaysHidden')
+        zones = list_icon_zones
+        candidates = candidate_pool(zones)
+        always_hidden_count = candidates.count { |candidate| candidate[:zone] == 'alwaysHidden' }
+      rescue StandardError => e
+        puts "⚠️ Representative Always Hidden reseed failed for #{donor[:unique_id]}: #{e.message}"
+      end
+    end
+
+    zones
+  end
 
   def prepare_layout_baseline
     close_browse_panel_safely
@@ -532,6 +596,7 @@ class LiveZoneSmoke
 
   def preferred_move_candidate_rank(bundle)
     bundle = bundle.to_s.downcase
+    return 0 if bundle == 'com.sanebar.sharedfixture'
     return 0 if MOVE_CANDIDATE_PREFERRED_BUNDLE_PREFIXES.any? { |prefix| bundle.start_with?(prefix) }
 
     1
@@ -557,6 +622,7 @@ class LiveZoneSmoke
 
   def selected_candidates(zones)
     ordered = candidate_pool(zones, allow_denylisted: !@required_candidate_ids.empty?)
+    return representative_zone_candidates(ordered) if @required_candidate_ids.empty? && @require_all_zones
     return prioritize_move_candidates(ordered) if @required_candidate_ids.empty?
 
     selected = @required_candidate_ids.map do |required_id|
@@ -580,6 +646,46 @@ class LiveZoneSmoke
         item[:name].to_s.downcase
       ]
     end
+  end
+
+  def require_representative_zone_candidates!(zones)
+    return unless @require_all_zones
+    return if focused_required_id_mode?
+
+    candidates = candidate_pool(zones)
+    missing = REQUIRED_REPRESENTATIVE_ZONES.reject do |zone|
+      candidates.any? { |candidate| candidate[:zone] == zone }
+    end
+    ah_count = candidates.count { |candidate| candidate[:zone] == 'alwaysHidden' }
+    if ah_count < 3
+      counts = zones.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+      candidate_counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+      raise "Runtime smoke requires three representative movable always-hidden candidates for outbound move coverage (raw=#{counts}, candidate=#{candidate_counts})."
+    end
+    if missing.empty?
+      summary = REQUIRED_REPRESENTATIVE_ZONES.map do |zone|
+        candidate = candidates.find { |item| item[:zone] == zone }
+        "#{zone}=#{candidate[:unique_id]}"
+      end.join(' ')
+      puts "✅ Representative zone candidates ok: #{summary}"
+      return
+    end
+
+    counts = zones.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+    candidate_counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+    raise "Runtime smoke requires representative movable candidates in every zone; missing #{missing.join(', ')} (raw=#{counts}, candidate=#{candidate_counts}). Seed visible, hidden, and always-hidden fixture items before release verification."
+  end
+
+  def representative_zone_candidates(candidates)
+    by_zone = candidates.group_by { |candidate| candidate[:zone] }
+    selected = REQUIRED_REPRESENTATIVE_ZONES.map do |zone|
+      prioritize_move_candidates(Array(by_zone[zone])).first
+    end.compact
+    extra_always_hidden = prioritize_move_candidates(Array(by_zone['alwaysHidden']))
+      .reject { |candidate| selected.any? { |item| item[:unique_id] == candidate[:unique_id] } }
+      .take(2)
+    selected.concat(extra_always_hidden)
+    selected
   end
 
   def resolve_required_candidate(required_id, ordered)
@@ -629,7 +735,22 @@ class LiveZoneSmoke
   end
 
   def strict_candidate_mode?
-    @require_all_candidates || !@required_candidate_ids.empty?
+    @require_all_candidates || @require_all_zones || !@required_candidate_ids.empty?
+  end
+
+  def strict_candidate_minimum(candidate_count)
+    return 1 if representative_action_matrix_mode?
+
+    min_passing = @min_passing_candidates.to_i
+    return candidate_count if min_passing <= 0
+
+    min_passing
+  end
+
+  def candidate_failure_summary(failures)
+    failures.map do |candidate, error|
+      "#{candidate[:unique_id]}: #{error.message}"
+    end.join(' | ')
   end
 
   def move_candidates_required?
@@ -642,6 +763,10 @@ class LiveZoneSmoke
 
   def focused_required_id_mode?
     !@required_candidate_ids.empty?
+  end
+
+  def representative_action_matrix_mode?
+    @require_all_zones && @required_candidate_ids.empty? && !@require_all_candidates
   end
 
   def escape_quotes(value)

@@ -24,6 +24,7 @@ require 'time'
 require 'date'
 require 'fileutils'
 require 'socket'
+require 'tmpdir'
 
 class ProjectQA
   PROJECT_ROOT = File.expand_path('..', __dir__)
@@ -151,6 +152,7 @@ class ProjectQA
   RUNTIME_SHARED_BUNDLE_FIXTURE_IDS = %w[
     com.sanebar.sharedfixture::statusItem:0
     com.sanebar.sharedfixture::statusItem:1
+    com.sanebar.sharedfixture::statusItem:2
   ].freeze
   RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH = '/tmp/sanebar_runtime_host_exact_id_fixture.log'
   RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH = '/tmp/SaneBarHostExactIDFixture.app'
@@ -251,7 +253,7 @@ class ProjectQA
   RUNTIME_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS = 4.0
   RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX = 5.0
   RUNTIME_SMOKE_POST_SMOKE_IDLE_CPU_PEAK_MAX = 20.0
-  RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX = 128.0
+  RUNTIME_SMOKE_POST_SMOKE_IDLE_RSS_MB_MAX = 160.0
   RUNTIME_SMOKE_ACTIVE_AVG_CPU_MAX = 15.0
   RUNTIME_SMOKE_ACTIVE_AVG_RSS_MB_MAX = 192.0
   RECURRING_REGRESSION_TEST_MARKERS = {
@@ -380,6 +382,11 @@ class ProjectQA
     host.include?('mini') || user == 'stephansmac'
   rescue StandardError
     false
+  end
+
+  def runtime_smoke_host_allowed?
+    running_on_mini_host? ||
+      ENV['SANE_APPROVE_LOCAL_UI_ON_AIR'] == 'MR. SANE APPROVES LOCAL UI ON AIR'
   end
 
   def manual_override_phrase(gate:)

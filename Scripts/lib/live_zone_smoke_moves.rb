@@ -3,6 +3,162 @@
 class LiveZoneSmoke
   private
 
+  def exercise_representative_move_action_matrix(candidates)
+    by_zone = candidates.group_by { |candidate| candidate[:zone].to_s }
+    visible_candidate = Array(by_zone['visible']).first
+    hidden_candidate = Array(by_zone['hidden']).first
+    always_hidden_candidates = Array(by_zone['alwaysHidden'])
+
+    raise 'Representative move matrix requires a visible candidate.' unless visible_candidate
+    raise 'Representative move matrix requires a hidden candidate.' unless hidden_candidate
+    raise 'Representative move matrix requires three settled always-hidden candidates.' if always_hidden_candidates.length < 3
+
+    passed = []
+
+    ah_to_visible = begin
+      exercise_matrix_move_with_fallback(
+        'AH->Visible',
+        prioritize_ah_to_visible_candidates(always_hidden_candidates),
+        'move icon to visible',
+        'visible'
+      )
+    rescue StandardError => e
+      puts "ℹ️ Matrix AH->Visible existing candidates failed; staging visible candidate through Always Hidden: #{e.message}"
+      staged_candidate = visible_candidate.merge(zone: 'visible')
+      move_and_verify('move icon to always hidden', staged_candidate, 'alwaysHidden')
+      move_and_verify('move icon to visible', staged_candidate.merge(zone: 'alwaysHidden'), 'visible')
+      staged_candidate.merge(zone: 'visible')
+    end
+    passed << ah_to_visible
+
+    ah_to_hidden_candidates = prioritize_ah_to_hidden_candidates(
+      always_hidden_candidates.reject { |candidate| candidate[:unique_id] == ah_to_visible[:unique_id] }
+    )
+    ah_to_hidden = begin
+      exercise_matrix_move_with_fallback(
+        'AH->Hidden',
+        ah_to_hidden_candidates,
+        'move icon to hidden',
+        'hidden'
+      )
+    rescue StandardError => e
+      puts "ℹ️ Matrix AH->Hidden existing candidates failed; staging hidden candidate through Always Hidden: #{e.message}"
+      staged_candidate = hidden_candidate.merge(zone: 'hidden')
+      move_and_verify('move icon to always hidden', staged_candidate, 'alwaysHidden')
+      move_and_verify('move icon to hidden', staged_candidate.merge(zone: 'alwaysHidden'), 'hidden')
+      staged_candidate.merge(zone: 'hidden')
+    end
+    passed << ah_to_hidden
+    puts '✅ Always Hidden move actions ok'
+
+    hidden_visible_candidates = matrix_hidden_visible_candidates(
+      primary: ah_to_visible.merge(zone: 'visible'),
+      visible_candidate: visible_candidate,
+      hidden_candidate: hidden_candidate,
+      all_candidates: candidates
+    )
+    hidden_visible_candidate = exercise_hidden_visible_moves_with_fallback(hidden_visible_candidates)
+    puts "✅ Hidden/Visible move actions ok (#{hidden_visible_candidate[:unique_id]})"
+
+    puts "🎯 Matrix Hidden->Always Hidden candidate: #{hidden_candidate[:name]} (#{hidden_candidate[:bundle]})"
+    move_and_verify('move icon to always hidden', hidden_candidate, 'alwaysHidden')
+    passed << hidden_candidate
+    puts '✅ Hidden/Always Hidden round-trip ok'
+
+    puts "✅ Candidate set passed: #{passed.map { |candidate| candidate[:unique_id] }.uniq.join(', ')}"
+    passed
+  end
+
+  def matrix_hidden_visible_candidates(primary:, visible_candidate:, hidden_candidate:, all_candidates:)
+    ordered = [primary, visible_candidate, hidden_candidate] +
+      all_candidates.reject { |candidate| candidate[:zone] == 'alwaysHidden' }
+    seen = {}
+    ordered.compact.each_with_object([]) do |candidate, result|
+      unique_id = candidate[:unique_id].to_s
+      next if unique_id.empty? || seen[unique_id]
+
+      seen[unique_id] = true
+      result << candidate
+    end
+  end
+
+  def exercise_hidden_visible_moves_with_fallback(candidates)
+    failures = []
+    candidates.each do |candidate|
+      live_candidate = live_matrix_candidate(candidate)
+      next unless live_candidate
+
+      puts "🎯 Matrix Hidden/Visible candidate: #{live_candidate[:name]} (#{live_candidate[:bundle]})"
+      exercise_hidden_visible_moves(live_candidate)
+      return live_candidate
+    rescue StandardError => e
+      failures << "#{candidate[:unique_id]} => #{e.message}"
+      puts "⚠️ Matrix Hidden/Visible candidate failed: #{candidate[:bundle]} (#{e.message})"
+    end
+
+    raise "Representative move matrix could not prove Hidden/Visible: #{failures.join(' | ')}"
+  end
+
+  def live_matrix_candidate(candidate)
+    zones = list_icon_zones
+    matched = matched_move_candidate(zones, candidate[:unique_id], candidate)
+    return nil unless matched
+    return nil if matched[:zone] == 'alwaysHidden'
+
+    candidate.merge(
+      unique_id: matched[:unique_id],
+      zone: matched[:zone],
+      name: matched[:name],
+      bundle: matched[:bundle]
+    )
+  end
+
+  def exercise_matrix_move_with_fallback(label, candidates, command, expected_zone)
+    failures = []
+    2.times do |pass|
+      if pass == 1
+        puts "ℹ️ Retrying matrix #{label} after extended menu bar settle"
+        sleep_with_watchdog(8.0)
+        wait_for_move_ready_state
+      end
+
+      candidates.each do |candidate|
+        puts "🎯 Matrix #{label} candidate: #{candidate[:name]} (#{candidate[:bundle]})"
+        move_and_verify(command, candidate, expected_zone)
+        return candidate
+      rescue StandardError => e
+        failures << "#{candidate[:unique_id]} => #{e.message}"
+        puts "⚠️ Matrix #{label} candidate failed: #{candidate[:bundle]} (#{e.message})"
+      end
+    end
+
+    raise "Representative move matrix could not prove #{label}: #{failures.join(' | ')}"
+  end
+
+  def prioritize_ah_to_visible_candidates(candidates)
+    candidates.sort_by do |candidate|
+      [
+        deterministic_shared_fixture_candidate?(candidate) ? 1 : 0,
+        candidate[:bundle].to_s.start_with?('com.apple.') ? 1 : 0,
+        candidate[:name].to_s.downcase
+      ]
+    end
+  end
+
+  def prioritize_ah_to_hidden_candidates(candidates)
+    candidates.sort_by do |candidate|
+      [
+        deterministic_shared_fixture_candidate?(candidate) ? 0 : 1,
+        candidate[:bundle].to_s.start_with?('com.apple.') ? 1 : 0,
+        candidate[:name].to_s.downcase
+      ]
+    end
+  end
+
+  def deterministic_shared_fixture_candidate?(candidate)
+    candidate[:bundle].to_s == 'com.sanebar.sharedfixture'
+  end
+
   def exercise_hidden_visible_moves(candidate)
     if candidate[:zone] == 'hidden'
       move_and_verify('move icon to visible', candidate, 'visible')
@@ -61,19 +217,65 @@ class LiveZoneSmoke
   end
 
   def move_and_verify(command, candidate, expected_zone)
+    wait_for_move_ready_state
     icon_unique_id = resolve_live_move_identifier(candidate)
+    settle_before_always_hidden_outbound_move(icon_unique_id, candidate, expected_zone)
     icon = escape_quotes(icon_unique_id)
     begin
       result = app_script("#{command} \"#{icon}\"").strip.downcase
       raise "#{command} returned '#{result}' for #{candidate[:unique_id]}" unless %w[true 1].include?(result)
     rescue StandardError => e
-      raise unless timed_out_move_command?(command, e)
-
-      puts "ℹ️ Salvaging timed-out move command via zone verification for #{icon_unique_id}"
+      if timed_out_move_command?(command, e)
+        puts "ℹ️ Salvaging timed-out move command via zone verification for #{icon_unique_id}"
+      elsif retryable_failed_move_command?(command, e)
+        puts "ℹ️ Retrying failed move command after menu bar settle for #{icon_unique_id}: #{e.message}"
+        sleep_with_watchdog(1.2)
+        result = app_script("#{command} \"#{icon}\"").strip.downcase
+        raise "#{command} retry returned '#{result}' for #{candidate[:unique_id]}" unless %w[true 1].include?(result)
+      else
+        raise
+      end
     end
 
     wait_for_zone(icon_unique_id, candidate, expected_zone)
     assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)
+  end
+
+  def settle_before_always_hidden_outbound_move(icon_unique_id, candidate, expected_zone)
+    return true if expected_zone == 'alwaysHidden'
+
+    zones = list_icon_zones
+    matched = matched_move_candidate(zones, icon_unique_id, candidate)
+    return true unless matched && matched[:zone] == 'alwaysHidden'
+
+    puts "ℹ️ Settling before Always Hidden outbound move for #{icon_unique_id}"
+    sleep_with_watchdog(ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS)
+    wait_for_move_ready_state
+    true
+  end
+
+  def wait_for_move_ready_state
+    close_browse_panel_safely
+    close_settings_window_safely
+    deadline = Time.now + 6.0
+    last_snapshot = nil
+
+    while Time.now < deadline
+      begin
+        last_snapshot = layout_snapshot
+        ready = !truthy?(last_snapshot['isMoveInProgress']) &&
+                !truthy?(last_snapshot['isBrowseVisible']) &&
+                !truthy?(last_snapshot['isBrowseSessionActive']) &&
+                !truthy?(last_snapshot['isMenuOpen'])
+        return true if ready
+      rescue StandardError
+        # Fall through to a short settle; move verification will surface hard
+        # failures with the command-specific context.
+      end
+      sleep_with_watchdog(0.25)
+    end
+
+    raise "Menu bar did not become move-ready before action (snapshot=#{last_snapshot})"
   end
 
   def assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)
@@ -254,6 +456,11 @@ class LiveZoneSmoke
   def timed_out_move_command?(command, error)
     error.message.include?('AppleScript timeout') &&
       command.start_with?('move icon to ')
+  end
+
+  def retryable_failed_move_command?(command, error)
+    command.start_with?('move icon to ') &&
+      error.message.include?('failed to move')
   end
 
   def app_script_timeout_for(statement)

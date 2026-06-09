@@ -240,11 +240,11 @@ final class AccessibilityMenuBarDragService {
         // Verify icon landed in the expected zone using midpoint-based logic.
         // This aligns with SearchService zone classification and prevents
         // false negatives when visible moves land close to the separator.
-        var movedToExpectedSide = AccessibilityInteractionPolicy.frameIsInTargetZone(
+        var movedToExpectedSide = AccessibilityInteractionPolicy.frameIsInTargetLane(
             afterFrame: afterFrame,
+            targetLane: resolvedTargetLane,
             separatorX: separatorX,
-            toHidden: toHidden,
-            alwaysHiddenBoundaryX: visibleBoundaryX
+            visibleBoundaryX: visibleBoundaryX
         )
 
         // Guard against stale-boundary false positives/negatives by ensuring motion
@@ -253,15 +253,20 @@ final class AccessibilityMenuBarDragService {
             beforeFrame: iconFrame,
             afterFrame: afterFrame,
             separatorX: separatorX,
-            toHidden: toHidden
+            targetLane: resolvedTargetLane,
+            visibleBoundaryX: visibleBoundaryX
         )
-        if directionMismatch, toHidden {
+        if directionMismatch, resolvedTargetLane == .alwaysHidden || (resolvedTargetLane == .hidden && toHidden) {
             let deltaX = afterFrame.midX - iconFrame.midX
             accessibilityDragLogger.warning("🔧 Move direction mismatch: expected leftward hidden move, deltaX=\(deltaX, privacy: .public)")
-            movedToExpectedSide = false
-        } else if directionMismatch, !toHidden {
+        } else if directionMismatch, resolvedTargetLane == .hidden || resolvedTargetLane == .hiddenFromAlwaysHidden {
+            let deltaX = afterFrame.midX - iconFrame.midX
+            accessibilityDragLogger.warning("🔧 Move direction mismatch: expected rightward hidden-lane move, deltaX=\(deltaX, privacy: .public)")
+        } else if directionMismatch {
             let deltaX = afterFrame.midX - iconFrame.midX
             accessibilityDragLogger.warning("🔧 Move direction mismatch: expected rightward visible move, deltaX=\(deltaX, privacy: .public)")
+        }
+        if directionMismatch {
             movedToExpectedSide = false
         }
 

@@ -36,6 +36,13 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "Always-hidden moves should wait for live AH separator geometry before trusting cached drag targets"
         )
         XCTAssertTrue(
+            resolverSource.contains("let liveBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
+                resolverSource.contains("targets: (liveBoundaryX, nil)") &&
+                resolverSource.contains("alwaysHiddenSeparatorIsLive: liveBoundaryX != nil") &&
+                resolverSource.contains("mainSeparatorIsLive: liveBoundaryX != nil"),
+            "To-Always-Hidden moves should require the same live AH/main separator boundary that pin audit and classification require"
+        )
+        XCTAssertTrue(
             resolverSource.contains("Always-hidden move target resolution failed without live separator geometry"),
             "Always-hidden move target resolution must fail closed instead of returning cached-only targets at the retry limit"
         )
@@ -85,6 +92,10 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             alwaysHiddenSource.contains("if !success, !toAlwaysHidden {") &&
                 alwaysHiddenSource.contains("success = await manager.moveTargetResolver.verifyVisibleMoveWithFreshGeometry("),
             "Always-hidden visible returns should attempt the same fresh-geometry recheck before retrying"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("targetLane: toAlwaysHidden ? .alwaysHidden : .visibleFromAlwaysHidden"),
+            "Always-hidden visible returns should use a separator-adjacent visible insertion target instead of the normal hidden-to-visible target"
         )
     }
 
@@ -184,6 +195,48 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
                 source.contains("await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()") &&
                 source.contains("AccessibilityService.shared.preserveFreshMenuBarItemPositionsAfterManualMove()"),
             "AH-to-Hidden moves should preserve the shown-state post-move cache so immediate AppleScript verification does not reclassify regular Hidden as Always Hidden after re-hide"
+        )
+    }
+
+    func testAlwaysHiddenToHiddenMoveUsesRegularHiddenLaneBoundaries() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("separatorX: targets.mainSeparatorOriginX") &&
+                source.contains("visibleBoundaryX: targets.alwaysHiddenSeparatorRightEdgeX") &&
+                source.contains("targetLane: .hiddenFromAlwaysHidden"),
+            "AH-to-Hidden moves must use the main separator as the hidden-lane right edge, the AH separator as the left boundary, and the dedicated AH-origin hidden-lane target"
+        )
+    }
+
+    func testAlwaysHiddenToVisibleUsesSeparatorAdjacentVisibleTarget() throws {
+        let policyURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityInteractionPolicy.swift")
+        let policySource = try String(contentsOf: policyURL, encoding: .utf8)
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            policySource.contains("case visibleFromAlwaysHidden") &&
+                policySource.contains("let nearSeparatorOffset = max(CGFloat(8), min(CGFloat(24), iconWidth * 0.35))") &&
+                policySource.contains("return separatorX + boundedOffset"),
+            "AH-to-visible moves should target just across the main separator instead of deep near the SaneBar icon"
+        )
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("targetLane: toAlwaysHidden ? .alwaysHidden : .visibleFromAlwaysHidden"),
+            "AH-to-visible drag and retry paths should use the dedicated separator-adjacent lane"
+        )
+    }
+
+    func testAlwaysHiddenOutboundMovesUseLongerRevealSettle() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private let alwaysHiddenOutboundRevealSettleMilliseconds = 1_500") &&
+                source.contains("let revealSettleMilliseconds = toAlwaysHidden ? 300 : alwaysHiddenOutboundRevealSettleMilliseconds") &&
+                source.contains("try? await Task.sleep(for: .milliseconds(alwaysHiddenOutboundRevealSettleMilliseconds))"),
+            "Always Hidden outbound moves should let unpin + showAll settle before the physical drag"
         )
     }
 

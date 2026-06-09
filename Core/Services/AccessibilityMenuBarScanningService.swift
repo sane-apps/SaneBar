@@ -109,10 +109,10 @@ final class AccessibilityMenuBarScanningService {
         axIdentifier: String?
     ) -> Int? {
         let hasIdentifier = axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-        if itemCount > 1 || !hasIdentifier {
-            return itemIndex
+        if hasIdentifier {
+            return nil
         }
-        return nil
+        return itemIndex
     }
 
     // MARK: - System Wide Search

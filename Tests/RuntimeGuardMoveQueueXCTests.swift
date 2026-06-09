@@ -56,6 +56,21 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAppleScriptAlwaysHiddenMoveFallsBackToExactPinEnforcement() throws {
+        let scriptURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconMoveCommands.swift")
+        let scriptSource = try String(contentsOf: scriptURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            scriptSource.contains("AppleScript move-to-always-hidden direct drag failed; falling back to exact pin enforcement") &&
+                scriptSource.contains("manager.alwaysHiddenPinWorkflow.pin(") &&
+                scriptSource.contains("reason: \"AppleScript move icon to always hidden fallback\"") &&
+                scriptSource.contains("filterBundleId: icon.bundleId") &&
+                scriptSource.contains("mode: .repairWithPhysicalMoves") &&
+                scriptSource.contains("physicalMoveOrigin: .appleScriptUserAction"),
+            "AppleScript exact-ID move-to-always-hidden should fall back to pin enforcement when the direct drag path fails"
+        )
+    }
+
     func testStaleGeometryFallbackLogsAreDeduplicated() throws {
         let cacheURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarGeometryCache.swift")
         let cacheSource = try String(contentsOf: cacheURL, encoding: .utf8)

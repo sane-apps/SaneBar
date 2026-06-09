@@ -43,12 +43,12 @@ private func collectSaneBarSettings() -> String {
         main: .init(
             isVisibleFlag: manager.mainStatusItem?.isVisible,
             windowFrame: mainWindowFrame,
-            screenFrame: mainScreenFrame
+            screenFrame: mainButton?.window?.screen?.frame
         ),
         separator: .init(
             isVisibleFlag: manager.separatorItem?.isVisible,
             windowFrame: separatorWindowFrame,
-            screenFrame: separatorScreenFrame
+            screenFrame: separatorButton?.window?.screen?.frame
         )
     )
     let missionControlSpaces = StatusBarDiagnostics.missionControlSpacesDiagnostic()

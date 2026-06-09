@@ -347,6 +347,53 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAlwaysHiddenToHiddenVerificationUsesHiddenLaneNotVisibleLane() {
+        let afterFrame = CGRect(x: 708, y: 0, width: 40, height: 22) // midX=728
+
+        XCTAssertTrue(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: afterFrame,
+                targetLane: .hidden,
+                separatorX: 1174,
+                visibleBoundaryX: 683
+            )
+        )
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: afterFrame,
+                targetLane: .visible,
+                separatorX: 1174,
+                visibleBoundaryX: 683
+            )
+        )
+    }
+
+    func testAlwaysHiddenToHiddenDirectionAllowsRightwardLaneEntry() {
+        let beforeFrame = CGRect(x: 682, y: 0, width: 40, height: 22) // midX=702
+        let afterFrame = CGRect(x: 708, y: 0, width: 40, height: 22) // midX=728
+
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.hasDirectionMismatch(
+                beforeFrame: beforeFrame,
+                afterFrame: afterFrame,
+                separatorX: 1174,
+                targetLane: .hidden,
+                visibleBoundaryX: 683
+            )
+        )
+    }
+
+    func testAlwaysHiddenToHiddenTargetsHiddenLaneMidpoint() {
+        let target = AccessibilityService.moveTargetX(
+            targetLane: .hiddenFromAlwaysHidden,
+            iconWidth: 40,
+            separatorX: 1174,
+            visibleBoundaryX: 823
+        )
+
+        XCTAssertEqual(target, 998.5, accuracy: 0.001)
+    }
+
     func testRegularHiddenMoveFailsClosedWhenAlwaysHiddenBoundaryIsUnavailable() throws {
         let standardSource = try String(
             contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarStandardIconMoveWorkflow.swift"),
@@ -714,8 +761,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "Move verification should reject stale-boundary false positives when visible moves drift left"
         )
         XCTAssertTrue(
-            policySource.contains("return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))"),
-            "Visible move targeting should stay between the divider and SaneBar icon instead of overshooting into the system area"
+            policySource.contains("private nonisolated static func visibleInsertionTargetX(") &&
+                policySource.contains("return separatorX + boundedOffset"),
+            "Visible move targeting should stay just inside the divider/SaneBar lane instead of overshooting into the system area"
         )
     }
 

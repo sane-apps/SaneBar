@@ -58,6 +58,12 @@ class ProjectQA
     executable_path = File.join(executable_dir, 'SaneBarVisibleDynamicHelperFixture')
     FileUtils.rm_rf(RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_APP_PATH)
     FileUtils.mkdir_p(executable_dir)
+    write_runtime_fixture_bundle_icon!(
+      app_contents,
+      symbol_name: 'timer',
+      background_hex: '#A6542B',
+      fixture_log: fixture_log
+    )
     File.write(File.join(app_contents, 'Info.plist'), runtime_visible_dynamic_helper_fixture_plist)
     File.write(RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_SOURCE_PATH, runtime_visible_dynamic_helper_fixture_source)
 
@@ -143,6 +149,8 @@ class ProjectQA
         <string>SaneBarVisibleDynamicHelperFixture</string>
         <key>CFBundleIdentifier</key>
         <string>#{RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_ID}</string>
+        <key>CFBundleIconFile</key>
+        <string>AppIcon</string>
         <key>CFBundleName</key>
         <string>SwiftBar</string>
         <key>CFBundlePackageType</key>
@@ -163,8 +171,17 @@ class ProjectQA
           var timer: Timer?
           var tickCount = 0
 
+          func fixtureImage(_ name: String) -> NSImage? {
+              let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+              image?.isTemplate = true
+              return image
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
+              NSApp.applicationIconImage = fixtureImage("timer")
               let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+              statusItem.button?.image = fixtureImage("timer")
+              statusItem.button?.imagePosition = .imageLeading
               statusItem.button?.title = "11"
               statusItem.button?.toolTip = "SwiftBar dynamic counter"
               statusItem.button?.identifier = NSUserInterfaceItemIdentifier("com.ameba.SwiftBar.dynamicCounter")
@@ -180,6 +197,7 @@ class ProjectQA
 
           func advanceCounter() {
               tickCount += 1
+              item?.button?.image = fixtureImage(tickCount.isMultiple(of: 2) ? "timer" : "timer.circle.fill")
               item?.button?.title = tickCount.isMultiple(of: 2) ? "_" : "11"
           }
       }

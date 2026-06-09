@@ -11,8 +11,8 @@ class ProjectQA
       return
     end
 
-    unless running_on_mini_host?
-      message = 'Runtime smoke must run on the mini via ./scripts/SaneMaster.rb so the local workspace syncs before release verification.'
+    unless runtime_smoke_host_allowed?
+      message = 'Runtime smoke must run on the mini via ./scripts/SaneMaster.rb unless explicit Air fallback is approved for a Mini outage.'
       if preflight_mode?
         @errors << message
         puts '❌ not on mini'
@@ -119,14 +119,31 @@ class ProjectQA
         return
       end
 
+      ensure_runtime_shared_bundle_fixture!(target)
+
+      representative_zone_setup_error = ensure_runtime_smoke_representative_zones_ready!(target)
+      if representative_zone_setup_error
+        @errors << representative_zone_setup_error
+        puts '❌ representative runtime zone setup failed'
+        return
+      end
+      sleep 1.5
+      representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)
+      if representative_zone_settle_error
+        @errors << representative_zone_settle_error
+        puts '❌ representative runtime zone setup drifted after settle'
+        return
+      end
+
       puts
       puts "   ↳ smoke target: #{target[:app_path]}"
       puts "   ↳ #{target[:note]}" if target[:note]
 
       smoke_env = {
-        'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '0',
+        'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+        'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => '1',
         'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => '1',
-        'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '1',
+        'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0',
         'SANEBAR_SMOKE_WATCH_RESOURCES' => '1',
         'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s,
         'SANEBAR_SMOKE_MAX_CPU_BREACH_SAMPLES' => RUNTIME_SMOKE_MAX_CPU_BREACH_SAMPLES.to_s,
@@ -381,6 +398,7 @@ class ProjectQA
       end
     ensure
       cleanup_runtime_shared_bundle_fixture!
+      cleanup_runtime_host_exact_id_fixture!
       cleanup_runtime_dynamic_helper_fixture!
       cleanup_runtime_visible_dynamic_helper_fixture!
       restore_runtime_smoke_appearance_settings!(appearance_settings_backup)

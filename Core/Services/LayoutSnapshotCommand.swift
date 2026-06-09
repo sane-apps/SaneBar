@@ -98,12 +98,12 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             main: .init(
                 isVisibleFlag: manager.mainStatusItem?.isVisible,
                 windowFrame: mainWindow?.frame,
-                screenFrame: mainScreenFrame
+                screenFrame: mainWindow?.screen?.frame
             ),
             separator: .init(
                 isVisibleFlag: manager.separatorItem?.isVisible,
                 windowFrame: separatorWindow?.frame,
-                screenFrame: separatorScreenFrame
+                screenFrame: separatorWindow?.screen?.frame
             )
         )
 

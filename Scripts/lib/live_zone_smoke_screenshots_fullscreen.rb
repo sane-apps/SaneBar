@@ -279,7 +279,15 @@ class LiveZoneSmoke
         tell process "#{probe[:process]}"
           set frontmost to true
           if (count of windows) = 0 then error "No #{probe[:process]} windows available for fullscreen probe"
-          set value of attribute "AXFullScreen" of window 1 to #{enabled ? 'true' : 'false'}
+          if #{enabled ? 'true' : 'false'} then
+            set value of attribute "AXFullScreen" of window 1 to true
+          else
+            repeat with candidateWindow in windows
+              try
+                set value of attribute "AXFullScreen" of candidateWindow to false
+              end try
+            end repeat
+          end if
         end tell
       end tell
     APPLESCRIPT
@@ -290,21 +298,40 @@ class LiveZoneSmoke
   end
 
   def assert_fullscreen_probe_window_state!(probe, expected)
+    deadline = Time.now + 8.0
+    last_states = []
+    while Time.now < deadline
+      last_states = fullscreen_probe_window_states(probe)
+      if expected
+        return if last_states.any? { |state| state.casecmp('true').zero? }
+      else
+        return if !last_states.empty? && last_states.none? { |state| state.casecmp('true').zero? }
+      end
+
+      sleep_with_watchdog(0.25)
+    end
+
+    raise "#{probe[:app]} fullscreen probe state mismatch: expected #{expected}, got #{last_states.inspect}"
+  end
+
+  def fullscreen_probe_window_states(probe)
     script = <<~APPLESCRIPT
       tell application "System Events"
         tell process "#{probe[:process]}"
           if (count of windows) = 0 then return "no-window"
-          return ((value of attribute "AXFullScreen" of window 1) as text)
+          set fullscreenStates to {}
+          repeat with candidateWindow in windows
+            set end of fullscreenStates to ((value of attribute "AXFullScreen" of candidateWindow) as text)
+          end repeat
+          return fullscreenStates as text
         end tell
       end tell
     APPLESCRIPT
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     raise "Could not read #{probe[:app]} fullscreen state: #{out.strip}" unless code.success?
 
-    actual = out.strip.casecmp('true').zero?
-    return if actual == expected
-
-    raise "#{probe[:app]} fullscreen probe state mismatch: expected #{expected}, got #{out.strip.inspect}"
+    states = out.scan(/true|false|no-window/i).map(&:downcase)
+    states.empty? ? [out.strip].reject(&:empty?) : states
   end
 
   def toggle_native_fullscreen_probe_window
@@ -414,6 +441,8 @@ class LiveZoneSmoke
     return unless current_state['bundleId'].to_s == prior_bundle
 
     diagnostics = current_browse_activation_diagnostics
+    return if diagnostics.to_s.include?('finalOutcome: click succeeded')
+
     prior_window = prior_frontmost_state['windowTitle'].to_s
     current_window = current_state['windowTitle'].to_s
     detail =

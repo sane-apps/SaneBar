@@ -68,6 +68,13 @@ class LiveZoneSmokeTest < Minitest::Test
         bundle: 'com.setapp.DesktopClient.SetappLauncher',
         unique_id: 'com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item',
         name: 'SetappLauncher'
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.ameba.SwiftBar',
+        unique_id: 'com.ameba.SwiftBar::statusItem:0',
+        name: 'SwiftBar'
       }
     ]
 
@@ -146,6 +153,39 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal [required_id], candidates.map { |candidate| candidate[:unique_id] }
   end
 
+  def test_prepare_zones_reseeds_always_hidden_after_visual_checks
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible.one', unique_id: 'visible-one', name: 'Visible One' },
+      { zone: 'visible', movable: true, bundle: 'com.example.visible.two', unique_id: 'visible-two', name: 'Visible Two' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.one', unique_id: 'hidden-one', name: 'Hidden One' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.two', unique_id: 'hidden-two', name: 'Hidden Two' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah.one', unique_id: 'ah-one', name: 'AH One' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah.two', unique_id: 'ah-two', name: 'AH Two' }
+    ]
+    calls = []
+
+    smoke.define_singleton_method(:close_browse_panel_safely) {}
+    smoke.define_singleton_method(:close_settings_window_safely) {}
+    smoke.define_singleton_method(:prepare_layout_baseline) {}
+    smoke.define_singleton_method(:wait_for_stable_layout_snapshot) {}
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:list_icon_zones) { zones }
+    smoke.define_singleton_method(:move_and_verify) do |command, donor, expected_zone|
+      calls << [command, donor[:unique_id], expected_zone]
+      zones.find { |item| item[:unique_id] == donor[:unique_id] }[:zone] = expected_zone
+    end
+
+    prepared = smoke.send(:prepare_zones_for_move_checks)
+    prepared_counts = smoke.send(:candidate_pool, prepared).group_by { |item| item[:zone] }.transform_values(&:length)
+
+    assert_equal 3, prepared_counts['alwaysHidden']
+    assert_equal 1, calls.length
+    assert_equal 'move icon to always hidden', calls.first[0]
+    assert_equal 'alwaysHidden', calls.first[2]
+  end
+
   def test_required_ids_enable_focused_smoke_mode
     smoke = build_smoke(required_ids: ['com.apple.menuextra.focusmode'])
 
@@ -177,6 +217,293 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke = build_smoke(required_ids: ['com.apple.menuextra.focusmode'])
 
     assert smoke.send(:move_candidates_required?)
+  end
+
+  def test_all_zone_smoke_rejects_empty_always_hidden_candidate_lane
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.example.visible',
+        unique_id: 'com.example.visible::statusItem:0',
+        name: 'Visible'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.hidden',
+        unique_id: 'com.example.hidden::statusItem:0',
+        name: 'Hidden'
+      }
+    ]
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:require_representative_zone_candidates!, zones)
+    end
+
+    assert_includes error.message, 'three representative movable always-hidden candidates'
+  end
+
+  def test_all_zone_smoke_selects_three_always_hidden_candidates_for_action_matrix
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.example.visible',
+        unique_id: 'com.example.visible::statusItem:0',
+        name: 'Visible'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.hidden',
+        unique_id: 'com.example.hidden::statusItem:0',
+        name: 'Hidden'
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.always',
+        unique_id: 'com.example.always::statusItem:0',
+        name: 'Always'
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.always2',
+        unique_id: 'com.example.always2::statusItem:0',
+        name: 'Always 2'
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.always3',
+        unique_id: 'com.example.always3::statusItem:0',
+        name: 'Always 3'
+      }
+    ]
+
+    candidates = smoke.send(:selected_candidates, zones)
+
+    assert_equal %w[visible hidden alwaysHidden alwaysHidden alwaysHidden], candidates.map { |candidate| candidate[:zone] }
+    assert smoke.send(:strict_candidate_mode?)
+    assert smoke.send(:representative_action_matrix_mode?)
+  end
+
+  def test_all_zone_smoke_prefers_shared_fixture_for_visible_and_hidden_candidates
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.pxkan.pipit2', unique_id: 'pipit-id', name: 'Pipit' },
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-visible-id', name: 'SaneBarSharedFixture' },
+      { zone: 'hidden', movable: true, bundle: 'com.apple.weather.menu', unique_id: 'weather-id', name: 'WeatherMenu' },
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-hidden-id', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3' }
+    ]
+
+    candidates = smoke.send(:selected_candidates, zones)
+
+    assert_equal 'fixture-visible-id', candidates[0][:unique_id]
+    assert_equal 'fixture-hidden-id', candidates[1][:unique_id]
+  end
+
+  def test_representative_action_matrix_tests_all_direct_zone_moves
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3' }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[ah1-id ah2-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_equal [
+      ['move icon to visible', 'ah1-id', 'visible'],
+      ['move icon to hidden', 'ah2-id', 'hidden'],
+      ['hidden-visible-sequence', 'ah1-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
+    ], calls
+  end
+
+  def test_representative_action_matrix_reserves_shared_fixture_for_always_hidden_to_hidden
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah-id', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.apple.weather.menu', unique_id: 'weather-id', name: 'WeatherMenu' }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[ah1-id fixture-ah-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_equal [
+      ['move icon to visible', 'ah1-id', 'visible'],
+      ['move icon to hidden', 'fixture-ah-id', 'hidden'],
+      ['hidden-visible-sequence', 'ah1-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
+    ], calls
+  end
+
+  def test_representative_action_matrix_stages_visible_candidate_when_ah_to_visible_candidates_fail
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3' }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:exercise_matrix_move_with_fallback) do |label, candidates_for_label, command, expected_zone|
+      raise 'all AH->Visible candidates failed' if label == 'AH->Visible'
+
+      calls << [label, candidates_for_label.first[:unique_id], command, expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidates_for_label.first[:unique_id] }
+      live[:zone] = expected_zone if live
+      candidates_for_label.first
+    end
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[visible-id ah1-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_equal [
+      ['move icon to always hidden', 'visible-id', 'alwaysHidden'],
+      ['move icon to visible', 'visible-id', 'visible'],
+      ['AH->Hidden', 'ah1-id', 'move icon to hidden', 'hidden'],
+      ['hidden-visible-sequence', 'visible-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
+    ], calls
+  end
+
+  def test_representative_action_matrix_stages_hidden_candidate_when_ah_to_hidden_candidates_fail
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3' }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:exercise_matrix_move_with_fallback) do |label, candidates_for_label, command, expected_zone|
+      raise 'all AH->Hidden candidates failed' if label == 'AH->Hidden'
+
+      calls << [label, candidates_for_label.first[:unique_id], command, expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidates_for_label.first[:unique_id] }
+      live[:zone] = expected_zone if live
+      candidates_for_label.first
+    end
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[ah1-id hidden-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_equal [
+      ['AH->Visible', 'ah1-id', 'move icon to visible', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden'],
+      ['move icon to hidden', 'hidden-id', 'hidden'],
+      ['hidden-visible-sequence', 'ah1-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
+    ], calls
+  end
+
+  def test_representative_action_matrix_falls_back_when_hidden_visible_candidate_fails
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3' }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+      raise 'candidate-specific visible drag failed' if candidate[:unique_id] == 'ah1-id'
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[ah1-id ah2-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_includes calls, ['hidden-visible-sequence', 'ah1-id', 'visible']
+    assert_includes calls, ['hidden-visible-sequence', 'visible-id', 'visible']
+  end
+
+  def test_strict_candidate_mode_can_require_minimum_passing_candidates
+    smoke = build_smoke
+    smoke.instance_variable_set(:@min_passing_candidates, 1)
+
+    assert_equal 1, smoke.send(:strict_candidate_minimum, 3)
+  end
+
+  def test_strict_candidate_mode_defaults_to_every_candidate
+    smoke = build_smoke
+
+    assert_equal 3, smoke.send(:strict_candidate_minimum, 3)
+  end
+
+  def test_representative_action_matrix_strict_minimum_uses_matrix_result
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    smoke.instance_variable_set(:@required_candidate_ids, [])
+    smoke.instance_variable_set(:@require_all_candidates, false)
+
+    assert smoke.send(:representative_action_matrix_mode?)
+    assert_equal 1, smoke.send(:strict_candidate_minimum, 5)
   end
 
   def test_default_smoke_does_not_require_browse_activation_candidates
@@ -355,7 +682,7 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
-  def test_browse_activation_candidates_exclude_shared_fixture
+  def test_browse_activation_candidates_allow_shared_fixture
     smoke = build_smoke
     zones = [
       {
@@ -382,7 +709,7 @@ class LiveZoneSmokeTest < Minitest::Test
     )
     candidate_ids = candidates.map { |candidate| candidate[:unique_id] }
 
-    refute_includes candidate_ids, 'com.sanebar.sharedfixture::statusItem:0'
+    assert_includes candidate_ids, 'com.sanebar.sharedfixture::statusItem:0'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
   end
 
@@ -462,6 +789,23 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal 'org.p0deje.Maccy', candidate_ids.first
     refute_includes candidate_ids, 'com.apple.SSMenuAgent'
     assert_includes candidate_ids, 'com.apple.menuextra.display'
+  end
+
+  def test_focus_revert_guard_accepts_observable_successful_browse_click
+    smoke = build_smoke
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:frontmost_app_state) do
+      { 'bundleId' => 'com.apple.finder', 'windowTitle' => 'Desktop' }
+    end
+    smoke.define_singleton_method(:current_browse_activation_diagnostics) do
+      "finalOutcome: click succeeded\nwindowVisible: true\ncurrentMode: secondMenuBar"
+    end
+
+    assert_nil smoke.send(
+      :assert_frontmost_did_not_revert_to,
+      { 'bundleId' => 'com.apple.finder', 'windowTitle' => 'Desktop' },
+      'right click browse icon'
+    )
   end
 
   def test_browse_activation_pool_drops_coarse_duplicate_when_precise_rows_exist
@@ -621,6 +965,150 @@ class LiveZoneSmokeTest < Minitest::Test
     )
   end
 
+  def test_move_and_verify_retries_failed_move_after_settle
+    smoke = build_smoke
+    candidate = {
+      zone: 'alwaysHidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    calls = []
+    sleeps = []
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget'
+        }
+      ]
+    end
+    smoke.define_singleton_method(:app_script) do |statement|
+      calls << statement
+      raise 'AppleScript failed: Icon failed to move to hidden.' if calls.length == 1
+
+      "true\n"
+    end
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
+    smoke.define_singleton_method(:wait_for_move_ready_state) { true }
+    smoke.define_singleton_method(:wait_for_zone) { |_icon_unique_id, _candidate, _expected_zone| true }
+    smoke.define_singleton_method(:assert_zone_stays_stable_after_move) { |_icon_unique_id, _candidate, _expected_zone| true }
+
+    smoke.send(:move_and_verify, 'move icon to hidden', candidate, 'hidden')
+
+    assert_equal 2, calls.length
+    assert_includes sleeps, 1.2
+  end
+
+  def test_move_readiness_waits_for_browse_and_menu_teardown
+    smoke = build_smoke
+    snapshots = [
+      {
+        'isMoveInProgress' => false,
+        'isBrowseVisible' => true,
+        'isBrowseSessionActive' => true,
+        'isMenuOpen' => false
+      },
+      {
+        'isMoveInProgress' => false,
+        'isBrowseVisible' => false,
+        'isBrowseSessionActive' => false,
+        'isMenuOpen' => false
+      }
+    ]
+    closed = []
+    sleeps = []
+    smoke.define_singleton_method(:close_browse_panel_safely) { closed << :browse }
+    smoke.define_singleton_method(:close_settings_window_safely) { closed << :settings }
+    smoke.define_singleton_method(:layout_snapshot) { snapshots.shift }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
+
+    assert smoke.send(:wait_for_move_ready_state)
+    assert_equal [:browse, :settings], closed
+    assert_equal [0.25], sleeps
+  end
+
+  def test_always_hidden_outbound_move_gets_extra_settle
+    smoke = build_smoke
+    candidate = {
+      zone: 'alwaysHidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    sleeps = []
+    ready_calls = 0
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget'
+        }
+      ]
+    end
+    smoke.define_singleton_method(:wait_for_move_ready_state) { ready_calls += 1 }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
+
+    assert smoke.send(:settle_before_always_hidden_outbound_move, candidate[:unique_id], candidate, 'hidden')
+    assert_includes sleeps, LiveZoneSmoke::ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS
+    assert_equal 1, ready_calls
+  end
+
+  def test_always_hidden_inbound_move_skips_extra_settle
+    smoke = build_smoke
+    candidate = {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:list_icon_zones) { raise 'should not inspect zones for inbound AH move' }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| raise 'should not sleep for inbound AH move' }
+
+    assert smoke.send(:settle_before_always_hidden_outbound_move, candidate[:unique_id], candidate, 'alwaysHidden')
+  end
+
+  def test_prepare_zones_for_move_checks_refreshes_live_zone_state
+    smoke = build_smoke
+    calls = []
+    refreshed_zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.example.visible',
+        unique_id: 'com.example.visible::statusItem:0',
+        name: 'Visible'
+      }
+    ]
+    smoke.define_singleton_method(:close_browse_panel_safely) { calls << :close_browse }
+    smoke.define_singleton_method(:close_settings_window_safely) { calls << :close_settings }
+    smoke.define_singleton_method(:prepare_layout_baseline) { calls << :prepare_layout }
+    smoke.define_singleton_method(:wait_for_stable_layout_snapshot) { calls << :wait_layout }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| calls << [:sleep, seconds] }
+    smoke.define_singleton_method(:list_icon_zones) { calls << :list_zones; refreshed_zones }
+    smoke.define_singleton_method(:require_representative_zone_candidates!) { |zones| calls << [:require_zones, zones] }
+
+    assert_same refreshed_zones, smoke.send(:prepare_zones_for_move_checks)
+    assert_equal [
+      :close_browse,
+      :close_settings,
+      :prepare_layout,
+      :wait_layout,
+      [:sleep, 1.5],
+      :list_zones,
+      [:require_zones, refreshed_zones]
+    ], calls
+  end
+
   def test_hidden_always_hidden_round_trip_uses_exact_customer_sequence
     smoke = build_smoke
     candidate = {
@@ -690,6 +1178,30 @@ class LiveZoneSmokeTest < Minitest::Test
         rss_mb_max: 128.0
       )
     end
+  end
+
+  def test_post_smoke_idle_budget_accepts_rss_cache_when_physical_footprint_is_within_budget
+    smoke = build_smoke
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| }
+    smoke.define_singleton_method(:capture_resource_window) do |sample_seconds:, interval_seconds:|
+      {
+        avg_cpu: 0.3,
+        peak_cpu: 0.5,
+        avg_rss_mb: 196.7,
+        peak_rss_mb: 196.7
+      }
+    end
+    smoke.define_singleton_method(:current_physical_footprint_mb) { 129.0 }
+
+    smoke.send(
+      :assert_idle_budget!,
+      label: 'post-smoke',
+      settle_seconds: 0,
+      sample_seconds: 4.0,
+      cpu_avg_max: 5.0,
+      cpu_peak_max: 20.0,
+      rss_mb_max: 160.0
+    )
   end
 
   def test_active_average_budget_skips_too_few_samples

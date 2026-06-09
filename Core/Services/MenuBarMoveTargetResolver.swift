@@ -234,10 +234,11 @@ final class MenuBarMoveTargetResolver {
 
     private func alwaysHiddenTargetReadiness(toAlwaysHidden: Bool) -> AlwaysHiddenTargetReadiness {
         if toAlwaysHidden {
+            let liveBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
             return AlwaysHiddenTargetReadiness(
-                targets: (manager.geometryResolver.alwaysHiddenSeparatorBoundaryX(), nil),
-                alwaysHiddenSeparatorIsLive: manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame() != nil,
-                mainSeparatorIsLive: true
+                targets: (liveBoundaryX, nil),
+                alwaysHiddenSeparatorIsLive: liveBoundaryX != nil,
+                mainSeparatorIsLive: liveBoundaryX != nil
             )
         }
 

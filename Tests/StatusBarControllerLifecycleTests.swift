@@ -241,6 +241,16 @@ struct StatusBarControllerLifecycleTests {
             windowFrame: invalidWindow,
             screenFrame: screen
         ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: invalidWindow,
+            screenFrame: nil
+        ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: nil,
+            screenFrame: screen
+        ))
     }
 
     @Test("Diagnostics collect SaneBar VisibleCC override keys")

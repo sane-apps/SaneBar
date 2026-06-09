@@ -333,6 +333,75 @@ struct MenuBarAppearanceSuppressionTests {
         )
     }
 
+    @Test("Appearance overlay hides when Accessibility reports frontmost fullscreen without CG windows")
+    func testSuppressesOverlayForAccessibilityFullscreenFallback() {
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.Safari",
+                frontmostHasFullscreenAXWindow: true,
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1470, height: 956),
+                windowInfos: [],
+                selfPID: 9999
+            ) == .fullscreenContentWindow
+        )
+    }
+
+    @Test("Appearance overlay ignores Accessibility fullscreen state for accessory apps")
+    func testDoesNotSuppressOverlayForAccessoryAccessibilityFullscreenFallback() {
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "app.remixdesign.LaunchOS",
+                frontmostIsAccessoryApp: true,
+                frontmostHasFullscreenAXWindow: true,
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1470, height: 956),
+                windowInfos: [],
+                selfPID: 9999
+            ) == nil
+        )
+    }
+
+    @Test("Appearance overlay hides for Safari fullscreen windows offset below transparent top host")
+    func testSuppressesOverlayForSafariFullscreenWindowWithTransparentTopHost() {
+        let infos: [[String: Any]] = [
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 26),
+                kCGWindowAlpha as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1470),
+                    "Height": NSNumber(value: 85)
+                ]
+            ],
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 33),
+                    "Width": NSNumber(value: 1470),
+                    "Height": NSNumber(value: 923)
+                ]
+            ]
+        ]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.Safari",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1470, height: 956),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == .fullscreenContentWindow
+        )
+    }
+
     @Test("Appearance overlay does not suppress for wide titlebar windows")
     func testDoesNotSuppressOverlayForWideTopAlignedWindow() {
         let infos: [[String: Any]] = [[

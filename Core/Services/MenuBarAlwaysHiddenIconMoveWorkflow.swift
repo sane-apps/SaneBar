@@ -2,6 +2,7 @@ import AppKit
 import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarAlwaysHiddenIconMoveWorkflow")
+private let alwaysHiddenOutboundRevealSettleMilliseconds = 1_500
 
 @MainActor
 final class MenuBarAlwaysHiddenIconMoveWorkflow {
@@ -26,7 +27,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
 
     private struct AlwaysHiddenToHiddenTargets {
         var alwaysHiddenSeparatorRightEdgeX: CGFloat
-        var mainSeparatorOriginX: CGFloat?
+        var mainSeparatorOriginX: CGFloat
     }
 
     private unowned let manager: MenuBarManager
@@ -91,7 +92,8 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
                 await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
             }
             await manager.hidingService.showAll()
-            try? await Task.sleep(for: .milliseconds(300))
+            let revealSettleMilliseconds = toAlwaysHidden ? 300 : alwaysHiddenOutboundRevealSettleMilliseconds
+            try? await Task.sleep(for: .milliseconds(revealSettleMilliseconds))
             if !toAlwaysHidden {
                 await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
             }
@@ -207,7 +209,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         ) { manager in
             await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
             await manager.hidingService.showAll()
-            try? await Task.sleep(for: .milliseconds(300))
+            try? await Task.sleep(for: .milliseconds(alwaysHiddenOutboundRevealSettleMilliseconds))
             await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
 
             guard var targets = await self.currentAlwaysHiddenToHiddenTargets() else {
@@ -288,7 +290,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             statusItemIndex: request.statusItemIndex,
             preferredCenterX: request.preferredCenterX,
             toHidden: toAlwaysHidden,
-            targetLane: toAlwaysHidden ? .alwaysHidden : .visible,
+            targetLane: toAlwaysHidden ? .alwaysHidden : .visibleFromAlwaysHidden,
             separatorX: targets.separatorX,
             visibleBoundaryX: targets.visibleBoundaryX,
             originalMouseLocation: dragContext.originalMouseLocation,
@@ -322,7 +324,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             statusItemIndex: request.statusItemIndex,
             preferredCenterX: request.preferredCenterX,
             toHidden: toAlwaysHidden,
-            targetLane: toAlwaysHidden ? .alwaysHidden : .visible,
+            targetLane: toAlwaysHidden ? .alwaysHidden : .visibleFromAlwaysHidden,
             separatorX: targets.separatorX,
             visibleBoundaryX: targets.visibleBoundaryX,
             eventTap: .cgSessionEventTap,
@@ -361,14 +363,15 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         await MainActor.run {
             guard let alwaysHiddenItem = manager.alwaysHiddenSeparatorItem,
                   let alwaysHiddenButton = alwaysHiddenItem.button,
-                  let alwaysHiddenWindow = alwaysHiddenButton.window else {
+                  let alwaysHiddenWindow = alwaysHiddenButton.window,
+                  let mainSeparatorOriginX = manager.geometryResolver.separatorOriginX() else {
                 return nil
             }
             let alwaysHiddenFrame = alwaysHiddenWindow.frame
             guard alwaysHiddenFrame.width > 0 else { return nil }
             return AlwaysHiddenToHiddenTargets(
                 alwaysHiddenSeparatorRightEdgeX: alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width,
-                mainSeparatorOriginX: manager.geometryResolver.separatorOriginX()
+                mainSeparatorOriginX: mainSeparatorOriginX
             )
         }
     }
@@ -384,8 +387,9 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             statusItemIndex: request.statusItemIndex,
             preferredCenterX: request.preferredCenterX,
             toHidden: false,
-            separatorX: targets.alwaysHiddenSeparatorRightEdgeX,
-            visibleBoundaryX: targets.mainSeparatorOriginX,
+            targetLane: .hiddenFromAlwaysHidden,
+            separatorX: targets.mainSeparatorOriginX,
+            visibleBoundaryX: targets.alwaysHiddenSeparatorRightEdgeX,
             originalMouseLocation: dragContext.originalMouseLocation,
             physicalMoveOrigin: request.physicalMoveOrigin,
             referenceScreenFrame: dragContext.referenceScreenFrame
@@ -402,7 +406,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         if let retryTargets = await currentAlwaysHiddenToHiddenTargets() {
             targets = retryTargets
             let alwaysHiddenRightEdgeX = targets.alwaysHiddenSeparatorRightEdgeX
-            let mainSeparatorOriginX = targets.mainSeparatorOriginX ?? -1
+            let mainSeparatorOriginX = targets.mainSeparatorOriginX
             logger.info("Re-resolved AH-to-Hidden targets for retry: ahRight=\(alwaysHiddenRightEdgeX), mainSepOrigin=\(mainSeparatorOriginX)")
         }
         return dragContext.accessibilityService.moveMenuBarIcon(
@@ -411,8 +415,9 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             statusItemIndex: request.statusItemIndex,
             preferredCenterX: request.preferredCenterX,
             toHidden: false,
-            separatorX: targets.alwaysHiddenSeparatorRightEdgeX,
-            visibleBoundaryX: targets.mainSeparatorOriginX,
+            targetLane: .hiddenFromAlwaysHidden,
+            separatorX: targets.mainSeparatorOriginX,
+            visibleBoundaryX: targets.alwaysHiddenSeparatorRightEdgeX,
             eventTap: .cgSessionEventTap,
             originalMouseLocation: dragContext.originalMouseLocation,
             physicalMoveOrigin: request.physicalMoveOrigin,
