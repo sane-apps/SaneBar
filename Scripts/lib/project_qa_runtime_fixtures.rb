@@ -3,6 +3,116 @@
 class ProjectQA
   private
 
+  def write_runtime_fixture_bundle_icon!(app_contents, symbol_name:, background_hex:, fixture_log:)
+    resources_dir = File.join(app_contents, 'Resources')
+    FileUtils.mkdir_p(resources_dir)
+
+    iconset_dir = File.join(
+      Dir.tmpdir,
+      "sanebar-fixture-#{symbol_name.gsub(/[^a-zA-Z0-9]+/, '_')}-#{Process.pid}.iconset"
+    )
+    FileUtils.rm_rf(iconset_dir)
+    FileUtils.mkdir_p(iconset_dir)
+
+    generator_source = File.join(Dir.tmpdir, "sanebar-fixture-icon-generator-#{Process.pid}.swift")
+    File.write(generator_source, runtime_fixture_icon_generator_source)
+
+    output, status = Open3.capture2e('/usr/bin/swift', generator_source, symbol_name, background_hex, iconset_dir)
+    fixture_log << "icon_generator_status=#{status.exitstatus}"
+    fixture_log << output.strip unless output.strip.empty?
+    return false unless status.success?
+
+    output, status = Open3.capture2e(
+      '/usr/bin/iconutil',
+      '-c',
+      'icns',
+      iconset_dir,
+      '-o',
+      File.join(resources_dir, 'AppIcon.icns')
+    )
+    fixture_log << "iconutil_status=#{status.exitstatus}"
+    fixture_log << output.strip unless output.strip.empty?
+    status.success?
+  rescue StandardError => e
+    fixture_log << "icon_error=#{e.class}: #{e.message}"
+    false
+  ensure
+    FileUtils.rm_rf(iconset_dir) if defined?(iconset_dir) && iconset_dir
+  end
+
+  def runtime_fixture_icon_generator_source
+    <<~SWIFT
+      import AppKit
+
+      let symbolName = CommandLine.arguments[1]
+      let backgroundHex = CommandLine.arguments[2]
+      let iconsetPath = CommandLine.arguments[3]
+
+      func color(from hex: String) -> NSColor {
+          let trimmed = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+          var value: UInt64 = 0
+          Scanner(string: trimmed).scanHexInt64(&value)
+          let red = CGFloat((value >> 16) & 0xff) / 255.0
+          let green = CGFloat((value >> 8) & 0xff) / 255.0
+          let blue = CGFloat(value & 0xff) / 255.0
+          return NSColor(calibratedRed: red, green: green, blue: blue, alpha: 1.0)
+      }
+
+      func writeIcon(named fileName: String, size: CGFloat) throws {
+          let image = NSImage(size: NSSize(width: size, height: size))
+          image.lockFocus()
+          NSColor.clear.setFill()
+          NSRect(x: 0, y: 0, width: size, height: size).fill()
+          color(from: backgroundHex).setFill()
+          NSBezierPath(
+              roundedRect: NSRect(x: size * 0.06, y: size * 0.06, width: size * 0.88, height: size * 0.88),
+              xRadius: size * 0.2,
+              yRadius: size * 0.2
+          ).fill()
+
+          if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+              let config = NSImage.SymbolConfiguration(pointSize: size * 0.56, weight: .semibold)
+              let configured = symbol.withSymbolConfiguration(config) ?? symbol
+              configured.isTemplate = true
+              NSColor.white.set()
+              configured.draw(
+                  in: NSRect(x: size * 0.22, y: size * 0.22, width: size * 0.56, height: size * 0.56),
+                  from: .zero,
+                  operation: .sourceOver,
+                  fraction: 1.0
+              )
+          }
+
+          image.unlockFocus()
+          guard
+              let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:])
+          else {
+              throw NSError(domain: "SaneBarFixtureIcon", code: 1)
+          }
+          try png.write(to: URL(fileURLWithPath: iconsetPath).appendingPathComponent(fileName))
+      }
+
+      let specs: [(String, CGFloat)] = [
+          ("icon_16x16.png", 16),
+          ("icon_16x16@2x.png", 32),
+          ("icon_32x32.png", 32),
+          ("icon_32x32@2x.png", 64),
+          ("icon_128x128.png", 128),
+          ("icon_128x128@2x.png", 256),
+          ("icon_256x256.png", 256),
+          ("icon_256x256@2x.png", 512),
+          ("icon_512x512.png", 512),
+          ("icon_512x512@2x.png", 1024)
+      ]
+
+      for spec in specs {
+          try writeIcon(named: spec.0, size: spec.1)
+      }
+    SWIFT
+  end
+
   def run_focused_runtime_smoke_exact_ids(target:, smoke_env:, smoke_script:, exact_ids:, log_path:, lane_name:, retryable_failure_method:)
     focused_outputs = []
     unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
@@ -31,6 +141,7 @@ class ProjectQA
       focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
     else
       focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'
+      focused_env['SANEBAR_SMOKE_MIN_PASSING_CANDIDATES'] = '1' if lane_name == 'shared-bundle'
     end
     focused_attempt = 0
 
@@ -381,6 +492,12 @@ class ProjectQA
     executable_path = File.join(executable_dir, 'SaneBarSharedFixture')
     FileUtils.rm_rf(RUNTIME_SHARED_BUNDLE_FIXTURE_APP_PATH)
     FileUtils.mkdir_p(executable_dir)
+    write_runtime_fixture_bundle_icon!(
+      app_contents,
+      symbol_name: 'square.grid.2x2.fill',
+      background_hex: '#2F7D72',
+      fixture_log: fixture_log
+    )
     File.write(File.join(app_contents, 'Info.plist'), runtime_shared_bundle_fixture_plist)
     File.write(RUNTIME_SHARED_BUNDLE_FIXTURE_SOURCE_PATH, runtime_shared_bundle_fixture_source)
 
@@ -409,7 +526,7 @@ class ProjectQA
         required_ids: RUNTIME_SHARED_BUNDLE_FIXTURE_IDS
       )
       fixture_log << "attempt_ids=#{ids.join(',')}" unless ids.empty?
-      break if ids.length >= 2
+      break if ids.length >= RUNTIME_SHARED_BUNDLE_FIXTURE_IDS.length
 
       sleep 0.5
     end
@@ -477,6 +594,12 @@ class ProjectQA
     executable_path = File.join(executable_dir, 'SaneBarHostExactIDFixture')
     FileUtils.rm_rf(RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH)
     FileUtils.mkdir_p(executable_dir)
+    write_runtime_fixture_bundle_icon!(
+      app_contents,
+      symbol_name: 'target',
+      background_hex: '#3166B8',
+      fixture_log: fixture_log
+    )
     File.write(File.join(app_contents, 'Info.plist'), runtime_host_exact_id_fixture_plist)
     File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_SOURCE_PATH, runtime_host_exact_id_fixture_source)
 
@@ -528,6 +651,12 @@ class ProjectQA
     runtime_host_exact_id_fixture_process_detail != 'none'
   end
 
+  def cleanup_runtime_host_exact_id_fixture!
+    Open3.capture2e('/usr/bin/killall', 'SaneBarHostExactIDFixture')
+  rescue StandardError
+    nil
+  end
+
   def runtime_host_exact_id_fixture_plist
     <<~PLIST
       <?xml version="1.0" encoding="UTF-8"?>
@@ -538,6 +667,8 @@ class ProjectQA
         <string>SaneBarHostExactIDFixture</string>
         <key>CFBundleIdentifier</key>
         <string>#{RUNTIME_HOST_EXACT_ID_FIXTURE_ID}</string>
+        <key>CFBundleIconFile</key>
+        <string>AppIcon</string>
         <key>CFBundleName</key>
         <string>SaneBarHostExactIDFixture</string>
         <key>CFBundlePackageType</key>
@@ -556,8 +687,17 @@ class ProjectQA
       final class Delegate: NSObject, NSApplicationDelegate {
           var item: NSStatusItem?
 
+          func fixtureImage(_ name: String) -> NSImage? {
+              let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+              image?.isTemplate = true
+              return image
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
+              NSApp.applicationIconImage = fixtureImage("target")
               let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+              statusItem.button?.image = fixtureImage("target")
+              statusItem.button?.imagePosition = .imageLeading
               statusItem.button?.title = "Host"
               statusItem.button?.toolTip = "SaneBar Host Exact ID Fixture"
               statusItem.button?.identifier = NSUserInterfaceItemIdentifier("com.sanebar.hostsentinel.statusItem")
@@ -632,6 +772,12 @@ class ProjectQA
     executable_path = File.join(executable_dir, 'SaneBarDynamicHelperFixture')
     FileUtils.rm_rf(RUNTIME_DYNAMIC_HELPER_FIXTURE_APP_PATH)
     FileUtils.mkdir_p(executable_dir)
+    write_runtime_fixture_bundle_icon!(
+      app_contents,
+      symbol_name: 'moon.fill',
+      background_hex: '#5641A3',
+      fixture_log: fixture_log
+    )
     File.write(File.join(app_contents, 'Info.plist'), runtime_dynamic_helper_fixture_plist)
     File.write(RUNTIME_DYNAMIC_HELPER_FIXTURE_SOURCE_PATH, runtime_dynamic_helper_fixture_source)
 
@@ -715,6 +861,8 @@ class ProjectQA
         <string>SaneBarDynamicHelperFixture</string>
         <key>CFBundleIdentifier</key>
         <string>#{RUNTIME_DYNAMIC_HELPER_FIXTURE_ID}</string>
+        <key>CFBundleIconFile</key>
+        <string>AppIcon</string>
         <key>CFBundleName</key>
         <string>Lungo</string>
         <key>CFBundlePackageType</key>
@@ -733,8 +881,17 @@ class ProjectQA
       final class Delegate: NSObject, NSApplicationDelegate {
           var item: NSStatusItem?
 
+          func fixtureImage(_ name: String) -> NSImage? {
+              let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+              image?.isTemplate = true
+              return image
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
+              NSApp.applicationIconImage = fixtureImage("moon.fill")
               let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+              statusItem.button?.image = fixtureImage("moon.fill")
+              statusItem.button?.imagePosition = .imageLeading
               statusItem.button?.title = "Lungo"
               statusItem.button?.toolTip = "Lungo"
               statusItem.button?.identifier = NSUserInterfaceItemIdentifier("com.sindresorhus.Lungo-setapp.statusItem")
@@ -760,6 +917,8 @@ class ProjectQA
         <string>SaneBarSharedFixture</string>
         <key>CFBundleIdentifier</key>
         <string>#{RUNTIME_SHARED_BUNDLE_FIXTURE_ID}</string>
+        <key>CFBundleIconFile</key>
+        <string>AppIcon</string>
         <key>CFBundleName</key>
         <string>SaneBarSharedFixture</string>
         <key>CFBundlePackageType</key>
@@ -778,9 +937,24 @@ class ProjectQA
       final class Delegate: NSObject, NSApplicationDelegate {
           var items: [NSStatusItem] = []
 
+          func fixtureImage(for title: String) -> NSImage? {
+              let symbolName: String
+              switch title {
+              case "SBF-A": symbolName = "circle.grid.2x2.fill"
+              case "SBF-B": symbolName = "square.grid.2x2.fill"
+              default: symbolName = "diamond.grid.3x3.fill"
+              }
+              let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+              image?.isTemplate = true
+              return image
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
-              for title in ["SBF-A", "SBF-B"] {
+              NSApp.applicationIconImage = fixtureImage(for: "SBF-A")
+              for title in ["SBF-A", "SBF-B", "SBF-C"] {
                   let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+                  item.button?.image = fixtureImage(for: title)
+                  item.button?.imagePosition = .imageLeading
                   item.button?.title = title
                   item.button?.toolTip = "SaneBar Shared Fixture \\(title)"
                   item.button?.identifier = NSUserInterfaceItemIdentifier("com.sanebar.sharedfixture.\\(title)")

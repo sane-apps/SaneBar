@@ -321,6 +321,12 @@ private func refreshedIconZones(
 }
 
 @MainActor
+func freshZonesForScriptMoveVerification(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZonedIcon] {
+    AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
+    return refreshedIconZones(timeoutSeconds: timeoutSeconds)
+}
+
+@MainActor
 func zonesForScriptResolution(_ identifier: String) -> [ScriptZonedIcon] {
     let cached = currentIconZones()
     if resolveScriptIcon(identifier, from: cached) != nil {

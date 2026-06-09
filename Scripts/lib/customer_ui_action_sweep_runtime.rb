@@ -29,6 +29,7 @@ class CustomerUIActionSweep
       ['Settings window visual check ok'],
       ['Hidden/Visible move actions ok'],
       ['Always Hidden move actions ok'],
+      ['Representative zone candidates ok'],
       ['Live zone smoke passed']
     ]
     required.each do |markers|
@@ -93,7 +94,7 @@ class CustomerUIActionSweep
     receipt = {
       app: 'SaneBar',
       status: 'passed',
-      host: 'mini',
+      host: Socket.gethostname.to_s.downcase,
       generated_at: Time.now.utc.iso8601,
       manifest_sha256: report.fetch('manifest_sha256'),
       source_fingerprint: report.fetch('source_fingerprint'),
@@ -104,6 +105,8 @@ class CustomerUIActionSweep
       evidence: {
         app_version: @running_bundle_version,
         app_build: @running_bundle_build,
+        runtime_host: Socket.gethostname.to_s.downcase,
+        local_air_fallback: ENV['SANE_APPROVE_LOCAL_UI_ON_AIR'] == 'MR. SANE APPROVES LOCAL UI ON AIR',
         mini_verify: 'SaneMaster verify passed after customer UI contract expansion',
         mini_release_preflight_runtime: 'SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence',
         settings_tab_sweep: @transcript.select { |line| line.start_with?('settings_tab=') },

@@ -258,8 +258,9 @@ class CustomerUIActionSweep
     host = Socket.gethostname.to_s.downcase
     user = ENV.fetch('USER', '').downcase
     return if host.include?('mini') || user == 'stephansmac'
+    return if ENV['SANE_APPROVE_LOCAL_UI_ON_AIR'] == 'MR. SANE APPROVES LOCAL UI ON AIR'
 
-    raise 'Customer UI action sweep must run on the Mini'
+    raise 'Customer UI action sweep must run on the Mini unless explicit Air fallback is approved'
   end
 
   def ensure_manifest!

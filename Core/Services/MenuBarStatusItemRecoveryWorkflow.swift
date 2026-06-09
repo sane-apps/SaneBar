@@ -120,16 +120,14 @@ final class MenuBarStatusItemRecoveryWorkflow {
             guard !startupItemsValid else { return false }
             let mainWindow = mainItem?.button?.window
             let separatorWindow = separator?.button?.window
-            let mainScreenFrame = mainWindow?.screen?.frame ?? manager.currentRecoveryReferenceScreen()?.frame
-            let separatorScreenFrame = separatorWindow?.screen?.frame ?? mainScreenFrame
             return StatusBarDiagnostics.likelySystemSuppressedStatusItem(
                 isVisibleFlag: mainItemVisible,
                 windowFrame: mainWindow?.frame,
-                screenFrame: mainScreenFrame
+                screenFrame: mainWindow?.screen?.frame
             ) || StatusBarDiagnostics.likelySystemSuppressedStatusItem(
                 isVisibleFlag: separatorItemVisible,
                 windowFrame: separatorWindow?.frame,
-                screenFrame: separatorScreenFrame
+                screenFrame: separatorWindow?.screen?.frame
             )
         }()
         let separatorX = manager.geometryResolver.separatorOriginX(allowEstimatedFallback: false)

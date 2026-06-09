@@ -157,6 +157,7 @@ class CustomerUIActionSweepTest < Minitest::Test
     File.write(shared_log, [
       'Hidden/Visible move actions ok',
       'Always Hidden move actions ok',
+      'Representative zone candidates ok',
       '✅ Candidate set passed: com.sanebar.sharedfixture::statusItem:0, com.sanebar.sharedfixture::statusItem:1',
       '✅ Live zone smoke passed'
     ].join("\n"))
@@ -577,6 +578,7 @@ class CustomerUIActionSweepTest < Minitest::Test
 
   def test_settings_tab_selector_ignores_front_system_dialog
     source = File.read(File.join(__dir__, 'customer_ui_action_sweep.rb'))
+    runtime_source = File.read(File.join(__dir__, 'lib', 'customer_ui_action_sweep_runtime.rb'))
 
     assert_includes source, 'subrole is "AXStandardWindow"'
     assert_includes source, 'set settingsWindow to first window whose subrole is "AXStandardWindow"'
@@ -600,6 +602,9 @@ class CustomerUIActionSweepTest < Minitest::Test
     assert_includes source, 'verify_recent_appearance_overlay_screenshots'
     assert_includes source, 'exercise_license_clipboard_paste_runtime_probe'
     assert_includes source, '/tmp/sanebar_runtime_license_paste.json'
+    assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
+    assert_includes runtime_source, 'host: Socket.gethostname.to_s.downcase'
+    assert_includes runtime_source, 'local_air_fallback:'
   end
 
   def test_customer_ui_sweep_fails_early_without_fresh_appearance_overlay_screenshots

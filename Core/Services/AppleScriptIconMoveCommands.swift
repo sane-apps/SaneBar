@@ -250,7 +250,29 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             return MoveOutcome(succeeded: false, failure: .timedOut)
         }
 
+        if !moved, moveVerifiedByFreshExactZone(trimmedId: trimmedId, targetZone: targetZone) {
+            return MoveOutcome(succeeded: true)
+        }
+
         return MoveOutcome(succeeded: moved, failure: moved ? nil : .failed)
+    }
+
+    @MainActor
+    private static func moveVerifiedByFreshExactZone(trimmedId: String, targetZone: ScriptIconZone) -> Bool {
+        let zones = freshZonesForScriptMoveVerification(timeoutSeconds: 2.5)
+        guard let resolved = resolveScriptIcon(trimmedId, from: zones) else {
+            logger.warning("AppleScript move fallback could not resolve exact icon after failed move")
+            return false
+        }
+        guard resolved.zone == targetZone else {
+            logger.warning(
+                "AppleScript move fallback exact-zone check failed: expected=\(targetZone.rawValue, privacy: .public) actual=\(resolved.zone.rawValue, privacy: .public)"
+            )
+            return false
+        }
+
+        logger.info("AppleScript move fallback accepted fresh exact-zone verification for target=\(targetZone.rawValue, privacy: .public)")
+        return true
     }
 
     @MainActor
@@ -266,13 +288,32 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                 manager.settings.alwaysHiddenSectionEnabled = true
             }
             manager.saveSettings()
-            return runScriptMove {
+            let moved = runScriptMove {
                 await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
                     bundleID: icon.bundleId,
                     menuExtraId: icon.menuExtraIdentifier,
                     statusItemIndex: icon.statusItemIndex,
                     preferredCenterX: icon.preferredCenterX,
                     toAlwaysHidden: true,
+                    physicalMoveOrigin: .appleScriptUserAction
+                )
+            }
+            if moved == true {
+                return true
+            }
+
+            logger.warning("AppleScript move-to-always-hidden direct drag failed; falling back to exact pin enforcement")
+            _ = manager.alwaysHiddenPinWorkflow.pin(
+                bundleID: icon.bundleId,
+                menuExtraId: icon.menuExtraIdentifier,
+                statusItemIndex: icon.statusItemIndex
+            )
+            manager.saveSettings()
+            return runScriptMove {
+                await manager.alwaysHiddenPinWorkflow.enforce(
+                    reason: "AppleScript move icon to always hidden fallback",
+                    filterBundleId: icon.bundleId,
+                    mode: .repairWithPhysicalMoves,
                     physicalMoveOrigin: .appleScriptUserAction
                 )
             }

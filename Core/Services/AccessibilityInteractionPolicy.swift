@@ -5,8 +5,10 @@ import AppKit
 enum AccessibilityInteractionPolicy {
     enum MoveTargetLane {
         case hidden
+        case hiddenFromAlwaysHidden
         case alwaysHidden
         case visible
+        case visibleFromAlwaysHidden
     }
 
     nonisolated static func shouldFallbackToAXAfterHardwareAttempt(
@@ -200,6 +202,43 @@ enum AccessibilityInteractionPolicy {
         return midpointX >= lowerBound && midpointX <= upperBound
     }
 
+    nonisolated static func frameIsInTargetLane(
+        afterFrame: CGRect,
+        targetLane: MoveTargetLane,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat?,
+        margin: CGFloat = 6
+    ) -> Bool {
+        switch targetLane {
+        case .visible, .visibleFromAlwaysHidden:
+            return frameIsInTargetZone(
+                afterFrame: afterFrame,
+                separatorX: separatorX,
+                toHidden: false,
+                margin: margin,
+                alwaysHiddenBoundaryX: visibleBoundaryX
+            )
+
+        case .hidden, .hiddenFromAlwaysHidden:
+            return frameIsInTargetZone(
+                afterFrame: afterFrame,
+                separatorX: separatorX,
+                toHidden: true,
+                margin: margin,
+                alwaysHiddenBoundaryX: visibleBoundaryX
+            )
+
+        case .alwaysHidden:
+            return frameIsInTargetZone(
+                afterFrame: afterFrame,
+                separatorX: separatorX,
+                toHidden: true,
+                margin: margin,
+                alwaysHiddenBoundaryX: nil
+            )
+        }
+    }
+
     /// Detect direction mismatches for post-drag verification without penalizing
     /// idempotent moves where the icon already started on the target side.
     /// This avoids false negatives when a visible->visible reorder shifts left
@@ -227,6 +266,51 @@ enum AccessibilityInteractionPolicy {
             return deltaX > tolerance
         }
         return deltaX < -tolerance
+    }
+
+    nonisolated static func hasDirectionMismatch(
+        beforeFrame: CGRect,
+        afterFrame: CGRect,
+        separatorX: CGFloat,
+        targetLane: MoveTargetLane,
+        visibleBoundaryX: CGFloat?,
+        margin: CGFloat = 6,
+        tolerance: CGFloat = 2
+    ) -> Bool {
+        let startedInTargetLane = frameIsInTargetLane(
+            afterFrame: beforeFrame,
+            targetLane: targetLane,
+            separatorX: separatorX,
+            visibleBoundaryX: visibleBoundaryX,
+            margin: margin
+        )
+        if startedInTargetLane {
+            return false
+        }
+
+        let deltaX = afterFrame.midX - beforeFrame.midX
+        switch targetLane {
+        case .visible, .visibleFromAlwaysHidden:
+            return deltaX < -tolerance
+
+        case .alwaysHidden:
+            return deltaX > tolerance
+
+        case .hidden, .hiddenFromAlwaysHidden:
+            if let visibleBoundaryX,
+               visibleBoundaryX.isFinite,
+               visibleBoundaryX > 0,
+               visibleBoundaryX < separatorX {
+                if beforeFrame.midX < visibleBoundaryX {
+                    return deltaX < -tolerance
+                }
+                if beforeFrame.midX > separatorX {
+                    return deltaX > tolerance
+                }
+                return false
+            }
+            return deltaX > tolerance
+        }
     }
 
     nonisolated static func shouldAcceptVisibleMoveAfterFreshGeometryRecheck(
@@ -320,23 +404,54 @@ enum AccessibilityInteractionPolicy {
             let fallbackRegularHiddenX = min(max(farHiddenX, minRegularHiddenX), maxRegularHiddenX)
             return iconWidth >= wideRegularHiddenThreshold ? fallbackRegularHiddenX : boundedPreferredX
 
+        case .hiddenFromAlwaysHidden:
+            let farHiddenX = separatorX - max(80, iconWidth + 60)
+            guard let ahBoundary = visibleBoundaryX else {
+                return farHiddenX
+            }
+            let hiddenLaneWidth = separatorX - ahBoundary
+            guard hiddenLaneWidth > 0 else {
+                return farHiddenX
+            }
+            return ahBoundary + (hiddenLaneWidth * 0.5)
+
         case .alwaysHidden:
             // Always-hidden insertion should stay close to the AH separator instead
             // of using the deeper generic hidden target, which can overshoot across
             // sibling icons and fail exact-identity verification.
             return separatorX - moveOffset
 
-        case .visible:
-            if let boundary = visibleBoundaryX {
-                // Visible moves belong in the lane between the divider and the
-                // SaneBar icon. Keep the target inside that lane; dragging to the
-                // right of SaneBar is visually wrong and can look like the repair
-                // tool is moving items into the system/control area.
-                return max(separatorX + 1, min(separatorX + moveOffset, boundary - 2))
-            }
+        case .visibleFromAlwaysHidden:
+            return visibleInsertionTargetX(
+                iconWidth: iconWidth,
+                separatorX: separatorX,
+                visibleBoundaryX: visibleBoundaryX
+            )
 
+        case .visible:
+            return visibleInsertionTargetX(
+                iconWidth: iconWidth,
+                separatorX: separatorX,
+                visibleBoundaryX: visibleBoundaryX
+            )
+        }
+    }
+
+    private nonisolated static func visibleInsertionTargetX(
+        iconWidth: CGFloat,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat?
+    ) -> CGFloat {
+        let nearSeparatorOffset = max(CGFloat(8), min(CGFloat(24), iconWidth * 0.35))
+        guard let boundary = visibleBoundaryX else {
             return separatorX + 1
         }
+        let visibleLaneWidth = boundary - separatorX
+        guard visibleLaneWidth > 1 else {
+            return separatorX + 1
+        }
+        let boundedOffset = min(nearSeparatorOffset, max(CGFloat(1), visibleLaneWidth * 0.35))
+        return separatorX + boundedOffset
     }
 
     nonisolated static func moveTargetX(

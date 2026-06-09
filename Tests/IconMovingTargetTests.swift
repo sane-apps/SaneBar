@@ -130,7 +130,7 @@ struct IconMovingTargetTests {
             visibleBoundaryX: visibleBoundaryX
         )
 
-        #expect(targetX == 528)
+        #expect(targetX == 508)
         #expect(targetX > separatorX, "Visible target must be RIGHT of separator")
         #expect(targetX < visibleBoundaryX, "Visible target must stay LEFT of SaneBar icon")
     }
@@ -172,7 +172,7 @@ struct IconMovingTargetTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(targetX == 542, "Wide gap: offset is used directly (no clamping needed)")
+        #expect(targetX == 508, "Wide gap: short near-separator hop is used")
     }
 
     @Test("Visible target stays left of boundary when separator and main icon are very close")
@@ -188,7 +188,7 @@ struct IconMovingTargetTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(targetX == 808)
+        #expect(targetX == 803.5)
         #expect(targetX > separatorX)
         #expect(targetX < mainIconLeftEdge)
     }

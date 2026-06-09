@@ -12,7 +12,7 @@ struct MoveToVisibleRegressionTests {
         // the old formula used `separatorX + moveOffset` = 1696 + 36 = 1732.
         // This placed the icon PAST the SaneBar icon → landed in system area → triggered Control Center.
         //
-        // FIX: Use `max(separatorX + 1, min(separatorX + moveOffset, visibleBoundaryX - 2))`.
+        // FIX: use a near-separator insertion target inside the visible lane.
         // Flush case still resolves to 1697:
         // max(1697, min(1732, 1694)) = 1697.
         // This places the icon at the boundary, and macOS auto-inserts it, pushing SaneBar right.
@@ -27,8 +27,12 @@ struct MoveToVisibleRegressionTests {
         #expect(oldTarget == 1732, "Old formula would place icon at 1732")
         #expect(oldTarget > mainIconLeftEdge, "Old target OVERSHOOTS past SaneBar icon")
 
-        // NEW (CORRECT): max(separatorX + 1, min(separatorX + moveOffset, boundaryX - 2))
-        let newTarget = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+        let newTarget = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
         #expect(newTarget == 1697, "New formula places icon at 1697 (just right of separator)")
         #expect(newTarget > separatorRightEdgeX, "Target must be right of separator")
         #expect(newTarget <= mainIconLeftEdge + 1, "Target must stay at or just past boundary (macOS will auto-insert)")
@@ -37,17 +41,19 @@ struct MoveToVisibleRegressionTests {
     @Test("REGRESSION: Gap between separator and SaneBar — prefer short hop near separator")
     func gapBetweenSeparatorAndMainIcon() {
         // When there is space, avoid dragging all the way to boundary.
-        // Use separator + moveOffset unless that would overshoot boundary - 2.
+        // Use a short near-separator hop instead of dragging deep toward SaneBar.
 
         let separatorRightEdgeX: CGFloat = 1500
         let mainIconLeftEdge: CGFloat = 1700 // 200px gap
         let iconWidth: CGFloat = 16
-        let moveOffset = max(30, iconWidth + 20) // 36
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-
-        // max(1501, min(1536, 1698)) = 1536
-        #expect(target == 1536, "Gap case: separator + moveOffset wins")
+        #expect(target == 1508, "Gap case: near-separator insertion wins")
         #expect(target > separatorRightEdgeX, "Target must be right of separator")
         #expect(target < mainIconLeftEdge, "Target must be left of SaneBar icon")
     }
@@ -57,12 +63,14 @@ struct MoveToVisibleRegressionTests {
         let separatorRightEdgeX: CGFloat = 1200
         let mainIconLeftEdge: CGFloat = 1800 // 600px gap!
         let iconWidth: CGFloat = 16
-        let moveOffset = max(30, iconWidth + 20) // 36
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-
-        // max(1201, min(1236, 1798)) = 1236
-        #expect(target == 1236, "Wide gap: separator + moveOffset is used")
+        #expect(target == 1208, "Wide gap: near-separator insertion is used")
         #expect(target < mainIconLeftEdge, "Even with wide gap, target doesn't overshoot")
     }
 
@@ -73,12 +81,14 @@ struct MoveToVisibleRegressionTests {
         let separatorRightEdgeX: CGFloat = 1208
         let mainIconLeftEdge: CGFloat = 1386
         let iconWidth: CGFloat = 31
-        let moveOffset = max(30, iconWidth + 20) // 51
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-
-        // max(1209, min(1259, 1384)) = 1259
-        #expect(target == 1259, "Target should stay near separator, not jump to boundary-2")
+        #expect(abs(target - 1218.85) < 0.001, "Target should stay near separator, not jump to boundary-2")
         #expect(target < (mainIconLeftEdge - 50), "Target should avoid boundary-hugging long drags")
     }
 
@@ -196,9 +206,12 @@ struct MoveToVisibleRegressionTests {
         let separatorRightEdgeX: CGFloat = 1696
         let mainIconLeftEdge: CGFloat = 1696
         let iconWidth: CGFloat = 16
-        let moveOffset = max(30, iconWidth + 20) // 36
-
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
         // max(1697, 1694) = 1697
         #expect(target == 1697, "When equal, separatorX + 1 wins (1697 > 1694)")
@@ -209,12 +222,14 @@ struct MoveToVisibleRegressionTests {
         let separatorRightEdgeX: CGFloat = 1690
         let mainIconLeftEdge: CGFloat = 1700 // 10px gap
         let iconWidth: CGFloat = 16
-        let moveOffset = max(30, iconWidth + 20) // 36
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-
-        // max(1691, min(1726, 1698)) = 1698
-        #expect(target == 1698, "10px gap: boundary clamp (boundary - 2) wins")
+        #expect(target == 1693.5, "10px gap: near-separator target stays inside lane")
     }
 
     @Test("Very tight gap: still doesn't overshoot")
@@ -222,9 +237,12 @@ struct MoveToVisibleRegressionTests {
         let separatorRightEdgeX: CGFloat = 1695
         let mainIconLeftEdge: CGFloat = 1696 // 1px gap!
         let iconWidth: CGFloat = 16
-        let moveOffset = max(30, iconWidth + 20) // 36
-
-        let target = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
+        let target = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconWidth,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
         // max(1696, 1694) = 1696
         #expect(target == 1696, "1px gap: still resolves to separatorX + 1")
@@ -244,19 +262,22 @@ struct MoveToVisibleRegressionTests {
         ]
 
         for scenario in scenarios {
-            let moveOffset = max(30, scenario.iconWidth + 20)
-
             // OLD: min(separatorX + moveOffset, boundaryX - 20)
-            let oldTarget = min(scenario.sep + moveOffset, scenario.boundary - 20)
+            let moveOffset = max(30, scenario.iconWidth + 20)
+            _ = min(scenario.sep + moveOffset, scenario.boundary - 20)
 
-            // NEW: max(separatorX + 1, min(separatorX + moveOffset, boundaryX - 2))
-            let newTarget = max(scenario.sep + 1, min(scenario.sep + moveOffset, scenario.boundary - 2))
+            let newTarget = AccessibilityService.moveTargetX(
+                toHidden: false,
+                iconWidth: scenario.iconWidth,
+                separatorX: scenario.sep,
+                visibleBoundaryX: scenario.boundary
+            )
 
             if scenario.sep == scenario.boundary {
                 #expect(newTarget == scenario.sep + 1, "Flush: use the minimum right-of-separator target (\(scenario.name))")
             } else {
                 #expect(newTarget <= scenario.boundary, "New formula never targets right of the SaneBar icon (\(scenario.name))")
-                #expect(newTarget <= oldTarget + 20, "New formula avoids oversized jumps in wide gaps (\(scenario.name))")
+                #expect(newTarget <= scenario.sep + 24, "New formula avoids oversized jumps in wide gaps (\(scenario.name))")
             }
             #expect(newTarget > scenario.sep, "New formula always right of separator (\(scenario.name))")
         }

@@ -278,15 +278,15 @@ struct AccessibilityServiceCacheAndIdentityTests {
         #expect(index == nil)
     }
 
-    @Test("Multiple status items keep ordinal identity even when AX identifiers exist")
-    func testMultipleStatusItemsKeepIndexIdentity() {
+    @Test("Multiple status items with AX identifiers use identifier identity")
+    func testMultipleIdentifiedStatusItemsDoNotNeedIndexIdentity() {
         let index = AccessibilityService.scannedStatusItemIndex(
             itemCount: 2,
             itemIndex: 1,
             axIdentifier: "com.example.menu"
         )
 
-        #expect(index == 1)
+        #expect(index == nil)
     }
 
     @Test("Status item resolution continues after identifier miss when a live spatial hint exists")
@@ -359,8 +359,8 @@ struct AccessibilityServiceCacheAndIdentityTests {
         #expect(resolved != nil)
     }
 
-    @Test("Status item index exact IDs outrank stale preferred centers for same-bundle items")
-    func testStatusItemIndexExactIdsOutrankStalePreferredCenters() throws {
+    @Test("Status item index exact IDs use live preferred centers before ordinal fallback")
+    func testStatusItemIndexExactIdsUsePreferredCentersBeforeOrdinalFallback() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -369,9 +369,9 @@ struct AccessibilityServiceCacheAndIdentityTests {
             encoding: .utf8
         )
 
-        #expect(source.contains("menuExtraId == nil"))
-        #expect(source.contains("items.indices.contains(statusItemIndex)"))
-        #expect(source.contains("return items[statusItemIndex]"))
+        #expect(!source.contains("if menuExtraId == nil,\n           let statusItemIndex,\n           items.indices.contains(statusItemIndex)"))
+        #expect(source.contains("guard let preferredCenterX else"))
+        #expect(source.contains("AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex"))
         #expect(source.contains("return (true, false)"))
     }
 }

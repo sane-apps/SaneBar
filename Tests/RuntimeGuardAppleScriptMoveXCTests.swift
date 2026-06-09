@@ -127,6 +127,23 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAppleScriptMoveCommandsFallbackToFreshExactZoneVerification() throws {
+        let source = try appleScriptCommandSource()
+
+        XCTAssertTrue(
+            source.contains("func freshZonesForScriptMoveVerification(timeoutSeconds: TimeInterval = 2.5) -> [ScriptZonedIcon]") &&
+                source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()") &&
+                source.contains("return refreshedIconZones(timeoutSeconds: timeoutSeconds)"),
+            "AppleScript move fallback should force a fresh classified snapshot before accepting a failed physical drag"
+        )
+        XCTAssertTrue(
+            source.contains("if !moved, moveVerifiedByFreshExactZone(trimmedId: trimmedId, targetZone: targetZone)") &&
+                source.contains("guard resolved.zone == targetZone else") &&
+                source.contains("AppleScript move fallback accepted fresh exact-zone verification"),
+            "AppleScript move commands should return success only when the exact requested icon is freshly observed in the target zone after a failed move task"
+        )
+    }
+
     func testAppleScriptMoveCommandsWaitOnMoveTasks() throws {
         let source = try appleScriptCommandSource()
         let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")

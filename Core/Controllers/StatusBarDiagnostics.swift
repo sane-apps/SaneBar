@@ -59,6 +59,7 @@ enum StatusBarDiagnostics {
         screenFrame: CGRect?
     ) -> Bool {
         guard isVisibleFlag == true else { return false }
+        guard windowFrame != nil, screenFrame != nil else { return false }
         return !StatusBarController.isStatusItemWindowFrameValid(windowFrame: windowFrame, screenFrame: screenFrame)
     }
 

@@ -132,15 +132,18 @@ struct IconMovingScenarioTests {
         let iconFrame = CGRect(x: 400, y: 5, width: 22, height: 22)
 
         // Target calculation
-        let moveOffset = max(30, iconFrame.size.width + 20) // 42
-        let targetX = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-        // max(501, min(542, 898)) = 542
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconFrame.size.width,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
         // Grab point
         let fromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY) // (411, 16)
 
         // Assertions
-        #expect(targetX == 542)
+        #expect(targetX == 508)
         #expect(fromPoint.x == 411)
         #expect(targetX > separatorRightEdgeX, "Target must be right of separator")
         #expect(targetX < mainIconLeftEdge, "Target must not overshoot past SaneBar icon")
@@ -153,11 +156,14 @@ struct IconMovingScenarioTests {
         let mainIconLeftEdge: CGFloat = 820
         let iconFrame = CGRect(x: 750, y: 5, width: 22, height: 22)
 
-        let moveOffset = max(30, iconFrame.size.width + 20) // 42
-        let targetX = max(separatorRightEdgeX + 1, min(separatorRightEdgeX + moveOffset, mainIconLeftEdge - 2))
-        // max(801, min(842, 818)) = 818
+        let targetX = AccessibilityService.moveTargetX(
+            toHidden: false,
+            iconWidth: iconFrame.size.width,
+            separatorX: separatorRightEdgeX,
+            visibleBoundaryX: mainIconLeftEdge
+        )
 
-        #expect(targetX == 818, "Tight layout: bounded by boundary - 2")
+        #expect(targetX == 807, "Tight layout: stays just inside the visible lane")
         #expect(targetX < mainIconLeftEdge)
     }
 

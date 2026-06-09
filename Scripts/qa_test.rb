@@ -78,6 +78,7 @@ class ProjectQATest < Minitest::Test
   end
   def test_release_runtime_smoke_requires_tint_pixel_evidence_by_default
     source = qa_source
+    fullscreen_source = File.read(File.join(ProjectQA::PROJECT_ROOT, 'scripts', 'lib', 'live_zone_smoke_screenshots_fullscreen.rb'))
     assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
@@ -86,6 +87,11 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'app activation keeps dark custom tint visible'"
     assert_includes source, "'useLiquidGlass' => true"
     assert_includes source, "set_runtime_smoke_reduce_transparency!(true)"
+    assert_includes fullscreen_source, 'fullscreen_probe_window_states'
+    assert_includes fullscreen_source, 'repeat with candidateWindow in windows'
+    assert_includes fullscreen_source, 'set value of attribute "AXFullScreen" of candidateWindow to false'
+    assert_includes fullscreen_source, "last_states.any? { |state| state.casecmp('true').zero? }"
+    assert_includes fullscreen_source, 'out.scan(/true|false|no-window/i).map(&:downcase)'
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
     refute_includes source, "'useLiquidGlass' => false"
   end
@@ -401,6 +407,11 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'prelaunch_skipped=external-helper-running'
     assert_includes source, 'runtime_dynamic_helper_external_process_detail'
     assert_includes source, 'def ensure_runtime_dynamic_helper_wake_fixture!(target)'
+    assert_includes source, 'NSImage(systemSymbolName: name'
+    assert_includes source, "symbol_name: 'moon.fill'"
+    assert_includes source, '<key>CFBundleIconFile</key>'
+    assert_includes source, 'NSApp.applicationIconImage = fixtureImage("moon.fill")'
+    assert_includes source, 'statusItem.button?.image = fixtureImage("moon.fill")'
     assert_includes source, 'statusItem.button?.title = "Lungo"'
     assert_includes source, 'cleanup_runtime_dynamic_helper_fixture!'
   end
@@ -412,8 +423,29 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_IDS = %w[\n    com.ameba.SwiftBar::statusItem:0"
     assert_includes source, 'prelaunch_runtime_visible_dynamic_helper_fixture!'
     assert_includes source, 'def ensure_runtime_visible_dynamic_helper_wake_fixture!(target)'
+    assert_includes source, "symbol_name: 'timer'"
+    assert_includes source, 'NSApp.applicationIconImage = fixtureImage("timer")'
+    assert_includes source, 'statusItem.button?.image = fixtureImage("timer")'
+    assert_includes source, 'item?.button?.image = fixtureImage(tickCount.isMultiple(of: 2) ? "timer" : "timer.circle.fill")'
     assert_includes source, 'statusItem.button?.title = "11"'
     assert_includes source, 'SwiftBar dynamic counter'
+  end
+
+  def test_runtime_smoke_shared_and_host_fixtures_render_template_images
+    source = qa_source
+
+    assert_includes source, 'def write_runtime_fixture_bundle_icon!'
+    assert_includes source, '/usr/bin/iconutil'
+    assert_includes source, "symbol_name: 'target'"
+    assert_includes source, "symbol_name: 'square.grid.2x2.fill'"
+    assert_includes source, 'statusItem.button?.image = fixtureImage("target")'
+    assert_includes source, 'NSApp.applicationIconImage = fixtureImage("target")'
+    assert_includes source, 'NSApp.applicationIconImage = fixtureImage(for: "SBF-A")'
+    assert_includes source, 'case "SBF-A": symbolName = "circle.grid.2x2.fill"'
+    assert_includes source, 'case "SBF-B": symbolName = "square.grid.2x2.fill"'
+    assert_includes source, 'default: symbolName = "diamond.grid.3x3.fill"'
+    assert_includes source, 'item.button?.image = fixtureImage(for: title)'
+    assert_includes source, 'image?.isTemplate = true'
   end
 
   def test_preflight_mode_accepts_saneprocess_env_names
@@ -426,12 +458,185 @@ class ProjectQATest < Minitest::Test
   def test_runtime_smoke_bootstraps_pro_for_always_hidden_checks
     source = qa_source
 
+    assert_includes source, 'runtime_smoke_host_allowed?'
+    assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
+    assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!(target)'
+    assert_includes source, 'representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)'
+    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1'"
+    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => '1'"
+    assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
     assert_includes source, "target[:no_keychain] = true"
     assert_includes source, "Runtime smoke requires a Pro-enabled target for Always Hidden checks;"
   end
 
-  def test_startup_layout_probe_restores_state_before_marking_success
+  def test_runtime_smoke_seeds_missing_representative_always_hidden_zone
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.one', unique_id: 'com.example.hidden.one::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.two', unique_id: 'com.example.hidden.two::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.three', unique_id: 'com.example.hidden.three::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.four', unique_id: 'com.example.hidden.four::statusItem:0' }
+    ]
+    calls = []
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      zones.find { |item| item[:unique_id] == unique_id }[:zone] = 'alwaysHidden'
+      ["true\n", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:ensure_runtime_smoke_representative_zones_ready!, { app_path: '/Applications/SaneBar.app' })
+
+    assert_nil error
+    assert_equal [
+      ['move icon to always hidden', 'com.example.hidden.one::statusItem:0'],
+      ['move icon to always hidden', 'com.example.hidden.two::statusItem:0'],
+      ['move icon to always hidden', 'com.example.hidden.three::statusItem:0']
+    ], calls
+  end
+
+  def test_runtime_smoke_retries_representative_zone_seeding_after_transient_move_failure
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.one', unique_id: 'com.example.hidden.one::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.two', unique_id: 'com.example.hidden.two::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.three', unique_id: 'com.example.hidden.three::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.four', unique_id: 'com.example.hidden.four::statusItem:0' }
+    ]
+    calls = []
+    fail_status = Object.new
+    fail_status.define_singleton_method(:success?) { false }
+    pass_status = Object.new
+    pass_status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      if calls.length == 1
+        ["transient launch timing failure\n", fail_status]
+      else
+        zones.find { |item| item[:unique_id] == unique_id }[:zone] = 'alwaysHidden'
+        ["true\n", pass_status]
+      end
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:ensure_runtime_smoke_representative_zones_ready!, { app_path: '/Applications/SaneBar.app' })
+
+    assert_nil error
+    assert_equal 4, calls.length
+    assert_equal ['move icon to always hidden', 'com.example.hidden.one::statusItem:0'], calls.first
+    assert_equal ['move icon to always hidden', 'com.example.hidden.two::statusItem:0'], calls[1]
+    assert_equal ['move icon to always hidden', 'com.example.hidden.three::statusItem:0'], calls.last
+  end
+
+  def test_runtime_smoke_retries_representative_zone_seeding_when_success_does_not_change_zone
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.one', unique_id: 'com.example.hidden.one::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.two', unique_id: 'com.example.hidden.two::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.three', unique_id: 'com.example.hidden.three::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.four', unique_id: 'com.example.hidden.four::statusItem:0' }
+    ]
+    calls = []
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      zones.find { |item| item[:unique_id] == unique_id }[:zone] = 'alwaysHidden' unless calls.length == 1
+      ["true\n", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:ensure_runtime_smoke_representative_zones_ready!, { app_path: '/Applications/SaneBar.app' })
+
+    assert_nil error
+    assert_equal [
+      ['move icon to always hidden', 'com.example.hidden.one::statusItem:0'],
+      ['move icon to always hidden', 'com.example.hidden.two::statusItem:0'],
+      ['move icon to always hidden', 'com.example.hidden.one::statusItem:0'],
+      ['move icon to always hidden', 'com.example.hidden.three::statusItem:0']
+    ], calls
+  end
+
+  def test_runtime_smoke_seeds_preferred_shared_fixture_into_always_hidden_before_filling_minimum
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::statusItem:1' },
+      { zone: 'hidden', movable: true, bundle: 'com.knollsoft.Rectangle', unique_id: 'com.knollsoft.Rectangle::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.another', unique_id: 'com.example.another::statusItem:0' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.another2', unique_id: 'com.example.another2::statusItem:0' }
+    ]
+    calls = []
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      zones.find { |item| item[:unique_id] == unique_id }[:zone] = 'alwaysHidden'
+      ["true\n", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:ensure_runtime_smoke_representative_zones_ready!, { app_path: '/Applications/SaneBar.app' })
+
+    assert_nil error
+    assert_equal [
+      ['move icon to always hidden', 'com.sanebar.sharedfixture::statusItem:1'],
+      ['move icon to always hidden', 'com.knollsoft.Rectangle::statusItem:0'],
+      ['move icon to always hidden', 'com.example.another::statusItem:0']
+    ], calls
+  end
+
+  def test_runtime_smoke_generic_seeding_uses_deterministic_shared_fixture_before_system_donors
+    apple_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.apple.weather.menu')
+    shared_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.sanebar.sharedfixture')
+
+    assert_operator shared_rank, :<, apple_rank
+  end
+
+  def test_runtime_smoke_rebalances_hidden_zone_from_always_hidden_surplus
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::statusItem:0' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.knollsoft.Rectangle', unique_id: 'com.knollsoft.Rectangle::statusItem:0' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.apple.weather.menu', unique_id: 'com.apple.weather.menu::statusItem:0' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.another', unique_id: 'com.example.another::statusItem:0' }
+    ]
+    calls = []
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      zones.find { |item| item[:unique_id] == unique_id }[:zone] = command.end_with?('always hidden') ? 'alwaysHidden' : 'hidden'
+      ["true\n", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:ensure_runtime_smoke_representative_zones_ready!, { app_path: '/Applications/SaneBar.app' })
+
+    assert_nil error
+    assert_equal [
+      ['move icon to hidden', 'com.knollsoft.Rectangle::statusItem:0']
+    ], calls
+  end
+
+def test_runtime_smoke_cleanup_includes_host_exact_id_fixture
+  preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
+  fixture_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_fixtures.rb'))
+
+  assert_includes fixture_source, "def cleanup_runtime_host_exact_id_fixture!"
+  assert_includes fixture_source, "killall', 'SaneBarHostExactIDFixture'"
+  assert_includes fixture_source, 'for title in ["SBF-A", "SBF-B", "SBF-C"]'
+  assert_includes preflight_source, "cleanup_runtime_host_exact_id_fixture!"
+end
+
+def test_startup_layout_probe_restores_state_before_marking_success
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
     assert_includes source, "restore_state!\n    @state_restored = true\n\n    write_artifact!(\n      status: 'pass'"
@@ -668,6 +873,25 @@ def test_required_runtime_smoke_rejects_nonmovable_dynamic_helper_fixture
   assert_empty ids
 end
 
+def test_representative_runtime_smoke_excludes_volatile_swiftbar_fixture_from_move_candidates
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.ameba.SwiftBar',
+        unique_id: 'com.ameba.SwiftBar::statusItem:0',
+        name: 'SwiftBar'
+      }
+    ]
+  end
+
+  candidates = @qa.send(:runtime_smoke_representative_zone_candidates, target)
+
+  assert_empty candidates
+end
+
 def test_shared_bundle_runtime_smoke_accepts_deterministic_fixture_cluster
   target = { app_path: '/Applications/SaneBar.app' }
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
@@ -775,10 +999,11 @@ end
     source = qa_source
 
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => target[:no_keychain] ? '1' : '0'"
-    assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '1'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_MIN_PASSING_CANDIDATES'] = '1' if lane_name == 'shared-bundle'"
+    assert_includes source, 'com.sanebar.sharedfixture::statusItem:2'
   end
 
   def test_live_zone_smoke_second_menu_bar_prefers_precise_non_apple_candidates
