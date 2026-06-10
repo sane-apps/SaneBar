@@ -25,7 +25,10 @@ final class AccessibilityMenuBarDragService {
         physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
-        _ = physicalMoveOrigin
+        guard accessibilityService.automaticMoveGate.allowsMove(origin: physicalMoveOrigin) else {
+            accessibilityDragLogger.warning("🔧 Automatic move blocked by consent gate (origin=systemWakeRecovery)")
+            return false
+        }
         guard accessibilityService.isTrusted else {
             accessibilityDragLogger.error("🔧 Accessibility permission not granted")
             return false
@@ -65,7 +68,10 @@ final class AccessibilityMenuBarDragService {
         physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
-        _ = physicalMoveOrigin
+        guard accessibilityService.automaticMoveGate.allowsMove(origin: physicalMoveOrigin) else {
+            accessibilityDragLogger.warning("🔧 Automatic reorder blocked by consent gate (origin=systemWakeRecovery)")
+            return false
+        }
         guard accessibilityService.isTrusted else {
             accessibilityDragLogger.error("🔧 Accessibility permission not granted")
             return false
@@ -122,7 +128,10 @@ final class AccessibilityMenuBarDragService {
         physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
-        _ = physicalMoveOrigin
+        guard accessibilityService.automaticMoveGate.allowsMove(origin: physicalMoveOrigin) else {
+            accessibilityDragLogger.warning("🔧 Automatic move blocked by consent gate (origin=systemWakeRecovery)")
+            return false
+        }
         let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
         let resolvedTargetLane = targetLane ?? (toHidden ? .hidden : .visible)
         accessibilityDragLogger.debug("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")

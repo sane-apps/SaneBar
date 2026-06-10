@@ -98,7 +98,8 @@ enum MenuBarOperationCoordinator {
             mainX: mainX,
             mainRightGap: snapshot.mainRightGap,
             screenWidth: snapshot.screenWidth,
-            notchRightSafeMinX: snapshot.notchRightSafeMinX
+            notchRightSafeMinX: snapshot.notchRightSafeMinX,
+            persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
         ) {
             return .invalidGeometry
         }

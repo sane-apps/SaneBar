@@ -449,19 +449,24 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
             guard layer == 0 else { continue }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
-            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { continue }
-            let isTopAlignedFullscreen = abs(rect.minY - targetFrame.minY) <= maximumTopDrift &&
-                coveredRect.height >= targetFrame.height * 0.9
-            let isMenuBarOffsetFullscreen = hasFullscreenTransitionTopHost &&
+            // Fullscreen content can sit either at the very top of the screen
+            // or offset just below a transparent fullscreen-transition top host
+            // (e.g. Safari fullscreen leaves its content at y = menu bar height).
+            let isTopAligned = abs(rect.minY - targetFrame.minY) <= maximumTopDrift
+            let isMenuBarOffset = hasFullscreenTransitionTopHost &&
                 rect.minY >= targetFrame.minY &&
-                rect.minY <= targetFrame.minY + maximumFullscreenMenuBarOffset &&
+                rect.minY <= targetFrame.minY + maximumFullscreenMenuBarOffset
+            guard isTopAligned || isMenuBarOffset else { continue }
+            let isTopAlignedFullscreen = isTopAligned &&
+                coveredRect.height >= targetFrame.height * 0.9
+            let isMenuBarOffsetFullscreen = isMenuBarOffset &&
                 coveredRect.height >= targetFrame.height * 0.85
             if !frontmostIsAccessoryApp,
                coveredRect.width >= minimumCoveredWidth,
                isTopAlignedFullscreen || isMenuBarOffsetFullscreen {
                 return .fullscreenContentWindow
             }
-            guard suppressThinTopHost else { continue }
+            guard suppressThinTopHost, isTopAligned else { continue }
             guard height >= 20, height <= 26 else { continue }
             guard coveredRect.width >= minimumCoveredWidth else { continue }
             guard !windowInfos.contains(where: { isCompanionContentWindow($0, excluding: rect) }) else { continue }

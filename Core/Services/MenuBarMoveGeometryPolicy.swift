@@ -3,6 +3,24 @@ import CoreGraphics
 enum MenuBarMoveGeometryPolicy {
     static let separatorVisualWidth: CGFloat = 20
 
+    /// Canonical screen-aware liveness: a status-item window is live when it is
+    /// attached to a screen and sits in that screen's menu bar band. Sign-based
+    /// checks (originX > 0) wrongly classified every frame on a display arranged
+    /// left of the primary (negative global X) as stale, and accepted offscreen
+    /// parked windows (e.g. y=-22) as live when their X happened to be positive.
+    static func statusItemFrameLooksLive(frame: CGRect, screenFrame: CGRect?) -> Bool {
+        guard frame.width > 0, frame.width < 1000 else { return false }
+        guard let screenFrame else { return false }
+        let verticalTolerance: CGFloat = 50
+        let horizontalTolerance: CGFloat = 8
+        let verticalMatch = abs(screenFrame.maxY - frame.maxY) <= verticalTolerance
+        let horizontalOverlap = frame.maxX >= (screenFrame.minX - horizontalTolerance) &&
+            frame.minX <= (screenFrame.maxX + horizontalTolerance)
+        return verticalMatch && horizontalOverlap
+    }
+
+    /// Scalar fallbacks for diagnostics paths that have no window/screen handle.
+    /// Behavioral code must use statusItemFrameLooksLive(frame:screenFrame:).
     static func separatorFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
         originX > 0 && width > 0 && width < 1000
     }
@@ -19,8 +37,10 @@ enum MenuBarMoveGeometryPolicy {
     ) -> CGFloat? {
         var candidate = cachedRightEdge
 
-        if let origin = cachedOrigin, origin > 0 {
-            if candidate == nil || (candidate ?? 0) <= origin || (candidate ?? 0) > (origin + 250) {
+        // Ordering/normalization is sign-independent: negative global X is
+        // legitimate on displays arranged left of the primary.
+        if let origin = cachedOrigin, origin.isFinite {
+            if candidate == nil || (candidate ?? -.greatestFiniteMagnitude) <= origin || (candidate ?? 0) > (origin + 250) {
                 candidate = origin + separatorVisualWidth
             }
         }
@@ -29,15 +49,15 @@ enum MenuBarMoveGeometryPolicy {
             candidate = estimatedRightEdge
         }
 
-        if let mainLeftEdge, mainLeftEdge > 0, let edge = candidate, edge >= mainLeftEdge {
-            candidate = max(1, mainLeftEdge - 2)
+        if let mainLeftEdge, mainLeftEdge.isFinite, let edge = candidate, edge >= mainLeftEdge {
+            candidate = mainLeftEdge - 2
         }
 
-        if let origin = cachedOrigin, origin > 0, let edge = candidate, edge <= origin {
+        if let origin = cachedOrigin, origin.isFinite, let edge = candidate, edge <= origin {
             candidate = origin + 1
         }
 
-        guard let resolved = candidate, resolved > 0 else { return nil }
+        guard let resolved = candidate, resolved.isFinite else { return nil }
         return resolved
     }
 
@@ -63,24 +83,21 @@ enum MenuBarMoveGeometryPolicy {
     ) -> CGFloat? {
         var candidate = cachedRightEdge
 
-        if let origin = cachedOrigin, origin > 0 {
-            if candidate == nil || (candidate ?? 0) <= origin || (candidate ?? 0) > (origin + 250) {
+        if let origin = cachedOrigin, origin.isFinite {
+            if candidate == nil || (candidate ?? -.greatestFiniteMagnitude) <= origin || (candidate ?? 0) > (origin + 250) {
                 candidate = origin + separatorVisualWidth
             }
         }
 
         guard let resolvedSeparatorX = separatorX,
               resolvedSeparatorX.isFinite,
-              resolvedSeparatorX > 0,
               let boundary = candidate,
-              boundary.isFinite,
-              boundary > 0
+              boundary.isFinite
         else {
             return nil
         }
 
         let maxAllowed = resolvedSeparatorX - max(1, minimumGap)
-        guard maxAllowed > 0 else { return nil }
         guard boundary < maxAllowed else { return nil }
         return boundary
     }
