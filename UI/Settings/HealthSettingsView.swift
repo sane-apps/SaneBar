@@ -109,9 +109,9 @@ struct HealthSettingsView: View {
     private var layoutModeHelp: String {
         switch menuBarManager.settings.layoutMode {
         case .stability:
-            "Stability repairs only at startup or when you click Fix."
+            "Hands-off: SaneBar only fixes its icon layout when it starts or when you click Fix. Good if your setup rarely changes."
         case .live:
-            "Live checks after wake and display changes."
+            "SaneBar also re-checks the layout after sleep/wake and when displays are connected or disconnected. Good if icons sometimes scramble after wake."
         }
     }
 
@@ -183,14 +183,14 @@ struct HealthSettingsView: View {
                             }
                             .buttonStyle(ChromeActionButtonStyle(prominent: menuBarManager.settings.layoutMode == .stability))
                             .controlSize(.small)
-                            .saneHelp("Stability mode keeps SaneBar hands-off except for startup recovery and manual repair.")
+                            .saneHelp("Hands-off: SaneBar only fixes its icon layout at startup or when you click Fix.")
 
                             Button("Live") {
                                 setLayoutMode(.live)
                             }
                             .buttonStyle(ChromeActionButtonStyle(prominent: menuBarManager.settings.layoutMode == .live))
                             .controlSize(.small)
-                            .saneHelp("Live mode also checks layout after wake, display changes, and session changes.")
+                            .saneHelp("SaneBar also re-checks the layout after sleep/wake, display changes, and session changes.")
                         }
                     }
                     SaneInlineHelp(layoutModeHelp)
@@ -264,6 +264,12 @@ struct HealthSettingsView: View {
                 }
 
                 CompactSection("Repair", icon: "wrench.and.screwdriver", iconColor: .orange) {
+                    if menuBarManager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason != nil {
+                        SaneInlineHelp("A layout restore after wake was postponed because icon positions could not be confirmed. Click Run to apply it now.")
+                            .padding(.horizontal, 12)
+                            .padding(.top, 4)
+                        CompactDivider()
+                    }
                     CompactRow("Arrange Now") {
                         Button("Run") {
                             runRepair(reason: "health", message: "Repair check ran.")
@@ -316,6 +322,7 @@ struct HealthSettingsView: View {
             let snapshot = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: reason)
             lastRepairDate = Date()
             if MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: snapshot) {
+                menuBarManager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = nil
                 layoutRescueMessage = message ?? "Layout is healthy."
             } else if snapshot.likelySystemSuppressedStatusItems {
                 layoutRescueMessage = "macOS may be hiding SaneBar's icons. Check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."

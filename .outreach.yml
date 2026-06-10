@@ -107,20 +107,20 @@ launch_calendar:
       action: "Scan competitor issues and high-fit X/HN/Reddit threads; do not post unless the user is asking for a menu bar manager/Bartender/Ice alternative and the reply discloses 'I built SaneBar'."
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
-      last_reviewed: "2026-06-09"
-      result: "At 11:12 EDT on 2026-06-09, canonical `launch_readiness` reran and again reported `Mac mini is unreachable. Falling back to local execution.` before returning a nonzero gate. The lane stayed no-go because SaneBar already spent the real Product Hunt/Hacker News launch, open layout/icon-movement support issues still make a broad relaunch weak, the latest local `release_preflight` proof is now 13.72 days old and still carries 7 warnings, and the shared validation report generated at 2026-06-09 11:11:27 EDT still says BROKEN RELEASE PIPELINE while flagging SaneBar customer UI proof as stale and missing required runtime states. No opportunity-monitoring reply, public post, scheduling action, or directory action was executed."
+      last_reviewed: "2026-06-10"
+      result: "At 10:22 EDT on 2026-06-10, canonical `launch_readiness` reran and again reported `Mac mini is unreachable. Falling back to local execution.` before returning a nonzero gate. The lane stayed no-go because SaneBar already spent the real Product Hunt/Hacker News launch, open layout/icon-movement support issues still make a broad relaunch weak, the latest local `release_preflight` proof is now 14.61 days old and still carries 7 warnings, and an attempted shared `validation_report.rb` refresh on 2026-06-10 hung without producing a new receipt. The latest known shared validation state remains the 2026-06-09 18:01 EDT `BROKEN RELEASE PIPELINE` report. No opportunity-monitoring reply, public post, scheduling action, or directory action was executed."
   last_launch_readiness:
-    date: "2026-06-09"
+    date: "2026-06-10"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Canonical launch_readiness rerun on 2026-06-09 again reported `Mac mini is unreachable. Falling back to local execution.` and exited nonzero."
+      - "Canonical launch_readiness rerun on 2026-06-10 again reported `Mac mini is unreachable. Falling back to local execution.` and exited nonzero."
       - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
-      - "Latest local release_preflight proof is stale at 13.72 days old and still carries 7 warnings."
-      - "The shared validation report generated at 2026-06-09 11:11:27 EDT still says BROKEN RELEASE PIPELINE and flags SaneBar customer UI proof as stale and missing required runtime states."
-      - "No weekly opportunity reply was executed on 2026-06-09 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
-    next_date: "2026-06-16"
+      - "Latest local release_preflight proof is stale at 14.61 days old and still carries 7 warnings."
+      - "An attempted shared validation_report.rb refresh on 2026-06-10 hung without producing a new receipt; the latest known shared validation state remains the 2026-06-09 18:01 EDT BROKEN RELEASE PIPELINE report."
+      - "No weekly opportunity reply was executed on 2026-06-10 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
+    next_date: "2026-06-17"
 
 x_search_keywords:
   - "\"Bartender\" (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"

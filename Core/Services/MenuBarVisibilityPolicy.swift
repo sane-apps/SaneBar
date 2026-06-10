@@ -263,7 +263,9 @@ extension MenuBarManager {
         )
         if resolved.mode == .repairWithPhysicalMoves {
             AccessibilityService.shared.automaticMoveGate.arm()
+            statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = nil
         } else if reason.contains("wake-resume"), confidence != .live {
+            statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = reason
             visibilityReplayLogger.warning(
                 "Visibility replay downgraded to audit-only (\(reason, privacy: .public)): geometry confidence is \(confidence.rawValue, privacy: .public)"
             )

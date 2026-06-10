@@ -195,7 +195,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Project QA runtime smoke should persist the latest smoke transcript on success so the artifact always matches the current run"
         )
         XCTAssertTrue(
-                source.contains("shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(") &&
+            source.contains("shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(") &&
                 source.contains("ensure_runtime_shared_bundle_fixture!(target)") &&
                 source.contains("RUNTIME_SHARED_BUNDLE_FIXTURE_IDS = %w[") &&
                 source.contains("def runtime_smoke_available_shared_bundle_candidate_ids(target, required_ids:)") &&
@@ -294,7 +294,13 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
     }
 
     func testVerifyExplainsRuntimeSmokeWhenNoXCUITargetExists() throws {
-        let source = try readShared("infra/SaneProcess/scripts/sanemaster/verify.rb")
+        // The Verify module is split across partials (Rule #10); the guarded
+        // behavior may live in any of them.
+        let source = try [
+            "infra/SaneProcess/scripts/sanemaster/verify.rb",
+            "infra/SaneProcess/scripts/sanemaster/verify_support.rb",
+            "infra/SaneProcess/scripts/sanemaster/verify_doctor.rb",
+        ].map { try readShared($0) }.joined(separator: "\n")
 
         XCTAssertTrue(
             source.contains("def runtime_smoke_coverage_present?"),
@@ -562,5 +568,4 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
     private func projectQASource() throws -> String {
         try scriptSource(entrypoint: "qa.rb", partialPrefix: "project_qa")
     }
-
 }

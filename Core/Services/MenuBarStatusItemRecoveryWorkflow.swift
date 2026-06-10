@@ -13,6 +13,11 @@ final class MenuBarStatusItemRecoveryWorkflow {
     private var visibilityFlapDetector = MenuBarVisibilityFlapDetector()
     private(set) var recoveryDormantUntil: Date?
 
+    /// Set when a wake-resume layout restore was downgraded to audit-only
+    /// because geometry was not live. Surfaced in Health so the user can
+    /// apply it explicitly via Repair; cleared when a physical replay runs.
+    var pendingDeferredWakeRestoreReason: String?
+
     init(manager: MenuBarManager) {
         self.manager = manager
     }
