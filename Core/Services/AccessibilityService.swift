@@ -60,6 +60,10 @@ final class AccessibilityService: ObservableObject {
     static let shared = AccessibilityService()
     nonisolated static let accessibilitySettingsURLString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
+    /// Consent gate for automatic (non-user-initiated) synthetic drags.
+    /// Armed by MenuBarManager only when live geometry is confirmed (#151/#154).
+    nonisolated let automaticMoveGate = MenuBarAutomaticMoveGate()
+
     // MARK: - Published State
 
     /// Current permission status - updates reactively when permission changes

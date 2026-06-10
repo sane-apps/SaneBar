@@ -131,19 +131,41 @@ enum MenuBarVisibilityPolicy {
         return false
     }
 
+    /// How far the live main position may deviate from SaneBar's own persisted
+    /// preferred position (both measured as distance from the screen's right
+    /// edge) before soft drift is flagged.
+    nonisolated static let mainDriftFromPersistedIntentTolerance: CGFloat = 160
+
     nonisolated static func shouldRecoverStartupPositions(
         separatorX: CGFloat?,
         mainX: CGFloat?,
         mainRightGap: CGFloat? = nil,
         screenWidth: CGFloat? = nil,
-        notchRightSafeMinX: CGFloat? = nil
+        notchRightSafeMinX: CGFloat? = nil,
+        persistedMainDistanceFromRight: CGFloat? = nil
     ) -> Bool {
         guard let separatorX, let mainX else { return false }
-        guard separatorX > 0, mainX > 0 else { return false }
+        guard separatorX.isFinite, mainX.isFinite else { return false }
         if separatorX >= mainX {
+            // Hard invariant: the separator must sit left of the main toggle.
             return true
         }
 
+        // Soft drift: when SaneBar's own persisted intent is known, judge the
+        // live position against IT instead of an absolute zone. Users may
+        // legitimately keep the toggle far from Control Center (icons parked
+        // right of SaneBar); macOS rewrites the persisted preferred position
+        // whenever the user drags the toggle, so intent tracks the user.
+        if let persistedMainDistanceFromRight,
+           persistedMainDistanceFromRight.isFinite,
+           persistedMainDistanceFromRight >= 0,
+           persistedMainDistanceFromRight < 5000,
+           let mainRightGap,
+           mainRightGap.isFinite {
+            return abs(mainRightGap - persistedMainDistanceFromRight) > mainDriftFromPersistedIntentTolerance
+        }
+
+        // Fallback when persisted intent is unavailable: absolute zone checks.
         if let notchSafe = isMainInsideNotchSafeRightZone(
             mainX: mainX,
             notchRightSafeMinX: notchRightSafeMinX
@@ -214,15 +236,39 @@ enum MenuBarVisibilityPolicy {
     }
 }
 
+extension MenuBarVisibilityPolicy {
+    /// Automatic replay may only use physical Cmd+drag moves when the runtime
+    /// snapshot reports live geometry. Replays on cached/estimated/stale
+    /// geometry moved items users never asked to move (#151, #154).
+    nonisolated static func visibilityIntentReplayMode(
+        reason: String,
+        geometryConfidence: MenuBarGeometryConfidence
+    ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
+        if reason.contains("wake-resume"), geometryConfidence == .live {
+            return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        }
+        return (.auditOnly, nil)
+    }
+}
+
 @MainActor
 extension MenuBarManager {
     func visibilityIntentReplayHideAllOtherMode(
         reason: String
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        if reason.contains("wake-resume") {
-            return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        let confidence = currentStatusItemRecoverySnapshot().geometryConfidence
+        let resolved = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: reason,
+            geometryConfidence: confidence
+        )
+        if resolved.mode == .repairWithPhysicalMoves {
+            AccessibilityService.shared.automaticMoveGate.arm()
+        } else if reason.contains("wake-resume"), confidence != .live {
+            visibilityReplayLogger.warning(
+                "Visibility replay downgraded to audit-only (\(reason, privacy: .public)): geometry confidence is \(confidence.rawValue, privacy: .public)"
+            )
         }
-        return (.auditOnly, nil)
+        return resolved
     }
 
     func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String) {

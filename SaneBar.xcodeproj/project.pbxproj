@@ -78,6 +78,7 @@
 		6134551C3B0E57B140C7EBF3 /* MenuBarOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC85BEE463917C4615F54D0 /* MenuBarOverlayView.swift */; };
 		616F65B62E60CF53F0CA0CE1 /* MenuBarOperationRuntimeValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79FF83395E4645ED1FE4416E /* MenuBarOperationRuntimeValidationTests.swift */; };
 		63B8275B4884AE28CACCBCD5 /* RuntimeGuardAppleScriptActivationXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5ABE553CD244482B92690C /* RuntimeGuardAppleScriptActivationXCTests.swift */; };
+		6465F3303AE266A1956B1020 /* MenuBarGeometryCacheProvenanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45AAF209B0090C59E045ED35 /* MenuBarGeometryCacheProvenanceTests.swift */; };
 		66AF7790A2023398E0A10B09 /* WelcomePermissionPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F0AA77290B035051EBC83E8 /* WelcomePermissionPage.swift */; };
 		6762F77DF83D22EA8A2FCDF7 /* SecondMenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 541BA320CBEF7881B2FC9DAA /* SecondMenuBarView.swift */; };
 		67D0002C85B20473AA289896 /* BrowsePanelKeyboardNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D241A15A37CF99B11604AA84 /* BrowsePanelKeyboardNavigation.swift */; };
@@ -119,6 +120,7 @@
 		8FF160D93266BCE8F8E62847 /* StatusItemScreenResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D051477BF00F1D25DD3E1E /* StatusItemScreenResolver.swift */; };
 		9023EEE84F5463F7809E96EF /* PersistenceTriggerSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D72F12A9AA24BC83A47926 /* PersistenceTriggerSettingsTests.swift */; };
 		9079287B9B328147F0FA9507 /* MenuBarStatusItemSetupWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3CD262277656E64AA4A6C0 /* MenuBarStatusItemSetupWorkflow.swift */; };
+		907E8C55AD9F6B917F7D5C00 /* MenuBarDriftIntentPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3739AF968097E714A168172F /* MenuBarDriftIntentPolicyTests.swift */; };
 		90AC51B02894802BF224E4E8 /* AccessibilitySystemWideMenuBarScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD44071EBA780A571EE827F9 /* AccessibilitySystemWideMenuBarScanner.swift */; };
 		934FDF51421C0B4CE930737B /* MenuBarSearchTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3A83EC2F6E8287B17143E7 /* MenuBarSearchTabs.swift */; };
 		93D366E925E4AB7F4E583C41 /* MenuBarVisibilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4027D48D74DCB4D3D977347E /* MenuBarVisibilityPolicy.swift */; };
@@ -148,13 +150,16 @@
 		A78EF8D7C743AA6BC885F4FD /* TriggerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1779B5B710715DD106EE34 /* TriggerService.swift */; };
 		A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */; };
 		A8278EBD2DE43E204287B6DC /* RuntimeGuardSettingsSurfaceXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9599662C8797778FF22F615B /* RuntimeGuardSettingsSurfaceXCTests.swift */; };
+		A909046BFEDA33D610C2DEAC /* MenuBarAutomaticMoveGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A168DE9DFED63DB150DCD396 /* MenuBarAutomaticMoveGate.swift */; };
 		AACD9A6170B39E6B630846A0 /* SaneBar.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */; };
 		AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */; };
 		ABB1BBE5781AD0FE0B1F7C87 /* StatusBarControllerResetRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BDB0C9B98E388248ED0D5D /* StatusBarControllerResetRecoveryTests.swift */; };
 		AC6C5BD42646BAA4E9E32556 /* MenuBarMoveTaskCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5633915975FC22E76C4A6B /* MenuBarMoveTaskCoordinator.swift */; };
 		AD11323B11629658BEE2E254 /* MenuBarHideAllOtherWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6681E6EED0E4BB1288AD99A9 /* MenuBarHideAllOtherWorkflow.swift */; };
 		ADDBED84E2D3F8A6F7955D5E /* SaneBarAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5809FED6504C908994290E3C /* SaneBarAppIntents.swift */; };
+		AE1AFC73237B7A59B994C8DB /* MenuBarVisibilityFlapDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F4A1A42ED75E793862B484E /* MenuBarVisibilityFlapDetectorTests.swift */; };
 		B0058393B378D15F1ED57027 /* MenuBarRuntimeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A05ABFDE2141E74F09C66C0 /* MenuBarRuntimeSnapshot.swift */; };
+		B0A83A4EF35DA7370EB65471 /* MenuBarVisibilityFlapDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DFFC8B27ED0866C5961C0A8 /* MenuBarVisibilityFlapDetector.swift */; };
 		B0C8C7650DE34FD01BB9524A /* StatusBarControllerMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7078B43B235C004DD21C4C /* StatusBarControllerMenuTests.swift */; };
 		B129CD956D4748FE4C8669C6 /* MenuBarManagerRehideStartupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC139927A7057B53D5D3632 /* MenuBarManagerRehideStartupTests.swift */; };
 		B18DB5237FDC51CEA39A40D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9BA08257DC5AD1543DD4C9 /* SettingsView.swift */; };
@@ -223,6 +228,7 @@
 		F4B29C910A1781E9154C38A8 /* WelcomeActionPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA3CBB26832D79CDA06C776 /* WelcomeActionPage.swift */; };
 		F5231EF45689247AC31F2B8F /* BartenderImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5EB59517C136E5ACE00286 /* BartenderImportService.swift */; };
 		F5AC77E9344F118679C78D16 /* BrowseSecondMenuBarPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109E59A9C569BEC3ECD1EC24 /* BrowseSecondMenuBarPanelView.swift */; };
+		F751946DF0C2F5F22E2F6046 /* MenuBarAutomaticMoveGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F22822682D127C272FEE3A /* MenuBarAutomaticMoveGateTests.swift */; };
 		F7BA27229D32EEA18FB0B952 /* MenuBarAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 687209986141F3E438230A39 /* MenuBarAppearanceSettings.swift */; };
 		F7ED414431C97B5A1BA9FA84 /* CustomerUIActionContractXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB47B74A70ECF1C07DE9899 /* CustomerUIActionContractXCTests.swift */; };
 		F8943E29E203BC48686879E6 /* AccessibilityService+Scanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDD1F55832DC1AB1E9192D /* AccessibilityService+Scanning.swift */; };
@@ -292,14 +298,17 @@
 		31B07755827183297399B3D0 /* MenuBarMoveQueueWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarMoveQueueWorkflow.swift; sourceTree = "<group>"; };
 		35A2EA787D11DC616749F174 /* MenuBarIconReorderWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconReorderWorkflow.swift; sourceTree = "<group>"; };
 		36E3F3D69F758B40C730646E /* ProFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProFeature.swift; sourceTree = "<group>"; };
+		3739AF968097E714A168172F /* MenuBarDriftIntentPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarDriftIntentPolicyTests.swift; sourceTree = "<group>"; };
 		375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */ = {isa = PBXFileReference; path = SaneBar.sdef; sourceTree = "<group>"; };
 		386A8722235E682FD58BF6B6 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconTests.swift; sourceTree = "<group>"; };
 		3CA8C4CEE3668E43C8682348 /* AppleScriptCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptCommands.swift; sourceTree = "<group>"; };
+		3DFFC8B27ED0866C5961C0A8 /* MenuBarVisibilityFlapDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarVisibilityFlapDetector.swift; sourceTree = "<group>"; };
 		3F0384A92E32FC3AFE2A3FFE /* SaneBarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarProfile.swift; sourceTree = "<group>"; };
 		4027D48D74DCB4D3D977347E /* MenuBarVisibilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarVisibilityPolicy.swift; sourceTree = "<group>"; };
 		43CB70210574A22618543610 /* MenuBarStandardIconMoveWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStandardIconMoveWorkflow.swift; sourceTree = "<group>"; };
 		4573AFE97B29AE19A7C1E2C3 /* IceImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IceImportService.swift; sourceTree = "<group>"; };
+		45AAF209B0090C59E045ED35 /* MenuBarGeometryCacheProvenanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarGeometryCacheProvenanceTests.swift; sourceTree = "<group>"; };
 		46F649E58C4B3D98CFCC2436 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		47326B2B253485530DC8B8EC /* AppleScriptIconSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptIconSupport.swift; sourceTree = "<group>"; };
 		4B212886253C4E43D0F97144 /* BrowsePanelChromeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsePanelChromeViews.swift; sourceTree = "<group>"; };
@@ -348,6 +357,7 @@
 		7AAC843F6DE1AD74F8F7AC54 /* OnboardingTipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTipView.swift; sourceTree = "<group>"; };
 		7BCB267518C99FC2361A533B /* MenuBarVisibilityWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarVisibilityWorkflow.swift; sourceTree = "<group>"; };
 		7DC3088F0F700E672368A45A /* StatusBarControllerStartupRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerStartupRecoveryTests.swift; sourceTree = "<group>"; };
+		7F4A1A42ED75E793862B484E /* MenuBarVisibilityFlapDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarVisibilityFlapDetectorTests.swift; sourceTree = "<group>"; };
 		811791DA82C601D836AA5DA4 /* EventTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTracker.swift; sourceTree = "<group>"; };
 		8584D412C9CA1A2F1E5D4A26 /* WelcomePlanPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomePlanPage.swift; sourceTree = "<group>"; };
 		8D63E80B15D2D4BD8F70F2CD /* AppleScriptIconMoveCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptIconMoveCommands.swift; sourceTree = "<group>"; };
@@ -367,6 +377,7 @@
 		9E872DC366D8EB213F511337 /* IconMovingTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconMovingTargetTests.swift; sourceTree = "<group>"; };
 		9F531EAA47105A766F4D0233 /* IconMovingSeparatorCacheCoherencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconMovingSeparatorCacheCoherencyTests.swift; sourceTree = "<group>"; };
 		9F9ECD440AFDC062402C1108 /* StatusBarPositionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarPositionStore.swift; sourceTree = "<group>"; };
+		A168DE9DFED63DB150DCD396 /* MenuBarAutomaticMoveGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAutomaticMoveGate.swift; sourceTree = "<group>"; };
 		A211C6C5208848E86880227E /* PersistenceProfileArchiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceProfileArchiveTests.swift; sourceTree = "<group>"; };
 		A5767262DA847CE6C3C36D58 /* SearchWindowLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowLogicTests.swift; sourceTree = "<group>"; };
 		A7F8D7DED661106FDE3EF497 /* AccessibilityService+Interaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityService+Interaction.swift"; sourceTree = "<group>"; };
@@ -422,6 +433,7 @@
 		D60BA8814BDB7CD86196B556 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		D678F45D8C723A1469651C07 /* CompactSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactSettingsComponents.swift; sourceTree = "<group>"; };
 		D6EB41EC848549F143393B53 /* IconMovingScenarioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconMovingScenarioTests.swift; sourceTree = "<group>"; };
+		D8F22822682D127C272FEE3A /* MenuBarAutomaticMoveGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAutomaticMoveGateTests.swift; sourceTree = "<group>"; };
 		D9A6378417F23E86861CA4D3 /* SearchWindowDiscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowDiscoveryTests.swift; sourceTree = "<group>"; };
 		D9DCC799E5B8EC34F183261C /* AccessibilityMenuExtraFrameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityMenuExtraFrameResolver.swift; sourceTree = "<group>"; };
 		DA6B78FDA065FDE24C2611EF /* MenuBarMoveTargetResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarMoveTargetResolver.swift; sourceTree = "<group>"; };
@@ -543,8 +555,8 @@
 			children = (
 				0752D3D1CCD73101C00C78C2 /* Assets.xcassets */,
 				F673CE7642E1AAD7BE7ADBCC /* DMGIcon.icns */,
-				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 				375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */,
+				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -578,6 +590,9 @@
 				70D3EB1B45249EF433EC2A0A /* MenuBarAppearanceSettingsAndOverlayTests.swift */,
 				5481105917761F655F8D247A /* MenuBarAppearanceSuppressionTests.swift */,
 				DF9A5834D3AC4EC4A7B70F47 /* MenuBarAppearanceTintAndSupportTests.swift */,
+				D8F22822682D127C272FEE3A /* MenuBarAutomaticMoveGateTests.swift */,
+				3739AF968097E714A168172F /* MenuBarDriftIntentPolicyTests.swift */,
+				45AAF209B0090C59E045ED35 /* MenuBarGeometryCacheProvenanceTests.swift */,
 				3A4E8C7196537C29BE3066FE /* MenuBarIconTests.swift */,
 				6EDD0449FFC9C1C353D6DBE5 /* MenuBarManagerPositionAndActionTests.swift */,
 				67F0621F880AC519D1706F5E /* MenuBarManagerRecoveryPolicyTests.swift */,
@@ -588,6 +603,7 @@
 				07648C7B8E9380436BB4E913 /* MenuBarSearchDropXCTests.swift */,
 				CB766A29C5B77740E84DFD6F /* MenuBarSpacingServiceTests.swift */,
 				A8E96D173908982ED4B80FF7 /* MenuBarUITests.swift */,
+				7F4A1A42ED75E793862B484E /* MenuBarVisibilityFlapDetectorTests.swift */,
 				ABD4DAE3939EDE11278D8A53 /* MenuExtraIdentifierNormalizationTests.swift */,
 				130833E4D8526A83689A88F4 /* PersistenceAuthMigrationTests.swift */,
 				F9AD31BCCF737195DBC644A8 /* PersistenceIconGroupTests.swift */,
@@ -796,6 +812,7 @@
 				09FEA65F63D574E5A9523292 /* MenuBarAlwaysHiddenPinWorkflow.swift */,
 				ED51501EBF057434C19F31A2 /* MenuBarAppearanceService.swift */,
 				687209986141F3E438230A39 /* MenuBarAppearanceSettings.swift */,
+				A168DE9DFED63DB150DCD396 /* MenuBarAutomaticMoveGate.swift */,
 				015FF8F37181F900CCB2F590 /* MenuBarGeometryCache.swift */,
 				CAFFAE1319B8F2AD4993EE40 /* MenuBarGeometryResolver.swift */,
 				6681E6EED0E4BB1288AD99A9 /* MenuBarHideAllOtherWorkflow.swift */,
@@ -814,6 +831,7 @@
 				43CB70210574A22618543610 /* MenuBarStandardIconMoveWorkflow.swift */,
 				CE29A87A7B7B167C5765CE04 /* MenuBarStatusItemRecoveryWorkflow.swift */,
 				2E3CD262277656E64AA4A6C0 /* MenuBarStatusItemSetupWorkflow.swift */,
+				3DFFC8B27ED0866C5961C0A8 /* MenuBarVisibilityFlapDetector.swift */,
 				4027D48D74DCB4D3D977347E /* MenuBarVisibilityPolicy.swift */,
 				7BCB267518C99FC2361A533B /* MenuBarVisibilityWorkflow.swift */,
 				04D959FF6F6338440C1CC8A2 /* MenuBarVisibleLaneCrowdingHint.swift */,
@@ -904,7 +922,6 @@
 				};
 			};
 			buildConfigurationList = 522DFAB53E640DC8E2C4B75C /* Build configuration list for PBXProject "SaneBar" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -920,6 +937,7 @@
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = D14A5D400198233C0D7C948F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1023,6 +1041,9 @@
 				0CF11CFB8B2FCA5FBF73DAE6 /* MenuBarAppearanceSettingsAndOverlayTests.swift in Sources */,
 				3568D705ECD573B590F4A1E8 /* MenuBarAppearanceSuppressionTests.swift in Sources */,
 				C35AFD3E4FAAD67C921FCD93 /* MenuBarAppearanceTintAndSupportTests.swift in Sources */,
+				F751946DF0C2F5F22E2F6046 /* MenuBarAutomaticMoveGateTests.swift in Sources */,
+				907E8C55AD9F6B917F7D5C00 /* MenuBarDriftIntentPolicyTests.swift in Sources */,
+				6465F3303AE266A1956B1020 /* MenuBarGeometryCacheProvenanceTests.swift in Sources */,
 				4BB57A977B2FA35AACEC546A /* MenuBarIconTests.swift in Sources */,
 				9EC5ABC09F13AC4A296C0252 /* MenuBarManagerPositionAndActionTests.swift in Sources */,
 				B728A702A2ED748B48C41DB7 /* MenuBarManagerRecoveryPolicyTests.swift in Sources */,
@@ -1033,6 +1054,7 @@
 				7EF44B90BDC1E1B61C440092 /* MenuBarSearchDropXCTests.swift in Sources */,
 				22A389BF0FF36E955E7D94FE /* MenuBarSpacingServiceTests.swift in Sources */,
 				5688BE185598444C9246B5A2 /* MenuBarUITests.swift in Sources */,
+				AE1AFC73237B7A59B994C8DB /* MenuBarVisibilityFlapDetectorTests.swift in Sources */,
 				139141FB420546CFC3DABB02 /* MenuExtraIdentifierNormalizationTests.swift in Sources */,
 				BAE6F3E7D2DC889FFDB79BCA /* Mocks.swift in Sources */,
 				B5061D85CB3AD6DCBDF21A5C /* PersistenceAuthMigrationTests.swift in Sources */,
@@ -1141,6 +1163,7 @@
 				BCF90FB32CCF1D3801BB514A /* MenuBarAppTile.swift in Sources */,
 				4E4844789D00AFF79BF3D15D /* MenuBarAppearanceService.swift in Sources */,
 				F7BA27229D32EEA18FB0B952 /* MenuBarAppearanceSettings.swift in Sources */,
+				A909046BFEDA33D610C2DEAC /* MenuBarAutomaticMoveGate.swift in Sources */,
 				5100214D4C4123C4BA13B41B /* MenuBarGeometryCache.swift in Sources */,
 				B30F41312E378ABC56D4824E /* MenuBarGeometryResolver.swift in Sources */,
 				AD11323B11629658BEE2E254 /* MenuBarHideAllOtherWorkflow.swift in Sources */,
@@ -1165,6 +1188,7 @@
 				9B2D8A61CC73296A13892A4F /* MenuBarStandardIconMoveWorkflow.swift in Sources */,
 				035307944BEF5E1B5912018A /* MenuBarStatusItemRecoveryWorkflow.swift in Sources */,
 				9079287B9B328147F0FA9507 /* MenuBarStatusItemSetupWorkflow.swift in Sources */,
+				B0A83A4EF35DA7370EB65471 /* MenuBarVisibilityFlapDetector.swift in Sources */,
 				93D366E925E4AB7F4E583C41 /* MenuBarVisibilityPolicy.swift in Sources */,
 				7F88B5F988B89D7942CEB3E0 /* MenuBarVisibilityTypes.swift in Sources */,
 				E52CDB987F07A8DF77DDE90D /* MenuBarVisibilityWorkflow.swift in Sources */,

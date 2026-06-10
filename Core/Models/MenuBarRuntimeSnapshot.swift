@@ -1,13 +1,13 @@
 import CoreGraphics
 import Foundation
 
-enum MenuBarIdentityPrecision: String, Sendable {
+enum MenuBarIdentityPrecision: String {
     case exact
     case coarse
     case unknown
 }
 
-enum MenuBarGeometryConfidence: String, Sendable {
+enum MenuBarGeometryConfidence: String {
     case live
     case cached
     case shielded
@@ -15,14 +15,14 @@ enum MenuBarGeometryConfidence: String, Sendable {
     case missing
 }
 
-enum MenuBarStructuralState: String, Sendable {
+enum MenuBarStructuralState: String {
     case ready
     case missingItems
     case invisibleItems
     case unattachedWindows
 }
 
-enum MenuBarAnchorSource: String, Sendable {
+enum MenuBarAnchorSource: String {
     case live
     case cached
     case estimated
@@ -33,52 +33,52 @@ extension MenuBarAnchorSource {
     var isTrustworthySeparatorAnchor: Bool {
         switch self {
         case .live, .cached:
-            return true
+            true
         case .estimated, .missing:
-            return false
+            false
         }
     }
 
     var isTrustworthyMainAnchor: Bool {
         switch self {
         case .live, .cached:
-            return true
+            true
         case .estimated, .missing:
-            return false
+            false
         }
     }
 }
 
-enum MenuBarBootstrapPhase: String, Sendable {
+enum MenuBarBootstrapPhase: String {
     case steady
     case awaitingAnchor
 }
 
-enum MenuBarVisibilityPhase: String, Sendable {
+enum MenuBarVisibilityPhase: String {
     case hidden
     case expanded
     case transitioning
 }
 
-enum MenuBarBrowsePhase: String, Sendable {
+enum MenuBarBrowsePhase: String {
     case idle
     case open
     case activationInFlight
     case moveInProgress
 }
 
-enum MenuBarVisibilityIntentMode: Sendable {
+enum MenuBarVisibilityIntentMode {
     case auditOnly
     case repairWithPhysicalMoves
 }
 
-enum MenuBarPhysicalMoveOrigin: Sendable {
+enum MenuBarPhysicalMoveOrigin {
     case explicitUserAction
     case appleScriptUserAction
     case systemWakeRecovery
 }
 
-struct MenuBarRuntimeSnapshot: Sendable {
+struct MenuBarRuntimeSnapshot {
     var identityPrecision: MenuBarIdentityPrecision
     var geometryConfidence: MenuBarGeometryConfidence
     var structuralState: MenuBarStructuralState
@@ -101,6 +101,9 @@ struct MenuBarRuntimeSnapshot: Sendable {
     var mainRightGap: CGFloat?
     var screenWidth: CGFloat?
     var notchRightSafeMinX: CGFloat?
+    /// SaneBar's own persisted preferred main position, as distance from the
+    /// screen's right edge. Used to judge soft drift against user intent.
+    var persistedMainDistanceFromRight: CGFloat?
 
     init(
         identityPrecision: MenuBarIdentityPrecision = .unknown,
@@ -124,7 +127,8 @@ struct MenuBarRuntimeSnapshot: Sendable {
         mainX: CGFloat? = nil,
         mainRightGap: CGFloat? = nil,
         screenWidth: CGFloat? = nil,
-        notchRightSafeMinX: CGFloat? = nil
+        notchRightSafeMinX: CGFloat? = nil,
+        persistedMainDistanceFromRight: CGFloat? = nil
     ) {
         self.identityPrecision = identityPrecision
         let inferredStructuralState = structuralState ?? {
@@ -158,6 +162,7 @@ struct MenuBarRuntimeSnapshot: Sendable {
         self.mainRightGap = mainRightGap
         self.screenWidth = screenWidth
         self.notchRightSafeMinX = notchRightSafeMinX
+        self.persistedMainDistanceFromRight = persistedMainDistanceFromRight
     }
 
     var hasTrustworthyBootstrapAnchors: Bool {

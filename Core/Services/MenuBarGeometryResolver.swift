@@ -14,25 +14,22 @@ final class MenuBarGeometryResolver {
     }
 
     func resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: Bool = true) -> CGFloat? {
-        let normalized = MenuBarMoveGeometryPolicy.normalizedSeparatorRightEdge(
+        // Never write the normalized result back to the cache: it can be
+        // estimate-derived, and laundering estimates into "cached" status is
+        // how stale geometry gained trust in the #136 drift family.
+        MenuBarMoveGeometryPolicy.normalizedSeparatorRightEdge(
             cachedRightEdge: cache.lastKnownSeparatorRightEdgeX,
             cachedOrigin: cache.lastKnownSeparatorX,
             estimatedRightEdge: allowEstimatedFallback ? estimatedSeparatorEdgesFromMainIcon()?.rightEdgeX : nil,
             mainLeftEdge: mainStatusItemLeftEdgeX()
         )
-
-        if let normalized {
-            cache.lastKnownSeparatorRightEdgeX = normalized
-        }
-
-        return normalized
     }
 
     func estimatedSeparatorEdgesFromMainIcon() -> (originX: CGFloat, rightEdgeX: CGFloat)? {
-        guard let mainLeftEdgeX = mainStatusItemLeftEdgeX(), mainLeftEdgeX > 0 else { return nil }
+        guard let mainLeftEdgeX = mainStatusItemLeftEdgeX(), mainLeftEdgeX.isFinite else { return nil }
 
         let visualWidth: CGFloat = MenuBarMoveGeometryPolicy.separatorVisualWidth
-        let originX = max(1, mainLeftEdgeX - visualWidth)
+        let originX = mainLeftEdgeX - visualWidth
         let rightEdgeX = originX + visualWidth
         return (originX, rightEdgeX)
     }
@@ -51,15 +48,12 @@ final class MenuBarGeometryResolver {
             return rightEdge
         }
 
-        let estimated = MenuBarMoveGeometryPolicy.estimatedMainStatusItemLeftEdge(
+        // Estimated values are returned to the caller but never cached.
+        return MenuBarMoveGeometryPolicy.estimatedMainStatusItemLeftEdge(
             separatorIsPresentInVisualMode: true,
             separatorRightEdge: cache.lastKnownSeparatorRightEdgeX,
             separatorOrigin: cache.lastKnownSeparatorX
         )
-        if let estimated {
-            cache.lastKnownSeparatorRightEdgeX = estimated
-        }
-        return estimated
     }
 
     func currentLiveSeparatorFrame() -> CGRect? {
@@ -71,7 +65,7 @@ final class MenuBarGeometryResolver {
         }
 
         let frame = separatorWindow.frame
-        guard MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) else {
+        guard MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: separatorWindow.screen?.frame) else {
             return nil
         }
         return frame
@@ -87,7 +81,7 @@ final class MenuBarGeometryResolver {
         }
 
         let frame = separatorWindow.frame
-        guard MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) else {
+        guard MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: separatorWindow.screen?.frame) else {
             return nil
         }
         return frame
@@ -147,7 +141,7 @@ final class MenuBarGeometryResolver {
         }
 
         let frame = mainWindow.frame
-        if MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+        if MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: mainWindow.screen?.frame) {
             cache.lastKnownMainStatusItemX = frame.origin.x
             return .live
         }
@@ -162,7 +156,6 @@ final class MenuBarGeometryResolver {
 
         if separatorItem.length > 1000 {
             if let cachedX = cache.lastKnownSeparatorX {
-                _ = resolvedSeparatorRightEdgeFromCaches()
                 logger.debug("getSeparatorOriginX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
                 return cachedX
             }
@@ -184,7 +177,7 @@ final class MenuBarGeometryResolver {
         }
         let frame = separatorWindow.frame
         let x = frame.origin.x
-        if MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: x, width: frame.width) {
+        if MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: separatorWindow.screen?.frame) {
             cache.lastKnownSeparatorX = x
             cache.lastKnownSeparatorRightEdgeX = frame.origin.x + frame.width
             return x
@@ -206,34 +199,22 @@ final class MenuBarGeometryResolver {
         guard let item = manager.alwaysHiddenSeparatorItem else { return nil }
 
         if item.length > 1000 {
-            if let cachedX = cache.lastKnownAlwaysHiddenSeparatorX, cachedX > 0 {
-                return cachedX
-            }
-            return nil
+            return cache.lastKnownAlwaysHiddenSeparatorX
         }
 
         guard let separatorButton = item.button,
               let separatorWindow = separatorButton.window
         else {
-            if let cachedX = cache.lastKnownAlwaysHiddenSeparatorX, cachedX > 0 {
-                return cachedX
-            }
-            return nil
+            return cache.lastKnownAlwaysHiddenSeparatorX
         }
-        let x = separatorWindow.frame.origin.x
-        if x > 0 {
-            cache.lastKnownAlwaysHiddenSeparatorX = x
-            if separatorWindow.frame.width > 0, separatorWindow.frame.width < 1000 {
-                cache.lastKnownAlwaysHiddenSeparatorRightEdgeX = separatorWindow.frame.origin.x + separatorWindow.frame.width
-            }
-            return x
+        let frame = separatorWindow.frame
+        if MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: separatorWindow.screen?.frame) {
+            cache.lastKnownAlwaysHiddenSeparatorX = frame.origin.x
+            cache.lastKnownAlwaysHiddenSeparatorRightEdgeX = frame.origin.x + frame.width
+            return frame.origin.x
         }
 
-        if let cachedX = cache.lastKnownAlwaysHiddenSeparatorX, cachedX > 0 {
-            return cachedX
-        }
-
-        return nil
+        return cache.lastKnownAlwaysHiddenSeparatorX
     }
 
     func alwaysHiddenSeparatorBoundaryX() -> CGFloat? {
@@ -268,7 +249,7 @@ final class MenuBarGeometryResolver {
         if let button = item.button,
            let window = button.window {
             let frame = window.frame
-            if frame.origin.x > 0, frame.width > 0, frame.width < 1000 {
+            if MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: window.screen?.frame) {
                 let normalized = MenuBarMoveGeometryPolicy.normalizedAlwaysHiddenBoundary(
                     cachedRightEdge: frame.origin.x + frame.width,
                     cachedOrigin: frame.origin.x,
@@ -320,7 +301,7 @@ final class MenuBarGeometryResolver {
             return resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback)
         }
 
-        if !MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+        if !MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: separatorWindow.screen?.frame) {
             if let cachedX = resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback) {
                 if !cache.hasLoggedStaleSeparatorRightEdgeFallback {
                     logger.warning("getSeparatorRightEdgeX: stale frame (w=\(frame.width), x=\(frame.origin.x)), using cached \(cachedX)")
@@ -376,7 +357,7 @@ final class MenuBarGeometryResolver {
         }
         let frame = mainWindow.frame
         logger.debug("getMainStatusItemLeftEdgeX: window.frame = \(String(describing: frame))")
-        if MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width) {
+        if MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(frame: frame, screenFrame: mainWindow.screen?.frame) {
             cache.hasLoggedStaleMainStatusItemFallback = false
             cache.lastKnownMainStatusItemX = frame.origin.x
             return frame.origin.x
@@ -421,7 +402,7 @@ final class MenuBarGeometryResolver {
 
             if let separatorOrigin = cache.lastKnownSeparatorX,
                let separatorRightEdge = cache.lastKnownSeparatorRightEdgeX,
-               separatorOrigin > 0, separatorRightEdge > separatorOrigin {
+               separatorRightEdge > separatorOrigin {
                 if attempt > 1 {
                     logger.info("Warmed separator cache after \(attempt) attempts")
                 }
@@ -446,7 +427,7 @@ final class MenuBarGeometryResolver {
 
             if let separatorOrigin = cache.lastKnownAlwaysHiddenSeparatorX,
                let separatorRightEdge = cache.lastKnownAlwaysHiddenSeparatorRightEdgeX,
-               separatorOrigin > 0, separatorRightEdge > separatorOrigin {
+               separatorRightEdge > separatorOrigin {
                 if attempt > 1 {
                     logger.info("Warmed always-hidden separator cache after \(attempt) attempts")
                 }

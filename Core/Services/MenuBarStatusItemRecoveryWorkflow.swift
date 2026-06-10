@@ -7,8 +7,19 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarStat
 final class MenuBarStatusItemRecoveryWorkflow {
     private unowned let manager: MenuBarManager
 
+    /// Detects macOS flapping our items healthy/unhealthy (Tahoe visibility
+    /// loop). While dormant, automatic validation stands down instead of
+    /// fighting the OS; manual repair bypasses and clears dormancy.
+    private var visibilityFlapDetector = MenuBarVisibilityFlapDetector()
+    private(set) var recoveryDormantUntil: Date?
+
     init(manager: MenuBarManager) {
         self.manager = manager
+    }
+
+    func clearRecoveryDormancy() {
+        recoveryDormantUntil = nil
+        visibilityFlapDetector.reset()
     }
 
     nonisolated static func statusItemValidationInitialDelaySeconds(
@@ -91,12 +102,17 @@ final class MenuBarStatusItemRecoveryWorkflow {
             let mainWindow = mainItem.button?.window
             let runtimeScreen = mainWindow?.screen ?? manager.currentRecoveryReferenceScreen()
             let mainFrameIsLive: Bool = {
-                guard let frame = mainWindow?.frame else { return false }
-                return MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width)
+                guard let mainWindow else { return false }
+                // Liveness is judged against the window's OWN screen; the
+                // recovery reference screen is only a fallback for gap math.
+                return MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(
+                    frame: mainWindow.frame,
+                    screenFrame: mainWindow.screen?.frame
+                )
             }()
             let mainRightGap: CGFloat? = {
                 guard mainFrameIsLive, let mainWindow else { return nil }
-                guard let rightEdge = runtimeScreen?.frame.maxX else { return nil }
+                guard let rightEdge = mainWindow.screen?.frame.maxX else { return nil }
                 return rightEdge - mainWindow.frame.origin.x
             }()
             let mainWindowValid = StatusBarController.validateItemPosition(mainItem)
@@ -137,14 +153,24 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let mainWindow = mainItem?.button?.window
         let runtimeScreen = mainWindow?.screen ?? manager.currentRecoveryReferenceScreen()
         let mainFrameIsLive: Bool = {
-            guard let frame = mainWindow?.frame else { return false }
-            return MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: frame.origin.x, width: frame.width)
+            guard let mainWindow else { return false }
+            return MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(
+                frame: mainWindow.frame,
+                screenFrame: mainWindow.screen?.frame
+            )
         }()
         let screenWidth = runtimeScreen?.frame.width
         let notchRightSafeMinX = runtimeScreen?.auxiliaryTopRightArea?.minX
+        let persistedMainDistanceFromRight: CGFloat? = {
+            let persisted = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
+                forAutosaveName: StatusBarController.mainAutosaveName
+            )
+            guard StatusBarController.isPixelLikePosition(persisted), let persisted else { return nil }
+            return CGFloat(persisted)
+        }()
         let mainRightGap: CGFloat? = {
             guard mainFrameIsLive, let mainWindow else { return nil }
-            guard let rightEdge = runtimeScreen?.frame.maxX else { return nil }
+            guard let rightEdge = mainWindow.screen?.frame.maxX else { return nil }
             return rightEdge - mainWindow.frame.origin.x
         }()
         let alwaysHiddenSeparatorMisordered = MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
@@ -179,7 +205,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
             mainX: mainX,
             mainRightGap: mainRightGap,
             screenWidth: screenWidth,
-            notchRightSafeMinX: notchRightSafeMinX
+            notchRightSafeMinX: notchRightSafeMinX,
+            persistedMainDistanceFromRight: persistedMainDistanceFromRight
         )
         let geometryConfidence = Self.resolvedGeometryConfidence(
             for: geometrySnapshot,
@@ -214,7 +241,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
             mainX: mainX,
             mainRightGap: mainRightGap,
             screenWidth: screenWidth,
-            notchRightSafeMinX: notchRightSafeMinX
+            notchRightSafeMinX: notchRightSafeMinX,
+            persistedMainDistanceFromRight: persistedMainDistanceFromRight
         )
     }
 
@@ -253,7 +281,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
             mainX: snapshot.mainX,
             mainRightGap: snapshot.mainRightGap,
             screenWidth: snapshot.screenWidth,
-            notchRightSafeMinX: snapshot.notchRightSafeMinX
+            notchRightSafeMinX: snapshot.notchRightSafeMinX,
+            persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
         ) {
             if hiddenPresentationCanShieldGeometryDrift(
                 snapshot: snapshot,
@@ -448,6 +477,17 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 return
             }
 
+            if let dormantUntil = self.recoveryDormantUntil {
+                if context == .manualLayoutRestore || Date() >= dormantUntil {
+                    self.clearRecoveryDormancy()
+                } else {
+                    logger.warning(
+                        "Status item validation dormant (visibility flap) — skipping \(context.rawValue, privacy: .public)"
+                    )
+                    return
+                }
+            }
+
             var lastSnapshot: MenuBarRuntimeSnapshot?
             var lastAlwaysHiddenNeedsRepair = false
 
@@ -460,6 +500,18 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 let snapshot = self.currentStatusItemRecoverySnapshot()
                 let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot)
                 let alwaysHiddenNeedsRepair = self.stableSnapshotNeedsAlwaysHiddenRepair(snapshot)
+
+                self.visibilityFlapDetector.record(itemsHealthy: recoveryReason == nil, at: Date())
+                if self.visibilityFlapDetector.isFlapping(now: Date()) {
+                    self.recoveryDormantUntil = Date().addingTimeInterval(
+                        MenuBarVisibilityFlapDetector.defaultDormancySeconds
+                    )
+                    self.manager.pendingRecoveryHideRestore = false
+                    logger.error(
+                        "macOS appears to be flapping status-item visibility — standing down recovery for \(Int(MenuBarVisibilityFlapDetector.defaultDormancySeconds), privacy: .public)s. If SaneBar's icons are missing, check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."
+                    )
+                    return
+                }
 
                 lastSnapshot = snapshot
                 lastAlwaysHiddenNeedsRepair = alwaysHiddenNeedsRepair
