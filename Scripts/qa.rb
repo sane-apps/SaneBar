@@ -1,6 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# Hook/launchd shells often run with a C locale, which makes Ruby default to
+# US-ASCII and crash on UTF-8 sources and release artifacts. Force UTF-8.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 #
 # Project QA Script
 # Automated product verification before release
