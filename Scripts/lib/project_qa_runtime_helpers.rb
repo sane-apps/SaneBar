@@ -324,6 +324,17 @@ def runtime_smoke_move_candidate_denied?(item)
   # nothing, which burns every seeding attempt.
   return true if item[:unique_id].to_s.include?('::axid:com.apple.menu.')
 
+  # The visible-dynamic QA fixture is bundled as com.ameba.SwiftBar. When the
+  # fixture owns that identity (fixture running, real SwiftBar absent) it is a
+  # legitimate, expendable donor; denying it starves the seeding pool below
+  # the 5 candidates the zone minimums require on hosts where every real
+  # third-party item is denied.
+  if item[:bundle].to_s.strip.casecmp('com.ameba.swiftbar').zero? &&
+     runtime_visible_dynamic_helper_fixture_running? &&
+     !runtime_visible_dynamic_helper_external_running?
+    return false
+  end
+
   bundle = item[:bundle].to_s.strip.downcase
   %w[
     com.apple.controlcenter
