@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import Foundation
 import os.log
 
@@ -367,7 +368,12 @@ func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
     let cacheIsFresh = cacheAge < AccessibilityService.shared.menuBarItemCacheValiditySeconds
     guard let matched = resolveScriptIcon(identifier, from: cached) else {
         AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
-        return refreshedIconZones(timeoutSeconds: 1.8)
+        let refreshTimeout = cached.isEmpty ? 2.5 : 1.8
+        let refreshed = refreshedIconZones(timeoutSeconds: refreshTimeout)
+        if !refreshed.isEmpty {
+            return refreshed
+        }
+        return refreshedIconZones(timeoutSeconds: 2.5, allowAuthoritativeFallback: true)
     }
 
     let sameBundleCount = cached.reduce(into: 0) { count, item in
@@ -399,14 +405,78 @@ func parseIconIdentifier(_ raw: Any?) -> String? {
     return trimmed.isEmpty ? nil : trimmed
 }
 
+func parseScriptReorderTargetIdentifier(from arguments: [String: Any]?) -> String? {
+    guard let arguments else { return nil }
+
+    let directKeys = ["target icon", "target", "trgt"]
+    for key in directKeys {
+        if let identifier = parseIconIdentifier(arguments[key]) {
+            return identifier
+        }
+    }
+
+    for (key, value) in arguments {
+        let normalizedKey = key
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+        if normalizedKey == "target icon",
+           let identifier = parseIconIdentifier(value) {
+            return identifier
+        }
+    }
+
+    return nil
+}
+
+func scriptAppleEventKeyword(_ code: String) -> AEKeyword {
+    let bytes = Array(code.utf8)
+    precondition(bytes.count == 4, "AppleEvent keyword must be exactly four bytes")
+    return bytes.reduce(AEKeyword(0)) { partial, byte in
+        (partial << 8) | AEKeyword(byte)
+    }
+}
+
+func parseScriptReorderTargetIdentifier(fromAppleEvent appleEvent: NSAppleEventDescriptor?) -> String? {
+    let targetDescriptor = appleEvent?.paramDescriptor(forKeyword: scriptAppleEventKeyword("trgt"))
+    return parseIconIdentifier(targetDescriptor?.stringValue)
+}
+
+func parseScriptReorderTargetIdentifier(from command: NSScriptCommand) -> String? {
+    parseScriptReorderTargetIdentifier(from: command.evaluatedArguments) ??
+        parseScriptReorderTargetIdentifier(from: command.arguments) ??
+        parseScriptReorderTargetIdentifier(fromAppleEvent: command.appleEvent)
+}
+
 func scriptErrorIconIdMissing(_ command: NSScriptCommand) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Expected an icon identifier string."
 }
 
+func scriptErrorTargetIconIdMissing(_ command: NSScriptCommand) {
+    command.scriptErrorNumber = errOSAGeneralError
+    command.scriptErrorString = "Expected a target icon identifier string in the 'target icon' parameter."
+}
+
+func scriptErrorSameSourceAndTargetIcon(_ command: NSScriptCommand, iconId: String) {
+    command.scriptErrorNumber = errOSAGeneralError
+    command.scriptErrorString = "Icon '\(iconId)' cannot be reordered relative to itself."
+}
+
+func scriptErrorCrossZoneReorder(_ command: NSScriptCommand, sourceId: String, targetId: String) {
+    command.scriptErrorNumber = errOSAGeneralError
+    command.scriptErrorString = "Icon '\(sourceId)' and target icon '\(targetId)' are in different sections. Move the icon to the target section first, then reorder it."
+}
+
 func scriptErrorIconNotFound(_ command: NSScriptCommand, iconId: String) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Icon '\(iconId)' not found. Use 'list icon zones' to see available identifiers."
+}
+
+func scriptErrorTargetIconNotFound(_ command: NSScriptCommand, iconId: String) {
+    command.scriptErrorNumber = errOSAGeneralError
+    command.scriptErrorString = "Target icon '\(iconId)' not found. Use 'list icon zones' to see available identifiers, then pass it with the 'target icon' parameter."
 }
 
 func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
@@ -417,6 +487,12 @@ func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
 func scriptErrorMoveFailed(_ command: NSScriptCommand, iconId: String, target: ScriptIconZone) {
     command.scriptErrorNumber = errOSAGeneralError
     command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.rawValue)."
+}
+
+func scriptErrorReorderFailed(_ command: NSScriptCommand, sourceId: String, targetId: String, placeAfterTarget: Bool) {
+    command.scriptErrorNumber = errOSAGeneralError
+    let relation = placeAfterTarget ? "after" : "before"
+    command.scriptErrorString = "Icon '\(sourceId)' failed to move \(relation) icon '\(targetId)'."
 }
 
 func scriptIdentifierMatches(_ identifier: String, app: RunningApp) -> Bool {
@@ -431,6 +507,13 @@ func scriptIdentifierMatches(_ identifier: String, app: RunningApp) -> Bool {
         return true
     }
     return false
+}
+
+func scriptIconsReferToSameItem(_ lhs: RunningApp, _ rhs: RunningApp) -> Bool {
+    if lhs.uniqueId == rhs.uniqueId {
+        return true
+    }
+    return ScriptIconIdentity(app: lhs).matches(rhs) && ScriptIconIdentity(app: rhs).matches(lhs)
 }
 
 @MainActor

@@ -390,3 +390,199 @@ final class MoveIconToVisibleCommand: MoveIconScriptCommand {
 final class MoveIconToAlwaysHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .alwaysHidden }
 }
+
+// MARK: - Reorder Icon Commands
+
+/// Shared target-relative reorder implementation for AppleScript commands.
+class ReorderIconScriptCommand: SaneBarScriptCommand {
+    private enum ReorderFailure {
+        case sourceNotFound
+        case targetNotFound
+        case sameIcon
+        case crossZone
+        case timedOut
+        case failed
+    }
+
+    private struct ReorderOutcome {
+        var succeeded: Bool
+        var failure: ReorderFailure?
+    }
+
+    var placeAfterTarget: Bool { false }
+
+    override func performDefaultImplementation() -> Any? {
+        guard let sourceId = parseIconIdentifier(directParameter) else {
+            scriptErrorIconIdMissing(self)
+            return false
+        }
+
+        guard let targetId = parseScriptReorderTargetIdentifier(from: self) else {
+            scriptErrorTargetIconIdMissing(self)
+            return false
+        }
+
+        guard checkIsProUnlocked() else {
+            setProRequiredError()
+            return false
+        }
+
+        guard checkAccessibilityTrusted() else {
+            setAccessibilityError()
+            return false
+        }
+
+        let placeAfterTarget = self.placeAfterTarget
+        let outcome: ReorderOutcome = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                Self.performReorder(
+                    sourceId: sourceId,
+                    targetId: targetId,
+                    placeAfterTarget: placeAfterTarget
+                )
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    Self.performReorder(
+                        sourceId: sourceId,
+                        targetId: targetId,
+                        placeAfterTarget: placeAfterTarget
+                    )
+                }
+            }
+        }
+
+        guard outcome.succeeded else {
+            switch outcome.failure {
+            case .sourceNotFound:
+                scriptErrorIconNotFound(self, iconId: sourceId)
+            case .targetNotFound:
+                scriptErrorTargetIconNotFound(self, iconId: targetId)
+            case .sameIcon:
+                scriptErrorSameSourceAndTargetIcon(self, iconId: sourceId)
+            case .crossZone:
+                scriptErrorCrossZoneReorder(self, sourceId: sourceId, targetId: targetId)
+            case .timedOut:
+                scriptErrorOperationTimedOut(self)
+            case .failed, nil:
+                scriptErrorReorderFailed(
+                    self,
+                    sourceId: sourceId,
+                    targetId: targetId,
+                    placeAfterTarget: placeAfterTarget
+                )
+            }
+            return false
+        }
+
+        return true
+    }
+
+    @MainActor
+    private static func performReorder(
+        sourceId: String,
+        targetId: String,
+        placeAfterTarget: Bool
+    ) -> ReorderOutcome {
+        let manager = MenuBarManager.shared
+        let startZones = zonesForScriptMoveResolution(sourceId)
+        guard let source = resolveScriptIcon(sourceId, from: startZones) else {
+            return ReorderOutcome(succeeded: false, failure: .sourceNotFound)
+        }
+
+        let targetZones = resolveScriptIcon(targetId, from: startZones) == nil
+            ? zonesForScriptMoveResolution(targetId)
+            : startZones
+        guard let target = resolveScriptIcon(targetId, from: targetZones) else {
+            return ReorderOutcome(succeeded: false, failure: .targetNotFound)
+        }
+
+        guard !scriptIconsReferToSameItem(source.app, target.app) else {
+            return ReorderOutcome(succeeded: false, failure: .sameIcon)
+        }
+        guard source.zone == target.zone else {
+            return ReorderOutcome(succeeded: false, failure: .crossZone)
+        }
+
+        logger.info(
+            "AppleScript reorder request source=\(sourceId, privacy: .private) target=\(targetId, privacy: .private) relation=\(placeAfterTarget ? "after" : "before", privacy: .public)"
+        )
+
+        guard let moved = runScriptMove(operation: {
+            guard let task = manager.moveQueueWorkflow.queueReorderIcon(
+                sourceBundleID: source.app.bundleId,
+                sourceMenuExtraID: source.app.menuExtraIdentifier,
+                sourceStatusItemIndex: source.app.statusItemIndex,
+                targetBundleID: target.app.bundleId,
+                targetMenuExtraID: target.app.menuExtraIdentifier,
+                targetStatusItemIndex: target.app.statusItemIndex,
+                placeAfterTarget: placeAfterTarget,
+                physicalMoveOrigin: .appleScriptUserAction
+            ) else {
+                return false
+            }
+            return await task.value
+        }) else {
+            return ReorderOutcome(succeeded: false, failure: .timedOut)
+        }
+
+        if !moved {
+            logger.warning("AppleScript reorder task reported failure before fresh order verification")
+        }
+
+        if reorderVerifiedByFreshRelativeOrder(
+            sourceId: sourceId,
+            targetId: targetId,
+            placeAfterTarget: placeAfterTarget
+        ) {
+            return ReorderOutcome(succeeded: true)
+        }
+
+        return ReorderOutcome(succeeded: false, failure: .failed)
+    }
+
+    @MainActor
+    private static func reorderVerifiedByFreshRelativeOrder(
+        sourceId: String,
+        targetId: String,
+        placeAfterTarget: Bool
+    ) -> Bool {
+        let zones = sortedScriptZones(freshZonesForScriptMoveVerification(timeoutSeconds: 2.5))
+        guard let source = resolveScriptIcon(sourceId, from: zones),
+              let target = resolveScriptIcon(targetId, from: zones) else {
+            logger.warning("AppleScript reorder verification could not resolve fresh source/target")
+            return false
+        }
+        guard source.zone == target.zone else {
+            logger.warning("AppleScript reorder verification found source/target in different zones")
+            return false
+        }
+
+        let sameZone = zones.filter { $0.zone == source.zone }
+        guard let sourceIndex = sameZone.firstIndex(where: { scriptIconsReferToSameItem($0.app, source.app) }),
+              let targetIndex = sameZone.firstIndex(where: { scriptIconsReferToSameItem($0.app, target.app) }) else {
+            logger.warning("AppleScript reorder verification could not find fresh source/target indexes")
+            return false
+        }
+
+        let expectedSourceIndex = placeAfterTarget ? targetIndex + 1 : targetIndex - 1
+        let isAdjacent = sourceIndex == expectedSourceIndex
+        if !isAdjacent {
+            logger.warning(
+                "AppleScript reorder verification failed sourceIndex=\(sourceIndex, privacy: .public) targetIndex=\(targetIndex, privacy: .public) relation=\(placeAfterTarget ? "after" : "before", privacy: .public)"
+            )
+        }
+        return isAdjacent
+    }
+}
+
+@objc(MoveIconBeforeCommand)
+final class MoveIconBeforeCommand: ReorderIconScriptCommand {
+    override var placeAfterTarget: Bool { false }
+}
+
+@objc(MoveIconAfterCommand)
+final class MoveIconAfterCommand: ReorderIconScriptCommand {
+    override var placeAfterTarget: Bool { true }
+}

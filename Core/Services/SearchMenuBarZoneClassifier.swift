@@ -25,14 +25,16 @@ enum SearchMenuBarZoneClassifier {
             )
         }
 
-        if context.positions == nil, context.allowEstimatedFallback {
-            context.logger.warning("classifyItems: separator geometry unavailable after reveal; skipping estimated boundary fallback for visible/hidden split")
-        }
-
         if let positions = context.positions {
             return classifyWithSeparator(zonedItems, positions: positions, context: context)
         }
 
+        guard context.allowEstimatedFallback else {
+            context.logger.warning("classifyItems: separator geometry unavailable; strict classification failed closed")
+            return SearchClassifiedApps(visible: [], hidden: [], alwaysHidden: [])
+        }
+
+        context.logger.warning("classifyItems: separator geometry unavailable; using read-only screen fallback")
         return classifyWithScreenFallback(zonedItems, context: context)
     }
 

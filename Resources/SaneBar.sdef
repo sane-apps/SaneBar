@@ -172,5 +172,20 @@
             <result type="boolean" description="True if the icon was moved to always-hidden"/>
         </command>
 
+        <!-- Reorder Icon Commands -->
+        <command name="move icon before" code="SBarmvbf" description="Move a source icon immediately before a target menu bar icon">
+            <cocoa class="MoveIconBeforeCommand"/>
+            <direct-parameter type="text" description="The source icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <parameter name="target icon" code="trgt" type="text" description="The target icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="boolean" description="True if the source icon was moved before the target icon"/>
+        </command>
+
+        <command name="move icon after" code="SBarmvaf" description="Move a source icon immediately after a target menu bar icon">
+            <cocoa class="MoveIconAfterCommand"/>
+            <direct-parameter type="text" description="The source icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <parameter name="target icon" code="trgt" type="text" description="The target icon identifier (bundle ID or unique ID from list icon zones)"/>
+            <result type="boolean" description="True if the source icon was moved after the target icon"/>
+        </command>
+
     </suite>
 </dictionary>

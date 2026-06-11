@@ -58,6 +58,16 @@ struct ShortcutsSettingsView: View {
             id: "applescript-search",
             title: "AppleScript search",
             command: "osascript -e 'tell application \"SaneBar\" to quick search \"wifi\"'"
+        ),
+        .init(
+            id: "applescript-move-before",
+            title: "AppleScript move before",
+            command: "osascript -e 'tell application \"SaneBar\" to move icon before \"SOURCE_ID\" target icon \"TARGET_ID\"'"
+        ),
+        .init(
+            id: "applescript-move-after",
+            title: "AppleScript move after",
+            command: "osascript -e 'tell application \"SaneBar\" to move icon after \"SOURCE_ID\" target icon \"TARGET_ID\"'"
         )
     ]
 
