@@ -143,7 +143,7 @@ struct IconMovingScenarioTests {
         let fromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY) // (411, 16)
 
         // Assertions
-        #expect(targetX == 508)
+        #expect(targetX == 700, "Wide lane targets the midpoint so menu bar reflow cannot strand the icon at the separator")
         #expect(fromPoint.x == 411)
         #expect(targetX > separatorRightEdgeX, "Target must be right of separator")
         #expect(targetX < mainIconLeftEdge, "Target must not overshoot past SaneBar icon")

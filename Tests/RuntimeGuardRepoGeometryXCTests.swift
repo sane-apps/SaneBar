@@ -157,7 +157,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "MenuBarManager should only create the default StatusBarController inside setupStatusItem"
         )
         XCTAssertTrue(
-                recoverySource.contains("StatusBarController.validateItemPosition(mainItem)") &&
+            recoverySource.contains("StatusBarController.validateItemPosition(mainItem)") &&
                 recoverySource.contains("StatusBarController.validateItemPosition(separator)") &&
                 recoverySource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy"),
             "Startup validation should require attached status-item windows except for the hidden collapsed separator state, where the main item must stay attached and ordered near Control Center"
@@ -572,7 +572,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         let source = try scriptSource(entrypoint: "wake_layout_probe.rb", partialPrefix: "wake_layout_probe")
 
         XCTAssertTrue(
-                source.contains("SANEBAR_WAKE_PROBE_REQUIRED_HIDDEN_IDS") &&
+            source.contains("SANEBAR_WAKE_PROBE_REQUIRED_HIDDEN_IDS") &&
                 source.contains("SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS") &&
                 source.contains("seed_dynamic_helper_hidden_ids!") &&
                 source.contains("wait_for_dynamic_helper_ids!") &&
@@ -762,9 +762,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             policySource.contains("private nonisolated static func visibleInsertionTargetX(") &&
-                policySource.contains("return separatorX + boundedOffset"),
-            "Visible move targeting should stay just inside the divider/SaneBar lane instead of overshooting into the system area"
+                policySource.contains("let maxX = max(boundary - mainSafety, minX)") &&
+                policySource.contains("return min(max(laneMidX, minX), maxX)"),
+            "Visible move targeting must stay clamped inside the divider/SaneBar lane (no overshoot into the system area) while leaving reflow slack off the separator"
         )
     }
-
 }

@@ -86,10 +86,23 @@ struct MenuBarAutomaticMoveGateTests {
             #expect(degraded.physicalMoveOrigin == nil)
         }
 
-        let nonWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+        let healthyValidation = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: "healthy-validation-startup-follow-up",
             geometryConfidence: .live
         )
-        #expect(nonWake.mode == .auditOnly)
+        #expect(healthyValidation.mode == .repairWithPhysicalMoves)
+        #expect(healthyValidation.physicalMoveOrigin == .systemWakeRecovery)
+
+        let healthyValidationDegraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-startup-follow-up",
+            geometryConfidence: .cached
+        )
+        #expect(healthyValidationDegraded.mode == .auditOnly)
+
+        let unrelatedReason = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "settings-change",
+            geometryConfidence: .live
+        )
+        #expect(unrelatedReason.mode == .auditOnly)
     }
 }
