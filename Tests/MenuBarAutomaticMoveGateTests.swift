@@ -77,7 +77,15 @@ struct MenuBarAutomaticMoveGateTests {
         #expect(live.mode == .repairWithPhysicalMoves)
         #expect(live.physicalMoveOrigin == .systemWakeRecovery)
 
-        for confidence in [MenuBarGeometryConfidence.cached, .shielded, .stale, .missing] {
+        // Cached geometry is provenance-pure (live observations bound to the
+        // current display configuration), so it also allows physical replay.
+        let cached = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "wake-resume-attempt-1",
+            geometryConfidence: .cached
+        )
+        #expect(cached.mode == .repairWithPhysicalMoves)
+
+        for confidence in [MenuBarGeometryConfidence.shielded, .stale, .missing] {
             let degraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "wake-resume-attempt-1",
                 geometryConfidence: confidence
@@ -95,7 +103,7 @@ struct MenuBarAutomaticMoveGateTests {
 
         let healthyValidationDegraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: "healthy-validation-startup-follow-up",
-            geometryConfidence: .cached
+            geometryConfidence: .stale
         )
         #expect(healthyValidationDegraded.mode == .auditOnly)
 
