@@ -1,11 +1,71 @@
 # frozen_string_literal: true
 
-# Generated Swift source for the shared-bundle QA fixture.
-# This file is required AFTER project_qa_runtime_fixtures.rb and overrides the
-# legacy 3-item definition there (that file is over the Rule #10 split limit
-# and cannot be edited until it is split; the legacy method body is dead).
+# Runtime fixture overrides and the generated Swift source for the
+# shared-bundle QA fixture. This file is required AFTER
+# project_qa_runtime_fixtures.rb and overrides legacy definitions there (that
+# file is over the Rule #10 split limit and cannot be edited until it is
+# split; the overridden method bodies there are dead).
 class ProjectQA
   private
+
+  # Prelaunch alongside the other fixtures: the ad-hoc /tmp app needs minutes
+  # of settle time before its status item resolves in scans (Gatekeeper
+  # assessment + registration latency), and launching it only inside the
+  # host exact-id smoke left it a 30s window that reliably missed.
+  def prelaunch_runtime_host_exact_id_fixture!
+    return if runtime_host_exact_id_fixture_running?
+
+    fixture_log = ['prelaunch=1', "app_path=#{RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH}"]
+    start_runtime_host_exact_id_fixture!(fixture_log)
+    File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
+  rescue StandardError
+    nil
+  end
+
+  # Override: reuse an already-running host fixture instead of killing and
+  # relaunching it (the restart resets the settle clock that prelaunch paid
+  # for), and give id resolution a wider window.
+  def ensure_runtime_host_exact_id_fixture!(target)
+    fixture_log = []
+    fixture_log << "app_path=#{RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH}"
+
+    if runtime_host_exact_id_fixture_running?
+      fixture_log << 'reuse=already-running'
+    else
+      unless start_runtime_host_exact_id_fixture!(fixture_log)
+        File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
+        return []
+      end
+    end
+
+    ids = wait_for_runtime_host_exact_id_fixture_ids(target, fixture_log, deadline_seconds: 90)
+    File.write(RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
+    ids
+  end
+
+  # Override: parameterized deadline (legacy hardcoded 30s).
+  def wait_for_runtime_host_exact_id_fixture_ids(target, fixture_log, deadline_seconds: 90)
+    deadline = Time.now + deadline_seconds
+    ids = []
+    while Time.now < deadline
+      refresh_output, refresh_status = refresh_runtime_smoke_icon_inventory(target)
+      fixture_log << "refresh_status=#{refresh_status&.exitstatus}"
+      fixture_log << refresh_output.lines.grep(/hostsentinel/i).join.strip unless refresh_output.to_s.lines.grep(/hostsentinel/i).empty?
+      fixture_log << "fixture_process=#{runtime_host_exact_id_fixture_process_detail}"
+      ids = runtime_smoke_available_required_candidate_ids(
+        target,
+        required_ids: RUNTIME_HOST_EXACT_ID_FIXTURE_IDS
+      )
+      fixture_log << "attempt_ids=#{ids.join(',')}" unless ids.empty?
+      break unless ids.empty?
+
+      sleep 0.5
+    end
+
+    fixture_log << "required_ids=#{RUNTIME_HOST_EXACT_ID_FIXTURE_IDS.join(',')}"
+    fixture_log << "resolved_ids=#{ids.join(',')}"
+    ids
+  end
 
   def runtime_shared_bundle_fixture_source
     <<~SWIFT
