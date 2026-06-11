@@ -108,17 +108,16 @@ launch_calendar:
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
       last_reviewed: "2026-06-10"
-      result: "At 10:22 EDT on 2026-06-10, canonical `launch_readiness` reran and again reported `Mac mini is unreachable. Falling back to local execution.` before returning a nonzero gate. The lane stayed no-go because SaneBar already spent the real Product Hunt/Hacker News launch, open layout/icon-movement support issues still make a broad relaunch weak, the latest local `release_preflight` proof is now 14.61 days old and still carries 7 warnings, and an attempted shared `validation_report.rb` refresh on 2026-06-10 hung without producing a new receipt. The latest known shared validation state remains the 2026-06-09 18:01 EDT `BROKEN RELEASE PIPELINE` report. No opportunity-monitoring reply, public post, scheduling action, or directory action was executed."
+      result: "Late on 2026-06-10, canonical Mini `launch_readiness --json` was retried from the repo root. A first sync attempt stalled behind the Mini workspace lock and then hit `rsync unexpected end of file`, but the immediate rerun completed and still returned `ok: false`: SaneBar already used its real Product Hunt/Hacker News launch, the weak-launch blockers around layout/icon-movement support noise still stand, and the latest `release_preflight` is currently failed with 5 issues and 3 warnings even though the proof is fresh at 0.57 days old. No opportunity-monitoring reply, public post, scheduling action, or directory action was executed."
   last_launch_readiness:
     date: "2026-06-10"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Canonical launch_readiness rerun on 2026-06-10 again reported `Mac mini is unreachable. Falling back to local execution.` and exited nonzero."
+      - "Canonical Mini `launch_readiness --json` reran on 2026-06-10; the first sync attempt stalled behind the Mini workspace lock and hit `rsync unexpected end of file`, but the immediate rerun completed and still exited nonzero."
       - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is stable."
-      - "Latest local release_preflight proof is stale at 14.61 days old and still carries 7 warnings."
-      - "An attempted shared validation_report.rb refresh on 2026-06-10 hung without producing a new receipt; the latest known shared validation state remains the 2026-06-09 18:01 EDT BROKEN RELEASE PIPELINE report."
+      - "Latest local `release_preflight` is failed with 5 issues and 3 warnings, even though the proof is fresh at 0.57 days old."
       - "No weekly opportunity reply was executed on 2026-06-10 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
     next_date: "2026-06-17"
 

@@ -496,8 +496,23 @@ class ProjectQA
     out.strip
   end
 
+  # com.apple.universalaccess is TCC-protected (Full Disk Access). On the
+  # approved Air fallback the GUI session host may lack FDA while sshd has it,
+  # so protected writes fall back to loopback SSH. The gate still fails hard
+  # when neither identity can write.
+  def protected_universalaccess_write(*defaults_args)
+    out, status = Open3.capture2e('/usr/bin/defaults', *defaults_args)
+    return [out, status] if status.success?
+
+    ssh_out, ssh_status = Open3.capture2e(
+      '/usr/bin/ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=3', 'localhost',
+      '/usr/bin/defaults', *defaults_args
+    )
+    ssh_status.success? ? [ssh_out, ssh_status] : [out, status]
+  end
+
   def set_runtime_smoke_reduce_transparency!(enabled)
-    out, status = Open3.capture2e('/usr/bin/defaults', 'write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', enabled ? 'true' : 'false')
+    out, status = protected_universalaccess_write('write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', enabled ? 'true' : 'false')
     raise "Could not set Reduce Transparency=#{enabled}: #{out.strip}" unless status.success?
 
     Open3.capture2e('/usr/bin/killall', 'cfprefsd')
@@ -505,10 +520,10 @@ class ProjectQA
 
   def restore_runtime_smoke_reduce_transparency!(value)
     if value.nil?
-      Open3.capture2e('/usr/bin/defaults', 'delete', 'com.apple.universalaccess', 'reduceTransparency')
+      protected_universalaccess_write('delete', 'com.apple.universalaccess', 'reduceTransparency')
     else
       normalized = %w[1 true TRUE].include?(value.to_s) ? 'true' : 'false'
-      Open3.capture2e('/usr/bin/defaults', 'write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', normalized)
+      protected_universalaccess_write('write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', normalized)
     end
     Open3.capture2e('/usr/bin/killall', 'cfprefsd')
   end

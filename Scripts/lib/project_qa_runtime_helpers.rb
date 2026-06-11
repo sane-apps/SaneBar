@@ -96,6 +96,7 @@ end
 def ensure_runtime_smoke_representative_zones_ready!(target)
   required_zones = %w[visible hidden alwaysHidden]
   minimum_counts = { 'alwaysHidden' => 3 }
+  warm_runtime_smoke_candidate_pool!(target)
   initial_counts = runtime_smoke_representative_zone_counts(target)
   sleep 3 if required_zones.any? { |zone| initial_counts.fetch(zone, 0).zero? }
 
@@ -185,6 +186,25 @@ def runtime_smoke_representative_zone_candidates(target)
   end
 end
 
+# Right after a fresh launch the app's zone classification can briefly report
+# few classifiable items while menu bar geometry settles. Refresh the icon
+# inventory and wait for a workable candidate pool before seeding instead of
+# concluding from a starved snapshot.
+def warm_runtime_smoke_candidate_pool!(target, minimum_candidates: 4, attempts: 4)
+  attempts.times do |attempt|
+    return if runtime_smoke_representative_zone_candidates(target).length >= minimum_candidates
+
+    refresh_runtime_smoke_icon_inventory(target)
+    sleep(1.5 + attempt)
+  end
+end
+
+def runtime_smoke_candidate_pool_summary(target)
+  runtime_smoke_representative_zone_candidates(target)
+    .map { |item| "#{item[:zone]}:#{item[:unique_id]}" }
+    .join(', ')
+end
+
 def seed_runtime_smoke_zone!(target, missing_zone)
   command = {
     'visible' => 'move icon to visible',
@@ -199,12 +219,14 @@ def seed_runtime_smoke_zone!(target, missing_zone)
     counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
     before_target_count = counts.fetch(missing_zone, 0)
     donor_zone = runtime_smoke_donor_zone_for_missing_zone(missing_zone, counts, candidates, failed_donor_ids)
-    return "Runtime smoke cannot seed #{missing_zone}; no donor zone can remain populated (candidate=#{counts})." unless donor_zone
+    unless donor_zone
+      return "Runtime smoke cannot seed #{missing_zone}; no donor zone can remain populated (candidate=#{counts}; pool=#{runtime_smoke_candidate_pool_summary(target)})."
+    end
 
     donors = candidates
              .select { |item| item[:zone].to_s == donor_zone }
              .reject { |item| failed_donor_ids.include?(item[:unique_id]) }
-             .sort_by { |item| runtime_smoke_seed_donor_rank(item) }
+             .sort_by { |item| runtime_smoke_seed_donor_rank(item, donor_zone) }
     donor = donors.first
     return "Runtime smoke cannot seed #{missing_zone}; no movable donor found in #{donor_zone}." unless donor
 
@@ -228,10 +250,19 @@ def seed_runtime_smoke_zone!(target, missing_zone)
   "Runtime smoke failed to seed #{missing_zone} #{last_error}"
 end
 
-def runtime_smoke_seed_donor_rank(item)
+def runtime_smoke_seed_donor_rank(item, donor_zone = nil)
   bundle = item[:bundle].to_s
-  return 0 if !bundle.start_with?('com.apple.') && bundle != 'com.sanebar.sharedfixture'
-  return 1 if bundle == 'com.sanebar.sharedfixture'
+  # Donating OUT of alwaysHidden must not yank the shared fixture: the
+  # preferred-always-hidden step wants it there, and taking it first creates
+  # a seeding ping-pong. Everywhere else the fixture is the preferred donor
+  # so seeding does not shuffle the user's real menu bar arrangement.
+  if donor_zone.to_s == 'alwaysHidden'
+    return 0 if !bundle.start_with?('com.apple.') && bundle != 'com.sanebar.sharedfixture'
+    return 1 if bundle == 'com.sanebar.sharedfixture'
+  else
+    return 0 if bundle == 'com.sanebar.sharedfixture'
+    return 1 if !bundle.start_with?('com.apple.')
+  end
   return 2 if bundle.start_with?('com.apple.')
 
   3
@@ -287,6 +318,12 @@ def wait_for_runtime_smoke_move_ready!(target)
 end
 
 def runtime_smoke_move_candidate_denied?(item)
+  # Left-side application menus (File/Edit/View…) can be misread by the AX
+  # scanner as menu bar icons when an app like WhatsApp is frontmost. They are
+  # never legitimate move donors: a Cmd+drag on them reports success but moves
+  # nothing, which burns every seeding attempt.
+  return true if item[:unique_id].to_s.include?('::axid:com.apple.menu.')
+
   bundle = item[:bundle].to_s.strip.downcase
   %w[
     com.apple.controlcenter
@@ -356,6 +393,31 @@ def applescript_commands_for_app(app_path)
         'sqlite3',
         db_path,
         "SELECT auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client='#{escaped_bundle}' ORDER BY auth_value DESC;"
+      )
+      next unless status.success?
+
+      value = output.lines.map(&:strip).find { |line| !line.empty? }
+      return value.to_i unless value.nil?
+    end
+
+    accessibility_auth_value_via_loopback(bundle_id)
+  rescue StandardError
+    nil
+  end
+
+  # TCC.db is Full Disk Access protected. On the approved Air fallback the GUI
+  # session host may lack FDA while sshd has it, so the read falls back to
+  # loopback SSH (same pattern as the protected universalaccess writes).
+  def accessibility_auth_value_via_loopback(bundle_id)
+    escaped_bundle = bundle_id.gsub("'", "''")
+    query = "SELECT auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client='#{escaped_bundle}' ORDER BY auth_value DESC;"
+    [
+      '/Library/Application Support/com.apple.TCC/TCC.db',
+      File.expand_path('~/Library/Application Support/com.apple.TCC/TCC.db')
+    ].each do |db_path|
+      output, status = Open3.capture2e(
+        '/usr/bin/ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=3', 'localhost',
+        'sqlite3', "'#{db_path.gsub("'", "'\\\\''")}'", "\"#{query}\""
       )
       next unless status.success?
 
