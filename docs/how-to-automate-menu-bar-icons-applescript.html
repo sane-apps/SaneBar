@@ -334,6 +334,18 @@
             tell application "SaneBar" to hide items
         </div>
 
+        <h2>Move Icons Relative to Each Other</h2>
+        <p>Use <code>list icon zones</code> to copy stable icon identifiers, then reorder within the same visible, hidden, or always-hidden section.</p>
+
+        <div class="code-block">
+            <span class="code-comment">-- See identifiers and sections first</span><br>
+            tell application "SaneBar" to list icon zones<br><br>
+            <span class="code-comment">-- Move one icon immediately before another icon in the same section</span><br>
+            tell application "SaneBar" to move icon before "SOURCE_ID" target icon "TARGET_ID"<br><br>
+            <span class="code-comment">-- Move one icon immediately after another icon in the same section</span><br>
+            tell application "SaneBar" to move icon after "SOURCE_ID" target icon "TARGET_ID"
+        </div>
+
         <h2>Use with Raycast or Alfred</h2>
         <p>You can create a script command in Raycast or a Workflow in Alfred to toggle your menu bar without lifting your hands from the keyboard.</p>
         

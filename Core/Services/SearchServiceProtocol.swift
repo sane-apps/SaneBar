@@ -26,6 +26,7 @@ protocol SearchServiceProtocol: Sendable {
     func cachedClassifiedApps() -> SearchClassifiedApps
     func refreshClassifiedApps() async -> SearchClassifiedApps
     func refreshKnownClassifiedApps() async -> SearchClassifiedApps
+    func refreshKnownClassifiedAppsAllowingEstimatedFallback() async -> SearchClassifiedApps
     @MainActor
     func activate(app: RunningApp, isRightClick: Bool, origin: SearchServiceSupport.ActivationOrigin) async
 }

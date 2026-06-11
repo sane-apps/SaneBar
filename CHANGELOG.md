@@ -6,6 +6,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## Unreleased
+
+- Adds AppleScript target-relative menu bar icon reordering within the same section: `move icon before` and `move icon after`.
+
+---
+
 ## [2.1.67] - 2026-06-11
 
 Major reliability release for menu bar layout and recovery. Fixes the missing-icon recovery dead end (Repair always acts and points to System Settings when macOS hides SaneBar's icons). Cached geometry is bound to the display arrangement it was observed under, so recovery can no longer replay coordinates from a different monitor setup. Displays arranged left of the primary work correctly. Moving icons to visible is far more reliable (drags target the middle of the visible lane). Automatic layout restores only run with verified geometry and never move the cursor during wake; postponed restores appear in Health for one-click apply. Drift detection respects where you placed the SaneBar toggle. If macOS rapidly flaps icon visibility, SaneBar stands down instead of fighting it. Clearer Layout Mode wording.

@@ -118,8 +118,14 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             source.contains("let cacheAge = Date().timeIntervalSince(AccessibilityService.shared.menuBarItemCacheTime)") &&
-                source.contains("cacheIsFresh: cacheIsFresh"),
-            "AppleScript move resolution should gate fresh scans on real cache freshness instead of forcing them for every exact identifier"
+                source.contains("cacheIsFresh: cacheIsFresh") &&
+                source.contains("let refreshTimeout = cached.isEmpty ? 2.5 : 1.8"),
+            "AppleScript move resolution should gate fresh scans on real cache freshness and give cold-start moves the same patience as list icon zones"
+        )
+        XCTAssertTrue(
+            source.contains("if !refreshed.isEmpty {\n            return refreshed\n        }") &&
+                source.contains("return refreshedIconZones(timeoutSeconds: 2.5, allowAuthoritativeFallback: true)"),
+            "AppleScript move resolution should not force users to warm the zone cache with list icon zones before a cold-start move"
         )
         XCTAssertTrue(
             source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()"),
@@ -210,6 +216,72 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAppleScriptReorderCommandsUseSharedReorderQueue() throws {
+        let source = try appleScriptCommandSource()
+        let sdefSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Resources/SaneBar.sdef"),
+            encoding: .utf8
+        )
+        let shortcutsSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Settings/ShortcutsSettingsView.swift"),
+            encoding: .utf8
+        )
+        let guideSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("docs/how-to-automate-menu-bar-icons-applescript.html"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            sdefSource.contains(#"<command name="move icon before" code="SBarmvbf""#) &&
+                sdefSource.contains(#"<command name="move icon after" code="SBarmvaf""#) &&
+                sdefSource.contains(#"<parameter name="target icon" code="trgt" type="text""#),
+            "AppleScript should expose target-relative reorder commands with a named target icon parameter"
+        )
+        XCTAssertTrue(
+            source.contains("@objc(MoveIconBeforeCommand)") &&
+                source.contains("@objc(MoveIconAfterCommand)") &&
+                source.contains("class ReorderIconScriptCommand: SaneBarScriptCommand"),
+            "Reorder AppleScript commands should be registered as Cocoa script command classes"
+        )
+        XCTAssertTrue(
+            source.contains("manager.moveQueueWorkflow.queueReorderIcon(") &&
+                source.contains("return await task.value"),
+            "AppleScript reorder should wait on the shared reorder move task instead of posting direct drag events"
+        )
+        XCTAssertTrue(
+            source.contains("reorderVerifiedByFreshRelativeOrder(") &&
+                source.contains("freshZonesForScriptMoveVerification(timeoutSeconds: 2.5)") &&
+                source.contains("guard source.zone == target.zone else") &&
+                source.contains("let sameZone = zones.filter { $0.zone == source.zone }") &&
+                source.contains("let expectedSourceIndex = placeAfterTarget ? targetIndex + 1 : targetIndex - 1") &&
+                source.contains("let isAdjacent = sourceIndex == expectedSourceIndex"),
+            "AppleScript reorder should verify fresh same-zone adjacency before reporting success"
+        )
+        XCTAssertTrue(
+            source.contains("manager.moveQueueWorkflow.queueReorderIcon(") &&
+                source.contains("physicalMoveOrigin: .appleScriptUserAction") &&
+                source.contains("guard source.zone == target.zone else") &&
+                source.contains("failure: .crossZone"),
+            "AppleScript reorder should route target-relative moves through the shared queue and reject cross-zone reorders"
+        )
+        XCTAssertFalse(
+            source.contains("reorderMenuBarIcon(\n                sourceBundleID"),
+            "AppleScript command code should not call the low-level drag service directly"
+        )
+        XCTAssertTrue(
+            shortcutsSource.contains("move icon before \\\"SOURCE_ID\\\" target icon \\\"TARGET_ID\\\"") &&
+                shortcutsSource.contains("move icon after \\\"SOURCE_ID\\\" target icon \\\"TARGET_ID\\\"") &&
+                guideSource.contains("move icon before \"SOURCE_ID\" target icon \"TARGET_ID\"") &&
+                guideSource.contains("move icon after \"SOURCE_ID\" target icon \"TARGET_ID\""),
+            "Customer-facing AppleScript examples should use the SDEF command phrase shape"
+        )
+        XCTAssertFalse(
+            shortcutsSource.contains("move icon \\\"SOURCE_ID\\\" before target icon") ||
+                guideSource.contains("move icon \"SOURCE_ID\" before target icon"),
+            "Customer-facing AppleScript examples should not use the invalid prepositional phrase shape"
+        )
+    }
+
     func testVisibilityTransitionsInvalidateAndWarmCaches() throws {
         let hidingURL = projectRootURL().appendingPathComponent("Core/Services/HidingService.swift")
         let hidingSource = try String(contentsOf: hidingURL, encoding: .utf8)
@@ -278,6 +350,8 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         let scanningSource = try String(contentsOf: scanningURL, encoding: .utf8)
         let searchURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
         let searchSource = try String(contentsOf: searchURL, encoding: .utf8)
+        let classifierURL = projectRootURL().appendingPathComponent("Core/Services/SearchMenuBarZoneClassifier.swift")
+        let classifierSource = try String(contentsOf: classifierURL, encoding: .utf8)
         let verifierURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveVerifier.swift")
         let verifierSource = try String(contentsOf: verifierURL, encoding: .utf8)
         let taskURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTaskCoordinator.swift")
@@ -329,6 +403,10 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
                 searchSource.contains("classifyItems(items, allowEstimatedFallback: false)"),
             "SearchService should expose direct classification for targeted verification scans without blessing estimated separator geometry"
         )
+        XCTAssertTrue(
+            classifierSource.contains("strict classification failed closed"),
+            "Strict move verification should fail closed instead of falling back to screen-only visible/hidden guesses when separator geometry is missing"
+        )
     }
 
     func testAppleScriptZoneRefreshPrefersKnownOwnerClassificationBeforeFullFallback() throws {
@@ -372,6 +450,11 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             searchSource.contains("func refreshKnownClassifiedApps() async -> SearchClassifiedApps"),
             "SearchService should expose a lighter classified refresh path for repeated script zone polling"
+        )
+        XCTAssertTrue(
+            searchSource.contains("func refreshKnownClassifiedAppsAllowingEstimatedFallback() async -> SearchClassifiedApps") &&
+                searchSource.contains("classifyItems(items, allowEstimatedFallback: true)"),
+            "Estimated classification should be an explicit read-only browse path, not the default for AppleScript or persistence"
         )
     }
 

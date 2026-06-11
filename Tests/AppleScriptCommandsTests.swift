@@ -73,6 +73,26 @@ struct AppleScriptCommandsTests {
         #expect(browseDiagnosticsSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
     }
 
+    @Test("Target-relative reorder AppleScript commands exist and set the expected relation")
+    func reorderCommandsExist() {
+        let moveBefore = MoveIconBeforeCommand()
+        let moveAfter = MoveIconAfterCommand()
+
+        let beforeSupers = [
+            String(describing: type(of: moveBefore).superclass()),
+            String(describing: type(of: moveBefore).superclass()?.superclass()),
+        ]
+        let afterSupers = [
+            String(describing: type(of: moveAfter).superclass()),
+            String(describing: type(of: moveAfter).superclass()?.superclass()),
+        ]
+
+        #expect(beforeSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
+        #expect(afterSupers.contains { $0.contains("NSScriptCommand") || $0.contains("SaneBarScriptCommand") })
+        #expect(moveBefore.placeAfterTarget == false)
+        #expect(moveAfter.placeAfterTarget == true)
+    }
+
     @Test("Browse panel AppleScript commands exist and inherit from NSScriptCommand")
     func browsePanelCommandsExist() {
         let showIconPanel = ShowIconPanelCommand()
@@ -309,7 +329,90 @@ struct AppleScriptCommandsTests {
         #expect(source.contains("return true"))
     }
 
+    @Test("Reorder target parser accepts SDEF parameter names and trims values")
+    func reorderTargetParserAcceptsSDEFParameterNames() {
+        #expect(
+            parseScriptReorderTargetIdentifier(from: ["target icon": " com.example.Target "]) == "com.example.Target"
+        )
+        #expect(
+            parseScriptReorderTargetIdentifier(from: ["trgt": "com.example.Target::statusItem:1"]) == "com.example.Target::statusItem:1"
+        )
+        #expect(
+            parseScriptReorderTargetIdentifier(from: ["Target-Icon": "com.example.Target::axid:clock"]) == "com.example.Target::axid:clock"
+        )
+        #expect(parseScriptReorderTargetIdentifier(from: ["target icon": "   "]) == nil)
+        #expect(parseScriptReorderTargetIdentifier(from: nil) == nil)
+    }
+
+    @Test("Reorder target parser accepts raw AppleEvent target keyword")
+    func reorderTargetParserAcceptsRawAppleEventKeyword() {
+        let event = NSAppleEventDescriptor.appleEvent(
+            withEventClass: AEEventClass(0),
+            eventID: AEEventID(0),
+            targetDescriptor: nil,
+            returnID: AEReturnID(0),
+            transactionID: AETransactionID(0)
+        )
+        event.setParam(
+            NSAppleEventDescriptor(string: " com.example.Target::statusItem:2 "),
+            forKeyword: scriptAppleEventKeyword("trgt")
+        )
+
+        #expect(
+            parseScriptReorderTargetIdentifier(fromAppleEvent: event) == "com.example.Target::statusItem:2"
+        )
+    }
+
+    @Test("Reorder identity comparison treats stable fallback forms as the same icon")
+    func reorderIdentityComparisonUsesStableIconIdentity() {
+        let menuExtraAnchor = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: nil,
+            xPosition: 100,
+            width: 24
+        )
+        let menuExtraRelayout = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget",
+            icon: nil,
+            menuExtraIdentifier: "com.example.widget.extra",
+            statusItemIndex: nil,
+            xPosition: 220,
+            width: 24
+        )
+        let differentStatusItem = RunningApp(
+            id: "com.example.Widget",
+            name: "Widget Copy",
+            icon: nil,
+            menuExtraIdentifier: nil,
+            statusItemIndex: 4,
+            xPosition: 260,
+            width: 24
+        )
+
+        #expect(scriptIconsReferToSameItem(menuExtraAnchor, menuExtraRelayout))
+        #expect(!scriptIconsReferToSameItem(menuExtraAnchor, differentStatusItem))
+    }
+
     // MARK: - SDEF Mapping Tests
+
+    @Test("SDEF exposes target-relative reorder commands")
+    func sDEFExposesTargetRelativeReorderCommands() throws {
+        let fileURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Resources/SaneBar.sdef")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        #expect(source.contains(#"<command name="move icon before" code="SBarmvbf""#))
+        #expect(source.contains(#"<cocoa class="MoveIconBeforeCommand"/>"#))
+        #expect(source.contains(#"<command name="move icon after" code="SBarmvaf""#))
+        #expect(source.contains(#"<cocoa class="MoveIconAfterCommand"/>"#))
+        #expect(source.contains(#"<parameter name="target icon" code="trgt" type="text""#))
+    }
 
     @Test("Command class names match expected SDEF mapping")
     func sDEFMapping() {

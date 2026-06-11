@@ -371,6 +371,15 @@ final class SearchServiceProtocolMock: SearchServiceProtocol, @unchecked Sendabl
         return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
     }
 
+    var refreshKnownClassifiedAppsAllowingEstimatedFallbackHandler: (@Sendable () async -> ClassifiedResult)?
+
+    func refreshKnownClassifiedAppsAllowingEstimatedFallback() async -> ClassifiedResult {
+        if let refreshKnownClassifiedAppsAllowingEstimatedFallbackHandler {
+            return await refreshKnownClassifiedAppsAllowingEstimatedFallbackHandler()
+        }
+        return ClassifiedResult(visible: [], hidden: [], alwaysHidden: [])
+    }
+
     private let activateState = MockoloMutex(
         MockoloHandlerState<
             (RunningApp, Bool, SearchServiceSupport.ActivationOrigin),

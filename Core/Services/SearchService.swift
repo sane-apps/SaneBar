@@ -469,6 +469,13 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         }
     }
 
+    func refreshKnownClassifiedAppsAllowingEstimatedFallback() async -> SearchClassifiedApps {
+        let items = await AccessibilityService.shared.refreshKnownMenuBarItemsWithPositions()
+        return await MainActor.run {
+            self.classifyItems(items, allowEstimatedFallback: true)
+        }
+    }
+
     @MainActor
     func classifyItemsForVerification(_ items: [AccessibilityService.MenuBarItemPosition]) -> SearchClassifiedApps {
         classifyItems(items, allowEstimatedFallback: false)
