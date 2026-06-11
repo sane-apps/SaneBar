@@ -211,7 +211,7 @@ enum AccessibilityInteractionPolicy {
     ) -> Bool {
         switch targetLane {
         case .visible, .visibleFromAlwaysHidden:
-            return frameIsInTargetZone(
+            frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: false,
@@ -220,7 +220,7 @@ enum AccessibilityInteractionPolicy {
             )
 
         case .hidden, .hiddenFromAlwaysHidden:
-            return frameIsInTargetZone(
+            frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: true,
@@ -229,7 +229,7 @@ enum AccessibilityInteractionPolicy {
             )
 
         case .alwaysHidden:
-            return frameIsInTargetZone(
+            frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: true,
@@ -450,8 +450,17 @@ enum AccessibilityInteractionPolicy {
         guard visibleLaneWidth > 1 else {
             return separatorX + 1
         }
-        let boundedOffset = min(nearSeparatorOffset, max(CGFloat(1), visibleLaneWidth * 0.35))
-        return separatorX + boundedOffset
+        // Aim for the middle of the visible lane, not the separator edge: the
+        // menu bar reflows during the drag (the separator shifts right as the
+        // item inserts), so a target hugging the pre-drag separator edge can
+        // settle just left of the post-reflow separator and fail strict
+        // live-boundary verification. Narrow lanes degrade to the old
+        // near-separator offset.
+        let minX = separatorX + min(nearSeparatorOffset, max(CGFloat(1), visibleLaneWidth * 0.35))
+        let mainSafety = max(nearSeparatorOffset, (iconWidth * 0.5) + 8)
+        let maxX = max(boundary - mainSafety, minX)
+        let laneMidX = separatorX + (visibleLaneWidth * 0.5)
+        return min(max(laneMidX, minX), maxX)
     }
 
     nonisolated static func moveTargetX(
@@ -473,5 +482,4 @@ enum AccessibilityInteractionPolicy {
         let proposedSteps = Int(ceil(normalizedDistance / 22))
         return min(max(proposedSteps, 10), 14)
     }
-
 }

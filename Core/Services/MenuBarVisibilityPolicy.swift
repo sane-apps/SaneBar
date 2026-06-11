@@ -240,11 +240,19 @@ extension MenuBarVisibilityPolicy {
     /// Automatic replay may only use physical Cmd+drag moves when the runtime
     /// snapshot reports live geometry. Replays on cached/estimated/stale
     /// geometry moved items users never asked to move (#151, #154).
+    ///
+    /// Healthy-validation replays (startup/relaunch reconciliation) get the
+    /// same live-gated physical capability: hide-all-other and pinned intent
+    /// are standing user instructions, and a relaunch can land the separator
+    /// on the other side of an allow-listed item without anything physically
+    /// moving. The consent gate still bounds these moves (armed-on-live only,
+    /// rate-limited).
     nonisolated static func visibilityIntentReplayMode(
         reason: String,
         geometryConfidence: MenuBarGeometryConfidence
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        if reason.contains("wake-resume"), geometryConfidence == .live {
+        let replayEligible = reason.contains("wake-resume") || reason.contains("healthy-validation")
+        if replayEligible, geometryConfidence == .live {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
         }
         return (.auditOnly, nil)

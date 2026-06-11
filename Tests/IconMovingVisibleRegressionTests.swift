@@ -53,7 +53,7 @@ struct MoveToVisibleRegressionTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(target == 1508, "Gap case: near-separator insertion wins")
+        #expect(target == 1600, "Gap case: lane midpoint leaves reflow slack on both sides")
         #expect(target > separatorRightEdgeX, "Target must be right of separator")
         #expect(target < mainIconLeftEdge, "Target must be left of SaneBar icon")
     }
@@ -70,7 +70,7 @@ struct MoveToVisibleRegressionTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(target == 1208, "Wide gap: near-separator insertion is used")
+        #expect(target == 1500, "Wide gap: lane midpoint is used")
         #expect(target < mainIconLeftEdge, "Even with wide gap, target doesn't overshoot")
     }
 
@@ -88,7 +88,7 @@ struct MoveToVisibleRegressionTests {
             visibleBoundaryX: mainIconLeftEdge
         )
 
-        #expect(abs(target - 1218.85) < 0.001, "Target should stay near separator, not jump to boundary-2")
+        #expect(abs(target - 1297) < 0.001, "Target is the lane midpoint, not the boundary-2 hug from #93")
         #expect(target < (mainIconLeftEdge - 50), "Target should avoid boundary-hugging long drags")
     }
 
@@ -277,7 +277,8 @@ struct MoveToVisibleRegressionTests {
                 #expect(newTarget == scenario.sep + 1, "Flush: use the minimum right-of-separator target (\(scenario.name))")
             } else {
                 #expect(newTarget <= scenario.boundary, "New formula never targets right of the SaneBar icon (\(scenario.name))")
-                #expect(newTarget <= scenario.sep + 24, "New formula avoids oversized jumps in wide gaps (\(scenario.name))")
+                let laneWidth = scenario.boundary - scenario.sep
+                #expect(newTarget <= scenario.sep + max(24, laneWidth * 0.5), "New formula never targets past the lane midpoint (\(scenario.name))")
             }
             #expect(newTarget > scenario.sep, "New formula always right of separator (\(scenario.name))")
         }

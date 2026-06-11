@@ -218,9 +218,9 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             policySource.contains("case visibleFromAlwaysHidden") &&
-                policySource.contains("let nearSeparatorOffset = max(CGFloat(8), min(CGFloat(24), iconWidth * 0.35))") &&
-                policySource.contains("return separatorX + boundedOffset"),
-            "AH-to-visible moves should target just across the main separator instead of deep near the SaneBar icon"
+                policySource.contains("let laneMidX = separatorX + (visibleLaneWidth * 0.5)") &&
+                policySource.contains("return min(max(laneMidX, minX), maxX)"),
+            "AH-to-visible moves should target the visible lane midpoint (clamped away from the SaneBar icon) so menu bar reflow cannot strand the icon at the separator"
         )
         XCTAssertTrue(
             alwaysHiddenSource.contains("targetLane: toAlwaysHidden ? .alwaysHidden : .visibleFromAlwaysHidden"),
@@ -496,5 +496,4 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "Workspace activation fallback should use cooperative activation on modern macOS before requesting the target app to activate"
         )
     }
-
 }
