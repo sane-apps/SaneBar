@@ -251,13 +251,21 @@ extension MenuBarVisibilityPolicy {
         reason: String,
         geometryConfidence: MenuBarGeometryConfidence
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        let replayEligible = reason.contains("wake-resume") || reason.contains("healthy-validation")
-        // .cached is trustworthy here by construction: since the provenance
-        // fix, only live observations enter the geometry cache and entries
-        // expire when the display configuration changes. Estimated, stale,
-        // and missing geometry still downgrade to audit-only.
+        // Passive wake must never move the cursor: the user may be at the
+        // desk watching the pointer (#151, #154; the wake probe enforces a
+        // zero-cursor-movement contract). Wake violations are surfaced via
+        // the deferred-repair path instead.
+        if reason.contains("wake-resume") {
+            return (.auditOnly, nil)
+        }
+        // Startup/relaunch reconciliation follows an explicit user context
+        // (the app was just launched) and may restore standing intent
+        // physically. .cached is trustworthy by construction: only live
+        // observations enter the geometry cache and entries expire when the
+        // display configuration changes. Estimated, stale, and missing
+        // geometry still downgrade to audit-only.
         let confidenceAllowsMoves = geometryConfidence == .live || geometryConfidence == .cached
-        if replayEligible, confidenceAllowsMoves {
+        if reason.contains("healthy-validation"), confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
         }
         return (.auditOnly, nil)
