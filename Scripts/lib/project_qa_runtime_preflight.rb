@@ -77,6 +77,7 @@ class ProjectQA
       prelaunch_runtime_shared_bundle_fixture!
       prelaunch_runtime_dynamic_helper_fixture!
       prelaunch_runtime_visible_dynamic_helper_fixture!
+      prelaunch_runtime_host_exact_id_fixture!
 
       launch_out, launch_status = Open3.capture2e(
         { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' },
