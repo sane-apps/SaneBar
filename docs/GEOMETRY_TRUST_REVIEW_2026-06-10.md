@@ -81,6 +81,27 @@ defects, not the design:
 - Suppression suspicion gets ONE automatic repair attempt, then stops; an
   explicit user Repair always attempts.
 
+## Release-gauntlet addendum (2026-06-11, shipped in 2.1.67)
+
+The 2.1.67 release gates surfaced three runtime defects the unit suite
+could not see, now fixed and encoded in tests:
+
+- Visible-lane drag targets hugged the pre-drag separator edge; menu bar
+  reflow during insertion stranded icons just left of the post-reflow
+  separator, and honest live-boundary verification (correctly) refused
+  them. Targets now aim at the visible-lane midpoint, clamped inside the
+  lane (the #93 overshoot protection holds). This was also the customer
+  "cannot move icon to visible" class (#138, #156).
+- Replay-mode final calibration: startup/relaunch reconciliation may
+  physically restore standing intent (hide-all-other allow-list, pins)
+  when geometry confidence is live OR cached — cached is trustworthy by
+  construction post-provenance. Passive wake replays are ALWAYS
+  audit-only: the wake probe enforces a zero-cursor-movement contract
+  (#151/#154), and violations surface via the deferred-repair path.
+- The runtime smoke now neutralizes standing-intent settings for its
+  window (restored after); otherwise startup reconciliation physically
+  fights the QA seeder ("zone setup drifted after settle").
+
 ## Known remaining gaps (not yet done)
 
 - Three recreate paths still exist (recreateItemsFromPersistedPositions,
