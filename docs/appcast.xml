@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                                                                <item>
+            <title>2.1.67</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 11 Jun 2026 05:28:20 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Major reliability release for menu bar layout and recovery. Fixes the missing-icon recovery dead end (Repair always acts and points to System Settings when macOS hides SaneBar's icons). Cached geometry is bound to the display arrangement it was observed under, so recovery can no longer replay coordinates from a different monitor setup. Displays arranged left of the primary work correctly. Moving icons to visible is far more reliable (drags target the middle of the visible lane). Automatic layout restores only run with verified geometry and never move the cursor during wake; postponed restores appear in Health for one-click apply. Drift detection respects where you placed the SaneBar toggle. If macOS rapidly flaps icon visibility, SaneBar stands down instead of fighting it. Clearer Layout Mode wording.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.67.zip"
+                       sparkle:version="2167"
+                       sparkle:shortVersionString="2.1.67"
+                       length="9118834"
+                       type="application/octet-stream"
+                       sparkle:edSignature="/mo1K0CNPcR1VUMt6gBCJOj0hFSOOVtr3RvRBRI4J7ZAQs8HHISPCLpm3ZHXd0pSY28PDdB5x/9h3yWbjNWvAg=="/>
+        </item>
+<item>
             <title>2.1.66</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Sat, 06 Jun 2026 07:15:46 -0400</pubDate>
