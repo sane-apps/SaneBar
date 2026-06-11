@@ -12,12 +12,6 @@ Major reliability release for menu bar layout and recovery. Fixes the missing-ic
 
 ---
 
-## [2.1.67] - 2026-06-10
-
-Major reliability release for menu bar layout and recovery. Fixes the missing-icon recovery dead end (Repair always acts now and points to System Settings when macOS hides SaneBar's icons). Cached geometry is now bound to the display arrangement it was observed under, so recovery can no longer replay coordinates from a different monitor setup. Displays arranged left of the primary work correctly. Automatic layout restores after wake only run with verified live positions and never move the cursor otherwise; postponed restores appear in Health for one-click apply. Drift detection respects where you placed the SaneBar toggle instead of forcing it back toward Control Center. If macOS itself rapidly flaps icon visibility, SaneBar stands down instead of fighting it. Clearer Layout Mode wording.
-
----
-
 ## [2.1.66] - 2026-06-06
 
 Improves wake and display recovery for Hidden and hide-all-other layouts, including helper-owned menu extras.
