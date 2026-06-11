@@ -68,44 +68,49 @@ struct MenuBarAutomaticMoveGateTests {
         #expect(gate.allowsMove(origin: .explicitUserAction, now: now.addingTimeInterval(9)))
     }
 
-    @Test("Replay mode requires live geometry for physical moves")
-    func replayModeRequiresLiveGeometry() {
-        let live = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-            reason: "wake-resume-attempt-1",
+    @Test("Passive wake replays never use physical moves")
+    func wakeReplaysStayPassive() {
+        // The wake probe enforces a zero-cursor-movement contract for passive
+        // wake (#151, #154): even perfect geometry must not move the pointer.
+        for confidence in [MenuBarGeometryConfidence.live, .cached, .shielded, .stale, .missing] {
+            let wake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "wake-resume-attempt-1",
+                geometryConfidence: confidence
+            )
+            #expect(wake.mode == .auditOnly)
+            #expect(wake.physicalMoveOrigin == nil)
+        }
+
+        // Post-wake healthy-validation replays are still passive: the wake
+        // context wins over the healthy-validation eligibility.
+        let postWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-wake-resume-attempt-1",
             geometryConfidence: .live
         )
-        #expect(live.mode == .repairWithPhysicalMoves)
-        #expect(live.physicalMoveOrigin == .systemWakeRecovery)
+        #expect(postWake.mode == .auditOnly)
+    }
 
-        // Cached geometry is provenance-pure (live observations bound to the
-        // current display configuration), so it also allows physical replay.
-        let cached = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-            reason: "wake-resume-attempt-1",
-            geometryConfidence: .cached
-        )
-        #expect(cached.mode == .repairWithPhysicalMoves)
+    @Test("Startup reconciliation uses physical moves only on trustworthy geometry")
+    func startupReconciliationRequiresTrustworthyGeometry() {
+        // Live and provenance-pure cached geometry allow physical restoration
+        // of standing intent right after launch.
+        for confidence in [MenuBarGeometryConfidence.live, .cached] {
+            let startup = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "healthy-validation-startup-follow-up",
+                geometryConfidence: confidence
+            )
+            #expect(startup.mode == .repairWithPhysicalMoves)
+            #expect(startup.physicalMoveOrigin == .systemWakeRecovery)
+        }
 
         for confidence in [MenuBarGeometryConfidence.shielded, .stale, .missing] {
             let degraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-                reason: "wake-resume-attempt-1",
+                reason: "healthy-validation-startup-follow-up",
                 geometryConfidence: confidence
             )
             #expect(degraded.mode == .auditOnly)
             #expect(degraded.physicalMoveOrigin == nil)
         }
-
-        let healthyValidation = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-            reason: "healthy-validation-startup-follow-up",
-            geometryConfidence: .live
-        )
-        #expect(healthyValidation.mode == .repairWithPhysicalMoves)
-        #expect(healthyValidation.physicalMoveOrigin == .systemWakeRecovery)
-
-        let healthyValidationDegraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-            reason: "healthy-validation-startup-follow-up",
-            geometryConfidence: .stale
-        )
-        #expect(healthyValidationDegraded.mode == .auditOnly)
 
         let unrelatedReason = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: "settings-change",
