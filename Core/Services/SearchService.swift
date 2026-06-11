@@ -487,7 +487,10 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
     @MainActor
     private func classifyItems(
         _ items: [AccessibilityService.MenuBarItemPosition],
-        allowEstimatedFallback: Bool = false,
+        // Read-only classification may use estimates transiently: the cache is
+        // empty after a fresh launch (estimates are never cached). Verification
+        // callers pass false explicitly and stay strict.
+        allowEstimatedFallback: Bool = true,
         promotePinnedAlwaysHidden: Bool = true
     ) -> SearchClassifiedApps {
         let zonedItems = SearchMenuBarZoneClassifier.zonedMenuBarItems(from: items)
