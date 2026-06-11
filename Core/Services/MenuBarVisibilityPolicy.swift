@@ -252,7 +252,12 @@ extension MenuBarVisibilityPolicy {
         geometryConfidence: MenuBarGeometryConfidence
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
         let replayEligible = reason.contains("wake-resume") || reason.contains("healthy-validation")
-        if replayEligible, geometryConfidence == .live {
+        // .cached is trustworthy here by construction: since the provenance
+        // fix, only live observations enter the geometry cache and entries
+        // expire when the display configuration changes. Estimated, stale,
+        // and missing geometry still downgrade to audit-only.
+        let confidenceAllowsMoves = geometryConfidence == .live || geometryConfidence == .cached
+        if replayEligible, confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
         }
         return (.auditOnly, nil)
