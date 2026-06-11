@@ -442,6 +442,14 @@ class ProjectQA
     settings = backup[:content].to_s.empty? ? {} : JSON.parse(backup[:content])
     appearance = settings['menuBarAppearance'].is_a?(Hash) ? settings['menuBarAppearance'] : {}
     settings['hasCompletedOnboarding'] = true
+    # Neutralize standing layout intent for the smoke: hide-all-other
+    # allow-lists and always-hidden pins left over from earlier QA/probe runs
+    # make the app's startup reconciliation physically rearrange the very
+    # items the smoke seeder just placed ("zone setup drifted after settle").
+    # The original settings are restored from the backup after the smoke.
+    settings['hideAllOtherMenuBarItems'] = false
+    settings['hideAllOtherVisibleItemIds'] = []
+    settings['alwaysHiddenPinnedItemIds'] = []
     settings['menuBarAppearance'] = appearance.merge(
       'isEnabled' => true,
       'useLiquidGlass' => true,
