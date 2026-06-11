@@ -648,10 +648,65 @@ class LiveZoneSmoke
     end
   end
 
+  REPRESENTATIVE_ZONE_MINIMUMS = {
+    'alwaysHidden' => 3,
+    'hidden' => 1,
+    'visible' => 1
+  }.freeze
+
+  REPRESENTATIVE_ZONE_MOVE_COMMANDS = {
+    'alwaysHidden' => 'move icon to always hidden',
+    'hidden' => 'move icon to hidden',
+    'visible' => 'move icon to visible'
+  }.freeze
+
+  # The preflight seeds every zone, but later phases can shuffle the fixtures
+  # out of one (all real items in it being deny-listed donors). Self-heal by
+  # moving a surplus donor into the missing zone before concluding; the hard
+  # checks below still fail the release if reseeding cannot converge.
+  def reseed_missing_zone_candidates(zones)
+    3.times do
+      candidates = candidate_pool(zones)
+      counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+      missing = REQUIRED_REPRESENTATIVE_ZONES.select do |zone|
+        counts.fetch(zone, 0) < REPRESENTATIVE_ZONE_MINIMUMS.fetch(zone, 1)
+      end
+      break if missing.empty?
+
+      donor_moved = false
+      missing.each do |zone|
+        donor = prioritize_move_candidates(
+          candidates.select do |item|
+            donor_zone = item[:zone].to_s
+            donor_zone != zone &&
+              counts.fetch(donor_zone, 0) > REPRESENTATIVE_ZONE_MINIMUMS.fetch(donor_zone, 1)
+          end
+        ).first
+        next unless donor
+
+        begin
+          puts "ℹ️ Reseeding representative #{zone} candidate before move matrix: #{donor[:unique_id]}"
+          move_and_verify(REPRESENTATIVE_ZONE_MOVE_COMMANDS.fetch(zone), donor, zone)
+          donor_moved = true
+          zones = list_icon_zones
+          candidates = candidate_pool(zones)
+          counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+        rescue StandardError => e
+          puts "⚠️ Representative #{zone} reseed failed for #{donor[:unique_id]}: #{e.message}"
+        end
+      end
+      break unless donor_moved
+    end
+    zones
+  rescue StandardError
+    zones
+  end
+
   def require_representative_zone_candidates!(zones)
     return unless @require_all_zones
     return if focused_required_id_mode?
 
+    zones = reseed_missing_zone_candidates(zones)
     candidates = candidate_pool(zones)
     missing = REQUIRED_REPRESENTATIVE_ZONES.reject do |zone|
       candidates.any? { |candidate| candidate[:zone] == zone }
