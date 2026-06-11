@@ -708,6 +708,7 @@ end
 require_relative 'lib/project_qa_release_guardrails'
 require_relative 'lib/project_qa_runtime_preflight'
 require_relative 'lib/project_qa_runtime_fixtures'
+require_relative 'lib/project_qa_runtime_fixtures_shared_source'
 require_relative 'lib/project_qa_runtime_visible_dynamic_fixture'
 require_relative 'lib/project_qa_runtime_helpers'
 require_relative 'lib/project_qa_regression_guardrails'
