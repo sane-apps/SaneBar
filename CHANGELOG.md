@@ -8,7 +8,11 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## Unreleased
 
-- Adds AppleScript target-relative menu bar icon reordering within the same section: `move icon before` and `move icon after`.
+---
+
+## [2.1.68] - 2026-06-12
+
+Adds AppleScript target-relative menu bar icon reordering within the same section: `move icon before` and `move icon after`.
 
 ---
 

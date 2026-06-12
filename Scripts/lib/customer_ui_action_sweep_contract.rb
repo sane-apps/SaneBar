@@ -514,11 +514,11 @@ class CustomerUIActionSweep
       '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     ]
     lines = paths
-      .select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
+      .select { |path| fresh_release_runtime_evidence?(path) }
       .flat_map { |path| File.readlines(path, chomp: true).map { |line| "#{path}: #{line}" } }
 
     startup_artifact = '/tmp/sanebar_runtime_startup_probe.json'
-    if File.exist?(startup_artifact) && File.mtime(startup_artifact) >= @started_at - 30 * 60
+    if fresh_release_runtime_evidence?(startup_artifact)
       payload = JSON.parse(File.read(startup_artifact))
       if payload['status'] == 'pass'
         case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
@@ -527,7 +527,7 @@ class CustomerUIActionSweep
     end
 
     wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
-    if File.exist?(wake_artifact) && File.mtime(wake_artifact) >= @started_at - 30 * 60
+    if fresh_release_runtime_evidence?(wake_artifact)
       payload = JSON.parse(File.read(wake_artifact))
       if payload['status'] == 'pass'
         case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
@@ -544,7 +544,7 @@ class CustomerUIActionSweep
       '/tmp/sanebar_runtime_shared_bundle_smoke.log',
       '/tmp/sanebar_runtime_native_apple_smoke.log',
       '/tmp/sanebar_runtime_host_exact_id_smoke.log'
-    ].select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
+    ].select { |path| fresh_release_runtime_evidence?(path) }
   end
 
   def runtime_line(lines, marker)
@@ -591,7 +591,7 @@ class CustomerUIActionSweep
 
   def latest_runtime_screenshots
     Dir.glob(File.join(File.expand_path("~/Desktop/Screenshots/#{APP_NAME}"), 'sanebar-*.png'))
-      .select { |path| File.mtime(path) >= @started_at - 30 * 60 }
+      .select { |path| fresh_release_runtime_evidence?(path) }
       .sort_by { |path| File.mtime(path) }
   end
 

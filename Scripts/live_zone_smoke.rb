@@ -355,21 +355,27 @@ class LiveZoneSmoke
     return zones if always_hidden_count >= 3
 
     zone_counts = candidates.group_by { |candidate| candidate[:zone].to_s }.transform_values(&:length)
-    donors = prioritize_move_candidates(
-      candidates.reject { |candidate| candidate[:zone] == 'alwaysHidden' }
-                .select { |candidate| zone_counts.fetch(candidate[:zone].to_s, 0) > 1 }
-    )
-    return zones if donors.empty?
+    attempted_donor_ids = {}
 
-    donors.each do |donor|
+    8.times do
+      candidates = candidate_pool(zones)
+      always_hidden_count = candidates.count { |candidate| candidate[:zone] == 'alwaysHidden' }
       break if always_hidden_count >= 3
+
+      zone_counts = candidates.group_by { |candidate| candidate[:zone].to_s }.transform_values(&:length)
+      donor = prioritize_move_candidates(
+        candidates.reject { |candidate| candidate[:zone] == 'alwaysHidden' }
+                  .select { |candidate| zone_counts.fetch(candidate[:zone].to_s, 0) > 1 }
+                  .reject { |candidate| attempted_donor_ids[candidate[:unique_id]] }
+      ).first
+      break unless donor
+
+      attempted_donor_ids[donor[:unique_id]] = true
 
       begin
         puts "ℹ️ Reseeding representative Always Hidden candidate before move matrix: #{donor[:unique_id]}"
         move_and_verify('move icon to always hidden', donor, 'alwaysHidden')
         zones = list_icon_zones
-        candidates = candidate_pool(zones)
-        always_hidden_count = candidates.count { |candidate| candidate[:zone] == 'alwaysHidden' }
       rescue StandardError => e
         puts "⚠️ Representative Always Hidden reseed failed for #{donor[:unique_id]}: #{e.message}"
       end
@@ -665,7 +671,7 @@ class LiveZoneSmoke
   # moving a surplus donor into the missing zone before concluding; the hard
   # checks below still fail the release if reseeding cannot converge.
   def reseed_missing_zone_candidates(zones)
-    3.times do
+    6.times do
       candidates = candidate_pool(zones)
       counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
       missing = REQUIRED_REPRESENTATIVE_ZONES.select do |zone|
