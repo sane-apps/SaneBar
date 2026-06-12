@@ -3,6 +3,7 @@
 
 require 'minitest/autorun'
 require 'fileutils'
+require 'tmpdir'
 require_relative 'customer_ui_action_sweep'
 
 class CustomerUIActionSweepTest < Minitest::Test
@@ -167,6 +168,89 @@ class CustomerUIActionSweepTest < Minitest::Test
     transcript = @sweep.instance_variable_get(:@transcript)
     assert_includes transcript, "shared_exact_id=#{shared_log} ok"
     end
+  end
+
+  def test_runtime_smoke_accepts_same_release_session_evidence_beyond_thirty_minutes
+    smoke_log = '/tmp/sanebar_runtime_smoke.log'
+    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
+    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
+    preserve_files(smoke_log, startup_log, wake_log, shared_log) do
+      now = Time.now
+      @sweep.instance_variable_set(:@started_at, now)
+      File.write(smoke_log, [
+        'Settings window visual check ok',
+        'Browse mode secondMenuBar open/close ok',
+        'Browse mode findIcon open/close ok',
+        'Live zone smoke passed'
+      ].join("\n"))
+      File.write(startup_log, 'Startup layout probe passed')
+      File.write(wake_log, 'Wake layout probe passed')
+      File.write(shared_log, [
+        'Hidden/Visible move actions ok',
+        'Always Hidden move actions ok',
+        'Representative zone candidates ok',
+        '✅ Candidate set passed: com.sanebar.sharedfixture::statusItem:0, com.sanebar.sharedfixture::statusItem:1',
+        '✅ Live zone smoke passed'
+      ].join("\n"))
+      [smoke_log, startup_log, wake_log, shared_log].each do |path|
+        File.utime(now - 45 * 60, now - 45 * 60, path)
+      end
+
+      @sweep.send(:verify_recent_runtime_smoke)
+
+      transcript = @sweep.instance_variable_get(:@transcript)
+      assert_includes transcript, "runtime_smoke=#{smoke_log} ok"
+      assert_includes transcript, "shared_exact_id=#{shared_log} ok"
+      assert @sweep.send(:runtime_evidence_lines).any? { |line| line.include?('Candidate set passed') }
+      assert_includes @sweep.send(:runtime_log_artifacts), shared_log
+    end
+  end
+
+  def test_runtime_smoke_rejects_release_evidence_older_than_bounded_session_window
+    smoke_log = '/tmp/sanebar_runtime_smoke.log'
+    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
+    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
+    preserve_files(smoke_log, startup_log, wake_log, shared_log) do
+      now = Time.now
+      @sweep.instance_variable_set(:@started_at, now)
+      [smoke_log, startup_log, wake_log, shared_log].each do |path|
+        File.write(path, 'Live zone smoke passed')
+        File.utime(now - 3 * 60 * 60, now - 3 * 60 * 60, path)
+      end
+
+      error = assert_raises(RuntimeError) do
+        @sweep.send(:verify_recent_runtime_smoke)
+      end
+
+      assert_includes error.message, "Missing runtime evidence #{smoke_log}"
+    end
+  end
+
+  def test_latest_runtime_screenshots_uses_release_session_window
+    old_home = ENV['HOME']
+    Dir.mktmpdir('sanebar-customer-ui-home-') do |home|
+      ENV['HOME'] = home
+      screenshot_dir = File.join(home, 'Desktop', 'Screenshots', 'SaneBar')
+      FileUtils.mkdir_p(screenshot_dir)
+      now = Time.now
+      fresh = File.join(screenshot_dir, 'sanebar-appearance-top-strip-baseline-fresh.png')
+      stale = File.join(screenshot_dir, 'sanebar-appearance-top-strip-baseline-stale.png')
+      png = "\x89PNG\r\n\x1A\n".b + "\x00\x00\x00\rIHDR".b + [120, 30].pack('NN')
+      File.binwrite(fresh, png)
+      File.binwrite(stale, png)
+      File.utime(now - 45 * 60, now - 45 * 60, fresh)
+      File.utime(now - 3 * 60 * 60, now - 3 * 60 * 60, stale)
+      @sweep.instance_variable_set(:@started_at, now)
+
+      screenshots = @sweep.send(:latest_runtime_screenshots)
+
+      assert_includes screenshots, fresh
+      refute_includes screenshots, stale
+    end
+  ensure
+    ENV['HOME'] = old_home
   end
 
   def test_runtime_state_results_read_artifact_backed_evidence_paths

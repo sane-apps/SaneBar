@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class CustomerUIActionSweep
+  RELEASE_RUNTIME_EVIDENCE_MAX_AGE_SECONDS = 2 * 60 * 60
+  SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS = 30 * 60
+
   private
 
   def verify_recent_runtime_smoke
@@ -12,10 +15,10 @@ class CustomerUIActionSweep
     host_log = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     strict_fixture_log = '/tmp/sanebar_runtime_strict_fixture_smoke.log'
     [smoke_log, startup_log, wake_log].each do |path|
-      raise "Missing runtime evidence #{path}" unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+      raise "Missing runtime evidence #{path}" unless fresh_release_runtime_evidence?(path)
     end
     exact_logs = [strict_fixture_log, shared_log, native_log, host_log]
-      .select { |path| File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60 }
+      .select { |path| fresh_release_runtime_evidence?(path) }
     exact_runtime = exact_logs.map { |path| File.read(path) }.join("\n")
     if exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed')
       raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
@@ -46,29 +49,37 @@ class CustomerUIActionSweep
       'Browse mode findIcon open/close ok'
     )
     raise 'Exact-ID smoke did not pass' unless exact_runtime.include?('Candidate set passed') || exact_runtime.include?('Candidate passed')
-    if File.exist?(strict_fixture_log) && File.mtime(strict_fixture_log) >= @started_at - 30 * 60
+    if fresh_release_runtime_evidence?(strict_fixture_log)
       strict_fixture = File.read(strict_fixture_log)
       raise 'Strict exact-ID fixture smoke did not pass' unless strict_fixture.include?('Candidate set passed') && strict_fixture.include?('Browse mode findIcon activation ok') && strict_fixture.include?('Browse mode secondMenuBar activation ok')
     end
-    if File.exist?(shared_log) && File.mtime(shared_log) >= @started_at - 30 * 60 && File.read(shared_log).include?('Live zone smoke passed')
+    if fresh_release_runtime_evidence?(shared_log) && File.read(shared_log).include?('Live zone smoke passed')
       shared = File.read(shared_log)
       raise 'Shared exact-ID smoke did not pass' unless shared.include?('Candidate set passed') || shared.include?('Candidate passed')
     end
-    if File.exist?(native_log) && File.mtime(native_log) >= @started_at - 30 * 60 && File.read(native_log).include?('Live zone smoke passed')
+    if fresh_release_runtime_evidence?(native_log) && File.read(native_log).include?('Live zone smoke passed')
       native = File.read(native_log)
       raise 'Native exact-ID smoke did not pass' unless native.include?('Candidate set passed') || native.include?('Candidate passed')
     end
-    if File.exist?(host_log) && File.mtime(host_log) >= @started_at - 30 * 60 && File.read(host_log).include?('Live zone smoke passed')
+    if fresh_release_runtime_evidence?(host_log) && File.read(host_log).include?('Live zone smoke passed')
       host = File.read(host_log)
       raise 'Host exact-ID smoke did not pass' unless host.include?('Candidate set passed') || host.include?('Candidate passed')
     end
     @transcript << "runtime_smoke=#{smoke_log} ok"
-    @transcript << "strict_exact_id=#{strict_fixture_log} ok" if File.exist?(strict_fixture_log) && File.mtime(strict_fixture_log) >= @started_at - 30 * 60 && File.read(strict_fixture_log).include?('Live zone smoke passed')
-    @transcript << "shared_exact_id=#{shared_log} ok" if File.exist?(shared_log) && File.mtime(shared_log) >= @started_at - 30 * 60 && File.read(shared_log).include?('Live zone smoke passed')
+    @transcript << "strict_exact_id=#{strict_fixture_log} ok" if fresh_release_runtime_evidence?(strict_fixture_log) && File.read(strict_fixture_log).include?('Live zone smoke passed')
+    @transcript << "shared_exact_id=#{shared_log} ok" if fresh_release_runtime_evidence?(shared_log) && File.read(shared_log).include?('Live zone smoke passed')
     @transcript << "startup_probe=#{startup_log} ok"
     @transcript << "wake_probe=#{wake_log} ok"
-    @transcript << "native_exact_id=#{native_log} ok" if File.exist?(native_log) && File.mtime(native_log) >= @started_at - 30 * 60 && File.read(native_log).include?('Live zone smoke passed')
-    @transcript << "host_exact_id=#{host_log} ok" if File.exist?(host_log) && File.mtime(host_log) >= @started_at - 30 * 60 && File.read(host_log).include?('Live zone smoke passed')
+    @transcript << "native_exact_id=#{native_log} ok" if fresh_release_runtime_evidence?(native_log) && File.read(native_log).include?('Live zone smoke passed')
+    @transcript << "host_exact_id=#{host_log} ok" if fresh_release_runtime_evidence?(host_log) && File.read(host_log).include?('Live zone smoke passed')
+  end
+
+  def fresh_release_runtime_evidence?(path)
+    fresh_runtime_evidence?(path, max_age_seconds: RELEASE_RUNTIME_EVIDENCE_MAX_AGE_SECONDS)
+  end
+
+  def fresh_runtime_evidence?(path, max_age_seconds:)
+    File.exist?(path) && File.mtime(path) >= @started_at - max_age_seconds
   end
 
   def verify_recent_appearance_overlay_screenshots
@@ -188,7 +199,7 @@ class CustomerUIActionSweep
 
   def fullscreen_matrix_artifact
     path = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+    return nil unless fresh_release_runtime_evidence?(path)
 
     payload = JSON.parse(File.read(path))
     return nil unless payload['status'] == 'pass'
@@ -206,7 +217,7 @@ class CustomerUIActionSweep
 
   def wake_visible_zone_artifact
     path = '/tmp/sanebar_runtime_wake_probe.json'
-    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+    return nil unless fresh_release_runtime_evidence?(path)
 
     payload = JSON.parse(File.read(path))
     return nil unless runtime_candidate_matches?(payload)
@@ -230,8 +241,8 @@ class CustomerUIActionSweep
     nil
   end
 
-  def runtime_json_artifact(path, max_age_seconds: 30 * 60)
-    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - max_age_seconds
+  def runtime_json_artifact(path, max_age_seconds: SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS)
+    return nil unless fresh_runtime_evidence?(path, max_age_seconds: max_age_seconds)
 
     payload = JSON.parse(File.read(path))
     return nil unless payload['status'] == 'pass'
@@ -249,7 +260,7 @@ class CustomerUIActionSweep
 
   def shared_bundle_exact_id_artifact
     path = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+    return nil unless fresh_release_runtime_evidence?(path)
 
     body = File.read(path)
     return nil unless runtime_log_candidate_matches?(body)
@@ -274,7 +285,7 @@ class CustomerUIActionSweep
 
   def dynamic_helper_wake_artifact
     path = '/tmp/sanebar_runtime_wake_probe.json'
-    return nil unless File.exist?(path) && File.mtime(path) >= @started_at - 30 * 60
+    return nil unless fresh_release_runtime_evidence?(path)
 
     payload = JSON.parse(File.read(path))
     return nil unless runtime_candidate_matches?(payload)
