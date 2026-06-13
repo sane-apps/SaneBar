@@ -12,6 +12,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.68] - 2026-06-12
 
+Adds AppleScript commands to move menu bar icons before or after another icon.
+
+---
+
+## [2.1.68] - 2026-06-12
+
 Adds AppleScript target-relative menu bar icon reordering within the same section: `move icon before` and `move icon after`.
 
 ---
