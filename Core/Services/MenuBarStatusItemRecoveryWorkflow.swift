@@ -451,10 +451,33 @@ final class MenuBarStatusItemRecoveryWorkflow {
             logger.error(
                 "Status item recovery stopped after \(recoveryCount, privacy: .public) attempt(s) for \(trigger, privacy: .public); last reason=\(reason?.rawValue ?? "none", privacy: .public)"
             )
+            surfaceHealthFallbackAfterRecoveryStopIfNeeded(
+                reason: reason,
+                trigger: trigger,
+                recoveryCount: recoveryCount
+            )
 
         case .keepExpanded, .performInitialHide:
             manager.pendingRecoveryHideRestore = false
         }
+    }
+
+    private func surfaceHealthFallbackAfterRecoveryStopIfNeeded(
+        reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
+        trigger: String,
+        recoveryCount: Int
+    ) {
+        guard MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+            recoveryReason: reason,
+            recoveryCount: recoveryCount
+        ) else { return }
+
+        logger.error(
+            "Opening Health fallback after unrecoverable status-item recovery failure for \(trigger, privacy: .public)"
+        )
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        SettingsOpener.open(tab: .health)
     }
 
     func schedulePositionValidation(

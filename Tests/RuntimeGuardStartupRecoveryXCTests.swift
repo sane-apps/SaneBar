@@ -369,6 +369,8 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
         let setupURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemSetupWorkflow.swift")
         let setupSource = try String(contentsOf: setupURL, encoding: .utf8)
+        let policyURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift")
+        let policySource = try String(contentsOf: policyURL, encoding: .utf8)
 
         XCTAssertTrue(
             source.contains("var isExecutingStatusItemRecovery = false") &&
@@ -380,9 +382,26 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 setupSource.contains("let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : manager.hidingService.state") &&
                 setupSource.contains("deferApplyingState: shouldRestoreHidden") &&
-                source.contains("self.hidingService.applyCurrentStateToLiveItems()") &&
+                source.contains("self.restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)") &&
+                policySource.contains("func restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: MenuBarRuntimeSnapshot)") &&
+                policySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
                 setupSource.contains("Preserved hidden state during status item recovery"),
             "Structural status-item recovery should reject stale validation escalations, defer hidden-state collapse until geometry warmup, and avoid leaving the bar permanently expanded after a wake/display repair"
+        )
+    }
+
+    func testStoppedStatusItemRecoverySurfacesHealthFallback() throws {
+        let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
+        let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
+        let policyURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift")
+        let policySource = try String(contentsOf: policyURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            policySource.contains("shouldSurfaceHealthAfterStatusItemRecoveryStop(") &&
+                recoverySource.contains("surfaceHealthFallbackAfterRecoveryStopIfNeeded(") &&
+                recoverySource.contains("NSApp.setActivationPolicy(.regular)") &&
+                recoverySource.contains("SettingsOpener.open(tab: .health)"),
+            "When automatic status-item recovery exhausts itself, SaneBar should surface an independent Health fallback instead of only logging while the menu bar icon may be unreachable"
         )
     }
 

@@ -33,6 +33,22 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
+  def with_manifest(content)
+    old_path = CustomerUIActionSweep.const_get(:MANIFEST_PATH)
+    Dir.mktmpdir('sanebar-customer-ui-manifest-') do |dir|
+      manifest_path = File.join(dir, 'CustomerUIActions.yml')
+      File.write(manifest_path, content)
+      CustomerUIActionSweep.send(:remove_const, :MANIFEST_PATH)
+      CustomerUIActionSweep.const_set(:MANIFEST_PATH, manifest_path)
+      yield
+    end
+  ensure
+    if defined?(old_path) && old_path
+      CustomerUIActionSweep.send(:remove_const, :MANIFEST_PATH) if CustomerUIActionSweep.const_defined?(:MANIFEST_PATH, false)
+      CustomerUIActionSweep.const_set(:MANIFEST_PATH, old_path)
+    end
+  end
+
   def test_full_runtime_completion_requires_real_mini_evidence
     action = {
       'required_proof_level' => 'full_runtime_completion',
@@ -617,19 +633,111 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
+  def test_runtime_state_results_fail_named_state_without_completed_scenarios
+    @sweep.instance_variable_set(:@action_results, {
+      'onboarding-basic-pro-permission-actions' => {
+        status: 'passed',
+        evidence: [
+          { type: 'mini_click', detail: 'settings_tab=license ok', artifacts: ['outputs/customer-ui/license-click.json'] },
+          { type: 'screenshot', detail: 'license screenshot', artifacts: ['outputs/customer-ui/license.png'] }
+        ]
+      },
+      'pro-basic-gating-actions' => {
+        status: 'passed',
+        evidence: [
+          { type: 'mini_click', detail: 'settings_tab=control ok', artifacts: ['outputs/customer-ui/pro-click.json'] },
+          { type: 'log', detail: 'pro log', artifacts: ['outputs/customer-ui/pro.log'] }
+        ]
+      },
+      'license-about-support-actions' => {
+        status: 'passed',
+        evidence: [
+          { type: 'mini_click', detail: 'settings_tab=about ok', artifacts: ['outputs/customer-ui/about-click.json'] },
+          { type: 'log', detail: 'license log', artifacts: ['outputs/customer-ui/license.log'] }
+        ]
+      }
+    })
+
+    rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+    basic_pro = rows.find { |row| row[:id] == 'basic_pro_mode' }
+
+    assert_equal 'failed', basic_pro[:status]
+    assert_empty basic_pro[:completed_scenarios]
+    assert_includes basic_pro[:failure_reasons], 'missing completed_scenarios for named runtime state'
+  end
+
+  def test_runtime_state_results_allows_explicit_informational_state_without_scenarios
+    with_manifest(<<~YAML) do
+      ---
+      runtime_state_matrix:
+        external_tracker_note:
+          informational: true
+          informational_reason: Recorded by the external tracker, not a release-blocking runtime state.
+          action_ids: []
+          required_evidence_types: []
+    YAML
+      @sweep.instance_variable_set(:@action_results, {})
+
+      rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+      info = rows.find { |row| row[:id] == 'external_tracker_note' }
+
+      assert_equal 'informational', info[:status]
+      assert_equal 'Recorded by the external tracker, not a release-blocking runtime state.', info[:informational_reason]
+      assert_empty info[:completed_scenarios]
+    end
+  end
+
   def test_runtime_state_results_accept_resource_soak_same_day_candidate
     soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
-    preserve_files(soak_artifact) do
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    preserve_files(soak_artifact, soak_log) do
+      File.write(
+        soak_log,
+        [
+          'resource_soak_started_at=2026-06-13T12:00:00Z',
+          'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.62", :app_build=>"2162", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+          'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
+          'sample=2 elapsed=1260.0s cpu=0.1 rss=82.0MB physical=61.0MB',
+          'resource_soak_finished_at=2026-06-13T12:21:00Z',
+          'status=pass'
+        ].join("\n")
+      )
       File.write(
         soak_artifact,
         JSON.pretty_generate(
           status: 'pass',
+          duration_seconds: 1260.0,
+          sample_count: 2,
+          avg_cpu: 0.15,
+          peak_cpu: 0.2,
+          avg_rss_mb: 81.0,
+          peak_rss_mb: 82.0,
+          rss_growth_mb: 2.0,
+          avg_physical_footprint_mb: 60.5,
+          peak_physical_footprint_mb: 61.0,
+          physical_footprint_growth_mb: 1.0,
           evidence_types: %w[mini_runtime log state_receipt],
-          evidence_paths: ['/tmp/sanebar_runtime_resource_soak.log'],
+          evidence_paths: [soak_log],
           completed_scenarios: [
             'at least 20m Mini soak sampled on the release candidate',
             'average CPU remains within idle budget',
             'RSS and physical footprint do not grow beyond the short-soak release budget'
+          ],
+          samples: [
+            {
+              sampled_at: '2026-06-13T12:00:00Z',
+              elapsed_seconds: 0.0,
+              cpu: 0.2,
+              rss_mb: 80.0,
+              physical_footprint_mb: 60.0
+            },
+            {
+              sampled_at: '2026-06-13T12:21:00Z',
+              elapsed_seconds: 1260.0,
+              cpu: 0.1,
+              rss_mb: 82.0,
+              physical_footprint_mb: 61.0
+            }
           ],
           candidate: {
             app_path: '/Applications/SaneBar.app',
@@ -640,6 +748,7 @@ class CustomerUIActionSweepTest < Minitest::Test
       )
       old_time = Time.now - (2 * 60 * 60)
       File.utime(old_time, old_time, soak_artifact)
+      File.utime(old_time, old_time, soak_log)
       @sweep.instance_variable_set(:@started_at, Time.now)
       @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
       @sweep.instance_variable_set(:@running_bundle_build, '2162')
@@ -657,6 +766,59 @@ class CustomerUIActionSweepTest < Minitest::Test
       soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
 
       assert_equal 'passed', soak[:status]
+      assert_includes soak[:evidence_paths], soak_artifact
+      assert_includes soak[:evidence_paths], soak_log
+      assert_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
+      assert_includes soak[:completed_scenarios], 'per-sample CPU/RSS/physical footprint trend fields were captured'
+    end
+  end
+
+  def test_runtime_state_results_rejects_summary_only_resource_soak
+    soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    preserve_files(soak_artifact, soak_log) do
+      File.write(soak_log, "resource_soak_started_at=2026-06-13T12:00:00Z\nResource soak summary only\nstatus=pass\n")
+      File.write(
+        soak_artifact,
+        JSON.pretty_generate(
+          status: 'pass',
+          duration_seconds: 1260.0,
+          sample_count: 2,
+          avg_cpu: 0.15,
+          peak_rss_mb: 82.0,
+          evidence_types: %w[mini_runtime log state_receipt],
+          evidence_paths: [soak_log],
+          completed_scenarios: [
+            'at least 20m Mini soak sampled on the release candidate',
+            'average CPU remains within idle budget',
+            'RSS and physical footprint do not grow beyond the short-soak release budget'
+          ],
+          candidate: {
+            app_path: '/Applications/SaneBar.app',
+            app_version: '2.1.62',
+            app_build: '2162'
+          }
+        )
+      )
+      @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
+      @sweep.instance_variable_set(:@running_bundle_build, '2162')
+      @sweep.instance_variable_set(:@action_results, {
+        'startup-wake-appearance-recovery' => {
+          status: 'passed',
+          evidence: [
+            { type: 'mini_runtime', detail: 'runtime', artifacts: [soak_log] },
+            { type: 'log', detail: 'log', artifacts: [soak_log] },
+            { type: 'state_receipt', detail: 'receipt', artifacts: [soak_artifact] }
+          ]
+        }
+      })
+
+      rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+      soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
+
+      assert_equal 'failed', soak[:status]
+      refute_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
+      assert_includes soak[:failure_reasons].join("\n"), 'missing completed_scenarios'
     end
   end
 

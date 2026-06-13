@@ -242,7 +242,7 @@ See `PRIVACY.md` for details and rationale.
 - Current public channel is direct download:
   - Sparkle is used for updates (appcast in Info.plist)
   - update feed: `https://sanebar.com/appcast.xml`
-  - release builds produce a notarized DMG hosted via Cloudflare R2 and `dist.sanebar.com`
+  - release builds produce a notarized ZIP-first direct-download/Sparkle artifact hosted via Cloudflare R2 at `dist.sanebar.com/updates/SaneBar-X.Y.Z.zip`
 - The current public channel is direct download only.
 - Basic stays free and Pro is a one-time `$14.99` unlock on direct surfaces.
 - The current full-featured Mac App Store lane is intentionally disabled.
@@ -252,7 +252,7 @@ See `PRIVACY.md` for details and rationale.
 ## Build and Release Infrastructure
 
 - **SaneProcess integration**: `.saneprocess` in the project root marks this as a SaneProcess-managed project.
-- **DMGs**: uploaded to Cloudflare R2 bucket `sanebar-downloads` (never committed to GitHub).
+- **ZIP artifacts**: uploaded to Cloudflare R2 bucket `sanebar-downloads` (never committed to GitHub). Sparkle appcast enclosures and website download routes must point to the same versioned ZIP.
 - **Appcast**: Sparkle reads `SUFeedURL` from `SaneBar/Info.plist` → `https://sanebar.com/appcast.xml`.
 - **Sparkle key**: `7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=` (shared across all SaneApps).
 - **Release workflow**: see DEVELOPMENT.md § Release Process and ARCHITECTURE.md § Operations & Scripts Reference.
@@ -269,10 +269,21 @@ See `PRIVACY.md` for details and rationale.
 - Authentication is rate-limited after repeated failures.
 - Deferred UI setup avoids crashes when WindowServer is not ready.
 
+### Live-Anchor Structural Recovery Contract
+
+SaneBar must not trust persisted menu-bar state until live AppKit/AX anchors prove the current structural attachment. Saved Visible/Hidden/Always Hidden positions, autosave names, currentHost defaults, cached separator frames, and warm geometry are hints, not proof.
+
+The recovery contract is:
+- prove the main SaneBar status item and separator status-item anchors are live before marking geometry warm
+- prove the current structural snapshot still has the expected zone boundaries before replaying hidden-state intent
+- treat missing, unattached, or blocking-mode anchors as recovery input, not as valid layout state
+- rebuild SaneBar-owned anchors or open the Health fallback when live proof cannot be established
+- never use cached geometry alone to silently restore a hidden state after startup, reboot, wake, display changes, or poisoned defaults
+
 ## Testing Strategy
 
 - Unit tests live under `Tests/`.
-- Primary entry point for verification: `./scripts/SaneMaster.rb verify`.
+- Primary entry point for verification: `./Scripts/SaneMaster.rb verify`.
 - Search/trigger flows are largely integration-tested via MenuBarManager + services.
 
 ## Icon Moving Pipeline
@@ -382,28 +393,34 @@ third-party item drags.
 
 After consolidation (Feb 2026), ~32 active scripts across 4 locations. Dead copies and superseded CI scripts removed.
 
-### SaneBar Project Scripts (`scripts/`)
+### SaneBar Project Scripts (`Scripts/`)
+
+The checked-in project helper directory is `Scripts/` with a capital `S`. Default macOS volumes may allow `scripts/`, but docs and durable references should use the portable checked-in casing.
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `SaneMaster.rb` | Bash wrapper — delegates to SaneProcess infra, falls back to standalone | `./scripts/SaneMaster.rb <command>` |
-| `SaneMaster_standalone.rb` | Minimal build tool for external contributors (no infra dependency) | `ruby scripts/SaneMaster_standalone.rb build` |
-| `qa.rb` | Pre-release QA: syntax checks, version consistency, URL reachability | `ruby scripts/qa.rb` |
-| `button_map.rb` | Maps every UI button/toggle to its action handler | `ruby scripts/button_map.rb` |
-| `trace_flow.rb` | Traces code path from a function name to its handlers | `ruby scripts/trace_flow.rb toggleHiddenItems` |
-| `marketing_screenshots.rb` | Automates app screenshots for marketing | `ruby scripts/marketing_screenshots.rb --list` |
-| `verify_crypto_payment.rb` | Verifies crypto transactions (BTC/SOL/ZEC), sends download links | `ruby scripts/verify_crypto_payment.rb` |
-| `generate_download_link.rb` | Generates signed download URLs with expiration | `ruby scripts/generate_download_link.rb` |
-| `check_outreach_opportunities.rb` | Scans GitHub for outreach/collaboration opportunities | `ruby scripts/check_outreach_opportunities.rb` |
-| `functional_audit.swift` | Runtime functional audit of app behavior | `swift scripts/functional_audit.swift` |
-| `verify_ui.swift` | UI verification checks | `swift scripts/verify_ui.swift` |
-| `stress_test_menubar.swift` | Menu bar stress test | `swift scripts/stress_test_menubar.swift` |
-| `overflow_test_menubar.swift` | Menu bar overflow edge cases | `swift scripts/overflow_test_menubar.swift` |
-| `uninstall_sanebar.sh` | Clean uninstall script for users | `bash scripts/uninstall_sanebar.sh` |
+| `SaneMaster.rb` | Project wrapper that hydrates SaneBar metadata/signing context, delegates to SaneProcess when present, and falls back to standalone mode for external contributors | `./Scripts/SaneMaster.rb <command>` |
+| `SaneMaster_standalone.rb` | Minimal build tool for external contributors without SaneProcess infra | `ruby Scripts/SaneMaster_standalone.rb build` |
+| `qa.rb` | Pre-release QA: release guardrails, docs/tooling checks, appcast checks, runtime probe orchestration | `ruby Scripts/qa.rb` |
+| `customer_ui_action_sweep.rb` | Customer-facing action receipt sweep | `ruby Scripts/customer_ui_action_sweep.rb` |
+| `live_zone_smoke.rb` | Mini runtime smoke for browse views, moves, screenshots, and resource checks | `./Scripts/live_zone_smoke.rb` |
+| `startup_layout_probe.rb` | Mini startup recovery probe for poisoned persisted state and live-anchor restoration | `./Scripts/startup_layout_probe.rb` |
+| `wake_layout_probe.rb` | Mini wake/display recovery probe for drift and live-anchor restoration | `./Scripts/wake_layout_probe.rb` |
+| `button_map.rb` | Maps every UI button/toggle to its action handler | `ruby Scripts/button_map.rb` |
+| `trace_flow.rb` | Traces code path from a function name to its handlers | `ruby Scripts/trace_flow.rb toggleHiddenItems` |
+| `marketing_screenshots.rb` | Automates app screenshots for marketing | `ruby Scripts/marketing_screenshots.rb --list` |
+| `verify_crypto_payment.rb` | Verifies crypto transactions (BTC/SOL/ZEC), sends download links | `ruby Scripts/verify_crypto_payment.rb` |
+| `generate_download_link.rb` | Generates signed download URLs with expiration | `ruby Scripts/generate_download_link.rb` |
+| `check_outreach_opportunities.rb` | Scans GitHub for outreach/collaboration opportunities | `ruby Scripts/check_outreach_opportunities.rb` |
+| `functional_audit.swift` | Runtime functional audit of app behavior | `swift Scripts/functional_audit.swift` |
+| `verify_ui.swift` | UI verification checks | `swift Scripts/verify_ui.swift` |
+| `stress_test_menubar.swift` | Menu bar stress test | `swift Scripts/stress_test_menubar.swift` |
+| `overflow_test_menubar.swift` | Menu bar overflow edge cases | `swift Scripts/overflow_test_menubar.swift` |
+| `uninstall_sanebar.sh` | Clean uninstall script for users | `bash Scripts/uninstall_sanebar.sh` |
 
 ### SaneMaster Commands (via SaneProcess)
 
-The wrapper at `scripts/SaneMaster.rb` delegates to `SaneProcess/scripts/SaneMaster.rb`. Full help: `./scripts/SaneMaster.rb help`.
+The wrapper at `Scripts/SaneMaster.rb` delegates to `SaneProcess/scripts/SaneMaster.rb`. Full help: `./Scripts/SaneMaster.rb help`.
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
@@ -423,7 +440,7 @@ These live in `SaneProcess/scripts/` and serve all SaneApps projects.
 
 | Script | Purpose | When to Use |
 |--------|---------|-------------|
-| `release.sh` | Full release pipeline: build + sign + notarize + DMG + Sparkle + R2 + appcast | `release.sh --project $(pwd) --full --version X.Y.Z` |
+| `release.sh` | Full release pipeline: build + sign + notarize ZIP + Sparkle + R2 + appcast | `release.sh --project $(pwd) --full --version X.Y.Z` |
 | `sane_test.rb` | Unified test launch: kill → build → deploy → launch → logs | `sane_test.rb SaneBar` (uses Mac Mini by default) |
 | `version_bump.rb` | Bump version strings across project files | `ruby version_bump.rb 2.2.0` |
 | `contamination_check.rb` | Detect cross-project reference leaks | `ruby contamination_check.rb --all` |
@@ -431,7 +448,6 @@ These live in `SaneProcess/scripts/` and serve all SaneApps projects.
 | `scaffold.rb` | Create new app project with SaneApps structure | `ruby scaffold.rb NewApp` |
 | `memory_audit.rb` | Find unfixed bugs/unresolved issues in Memory MCP | `ruby memory_audit.rb` |
 | `validation_report.rb` | Measure SaneProcess productivity metrics | `ruby validation_report.rb` |
-| `publish_website.sh` | Deploy website to Cloudflare Pages | `bash publish_website.sh` |
 | `appstore_submit.rb` | App Store Connect submission (JWT, upload, polling) | `ruby appstore_submit.rb` |
 | `qa_drift_checks.rb` | Catch quality drift between SaneProcess and projects | `ruby qa_drift_checks.rb` |
 | `weaken_sparkle.rb` | Patch Sparkle dylib for App Store builds | `ruby weaken_sparkle.rb` |
@@ -445,7 +461,7 @@ Mini scripts live in `SaneProcess/scripts/mini/` (source of truth) and `infra/sc
 | `mini-nightly.sh` | 2 AM daily | Git sync + build all apps + run tests + system health |
 | `mini-train.sh` | 3 AM daily | MLX LoRA fine-tuning |
 | `mini-build.sh` | On-demand | Remote build trigger |
-| `mini-test-install.sh` | On-demand | DMG mount + verify (customer-experience test) |
+| `mini-test-install.sh` | On-demand | Customer archive install verify (ZIP-first, historical DMG fallback) |
 | `mini-sync.sh` | On-demand | Git sync across all repos |
 | `mini-report.sh` | On-demand | Fetch nightly report from Mini |
 | `mini-training-report.sh` | On-demand | Fetch training report from Mini |
@@ -456,6 +472,6 @@ Automation scripts (`SaneProcess/scripts/automation/`): `nv-audit.sh`, `nv-relno
 
 **License issuance:** Real customer license keys come from LemonSqueezy-backed orders and license-key records only. SaneBar validates against LemonSqueezy, so local key generators are not part of the supported workflow.
 
-**Release process:** See `SaneProcess/templates/RELEASE_SOP.md`. Summary: bump version → `release_preflight` → `release.sh --full --deploy` → verify appcast → monitor.
+**Release process:** See `SaneProcess/templates/RELEASE_SOP.md`. Summary: bump version -> `release_preflight` -> `release.sh --full --deploy` -> verify appcast and ZIP-first direct-download/Sparkle artifact -> monitor.
 
 **Customer email:** See `check-inbox.sh` in `infra/scripts/`. Commands: `check`, `review <id>`, `reply <id> <body_file>`, `compose`, `resolve`.

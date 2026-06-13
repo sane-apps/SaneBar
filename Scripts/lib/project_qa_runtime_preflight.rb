@@ -338,6 +338,11 @@ class ProjectQA
         puts "❌ startup probe failed (#{RUNTIME_STARTUP_PROBE_LOG_PATH})"
         return
       end
+      if (startup_artifact_error = startup_probe_artifact_contract_error)
+        @errors << startup_artifact_error
+        puts "❌ startup probe artifact incomplete (#{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH})"
+        return
+      end
 
       dynamic_helper_ids = ensure_runtime_dynamic_helper_wake_fixture!(target)
       if dynamic_helper_ids.empty?
@@ -535,6 +540,37 @@ class ProjectQA
       protected_universalaccess_write('write', 'com.apple.universalaccess', 'reduceTransparency', '-bool', normalized)
     end
     Open3.capture2e('/usr/bin/killall', 'cfprefsd')
+  end
+
+  def startup_probe_artifact_contract_error
+    unless File.exist?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH)
+      return "Startup layout probe did not write artifact #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH}."
+    end
+
+    artifact = JSON.parse(File.read(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH))
+    unless artifact['status'] == 'pass'
+      return "Startup layout probe artifact status is #{artifact['status'].inspect}, expected pass."
+    end
+
+    case_names = Array(artifact['cases']).map { |entry| entry['name'].to_s }
+    required_case = '#157 dirty reboot recovery keeps live anchors before hiding'
+    unless case_names.include?(required_case)
+      return "Startup layout probe artifact missing release-blocking case: #{required_case}."
+    end
+
+    required_scenarios = [
+      '#157 dirty startup recovers poisoned autosave defaults',
+      '#157 dirty startup clears currentHost visibility overrides',
+      '#157 dirty startup waits for valid status-item windows before auto-hide',
+      '#157 dirty startup remains passive and does not move the cursor'
+    ]
+    completed_scenarios = Array(artifact['completed_scenarios'])
+    missing = required_scenarios - completed_scenarios
+    return nil if missing.empty?
+
+    "Startup layout probe artifact missing completed scenario(s): #{missing.join(', ')}."
+  rescue JSON::ParserError => e
+    "Startup layout probe artifact is invalid JSON: #{e.message}."
   end
 
   def retryable_runtime_smoke_failure?(smoke_output)

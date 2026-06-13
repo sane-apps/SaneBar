@@ -191,10 +191,12 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             source.contains("StatusBarController.resetPersistentStatusItemState(") &&
+                source.contains("MenuBarSpacingService.shared.resetToDefaults()") &&
+                source.contains("MenuBarSpacingService.shared.attemptGracefulRefresh()") &&
                 source.contains("freshAutosaveNamespace: true") &&
                 source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\") {") &&
                 source.contains("schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)"),
-            "Reset to Defaults should reset status-item persistence into a fresh autosave namespace and recreate live menu bar items immediately"
+            "Reset to Defaults should reset host spacing defaults, reset status-item persistence into a fresh autosave namespace, and recreate live menu bar items immediately"
         )
     }
 
@@ -214,8 +216,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             source.contains("AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)") &&
                 source.contains("await self.geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)") &&
                 source.contains("await self.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)") &&
-                source.contains("let separatorAnchorSource = self.geometryResolver.currentSeparatorAnchorSource()") &&
-                source.contains("separatorAnchorSource == .live || separatorAnchorSource == .cached") &&
+                source.contains("let snapshot = self.currentStatusItemRecoverySnapshot()") &&
+                source.contains("snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live") &&
                 setupSource.contains("manager.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
                 setupSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
                 source.contains("func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool") &&
@@ -236,7 +238,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
                 replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
-            "Structural recovery should re-warm separator geometry from a trustworthy anchor, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
+            "Structural recovery should re-warm live core anchors before hidden replay, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
         )
         XCTAssertTrue(
             setupSource.contains("manager.statusBarController.configureStatusItems(") &&

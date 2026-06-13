@@ -45,10 +45,12 @@ class StartupLayoutProbe
     poisoned_backup_case = run_poisoned_backup_restore_case
     current_host_visibility_case = run_current_host_visibility_override_case
     auto_rehide_case = run_auto_rehide_false_case
+    dirty_reboot_case = run_dirty_reboot_recovery_case
 
     @cases << poisoned_backup_case
     @cases << current_host_visibility_case
     @cases << auto_rehide_case
+    @cases << dirty_reboot_case
 
     restore_state!
     @state_restored = true
@@ -57,6 +59,7 @@ class StartupLayoutProbe
       status: 'pass',
       bundle_id: @bundle_id,
       app_path: @app_path,
+      completed_scenarios: completed_scenarios_from_cases(@cases),
       cases: @cases
     )
     puts "✅ Startup layout probe passed (#{@cases.map { |entry| entry[:name] }.join(', ')})"
@@ -68,6 +71,7 @@ class StartupLayoutProbe
       app_path: @app_path,
       error: e.message,
       backtrace: Array(e.backtrace).first(12),
+      completed_scenarios: completed_scenarios_from_cases(@cases),
       cases: @cases
     )
     log("❌ Startup layout probe failed: #{e.message}")
@@ -261,6 +265,114 @@ class StartupLayoutProbe
         t5: t5
       }
     }
+  end
+
+  def run_dirty_reboot_recovery_case
+    width = numeric_default('SaneBar_CalibratedScreenWidth') || parsed_snapshot_value(read_layout_snapshot!, 'screenWidth')
+    raise 'Missing calibrated screen width for dirty reboot probe' unless width
+
+    width_bucket = width.to_i
+    version = autosave_version
+    main_key = "NSStatusItem Preferred Position SaneBar_Main_v#{version}"
+    separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
+    backup_main_key = "SaneBar_Position_Backup_#{width_bucket}_main"
+    backup_separator_key = "SaneBar_Position_Backup_#{width_bucket}_separator"
+    backup_main, backup_separator = wait_for_current_width_backup(
+      width_bucket: width_bucket,
+      main_key: backup_main_key,
+      separator_key: backup_separator_key
+    )
+    raise "Missing current-width backup for dirty reboot probe width #{width_bucket}" unless backup_main && backup_separator
+
+    visibility_keys = current_host_visibility_keys(version)
+    original_visibility_values = visibility_keys.to_h { |key| [key, read_current_host_default(key)] }
+
+    quit_app
+    save_settings_json(dirty_reboot_settings(load_settings_json))
+    visibility_keys.each { |key| write_current_host_bool(key, false) }
+    write_numeric_default(main_key, 0)
+    write_numeric_default(separator_key, 1)
+    write_numeric_default('SaneBar_CalibratedScreenWidth', width_bucket)
+
+    log(
+      "Seeded #157 dirty reboot prefs width=#{width_bucket} " \
+      "backup_main=#{backup_main} backup_separator=#{backup_separator}"
+    )
+    launch_app
+    parked_startup_cursor = park_pointer_away_from_menu_bar!(label: '#157 dirty reboot startup')
+
+    first_t2 = snapshot_after_delay(2.0, label: '#157 dirty reboot T+2s')
+    first_t5 = snapshot_after_delay(5.0, label: '#157 dirty reboot T+5s')
+    assert_snapshot_healthy!(first_t2, label: '#157 dirty reboot T+2s')
+    assert_snapshot_healthy!(first_t5, label: '#157 dirty reboot T+5s')
+    assert_hidden_after_auto_rehide!(first_t5, label: '#157 dirty reboot T+5s')
+    assert_main_right_gap_stable!(first_t2, first_t5, label: '#157 dirty reboot T+2s→T+5s')
+    first_cursor_proof = assert_cursor_stable!(parked_startup_cursor, label: '#157 dirty reboot passive recovery')
+    visibility_keys.each { |key| assert_current_host_default_cleared!(key) }
+
+    restored_main = numeric_default(main_key)
+    restored_separator = numeric_default(separator_key)
+    assert_restored_backup_pair!(
+      main: restored_main,
+      separator: restored_separator,
+      backup_main: backup_main,
+      backup_separator: backup_separator,
+      width: width,
+      label: '#157 dirty reboot restored preferred positions'
+    )
+
+    quit_app
+    launch_app
+    parked_replay_cursor = park_pointer_away_from_menu_bar!(label: '#157 dirty reboot relaunch')
+
+    replay_t2 = snapshot_after_delay(2.0, label: '#157 dirty reboot relaunch T+2s')
+    replay_t5 = snapshot_after_delay(5.0, label: '#157 dirty reboot relaunch T+5s')
+    assert_snapshot_healthy!(replay_t2, label: '#157 dirty reboot relaunch T+2s')
+    assert_snapshot_healthy!(replay_t5, label: '#157 dirty reboot relaunch T+5s')
+    assert_hidden_after_auto_rehide!(replay_t5, label: '#157 dirty reboot relaunch T+5s')
+    assert_main_right_gap_stable!(first_t5, replay_t5, label: '#157 dirty reboot T+5s→relaunch T+5s')
+    replay_cursor_proof = assert_cursor_stable!(parked_replay_cursor, label: '#157 dirty reboot relaunch passive recovery')
+
+    {
+      name: '#157 dirty reboot recovery keeps live anchors before hiding',
+      completed_scenarios: [
+        '#157 dirty startup recovers poisoned autosave defaults',
+        '#157 dirty startup clears currentHost visibility overrides',
+        '#157 dirty startup waits for valid status-item windows before auto-hide',
+        '#157 dirty startup remains passive and does not move the cursor'
+      ],
+      width_bucket: width_bucket,
+      backup_main: backup_main,
+      backup_separator: backup_separator,
+      restored_main: restored_main,
+      restored_separator: restored_separator,
+      cursor_proofs: [first_cursor_proof, replay_cursor_proof],
+      snapshots: {
+        first_t2: first_t2,
+        first_t5: first_t5,
+        replay_t2: replay_t2,
+        replay_t5: replay_t5
+      }
+    }
+  ensure
+    restore_current_host_defaults(original_visibility_values) if original_visibility_values
+  end
+
+  def dirty_reboot_settings(settings)
+    settings.merge(
+      'hasCompletedOnboarding' => true,
+      'hasSeenFreemiumIntro' => true,
+      'hasCompletedHealthWizard' => true,
+      'autoRehide' => true,
+      'rehideDelay' => 0.5,
+      'showOnHover' => false,
+      'showOnScroll' => false,
+      'showOnClick' => false,
+      'showOnUserDrag' => false,
+      'disableOnExternalMonitor' => false,
+      'hideApplicationMenusOnInlineReveal' => false,
+      'leftClickOpensBrowseIcons' => false
+    )
   end
 
   def wait_for_current_width_backup(width_bucket:, main_key:, separator_key:, timeout: 8.0)
@@ -457,6 +569,15 @@ class StartupLayoutProbe
     raise error if error
   end
 
+  def assert_hidden_after_auto_rehide!(snapshot, label:)
+    unless snapshot['autoRehideEnabled'] == true
+      raise "#{label}: dirty startup probe expected autoRehide=true, got #{snapshot['autoRehideEnabled'].inspect}"
+    end
+    return if snapshot['hidingState'] == 'hidden'
+
+    raise "#{label}: dirty startup did not hide after live-anchor recovery (state=#{snapshot['hidingState'].inspect})"
+  end
+
   def wait_for_healthy_snapshot(label:)
     deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS
     last_snapshot = nil
@@ -647,6 +768,14 @@ class StartupLayoutProbe
   def write_artifact!(payload)
     FileUtils.mkdir_p(File.dirname(@artifact_path))
     File.write(@artifact_path, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def completed_scenarios_from_cases(cases)
+    cases.flat_map do |entry|
+      Array(entry[:completed_scenarios]) +
+        Array(entry.dig(:cursor_proof, :completed_scenario)) +
+        Array(entry.dig(:cursor_proofs)).map { |proof| proof[:completed_scenario] }
+    end.compact.uniq
   end
 end
 
