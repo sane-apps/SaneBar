@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                                <item>
+                                                                                                                                                                                                                                                                                                                        <item>
+            <title>2.1.68</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Fri, 12 Jun 2026 22:06:01 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Adds AppleScript commands to move menu bar icons before or after another icon.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.68.zip"
+                       sparkle:version="2168"
+                       sparkle:shortVersionString="2.1.68"
+                       length="9131500"
+                       type="application/octet-stream"
+                       sparkle:edSignature="5uQMzIt4ouWhISuFpmvWv0pphl+9eXuB+lIDyjVLTGRLn8Zki472ph4AmLgFu3xc9Kz+VHEZGbLHtYB5xOpBCQ=="/>
+        </item>
+<item>
             <title>2.1.67</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 11 Jun 2026 05:28:20 -0400</pubDate>
