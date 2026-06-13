@@ -102,6 +102,30 @@ enum MenuBarVisibilityPolicy {
         hidingState == .hidden && !shouldSkipHideForExternalMonitor
     }
 
+    nonisolated static func canApplyHiddenStateAfterStatusItemRecovery(
+        hidingState: HidingState,
+        shouldSkipHideForExternalMonitor: Bool,
+        snapshot: MenuBarRuntimeSnapshot
+    ) -> Bool {
+        guard shouldRestoreHiddenAfterStatusItemRecovery(
+            hidingState: hidingState,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+        ) else { return false }
+
+        guard snapshot.structuralState == .ready, snapshot.startupItemsValid else { return false }
+
+        // Hidden replay applies the 10,000pt delimiter. After structural recovery,
+        // only do that once AppKit has actually attached both core status items.
+        return snapshot.separatorAnchorSource == .live && snapshot.mainAnchorSource == .live
+    }
+
+    nonisolated static func shouldSurfaceHealthAfterStatusItemRecoveryStop(
+        recoveryReason: MenuBarOperationCoordinator.StartupRecoveryReason?,
+        recoveryCount: Int
+    ) -> Bool {
+        recoveryReason != nil && recoveryCount > 0
+    }
+
     nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
         min(480, max(300, screenWidth * 0.18))
     }
@@ -298,11 +322,57 @@ extension MenuBarManager {
         guard MenuBarVisibilityPolicy.shouldRestoreHiddenAfterStatusItemRecovery(
             hidingState: hidingService.state,
             shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
-        ) else { return }
+        ) else {
+            pendingRecoveryHideRestore = false
+            return
+        }
 
+        let snapshot = currentStatusItemRecoverySnapshot()
+        guard MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+            hidingState: hidingService.state,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
+            snapshot: snapshot
+        ) else {
+            pendingRecoveryHideRestore = true
+            visibilityReplayLogger.warning(
+                "Deferring hidden state after healthy validation until status-item anchors are live (\(reason, privacy: .public), structure=\(snapshot.structuralState.rawValue, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
+            )
+            return
+        }
+
+        pendingRecoveryHideRestore = false
         hidingService.applyCurrentStateToLiveItems()
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
         visibilityReplayLogger.info("Reapplied hidden state after healthy validation (\(reason, privacy: .public))")
+    }
+
+    func restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: MenuBarRuntimeSnapshot) {
+        let shouldRestoreHidden = MenuBarVisibilityPolicy.shouldRestoreHiddenAfterStatusItemRecovery(
+            hidingState: hidingService.state,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+        )
+        if !shouldRestoreHidden {
+            pendingRecoveryHideRestore = false
+            visibilityReplayLogger.info("Skipping post-recovery hidden state restore because hide is no longer allowed")
+            return
+        }
+
+        guard MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+            hidingState: hidingService.state,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
+            snapshot: snapshot
+        ) else {
+            pendingRecoveryHideRestore = true
+            visibilityReplayLogger.warning(
+                "Deferring hidden state restore until status-item anchors are live (structure=\(snapshot.structuralState.rawValue, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
+            )
+            return
+        }
+
+        pendingRecoveryHideRestore = false
+        hidingService.applyCurrentStateToLiveItems()
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+        visibilityReplayLogger.info("Restored hidden state after post-recovery geometry warmup")
     }
 
     func schedulePostRecoveryAutoRehideIfNeeded(reason: String) {

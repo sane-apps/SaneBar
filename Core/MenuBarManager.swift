@@ -368,18 +368,15 @@ final class MenuBarManager: NSObject, ObservableObject {
             await self.geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)
             await self.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)
 
-            let separatorAnchorSource = self.geometryResolver.currentSeparatorAnchorSource()
-            let hasTrustworthySeparatorAnchor = separatorAnchorSource == .live || separatorAnchorSource == .cached
-            if hasTrustworthySeparatorAnchor {
+            let snapshot = self.currentStatusItemRecoverySnapshot()
+            if snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live {
                 logger.info("Warmed status item geometry caches after structural recovery")
             } else {
                 logger.warning("Status item recovery completed before geometry caches could be re-warmed")
             }
 
             if restoreHiddenStateAfterWarmup {
-                self.hidingService.applyCurrentStateToLiveItems()
-                self.hidingService.configureAlwaysHiddenDelimiter(self.alwaysHiddenSeparatorItem)
-                logger.info("Restored hidden state after post-recovery geometry warmup")
+                self.restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)
             }
 
             self.appearanceService.refreshAfterStatusItemRecovery()
@@ -734,6 +731,8 @@ final class MenuBarManager: NSObject, ObservableObject {
     func resetToDefaults() {
         settingsController.resetToDefaults()
         settings = settingsController.settings
+        try? MenuBarSpacingService.shared.resetToDefaults()
+        MenuBarSpacingService.shared.attemptGracefulRefresh()
         clearCachedSeparatorGeometry()
         recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults") {
             StatusBarController.resetPersistentStatusItemState(

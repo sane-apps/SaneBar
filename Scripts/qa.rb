@@ -474,6 +474,30 @@ class ProjectQA
       return
     end
 
+    if content.lines.count > 90
+      @errors << "SaneMaster.rb grew to #{content.lines.count} lines; wrapper policy requires a thin shared-prelude delegate"
+      puts '❌ Wrapper is no longer thin'
+      return
+    end
+
+    unless content.include?('sanemaster-wrapper-prelude.sh')
+      @errors << 'SaneMaster.rb must source SaneProcess sanemaster-wrapper-prelude.sh for shared wrapper policy'
+      puts '❌ Missing shared wrapper prelude'
+      return
+    end
+
+    forbidden_local_policy = [
+      'prepare_signing_keychain',
+      'security find-identity',
+      'set-key-partition-list',
+      'headless_keychain_blocking'
+    ]
+    if (forbidden = forbidden_local_policy.find { |needle| content.include?(needle) })
+      @errors << "SaneMaster.rb owns local signing/keychain policy (#{forbidden}); move wrapper behavior to SaneProcess"
+      puts '❌ Local signing policy in wrapper'
+      return
+    end
+
     # Verify infra exists
     infra_path = File.expand_path(INFRA_SANEMASTER)
     unless File.exist?(infra_path)

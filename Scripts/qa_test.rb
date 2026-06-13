@@ -16,6 +16,9 @@ class ProjectQATest < Minitest::Test
   def live_zone_smoke_source
     @live_zone_smoke_source ||= source_bundle('live_zone_smoke.rb', 'live_zone_smoke_*.rb')
   end
+  def project_doc(path)
+    File.read(File.join(ProjectQA::PROJECT_ROOT, path))
+  end
   def source_bundle(entrypoint, partial_pattern)
     paths = [
       File.join(__dir__, entrypoint),
@@ -123,6 +126,95 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'saneui_guard', PROJECT_ROOT"
     assert_includes source, 'SaneUI guard warnings'
     assert_includes source, 'shared settings UI drift'
+  end
+
+  def test_sanemaster_wrapper_stays_thin_and_sources_shared_prelude
+    source = qa_source
+    wrapper_source = File.read(File.join(ProjectQA::PROJECT_ROOT, 'scripts', 'SaneMaster.rb'))
+
+    assert_includes source, 'wrapper policy requires a thin shared-prelude delegate'
+    assert_includes source, 'sanemaster-wrapper-prelude.sh'
+    assert_includes source, 'forbidden_local_policy'
+    assert_includes wrapper_source, 'sanemaster-wrapper-prelude.sh'
+    assert_operator wrapper_source.lines.count, :<=, 90
+    refute_includes wrapper_source, 'security find-identity'
+    refute_includes wrapper_source, 'set-key-partition-list'
+  end
+
+  def test_shared_sanemaster_wrapper_prelude_owns_signing_policy
+    prelude_path = File.expand_path('../../infra/SaneProcess/scripts/sanemaster-wrapper-prelude.sh', ProjectQA::PROJECT_ROOT)
+    prelude_source = File.read(prelude_path)
+
+    assert_includes prelude_source, 'saneprocess_prepare_signing_keychain'
+    assert_includes prelude_source, 'saneprocess_enforce_signing_preflight'
+    assert_includes prelude_source, 'SANEMASTER_KEYCHAIN_PASSWORD'
+    assert_includes prelude_source, 'SANEBAR_KEYCHAIN_PASSWORD'
+  end
+
+  def test_durable_docs_match_direct_zip_distribution_and_macos_metadata
+    manifest = project_doc('.saneprocess')
+    readme = project_doc('README.md')
+    architecture = project_doc('ARCHITECTURE.md')
+    development = project_doc('DEVELOPMENT.md')
+    scripts_readme = project_doc('Scripts/README.md')
+
+    min_system_version = manifest[/min_system_version:\s*"([^"]+)"/, 1]
+    assert_equal '14.0', min_system_version
+    assert_includes readme, 'macOS 14.0+ (Sonoma or later), Apple Silicon (arm64) only'
+    assert_includes readme, 'macOS-14.0%2B'
+    refute_match(/macOS 15(?:\.0)?\+|macOS 15 Sequoia|macOS-15/, readme)
+
+    [architecture, development, scripts_readme].each do |doc|
+      assert_match(%r{ZIP-first direct-download/Sparkle}, doc)
+    end
+    assert_includes development, 'dist.sanebar.com/updates/SaneBar-X.Y.Z.zip'
+    assert_includes architecture, 'Sparkle appcast enclosures and website download routes must point to the same versioned ZIP'
+  end
+  def test_durable_docs_capture_live_anchor_recovery_and_current_proof_contract
+    architecture = project_doc('ARCHITECTURE.md')
+    development = project_doc('DEVELOPMENT.md')
+    scripts_readme = project_doc('Scripts/README.md')
+
+    assert_includes architecture, 'Live-Anchor Structural Recovery Contract'
+    assert_includes architecture, 'main SaneBar status item and separator status-item anchors are live'
+    assert_includes architecture, 'cached geometry alone'
+    assert_includes architecture, 'open the Health fallback'
+
+    assert_includes development, '### Rollback and Current Proof'
+    assert_includes development, 'Summary-only handoff prose is not enough release proof'
+    assert_includes development, 'completed scenarios proving live main and'
+    assert_includes scripts_readme, 'live-anchor structural recovery contract'
+  end
+  def test_scripts_readme_inventory_matches_present_scripts_and_casing
+    scripts_readme = project_doc('Scripts/README.md')
+    shared_section = scripts_readme[/## Shared Scripts.*?## Project-Specific Scripts/m]
+    project_section = scripts_readme[/## Project-Specific Scripts.*?Run the live browse smoke directly:/m]
+    listed_scripts = [shared_section, project_section].compact.flat_map do |section|
+      section.scan(/^\| `([^`]+)` \|/).flatten
+    end
+
+    assert_includes scripts_readme, 'Canonical checked-in path is `Scripts/`'
+    refute_includes scripts_readme, './scripts/'
+    refute_includes scripts_readme, '20L'
+    assert_operator File.readlines(File.join(ProjectQA::SCRIPTS_DIR, 'SaneMaster.rb')).count, :>, 20
+    refute_includes listed_scripts, 'publish_website.sh'
+    refute_includes listed_scripts, 'post_release.rb'
+
+    listed_scripts.each do |script|
+      assert File.exist?(File.join(ProjectQA::SCRIPTS_DIR, script)), "Scripts/README.md lists missing script #{script}"
+    end
+
+    %w[
+      SaneMaster.rb
+      SaneMaster_standalone.rb
+      qa.rb
+      customer_ui_action_sweep.rb
+      live_zone_smoke.rb
+      startup_layout_probe.rb
+      wake_layout_probe.rb
+    ].each do |script|
+      assert_includes listed_scripts, script
+    end
   end
   def test_privacy_manifest_declares_required_reasons
     manifest = File.read(File.join(ProjectQA::PROJECT_ROOT, 'SaneBar', 'PrivacyInfo.xcprivacy'))
@@ -378,12 +470,16 @@ class ProjectQATest < Minitest::Test
 
   def test_runtime_smoke_requires_startup_and_wake_layout_probes
     source = qa_source
+    preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
 
     assert_includes source, "startup_probe_script = File.join(SCRIPTS_DIR, 'startup_layout_probe.rb')"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"
     assert_includes source, 'startup_probe_env.merge!(runtime_probe_no_keychain_env(target))'
     assert_includes source, "runtime startup layout probe"
+    assert_includes preflight_source, 'startup_probe_artifact_contract_error'
+    assert_includes preflight_source, '#157 dirty reboot recovery keeps live anchors before hiding'
+    assert_includes preflight_source, '#157 dirty startup waits for valid status-item windows before auto-hide'
     assert_includes source, "wake_probe_script = File.join(SCRIPTS_DIR, 'wake_layout_probe.rb')"
     assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH"
@@ -680,6 +776,18 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, 'Startup probe requires cliclick on the Mini to prove passive recovery does not move the cursor'
     assert_includes source, 'Passive startup recovery moved cursor'
     assert_includes source, "completed_scenario: 'passive startup recovery did not physically move the cursor'"
+  end
+
+  def test_startup_layout_probe_covers_dirty_reboot_recovery_contract
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'run_dirty_reboot_recovery_case'
+    assert_includes source, '#157 dirty reboot recovery keeps live anchors before hiding'
+    assert_includes source, 'write_current_host_bool(key, false)'
+    assert_includes source, "'autoRehide' => true"
+    assert_includes source, 'assert_hidden_after_auto_rehide!'
+    assert_includes source, '#157 dirty startup waits for valid status-item windows before auto-hide'
+    assert_includes source, 'completed_scenarios_from_cases'
   end
 
   def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions

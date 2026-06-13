@@ -3,6 +3,13 @@
 class CustomerUIActionSweep
   RELEASE_RUNTIME_EVIDENCE_MAX_AGE_SECONDS = 2 * 60 * 60
   SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS = 30 * 60
+  RESOURCE_SOAK_ARTIFACT_PATH = '/tmp/sanebar_runtime_resource_soak.json'
+  RESOURCE_SOAK_MAX_AGE_SECONDS = 24 * 60 * 60
+  RESOURCE_SOAK_MIN_DURATION_SECONDS = 20 * 60
+  RESOURCE_SOAK_RAW_SCENARIOS = [
+    'raw current-build resource soak artifact and log references exist',
+    'per-sample CPU/RSS/physical footprint trend fields were captured'
+  ].freeze
 
   private
 
@@ -159,11 +166,25 @@ class CustomerUIActionSweep
         evidence_types |= Array(runtime_artifact[:evidence_types])
         evidence_paths |= Array(runtime_artifact[:evidence_paths])
       end
-      completed_scenarios = Array(runtime_artifact && runtime_artifact[:completed_scenarios]).map(&:to_s)
+      completed_scenarios = runtime_state_completed_scenarios(action_ids, runtime_artifact)
       required_scenarios = Array(row['required_scenarios']).map(&:to_s)
-      status = (required_types - evidence_types).empty? &&
-               (required_scenarios - completed_scenarios).empty? &&
-               evidence_paths.any? ? 'passed' : 'failed'
+      missing_types = required_types - evidence_types
+      missing_scenarios = required_scenarios - completed_scenarios
+      informational_reason = runtime_state_informational_reason(row)
+      failure_reasons = []
+      failure_reasons << "missing evidence types: #{missing_types.join(', ')}" unless missing_types.empty?
+      failure_reasons << "missing completed scenarios: #{missing_scenarios.join(', ')}" unless missing_scenarios.empty?
+      failure_reasons << 'missing evidence paths' if evidence_paths.empty?
+      if completed_scenarios.empty? && informational_reason.to_s.empty?
+        failure_reasons << 'missing completed_scenarios for named runtime state'
+      end
+      status = if failure_reasons.empty?
+                 'passed'
+               elsif informational_reason.to_s.empty?
+                 'failed'
+               else
+                 'informational'
+               end
       {
         id: id.to_s,
         status: status,
@@ -172,10 +193,39 @@ class CustomerUIActionSweep
         evidence_types: evidence_types.uniq,
         evidence_paths: evidence_paths.uniq,
         completed_scenarios: completed_scenarios.uniq,
+        informational_reason: informational_reason,
+        failure_reasons: failure_reasons,
         runtime_candidate: runtime_artifact && runtime_artifact[:candidate],
         manifest_sha256: report.fetch('manifest_sha256')
       }
     end
+  end
+
+  def runtime_state_completed_scenarios(action_ids, runtime_artifact)
+    completed = Array(runtime_artifact && runtime_artifact[:completed_scenarios]).map(&:to_s).map(&:strip).reject(&:empty?)
+    return completed unless completed.empty? && runtime_artifact.nil?
+
+    action_ids.flat_map { |action_id| action_completed_scenarios(action_id) }.map(&:to_s).map(&:strip).reject(&:empty?)
+  end
+
+  def action_completed_scenarios(action_id)
+    result = @action_results[action_id] || @action_results[action_id.to_s]
+    return [] unless result.is_a?(Hash)
+    return [] unless result[:status].to_s == 'passed' || result['status'].to_s == 'passed'
+
+    workflow = result[:workflow] || result['workflow'] || {}
+    steps = Array(workflow[:steps_completed] || workflow['steps_completed']).map(&:to_s).map(&:strip).reject(&:empty?)
+    return steps unless steps.empty?
+
+    Array(result[:output_assertions] || result['output_assertions']).map(&:to_s).map(&:strip).reject(&:empty?)
+  end
+
+  def runtime_state_informational_reason(row)
+    return nil unless row.is_a?(Hash)
+    return nil unless row['informational'] == true || row['status'].to_s == 'informational'
+
+    reason = row['informational_reason'].to_s.strip
+    reason.empty? ? nil : reason
   end
 
   def runtime_state_artifact(id)
@@ -193,7 +243,7 @@ class CustomerUIActionSweep
     when 'license_clipboard_paste'
       runtime_json_artifact('/tmp/sanebar_runtime_license_paste.json')
     when 'resource_soak_growth'
-      runtime_json_artifact('/tmp/sanebar_runtime_resource_soak.json', max_age_seconds: 24 * 60 * 60)
+      resource_soak_artifact
     end
   end
 
@@ -256,6 +306,89 @@ class CustomerUIActionSweep
     }
   rescue JSON::ParserError
     nil
+  end
+
+  def resource_soak_artifact
+    path = RESOURCE_SOAK_ARTIFACT_PATH
+    return nil unless fresh_runtime_evidence?(path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
+
+    payload = JSON.parse(File.read(path))
+    return nil unless payload['status'] == 'pass'
+    return nil unless runtime_candidate_matches?(payload)
+
+    validation = validate_resource_soak_raw_proof(payload, path)
+    return nil unless validation[:ok]
+
+    {
+      evidence_types: (Array(payload['evidence_types']).map(&:to_s) | %w[mini_runtime log state_receipt]),
+      evidence_paths: validation[:evidence_paths],
+      completed_scenarios: (Array(payload['completed_scenarios']).map(&:to_s) | RESOURCE_SOAK_RAW_SCENARIOS),
+      candidate: runtime_candidate(payload)
+    }
+  rescue JSON::ParserError
+    nil
+  end
+
+  def validate_resource_soak_raw_proof(payload, artifact_path)
+    evidence_paths = resource_soak_evidence_paths(payload, artifact_path)
+    return { ok: false, evidence_paths: evidence_paths } unless evidence_paths.include?(artifact_path)
+
+    existing_paths = evidence_paths.select { |candidate| File.file?(candidate) }
+    log_paths = existing_paths.select { |candidate| File.extname(candidate) == '.log' }
+    return { ok: false, evidence_paths: evidence_paths } if log_paths.empty?
+    return { ok: false, evidence_paths: evidence_paths } if payload['duration_seconds'].to_f < RESOURCE_SOAK_MIN_DURATION_SECONDS
+    return { ok: false, evidence_paths: evidence_paths } if payload['sample_count'].to_i < 2
+
+    sample_count = resource_soak_json_trend_samples(payload).length
+    if sample_count < 2
+      sample_count = log_paths.flat_map { |log_path| resource_soak_log_trend_samples(log_path) }.length
+    end
+    return { ok: false, evidence_paths: evidence_paths } if sample_count < 2
+
+    { ok: true, evidence_paths: existing_paths.uniq }
+  end
+
+  def resource_soak_evidence_paths(payload, artifact_path)
+    raw_paths = [
+      artifact_path,
+      *Array(payload['evidence_paths']),
+      *Array(payload['raw_evidence_paths']),
+      *Array(payload['artifact_paths']),
+      *Array(payload['log_paths'])
+    ]
+    raw_paths.map(&:to_s).map(&:strip).reject(&:empty?).uniq
+  end
+
+  def resource_soak_json_trend_samples(payload)
+    Array(payload['samples']).select do |sample|
+      sample.is_a?(Hash) &&
+        sample.key?('sampled_at') &&
+        resource_soak_numeric_field?(sample, 'elapsed_seconds', 'elapsed') &&
+        resource_soak_numeric_field?(sample, 'cpu', 'cpu_percent') &&
+        resource_soak_numeric_field?(sample, 'rss_mb') &&
+        resource_soak_numeric_field?(sample, 'physical_footprint_mb')
+    end
+  end
+
+  def resource_soak_numeric_field?(sample, *keys)
+    keys.any? do |key|
+      value = sample[key]
+      !value.nil? && Float(value)
+    rescue ArgumentError, TypeError
+      false
+    end
+  end
+
+  def resource_soak_log_trend_samples(log_path)
+    File.readlines(log_path, chomp: true).select do |line|
+      line.match?(/\bsample=\d+\b/) &&
+        line.match?(/\belapsed=\d+(?:\.\d+)?s\b/) &&
+        line.match?(/\bcpu=\d+(?:\.\d+)?\b/) &&
+        line.match?(/\brss=\d+(?:\.\d+)?MB\b/) &&
+        line.match?(/\bphysical=\d+(?:\.\d+)?MB\b/)
+    end
+  rescue StandardError
+    []
   end
 
   def shared_bundle_exact_id_artifact

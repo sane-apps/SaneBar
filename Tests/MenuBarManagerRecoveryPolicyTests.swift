@@ -145,6 +145,80 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
+    @Test("Hidden state replay after status-item recovery requires live core anchors")
+    func statusItemRecoveryHiddenReplayRequiresLiveAnchors() {
+        #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    structuralState: .ready,
+                    separatorAnchorSource: .live,
+                    mainAnchorSource: .live,
+                    startupItemsValid: true
+                )
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    structuralState: .unattachedWindows,
+                    separatorAnchorSource: .live,
+                    mainAnchorSource: .live,
+                    startupItemsValid: false
+                )
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    structuralState: .ready,
+                    separatorAnchorSource: .cached,
+                    mainAnchorSource: .live,
+                    startupItemsValid: true
+                )
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .expanded,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    structuralState: .ready,
+                    separatorAnchorSource: .live,
+                    mainAnchorSource: .live,
+                    startupItemsValid: true
+                )
+            )
+        )
+    }
+
+    @Test("Unrecoverable status-item recovery surfaces Health only after real recovery attempts")
+    func statusItemRecoveryStopHealthFallbackDecision() {
+        #expect(
+            MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: .invalidStatusItems,
+                recoveryCount: 1
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: nil,
+                recoveryCount: 4
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: .missingCoordinates,
+                recoveryCount: 0
+            )
+        )
+    }
+
     @Test("Hidden collapsed separator can remain structurally healthy while offscreen")
     func hiddenCollapsedSeparatorStructuralHealth() {
         #expect(

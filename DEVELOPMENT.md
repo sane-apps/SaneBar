@@ -61,22 +61,22 @@ Names like "SANEMASTER OR DISASTER" aren't just mnemonics—they're a **shared v
 
 1. **Read Rule #0 first** (Section "The Rules") - It's about HOW to use all other rules
 2. **All files stay in project** - NEVER write files outside `/Users/sj/SaneApps/apps/SaneBar/` unless user explicitly requests it
-3. **Use SaneMaster.rb for project work** - `./scripts/SaneMaster.rb verify` for build+test. Public GitHub CI may call `xcodebuild test` only in the checked-in no-secrets workflow because SaneMaster is local infrastructure.
+3. **Use SaneMaster.rb for project work** - `./Scripts/SaneMaster.rb verify` for build+test. Public GitHub CI may call `xcodebuild test` only in the checked-in no-secrets workflow because SaneMaster is local infrastructure.
 4. **Self-rate after every task** - Rate yourself 1-10 on SOP adherence (see Self-Rating section)
 
-Bootstrap runs automatically via SessionStart hook. If it fails, run `./scripts/SaneMaster.rb doctor`.
+Bootstrap runs automatically via SessionStart hook. If it fails, run `./Scripts/SaneMaster.rb doctor`.
 
 **Your first action when user says "check our SOP" or "use our SOP":**
 ```bash
-./scripts/SaneMaster.rb bootstrap  # Verify environment (may already have run)
-./scripts/SaneMaster.rb verify     # Build + unit tests
+./Scripts/SaneMaster.rb bootstrap  # Verify environment (may already have run)
+./Scripts/SaneMaster.rb verify     # Build + unit tests
 ```
 
 **Key Commands:**
 ```bash
-./scripts/SaneMaster.rb verify     # Build + test (~30s)
-./scripts/SaneMaster.rb test_mode  # Kill → Build → Launch → Logs (full cycle)
-./scripts/SaneMaster.rb logs --follow  # Stream live logs
+./Scripts/SaneMaster.rb verify     # Build + test (~30s)
+./Scripts/SaneMaster.rb test_mode  # Kill -> Build -> Launch -> Logs (full cycle)
+./Scripts/SaneMaster.rb logs --follow  # Stream live logs
 ```
 
 **System**: macOS 26.2 (Tahoe), Apple Silicon, Ruby 3.4+
@@ -94,7 +94,7 @@ Global SOP lives in the nearest `AGENTS.md`. This file only adds SaneBar-specifi
 | #2 Verify first | Check Apple APIs with `verify_api`, apple-docs, or SDK interfaces before coding. |
 | #3 Two strikes | After two failures, stop retries, read the error/transcript, and research the root cause. |
 | #4 Green means go | Do not claim done with red tests, stale receipts, or skipped required gates. |
-| #5 Use SaneMaster | Use `./scripts/SaneMaster.rb` for build, test, launch, preflight, and release workflows. |
+| #5 Use SaneMaster | Use `./Scripts/SaneMaster.rb` for build, test, launch, preflight, and release workflows. |
 | #6 Full cycle | For app/runtime changes: verify, kill, launch/test_mode, inspect logs or screenshots. |
 | #7 Real tests | Add or run tests that can fail for the bug. No tautologies. |
 | #8 Write bugs down | Track active bugs in issues/memory/handoff with status and evidence. |
@@ -103,9 +103,11 @@ Global SOP lives in the nearest `AGENTS.md`. This file only adds SaneBar-specifi
 | #11 Fix tools | If SaneMaster, QA, or receipt tooling is wrong, fix the tool instead of bypassing it. |
 | #12 Stay responsive | Use subagents for broad reviews or parallel investigation when useful. |
 
-Plan format: cite the rule in each substantive step, e.g. `[Rule #5] Run ./scripts/SaneMaster.rb verify`.
+Plan format: cite the rule in each substantive step, e.g. `[Rule #5] Run ./Scripts/SaneMaster.rb verify`.
 
-Circuit breaker: repeated failures mean stop, inspect `./scripts/SaneMaster.rb breaker_errors`, research with local code/docs/MCPs, then continue with a concrete plan. Do not guess a third time.
+Circuit breaker: repeated failures mean stop, inspect `./Scripts/SaneMaster.rb breaker_errors`, research with local code/docs/MCPs, then continue with a concrete plan. Do not guess a third time.
+
+Script casing: the checked-in project helper directory is `Scripts/` with a capital `S`. Use `./Scripts/...` in repo docs and commands; lowercase may work on default macOS volumes but is not portable.
 
 ---
 
@@ -116,25 +118,25 @@ Full script catalog with descriptions: see **ARCHITECTURE.md § Operations & Scr
 ### Key Commands
 
 ```bash
-./scripts/SaneMaster.rb verify          # Build + tests
-./scripts/SaneMaster.rb verify --clean  # Full clean build
-./scripts/SaneMaster.rb test_mode       # Kill → Build → Launch → Logs
-./scripts/SaneMaster.rb logs --follow   # Stream live logs
-./scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
-ruby scripts/qa.rb                      # Pre-release QA checks
+./Scripts/SaneMaster.rb verify          # Build + tests
+./Scripts/SaneMaster.rb verify --clean  # Full clean build
+./Scripts/SaneMaster.rb test_mode       # Kill -> Build -> Launch -> Logs
+./Scripts/SaneMaster.rb logs --follow   # Stream live logs
+./Scripts/SaneMaster.rb verify_api X    # Check if API exists in SDK
+ruby Scripts/qa.rb                      # Pre-release QA checks
 ```
 
 ### Tool Decision Matrix
 
 | Situation | Tool |
 |-----------|------|
-| Build/test | `./scripts/SaneMaster.rb verify` (Rule #5) |
+| Build/test | `./Scripts/SaneMaster.rb verify` (Rule #5) |
 | Launch for testing | `sane_test.rb SaneBar` (prefers the configured remote build host) |
-| API signature check | `./scripts/SaneMaster.rb verify_api` (Rule #2) |
+| API signature check | `./Scripts/SaneMaster.rb verify_api` (Rule #2) |
 | API usage examples | `apple-docs` MCP |
 | Library docs | `context7` MCP |
-| Mock generation | `./scripts/SaneMaster.rb gen_mock` |
-| Pre-release QA | `ruby scripts/qa.rb` |
+| Mock generation | `./Scripts/SaneMaster.rb gen_mock` |
+| Pre-release QA | `ruby Scripts/qa.rb` |
 
 ### Build Strategy
 
@@ -154,7 +156,7 @@ ruby "$SANEAPPS_INFRA/scripts/sane_test.rb" SaneBar --local
 ## Release Process
 
 1. **Bump version** — update MARKETING_VERSION + CURRENT_PROJECT_VERSION in `project.yml`
-2. **Preflight** — `./scripts/SaneMaster.rb release_preflight` (9 safety checks)
+2. **Preflight** — `./Scripts/SaneMaster.rb release_preflight` (9 safety checks)
    - Enforces 24h soak window between releases
    - Runs project QA with regression close confirmation checks
    - Requires a fresh customer UI action receipt from `Tests/CustomerUIActions.yml`
@@ -167,14 +169,21 @@ ruby "$SANEAPPS_INFRA/scripts/sane_test.rb" SaneBar --local
      - native Apple extras: Siri / Spotlight
      - host exact-id sentinel: Little Snitch top-bar items or a deterministic replacement fixture
    - For arrangement / drag / display-recovery patches, keep one manual external-monitor disconnect/reconnect cycle in the release checklist until that path is automated
+   - Live-anchor structural recovery contract: dirty startup, reboot, wake, and display-recovery proof must show live SaneBar status-item anchors and a valid structural snapshot before saved Visible/Hidden state or cached geometry is trusted. If anchors are missing or stale, recovery must rebuild SaneBar-owned anchors or open the Health fallback instead of silently disappearing.
    - If any guard fails: stop, fix root cause, verify, then rerun preflight (no workaround release)
 3. **Release** — `bash ~/SaneApps/infra/SaneProcess/scripts/release.sh --project $(pwd) --full --version X.Y.Z --notes "..." --deploy`
-4. **Verify** — check appcast at https://sanebar.com/appcast.xml, confirm DMG on dist.sanebar.com
+4. **Verify** — check appcast at https://sanebar.com/appcast.xml, confirm the ZIP-first direct-download/Sparkle artifact at `dist.sanebar.com/updates/SaneBar-X.Y.Z.zip`, and confirm the appcast enclosure, length, and signature match that ZIP
 5. **Monitor** — morning releases preferred, gives full day to watch for issues
 
 Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
 
 **Critical:** Same version number = Sparkle won't offer update. Always bump before building.
+
+### Rollback and Current Proof
+
+- Rollback for the direct channel means the appcast, website download route, and `dist.sanebar.com` object set all point at a known-good ZIP. Do not republish the same version/build to "fix" a bad release; Sparkle users need a higher version/build or an appcast rollback to a still-resolvable prior ZIP.
+- Keep every ZIP referenced by live or historical appcast entries reachable until those entries are intentionally pruned. A docs-only/appcast repair deploy is valid when the feed is wrong and the binary is not changing.
+- Current proof for a release-blocking family must name the version/build, source revision or fingerprint, Mini command/receipt paths, direct ZIP URL, appcast URL, and the issue family covered. Summary-only handoff prose is not enough release proof.
 
 ---
 
@@ -184,7 +193,7 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
 - Customer UI release gate:
   1. Generate fresh runtime evidence on the Mini, including strict Pro move smoke
      and the default smoke logs required by the sweep.
-  2. Relaunch the Mini Pro-mode build with `./scripts/SaneMaster.rb mode SaneBar pro --launch`
+  2. Relaunch the Mini Pro-mode build with `./Scripts/SaneMaster.rb mode SaneBar pro --launch`
      immediately before the sweep. Some smoke paths relaunch the app and can drop
      the no-keychain Pro argument.
   3. Run `ruby Scripts/customer_ui_action_sweep.rb`
@@ -204,6 +213,11 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
   - Passive startup/wake recovery must not physically move the cursor or third-party
     menu extras. Use audit-only intent replay for recovery, and require explicit
     user/automation origins for any Cmd-drag path.
+  - Live-anchor structural recovery contract checks are release-blocking for the
+    hidden-state family: first install, update, settings changes, reboot, poisoned
+    autosave/currentHost defaults, and unattached status-item windows must fail
+    unless the runtime receipt reports completed scenarios proving live main and
+    separator anchors.
   - The current release-blocking families are saved Visible/Hidden persistence
     after wake or display changes, helper-owned Hidden-to-Visible drift such as
     Lungo, shared-bundle exact-ID moves, Hidden vs Always Hidden move
@@ -213,8 +227,8 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
     limited third-party conflicts can be exempted only with an explicit issue
     label and a written reason.
 - E2E checklist: `docs/E2E_TESTING_CHECKLIST.md`
-- Button mapping: `ruby scripts/button_map.rb`
-- Flow tracing: `ruby scripts/trace_flow.rb <function>`
+- Button mapping: `ruby Scripts/button_map.rb`
+- Flow tracing: `ruby Scripts/trace_flow.rb <function>`
 - Notarization: `docs/NOTARIZATION.md`
 
 ---
@@ -241,7 +255,7 @@ SaneBar/
 ├── Core/           # Managers, Services, Models
 ├── UI/             # SwiftUI views
 ├── Tests/          # Unit tests
-├── scripts/        # SaneMaster automation
+├── Scripts/        # SaneMaster automation and QA helpers
 └── SaneBarApp.swift
 ```
 
@@ -252,4 +266,4 @@ SaneBar/
 | Problem | Fix |
 |---------|-----|
 | Ghost beeps / no launch | `xcodegen generate` |
-| Phantom build errors | `./scripts/SaneMaster.rb clean --nuclear` |
+| Phantom build errors | `./Scripts/SaneMaster.rb clean --nuclear` |

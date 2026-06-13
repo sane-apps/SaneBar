@@ -3,7 +3,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/sane-apps/SaneBar?style=flat-square)](https://github.com/sane-apps/SaneBar/stargazers)
 [![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
-[![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
+[![macOS 14.0+](https://img.shields.io/badge/macOS-14.0%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-macOS--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
@@ -52,7 +52,7 @@ brew install --cask --adopt sane-apps/tap/sanebar
 
 Or **[download directly](https://sanebar.com)** · or [build from source](#for-developers)
 
-**Requirements:** macOS 15 Sequoia or later, Apple Silicon (arm64) only
+**Requirements:** macOS 14.0+ (Sonoma or later), Apple Silicon (arm64) only
 
 SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if you prefer.
 
@@ -243,7 +243,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 <summary>Build from source</summary>
 
 ### Requirements
-- macOS 15.0+ (Sequoia or later)
+- macOS 14.0+ (Sonoma or later)
 - Apple Silicon (arm64) only
 - Xcode 16+
 - Ruby 3.0+
@@ -254,8 +254,8 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 ```bash
 git clone https://github.com/sane-apps/SaneBar.git
 cd SaneBar
-./scripts/SaneMaster.rb verify    # builds + runs tests
-./scripts/SaneMaster.rb launch    # build and run
+./Scripts/SaneMaster.rb verify    # builds + runs tests
+./Scripts/SaneMaster.rb launch    # build and run
 ```
 
 **External contributors:** `SaneMaster.rb` works standalone — no monorepo required. If the shared infrastructure isn't found, it falls back to direct `xcodebuild` commands. You can also build manually:
@@ -277,7 +277,7 @@ SaneBar/
 │   ├── SearchWindow/       # Find Icon, Second Menu Bar
 │   └── Onboarding/         # Welcome wizard
 ├── Tests/                  # Swift Testing unit tests
-├── scripts/                # Build automation (SaneMaster.rb)
+├── Scripts/                # Build automation and QA helpers (SaneMaster.rb)
 └── project.yml             # XcodeGen configuration
 ```
 

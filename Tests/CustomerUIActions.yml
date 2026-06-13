@@ -159,6 +159,8 @@ runtime_state_matrix:
     - at least 20m Mini soak sampled on the release candidate
     - average CPU remains within idle budget
     - RSS and physical footprint do not grow beyond the short-soak release budget
+    - raw current-build resource soak artifact and log references exist
+    - per-sample CPU/RSS/physical footprint trend fields were captured
   basic_pro_mode:
     why: The same customer action must either work in Pro or clearly gate in Basic without pretending the change succeeded.
     action_ids:
