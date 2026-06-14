@@ -619,7 +619,10 @@ final class MenuBarManager: NSObject, ObservableObject {
     func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
         let shouldReplayAlwaysHidden = !settings.alwaysHiddenPinnedItemIds.isEmpty
         let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems
-        guard shouldReplayAlwaysHidden || shouldReplayHideAllOther else { return }
+        guard shouldReplayAlwaysHidden || shouldReplayHideAllOther else {
+            schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-no-visibility-intent")
+            return
+        }
 
         visibilityIntentReplayTask?.cancel()
         visibilityIntentReplayTask = Task { @MainActor [weak self] in

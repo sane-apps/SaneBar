@@ -224,6 +224,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("snapshot.hasTrustworthyBootstrapAnchors") &&
                 source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
                 source.contains("for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts") &&
+                source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-no-visibility-intent\")") &&
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
                 source.contains("alwaysHiddenAnchorsNeedReplayRetry()") &&
@@ -597,6 +598,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("park_pointer_away_from_menu_bar!(label: 'hidden wake')") &&
                 source.contains("Wake probe requires cliclick on the Mini to park the pointer away from the menu bar") &&
                 source.contains("autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'") &&
+                source.contains("wait_for_parked_cursor!(label: label)") &&
+                source.contains("Pointer parking did not settle after") &&
+                source.contains("cursor_near_park_target?") &&
                 source.contains("Passive wake recovery moved cursor") &&
                 source.contains("passive wake recovery did not physically move the cursor") &&
                 !source.contains("!truthy?(candidate['isMoveInProgress'])") &&
