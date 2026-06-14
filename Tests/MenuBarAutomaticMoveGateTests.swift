@@ -68,26 +68,51 @@ struct MenuBarAutomaticMoveGateTests {
         #expect(gate.allowsMove(origin: .explicitUserAction, now: now.addingTimeInterval(9)))
     }
 
-    @Test("Passive wake replays never use physical moves")
-    func wakeReplaysStayPassive() {
+    @Test("Immediate wake replays stay passive until healthy validation")
+    func immediateWakeReplaysStayPassive() {
         // The wake probe enforces a zero-cursor-movement contract for passive
-        // wake (#151, #154): even perfect geometry must not move the pointer.
+        // wake (#151, #154): raw wake notifications run before geometry and
+        // third-party dynamic items have settled.
         for confidence in [MenuBarGeometryConfidence.live, .cached, .shielded, .stale, .missing] {
             let wake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "wake-resume-attempt-1",
-                geometryConfidence: confidence
+                geometryConfidence: confidence,
+                hidingState: .hidden
             )
             #expect(wake.mode == .auditOnly)
             #expect(wake.physicalMoveOrigin == nil)
         }
+    }
 
-        // Post-wake healthy-validation replays are still passive: the wake
-        // context wins over the healthy-validation eligibility.
-        let postWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-            reason: "healthy-validation-wake-resume-attempt-1",
-            geometryConfidence: .live
-        )
-        #expect(postWake.mode == .auditOnly)
+    @Test("Post-wake healthy validation can repair standing intent on trustworthy geometry")
+    func postWakeHealthyValidationCanRepairStandingIntent() {
+        for confidence in [MenuBarGeometryConfidence.live, .cached] {
+            let postWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                geometryConfidence: confidence,
+                hidingState: .hidden
+            )
+            #expect(postWake.mode == .repairWithPhysicalMoves)
+            #expect(postWake.physicalMoveOrigin == .systemWakeRecovery)
+
+            let expandedPostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                geometryConfidence: confidence,
+                hidingState: .expanded
+            )
+            #expect(expandedPostWake.mode == .auditOnly)
+            #expect(expandedPostWake.physicalMoveOrigin == nil)
+        }
+
+        for confidence in [MenuBarGeometryConfidence.shielded, .stale, .missing] {
+            let degradedPostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                geometryConfidence: confidence,
+                hidingState: .hidden
+            )
+            #expect(degradedPostWake.mode == .auditOnly)
+            #expect(degradedPostWake.physicalMoveOrigin == nil)
+        }
     }
 
     @Test("Startup reconciliation uses physical moves only on trustworthy geometry")
@@ -97,7 +122,8 @@ struct MenuBarAutomaticMoveGateTests {
         for confidence in [MenuBarGeometryConfidence.live, .cached] {
             let startup = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "healthy-validation-startup-follow-up",
-                geometryConfidence: confidence
+                geometryConfidence: confidence,
+                hidingState: .expanded
             )
             #expect(startup.mode == .repairWithPhysicalMoves)
             #expect(startup.physicalMoveOrigin == .systemWakeRecovery)
@@ -106,7 +132,8 @@ struct MenuBarAutomaticMoveGateTests {
         for confidence in [MenuBarGeometryConfidence.shielded, .stale, .missing] {
             let degraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "healthy-validation-startup-follow-up",
-                geometryConfidence: confidence
+                geometryConfidence: confidence,
+                hidingState: .hidden
             )
             #expect(degraded.mode == .auditOnly)
             #expect(degraded.physicalMoveOrigin == nil)
@@ -114,7 +141,8 @@ struct MenuBarAutomaticMoveGateTests {
 
         let unrelatedReason = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: "settings-change",
-            geometryConfidence: .live
+            geometryConfidence: .live,
+            hidingState: .hidden
         )
         #expect(unrelatedReason.mode == .auditOnly)
     }

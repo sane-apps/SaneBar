@@ -197,6 +197,43 @@ struct AlwaysHiddenTests {
         )
     }
 
+    @Test("hide-all-other audit detects allow-listed visible items outside Visible")
+    func hideAllOtherAuditDetectsVisibleAllowListDrift() {
+        let swiftBar = RunningApp(
+            id: "com.ameba.SwiftBar",
+            name: "SwiftBar",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 120,
+            width: 24
+        )
+        let display = RunningApp.menuExtraItem(
+            ownerBundleId: "com.apple.controlcenter",
+            name: "Display",
+            identifier: "com.apple.menuextra.display",
+            xPosition: 620,
+            width: 24
+        )
+        let classified = SearchClassifiedApps(
+            visible: [display],
+            hidden: [swiftBar],
+            alwaysHidden: []
+        )
+
+        #expect(
+            MenuBarHideAllOtherWorkflow.visibleAllowListIdsOutsideVisibleZone(
+                visibleIds: ["com.ameba.SwiftBar::statusItem:0"],
+                classified: classified
+            ) == ["com.ameba.SwiftBar::statusItem:0"]
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.visibleAllowListIdsOutsideVisibleZone(
+                visibleIds: ["com.apple.menuextra.display"],
+                classified: classified
+            ).isEmpty
+        )
+    }
+
     @Test("hide-all-other detects always-hidden lane before visible replay")
     func hideAllOtherDetectsAlwaysHiddenLaneBeforeVisibleReplay() {
         #expect(
