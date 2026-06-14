@@ -15,6 +15,11 @@ class WakeLayoutProbe
   SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   HIDDEN_BASELINE_TIMEOUT_SECONDS = 45.0
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
+  PARKED_CURSOR_X = 400.0
+  PARKED_CURSOR_Y = 400.0
+  PARKED_CURSOR_TOLERANCE = 3.0
+  PARKED_CURSOR_SETTLE_TIMEOUT_SECONDS = 6.0
+  PARKED_CURSOR_SETTLE_POLL_SECONDS = 0.25
   REQUIRED_VISIBLE_ID_LIMIT = 6
   REQUIRED_HIDDEN_ID_LIMIT = 6
   BLOCKED_LOG_PATTERNS = [
@@ -311,9 +316,10 @@ class WakeLayoutProbe
   end
 
   def park_pointer_away_from_menu_bar!(label:)
-    out, status = capture(cliclick_path, 'm:400,400')
+    out, status = capture(cliclick_path, "m:#{PARKED_CURSOR_X.to_i},#{PARKED_CURSOR_Y.to_i}")
     raise "Pointer parking failed after #{label}: #{out}" unless status.success?
 
+    parked_cursor = wait_for_parked_cursor!(label: label)
     snapshot = wait_for_snapshot(
       label: "#{label} pointer parked",
       timeout: SNAPSHOT_SETTLE_TIMEOUT_SECONDS,
@@ -322,7 +328,31 @@ class WakeLayoutProbe
       candidate['autoRehideBlockReason'] != 'mouse-in-menu-bar-interaction-region'
     end
     log("#{label} pointer parked outside menu-bar interaction region: autoRehideBlockReason=#{snapshot['autoRehideBlockReason']}")
-    cursor_position
+    parked_cursor
+  end
+
+  def wait_for_parked_cursor!(label:)
+    deadline = Time.now + PARKED_CURSOR_SETTLE_TIMEOUT_SECONDS
+    last_position = nil
+    loop do
+      last_position = cursor_position
+      return last_position if cursor_near_park_target?(last_position)
+
+      break if Time.now >= deadline
+
+      sleep PARKED_CURSOR_SETTLE_POLL_SECONDS
+    end
+
+    raise(
+      "Pointer parking did not settle after #{label}: expected " \
+      "#{PARKED_CURSOR_X.to_i},#{PARKED_CURSOR_Y.to_i}±#{PARKED_CURSOR_TOLERANCE}px, " \
+      "actual=#{last_position.inspect}"
+    )
+  end
+
+  def cursor_near_park_target?(position)
+    (position[:x] - PARKED_CURSOR_X).abs <= PARKED_CURSOR_TOLERANCE &&
+      (position[:y] - PARKED_CURSOR_Y).abs <= PARKED_CURSOR_TOLERANCE
   end
 
   def capture_visible_zone_baseline!(required_override: nil)

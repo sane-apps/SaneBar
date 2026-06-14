@@ -799,6 +799,9 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, "(!snapshot.key?('startupItemsValid') || truthy?(snapshot['startupItemsValid']))"
     assert_includes source, "!truthy?(snapshot['possibleSystemMenuBarSuppression'])"
     assert_includes source, 'SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS'
+    assert_includes source, 'wait_for_parked_cursor!(label: label)'
+    assert_includes source, 'Pointer parking did not settle after'
+    assert_includes source, 'cursor_near_park_target?'
     assert_includes source, 'Passive wake recovery moved cursor'
     assert_includes source, "completed_scenario: 'passive wake recovery did not physically move the cursor'"
   end
