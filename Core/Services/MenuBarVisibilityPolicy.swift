@@ -273,24 +273,35 @@ extension MenuBarVisibilityPolicy {
     /// rate-limited).
     nonisolated static func visibilityIntentReplayMode(
         reason: String,
-        geometryConfidence: MenuBarGeometryConfidence
+        geometryConfidence: MenuBarGeometryConfidence,
+        hidingState: HidingState
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        // Passive wake must never move the cursor: the user may be at the
-        // desk watching the pointer (#151, #154; the wake probe enforces a
-        // zero-cursor-movement contract). Wake violations are surfaced via
-        // the deferred-repair path instead.
-        if reason.contains("wake-resume") {
-            return (.auditOnly, nil)
-        }
         // Startup/relaunch reconciliation follows an explicit user context
         // (the app was just launched) and may restore standing intent
-        // physically. .cached is trustworthy by construction: only live
-        // observations enter the geometry cache and entries expire when the
-        // display configuration changes. Estimated, stale, and missing
-        // geometry still downgrade to audit-only.
+        // physically. Healthy post-wake validation uses that bounded gate only
+        // while restoring a hidden state: preserving the user's visible
+        // allow-list is safer than leaving a dynamic helper hidden behind the
+        // delimiter until the next manual action. Expanded wake remains passive
+        // because the user-visible state is already "show everything"; cursor-
+        // moving repairs there are unexpected background work.
+        //
+        // .cached is trustworthy by construction: only live observations enter
+        // the geometry cache and entries expire when the display configuration
+        // changes. Estimated, stale, and missing geometry still downgrade to
+        // audit-only.
+        let isWakeReplay = reason.contains("wake-resume")
+        if isWakeReplay, hidingState != .hidden {
+            return (.auditOnly, nil)
+        }
+
         let confidenceAllowsMoves = geometryConfidence == .live || geometryConfidence == .cached
         if reason.contains("healthy-validation"), confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        }
+        // Immediate wake notifications stay passive: they run before geometry
+        // and third-party dynamic items have settled.
+        if isWakeReplay {
+            return (.auditOnly, nil)
         }
         return (.auditOnly, nil)
     }
@@ -304,7 +315,8 @@ extension MenuBarManager {
         let confidence = currentStatusItemRecoverySnapshot().geometryConfidence
         let resolved = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: reason,
-            geometryConfidence: confidence
+            geometryConfidence: confidence,
+            hidingState: hidingService.state
         )
         if resolved.mode == .repairWithPhysicalMoves {
             AccessibilityService.shared.automaticMoveGate.arm()

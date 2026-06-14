@@ -437,7 +437,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
                 source.contains("physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin") &&
-                replaySource.contains("if reason.contains(\"wake-resume\")") &&
+                replaySource.contains("let isWakeReplay = reason.contains(\"wake-resume\")") &&
+                replaySource.contains("if isWakeReplay, hidingState != .hidden") &&
+                replaySource.contains("hidingState: hidingService.state") &&
                 replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("if shouldRetryVisibilityReplay") &&

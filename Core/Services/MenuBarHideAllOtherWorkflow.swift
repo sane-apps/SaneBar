@@ -125,6 +125,28 @@ final class MenuBarHideAllOtherWorkflow {
         return Array(ids).sorted()
     }
 
+    nonisolated static func visibleAllowListIdsOutsideVisibleZone(
+        visibleIds: Set<String>,
+        classified: SearchClassifiedApps
+    ) -> [String] {
+        guard !visibleIds.isEmpty else { return [] }
+
+        let visibleMatches = Set(
+            classified.visible.flatMap { app in
+                [app.uniqueId, app.bundleId].filter { !$0.isEmpty }
+            }
+        )
+
+        let nonVisibleAllowedIds = (classified.hidden + classified.alwaysHidden)
+            .filter { app in
+                shouldShowItem(app: app, visibleIds: visibleIds) &&
+                    !visibleMatches.contains(app.uniqueId)
+            }
+            .map(\.uniqueId)
+
+        return Array(Set(nonVisibleAllowedIds)).sorted()
+    }
+
     func enableFromCurrentLayout() {
         manager.hideAllOtherRuleEnforcementTask?.cancel()
 
@@ -392,6 +414,18 @@ final class MenuBarHideAllOtherWorkflow {
         reason: String
     ) async -> Bool {
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        let classified = await SearchService.shared.refreshKnownClassifiedApps()
+        let hiddenVisibleAllowListIds = Self.visibleAllowListIdsOutsideVisibleZone(
+            visibleIds: visibleIds,
+            classified: classified
+        )
+        if !hiddenVisibleAllowListIds.isEmpty {
+            logger.warning(
+                "Hide-all-other audit found \(hiddenVisibleAllowListIds.count, privacy: .public) allow-listed visible item(s) outside Visible without moving the cursor (\(reason, privacy: .public)): \(hiddenVisibleAllowListIds.joined(separator: ","), privacy: .public)"
+            )
+            return false
+        }
+
         var driftedItemCount = 0
 
         for item in items {
