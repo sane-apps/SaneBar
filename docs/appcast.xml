@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                                                                                <item>
+            <title>2.1.69</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 15 Jun 2026 13:51:36 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves restart and recovery when macOS attaches SaneBar menu bar items off-screen after reboot. SaneBar now waits for live status-item anchors before replaying hidden-state layout, clears poisoned status-item autosave state more reliably, and keeps recovery passive while the menu bar rebuilds.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.69.zip"
+                       sparkle:version="2169"
+                       sparkle:shortVersionString="2.1.69"
+                       length="9134644"
+                       type="application/octet-stream"
+                       sparkle:edSignature="IMHsFqgHQr9LnQQCdoR3JsBDG985QA2VYUQM1ef3q2EObd7/Ya375vxVZAEWAKlgxXa9/wTgbTNJ/KWlqLSgDQ=="/>
+        </item>
+<item>
             <title>2.1.68</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Fri, 12 Jun 2026 22:06:01 -0400</pubDate>
