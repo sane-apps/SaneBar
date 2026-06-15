@@ -16,7 +16,7 @@ struct MenuConfiguration {
     let licenseAction: Selector
     let aboutAndBugReportAction: Selector
     let showReleaseNotesAction: Selector?
-    let checkForUpdatesAction: Selector
+    let checkForUpdatesAction: Selector?
     let quitAction: Selector
 }
 

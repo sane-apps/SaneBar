@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.69] - 2026-06-15
+
+Improves restart and recovery when macOS attaches SaneBar's menu bar items off-screen after reboot. SaneBar now waits for live status-item anchors before replaying hidden-state layout, clears poisoned status-item autosave state more reliably, and keeps recovery passive while the menu bar rebuilds.
+
+---
+
 ## [2.1.68] - 2026-06-12
 
 Adds AppleScript target-relative menu bar icon reordering within the same section: `move icon before` and `move icon after`.

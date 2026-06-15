@@ -988,7 +988,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"$CONFIGURATION\" == \"ProdDebug-Setapp\" ] || [ \"$CONFIGURATION\" == \"Release-Setapp\" ]; then\n  echo \"Setapp build: stripping Sparkle framework and direct-store keys...\"\n  rm -rf \"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\n  /usr/libexec/PlistBuddy -c \"Delete :SUFeedURL\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUPublicEDKey\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUEnableAutomaticChecks\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUEnableSystemProfiling\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :AppStoreProductID\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :MPSupportedArchitectures\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :MPSupportedArchitectures array\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :MPSupportedArchitectures:0 string arm64\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Delete :NSUpdateSecurityPolicy\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy dict\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses dict\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425 array\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425:0 string com.setapp.DesktopClient.SetappAgent\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  SETAPP_KEY_SOURCE=\"${SRCROOT}/Setapp/setappPublicKey.pem\"\n  if [ -f \"${SETAPP_KEY_SOURCE}\" ]; then\n    cp \"${SETAPP_KEY_SOURCE}\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/setappPublicKey.pem\"\n    echo \"Setapp build: bundled setappPublicKey.pem\"\n  else\n    echo \"warning: Setapp build missing ${SETAPP_KEY_SOURCE}\"\n  fi\n  WEAKEN_SCRIPT=\"${SRCROOT}/../../infra/SaneProcess/scripts/weaken_sparkle.rb\"\n  if [ -f \"${WEAKEN_SCRIPT}\" ]; then\n    find \"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}\" -type f -path \"*/Contents/MacOS/*\" -print0 | \\\n      xargs -0 -I{} ruby \"${WEAKEN_SCRIPT}\" \"{}\" || exit 1\n  fi\n  echo \"Setapp build: Sparkle removed, Setapp policy applied\"\nfi\n";
+			shellScript = "if [ \"$CONFIGURATION\" == \"ProdDebug-Setapp\" ] || [ \"$CONFIGURATION\" == \"Release-Setapp\" ]; then\n  echo \"Setapp build: stripping Sparkle framework and direct-store keys...\"\n  rm -rf \"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\n  /usr/libexec/PlistBuddy -c \"Delete :SUFeedURL\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUPublicEDKey\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUEnableAutomaticChecks\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :SUEnableSystemProfiling\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :AppStoreProductID\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :NSScreenCaptureUsageDescription\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :MPSupportedArchitectures\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :MPSupportedArchitectures array\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :MPSupportedArchitectures:0 string arm64\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :MPSupportedArchitectures:1 string x86_64\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Delete :NSUpdateSecurityPolicy\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy dict\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses dict\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425 array\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  /usr/libexec/PlistBuddy -c \"Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425:0 string com.setapp.DesktopClient.SetappAgent\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n  SETAPP_KEY_SOURCE=\"${SRCROOT}/Setapp/setappPublicKey.pem\"\n  if [ -f \"${SETAPP_KEY_SOURCE}\" ]; then\n    cp \"${SETAPP_KEY_SOURCE}\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/setappPublicKey.pem\"\n    echo \"Setapp build: bundled setappPublicKey.pem\"\n  else\n    echo \"warning: Setapp build missing ${SETAPP_KEY_SOURCE}\"\n  fi\n  WEAKEN_SCRIPT=\"${SRCROOT}/../../infra/SaneProcess/scripts/weaken_sparkle.rb\"\n  if [ -f \"${WEAKEN_SCRIPT}\" ]; then\n    find \"${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}\" -type f -path \"*/Contents/MacOS/*\" -print0 | \\\n      xargs -0 -I{} ruby \"${WEAKEN_SCRIPT}\" \"{}\" || exit 1\n  fi\n  echo \"Setapp build: Sparkle removed, Setapp policy applied\"\nfi\n";
 		};
 		ACD4857716FE2B4BB6D40D67 /* Run SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1272,14 +1272,14 @@
 		0549D3F930529E485A8A58E1 /* Release-Setapp */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				ARCHS = "$(ARCHS_STANDARD)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1289,13 +1289,13 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D SETAPP";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64";
 			};
 			name = "Release-Setapp";
 		};
@@ -1440,14 +1440,14 @@
 		37072A69FAC28F8B65CF6FC6 /* ProdDebug-Setapp */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				ARCHS = "$(ARCHS_STANDARD)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SaneBar/SaneBar.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1457,13 +1457,13 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.sanebar.app-setapp";
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG PRODDEBUG SETAPP";
 				SWIFT_VERSION = 6.0;
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64";
 			};
 			name = "ProdDebug-Setapp";
 		};
@@ -1627,7 +1627,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1637,7 +1637,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.dev;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1675,7 +1675,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1685,7 +1685,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;
@@ -1706,7 +1706,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = NO;
@@ -1718,7 +1718,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D APP_STORE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
@@ -1810,7 +1810,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2168;
+				CURRENT_PROJECT_VERSION = 2169;
 				DEVELOPMENT_TEAM = M78L6FXD48;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_XOJIT_PREVIEWS = NO;
@@ -1820,7 +1820,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.1.68;
+				MARKETING_VERSION = 2.1.69;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sanebar.app;
 				PRODUCT_NAME = SaneBar;
 				SDKROOT = macosx;

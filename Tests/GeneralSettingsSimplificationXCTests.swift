@@ -175,4 +175,37 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
             "Updates are managed by Setapp."
         )
     }
+
+    func testSetappBuildDoesNotRenderGeneralSettingsUpdateSection() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(contentsOf: root.appendingPathComponent("UI/Settings/GeneralSettingsView.swift"))
+
+        XCTAssertTrue(source.contains("if licenseService.distributionChannel.supportsInAppUpdates {\n                    softwareUpdatesSection\n                }"))
+        XCTAssertFalse(source.contains("distributionChannel.managementLabel"))
+    }
+
+    func testSetappBuildDisablesScreenCaptureKitDiagnostics() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appSource = try String(contentsOf: root.appendingPathComponent("SaneBarApp.swift"))
+        let projectSource = try String(contentsOf: root.appendingPathComponent("project.yml"))
+
+        XCTAssertTrue(appSource.contains("#if !SETAPP\n    @preconcurrency import ScreenCaptureKit\n#endif"))
+        XCTAssertTrue(appSource.contains("#if SETAPP\n            _ = window\n            return nil\n        #else"))
+        XCTAssertTrue(projectSource.contains("Delete :NSScreenCaptureUsageDescription"))
+    }
+
+    func testSetappBuildDeclaresUniversalMacArchitectures() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let projectSource = try String(contentsOf: root.appendingPathComponent("project.yml"))
+
+        XCTAssertTrue(projectSource.contains("VALID_ARCHS: \"arm64 x86_64\""))
+        XCTAssertTrue(projectSource.contains("Add :MPSupportedArchitectures:0 string arm64"))
+        XCTAssertTrue(projectSource.contains("Add :MPSupportedArchitectures:1 string x86_64"))
+    }
 }

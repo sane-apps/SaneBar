@@ -138,8 +138,8 @@ targets:
       base:
         PRODUCT_NAME: SaneBar
         PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-        MARKETING_VERSION: "2.1.68"
-        CURRENT_PROJECT_VERSION: "2168"
+        MARKETING_VERSION: "2.1.69"
+        CURRENT_PROJECT_VERSION: "2169"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: NO
         ENABLE_XOJIT_PREVIEWS: NO
@@ -168,6 +168,8 @@ targets:
           CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG SETAPP"
+          ARCHS: "$(ARCHS_STANDARD)"
+          VALID_ARCHS: "arm64 x86_64"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           DEVELOPMENT_TEAM: M78L6FXD48
@@ -190,6 +192,8 @@ targets:
           CODE_SIGN_IDENTITY: "Developer ID Application"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
           OTHER_SWIFT_FLAGS: "$(inherited) -D SETAPP"
+          ARCHS: "$(ARCHS_STANDARD)"
+          VALID_ARCHS: "arm64 x86_64"
     postCompileScripts:
       - script: |
           export PATH="/opt/homebrew/bin:$PATH"
@@ -210,9 +214,11 @@ targets:
             /usr/libexec/PlistBuddy -c "Delete :SUEnableAutomaticChecks" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Delete :SUEnableSystemProfiling" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Delete :AppStoreProductID" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :NSScreenCaptureUsageDescription" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Delete :MPSupportedArchitectures" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures array" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
             /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures:0 string arm64" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures:1 string x86_64" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
             /usr/libexec/PlistBuddy -c "Delete :NSUpdateSecurityPolicy" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
             /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"

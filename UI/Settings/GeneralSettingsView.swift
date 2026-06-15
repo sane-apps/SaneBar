@@ -263,7 +263,9 @@ struct GeneralSettingsView: View {
                 }
 
                 // 7. Updates
-                softwareUpdatesSection
+                if licenseService.distributionChannel.supportsInAppUpdates {
+                    softwareUpdatesSection
+                }
 
                 // 8. Data — Pro
                 CompactSection("Data") {
@@ -354,49 +356,41 @@ struct GeneralSettingsView: View {
 
     private var softwareUpdatesSection: some View {
         CompactSection("Software Updates") {
-            if licenseService.distributionChannel.supportsInAppUpdates {
-                CompactToggle(
-                    label: "Check for updates automatically",
-                    isOn: $menuBarManager.settings.checkForUpdatesAutomatically
-                )
-                .help("Periodically check for new versions")
+            CompactToggle(
+                label: "Check for updates automatically",
+                isOn: $menuBarManager.settings.checkForUpdatesAutomatically
+            )
+            .help("Periodically check for new versions")
 
-                CompactDivider()
+            CompactDivider()
 
-                CompactRow("Check frequency") {
-                    HStack(spacing: 6) {
-                        ForEach(UpdateCheckFrequency.allCases) { frequency in
-                            ChromeSegmentedChoiceButton(
-                                title: frequency.title,
-                                isSelected: updateCheckFrequency == frequency
-                            ) {
-                                updateCheckFrequency = frequency
-                            }
+            CompactRow("Check frequency") {
+                HStack(spacing: 6) {
+                    ForEach(UpdateCheckFrequency.allCases) { frequency in
+                        ChromeSegmentedChoiceButton(
+                            title: frequency.title,
+                            isSelected: updateCheckFrequency == frequency
+                        ) {
+                            updateCheckFrequency = frequency
                         }
                     }
-                    .frame(width: 170)
-                    .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
-                    .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
                 }
-                .help("Choose how often automatic update checks run")
+                .frame(width: 170)
+                .opacity(menuBarManager.settings.checkForUpdatesAutomatically ? 1 : 0.55)
+                .disabled(!menuBarManager.settings.checkForUpdatesAutomatically)
+            }
+            .help("Choose how often automatic update checks run")
 
-                CompactDivider()
+            CompactDivider()
 
-                CompactRow("Actions") {
-                    Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
-                        triggerManualUpdateCheck()
-                    }
-                    .buttonStyle(ChromeActionButtonStyle())
-                    .controlSize(.small)
-                    .disabled(isCheckingForUpdates)
-                    .help("Check for updates right now")
+            CompactRow("Actions") {
+                Button(isCheckingForUpdates ? "Checking…" : "Check Now") {
+                    triggerManualUpdateCheck()
                 }
-            } else {
-                CompactRow("Status") {
-                    Text(licenseService.distributionChannel.managementLabel ?? "Managed externally")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.82))
-                }
+                .buttonStyle(ChromeActionButtonStyle())
+                .controlSize(.small)
+                .disabled(isCheckingForUpdates)
+                .help("Check for updates right now")
             }
         }
     }
