@@ -83,6 +83,39 @@ struct StatusBarControllerMenuTests {
         #expect(quitItem?.keyEquivalent == "q")
     }
 
+    @Test("createMenu omits update item when updates are externally managed")
+    @MainActor
+    func createMenuOmitsUpdateItemWhenUnavailable() {
+        let controller = StatusBarController()
+
+        class DummyTarget: NSObject {
+            @objc func toggle() {}
+            @objc func findIcon() {}
+            @objc func arrangeNow() {}
+            @objc func health() {}
+            @objc func settings() {}
+            @objc func license() {}
+            @objc func about() {}
+            @objc func quit() {}
+        }
+
+        let menu = controller.createMenu(configuration: MenuConfiguration(
+            toggleAction: #selector(DummyTarget.toggle),
+            findIconAction: #selector(DummyTarget.findIcon),
+            arrangeNowAction: #selector(DummyTarget.arrangeNow),
+            healthAction: #selector(DummyTarget.health),
+            settingsAction: #selector(DummyTarget.settings),
+            licenseAction: #selector(DummyTarget.license),
+            aboutAndBugReportAction: #selector(DummyTarget.about),
+            showReleaseNotesAction: nil,
+            checkForUpdatesAction: nil,
+            quitAction: #selector(DummyTarget.quit)
+        ))
+
+        #expect(menu.item(titled: "Check for Updates...") == nil)
+        #expect(menu.items.count == 11, "Menu should remove only the update command")
+    }
+
     @Test("createMenu leaves item targets unset")
     @MainActor
     func createMenuLeavesTargetsUnset() {

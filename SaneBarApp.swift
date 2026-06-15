@@ -2,7 +2,9 @@ import AppKit
 import KeyboardShortcuts
 import os.log
 import SaneUI
-@preconcurrency import ScreenCaptureKit
+#if !SETAPP
+    @preconcurrency import ScreenCaptureKit
+#endif
 import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
@@ -425,6 +427,10 @@ enum SettingsOpener {
 
     @available(macOS 14.4, *)
     @MainActor private static func captureWindowImage(window: NSWindow) async -> CGImage? {
+        #if SETAPP
+            _ = window
+            return nil
+        #else
         do {
             let shareableContent = try await SCShareableContent.currentProcess
             guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
@@ -450,6 +456,7 @@ enum SettingsOpener {
             appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
             return nil
         }
+        #endif
     }
 }
 
