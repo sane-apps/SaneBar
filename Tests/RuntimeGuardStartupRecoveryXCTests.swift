@@ -344,6 +344,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
                 recoverySource.contains("restoreHiddenStateAfterHealthyValidationIfNeeded(reason: \"healthy-validation-\\(context.rawValue)\")") &&
                 recoverySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-\\(context.rawValue)\")") &&
+                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-replay-gave-up\")") &&
                 !source.contains("settings.layoutMode == .live") &&
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 recoverySource.contains("guard self.manager.positionValidationGeneration == validationGeneration else"),

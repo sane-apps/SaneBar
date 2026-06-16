@@ -672,6 +672,7 @@ final class MenuBarManager: NSObject, ObservableObject {
             logger.warning(
                 "Visibility intent replay gave up after \(Self.maxVisibilityIntentReplayAttempts, privacy: .public) attempts (\(reason, privacy: .public))"
             )
+            self.schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-replay-gave-up")
         }
     }
 
@@ -796,5 +797,4 @@ final class MenuBarManager: NSObject, ObservableObject {
         statusBarController.onItemsRecreated?(newMain, newSeparator)
         logger.info("Recreated status items from persisted layout (\(reason, privacy: .public))")
     }
-
 }

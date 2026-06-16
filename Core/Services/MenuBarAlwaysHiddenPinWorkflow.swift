@@ -397,6 +397,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         guard let repairOrigin = physicalMoveOrigin else { return false }
 
         let wasHidden = manager.hidingService.state == .hidden
+        let isWakeReplay = reason.contains("wake-resume") || reason.contains("wakeResume")
+        let shouldRestoreHiddenState = wasHidden || isWakeReplay
 
         await manager.hidingService.showAll()
         try? await Task.sleep(for: .milliseconds(300))
@@ -404,14 +406,14 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         guard let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() else {
             logger.warning("Always-hidden pin enforcement (\(reason, privacy: .public)): live separator boundary unavailable")
             await manager.hidingService.restoreFromShowAll()
-            if wasHidden { await manager.hidingService.hide() }
+            if shouldRestoreHiddenState { await manager.hidingService.hide() }
             return false
         }
 
         let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
         if Task.isCancelled {
             await manager.hidingService.restoreFromShowAll()
-            if wasHidden { await manager.hidingService.hide() }
+            if shouldRestoreHiddenState { await manager.hidingService.hide() }
             return false
         }
 
@@ -434,7 +436,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         guard !pinnedItems.isEmpty else {
             await manager.hidingService.restoreFromShowAll()
-            if wasHidden { await manager.hidingService.hide() }
+            if shouldRestoreHiddenState { await manager.hidingService.hide() }
             return false
         }
 
@@ -472,7 +474,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         }
 
         await manager.hidingService.restoreFromShowAll()
-        if wasHidden {
+        if shouldRestoreHiddenState {
             await manager.hidingService.hide()
         }
 
