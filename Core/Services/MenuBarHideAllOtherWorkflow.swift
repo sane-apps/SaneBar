@@ -239,6 +239,8 @@ final class MenuBarHideAllOtherWorkflow {
         guard let repairOrigin = physicalMoveOrigin else { return false }
 
         let wasHidden = manager.hidingService.state == .hidden
+        let isWakeReplay = reason.contains("wake-resume") || reason.contains("wakeResume")
+        let shouldRestoreHiddenState = wasHidden || isWakeReplay
         let baselineItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
         var initialZoneByUniqueId: [String: HideAllOtherZone] = [:]
         initialZoneByUniqueId.reserveCapacity(baselineItems.count)
@@ -259,7 +261,7 @@ final class MenuBarHideAllOtherWorkflow {
             let items = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
             if Task.isCancelled {
                 await manager.hidingService.restoreFromShowAll()
-                if wasHidden { await manager.hidingService.hide() }
+                if shouldRestoreHiddenState { await manager.hidingService.hide() }
                 return false
             }
 
@@ -326,7 +328,7 @@ final class MenuBarHideAllOtherWorkflow {
         }
 
         await manager.hidingService.restoreFromShowAll()
-        if wasHidden {
+        if shouldRestoreHiddenState {
             await manager.hidingService.hide()
         }
 

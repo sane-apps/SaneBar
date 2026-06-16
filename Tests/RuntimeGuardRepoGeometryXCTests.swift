@@ -235,6 +235,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
                 replaySource.contains("hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
+                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-replay-gave-up\")") &&
                 replaySource.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
                 replaySource.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
                 replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
@@ -474,6 +475,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("var failedMoveUniqueIds = Set<String>()") &&
                 source.contains("var finalMoveFailedUniqueIds = Set<String>()") &&
                 source.contains("failedMoveUniqueIds.insert(app.uniqueId)") &&
+                source.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
+                source.contains("if shouldRestoreHiddenState { await manager.hidingService.hide() }") &&
                 source.contains("Hide-all-other enforcement incomplete") &&
                 source.contains("return false") &&
                 source.contains("return !Task.isCancelled"),
@@ -518,6 +521,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 alwaysHiddenSource.contains("Physical menu bar moves rejected without an explicit user/automation origin") &&
                 alwaysHiddenSource.contains("Always-hidden pin enforcement audited without physical moves") &&
                 alwaysHiddenSource.contains("mode: .auditOnly") &&
+                alwaysHiddenSource.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
+                alwaysHiddenSource.contains("if shouldRestoreHiddenState { await manager.hidingService.hide() }") &&
                 queueSource.contains("clearAlwaysHiddenPinAfterMove: Bool = true") &&
                 standardSource.contains("context.request.clearAlwaysHiddenPinAfterMove") &&
                 alwaysHiddenSource.contains("@discardableResult") &&
