@@ -5,7 +5,27 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                                                <item>
+                                                                                                                                                                                                                                                                                                                                        <item>
+            <title>2.1.70</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 16 Jun 2026 14:42:49 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves macOS 27 Spaces and Mission Control handling for Custom Appearance, including active-Space refresh and hidden-state recovery after Space changes.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.70.zip"
+                       sparkle:version="2170"
+                       sparkle:shortVersionString="2.1.70"
+                       length="9135784"
+                       type="application/octet-stream"
+                       sparkle:edSignature="DX5L0r+O3m0eq1AWnthrQCPZKzbtloIhQEiLXRoCSshxVrqBdFEvC7tZb69eitY1eIxCUHqztDKacDYKRFqIDA=="/>
+        </item>
+<item>
             <title>2.1.69</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 15 Jun 2026 13:51:36 -0400</pubDate>
