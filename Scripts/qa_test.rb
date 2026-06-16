@@ -1083,6 +1083,17 @@ end
     assert_includes source, "'approved'"
   end
 
+  def test_release_policy_guardrails_fail_before_expensive_runtime_smoke
+    source = qa_source
+
+    policy_index = source.index('check_release_cadence_guardrails')
+    runtime_index = source.index('check_runtime_release_smoke')
+    skip_index = source.index('Skipping release runtime smoke and stability suite because release policy guardrails already failed.')
+
+    assert policy_index && runtime_index && policy_index < runtime_index
+    assert skip_index && skip_index < runtime_index
+  end
+
   def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys
     @qa.define_singleton_method(:app_bundle_metadata) do |_path|
       { short_version: '2.1.62', build_version: '2162' }

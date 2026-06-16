@@ -330,13 +330,17 @@ class ProjectQA
     check_appcast_download_urls
     check_migration_guardrails
     check_test_mode_tooling_guardrails
-    check_runtime_release_smoke
     check_recurring_regression_coverage_guardrails
     check_release_cadence_guardrails
     check_open_regression_guardrails
     check_regression_confirmation_guardrails
     check_customer_facing_copy_guardrails
-    run_stability_suite
+    if preflight_mode? && @errors.any?
+      puts 'Skipping release runtime smoke and stability suite because release policy guardrails already failed.'
+    else
+      check_runtime_release_smoke
+      run_stability_suite
+    end
     check_urls
 
     puts
