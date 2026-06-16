@@ -5,10 +5,11 @@
 
                                 
         
-                                                                                                                                                                                                                                                                                                                                        <item>
+                                                                                                                                                                                                                                                                                                                                        
+        <item>
             <title>2.1.70</title>
             <link>https://sanebar.com/download</link>
-            <pubDate>Tue, 16 Jun 2026 14:42:49 -0400</pubDate>
+            <pubDate>Tue, 16 Jun 2026 15:28:20 -0400</pubDate>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description>
                 <![CDATA[
@@ -21,9 +22,9 @@
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.70.zip"
                        sparkle:version="2170"
                        sparkle:shortVersionString="2.1.70"
-                       length="9135784"
+                       length="9135780"
                        type="application/octet-stream"
-                       sparkle:edSignature="DX5L0r+O3m0eq1AWnthrQCPZKzbtloIhQEiLXRoCSshxVrqBdFEvC7tZb69eitY1eIxCUHqztDKacDYKRFqIDA=="/>
+                       sparkle:edSignature="qo1XMzUeYIqb+Uy5vG4rp5XYwoWZw5QU9f0Xk3Br/N6wUYMYawY6p45wyUUd38x3UfSAoIvSNeh0n9QX8bmgCQ=="/>
         </item>
 <item>
             <title>2.1.69</title>
