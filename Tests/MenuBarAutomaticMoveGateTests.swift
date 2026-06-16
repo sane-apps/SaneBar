@@ -84,16 +84,16 @@ struct MenuBarAutomaticMoveGateTests {
         }
     }
 
-    @Test("Post-wake healthy validation can repair standing intent on trustworthy geometry")
-    func postWakeHealthyValidationCanRepairStandingIntent() {
+    @Test("Post-wake healthy validation stays passive on trustworthy geometry")
+    func postWakeHealthyValidationStaysPassive() {
         for confidence in [MenuBarGeometryConfidence.live, .cached] {
             let postWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "healthy-validation-wake-resume-attempt-1",
                 geometryConfidence: confidence,
                 hidingState: .hidden
             )
-            #expect(postWake.mode == .repairWithPhysicalMoves)
-            #expect(postWake.physicalMoveOrigin == .systemWakeRecovery)
+            #expect(postWake.mode == .auditOnly)
+            #expect(postWake.physicalMoveOrigin == nil)
 
             let expandedPostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "healthy-validation-wake-resume-attempt-1",

@@ -278,30 +278,22 @@ extension MenuBarVisibilityPolicy {
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
         // Startup/relaunch reconciliation follows an explicit user context
         // (the app was just launched) and may restore standing intent
-        // physically. Healthy post-wake validation uses that bounded gate only
-        // while restoring a hidden state: preserving the user's visible
-        // allow-list is safer than leaving a dynamic helper hidden behind the
-        // delimiter until the next manual action. Expanded wake remains passive
-        // because the user-visible state is already "show everything"; cursor-
-        // moving repairs there are unexpected background work.
+        // physically. Wake validation stays passive even after geometry
+        // settles: restoring hidden state and auto-rehide is safe, but cursor-
+        // moving repairs during wake violate the passive recovery contract.
         //
         // .cached is trustworthy by construction: only live observations enter
         // the geometry cache and entries expire when the display configuration
         // changes. Estimated, stale, and missing geometry still downgrade to
         // audit-only.
         let isWakeReplay = reason.contains("wake-resume")
-        if isWakeReplay, hidingState != .hidden {
+        if isWakeReplay {
             return (.auditOnly, nil)
         }
 
         let confidenceAllowsMoves = geometryConfidence == .live || geometryConfidence == .cached
         if reason.contains("healthy-validation"), confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
-        }
-        // Immediate wake notifications stay passive: they run before geometry
-        // and third-party dynamic items have settled.
-        if isWakeReplay {
-            return (.auditOnly, nil)
         }
         return (.auditOnly, nil)
     }
