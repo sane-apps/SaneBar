@@ -439,13 +439,13 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
                 source.contains("physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin") &&
                 replaySource.contains("let isWakeReplay = reason.contains(\"wake-resume\")") &&
-                replaySource.contains("if isWakeReplay, hidingState != .hidden") &&
+                replaySource.contains("if isWakeReplay {\n            return (.auditOnly, nil)\n        }") &&
                 replaySource.contains("hidingState: hidingService.state") &&
                 replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
                 source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
-            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, and restrict physical repair to explicit wake recovery"
+            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, keep wake replay passive, and restrict physical repair to trustworthy healthy validation"
         )
     }
 
