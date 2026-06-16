@@ -99,9 +99,9 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-            recoverySource.contains("statusItemValidationMaxAttempts(context: context)") &&
+                recoverySource.contains("statusItemValidationMaxAttempts(context: context)") &&
                 recoverySource.contains("statusItemValidationRetryDelaySeconds(context: context)") &&
-                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 6") &&
+                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            return 6") &&
                 recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 0.5"),
             "Startup position validation should retry before escalating to autosave recovery"
         )
@@ -119,9 +119,10 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             coordinatorSource.contains("validationContext == .screenParametersChanged") &&
+                coordinatorSource.contains("validationContext == .activeSpaceChanged") &&
                 coordinatorSource.contains("validationContext == .wakeResume") &&
                 coordinatorSource.contains("return .bumpAutosaveVersion(recoveryReason)"),
-            "Wake and screen-change invalid geometry should escalate through bounded autosave recovery after repair fails"
+            "Wake, Space, and screen-change invalid geometry should escalate through bounded autosave recovery after repair fails"
         )
         XCTAssertTrue(
             recoverySource.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
@@ -327,13 +328,18 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("manager.schedulePositionValidation(context: .screenParametersChanged)") &&
                 observerSource.contains("NSWorkspace.willSleepNotification") &&
                 observerSource.contains("NSWorkspace.screensDidSleepNotification") &&
+                observerSource.contains("NSWorkspace.activeSpaceDidChangeNotification") &&
                 observerSource.contains("NSWorkspace.didWakeNotification") &&
                 observerSource.contains("NSWorkspace.screensDidWakeNotification") &&
                 observerSource.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
+                observerSource.contains("manager.schedulePositionValidation(context: .activeSpaceChanged)") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .wakeResume)") &&
+                observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"activeSpaceChanged\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"wakeResume\")") &&
                 observerSource.contains("Replay pinned visibility intent only after validation reports healthy anchors.") &&
                 observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.") &&
+                observerSource.contains("Space switches can briefly report stale menu-bar coordinates on macOS 27;") &&
+                !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"activeSpaceChanged\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"wakeResume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
                 recoverySource.contains("restoreHiddenStateAfterHealthyValidationIfNeeded(reason: \"healthy-validation-\\(context.rawValue)\")") &&
