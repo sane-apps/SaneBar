@@ -142,6 +142,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.repositionOverlay()
                 self?.scheduleOverlayVisibilityRefreshes()
             }
         }
@@ -313,6 +314,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
     internal enum OverlaySuppressionReason: Equatable {
         case fullscreenContentWindow
+        case systemSpaceControl
         case thinTopHost
     }
 
@@ -368,6 +370,31 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         let maximumTopDrift: CGFloat = 8
         let maximumFullscreenMenuBarOffset: CGFloat = 48
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
+
+        func isSystemSpaceControlWindow(_ info: [String: Any]) -> Bool {
+            guard bundleID == "com.apple.dock" else { return false }
+            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
+            let ownerPID = pid_t(ownerPIDValue.intValue)
+            guard ownerPID == frontmostPID else { return false }
+
+            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
+                  let x = number(bounds["X"]),
+                  let y = number(bounds["Y"]),
+                  let width = number(bounds["Width"]),
+                  let height = number(bounds["Height"]) else {
+                return false
+            }
+
+            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
+            let coveredRect = rect.intersection(targetFrame)
+            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
+            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
+            guard isOnscreen, alpha > 0 else { return false }
+            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { return false }
+            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { return false }
+            guard coveredRect.width >= minimumCoveredWidth else { return false }
+            return coveredRect.height >= targetFrame.height * 0.6
+        }
 
         func isCompanionContentWindow(_ info: [String: Any], excluding thinRect: CGRect) -> Bool {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
@@ -426,6 +453,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
 
         let hasFullscreenTransitionTopHost = windowInfos.contains(where: isFullscreenTransitionTopHost)
+        if windowInfos.contains(where: isSystemSpaceControlWindow) {
+            return .systemSpaceControl
+        }
 
         for info in windowInfos {
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }

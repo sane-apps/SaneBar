@@ -170,6 +170,14 @@ final class MenuBarObserverWorkflow {
             .store(in: &cancellables)
 
         NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.activeSpaceDidChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleActiveSpaceChange()
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.didWakeNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -201,6 +209,16 @@ final class MenuBarObserverWorkflow {
         // Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.
         manager.schedulePositionValidation(context: .wakeResume)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "wakeResume")
+    }
+
+    private func handleActiveSpaceChange() {
+        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "activeSpaceChanged")
+        logger.debug("Active Space changed - refreshed cached separator policy")
+        manager.enforceExternalMonitorVisibilityPolicy(reason: "activeSpaceChanged")
+        // Space switches can briefly report stale menu-bar coordinates on macOS 27;
+        // validation owns hidden-state replay once the active Space settles.
+        manager.schedulePositionValidation(context: .activeSpaceChanged)
+        manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "activeSpaceChanged")
     }
 
     private func installLaunchObservers() {

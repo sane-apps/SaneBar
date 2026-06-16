@@ -518,6 +518,58 @@ struct MenuBarAppearanceSuppressionTests {
         )
     }
 
+    @Test("Appearance overlay hides behind Mission Control and Space control surfaces")
+    func testSuppressesOverlayForMissionControlSurface() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowLayer as String: NSNumber(value: 24),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.dock",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == .systemSpaceControl
+        )
+    }
+
+    @Test("Appearance overlay does not hide for ordinary Dock-owned top surfaces")
+    func testDoesNotSuppressOverlayForSmallDockSurface() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowLayer as String: NSNumber(value: 24),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 48)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.dock",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil
+        )
+    }
+
     @Test("Appearance overlay does not suppress lone transition layer top strips")
     func testDoesNotSuppressLoneTransitionLayerThinTopStrip() {
         let infos: [[String: Any]] = [[

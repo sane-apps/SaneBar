@@ -42,12 +42,18 @@ struct MenuBarManagerRecoveryPolicyTests {
         }
     }
 
-    @Test("Tahoe defaults to a longer deferred status-item creation delay")
-    func statusItemCreationDelayDefaultsForTahoe() {
+    @Test("Tahoe-class systems default to a longer deferred status-item creation delay")
+    func statusItemCreationDelayDefaultsForTahoeClassSystems() {
         #expect(
             MenuBarManager.statusItemCreationDelaySeconds(
                 environmentOverrideMs: nil,
                 majorOSVersion: 26
+            ) == 0.35
+        )
+        #expect(
+            MenuBarManager.statusItemCreationDelaySeconds(
+                environmentOverrideMs: nil,
+                majorOSVersion: 27
             ) == 0.35
         )
         #expect(
@@ -102,6 +108,12 @@ struct MenuBarManagerRecoveryPolicyTests {
             ) == 2.0
         )
         #expect(
+            MenuBarManager.statusItemValidationInitialDelaySeconds(
+                context: .activeSpaceChanged,
+                recoveryCount: 0
+            ) == 0.35
+        )
+        #expect(
             MenuBarManager.statusItemValidationRetryDelaySeconds(
                 context: .startupFollowUp
             ) == 0.5
@@ -112,6 +124,11 @@ struct MenuBarManagerRecoveryPolicyTests {
             ) == 0.5
         )
         #expect(
+            MenuBarManager.statusItemValidationRetryDelaySeconds(
+                context: .activeSpaceChanged
+            ) == 0.25
+        )
+        #expect(
             MenuBarManager.statusItemValidationMaxAttempts(
                 context: .startupFollowUp
             ) == 6
@@ -119,6 +136,11 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(
             MenuBarManager.statusItemValidationMaxAttempts(
                 context: .wakeResume
+            ) == 6
+        )
+        #expect(
+            MenuBarManager.statusItemValidationMaxAttempts(
+                context: .activeSpaceChanged
             ) == 6
         )
     }

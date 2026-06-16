@@ -256,6 +256,7 @@ struct MenuBarAppearanceTintAndSupportTests {
 
         let refreshBody = String(source[refreshStart.lowerBound..<refreshEnd.lowerBound])
         #expect(source.contains("case fullscreenContentWindow"))
+        #expect(source.contains("case systemSpaceControl"))
         #expect(!refreshBody.contains("scheduleStableFullscreenSuppression()"))
         #expect(refreshBody.contains("if suppressionReason != nil"))
         #expect(refreshBody.contains("window.orderOut(nil)"))

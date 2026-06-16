@@ -36,6 +36,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
             return recoveryCount == 0 ? 1.5 : 2.0
         case .manualLayoutRestore:
             return recoveryCount == 0 ? 0.35 : 0.75
+        case .activeSpaceChanged:
+            return recoveryCount == 0 ? 0.35 : 0.75
         case .screenParametersChanged:
             return recoveryCount == 0 ? 2.0 : 2.5
         case .wakeResume:
@@ -49,7 +51,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         switch context {
         case .startupFollowUp, .screenParametersChanged, .wakeResume:
             return 0.5
-        case .manualLayoutRestore:
+        case .manualLayoutRestore, .activeSpaceChanged:
             return 0.25
         }
     }
@@ -58,7 +60,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         context: MenuBarOperationCoordinator.PositionValidationContext
     ) -> Int {
         switch context {
-        case .startupFollowUp, .screenParametersChanged, .wakeResume:
+        case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:
             return 6
         case .manualLayoutRestore:
             return 4

@@ -39,6 +39,7 @@ enum MenuBarOperationCoordinator {
     enum PositionValidationContext: String, Equatable {
         case startupFollowUp = "startup-follow-up"
         case screenParametersChanged = "screen-parameters-changed"
+        case activeSpaceChanged = "active-space-changed"
         case wakeResume = "wake-resume"
         case manualLayoutRestore = "manual-layout-restore"
     }
@@ -224,7 +225,9 @@ enum MenuBarOperationCoordinator {
         recoveryReason: StartupRecoveryReason
     ) -> Bool {
         guard recoveryReason == .missingCoordinates else { return false }
-        guard validationContext == .screenParametersChanged || validationContext == .wakeResume else { return false }
+        guard validationContext == .screenParametersChanged ||
+            validationContext == .activeSpaceChanged ||
+            validationContext == .wakeResume else { return false }
         guard snapshot.structuralState == .ready else { return false }
         return true
     }
@@ -345,6 +348,7 @@ enum MenuBarOperationCoordinator {
 
                 if validationContext == .startupFollowUp ||
                     validationContext == .screenParametersChanged ||
+                    validationContext == .activeSpaceChanged ||
                     validationContext == .wakeResume,
                     recoveryCount < maxRecoveryCount {
                     return .bumpAutosaveVersion(recoveryReason)
