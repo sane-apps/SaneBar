@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-        <item>
+                <item>
+            <title>2.1.71</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Wed, 17 Jun 2026 12:03:14 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixed Always Hidden icon move reliability after restart, display wake, and recovery. Improved menu bar geometry handling for multi-display setups. Added clearer Health guidance when macOS hides SaneBar from the menu bar.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.71.zip"
+                       sparkle:version="2171"
+                       sparkle:shortVersionString="2.1.71"
+                       length="9137349"
+                       type="application/octet-stream"
+                       sparkle:edSignature="K14SuqRXZ+f6oXlcFjF+0k5FzQ0DQWgVMu7L5k3RRXSl4PIcDdVznduIrhGFACCq8qhM4Yw7AwgCfTLIwHifAQ=="/>
+        </item>
+<item>
             <title>2.1.70</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 16 Jun 2026 15:28:20 -0400</pubDate>
