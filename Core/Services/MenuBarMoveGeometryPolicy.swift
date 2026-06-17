@@ -19,16 +19,6 @@ enum MenuBarMoveGeometryPolicy {
         return verticalMatch && horizontalOverlap
     }
 
-    /// Scalar fallbacks for diagnostics paths that have no window/screen handle.
-    /// Behavioral code must use statusItemFrameLooksLive(frame:screenFrame:).
-    static func separatorFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
-        originX > 0 && width > 0 && width < 1000
-    }
-
-    static func mainStatusItemFrameLooksLive(originX: CGFloat, width: CGFloat) -> Bool {
-        originX > 0 && width > 0 && width < 1000
-    }
-
     static func normalizedSeparatorRightEdge(
         cachedRightEdge: CGFloat?,
         cachedOrigin: CGFloat?,
@@ -116,12 +106,19 @@ enum MenuBarMoveGeometryPolicy {
     }
 
     static func shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+        separatorX: CGFloat,
         visibleBoundaryX: CGFloat?,
         sourceFrameIsOnScreen: Bool,
         hasPreciseIdentity: Bool,
         hasLiveSeparatorAnchor: Bool
     ) -> Bool {
-        guard let visibleBoundaryX, visibleBoundaryX > 0 else { return false }
+        guard separatorX.isFinite,
+              let visibleBoundaryX,
+              visibleBoundaryX.isFinite,
+              visibleBoundaryX > separatorX
+        else {
+            return false
+        }
         guard sourceFrameIsOnScreen else { return false }
         return hasPreciseIdentity && hasLiveSeparatorAnchor
     }

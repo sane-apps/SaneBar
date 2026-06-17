@@ -96,6 +96,7 @@ struct MenuBarRuntimeSnapshot {
     var alwaysHiddenSeparatorVisible: Bool?
     var likelySystemSuppressedStatusItems: Bool
     var separatorX: CGFloat?
+    /// Always Hidden separator boundary/right edge. This is not the origin.
     var alwaysHiddenSeparatorX: CGFloat?
     var mainX: CGFloat?
     var mainRightGap: CGFloat?

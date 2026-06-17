@@ -305,6 +305,15 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
+            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: -600,
+                separatorRightEdgeX: -580,
+                mainStatusItemX: -540,
+                displayStillPresent: true
+            )
+        )
+        #expect(
             !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .expanded,
                 separatorX: 500,
@@ -606,35 +615,51 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
-    @Test("Always-hidden separator repair only triggers for a real misordered divider")
+    @Test("Always-hidden separator repair only triggers for a real misordered live divider")
     func alwaysHiddenSeparatorRepairGuard() {
         #expect(
             !MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
                 hasAlwaysHiddenSeparator: false,
                 separatorX: 200,
-                alwaysHiddenSeparatorX: 220
+                alwaysHiddenSeparatorRightEdgeX: 220
             )
         )
         #expect(
             !MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
                 hasAlwaysHiddenSeparator: true,
                 separatorX: 200,
-                alwaysHiddenSeparatorX: 180
+                alwaysHiddenSeparatorRightEdgeX: 180
             )
         )
         #expect(
             !MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
                 hasAlwaysHiddenSeparator: true,
                 separatorX: 200,
-                alwaysHiddenSeparatorX: nil
+                alwaysHiddenSeparatorRightEdgeX: nil
             )
         )
         #expect(
             MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
                 hasAlwaysHiddenSeparator: true,
                 separatorX: 200,
-                alwaysHiddenSeparatorX: 220
+                alwaysHiddenSeparatorRightEdgeX: 220
             )
+        )
+        #expect(
+            !MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: -200,
+                alwaysHiddenSeparatorRightEdgeX: -240
+            ),
+            "Negative global X is valid on a left-arranged display; ordering, not sign, determines repair"
+        )
+        #expect(
+            MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: -200,
+                alwaysHiddenSeparatorRightEdgeX: -180
+            ),
+            "Repair should still trigger for misordered live geometry in negative global coordinates"
         )
     }
 }

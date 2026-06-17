@@ -228,6 +228,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
                 source.contains("alwaysHiddenAnchorsNeedReplayRetry()") &&
+                source.contains("let alwaysHiddenBoundaryX = geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
+                source.contains("let separatorFrame = geometryResolver.currentLiveSeparatorFrame()") &&
+                source.contains("return alwaysHiddenBoundaryX >= separatorFrame.origin.x") &&
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
@@ -241,6 +244,15 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
             "Structural recovery should re-warm live core anchors before hidden replay, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
+        )
+        let replayRetryStart = try XCTUnwrap(source.range(of: "private func alwaysHiddenAnchorsNeedReplayRetry() -> Bool {"))
+        let replayRetryEnd = try XCTUnwrap(source.range(of: "func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool {"))
+        let replayRetrySource = String(source[replayRetryStart.lowerBound ..< replayRetryEnd.lowerBound])
+        XCTAssertFalse(
+            replayRetrySource.contains("separatorOriginX()") ||
+                replayRetrySource.contains("alwaysHiddenSeparatorOriginX()") ||
+                replayRetrySource.contains("> 1"),
+            "Visibility replay health must use live separator frames/boundaries, not cached origin/sign checks"
         )
         XCTAssertTrue(
             setupSource.contains("manager.statusBarController.configureStatusItems(") &&
@@ -384,6 +396,81 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 targetLane: .hidden,
                 visibleBoundaryX: 683
             )
+        )
+    }
+
+    func testAlwaysHiddenToHiddenVerificationAcceptsNegativeCoordinateHiddenLane() {
+        let hiddenLaneFrame = CGRect(x: -910, y: 0, width: 40, height: 22) // midX=-890
+        let alwaysHiddenFrame = CGRect(x: -1120, y: 0, width: 40, height: 22) // midX=-1100
+        let visibleFrame = CGRect(x: -560, y: 0, width: 40, height: 22) // midX=-540
+
+        XCTAssertTrue(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: hiddenLaneFrame,
+                targetLane: .hiddenFromAlwaysHidden,
+                separatorX: -600,
+                visibleBoundaryX: -1080
+            )
+        )
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: alwaysHiddenFrame,
+                targetLane: .hiddenFromAlwaysHidden,
+                separatorX: -600,
+                visibleBoundaryX: -1080
+            )
+        )
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: visibleFrame,
+                targetLane: .hiddenFromAlwaysHidden,
+                separatorX: -600,
+                visibleBoundaryX: -1080
+            )
+        )
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: hiddenLaneFrame,
+                targetLane: .hiddenFromAlwaysHidden,
+                separatorX: -600,
+                visibleBoundaryX: nil
+            ),
+            "AH-to-Hidden verification should fail closed without an ordered AH boundary"
+        )
+    }
+
+    func testAlwaysHiddenToHiddenNegativeCoordinateDirectionAllowsRightwardLaneEntryOnly() {
+        let beforeFrame = CGRect(x: -1120, y: 0, width: 40, height: 22) // midX=-1100
+        let afterFrame = CGRect(x: -910, y: 0, width: 40, height: 22) // midX=-890
+        let wrongWayFrame = CGRect(x: -1160, y: 0, width: 40, height: 22) // midX=-1140
+
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.hasDirectionMismatch(
+                beforeFrame: beforeFrame,
+                afterFrame: afterFrame,
+                separatorX: -600,
+                targetLane: .hiddenFromAlwaysHidden,
+                visibleBoundaryX: -1080
+            )
+        )
+        XCTAssertTrue(
+            AccessibilityInteractionPolicy.hasDirectionMismatch(
+                beforeFrame: beforeFrame,
+                afterFrame: wrongWayFrame,
+                separatorX: -600,
+                targetLane: .hiddenFromAlwaysHidden,
+                visibleBoundaryX: -1080
+            )
+        )
+        XCTAssertTrue(
+            AccessibilityInteractionPolicy.hasDirectionMismatch(
+                beforeFrame: beforeFrame,
+                afterFrame: afterFrame,
+                separatorX: -600,
+                targetLane: .hiddenFromAlwaysHidden,
+                visibleBoundaryX: nil
+            ),
+            "AH-to-Hidden direction verification should not pass when the lane boundary is missing"
         )
     }
 

@@ -259,6 +259,48 @@ struct AlwaysHiddenTests {
         )
     }
 
+    @Test("hide-all-other accepts negative-coordinate always-hidden boundary")
+    func hideAllOtherAcceptsNegativeCoordinateAlwaysHiddenBoundary() {
+        #expect(
+            MenuBarHideAllOtherWorkflow.isAlwaysHiddenZone(
+                itemX: -1160,
+                itemWidth: 24,
+                alwaysHiddenBoundaryX: -1080
+            )
+        )
+        #expect(
+            !MenuBarHideAllOtherWorkflow.isAlwaysHiddenZone(
+                itemX: -1060,
+                itemWidth: 24,
+                alwaysHiddenBoundaryX: -1080
+            )
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherZone(
+                itemX: -1160,
+                itemWidth: 24,
+                separatorX: -600,
+                alwaysHiddenBoundaryX: -1080
+            ) == .alwaysHidden
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherZone(
+                itemX: -900,
+                itemWidth: 24,
+                separatorX: -600,
+                alwaysHiddenBoundaryX: -1080
+            ) == .hidden
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherZone(
+                itemX: -560,
+                itemWidth: 24,
+                separatorX: -600,
+                alwaysHiddenBoundaryX: -1080
+            ) == .visible
+        )
+    }
+
     @Test("hide-all-other classifies original zones before expansion")
     func hideAllOtherClassifiesOriginalZonesBeforeExpansion() {
         #expect(

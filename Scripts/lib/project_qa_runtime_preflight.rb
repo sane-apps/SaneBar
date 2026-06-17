@@ -553,16 +553,24 @@ class ProjectQA
     end
 
     case_names = Array(artifact['cases']).map { |entry| entry['name'].to_s }
-    required_case = '#157 dirty reboot recovery keeps live anchors before hiding'
-    unless case_names.include?(required_case)
-      return "Startup layout probe artifact missing release-blocking case: #{required_case}."
+    required_cases = [
+      '#157 dirty reboot recovery keeps live anchors before hiding',
+      '#155 dirty startup AH replay allows outbound moves'
+    ]
+    missing_cases = required_cases - case_names
+    unless missing_cases.empty?
+      return "Startup layout probe artifact missing release-blocking case(s): #{missing_cases.join(', ')}."
     end
 
     required_scenarios = [
       '#157 dirty startup recovers poisoned autosave defaults',
       '#157 dirty startup clears currentHost visibility overrides',
       '#157 dirty startup waits for valid status-item windows before auto-hide',
-      '#157 dirty startup remains passive and does not move the cursor'
+      '#157 dirty startup remains passive and does not move the cursor',
+      '#155 dirty startup does not give up AH replay',
+      '#155 dirty startup restores pinned icons into Always Hidden before outbound moves',
+      '#155 pinned icon exits Always Hidden after dirty startup',
+      '#155 Always Hidden outbound moves leave move state idle'
     ]
     completed_scenarios = Array(artifact['completed_scenarios'])
     missing = required_scenarios - completed_scenarios

@@ -396,7 +396,7 @@ class ProjectQA
     end
   end
 
-  def closed_regression_confirmation_exemption_reason(comments)
+  def closed_regression_confirmation_exemption_reason(comments, issue: {})
     trusted_comments = comments.select do |comment|
       trusted_issue_author_associations.include?(comment['authorAssociation'].to_s.upcase)
     end
@@ -409,8 +409,58 @@ class ProjectQA
     settings_mismatch = closing_note.match?(/settings mismatch/i)
     missing_diagnostics = closing_note.match?(/never got the requested diagnostics|no fresh repro/i)
     return 'settings-mismatch closure' if settings_mismatch || missing_diagnostics
+    return 'stale patched-pending closure' if stale_patched_pending_closure?(closing_note, comments, issue: issue)
 
     nil
+  end
+
+  def stale_patched_pending_closure?(closing_note, comments, issue: {})
+    return false unless closing_note.match?(/five business days|patched-pending policy|no newer report|no follow-up/i)
+    return false unless closing_note.match?(/reopen|fresh in-app report|comment here|reply here/i)
+
+    closed_time = Time.parse(issue['closedAt'].to_s).utc
+    trusted_retest_times = comments.each_with_object([]) do |comment, times|
+      next unless trusted_issue_author_associations.include?(comment['authorAssociation'].to_s.upcase)
+      created_at = Time.parse(comment['createdAt'].to_s).utc
+      next if created_at >= closed_time
+      body = comment['body'].to_s
+      next if body.strip == closing_note
+      next unless body.match?(/please update|retest|try (?:the same|again)|reply here|send a fresh/i)
+
+      times << created_at
+    rescue StandardError
+      nil
+    end
+    last_retest_time = trusted_retest_times.max
+    return false unless last_retest_time
+
+    return false if business_days_between(last_retest_time, closed_time) < 5
+
+    comments.none? do |comment|
+      association = comment['authorAssociation'].to_s.upcase
+      next false if trusted_issue_author_associations.include?(association)
+
+      created_at = Time.parse(comment['createdAt'].to_s).utc
+      created_at > last_retest_time
+    rescue StandardError
+      false
+    end
+  rescue StandardError
+    false
+  end
+
+  def business_days_between(start_time, end_time)
+    start_date = start_time.to_date
+    end_date = end_time.to_date
+    return 0 if end_date <= start_date
+
+    day = start_date + 1
+    count = 0
+    while day <= end_date
+      count += 1 unless day.saturday? || day.sunday?
+      day += 1
+    end
+    count
   end
 
   def check_regression_confirmation_guardrails
@@ -458,12 +508,13 @@ class ProjectQA
       details_json, details_status = Open3.capture2e(
         'gh', 'issue', 'view', issue['number'].to_s,
         '--repo', 'sane-apps/SaneBar',
-        '--json', 'comments'
+        '--json', 'comments,closedAt'
       )
       next unless details_status.success?
 
-      comments = (JSON.parse(details_json)['comments'] rescue []) || []
-      exemption_reason = closed_regression_confirmation_exemption_reason(comments)
+      details = JSON.parse(details_json) rescue {}
+      comments = details['comments'] || []
+      exemption_reason = closed_regression_confirmation_exemption_reason(comments, issue: issue.merge(details))
       if exemption_reason
         exempt << "##{issue['number']} #{exemption_reason}"
         next

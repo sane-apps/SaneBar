@@ -4,17 +4,6 @@ import Testing
 
 @Suite("Icon Moving — Separator Cache Coherency")
 struct IconMovingSeparatorCacheCoherencyTests {
-    @Test("Accepts live separator frame when origin is on-screen and width is visual size")
-    func acceptsLiveSeparatorFrame() {
-        #expect(MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: 1537, width: 83))
-    }
-
-    @Test("Rejects stale separator frame when off-screen or blocking sized")
-    func rejectsStaleSeparatorFrame() {
-        #expect(MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: -3527, width: 36) == false)
-        #expect(MenuBarMoveGeometryPolicy.separatorFrameLooksLive(originX: 1537, width: 5002) == false)
-    }
-
     @Test("Screen-aware liveness accepts frames in the menu bar band of their screen")
     func screenAwareLivenessAcceptsMenuBarBandFrames() {
         let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
@@ -125,7 +114,20 @@ struct IconMovingSeparatorCacheCoherencyTests {
     @Test("Visible cached move target is allowed when source is on-screen and identity is precise")
     func acceptsCachedVisibleMoveTargetForPreciseOnScreenSource() {
         let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: 1662,
             visibleBoundaryX: 1699,
+            sourceFrameIsOnScreen: true,
+            hasPreciseIdentity: true,
+            hasLiveSeparatorAnchor: true
+        )
+        #expect(allowed)
+    }
+
+    @Test("Visible cached move target is allowed with ordered negative coordinates")
+    func acceptsCachedVisibleMoveTargetWithOrderedNegativeCoordinates() {
+        let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: -600,
+            visibleBoundaryX: -560,
             sourceFrameIsOnScreen: true,
             hasPreciseIdentity: true,
             hasLiveSeparatorAnchor: true
@@ -136,6 +138,7 @@ struct IconMovingSeparatorCacheCoherencyTests {
     @Test("Visible cached move target stays blocked while separator anchor is estimated")
     func rejectsCachedVisibleMoveTargetWithoutLiveSeparatorAnchor() {
         let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: 1662,
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: true,
             hasPreciseIdentity: true,
@@ -147,6 +150,7 @@ struct IconMovingSeparatorCacheCoherencyTests {
     @Test("Visible cached move target stays blocked for coarse source identity")
     func rejectsCachedVisibleMoveTargetForCoarseIdentity() {
         let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: 1662,
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: true,
             hasPreciseIdentity: false,
@@ -158,11 +162,46 @@ struct IconMovingSeparatorCacheCoherencyTests {
     @Test("Visible cached move target stays blocked while source is still off-screen")
     func rejectsCachedVisibleMoveTargetForOffScreenSource() {
         let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: 1662,
             visibleBoundaryX: 1699,
             sourceFrameIsOnScreen: false,
             hasPreciseIdentity: true,
             hasLiveSeparatorAnchor: true
         )
         #expect(allowed == false)
+    }
+
+    @Test("Visible cached move target rejects unordered negative coordinates")
+    func rejectsCachedVisibleMoveTargetWithUnorderedNegativeCoordinates() {
+        let allowed = MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+            separatorX: -600,
+            visibleBoundaryX: -620,
+            sourceFrameIsOnScreen: true,
+            hasPreciseIdentity: true,
+            hasLiveSeparatorAnchor: true
+        )
+        #expect(allowed == false)
+    }
+
+    @Test("Layout snapshot preserves negative-coordinate main gap and always-hidden ordering")
+    func layoutSnapshotPreservesNegativeCoordinateGeometry() {
+        #expect(
+            LayoutSnapshotCommand.resolvedSnapshotMainRightGap(
+                referenceScreenRightEdge: 0,
+                liveFrameOriginX: -120,
+                liveFrameWidth: 24,
+                cachedMainX: nil
+            ) == 120
+        )
+
+        let geometry = LayoutSnapshotCommand.normalizedSnapshotAlwaysHiddenGeometry(
+            hidingState: .expanded,
+            separatorX: -600,
+            alwaysHiddenOriginX: -1100,
+            alwaysHiddenBoundaryX: -1080
+        )
+        #expect(geometry.isReliable)
+        #expect(geometry.originX == -1100)
+        #expect(geometry.boundaryX == -1080)
     }
 }

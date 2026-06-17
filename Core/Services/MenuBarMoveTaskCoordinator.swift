@@ -28,22 +28,13 @@ final class MenuBarMoveTaskCoordinator {
             await MainActor.run {
                 manager.alwaysHiddenPinEnforcementTask?.cancel()
                 manager.alwaysHiddenPinEnforcementTask = nil
+                manager.alwaysHiddenSeparatorRepairGeneration += 1
+                manager.alwaysHiddenSeparatorRepairFollowUpTask?.cancel()
+                manager.alwaysHiddenSeparatorRepairFollowUpTask = nil
                 SearchWindowController.shared.setMoveInProgress(true)
                 manager.hidingService.cancelRehide()
                 AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()
             }
-            defer {
-                Task { @MainActor [weak manager] in
-                    SearchWindowController.shared.setMoveInProgress(false)
-                    // Move tasks already leave behind a fresh post-move cache.
-                    // Replaying deferred reveal/conceal warmups here just adds a
-                    // second AX refresh on top of the work we already finished.
-                    AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
-                    manager?.lastManualZoneMoveSettledAt = Date()
-                    manager?.activeMoveTask = nil
-                }
-            }
-
             logger.info("\(operationName, privacy: .public) task started")
             let success = await operation(manager)
             await MainActor.run {
@@ -54,6 +45,13 @@ final class MenuBarMoveTaskCoordinator {
                 } else {
                     self.rollbackQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)
                 }
+                manager.lastManualZoneMoveSettledAt = Date()
+                manager.activeMoveTask = nil
+                // Move tasks already leave behind a fresh post-move cache.
+                // Replaying deferred reveal/conceal warmups here just adds a
+                // second AX refresh on top of the work we already finished.
+                AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
+                SearchWindowController.shared.setMoveInProgress(false)
             }
             return success
         }

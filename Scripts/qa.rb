@@ -277,6 +277,11 @@ class ProjectQA
     'Tests/RuntimeGuardStartupRecoveryXCTests.swift' => [
       'testStartupHideContinuesWhenAccessibilityPermissionIsMissing'
     ],
+    'Scripts/startup_layout_probe.rb' => [
+      '#155 dirty startup AH replay allows outbound moves',
+      '#155 pinned icon exits Always Hidden after dirty startup',
+      'move_icon_and_expect!'
+    ],
     'Tests/RuntimeGuardQAAndLicensingXCTests.swift' => [
       'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers'
     ],
@@ -327,7 +332,11 @@ class ProjectQA
     check_release_hygiene_guardrails
     check_saneui_guardrails
     check_appcast_guardrails
-    check_appcast_download_urls
+    if release_policy_only_mode?
+      puts 'Checking appcast download URLs... ⏭️  skipped in policy-only mode'
+    else
+      check_appcast_download_urls
+    end
     check_migration_guardrails
     check_test_mode_tooling_guardrails
     check_recurring_regression_coverage_guardrails
@@ -335,13 +344,15 @@ class ProjectQA
     check_open_regression_guardrails
     check_regression_confirmation_guardrails
     check_customer_facing_copy_guardrails
-    if preflight_mode? && @errors.any?
+    if release_policy_only_mode?
+      puts 'Policy-only release guardrails complete; skipping runtime smoke, stability suite, and URL checks.'
+    elsif preflight_mode? && @errors.any?
       puts 'Skipping release runtime smoke and stability suite because release policy guardrails already failed.'
     else
       check_runtime_release_smoke
       run_stability_suite
+      check_urls
     end
-    check_urls
 
     puts
     puts '═══════════════════════════════════════════════════════════════'
@@ -373,13 +384,21 @@ class ProjectQA
   private
 
   def preflight_mode?
-    ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1' ||
+    release_policy_only_mode? ||
+      ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1' ||
       ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1' ||
       ENV['SANEBAR_RELEASE_PREFLIGHT'] == '1' ||
       ENV['SANEBAR_RUN_STABILITY_SUITE'] == '1'
   end
 
+  def release_policy_only_mode?
+    ENV['SANEPROCESS_RELEASE_POLICY_ONLY'] == '1' ||
+      ENV['SANEBAR_RELEASE_POLICY_ONLY'] == '1'
+  end
+
   def runtime_smoke_mode?
+    return false if release_policy_only_mode?
+
     preflight_mode? ||
       ENV['SANEPROCESS_RUN_RUNTIME_SMOKE'] == '1' ||
       ENV['SANEBAR_RUN_RUNTIME_SMOKE'] == '1'
@@ -680,6 +699,7 @@ class ProjectQA
       exitCode: exit_code,
       status: exit_code.zero? ? (@warnings.empty? ? 'passed' : 'passed_with_warnings') : 'failed',
       preflightMode: preflight_mode?,
+      policyOnlyMode: release_policy_only_mode?,
       runtimeSmokeMode: runtime_smoke_mode?,
       runtimeSmokePasses: RUNTIME_SMOKE_PASSES,
       runtimeSmokeResourceWatchdog: {

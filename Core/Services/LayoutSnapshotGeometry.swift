@@ -14,23 +14,31 @@ extension LayoutSnapshotCommand {
         cachedMainX: CGFloat?
     ) -> CGFloat? {
         guard let referenceScreenRightEdge,
-              referenceScreenRightEdge.isFinite,
-              referenceScreenRightEdge > 0 else {
+              referenceScreenRightEdge.isFinite else {
             return nil
+        }
+
+        func plausibleRightGap(from originX: CGFloat) -> CGFloat? {
+            guard originX.isFinite else { return nil }
+            let gap = referenceScreenRightEdge - originX
+            guard gap >= 0, gap < 1000 else { return nil }
+            return gap
         }
 
         if let liveFrameOriginX,
            let liveFrameWidth,
-           MenuBarMoveGeometryPolicy.mainStatusItemFrameLooksLive(originX: liveFrameOriginX, width: liveFrameWidth) {
-            return referenceScreenRightEdge - liveFrameOriginX
+           liveFrameWidth > 0,
+           liveFrameWidth < 1000,
+           let gap = plausibleRightGap(from: liveFrameOriginX) {
+            return gap
         }
 
         guard let cachedMainX,
-              cachedMainX.isFinite,
-              cachedMainX > 0 else {
+              let gap = plausibleRightGap(from: cachedMainX)
+        else {
             return nil
         }
-        return referenceScreenRightEdge - cachedMainX
+        return gap
     }
 
     nonisolated static func normalizedSnapshotAlwaysHiddenGeometry(
@@ -42,7 +50,7 @@ extension LayoutSnapshotCommand {
         guard hidingState != .hidden else {
             return SnapshotAlwaysHiddenGeometry(originX: nil, boundaryX: nil, isReliable: false)
         }
-        guard let separatorX, separatorX.isFinite, separatorX > 0 else {
+        guard let separatorX, separatorX.isFinite else {
             return SnapshotAlwaysHiddenGeometry(originX: nil, boundaryX: nil, isReliable: false)
         }
 
@@ -50,12 +58,11 @@ extension LayoutSnapshotCommand {
         let originX: CGFloat? = {
             if let alwaysHiddenOriginX,
                alwaysHiddenOriginX.isFinite,
-               alwaysHiddenOriginX > 0,
                alwaysHiddenOriginX < separatorX {
                 return alwaysHiddenOriginX
             }
             if let boundaryX {
-                return max(1, boundaryX - 20)
+                return boundaryX - MenuBarMoveGeometryPolicy.separatorVisualWidth
             }
             return nil
         }()
@@ -68,7 +75,10 @@ extension LayoutSnapshotCommand {
             if let boundaryX {
                 return boundaryX
             }
-            return SearchService.normalizedAlwaysHiddenBoundary(originX + 20, separatorX: separatorX)
+            return SearchService.normalizedAlwaysHiddenBoundary(
+                originX + MenuBarMoveGeometryPolicy.separatorVisualWidth,
+                separatorX: separatorX
+            )
         }()
 
         return SnapshotAlwaysHiddenGeometry(originX: originX, boundaryX: normalizedBoundaryX, isReliable: true)

@@ -39,7 +39,10 @@ struct HealthSettingsView: View {
     }
 
     private var structureLabel: String {
-        switch runtimeSnapshot.structuralState {
+        if runtimeSnapshot.likelySystemSuppressedStatusItems {
+            return "Hidden by macOS"
+        }
+        return switch runtimeSnapshot.structuralState {
         case .ready: "Ready"
         case .missingItems: "Missing Items"
         case .invisibleItems: "Hidden by macOS"
@@ -94,7 +97,10 @@ struct HealthSettingsView: View {
     }
 
     private var structureHelp: String {
-        switch runtimeSnapshot.structuralState {
+        if runtimeSnapshot.likelySystemSuppressedStatusItems {
+            return "macOS says SaneBar's menu bar items are visible, but their windows are detached. Check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."
+        }
+        return switch runtimeSnapshot.structuralState {
         case .ready:
             "SaneBar can see the expected visible, hidden, and always-hidden item groups."
         case .missingItems:

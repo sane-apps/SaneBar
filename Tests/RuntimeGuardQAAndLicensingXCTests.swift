@@ -459,6 +459,8 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         let standardSource = try String(contentsOf: standardURL, encoding: .utf8)
         let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
         let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+        let managerURL = projectRootURL().appendingPathComponent("Core/MenuBarManager.swift")
+        let managerSource = try String(contentsOf: managerURL, encoding: .utf8)
         XCTAssertTrue(
             standardSource.contains("let wasHidden = manager.hidingService.state == .hidden") &&
                 alwaysHiddenSource.contains("let wasHidden = manager.hidingService.state == .hidden"),
@@ -491,8 +493,20 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             alwaysHiddenManagerSource.contains("manager.clearCachedSeparatorGeometry()") &&
                 alwaysHiddenManagerSource.contains("await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)") &&
-                alwaysHiddenManagerSource.contains("await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)"),
-            "Always-hidden separator repair should clear stale geometry caches and re-warm live separator coordinates before judging the relayout"
+                alwaysHiddenManagerSource.contains("await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)") &&
+                alwaysHiddenManagerSource.contains("manager.geometryResolver.currentLiveSeparatorFrame()") &&
+                alwaysHiddenManagerSource.contains("manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()") &&
+                alwaysHiddenManagerSource.contains("alwaysHiddenSeparatorRightEdgeX >= separatorX"),
+            "Always-hidden separator repair should clear stale geometry caches, re-warm, and judge relayout with live ordered frames instead of cached origin/sign checks"
+        )
+        XCTAssertTrue(
+            managerSource.contains("var alwaysHiddenSeparatorRepairFollowUpTask: Task<Void, Never>?") &&
+                managerSource.contains("var alwaysHiddenSeparatorRepairGeneration: Int = 0") &&
+                alwaysHiddenManagerSource.contains("manager.alwaysHiddenSeparatorRepairFollowUpTask?.cancel()") &&
+                alwaysHiddenManagerSource.contains("manager.alwaysHiddenSeparatorRepairFollowUpTask = Task { @MainActor [weak manager] in") &&
+                alwaysHiddenManagerSource.contains("guard !Task.isCancelled else { return }") &&
+                alwaysHiddenManagerSource.contains("guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }"),
+            "Delayed Always Hidden separator repair verification should re-check cancellation/generation after awaited cache warmups so stale follow-ups cannot outlive newer moves/recoveries"
         )
     }
 

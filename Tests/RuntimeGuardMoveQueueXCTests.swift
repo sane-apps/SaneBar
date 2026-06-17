@@ -8,7 +8,7 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         let dragSource = try String(contentsOf: dragURL, encoding: .utf8)
 
         XCTAssertTrue(
-                dragSource.contains("private final class DragTimeoutState") &&
+            dragSource.contains("private final class DragTimeoutState") &&
                 dragSource.contains("timeoutState.markTimedOut()") &&
                 dragSource.contains("guard !timeoutState.shouldStop") &&
                 dragSource.contains("postMouseRestoreIfOnScreen") &&
@@ -314,10 +314,31 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
     func testSearchClassificationUsesAlwaysHiddenBoundaryRightEdge() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let helperStart = source.range(of: "nonisolated static func normalizedAlwaysHiddenBoundary(")
+        let helperSearchRange = (helperStart?.lowerBound ?? source.startIndex) ..< source.endIndex
+        let helperEnd = source.range(of: "\n\n    @MainActor", range: helperSearchRange)
+        let helperSource: Substring
+        if let helperStart, let helperEnd {
+            helperSource = source[helperStart.lowerBound ..< helperEnd.lowerBound]
+        } else {
+            helperSource = ""
+        }
 
         XCTAssertTrue(
             source.contains("geometryResolver.alwaysHiddenSeparatorBoundaryX()"),
             "Search classification should use AH boundary/right-edge for zone splits near the AH divider"
+        )
+        XCTAssertTrue(
+            helperSource.contains("separatorX.isFinite") &&
+                helperSource.contains("candidate < maxAllowed"),
+            "Always Hidden boundary normalization should be finite/order based so left-arranged display coordinates remain valid"
+        )
+        XCTAssertFalse(
+            helperSource.contains("candidate > 0") ||
+                helperSource.contains("separatorX > 0") ||
+                source.contains("alwaysHiddenSeparatorOriginX > 0") ||
+                source.contains("repairedAlwaysHiddenOriginX > 0"),
+            "Always Hidden classification must not treat positive global X as proof of live geometry"
         )
     }
 
@@ -644,6 +665,18 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             0,
             "Shared move-task helper must still cancel rehide before drag simulation begins"
         )
+        XCTAssertFalse(
+            taskSource.contains("defer {\n                Task { @MainActor"),
+            "Move-task cleanup must be awaited before task.value completes so the next queue decision cannot see a completed move as still in flight"
+        )
+        XCTAssertTrue(
+            taskSource.contains("let success = await operation(manager)") &&
+                taskSource.contains("manager.activeMoveTask = nil") &&
+                taskSource.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)") &&
+                taskSource.contains("SearchWindowController.shared.setMoveInProgress(false)") &&
+                taskSource.contains("return success"),
+            "Move-task terminal cleanup should commit/rollback, clear activeMoveTask, end cache suppression, and publish move completion before task.value returns"
+        )
     }
 
     func testAlwaysHiddenOutboundMovesPreparePinnedOffscreenSourceBeforeDrag() throws {
@@ -661,6 +694,13 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("sourceFrameIsOnScreen"),
             "The outbound AH repair should be gated on live source geometry instead of running unconditionally"
+        )
+        XCTAssertTrue(
+            source.contains("private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async -> Bool") &&
+                source.contains("guard sourceFrameIsOnScreen(request) else") &&
+                source.contains("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag") &&
+                source.contains("guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else"),
+            "Moves out of Always Hidden should fail closed after separator repair if the source still is not on-screen"
         )
     }
 
@@ -699,5 +739,4 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "Automation/script reveal path must not use pinned settings-button trigger"
         )
     }
-
 }

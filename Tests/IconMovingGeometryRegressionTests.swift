@@ -266,6 +266,16 @@ struct SeparatorCachingTests {
             "Hidden wake should preserve the last trustworthy separator cache until live anchors return"
         )
         #expect(
+            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: -600,
+                separatorRightEdgeX: -580,
+                mainStatusItemX: -540,
+                displayStillPresent: true
+            ),
+            "Hidden wake should preserve ordered cached geometry on displays arranged left of the primary"
+        )
+        #expect(
             !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,

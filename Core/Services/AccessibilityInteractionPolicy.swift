@@ -11,6 +11,20 @@ enum AccessibilityInteractionPolicy {
         case visibleFromAlwaysHidden
     }
 
+    private nonisolated static func orderedHiddenBoundary(_ boundaryX: CGFloat?, separatorX: CGFloat) -> CGFloat? {
+        guard let boundaryX, boundaryX.isFinite, separatorX.isFinite, boundaryX < separatorX else {
+            return nil
+        }
+        return boundaryX
+    }
+
+    private nonisolated static func orderedVisibleBoundary(_ boundaryX: CGFloat?, separatorX: CGFloat) -> CGFloat? {
+        guard let boundaryX, boundaryX.isFinite, separatorX.isFinite, boundaryX > separatorX else {
+            return nil
+        }
+        return boundaryX
+    }
+
     nonisolated static func shouldFallbackToAXAfterHardwareAttempt(
         success: Bool,
         verificationSummary: String,
@@ -164,10 +178,7 @@ enum AccessibilityInteractionPolicy {
         let midpointX = afterFrame.midX
         let threshold = separatorX - margin
         guard toHidden else {
-            guard let alwaysHiddenBoundaryX,
-                  alwaysHiddenBoundaryX.isFinite,
-                  alwaysHiddenBoundaryX > separatorX
-            else {
+            guard let alwaysHiddenBoundaryX = orderedVisibleBoundary(alwaysHiddenBoundaryX, separatorX: separatorX) else {
                 return midpointX >= threshold
             }
             let laneWidth = alwaysHiddenBoundaryX - separatorX
@@ -182,7 +193,7 @@ enum AccessibilityInteractionPolicy {
         }
         guard let alwaysHiddenBoundaryX,
               alwaysHiddenBoundaryX.isFinite,
-              alwaysHiddenBoundaryX > 0
+              alwaysHiddenBoundaryX < separatorX
         else {
             guard midpointX < threshold else {
                 return false
@@ -211,7 +222,7 @@ enum AccessibilityInteractionPolicy {
     ) -> Bool {
         switch targetLane {
         case .visible, .visibleFromAlwaysHidden:
-            frameIsInTargetZone(
+            return frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: false,
@@ -219,8 +230,20 @@ enum AccessibilityInteractionPolicy {
                 alwaysHiddenBoundaryX: visibleBoundaryX
             )
 
-        case .hidden, .hiddenFromAlwaysHidden:
-            frameIsInTargetZone(
+        case .hidden:
+            return frameIsInTargetZone(
+                afterFrame: afterFrame,
+                separatorX: separatorX,
+                toHidden: true,
+                margin: margin,
+                alwaysHiddenBoundaryX: visibleBoundaryX
+            )
+
+        case .hiddenFromAlwaysHidden:
+            guard orderedHiddenBoundary(visibleBoundaryX, separatorX: separatorX) != nil else {
+                return false
+            }
+            return frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: true,
@@ -229,7 +252,7 @@ enum AccessibilityInteractionPolicy {
             )
 
         case .alwaysHidden:
-            frameIsInTargetZone(
+            return frameIsInTargetZone(
                 afterFrame: afterFrame,
                 separatorX: separatorX,
                 toHidden: true,
@@ -297,17 +320,17 @@ enum AccessibilityInteractionPolicy {
             return deltaX > tolerance
 
         case .hidden, .hiddenFromAlwaysHidden:
-            if let visibleBoundaryX,
-               visibleBoundaryX.isFinite,
-               visibleBoundaryX > 0,
-               visibleBoundaryX < separatorX {
-                if beforeFrame.midX < visibleBoundaryX {
+            if let hiddenBoundaryX = orderedHiddenBoundary(visibleBoundaryX, separatorX: separatorX) {
+                if beforeFrame.midX < hiddenBoundaryX {
                     return deltaX < -tolerance
                 }
                 if beforeFrame.midX > separatorX {
                     return deltaX > tolerance
                 }
                 return false
+            }
+            if targetLane == .hiddenFromAlwaysHidden {
+                return true
             }
             return deltaX > tolerance
         }
@@ -323,8 +346,6 @@ enum AccessibilityInteractionPolicy {
         guard staleSeparatorX.isFinite,
               freshSeparatorX.isFinite,
               freshVisibleBoundaryX.isFinite,
-              staleSeparatorX > 0,
-              freshSeparatorX > 0,
               freshVisibleBoundaryX > freshSeparatorX
         else {
             return false
@@ -340,7 +361,8 @@ enum AccessibilityInteractionPolicy {
         return frameIsInTargetZone(
             afterFrame: refreshedFrame,
             separatorX: freshSeparatorX,
-            toHidden: false
+            toHidden: false,
+            alwaysHiddenBoundaryX: freshVisibleBoundaryX
         )
     }
 
