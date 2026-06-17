@@ -2,7 +2,7 @@ import AppKit
 import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarAlwaysHiddenIconMoveWorkflow")
-private let alwaysHiddenOutboundRevealSettleMilliseconds = 1_500
+private let alwaysHiddenOutboundRevealSettleMilliseconds = 1500
 
 @MainActor
 final class MenuBarAlwaysHiddenIconMoveWorkflow {
@@ -95,7 +95,10 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             let revealSettleMilliseconds = toAlwaysHidden ? 300 : alwaysHiddenOutboundRevealSettleMilliseconds
             try? await Task.sleep(for: .milliseconds(revealSettleMilliseconds))
             if !toAlwaysHidden {
-                await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
+                guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else {
+                    await self.restoreFromShield(wasHidden: wasHidden)
+                    return false
+                }
             }
 
             let resolvedTargets = await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries(
@@ -210,7 +213,10 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
             await manager.hidingService.showAll()
             try? await Task.sleep(for: .milliseconds(alwaysHiddenOutboundRevealSettleMilliseconds))
-            await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
+            guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else {
+                await self.restoreFromShield(wasHidden: wasHidden)
+                return false
+            }
 
             guard var targets = await self.currentAlwaysHiddenToHiddenTargets() else {
                 logger.error("Cannot resolve AH separator position for AH-to-Hidden move")
@@ -361,16 +367,23 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
 
     private func currentAlwaysHiddenToHiddenTargets() async -> AlwaysHiddenToHiddenTargets? {
         await MainActor.run {
-            guard let alwaysHiddenItem = manager.alwaysHiddenSeparatorItem,
-                  let alwaysHiddenButton = alwaysHiddenItem.button,
-                  let alwaysHiddenWindow = alwaysHiddenButton.window,
-                  let mainSeparatorOriginX = manager.geometryResolver.separatorOriginX() else {
+            guard let alwaysHiddenSeparatorRightEdgeX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX(),
+                  let mainSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame()
+            else {
                 return nil
             }
-            let alwaysHiddenFrame = alwaysHiddenWindow.frame
-            guard alwaysHiddenFrame.width > 0 else { return nil }
+            let mainSeparatorOriginX = mainSeparatorFrame.origin.x
+            guard alwaysHiddenSeparatorRightEdgeX.isFinite,
+                  mainSeparatorOriginX.isFinite,
+                  mainSeparatorOriginX > alwaysHiddenSeparatorRightEdgeX
+            else {
+                logger.warning(
+                    "Ignoring invalid live AH-to-Hidden geometry: ahRight=\(alwaysHiddenSeparatorRightEdgeX, privacy: .public), mainSepOrigin=\(mainSeparatorOriginX, privacy: .public)"
+                )
+                return nil
+            }
             return AlwaysHiddenToHiddenTargets(
-                alwaysHiddenSeparatorRightEdgeX: alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width,
+                alwaysHiddenSeparatorRightEdgeX: alwaysHiddenSeparatorRightEdgeX,
                 mainSeparatorOriginX: mainSeparatorOriginX
             )
         }
@@ -463,8 +476,8 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         }
     }
 
-    private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async {
-        if sourceFrameIsOnScreen(request) { return }
+    private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async -> Bool {
+        if sourceFrameIsOnScreen(request) { return true }
 
         logger.warning("Outbound always-hidden source is still off-screen after showAll; recreating AH separator before retry")
         await MainActor.run {
@@ -483,6 +496,12 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
         await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
         await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
+
+        guard sourceFrameIsOnScreen(request) else {
+            logger.error("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag")
+            return false
+        }
+        return true
     }
 
     private func sourceFrameIsOnScreen(_ request: Request) -> Bool {

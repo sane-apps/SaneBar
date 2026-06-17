@@ -24,6 +24,16 @@ final class MenuBarMoveTargetResolver {
         self.manager = manager
     }
 
+    nonisolated private static func hiddenBoundaryIsOrdered(_ boundaryX: CGFloat?, separatorX: CGFloat) -> Bool {
+        guard let boundaryX, boundaryX.isFinite, separatorX.isFinite else { return false }
+        return boundaryX < separatorX
+    }
+
+    nonisolated private static func visibleBoundaryIsOrdered(_ boundaryX: CGFloat?, separatorX: CGFloat) -> Bool {
+        guard let boundaryX, boundaryX.isFinite, separatorX.isFinite else { return false }
+        return boundaryX > separatorX
+    }
+
     func computeMoveTargets(
         toHidden: Bool,
         separatorOverrideX: CGFloat?
@@ -61,13 +71,18 @@ final class MenuBarMoveTargetResolver {
             let sourceFrameIsOnScreen = !toHidden && sourceFrameIsOnScreenForMove(sourceIdentity)
             lastTargets = targets
 
-            if let separatorX = targets.separatorX, separatorX > 0 {
+            if let separatorX = targets.separatorX, separatorX.isFinite {
                 let hiddenLaneBoundaryReady = !toHidden ||
                     separatorOverrideX != nil ||
                     !regularHiddenMoveRequiresAlwaysHiddenBoundary() ||
-                    (targets.visibleBoundaryX ?? 0) > 0
-                if hiddenLaneBoundaryReady, toHidden || (targets.visibleBoundaryX != nil && (targets.visibleBoundaryX ?? 0) > 0) {
+                    Self.hiddenBoundaryIsOrdered(targets.visibleBoundaryX, separatorX: separatorX)
+                let visibleBoundaryReady = toHidden || Self.visibleBoundaryIsOrdered(
+                    targets.visibleBoundaryX,
+                    separatorX: separatorX
+                )
+                if hiddenLaneBoundaryReady, visibleBoundaryReady {
                     let canUseCachedVisibleTarget = !toHidden && MenuBarMoveGeometryPolicy.shouldAcceptCachedVisibleMoveTargetWithoutLiveSeparator(
+                        separatorX: separatorX,
                         visibleBoundaryX: targets.visibleBoundaryX,
                         sourceFrameIsOnScreen: sourceFrameIsOnScreen,
                         hasPreciseIdentity: MenuBarMoveGeometryPolicy.hasPreciseMoveIdentity(
@@ -103,9 +118,13 @@ final class MenuBarMoveTargetResolver {
         let requiresHiddenLaneBoundary = toHidden &&
             separatorOverrideX == nil &&
             regularHiddenMoveRequiresAlwaysHiddenBoundary()
-        if requiresHiddenLaneBoundary, (lastTargets.visibleBoundaryX ?? 0) <= 0 {
-            logger.error("Regular hidden move target resolution failed without separator or always-hidden boundary")
-            return (nil, nil)
+        if requiresHiddenLaneBoundary {
+            guard let separatorX = lastTargets.separatorX,
+                  Self.hiddenBoundaryIsOrdered(lastTargets.visibleBoundaryX, separatorX: separatorX)
+            else {
+                logger.error("Regular hidden move target resolution failed without separator or always-hidden boundary")
+                return (nil, nil)
+            }
         }
         if !toHidden, manager.geometryResolver.currentLiveSeparatorFrame() == nil {
             logger.error("Visible move target resolution failed without live separator geometry")
@@ -129,8 +148,11 @@ final class MenuBarMoveTargetResolver {
             let readiness = alwaysHiddenTargetReadiness(toAlwaysHidden: toAlwaysHidden)
 
             if let separatorX = readiness.targets.separatorX,
-               separatorX > 0,
-               toAlwaysHidden || (readiness.targets.visibleBoundaryX != nil && (readiness.targets.visibleBoundaryX ?? 0) > 0) {
+               separatorX.isFinite,
+               toAlwaysHidden || Self.visibleBoundaryIsOrdered(
+                   readiness.targets.visibleBoundaryX,
+                   separatorX: separatorX
+               ) {
                 let liveGeometryReady = toAlwaysHidden
                     ? readiness.alwaysHiddenSeparatorIsLive
                     : readiness.alwaysHiddenSeparatorIsLive && readiness.mainSeparatorIsLive
@@ -159,7 +181,7 @@ final class MenuBarMoveTargetResolver {
         allowsGeometryRecheck: Bool
     ) async -> Bool {
         guard allowsGeometryRecheck else { return false }
-        guard staleSeparatorX.isFinite, staleSeparatorX > 0 else { return false }
+        guard staleSeparatorX.isFinite else { return false }
 
         guard let staleFrame = AccessibilityMenuExtraService.getMenuBarIconFrame(
             bundleID: identity.bundleID,
@@ -174,12 +196,12 @@ final class MenuBarMoveTargetResolver {
         await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
 
         guard let freshSeparatorX = manager.geometryResolver.separatorRightEdgeX(),
-              freshSeparatorX > 0
+              freshSeparatorX.isFinite
         else {
             return false
         }
         guard let freshVisibleBoundaryX = manager.geometryResolver.mainStatusItemLeftEdgeX(),
-              freshVisibleBoundaryX > 0
+              Self.visibleBoundaryIsOrdered(freshVisibleBoundaryX, separatorX: freshSeparatorX)
         else {
             return false
         }
@@ -215,8 +237,8 @@ final class MenuBarMoveTargetResolver {
 
         let origin = manager.geometryResolver.separatorOriginX()
         let derivedFromRightEdge: CGFloat? = {
-            guard let rightEdge = manager.geometryResolver.separatorRightEdgeX(), rightEdge > 0 else { return nil }
-            return max(1, rightEdge - MenuBarMoveGeometryPolicy.separatorVisualWidth)
+            guard let rightEdge = manager.geometryResolver.separatorRightEdgeX(), rightEdge.isFinite else { return nil }
+            return rightEdge - MenuBarMoveGeometryPolicy.separatorVisualWidth
         }()
 
         if let origin, let derivedFromRightEdge {
@@ -256,7 +278,8 @@ final class MenuBarMoveTargetResolver {
         guard separatorOverrideX == nil,
               let separatorX,
               let candidateBoundaryX = manager.geometryResolver.alwaysHiddenSeparatorBoundaryX(),
-              candidateBoundaryX > 0
+              separatorX.isFinite,
+              candidateBoundaryX.isFinite
         else {
             return nil
         }

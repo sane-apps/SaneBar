@@ -183,6 +183,9 @@ final class RuntimeGuardSettingsSurfaceXCTests: RuntimeGuardTestCase {
             healthSource.contains(".saneHelp(accessibilityHelp)") &&
                 healthSource.contains(".saneHelp(geometryHelp)") &&
                 healthSource.contains(".saneHelp(structureHelp)") &&
+                healthSource.contains("if runtimeSnapshot.likelySystemSuppressedStatusItems") &&
+                healthSource.contains("return \"Hidden by macOS\"") &&
+                healthSource.contains("Check System Settings > Menu Bar > Allow in Menu Bar for SaneBar") &&
                 healthSource.contains("SaneInlineHelp(layoutModeHelp)") &&
                 healthSource.contains("if !accessibilityService.isGranted") &&
                 healthSource.contains("openAccessibilitySettings()") &&

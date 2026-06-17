@@ -82,8 +82,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
 
     nonisolated static func shouldResetPersistentStateForStatusItemRecovery(
         reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
-        isStartupRecovery: Bool = false,
-        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
+        isStartupRecovery _: Bool = false,
+        validationContext _: MenuBarOperationCoordinator.PositionValidationContext? = nil
     ) -> Bool {
         switch reason {
         case .invalidStatusItems, .missingCoordinates, .invalidGeometry:
@@ -103,7 +103,10 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let controller = manager.statusBarControllerStorage
         let mainItem = manager.mainStatusItem ?? controller?.mainItem
         let separator = manager.separatorItem ?? controller?.separatorItem
-        let alwaysHiddenSeparatorX = manager.geometryResolver.alwaysHiddenSeparatorOriginX()
+        let alwaysHiddenSeparatorX =
+            manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame().map { $0.origin.x + $0.width } ??
+            manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ??
+            manager.geometryResolver.alwaysHiddenSeparatorOriginX().map { $0 + MenuBarMoveGeometryPolicy.separatorVisualWidth }
         let startupItemsValid: Bool = {
             guard let mainItem, let separator else { return false }
             let mainWindow = mainItem.button?.window
@@ -140,17 +143,20 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let separatorItemVisible = separator?.isVisible
         let alwaysHiddenSeparatorVisible = manager.alwaysHiddenSeparatorItem?.isVisible
         let likelySystemSuppressedStatusItems: Bool = {
-            guard !startupItemsValid else { return false }
             let mainWindow = mainItem?.button?.window
             let separatorWindow = separator?.button?.window
-            return StatusBarDiagnostics.likelySystemSuppressedStatusItem(
-                isVisibleFlag: mainItemVisible,
-                windowFrame: mainWindow?.frame,
-                screenFrame: mainWindow?.screen?.frame
-            ) || StatusBarDiagnostics.likelySystemSuppressedStatusItem(
-                isVisibleFlag: separatorItemVisible,
-                windowFrame: separatorWindow?.frame,
-                screenFrame: separatorWindow?.screen?.frame
+            return StatusBarDiagnostics.likelySystemSuppressedStatusItems(
+                startupItemsValid: startupItemsValid,
+                main: .init(
+                    isVisibleFlag: mainItemVisible,
+                    windowFrame: mainWindow?.frame,
+                    screenFrame: mainWindow?.screen?.frame
+                ),
+                separator: .init(
+                    isVisibleFlag: separatorItemVisible,
+                    windowFrame: separatorWindow?.frame,
+                    screenFrame: separatorWindow?.screen?.frame
+                )
             )
         }()
         let separatorX = manager.geometryResolver.separatorOriginX(allowEstimatedFallback: false)
@@ -183,7 +189,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let alwaysHiddenSeparatorMisordered = MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
             hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
             separatorX: separatorX,
-            alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenSeparatorX
         )
         let hasInvisibleRequiredItems =
             mainItemVisible == false ||
@@ -665,7 +671,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
             hasAlwaysHiddenSeparator: snapshot.hasAlwaysHiddenSeparator,
             separatorX: snapshot.separatorX,
-            alwaysHiddenSeparatorX: snapshot.alwaysHiddenSeparatorX
+            alwaysHiddenSeparatorRightEdgeX: snapshot.alwaysHiddenSeparatorX
         )
     }
 
@@ -674,7 +680,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         prefix: String
     ) {
         logger.error(
-            "\(prefix, privacy: .public): always-hidden separator misordered (ah=\(snapshot.alwaysHiddenSeparatorX ?? -1, privacy: .public), sep=\(snapshot.separatorX ?? -1, privacy: .public))"
+            "\(prefix, privacy: .public): always-hidden separator misordered (ahRight=\(snapshot.alwaysHiddenSeparatorX ?? -1, privacy: .public), sep=\(snapshot.separatorX ?? -1, privacy: .public))"
         )
     }
 

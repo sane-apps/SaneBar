@@ -202,6 +202,13 @@ struct ZoneClassificationTests {
         #expect(normalized == nil)
     }
 
+    @Test("Always-hidden boundary sanitizer accepts negative global coordinates")
+    func alwaysHiddenBoundarySanitizerAcceptsNegativeGlobalCoordinates() {
+        // External display arranged left of the primary: both separator X values can be negative.
+        let normalized = SearchService.normalizedAlwaysHiddenBoundary(-1080, separatorX: -600)
+        #expect(normalized == -1080)
+    }
+
     // MARK: - Zone Exclusivity
 
     @Test("Each item belongs to exactly one zone")

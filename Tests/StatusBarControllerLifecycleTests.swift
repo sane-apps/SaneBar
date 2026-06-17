@@ -220,11 +220,16 @@ struct StatusBarControllerLifecycleTests {
         #expect(newSeparator.autosaveName == "SaneBar_Separator_v31")
     }
 
-    @Test("Diagnostics detect visible status items suppressed by missing menu bar window")
+    @Test("Diagnostics detect visible status items suppressed by missing or detached menu bar window")
     func likelySystemSuppressedStatusItemRequiresVisibleFlagAndInvalidWindow() {
         let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
         let validWindow = CGRect(x: 1600, y: 1084, width: 30, height: 33)
         let invalidWindow = CGRect(x: 1600, y: 200, width: 30, height: 33)
+        let parkedWithoutScreen = CGRect(x: 0, y: -22, width: 19, height: 22)
+        let delimiterParkedWithoutScreen = CGRect(x: 0, y: -22, width: 5003, height: 22)
+        let transientDetachedAwayFromOrigin = CGRect(x: 1600, y: -22, width: 19, height: 22)
+        let leftDisplayDetached = CGRect(x: -1100, y: -22, width: 19, height: 22)
+        let nonParkedWithoutScreen = CGRect(x: 0, y: 0, width: 19, height: 22)
 
         #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
             isVisibleFlag: true,
@@ -241,15 +246,69 @@ struct StatusBarControllerLifecycleTests {
             windowFrame: invalidWindow,
             screenFrame: screen
         ))
+        #expect(StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: parkedWithoutScreen,
+            screenFrame: nil
+        ))
+        #expect(StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: delimiterParkedWithoutScreen,
+            screenFrame: nil
+        ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: false,
+            windowFrame: parkedWithoutScreen,
+            screenFrame: nil
+        ))
         #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
             isVisibleFlag: true,
-            windowFrame: invalidWindow,
+            windowFrame: transientDetachedAwayFromOrigin,
+            screenFrame: nil
+        ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: leftDisplayDetached,
+            screenFrame: nil
+        ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
+            isVisibleFlag: true,
+            windowFrame: nonParkedWithoutScreen,
             screenFrame: nil
         ))
         #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItem(
             isVisibleFlag: true,
             windowFrame: nil,
             screenFrame: screen
+        ))
+    }
+
+    @Test("Diagnostics wire parked nil-screen status items into the recovery suppression flag")
+    func likelySystemSuppressedStatusItemsRequiresInvalidStartupAndParkedVisibleItem() {
+        let parkedWithoutScreen = CGRect(x: 0, y: -22, width: 19, height: 22)
+        let liveScreen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        let liveWindow = CGRect(x: 1600, y: 1093, width: 30, height: 24)
+
+        let parkedMain = StatusItemSuppressionInput(
+            isVisibleFlag: true,
+            windowFrame: parkedWithoutScreen,
+            screenFrame: nil
+        )
+        let healthySeparator = StatusItemSuppressionInput(
+            isVisibleFlag: true,
+            windowFrame: liveWindow,
+            screenFrame: liveScreen
+        )
+
+        #expect(StatusBarDiagnostics.likelySystemSuppressedStatusItems(
+            startupItemsValid: false,
+            main: parkedMain,
+            separator: healthySeparator
+        ))
+        #expect(!StatusBarDiagnostics.likelySystemSuppressedStatusItems(
+            startupItemsValid: true,
+            main: parkedMain,
+            separator: healthySeparator
         ))
     }
 

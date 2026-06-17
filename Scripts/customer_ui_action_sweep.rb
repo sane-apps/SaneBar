@@ -216,6 +216,7 @@ class CustomerUIActionSweep
       FileUtils.mkdir_p(@evidence_dir)
       ensure_manifest!
       verify_release_app_running!
+      verify_recent_runtime_smoke
       dismiss_transient_ui
       exercise_settings_tabs
       exercise_url_routes
@@ -224,7 +225,6 @@ class CustomerUIActionSweep
       exercise_icon_hotkeys_and_groups
       exercise_hover_auto_rehide_runtime_probe
       exercise_license_clipboard_paste_runtime_probe
-      verify_recent_runtime_smoke
       verify_recent_appearance_overlay_screenshots
       verify_source_and_unit_guards
       build_action_results

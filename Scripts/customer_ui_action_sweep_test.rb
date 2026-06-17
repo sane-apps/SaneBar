@@ -157,6 +157,17 @@ class CustomerUIActionSweepTest < Minitest::Test
     FileUtils.rm_f(destination) if destination
   end
 
+  def test_customer_ui_sweep_checks_runtime_smoke_before_expensive_ui_work
+    source = File.read(File.join(CustomerUIActionSweep.const_get(:PROJECT_ROOT), 'scripts/customer_ui_action_sweep.rb'))
+    run_start = source.index('  def run')
+    run_end = source.index("\n  rescue StandardError => e", run_start)
+    run_source = source[run_start...run_end]
+
+    assert_operator run_source.index('verify_release_app_running!'), :<, run_source.index('verify_recent_runtime_smoke')
+    assert_operator run_source.index('verify_recent_runtime_smoke'), :<, run_source.index('exercise_settings_tabs')
+    assert_operator run_source.index('verify_recent_runtime_smoke'), :<, run_source.index('capture_runtime_visual_snapshots')
+  end
+
   def test_runtime_smoke_accepts_move_only_exact_id_lanes_with_default_visual_proof
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
     startup_log = '/tmp/sanebar_runtime_startup_probe.log'

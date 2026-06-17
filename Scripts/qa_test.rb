@@ -32,6 +32,62 @@ class ProjectQATest < Minitest::Test
   def test_reporter_confirmation_rejects_negative_reply
     refute @qa.send(:reporter_confirmation_text?, "It's not working. The same problem is still happening.")
   end
+  def test_stale_patched_pending_closure_exempts_after_five_business_days
+    comments = [
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-06T13:36:33Z',
+        'body' => 'Please update and try the same flow again.'
+      },
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-16T14:38:49Z',
+        'body' => 'Closing this as fixed by the current patched-pending policy; there has been no newer report after the retest request. Please reopen or file a fresh in-app report if the same flow still fails on the current build.'
+      }
+    ]
+
+    assert_equal(
+      'stale patched-pending closure',
+      @qa.send(:closed_regression_confirmation_exemption_reason, comments, issue: { 'closedAt' => '2026-06-16T14:38:49Z' })
+    )
+  end
+  def test_stale_patched_pending_closure_requires_five_business_days
+    comments = [
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-12T13:36:33Z',
+        'body' => 'Please update and try the same flow again.'
+      },
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-16T14:38:49Z',
+        'body' => 'Closing this as fixed by the current patched-pending policy; there has been no newer report after the retest request. Please reopen or file a fresh in-app report if the same flow still fails on the current build.'
+      }
+    ]
+
+    refute @qa.send(:closed_regression_confirmation_exemption_reason, comments, issue: { 'closedAt' => '2026-06-16T14:38:49Z' })
+  end
+  def test_stale_patched_pending_closure_rejects_reporter_reply_after_retest
+    comments = [
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-06T13:36:33Z',
+        'body' => 'Please update and try the same flow again.'
+      },
+      {
+        'authorAssociation' => 'NONE',
+        'createdAt' => '2026-06-10T13:36:33Z',
+        'body' => 'Still broken after the update.'
+      },
+      {
+        'authorAssociation' => 'MEMBER',
+        'createdAt' => '2026-06-16T14:38:49Z',
+        'body' => 'Closing this as fixed by the current patched-pending policy; there has been no newer report after the retest request. Please reopen or file a fresh in-app report if the same flow still fails on the current build.'
+      }
+    ]
+
+    refute @qa.send(:closed_regression_confirmation_exemption_reason, comments, issue: { 'closedAt' => '2026-06-16T14:38:49Z' })
+  end
   def test_reporter_negative_regression_text_catches_post_closure_repro
     assert @qa.send(
       :reporter_negative_regression_text?,
@@ -480,6 +536,10 @@ class ProjectQATest < Minitest::Test
     assert_includes preflight_source, 'startup_probe_artifact_contract_error'
     assert_includes preflight_source, '#157 dirty reboot recovery keeps live anchors before hiding'
     assert_includes preflight_source, '#157 dirty startup waits for valid status-item windows before auto-hide'
+    assert_includes preflight_source, '#155 dirty startup AH replay allows outbound moves'
+    assert_includes preflight_source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
+    assert_includes preflight_source, '#155 pinned icon exits Always Hidden after dirty startup'
+    assert_includes preflight_source, '#155 Always Hidden outbound moves leave move state idle'
     assert_includes source, "wake_probe_script = File.join(SCRIPTS_DIR, 'wake_layout_probe.rb')"
     assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH"
@@ -549,6 +609,8 @@ class ProjectQATest < Minitest::Test
 
     assert_includes source, "ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1'"
     assert_includes source, "ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1'"
+    assert_includes source, "ENV['SANEPROCESS_RELEASE_POLICY_ONLY'] == '1'"
+    assert_includes source, 'policyOnlyMode: release_policy_only_mode?'
   end
 
   def test_runtime_smoke_bootstraps_pro_for_always_hidden_checks
@@ -788,6 +850,25 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, 'assert_hidden_after_auto_rehide!'
     assert_includes source, '#157 dirty startup waits for valid status-item windows before auto-hide'
     assert_includes source, 'completed_scenarios_from_cases'
+  end
+
+  def test_startup_layout_probe_covers_always_hidden_dirty_replay_contract
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'run_always_hidden_dirty_replay_outbound_case'
+    assert_includes source, '#155 dirty startup AH replay allows outbound moves'
+    assert_includes source, '#155 dirty startup does not give up AH replay'
+    assert_includes source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
+    assert_includes source, '#155 pinned icon exits Always Hidden after dirty startup'
+    assert_includes source, '#155 Always Hidden outbound moves leave move state idle'
+    assert_includes source, 'preferred_always_hidden_replay_candidates'
+    assert_includes source, "preferred_bundles.include?(item[:bundle].to_s)"
+    assert_includes source, 'sanitized_replay_candidate'
+    assert_includes source, 'sanitized_move_result'
+    assert_includes source, '#155 hidden-exit starts in AH after dirty startup'
+    assert_includes source, '#155 visible-exit starts in AH after dirty startup'
+    assert_includes source, 'move_icon_and_expect!'
+    assert_includes source, 'assert_move_idle!'
   end
 
   def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions
@@ -1085,13 +1166,20 @@ end
 
   def test_release_policy_guardrails_fail_before_expensive_runtime_smoke
     source = qa_source
+    run_body = source[/def run\n.*?\n  private/m]
 
-    policy_index = source.index('check_release_cadence_guardrails')
-    runtime_index = source.index('check_runtime_release_smoke')
-    skip_index = source.index('Skipping release runtime smoke and stability suite because release policy guardrails already failed.')
+    policy_index = run_body.index('check_release_cadence_guardrails')
+    runtime_index = run_body.index('check_runtime_release_smoke')
+    url_index = run_body.index('check_urls')
+    policy_only_index = run_body.index('if release_policy_only_mode?')
+    skip_index = run_body.index('Skipping release runtime smoke and stability suite because release policy guardrails already failed.')
 
     assert policy_index && runtime_index && policy_index < runtime_index
     assert skip_index && skip_index < runtime_index
+    assert policy_only_index && policy_only_index < runtime_index
+    assert url_index && policy_only_index < url_index
+    assert_includes run_body, 'Checking appcast download URLs... ⏭️  skipped in policy-only mode'
+    assert_includes run_body, 'Policy-only release guardrails complete; skipping runtime smoke, stability suite, and URL checks.'
   end
 
   def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys

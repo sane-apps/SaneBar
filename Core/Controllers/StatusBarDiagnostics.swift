@@ -59,8 +59,43 @@ enum StatusBarDiagnostics {
         screenFrame: CGRect?
     ) -> Bool {
         guard isVisibleFlag == true else { return false }
-        guard windowFrame != nil, screenFrame != nil else { return false }
+        guard let windowFrame else { return false }
+        guard let screenFrame else {
+            return detachedVisibleStatusItemWindowLooksParked(windowFrame)
+        }
         return !StatusBarController.isStatusItemWindowFrameValid(windowFrame: windowFrame, screenFrame: screenFrame)
+    }
+
+    nonisolated static func detachedVisibleStatusItemWindowLooksParked(_ windowFrame: CGRect) -> Bool {
+        guard windowFrame.origin.x.isFinite,
+              windowFrame.origin.y.isFinite,
+              windowFrame.width.isFinite,
+              windowFrame.height.isFinite,
+              windowFrame.width > 0,
+              windowFrame.height > 0 else {
+            return false
+        }
+
+        return abs(windowFrame.origin.x) <= 1 &&
+            windowFrame.origin.y < 0 &&
+            windowFrame.maxY <= 1
+    }
+
+    nonisolated static func likelySystemSuppressedStatusItems(
+        startupItemsValid: Bool,
+        main: StatusItemSuppressionInput,
+        separator: StatusItemSuppressionInput
+    ) -> Bool {
+        guard !startupItemsValid else { return false }
+        return likelySystemSuppressedStatusItem(
+            isVisibleFlag: main.isVisibleFlag,
+            windowFrame: main.windowFrame,
+            screenFrame: main.screenFrame
+        ) || likelySystemSuppressedStatusItem(
+            isVisibleFlag: separator.isVisibleFlag,
+            windowFrame: separator.windowFrame,
+            screenFrame: separator.screenFrame
+        )
     }
 
     nonisolated static func systemMenuBarSuppressionHint(

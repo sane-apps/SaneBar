@@ -84,6 +84,9 @@ final class MenuBarManager: NSObject, ObservableObject {
     var hideAllOtherRuleEnforcementTask: Task<Void, Never>?
     /// Retries persisted visibility intent replay after wake/recovery until anchors are healthy.
     var visibilityIntentReplayTask: Task<Void, Never>?
+    /// Tracks delayed AH separator repair verification so newer moves/recoveries can cancel stale follow-ups.
+    var alwaysHiddenSeparatorRepairFollowUpTask: Task<Void, Never>?
+    var alwaysHiddenSeparatorRepairGeneration: Int = 0
     var lastAlwaysHiddenRepairAt: Date?
     var isRepairingAlwaysHiddenSeparator = false
     var mainStatusItemHoverTrackingArea: NSTrackingArea?
@@ -396,9 +399,9 @@ final class MenuBarManager: NSObject, ObservableObject {
         displayStillPresent: Bool
     ) -> Bool {
         guard hidingState == .hidden, displayStillPresent else { return false }
-        guard let separatorX, separatorX > 0,
-              let separatorRightEdgeX, separatorRightEdgeX > separatorX,
-              let mainStatusItemX, mainStatusItemX > separatorRightEdgeX
+        guard let separatorX, separatorX.isFinite,
+              let separatorRightEdgeX, separatorRightEdgeX.isFinite, separatorRightEdgeX > separatorX,
+              let mainStatusItemX, mainStatusItemX.isFinite, mainStatusItemX > separatorRightEdgeX
         else {
             return false
         }
@@ -680,12 +683,14 @@ final class MenuBarManager: NSObject, ObservableObject {
         guard !settings.alwaysHiddenPinnedItemIds.isEmpty else { return false }
         guard settings.alwaysHiddenSectionEnabled else { return false }
         guard alwaysHiddenSeparatorItem != nil else { return true }
-        guard let separatorX = geometryResolver.separatorOriginX(), separatorX > 1,
-              let alwaysHiddenX = geometryResolver.alwaysHiddenSeparatorOriginX(), alwaysHiddenX > 1
+        guard let alwaysHiddenBoundaryX = geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX(),
+              let separatorFrame = geometryResolver.currentLiveSeparatorFrame(),
+              alwaysHiddenBoundaryX.isFinite,
+              separatorFrame.origin.x.isFinite
         else {
             return true
         }
-        return alwaysHiddenX >= separatorX
+        return alwaysHiddenBoundaryX >= separatorFrame.origin.x
     }
 
     func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool {

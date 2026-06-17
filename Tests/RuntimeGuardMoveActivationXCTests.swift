@@ -126,6 +126,24 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testMoveTargetResolutionUsesOrderedGeometryInsteadOfPositiveXGuards() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("hiddenBoundaryIsOrdered") &&
+                source.contains("visibleBoundaryIsOrdered"),
+            "Move target readiness should be based on boundary ordering so negative global X remains valid on left-arranged displays"
+        )
+        XCTAssertFalse(
+            source.contains("separatorX > 0") ||
+                source.contains("visibleBoundaryX > 0") ||
+                source.contains("candidateBoundaryX > 0") ||
+                source.contains("(targets.visibleBoundaryX ?? 0) > 0"),
+            "Move target resolution must not use positive-X checks for live geometry validity"
+        )
+    }
+
     func testAppleScriptAlwaysHiddenMovesUseStandardMovePath() throws {
         let source = try appleScriptCommandSource()
         let alwaysHiddenVisibleBranch = """
@@ -208,6 +226,21 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
                 source.contains("targetLane: .hiddenFromAlwaysHidden"),
             "AH-to-Hidden moves must use the main separator as the hidden-lane right edge, the AH separator as the left boundary, and the dedicated AH-origin hidden-lane target"
         )
+        XCTAssertTrue(
+            source.contains("manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
+                source.contains("manager.geometryResolver.currentLiveSeparatorFrame()") &&
+                source.contains("mainSeparatorOriginX > alwaysHiddenSeparatorRightEdgeX"),
+            "AH-to-Hidden physical moves must require live ordered separator geometry instead of raw or cached AH separator frames"
+        )
+        XCTAssertFalse(
+            source.contains("alwaysHiddenButton.window") ||
+                source.contains("alwaysHiddenWindow.frame"),
+            "AH-to-Hidden must not trust raw AH separator window frames; parked/off-screen frames were the #155 failure mode"
+        )
+        XCTAssertFalse(
+            source.contains("alwaysHiddenSeparatorRightEdgeX > 0"),
+            "AH-to-Hidden live geometry must stay sign-independent; negative global X is valid on displays arranged left of the primary"
+        )
     }
 
     func testAlwaysHiddenToVisibleUsesSeparatorAdjacentVisibleTarget() throws {
@@ -233,7 +266,7 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("private let alwaysHiddenOutboundRevealSettleMilliseconds = 1_500") &&
+            source.contains("private let alwaysHiddenOutboundRevealSettleMilliseconds = 1500") &&
                 source.contains("let revealSettleMilliseconds = toAlwaysHidden ? 300 : alwaysHiddenOutboundRevealSettleMilliseconds") &&
                 source.contains("try? await Task.sleep(for: .milliseconds(alwaysHiddenOutboundRevealSettleMilliseconds))"),
             "Always Hidden outbound moves should let unpin + showAll settle before the physical drag"

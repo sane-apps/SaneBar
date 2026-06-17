@@ -14,31 +14,35 @@ final class MenuBarAlwaysHiddenPinWorkflow {
     nonisolated static func separatorNeedsRepair(
         hasAlwaysHiddenSeparator: Bool,
         separatorX: CGFloat?,
-        alwaysHiddenSeparatorX: CGFloat?
+        alwaysHiddenSeparatorRightEdgeX: CGFloat?
     ) -> Bool {
         guard hasAlwaysHiddenSeparator else { return false }
         guard let separatorX,
               separatorX.isFinite,
-              separatorX > 0,
-              let alwaysHiddenSeparatorX,
-              alwaysHiddenSeparatorX.isFinite,
-              alwaysHiddenSeparatorX > 0
+              let alwaysHiddenSeparatorRightEdgeX,
+              alwaysHiddenSeparatorRightEdgeX.isFinite
         else { return false }
-        return alwaysHiddenSeparatorX >= separatorX
+        return alwaysHiddenSeparatorRightEdgeX >= separatorX
     }
 
     func repairSeparatorPositionIfNeeded(reason: String) {
         guard manager.settings.alwaysHiddenSectionEnabled else { return }
         guard !manager.isRepairingAlwaysHiddenSeparator else { return }
-        guard let separatorX = manager.geometryResolver.separatorOriginX(),
-              let alwaysHiddenX = manager.geometryResolver.alwaysHiddenSeparatorOriginX(),
-              alwaysHiddenX >= separatorX else { return }
-        guard separatorX > 1, alwaysHiddenX > 1 else {
+        guard let separatorFrame = manager.geometryResolver.currentLiveSeparatorFrame(),
+              let alwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()
+        else {
             logger.debug(
-                "Always-hidden repair skipped due unresolved coordinates (ah=\(alwaysHiddenX, privacy: .public), sep=\(separatorX, privacy: .public))"
+                "Always-hidden repair skipped until live separator geometry is available (\(reason, privacy: .public))"
             )
             return
         }
+        let separatorX = separatorFrame.origin.x
+        let alwaysHiddenRightEdgeX = alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width
+        guard Self.separatorNeedsRepair(
+            hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
+            separatorX: separatorX,
+            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenRightEdgeX
+        ) else { return }
 
         let now = Date()
         if let lastAttempt = manager.lastAlwaysHiddenRepairAt,
@@ -50,7 +54,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         defer { manager.isRepairingAlwaysHiddenSeparator = false }
 
         logger.error(
-            "Always-hidden separator misordered (ah=\(alwaysHiddenX, privacy: .public), sep=\(separatorX, privacy: .public)) - repairing (\(reason, privacy: .public))"
+            "Always-hidden separator misordered (ahRight=\(alwaysHiddenRightEdgeX, privacy: .public), sep=\(separatorX, privacy: .public)) - repairing (\(reason, privacy: .public))"
         )
 
         manager.clearCachedSeparatorGeometry()
@@ -64,16 +68,46 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         AccessibilityService.shared.invalidateMenuBarItemCache()
 
         let manager = self.manager
-        Task { @MainActor [weak manager] in
+        manager.alwaysHiddenSeparatorRepairGeneration += 1
+        let repairGeneration = manager.alwaysHiddenSeparatorRepairGeneration
+        manager.alwaysHiddenSeparatorRepairFollowUpTask?.cancel()
+        manager.alwaysHiddenSeparatorRepairFollowUpTask = Task { @MainActor [weak manager] in
             guard let manager else { return }
+            defer {
+                if manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration {
+                    manager.alwaysHiddenSeparatorRepairFollowUpTask = nil
+                }
+            }
             try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
             await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
             await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
-            guard let postSepX = manager.geometryResolver.separatorOriginX(),
-                  let postAHX = manager.geometryResolver.alwaysHiddenSeparatorOriginX(),
-                  postSepX > 1,
-                  postAHX > 1
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
+            guard let postSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame(),
+                  let postAlwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()
             else {
+                guard !Task.isCancelled else { return }
+                guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
+                manager.alwaysHiddenPinWorkflow.scheduleEnforcement(
+                    reason: "post-repair-\(reason)",
+                    delay: .milliseconds(500)
+                )
+                return
+            }
+            let postSepX = postSeparatorFrame.origin.x
+            let postAHRightX = postAlwaysHiddenFrame.origin.x + postAlwaysHiddenFrame.width
+
+            guard Self.separatorNeedsRepair(
+                hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
+                separatorX: postSepX,
+                alwaysHiddenSeparatorRightEdgeX: postAHRightX
+            ) else {
+                guard !Task.isCancelled else { return }
+                guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
                 manager.alwaysHiddenPinWorkflow.scheduleEnforcement(
                     reason: "post-repair-\(reason)",
                     delay: .milliseconds(500)
@@ -81,16 +115,10 @@ final class MenuBarAlwaysHiddenPinWorkflow {
                 return
             }
 
-            guard postAHX >= postSepX else {
-                manager.alwaysHiddenPinWorkflow.scheduleEnforcement(
-                    reason: "post-repair-\(reason)",
-                    delay: .milliseconds(500)
-                )
-                return
-            }
-
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
             logger.error(
-                "Always-hidden separator still misordered after repair (ah=\(postAHX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
+                "Always-hidden separator still misordered after repair (ahRight=\(postAHRightX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
             )
             StatusBarController.recoverStartupPositions(
                 alwaysHiddenEnabled: true,
@@ -104,7 +132,11 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
             manager.clearCachedSeparatorGeometry()
             await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
             await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
+            guard !Task.isCancelled else { return }
+            guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
             AccessibilityService.shared.invalidateMenuBarItemCache()
             manager.alwaysHiddenPinWorkflow.scheduleEnforcement(
                 reason: "post-hard-recovery-\(reason)",

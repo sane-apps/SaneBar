@@ -126,8 +126,10 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             recoverySource.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
+                recoverySource.contains("currentLiveAlwaysHiddenSeparatorFrame().map { $0.origin.x + $0.width }") &&
+                recoverySource.contains("alwaysHiddenSeparatorOriginX().map { $0 + MenuBarMoveGeometryPolicy.separatorVisualWidth }") &&
                 recoverySource.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: \"position-validation-\\(context.rawValue)\")"),
-            "Position validation should repair a misordered always-hidden separator before it blesses the layout as stable"
+            "Position validation should repair a misordered always-hidden separator using the AH right edge, not the origin, before it blesses the layout as stable"
         )
         XCTAssertTrue(
             recoverySource.contains("captureCurrentDisplayBackupAfterStableValidation(") &&

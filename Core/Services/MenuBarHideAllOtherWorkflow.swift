@@ -60,8 +60,7 @@ final class MenuBarHideAllOtherWorkflow {
         alwaysHiddenBoundaryX: CGFloat?
     ) -> Bool {
         guard let alwaysHiddenBoundaryX,
-              alwaysHiddenBoundaryX.isFinite,
-              alwaysHiddenBoundaryX > 0
+              alwaysHiddenBoundaryX.isFinite
         else {
             return false
         }

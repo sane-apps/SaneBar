@@ -50,11 +50,10 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         separatorX: CGFloat,
         minimumGap: CGFloat = 8
     ) -> CGFloat? {
-        guard let candidate, candidate.isFinite, candidate > 0 else { return nil }
-        guard separatorX.isFinite, separatorX > 0 else { return nil }
+        guard let candidate, candidate.isFinite else { return nil }
+        guard separatorX.isFinite else { return nil }
 
         let maxAllowed = separatorX - max(1, minimumGap)
-        guard maxAllowed > 0 else { return nil }
         guard candidate < maxAllowed else { return nil }
         return candidate
     }
@@ -94,24 +93,26 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         }
 
         if alwaysHiddenBoundaryX == nil,
-           let alwaysHiddenSeparatorOriginX,
-           alwaysHiddenSeparatorOriginX > 0 {
+           let alwaysHiddenSeparatorOriginX {
             alwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
-                alwaysHiddenSeparatorOriginX + 20,
+                alwaysHiddenSeparatorOriginX + MenuBarMoveGeometryPolicy.separatorVisualWidth,
                 separatorX: separatorX
             )
         }
 
-        if let alwaysHiddenSeparatorOriginX,
-           alwaysHiddenSeparatorOriginX >= separatorX {
+        let alwaysHiddenRepairCandidateX =
+            rawAlwaysHiddenBoundaryX ??
+            alwaysHiddenSeparatorOriginX.map { $0 + MenuBarMoveGeometryPolicy.separatorVisualWidth }
+        if let alwaysHiddenRepairCandidateX,
+           alwaysHiddenRepairCandidateX >= separatorX {
             let now = Date()
             if let last = lastAlwaysHiddenOrderWarningAt {
                 if now.timeIntervalSince(last) >= 5 {
-                    logger.warning("Always-hidden separator is not left of main separator; attempting repair")
+                    logger.warning("Always-hidden separator boundary overlaps main separator; attempting repair")
                     lastAlwaysHiddenOrderWarningAt = now
                 }
             } else {
-                logger.warning("Always-hidden separator is not left of main separator; attempting repair")
+                logger.warning("Always-hidden separator boundary overlaps main separator; attempting repair")
                 lastAlwaysHiddenOrderWarningAt = now
             }
 
@@ -129,16 +130,13 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
                 )
             }
             if repairedAlwaysHiddenBoundaryX == nil,
-               let repairedAlwaysHiddenOriginX,
-               repairedAlwaysHiddenOriginX > 0 {
+               let repairedAlwaysHiddenOriginX {
                 repairedAlwaysHiddenBoundaryX = Self.normalizedAlwaysHiddenBoundary(
-                    repairedAlwaysHiddenOriginX + 20,
+                    repairedAlwaysHiddenOriginX + MenuBarMoveGeometryPolicy.separatorVisualWidth,
                     separatorX: repairedSeparatorX
                 )
             }
-            if let repairedAlwaysHiddenOriginX,
-               repairedAlwaysHiddenOriginX < repairedSeparatorX,
-               let repairedAlwaysHiddenBoundaryX {
+            if let repairedAlwaysHiddenBoundaryX {
                 return (repairedSeparatorX, repairedAlwaysHiddenBoundaryX)
             }
             return (repairedSeparatorX, nil)
