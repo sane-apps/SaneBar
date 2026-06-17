@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.71] - 2026-06-17
+
+Fixed Always Hidden icon move reliability after restart, display wake, and recovery. Improved menu bar geometry handling for multi-display setups. Added clearer Health guidance when macOS hides SaneBar from the menu bar.
+
+---
+
 ## [2.1.70] - 2026-06-16
 
 Improves macOS 27 Spaces and Mission Control handling for Custom Appearance, including active-Space refresh and hidden-state recovery after Space changes.
