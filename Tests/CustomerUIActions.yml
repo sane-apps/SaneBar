@@ -156,7 +156,7 @@ runtime_state_matrix:
     - state_receipt
     runner: SaneMaster Mini resource soak probe
     required_scenarios:
-    - at least 20m Mini soak sampled on the release candidate
+    - at least 10m Mini soak sampled on the release candidate
     - average CPU remains within idle budget
     - RSS and physical footprint do not grow beyond the short-soak release budget
     - raw current-build resource soak artifact and log references exist

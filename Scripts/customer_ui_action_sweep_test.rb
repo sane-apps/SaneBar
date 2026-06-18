@@ -701,12 +701,295 @@ class CustomerUIActionSweepTest < Minitest::Test
   def test_runtime_state_results_accept_resource_soak_same_day_candidate
     soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
     soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    Dir.mktmpdir do |evidence_dir|
+      @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
+      preserve_files(soak_artifact, soak_log) do
+        File.write(
+          soak_log,
+          [
+            'resource_soak_started_at=2026-06-13T12:00:00Z',
+            'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.62", :app_build=>"2162", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+            'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
+            'sample=2 elapsed=1260.0s cpu=0.1 rss=82.0MB physical=61.0MB',
+            'resource_soak_finished_at=2026-06-13T12:21:00Z',
+            'status=pass'
+          ].join("\n")
+        )
+        File.write(
+          soak_artifact,
+          JSON.pretty_generate(
+            status: 'pass',
+            duration_seconds: 1260.0,
+            sample_count: 2,
+            avg_cpu: 0.15,
+            peak_cpu: 0.2,
+            avg_rss_mb: 81.0,
+            peak_rss_mb: 82.0,
+            rss_growth_mb: 2.0,
+            avg_physical_footprint_mb: 60.5,
+            peak_physical_footprint_mb: 61.0,
+            physical_footprint_growth_mb: 1.0,
+            evidence_types: %w[mini_runtime log state_receipt],
+            evidence_paths: [soak_log],
+            completed_scenarios: [
+              'at least 20m Mini soak sampled on the release candidate',
+              'average CPU remains within idle budget',
+              'RSS and physical footprint do not grow beyond the short-soak release budget'
+            ],
+            samples: [
+              {
+                sampled_at: '2026-06-13T12:00:00Z',
+                elapsed_seconds: 0.0,
+                cpu: 0.2,
+                rss_mb: 80.0,
+                physical_footprint_mb: 60.0
+              },
+              {
+                sampled_at: '2026-06-13T12:21:00Z',
+                elapsed_seconds: 1260.0,
+                cpu: 0.1,
+                rss_mb: 82.0,
+                physical_footprint_mb: 61.0
+              }
+            ],
+            candidate: {
+              app_path: '/Applications/SaneBar.app',
+              app_version: '2.1.62',
+              app_build: '2162'
+            }
+          )
+        )
+        old_time = Time.now - (2 * 60 * 60)
+        File.utime(old_time, old_time, soak_artifact)
+        File.utime(old_time, old_time, soak_log)
+        @sweep.instance_variable_set(:@started_at, Time.now)
+        @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
+        @sweep.instance_variable_set(:@running_bundle_build, '2162')
+        @sweep.instance_variable_set(:@action_results, {
+          'startup-wake-appearance-recovery' => {
+            evidence: [
+              { type: 'mini_runtime', detail: 'runtime', artifacts: ['/tmp/sanebar_runtime_resource_soak.log'] },
+              { type: 'log', detail: 'log', artifacts: ['/tmp/sanebar_runtime_resource_soak.log'] },
+              { type: 'state_receipt', detail: 'receipt', artifacts: [soak_artifact] }
+            ]
+          }
+        })
+
+        rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+        soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
+        durable_artifact = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.json')
+        durable_log = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.log')
+
+        assert_equal 'passed', soak[:status]
+        assert_includes soak[:evidence_paths], durable_artifact
+        assert_includes soak[:evidence_paths], durable_log
+        refute_includes soak[:evidence_paths], soak_artifact
+        refute_includes soak[:evidence_paths], soak_log
+        assert File.file?(durable_artifact)
+        assert File.file?(durable_log)
+        assert_includes soak[:completed_scenarios], 'at least 10m Mini soak sampled on the release candidate'
+        assert_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
+        assert_includes soak[:completed_scenarios], 'per-sample CPU/RSS/physical footprint trend fields were captured'
+      end
+    end
+  end
+
+  def test_runtime_state_results_accepts_fresh_durable_resource_soak_when_tmp_is_gone
+    soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    output_dir = CustomerUIActionSweep.const_get(:OUTPUT_DIR)
+    FileUtils.mkdir_p(output_dir)
+
+    preserve_files(soak_artifact, soak_log) do
+      FileUtils.rm_f([soak_artifact, soak_log])
+      Dir.mktmpdir('resource-soak-durable-', output_dir) do |evidence_dir|
+        durable_artifact = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.json')
+        durable_log = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.log')
+        File.write(
+          durable_log,
+          [
+            'resource_soak_started_at=2026-06-13T12:00:00Z',
+            'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"9.9.9", :app_build=>"9999", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+            'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
+            'sample=2 elapsed=660.0s cpu=0.1 rss=82.0MB physical=61.0MB',
+            'resource_soak_finished_at=2026-06-13T12:11:00Z',
+            'status=pass'
+          ].join("\n")
+        )
+        File.write(
+          durable_artifact,
+          JSON.pretty_generate(
+            status: 'pass',
+            duration_seconds: 660.0,
+            sample_count: 2,
+            evidence_types: %w[mini_runtime log state_receipt],
+            evidence_paths: [soak_log],
+            completed_scenarios: [
+              'average CPU remains within idle budget',
+              'RSS and physical footprint do not grow beyond the short-soak release budget'
+            ],
+            samples: [
+              {
+                sampled_at: '2026-06-13T12:00:00Z',
+                elapsed_seconds: 0.0,
+                cpu: 0.2,
+                rss_mb: 80.0,
+                physical_footprint_mb: 60.0
+              },
+              {
+                sampled_at: '2026-06-13T12:11:00Z',
+                elapsed_seconds: 660.0,
+                cpu: 0.1,
+                rss_mb: 82.0,
+                physical_footprint_mb: 61.0
+              }
+            ],
+            candidate: {
+              app_path: '/Applications/SaneBar.app',
+              app_version: '9.9.9',
+              app_build: '9999'
+            }
+          )
+        )
+        @sweep.instance_variable_set(:@started_at, Time.now)
+        @sweep.instance_variable_set(:@running_bundle_version, '9.9.9')
+        @sweep.instance_variable_set(:@running_bundle_build, '9999')
+        @sweep.instance_variable_set(:@action_results, {
+          'startup-wake-appearance-recovery' => {
+            status: 'passed',
+            evidence: []
+          }
+        })
+
+        rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+        soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
+
+        assert_equal 'passed', soak[:status]
+        assert_includes soak[:evidence_paths], durable_artifact
+        assert_includes soak[:evidence_paths], durable_log
+        assert_includes soak[:completed_scenarios], 'at least 10m Mini soak sampled on the release candidate'
+      end
+    end
+  end
+
+  def test_write_receipt_persists_durable_resource_soak_paths
+    soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    receipt_paths = [
+      CustomerUIActionSweep.const_get(:RECEIPT_PATH),
+      CustomerUIActionSweep.const_get(:OUTPUT_RECEIPT_PATH)
+    ]
+
+    Dir.mktmpdir do |evidence_dir|
+      @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
+      preserve_files(soak_artifact, soak_log, *receipt_paths) do
+        File.write(
+          soak_log,
+          [
+            'resource_soak_started_at=2026-06-13T12:00:00Z',
+            'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.62", :app_build=>"2162", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+            'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
+            'sample=2 elapsed=1260.0s cpu=0.1 rss=82.0MB physical=61.0MB',
+            'resource_soak_finished_at=2026-06-13T12:21:00Z',
+            'status=pass'
+          ].join("\n")
+        )
+        File.write(
+          soak_artifact,
+          JSON.pretty_generate(
+            status: 'pass',
+            duration_seconds: 1260.0,
+            sample_count: 2,
+            evidence_types: %w[mini_runtime log state_receipt],
+            evidence_paths: [soak_log],
+            completed_scenarios: [
+              'at least 20m Mini soak sampled on the release candidate'
+            ],
+            samples: [
+              {
+                sampled_at: '2026-06-13T12:00:00Z',
+                elapsed_seconds: 0.0,
+                cpu: 0.2,
+                rss_mb: 80.0,
+                physical_footprint_mb: 60.0
+              },
+              {
+                sampled_at: '2026-06-13T12:21:00Z',
+                elapsed_seconds: 1260.0,
+                cpu: 0.1,
+                rss_mb: 82.0,
+                physical_footprint_mb: 61.0
+              }
+            ],
+            candidate: {
+              app_path: '/Applications/SaneBar.app',
+              app_version: '2.1.62',
+              app_build: '2162'
+            }
+          )
+        )
+        old_time = Time.now - (2 * 60 * 60)
+        File.utime(old_time, old_time, soak_artifact)
+        File.utime(old_time, old_time, soak_log)
+        @sweep.instance_variable_set(:@started_at, Time.now)
+        @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
+        @sweep.instance_variable_set(:@running_bundle_build, '2162')
+        @sweep.instance_variable_set(:@action_ids, ['startup-wake-appearance-recovery'])
+        @sweep.instance_variable_set(:@action_results, {
+          'startup-wake-appearance-recovery' => {
+            evidence: [
+              { type: 'mini_runtime', detail: 'runtime', artifacts: [soak_log] },
+              { type: 'log', detail: 'log', artifacts: [soak_log] },
+              { type: 'state_receipt', detail: 'receipt', artifacts: [soak_artifact] }
+            ]
+          }
+        })
+        @sweep.define_singleton_method(:customer_ui_contract_report) do
+          { 'manifest_sha256' => 'abc', 'source_fingerprint' => 'def' }
+        end
+
+        with_manifest(<<~YAML) do
+          version: 1
+          app: SaneBar
+          runtime_state_matrix:
+            resource_soak_growth:
+              why: Release candidates must prove resource growth from durable Mini soak artifacts.
+              action_ids: [startup-wake-appearance-recovery]
+              required_evidence_types: [mini_runtime, log, state_receipt]
+          actions:
+            - id: startup-wake-appearance-recovery
+              title: Startup wake recovery works
+              required_evidence_types: [mini_runtime, log, state_receipt]
+        YAML
+          @sweep.send(:write_receipt)
+        end
+
+        receipt = JSON.parse(File.read(CustomerUIActionSweep.const_get(:OUTPUT_RECEIPT_PATH)))
+        soak = receipt.fetch('runtime_state_results').find { |row| row['id'] == 'resource_soak_growth' }
+        durable_artifact = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.json')
+        durable_log = File.join(evidence_dir, 'resource-soak-sanebar_runtime_resource_soak.log')
+
+        assert_equal 'passed', soak['status']
+        assert_includes soak['evidence_paths'], durable_artifact
+        assert_includes soak['evidence_paths'], durable_log
+        refute_includes soak['evidence_paths'], soak_artifact
+        refute_includes soak['evidence_paths'], soak_log
+        assert_includes soak['completed_scenarios'], 'at least 10m Mini soak sampled on the release candidate'
+      ensure
+        @sweep.singleton_class.remove_method(:customer_ui_contract_report) rescue nil
+      end
+    end
+  end
+
+  def test_runtime_state_results_rejects_resource_soak_from_wrong_candidate_version
+    soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
     preserve_files(soak_artifact, soak_log) do
       File.write(
         soak_log,
         [
           'resource_soak_started_at=2026-06-13T12:00:00Z',
-          'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.62", :app_build=>"2162", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+          'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.61", :app_build=>"2161", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
           'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
           'sample=2 elapsed=1260.0s cpu=0.1 rss=82.0MB physical=61.0MB',
           'resource_soak_finished_at=2026-06-13T12:21:00Z',
@@ -719,14 +1002,6 @@ class CustomerUIActionSweepTest < Minitest::Test
           status: 'pass',
           duration_seconds: 1260.0,
           sample_count: 2,
-          avg_cpu: 0.15,
-          peak_cpu: 0.2,
-          avg_rss_mb: 81.0,
-          peak_rss_mb: 82.0,
-          rss_growth_mb: 2.0,
-          avg_physical_footprint_mb: 60.5,
-          peak_physical_footprint_mb: 61.0,
-          physical_footprint_growth_mb: 1.0,
           evidence_types: %w[mini_runtime log state_receipt],
           evidence_paths: [soak_log],
           completed_scenarios: [
@@ -752,8 +1027,8 @@ class CustomerUIActionSweepTest < Minitest::Test
           ],
           candidate: {
             app_path: '/Applications/SaneBar.app',
-            app_version: '2.1.62',
-            app_build: '2162'
+            app_version: '2.1.61',
+            app_build: '2161'
           }
         )
       )
@@ -765,9 +1040,10 @@ class CustomerUIActionSweepTest < Minitest::Test
       @sweep.instance_variable_set(:@running_bundle_build, '2162')
       @sweep.instance_variable_set(:@action_results, {
         'startup-wake-appearance-recovery' => {
+          status: 'passed',
           evidence: [
-            { type: 'mini_runtime', detail: 'runtime', artifacts: ['/tmp/sanebar_runtime_resource_soak.log'] },
-            { type: 'log', detail: 'log', artifacts: ['/tmp/sanebar_runtime_resource_soak.log'] },
+            { type: 'mini_runtime', detail: 'runtime', artifacts: [soak_log] },
+            { type: 'log', detail: 'log', artifacts: [soak_log] },
             { type: 'state_receipt', detail: 'receipt', artifacts: [soak_artifact] }
           ]
         }
@@ -776,11 +1052,9 @@ class CustomerUIActionSweepTest < Minitest::Test
       rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
       soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
 
-      assert_equal 'passed', soak[:status]
-      assert_includes soak[:evidence_paths], soak_artifact
-      assert_includes soak[:evidence_paths], soak_log
-      assert_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
-      assert_includes soak[:completed_scenarios], 'per-sample CPU/RSS/physical footprint trend fields were captured'
+      assert_equal 'failed', soak[:status]
+      assert_nil soak[:runtime_candidate]
+      refute_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
     end
   end
 
@@ -830,6 +1104,84 @@ class CustomerUIActionSweepTest < Minitest::Test
       assert_equal 'failed', soak[:status]
       refute_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
       assert_includes soak[:failure_reasons].join("\n"), 'missing completed_scenarios'
+    end
+  end
+
+  def test_runtime_state_results_rejects_resource_soak_with_missing_samples
+    soak_artifact = '/tmp/sanebar_runtime_resource_soak.json'
+    soak_log = '/tmp/sanebar_runtime_resource_soak.log'
+    preserve_files(soak_artifact, soak_log) do
+      File.write(
+        soak_log,
+        [
+          'resource_soak_started_at=2026-06-13T12:00:00Z',
+          'candidate={:app_path=>"/Applications/SaneBar.app", :app_version=>"2.1.62", :app_build=>"2162", :process_path=>"/Applications/SaneBar.app/Contents/MacOS/SaneBar"}',
+          'sample=1 elapsed=0.0s cpu=0.2 rss=80.0MB physical=60.0MB',
+          'sample=2 elapsed=260.0s cpu=0.1 rss=82.0MB physical=61.0MB',
+          'sample_missing elapsed=270.0s pid=12345',
+          'sample_missing elapsed=1200.0s pid=12345',
+          'resource_soak_finished_at=2026-06-13T12:20:00Z',
+          'status=pass'
+        ].join("\n")
+      )
+      File.write(
+        soak_artifact,
+        JSON.pretty_generate(
+          status: 'pass',
+          duration_seconds: 1260.0,
+          sample_count: 2,
+          evidence_types: %w[mini_runtime log state_receipt],
+          evidence_paths: [soak_log],
+          completed_scenarios: [
+            'at least 20m Mini soak sampled on the release candidate',
+            'average CPU remains within idle budget',
+            'RSS and physical footprint do not grow beyond the short-soak release budget'
+          ],
+          samples: [
+            {
+              sampled_at: '2026-06-13T12:00:00Z',
+              elapsed_seconds: 0.0,
+              cpu: 0.2,
+              rss_mb: 80.0,
+              physical_footprint_mb: 60.0
+            },
+            {
+              sampled_at: '2026-06-13T12:04:20Z',
+              elapsed_seconds: 260.0,
+              cpu: 0.1,
+              rss_mb: 82.0,
+              physical_footprint_mb: 61.0
+            }
+          ],
+          candidate: {
+            app_path: '/Applications/SaneBar.app',
+            app_version: '2.1.62',
+            app_build: '2162'
+          }
+        )
+      )
+      old_time = Time.now - (2 * 60 * 60)
+      File.utime(old_time, old_time, soak_artifact)
+      File.utime(old_time, old_time, soak_log)
+      @sweep.instance_variable_set(:@started_at, Time.now)
+      @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
+      @sweep.instance_variable_set(:@running_bundle_build, '2162')
+      @sweep.instance_variable_set(:@action_results, {
+        'startup-wake-appearance-recovery' => {
+          status: 'passed',
+          evidence: [
+            { type: 'mini_runtime', detail: 'runtime', artifacts: [soak_log] },
+            { type: 'log', detail: 'log', artifacts: [soak_log] },
+            { type: 'state_receipt', detail: 'receipt', artifacts: [soak_artifact] }
+          ]
+        }
+      })
+
+      rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+      soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
+
+      assert_equal 'failed', soak[:status]
+      refute_includes soak[:completed_scenarios], 'raw current-build resource soak artifact and log references exist'
     end
   end
 

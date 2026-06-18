@@ -50,7 +50,30 @@ struct MenuBarAutomaticMoveGateTests {
         ) == false)
     }
 
-    @Test("Gate instance arms, counts, and disarms")
+    @Test("Automatic move batches can arm a larger bounded budget")
+    func automaticMoveBatchesCanArmLargerBoundedBudget() {
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+        #expect(MenuBarAutomaticMoveGate.automaticMoveDecision(
+            origin: .systemWakeRecovery,
+            armedUntil: now.addingTimeInterval(10),
+            recentAutomaticMoveCount: 11,
+            moveBudget: 12,
+            now: now
+        ))
+        #expect(MenuBarAutomaticMoveGate.automaticMoveDecision(
+            origin: .systemWakeRecovery,
+            armedUntil: now.addingTimeInterval(10),
+            recentAutomaticMoveCount: 12,
+            moveBudget: 12,
+            now: now
+        ) == false)
+
+        #expect(MenuBarAutomaticMoveGate.automaticMoveBudget(forCandidateItemCount: 2) == 6)
+        #expect(MenuBarAutomaticMoveGate.automaticMoveBudget(forCandidateItemCount: 9) == 18)
+        #expect(MenuBarAutomaticMoveGate.automaticMoveBudget(forCandidateItemCount: 40) == 24)
+    }
+
+    @Test("Gate instance arms, records posted moves, and disarms")
     func gateInstanceLifecycle() {
         let gate = MenuBarAutomaticMoveGate()
         let now = Date(timeIntervalSinceReferenceDate: 1000)
@@ -59,13 +82,57 @@ struct MenuBarAutomaticMoveGateTests {
 
         gate.arm(for: 30, now: now)
         for i in 0 ..< MenuBarAutomaticMoveGate.maxAutomaticMovesPerWindow {
-            #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(Double(i))))
+            let sampleTime = now.addingTimeInterval(Double(i))
+            #expect(gate.allowsMove(origin: .systemWakeRecovery, now: sampleTime))
+            gate.recordPostedMove(origin: .systemWakeRecovery, now: sampleTime)
         }
         #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(8)) == false)
 
         gate.disarm()
         #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(9)) == false)
         #expect(gate.allowsMove(origin: .explicitUserAction, now: now.addingTimeInterval(9)))
+    }
+
+    @Test("Gate instance honors the armed batch budget")
+    func gateInstanceHonorsArmedBatchBudget() {
+        let gate = MenuBarAutomaticMoveGate()
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+
+        gate.arm(for: 30, moveBudget: 12, now: now)
+        for i in 0 ..< 12 {
+            let sampleTime = now.addingTimeInterval(Double(i))
+            #expect(gate.allowsMove(origin: .systemWakeRecovery, now: sampleTime))
+            gate.recordPostedMove(origin: .systemWakeRecovery, now: sampleTime)
+        }
+        #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(12)) == false)
+    }
+
+    @Test("Failed preconditions do not spend automatic move budget")
+    func failedPreconditionsDoNotSpendAutomaticMoveBudget() {
+        let gate = MenuBarAutomaticMoveGate()
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+
+        gate.arm(for: 30, moveBudget: 6, now: now)
+        for i in 0 ..< 20 {
+            #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(Double(i))))
+        }
+    }
+
+    @Test("Rearming starts a fresh bounded automatic move batch")
+    func rearmingStartsFreshBoundedBatch() {
+        let gate = MenuBarAutomaticMoveGate()
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+
+        gate.arm(for: 30, moveBudget: 6, now: now)
+        for i in 0 ..< 6 {
+            let sampleTime = now.addingTimeInterval(Double(i))
+            #expect(gate.allowsMove(origin: .systemWakeRecovery, now: sampleTime))
+            gate.recordPostedMove(origin: .systemWakeRecovery, now: sampleTime)
+        }
+        #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(7)) == false)
+
+        gate.arm(for: 30, moveBudget: 6, now: now.addingTimeInterval(8))
+        #expect(gate.allowsMove(origin: .systemWakeRecovery, now: now.addingTimeInterval(9)))
     }
 
     @Test("Immediate wake replays stay passive until healthy validation")

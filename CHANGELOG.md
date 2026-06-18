@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.72] - 2026-06-17
+
+Improves Browse Icons reliability when moving items between Visible, Hidden, and Always Hidden. Reduces background menu-bar scanning work and strengthens resource checks so idle memory growth is caught before release.
+
+---
+
 ## [2.1.71] - 2026-06-17
 
 Fixed Always Hidden icon move reliability after restart, display wake, and recovery. Improved menu bar geometry handling for multi-display setups. Added clearer Health guidance when macOS hides SaneBar from the menu bar.

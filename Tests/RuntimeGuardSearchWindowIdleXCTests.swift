@@ -153,6 +153,80 @@ final class RuntimeGuardSearchWindowIdleXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testMenuBarAXScansAreBoundedAndCancellationAware() throws {
+        let menuExtraURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityMenuExtraService.swift")
+        let menuExtraSource = try String(contentsOf: menuExtraURL, encoding: .utf8)
+        let boundedChildrenURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityBoundedAXChildFetch.swift")
+        let boundedChildrenSource = try String(contentsOf: boundedChildrenURL, encoding: .utf8)
+        let scannerURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityMenuBarScanningService.swift")
+        let scannerSource = try String(contentsOf: scannerURL, encoding: .utf8)
+        let windowFallbackURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityMenuBarWindowFallbackPolicy.swift")
+        let windowFallbackSource = try String(contentsOf: windowFallbackURL, encoding: .utf8)
+        let systemWideURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilitySystemWideMenuBarScanner.swift")
+        let systemWideSource = try String(contentsOf: systemWideURL, encoding: .utf8)
+        let clickURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityClickService.swift")
+        let clickSource = try String(contentsOf: clickURL, encoding: .utf8)
+        let visibilityURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityWorkflow.swift")
+        let visibilitySource = try String(contentsOf: visibilityURL, encoding: .utf8)
+        let menuBarChildSources = [
+            menuExtraSource,
+            scannerSource,
+            windowFallbackSource,
+            clickSource,
+            visibilitySource
+        ]
+        let unboundedChildFetches = menuBarChildSources.flatMap { source in
+            source.split(separator: "\n").filter { line in
+                line.contains("AXUIElementCopyAttributeValue") &&
+                    line.contains("kAXChildrenAttribute")
+            }
+        }
+
+        XCTAssertTrue(
+                menuExtraSource.contains("maxMenuExtraTraversalDepth") &&
+                menuExtraSource.contains("maxMenuExtraTraversalNodes") &&
+                menuExtraSource.contains("maxCollectedMenuExtraItems") &&
+                menuExtraSource.contains("var visited = Set<CFHashCode>()") &&
+                menuExtraSource.contains("CollectedMenuBarItems") &&
+                menuExtraSource.contains("collectedRoots.contains(where: \\.truncated)") &&
+                menuExtraSource.contains("refusing partial AXExtrasMenuBar child list") &&
+                boundedChildrenSource.contains("AXUIElementGetAttributeValueCount") &&
+                boundedChildrenSource.contains("AXUIElementCopyAttributeValues") &&
+                !boundedChildrenSource.contains("AXUIElementCopyAttributeValue(") &&
+                menuExtraSource.contains("AccessibilityBoundedAXChildFetch.children") &&
+                menuExtraSource.contains("Task.isCancelled"),
+            "Third-party AX menu-extra traversal should be depth/node/item bounded, cycle-safe, range-fetch children without unbounded fallback, and cancellation-aware"
+        )
+        XCTAssertTrue(
+                scannerSource.contains("guard !Task.isCancelled else { return [] }") &&
+                scannerSource.contains("group.cancelAll()") &&
+                scannerSource.contains("accessibilityService.menuBarItemCache = apps") &&
+                scannerSource.contains("AccessibilityBoundedAXChildFetch.children") &&
+                scannerSource.contains("childResult.truncated") &&
+                !scannerSource.contains("AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute"),
+            "Known-owner scans should observe cancellation, use bounded child range fetches, fail closed on incomplete child lists, and avoid writing shared cache state after cancellation"
+        )
+        XCTAssertTrue(
+            windowFallbackSource.contains("guard !Task.isCancelled else { return [] }") &&
+                windowFallbackSource.contains("AccessibilityBoundedAXChildFetch.children") &&
+                windowFallbackSource.contains("guard !childResult.truncated else { return nil }") &&
+                !windowFallbackSource.contains("AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute") &&
+                systemWideSource.contains("guard !Task.isCancelled else { return [] }"),
+            "WindowServer and system-wide fallback scanners should use bounded child fetches and cooperate with cancellation so canceled browse refreshes cannot keep sampling"
+        )
+        XCTAssertTrue(
+            unboundedChildFetches.isEmpty,
+            "Menu-bar AX services must use AccessibilityBoundedAXChildFetch instead of unbounded AXChildren fetches: \(unboundedChildFetches)"
+        )
+        XCTAssertTrue(
+            clickSource.contains("AccessibilityBoundedAXChildFetch.children") &&
+                clickSource.contains("AXExtrasMenuBar children truncated") &&
+                visibilitySource.contains("AccessibilityBoundedAXChildFetch.children") &&
+                visibilitySource.contains("guard !childResult.truncated else"),
+            "Click and visibility helpers share the bounded AX child fetcher and fail closed on incomplete child lists"
+        )
+    }
+
     func testLegacyUpgradePathDoesNotAutoGrantProFromSettingsState() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarLifecycleWorkflow.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)

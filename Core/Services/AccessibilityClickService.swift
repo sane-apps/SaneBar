@@ -172,10 +172,26 @@ final class AccessibilityClickService {
         }
         applyInteractionMessagingTimeout(to: barElement)
 
-        var children: CFTypeRef?
-        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-
-        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+        let childResult = AccessibilityBoundedAXChildFetch.children(
+            of: barElement,
+            maxCount: AccessibilityMenuExtraService.maxCollectedMenuExtraItems
+        )
+        if childResult.truncated {
+            accessibilityClickLogger.warning("Refusing partial AXExtrasMenuBar child list for click; using spatial fallback when available")
+            return ClickMenuBarItemResult(
+                success: hardwareClickAsFallback(
+                    bundleID: bundleID,
+                    menuExtraId: menuExtraId,
+                    statusItemIndex: statusItemIndex,
+                    fallbackCenter: fallbackCenter,
+                    isRightClick: isRightClick,
+                    allowImmediateFallbackCenter: allowImmediateFallbackCenter
+                ),
+                verification: "unavailable (AXExtrasMenuBar children truncated; spatial fallback)"
+            )
+        }
+        let items = childResult.children
+        guard !items.isEmpty else {
             accessibilityClickLogger.debug("No items in app's Extras Menu Bar")
             return ClickMenuBarItemResult(
                 success: hardwareClickAsFallback(
@@ -500,15 +516,12 @@ final class AccessibilityClickService {
                 return true
             }
 
-            var children: CFTypeRef?
-            if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-               let childItems = children as? [AXUIElement] {
-                for child in childItems {
-                    if performShowMenu(on: child) { return true }
-                    if performPress(on: child) {
-                        accessibilityClickLogger.info("AXShowMenu unavailable on child; falling back to AXPress for right-click")
-                        return true
-                    }
+            let childItems = AccessibilityBoundedAXChildFetch.children(of: element, maxCount: 16).children
+            for child in childItems {
+                if performShowMenu(on: child) { return true }
+                if performPress(on: child) {
+                    accessibilityClickLogger.info("AXShowMenu unavailable on child; falling back to AXPress for right-click")
+                    return true
                 }
             }
             return false
@@ -518,12 +531,9 @@ final class AccessibilityClickService {
         // We look for any child that supports AXPress if the top-level doesn't.
         if performPress(on: element) { return true }
 
-        var children: CFTypeRef?
-        if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children) == .success,
-           let childItems = children as? [AXUIElement] {
-            for child in childItems where performPress(on: child) {
-                return true
-            }
+        let childItems = AccessibilityBoundedAXChildFetch.children(of: element, maxCount: 16).children
+        for child in childItems where performPress(on: child) {
+            return true
         }
 
         return false

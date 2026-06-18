@@ -458,4 +458,29 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAuthoritativeZoneListingDoesNotReturnBlankDuringStartupRace() throws {
+        let commandsSource = try appleScriptCommandSource()
+
+        XCTAssertTrue(
+            commandsSource.contains("let cachedBeforeAuthoritativeRefresh = sortedScriptZones(currentIconZones())"),
+            "The authoritative AppleScript listing should keep a pre-refresh fallback so startup races do not return a blank diagnostics surface"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("let authoritativeZones = sortedScriptZones(zones(from: classified))") &&
+                commandsSource.contains("if !authoritativeZones.isEmpty") &&
+                commandsSource.contains("return authoritativeZones"),
+            "The normal path should still prefer the fresh authoritative scan when it returns real rows"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("let warmedZones = sortedScriptZones(currentIconZones())") &&
+                commandsSource.contains("if !warmedZones.isEmpty") &&
+                commandsSource.contains("return warmedZones"),
+            "A transient empty authoritative startup scan should wait for the app's warmed cache before reporting no rows"
+        )
+        XCTAssertTrue(
+            commandsSource.contains("return cachedBeforeAuthoritativeRefresh"),
+            "Only the deadline fallback should use the pre-refresh cache; returning a blank listing hides release-diagnostic failures"
+        )
+    }
+
 }

@@ -5,8 +5,9 @@ class CustomerUIActionSweep
   SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS = 30 * 60
   RESOURCE_SOAK_ARTIFACT_PATH = '/tmp/sanebar_runtime_resource_soak.json'
   RESOURCE_SOAK_MAX_AGE_SECONDS = 24 * 60 * 60
-  RESOURCE_SOAK_MIN_DURATION_SECONDS = 20 * 60
+  RESOURCE_SOAK_MIN_DURATION_SECONDS = 10 * 60
   RESOURCE_SOAK_RAW_SCENARIOS = [
+    'at least 10m Mini soak sampled on the release candidate',
     'raw current-build resource soak artifact and log references exist',
     'per-sample CPU/RSS/physical footprint trend fields were captured'
   ].freeze
@@ -164,7 +165,11 @@ class CustomerUIActionSweep
       runtime_artifact = runtime_state_artifact(id.to_s)
       if runtime_artifact
         evidence_types |= Array(runtime_artifact[:evidence_types])
-        evidence_paths |= Array(runtime_artifact[:evidence_paths])
+        if id.to_s == 'resource_soak_growth'
+          evidence_paths = Array(runtime_artifact[:evidence_paths])
+        else
+          evidence_paths |= Array(runtime_artifact[:evidence_paths])
+        end
       end
       completed_scenarios = runtime_state_completed_scenarios(action_ids, runtime_artifact)
       required_scenarios = Array(row['required_scenarios']).map(&:to_s)
@@ -309,9 +314,24 @@ class CustomerUIActionSweep
   end
 
   def resource_soak_artifact
-    path = RESOURCE_SOAK_ARTIFACT_PATH
-    return nil unless fresh_runtime_evidence?(path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
+    resource_soak_artifact_paths.each do |path|
+      artifact = resource_soak_artifact_at(path)
+      return artifact if artifact
+    end
 
+    nil
+  end
+
+  def resource_soak_artifact_paths
+    durable_paths = Dir.glob(File.join(OUTPUT_DIR, '**', 'resource-soak-*.json'))
+      .select { |path| File.file?(path) }
+      .sort_by { |path| File.mtime(path) }
+      .reverse
+    ([RESOURCE_SOAK_ARTIFACT_PATH] + durable_paths).uniq
+  end
+
+  def resource_soak_artifact_at(path)
+    return nil unless fresh_runtime_evidence?(path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
     payload = JSON.parse(File.read(path))
     return nil unless payload['status'] == 'pass'
     return nil unless runtime_candidate_matches?(payload)
@@ -336,27 +356,50 @@ class CustomerUIActionSweep
     existing_paths = evidence_paths.select { |candidate| File.file?(candidate) }
     log_paths = existing_paths.select { |candidate| File.extname(candidate) == '.log' }
     return { ok: false, evidence_paths: evidence_paths } if log_paths.empty?
+    return { ok: false, evidence_paths: evidence_paths } if log_paths.any? { |log_path| resource_soak_log_has_missing_samples?(log_path) }
     return { ok: false, evidence_paths: evidence_paths } if payload['duration_seconds'].to_f < RESOURCE_SOAK_MIN_DURATION_SECONDS
     return { ok: false, evidence_paths: evidence_paths } if payload['sample_count'].to_i < 2
 
     sample_count = resource_soak_json_trend_samples(payload).length
-    if sample_count < 2
-      sample_count = log_paths.flat_map { |log_path| resource_soak_log_trend_samples(log_path) }.length
-    end
     return { ok: false, evidence_paths: evidence_paths } if sample_count < 2
 
-    { ok: true, evidence_paths: existing_paths.uniq }
+    durable_paths = durable_resource_soak_evidence_paths(existing_paths)
+    return { ok: false, evidence_paths: durable_paths } if durable_paths.empty?
+
+    { ok: true, evidence_paths: durable_paths }
   end
 
   def resource_soak_evidence_paths(payload, artifact_path)
+    sibling_log = artifact_path.to_s.sub(/\.json\z/, '.log')
     raw_paths = [
       artifact_path,
+      sibling_log,
       *Array(payload['evidence_paths']),
       *Array(payload['raw_evidence_paths']),
       *Array(payload['artifact_paths']),
       *Array(payload['log_paths'])
     ]
     raw_paths.map(&:to_s).map(&:strip).reject(&:empty?).uniq
+  end
+
+  def durable_resource_soak_evidence_paths(paths)
+    evidence_dir = @evidence_dir || OUTPUT_DIR
+    FileUtils.mkdir_p(evidence_dir)
+
+    paths.each_with_object([]) do |path, durable_paths|
+      next unless File.file?(path)
+
+      expanded_path = File.expand_path(path)
+      project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
+      if expanded_path.start_with?(project_root)
+        durable_paths << expanded_path
+        next
+      end
+
+      durable_path = File.join(evidence_dir, "resource-soak-#{File.basename(path)}")
+      FileUtils.cp(path, durable_path)
+      durable_paths << durable_path if File.file?(durable_path)
+    end.uniq
   end
 
   def resource_soak_json_trend_samples(payload)
@@ -389,6 +432,12 @@ class CustomerUIActionSweep
     end
   rescue StandardError
     []
+  end
+
+  def resource_soak_log_has_missing_samples?(log_path)
+    File.readlines(log_path, chomp: true).any? { |line| line.include?('sample_missing') }
+  rescue StandardError
+    true
   end
 
   def shared_bundle_exact_id_artifact

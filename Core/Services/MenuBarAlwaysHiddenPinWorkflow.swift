@@ -431,6 +431,11 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         let wasHidden = manager.hidingService.state == .hidden
         let isWakeReplay = reason.contains("wake-resume") || reason.contains("wakeResume")
         let shouldRestoreHiddenState = wasHidden || isWakeReplay
+        if case .systemWakeRecovery = repairOrigin {
+            AccessibilityService.shared.automaticMoveGate.arm(
+                moveBudget: MenuBarAutomaticMoveGate.automaticMoveBudget(forCandidateItemCount: filteredPins.count)
+            )
+        }
 
         await manager.hidingService.showAll()
         try? await Task.sleep(for: .milliseconds(300))

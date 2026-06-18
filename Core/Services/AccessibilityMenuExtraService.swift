@@ -7,6 +7,9 @@ private let menuExtrasLogger = Logger(subsystem: "com.sanebar.app", category: "A
 enum AccessibilityMenuExtraService {
     typealias MenuBarItemPosition = AccessibilityService.MenuBarItemPosition
     typealias StatusItemReactionSnapshot = AccessibilityClickService.StatusItemReactionSnapshot
+    internal nonisolated static let maxMenuExtraTraversalDepth = 12
+    internal nonisolated static let maxMenuExtraTraversalNodes = 512
+    internal nonisolated static let maxCollectedMenuExtraItems = 128
 
     private struct StatusItemAXMetadata {
         let rawIdentifier: String?
@@ -14,6 +17,11 @@ enum AccessibilityMenuExtraService {
         let rawSubrole: String?
         let xPos: CGFloat
         let width: CGFloat
+    }
+
+    private struct CollectedMenuBarItems {
+        let items: [AXUIElement]
+        let truncated: Bool
     }
 
     // MARK: - Control Center & Menu Extra Enumeration
@@ -43,10 +51,16 @@ enum AccessibilityMenuExtraService {
             allowThirdPartyMenuBarFallback: allowThirdPartyMenuBarFallback
         )
         guard !roots.isEmpty else { return results }
-        let items = roots.flatMap { collectMenuBarItems(from: $0) }
+        let collectedRoots = roots.map { collectMenuBarItems(from: $0) }
+        guard !collectedRoots.contains(where: \.truncated) else {
+            menuExtrasLogger.warning("Menu-extra enumeration stopped because AX traversal was incomplete")
+            return results
+        }
+        let items = collectedRoots.flatMap(\.items)
         guard !items.isEmpty else { return results }
 
         for item in items {
+            guard !Task.isCancelled else { return results }
             let metadata = statusItemAXMetadata(for: item)
 
             if allowThirdPartyMenuBarFallback,
@@ -145,28 +159,54 @@ enum AccessibilityMenuExtraService {
     }
 
     /// Collect AXMenuBarItem descendants from a root menu bar element.
-    private nonisolated static func collectMenuBarItems(from root: AXUIElement) -> [AXUIElement] {
+    private nonisolated static func collectMenuBarItems(from root: AXUIElement) -> CollectedMenuBarItems {
         var collected: [AXUIElement] = []
+        var visited = Set<CFHashCode>()
+        var stack: [(node: AXUIElement, depth: Int)] = [(root, 0)]
+        var visitedNodeCount = 0
+        var hitTraversalLimit = false
 
-        func visit(_ node: AXUIElement) {
+        while let next = stack.popLast() {
+            guard !Task.isCancelled else {
+                hitTraversalLimit = true
+                break
+            }
+            guard next.depth <= maxMenuExtraTraversalDepth,
+                  visitedNodeCount < maxMenuExtraTraversalNodes,
+                  collected.count < maxCollectedMenuExtraItems else {
+                hitTraversalLimit = true
+                continue
+            }
+
+            let node = next.node
+            let identity = CFHash(node)
+            guard visited.insert(identity).inserted else { continue }
+            visitedNodeCount += 1
+
             var roleValue: CFTypeRef?
             AXUIElementCopyAttributeValue(node, kAXRoleAttribute as CFString, &roleValue)
             let role = roleValue as? String
             if role == (kAXMenuBarItemRole as String) || role == "AXMenuBarItem" {
                 collected.append(node)
-                return
+                continue
             }
 
-            var childrenValue: CFTypeRef?
-            let result = AXUIElementCopyAttributeValue(node, kAXChildrenAttribute as CFString, &childrenValue)
-            guard result == .success, let children = childrenValue as? [AXUIElement] else { return }
-            for child in children {
-                visit(child)
+            let remainingNodeBudget = maxMenuExtraTraversalNodes - visitedNodeCount - stack.count
+            let childResult = AccessibilityBoundedAXChildFetch.children(of: node, maxCount: remainingNodeBudget)
+            if childResult.truncated {
+                hitTraversalLimit = true
+            }
+            for child in childResult.children.reversed() {
+                stack.append((child, next.depth + 1))
             }
         }
 
-        visit(root)
-        return collected
+        if hitTraversalLimit {
+            menuExtrasLogger.warning(
+                "Bounded menu-extra AX traversal stopped early nodes=\(visitedNodeCount, privacy: .public) items=\(collected.count, privacy: .public)"
+            )
+        }
+        return CollectedMenuBarItems(items: collected, truncated: hitTraversalLimit)
     }
 
     /// Resolve a stable menu-extra identifier for Apple-owned extras.
@@ -423,9 +463,16 @@ enum AccessibilityMenuExtraService {
         }
         guard let barElement = safeAXUIElement(bar) else { return nil }
 
-        var children: CFTypeRef?
-        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+        let childResult = AccessibilityBoundedAXChildFetch.children(
+            of: barElement,
+            maxCount: maxCollectedMenuExtraItems
+        )
+        if childResult.truncated {
+            menuExtrasLogger.warning("🔧 getMenuBarIconFrame: refusing partial AXExtrasMenuBar child list for \(bundleID, privacy: .private)")
+            return nil
+        }
+        let items = childResult.children
+        guard !items.isEmpty else {
             menuExtrasLogger.error("🔧 getMenuBarIconFrame: No items found in AXExtrasMenuBar for \(bundleID, privacy: .private)")
             return nil
         }
@@ -567,9 +614,16 @@ enum AccessibilityMenuExtraService {
         }
         guard let barElement = safeAXUIElement(bar) else { return (false, false) }
 
-        var children: CFTypeRef?
-        let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-        guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else {
+        let childResult = AccessibilityBoundedAXChildFetch.children(
+            of: barElement,
+            maxCount: maxCollectedMenuExtraItems
+        )
+        if childResult.truncated {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing partial AXExtrasMenuBar child list for \(bundleID, privacy: .private)")
+            return (false, false)
+        }
+        let items = childResult.children
+        guard !items.isEmpty else {
             menuExtrasLogger.error("🔧 actionableMoveResolutionSafety: No items found in AXExtrasMenuBar for \(bundleID, privacy: .private)")
             return (false, false)
         }

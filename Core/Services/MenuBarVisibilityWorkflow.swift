@@ -398,11 +398,12 @@ final class MenuBarVisibilityWorkflow {
             return nil
         }
 
-        var childrenValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(menuBarElement, kAXChildrenAttribute as CFString, &childrenValue) == .success,
-              let menuBarItems = childrenValue as? [AXUIElement],
-              !menuBarItems.isEmpty
-        else {
+        let childResult = AccessibilityBoundedAXChildFetch.children(of: menuBarElement, maxCount: 64)
+        guard !childResult.truncated else {
+            return nil
+        }
+        let menuBarItems = childResult.children
+        guard !menuBarItems.isEmpty else {
             return nil
         }
 
