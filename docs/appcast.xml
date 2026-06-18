@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                <item>
+                        <item>
+            <title>2.1.72</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Wed, 17 Jun 2026 21:10:40 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves Browse Icons reliability when moving items between Visible, Hidden, and Always Hidden. Reduces background menu-bar scanning work and strengthens resource checks so idle memory growth is caught before release.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.72.zip"
+                       sparkle:version="2172"
+                       sparkle:shortVersionString="2.1.72"
+                       length="9141422"
+                       type="application/octet-stream"
+                       sparkle:edSignature="JZkpNf4tj5kn9Z5Ohzm7ofo1ugcxl8oebi2YZOap6T/lMqdpWbBXwefpmoiRE80LHIeFwSx/ihaKtcw6f9g/Dg=="/>
+        </item>
+<item>
             <title>2.1.71</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Wed, 17 Jun 2026 12:03:14 -0400</pubDate>
