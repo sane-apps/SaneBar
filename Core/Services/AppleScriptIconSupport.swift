@@ -244,6 +244,7 @@ func scriptListingZonesForCommand() -> [ScriptZonedIcon] {
 
 @MainActor
 func authoritativeScriptListingZonesForCommand() -> [ScriptZonedIcon] {
+    let cachedBeforeAuthoritativeRefresh = sortedScriptZones(currentIconZones())
     AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     let result = ScriptResultBox<ScriptClassifiedApps?>(nil)
     Task { @MainActor in
@@ -256,10 +257,21 @@ func authoritativeScriptListingZonesForCommand() -> [ScriptZonedIcon] {
     }
 
     if let classified = result.value {
-        return sortedScriptZones(zones(from: classified))
+        let authoritativeZones = sortedScriptZones(zones(from: classified))
+        if !authoritativeZones.isEmpty {
+            return authoritativeZones
+        }
+
+        while Date() < deadline {
+            let warmedZones = sortedScriptZones(currentIconZones())
+            if !warmedZones.isEmpty {
+                return warmedZones
+            }
+            _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
     }
 
-    return []
+    return cachedBeforeAuthoritativeRefresh
 }
 
 @MainActor

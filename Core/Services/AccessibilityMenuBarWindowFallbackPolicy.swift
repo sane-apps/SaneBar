@@ -92,6 +92,7 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
         candidatePIDs: Set<pid_t>
     ) -> [WindowBackedStatusItem] {
         guard !candidatePIDs.isEmpty else { return [] }
+        guard !Task.isCancelled else { return [] }
 
         func number(_ value: Any?) -> CGFloat? {
             switch value {
@@ -111,6 +112,7 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
         var framesByPID: [pid_t: [CGRect]] = [:]
 
         for info in infos {
+            guard !Task.isCancelled else { return [] }
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
             let ownerPID = pid_t(ownerPIDValue.intValue)
             guard candidatePIDs.contains(ownerPID) else { continue }
@@ -180,6 +182,7 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
         minimumWidth: CGFloat
     ) -> Set<pid_t> {
         guard !candidatePIDs.isEmpty else { return [] }
+        guard !Task.isCancelled else { return [] }
 
         func number(_ value: Any?) -> CGFloat? {
             switch value {
@@ -199,6 +202,7 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
         var matches = Set<pid_t>()
 
         for info in infos {
+            guard !Task.isCancelled else { return [] }
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
             let ownerPID = pid_t(ownerPIDValue.intValue)
             guard candidatePIDs.contains(ownerPID) else { continue }
@@ -220,9 +224,12 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
     }
 
     internal nonisolated static func scanMenuBarOwnerPIDs(candidatePIDs: [pid_t]) async -> [pid_t] {
+        guard !Task.isCancelled else { return [] }
+
         let axPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for pid in candidatePIDs {
                 group.addTask {
+                    guard !Task.isCancelled else { return nil }
                     let appElement = AXUIElementCreateApplication(pid)
                     var extrasBar: CFTypeRef?
                     let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
@@ -236,16 +243,23 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
             var pids: [pid_t] = []
             pids.reserveCapacity(candidatePIDs.count)
             for await pid in group {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    break
+                }
                 if let pid = pid {
                     pids.append(pid)
                 }
             }
             return pids
         }
+        guard !Task.isCancelled else { return [] }
 
         let windowBackedPIDs = Set(windowBackedMenuBarItems(candidatePIDs: Set(candidatePIDs)).map(\.pid))
+        guard !Task.isCancelled else { return [] }
         let topBarPIDs = Set(
             topBarHostPIDs(candidatePIDs: Set(candidatePIDs)).compactMap { pid -> pid_t? in
+                guard !Task.isCancelled else { return nil }
                 guard let app = NSRunningApplication(processIdentifier: pid),
                       let bundleID = AccessibilityMenuBarScanningService.resolvedBundleIdentifier(for: app) else {
                     return nil
@@ -280,9 +294,12 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
     }
 
     internal nonisolated static func scanMenuBarAppMinXPositions(candidatePIDs: [pid_t]) async -> [(pid: pid_t, x: CGFloat)] {
-        await withTaskGroup(of: (pid: pid_t, x: CGFloat)?.self) { group in
+        guard !Task.isCancelled else { return [] }
+
+        return await withTaskGroup(of: (pid: pid_t, x: CGFloat)?.self) { group in
             for pid in candidatePIDs {
                 group.addTask {
+                    guard !Task.isCancelled else { return nil }
                     let appElement = AXUIElementCreateApplication(pid)
 
                     var extrasBar: CFTypeRef?
@@ -290,12 +307,17 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
                     guard result == .success, let bar = extrasBar else { return nil }
                     guard let barElement = safeAXUIElement(bar) else { return nil }
 
-                    var children: CFTypeRef?
-                    let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-                    guard childResult == .success, let items = children as? [AXUIElement], !items.isEmpty else { return nil }
+                    let childResult = AccessibilityBoundedAXChildFetch.children(
+                        of: barElement,
+                        maxCount: AccessibilityMenuExtraService.maxCollectedMenuExtraItems
+                    )
+                    guard !childResult.truncated else { return nil }
+                    let items = childResult.children
+                    guard !items.isEmpty else { return nil }
 
                     var minX: CGFloat?
                     for item in items {
+                        guard !Task.isCancelled else { return nil }
                         var positionValue: CFTypeRef?
                         let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
 
@@ -328,6 +350,10 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
             var results: [(pid: pid_t, x: CGFloat)] = []
             results.reserveCapacity(candidatePIDs.count)
             for await result in group {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    break
+                }
                 if let result = result {
                     results.append(result)
                 }

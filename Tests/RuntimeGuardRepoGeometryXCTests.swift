@@ -553,6 +553,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("guard Self.hideAllOtherMoveNeeded(initialZone: initialZone, shouldShow: shouldShow)") &&
                 source.contains("if shouldShow, isCurrentlyAlwaysHidden") &&
                 source.contains("let isCurrentlyAlwaysHidden = initialZone == .alwaysHidden") &&
+                source.contains("automaticMoveBudget(forCandidateItemCount: candidateItemCount)") &&
                 source.contains("moveIconAlwaysHiddenAndWait(") &&
                 source.contains("for pass in 1 ... 2") &&
                 source.contains("let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()") &&
@@ -609,6 +610,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 alwaysHiddenSource.contains("Always-hidden pin enforcement audited without physical moves") &&
                 alwaysHiddenSource.contains("mode: .auditOnly") &&
                 alwaysHiddenSource.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
+                alwaysHiddenSource.contains("automaticMoveBudget(forCandidateItemCount: filteredPins.count)") &&
                 alwaysHiddenSource.contains("if shouldRestoreHiddenState { await manager.hidingService.hide() }") &&
                 queueSource.contains("clearAlwaysHiddenPinAfterMove: Bool = true") &&
                 standardSource.contains("context.request.clearAlwaysHiddenPinAfterMove") &&

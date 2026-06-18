@@ -51,7 +51,11 @@ final class AccessibilityMenuBarDragService {
             fromAccessibilityPoint: rawToPoint,
             preferredScreenFrame: referenceScreenFrame
         )
-        return performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
+        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
+        if didPostEvents {
+            accessibilityService.automaticMoveGate.recordPostedMove(origin: physicalMoveOrigin)
+        }
+        return didPostEvents
     }
 
     /// Reorder one icon relative to another icon using Cmd+drag.
@@ -107,7 +111,11 @@ final class AccessibilityMenuBarDragService {
             fromAccessibilityPoint: rawToPoint,
             preferredScreenFrame: referenceScreenFrame
         )
-        return performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, restoreTo: originalMouseLocation)
+        if didPostEvents {
+            accessibilityService.automaticMoveGate.recordPostedMove(origin: physicalMoveOrigin)
+        }
+        return didPostEvents
     }
 
     /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag.
@@ -216,6 +224,7 @@ final class AccessibilityMenuBarDragService {
             accessibilityDragLogger.error("🔧 Cmd+drag failed: could not post events")
             return false
         }
+        accessibilityService.automaticMoveGate.recordPostedMove(origin: physicalMoveOrigin)
 
         // Poll for AX position stability instead of fixed wait.
         // On slow Macs, 250ms isn't enough; on fast Macs, we finish sooner.

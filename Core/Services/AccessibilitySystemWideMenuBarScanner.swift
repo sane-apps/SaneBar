@@ -47,6 +47,7 @@ enum AccessibilitySystemWideMenuBarScanner {
     ) -> [MenuBarItemPosition] {
         autoreleasepool { () -> [MenuBarItemPosition] in
             guard !candidatePIDs.isEmpty else { return [] }
+            guard !Task.isCancelled else { return [] }
 
             func axString(_ value: CFTypeRef?) -> String? {
             if let string = value as? String { return string }
@@ -60,10 +61,12 @@ enum AccessibilitySystemWideMenuBarScanner {
         samples.reserveCapacity(Int((NSScreen.screens.reduce(CGFloat(0)) { $0 + $1.frame.width } / max(1, sampleStep)).rounded(.up)))
 
         for screen in NSScreen.screens {
+            guard !Task.isCancelled else { return [] }
             let lineY = screen.frame.minY + anchorY
             let startX = Int(screen.frame.minX.rounded(.down))
             let endX = Int((screen.frame.maxX - 1).rounded(.down))
             for rawX in stride(from: startX, through: endX, by: step) {
+                guard !Task.isCancelled else { return [] }
                 var hitElement: AXUIElement?
                 let error = AXUIElementCopyElementAtPosition(systemWide, Float(rawX), Float(lineY), &hitElement)
                 guard error == .success, let hitElement else { continue }

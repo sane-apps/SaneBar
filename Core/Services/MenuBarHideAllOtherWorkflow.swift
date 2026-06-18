@@ -241,6 +241,19 @@ final class MenuBarHideAllOtherWorkflow {
         let isWakeReplay = reason.contains("wake-resume") || reason.contains("wakeResume")
         let shouldRestoreHiddenState = wasHidden || isWakeReplay
         let baselineItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+        if case .systemWakeRecovery = repairOrigin {
+            let candidateItemCount = baselineItems.filter { item in
+                if let filterBundleId, item.app.bundleId != filterBundleId { return false }
+                return !Self.shouldSkipItem(
+                    bundleID: item.app.bundleId,
+                    menuExtraId: item.app.menuExtraIdentifier,
+                    name: item.app.name
+                )
+            }.count
+            AccessibilityService.shared.automaticMoveGate.arm(
+                moveBudget: MenuBarAutomaticMoveGate.automaticMoveBudget(forCandidateItemCount: candidateItemCount)
+            )
+        }
         var initialZoneByUniqueId: [String: HideAllOtherZone] = [:]
         initialZoneByUniqueId.reserveCapacity(baselineItems.count)
         for item in baselineItems {

@@ -10,11 +10,13 @@ import Foundation
 /// #154); this gate makes that class structurally impossible.
 final class MenuBarAutomaticMoveGate: @unchecked Sendable {
     static let maxAutomaticMovesPerWindow = 6
+    static let maxAutomaticMovesPerArm = 24
     static let rateWindowSeconds: TimeInterval = 60
     static let defaultArmDurationSeconds: TimeInterval = 30
 
     private let lock = NSLock()
     private var armedUntil: Date?
+    private var armedMoveBudget = maxAutomaticMovesPerWindow
     private var recentAutomaticMoves: [Date] = []
 
     /// Pure decision core, testable without time or locking.
@@ -22,6 +24,7 @@ final class MenuBarAutomaticMoveGate: @unchecked Sendable {
         origin: MenuBarPhysicalMoveOrigin,
         armedUntil: Date?,
         recentAutomaticMoveCount: Int,
+        moveBudget: Int = MenuBarAutomaticMoveGate.maxAutomaticMovesPerWindow,
         now: Date
     ) -> Bool {
         switch origin {
@@ -29,26 +32,37 @@ final class MenuBarAutomaticMoveGate: @unchecked Sendable {
             return true
         case .systemWakeRecovery:
             guard let armedUntil, now <= armedUntil else { return false }
-            return recentAutomaticMoveCount < maxAutomaticMovesPerWindow
+            return recentAutomaticMoveCount < moveBudget
         }
+    }
+
+    nonisolated static func automaticMoveBudget(forCandidateItemCount candidateItemCount: Int) -> Int {
+        let requestedBudget = max(maxAutomaticMovesPerWindow, candidateItemCount * 2)
+        return min(requestedBudget, maxAutomaticMovesPerArm)
     }
 
     /// Arm automatic moves for a bounded window. Callers must only arm after
     /// confirming the runtime snapshot reports live geometry.
-    func arm(for duration: TimeInterval = MenuBarAutomaticMoveGate.defaultArmDurationSeconds, now: Date = Date()) {
+    func arm(
+        for duration: TimeInterval = MenuBarAutomaticMoveGate.defaultArmDurationSeconds,
+        moveBudget: Int = MenuBarAutomaticMoveGate.maxAutomaticMovesPerWindow,
+        now: Date = Date()
+    ) {
         lock.lock()
         defer { lock.unlock() }
         armedUntil = now.addingTimeInterval(duration)
+        armedMoveBudget = min(max(0, moveBudget), Self.maxAutomaticMovesPerArm)
+        recentAutomaticMoves.removeAll(keepingCapacity: true)
     }
 
     func disarm() {
         lock.lock()
         defer { lock.unlock() }
         armedUntil = nil
+        armedMoveBudget = Self.maxAutomaticMovesPerWindow
     }
 
     /// Returns true when a physical move with this origin may proceed.
-    /// Counts allowed automatic moves against the rate window.
     func allowsMove(origin: MenuBarPhysicalMoveOrigin, now: Date = Date()) -> Bool {
         switch origin {
         case .explicitUserAction, .appleScriptUserAction:
@@ -61,12 +75,20 @@ final class MenuBarAutomaticMoveGate: @unchecked Sendable {
                 origin: origin,
                 armedUntil: armedUntil,
                 recentAutomaticMoveCount: recentAutomaticMoves.count,
+                moveBudget: armedMoveBudget,
                 now: now
             )
-            if allowed {
-                recentAutomaticMoves.append(now)
-            }
             return allowed
         }
+    }
+
+    /// Counts a real posted drag against the automatic recovery budget. Failed
+    /// preconditions do not consume budget because no cursor movement happened.
+    func recordPostedMove(origin: MenuBarPhysicalMoveOrigin, now: Date = Date()) {
+        guard origin == .systemWakeRecovery else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        recentAutomaticMoves.removeAll { now.timeIntervalSince($0) > Self.rateWindowSeconds }
+        recentAutomaticMoves.append(now)
     }
 }

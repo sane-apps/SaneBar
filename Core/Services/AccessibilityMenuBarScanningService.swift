@@ -120,6 +120,7 @@ final class AccessibilityMenuBarScanningService {
     /// Best-effort list of apps that currently own a menu bar status item.
     func listMenuBarItemOwners() async -> [RunningApp] {
         guard accessibilityService.isTrusted else { return [] }
+        guard !Task.isCancelled else { return [] }
 
         // Check cache validity - return cached results if still fresh
         let now = Date()
@@ -146,7 +147,9 @@ final class AccessibilityMenuBarScanningService {
         let axDiscoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for runningApp in candidateApps {
                 group.addTask {
-                    autoreleasepool { () -> pid_t? in
+                    guard !Task.isCancelled else { return nil }
+                    return autoreleasepool { () -> pid_t? in
+                        guard !Task.isCancelled else { return nil }
                         let pid = runningApp.processIdentifier
                         let appElement = AXUIElementCreateApplication(pid)
 
@@ -162,16 +165,22 @@ final class AccessibilityMenuBarScanningService {
             }
             var pidsSet = Set<pid_t>()
             for await pid in group {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    break
+                }
                 if let pid = pid {
                     pidsSet.insert(pid)
                 }
             }
             return pidsSet
         }
+        guard !Task.isCancelled else { return [] }
 
         let windowBackedItems = AccessibilityMenuBarWindowFallbackPolicy.windowBackedMenuBarItems(
             candidatePIDs: Set(candidateApps.map(\.processIdentifier))
         )
+        guard !Task.isCancelled else { return [] }
         let windowBackedPIDs = Set(windowBackedItems.map(\.pid))
         let topBarHostPIDs = AccessibilityMenuBarWindowFallbackPolicy.topBarHostPIDs(candidatePIDs: Set(candidateApps.map(\.processIdentifier)))
         let discoveredPIDs = axDiscoveredPIDs.union(windowBackedPIDs)
@@ -187,6 +196,7 @@ final class AccessibilityMenuBarScanningService {
         var systemUIServerPID: pid_t?
 
         for pid in discoveredPIDs {
+            guard !Task.isCancelled else { return [] }
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
@@ -222,6 +232,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         for pid in topBarHostPIDs.subtracting(discoveredPIDs) {
+            guard !Task.isCancelled else { return [] }
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
@@ -263,9 +274,11 @@ final class AccessibilityMenuBarScanningService {
 
         // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
         if let ccPID = controlCenterPID {
+            guard !Task.isCancelled else { return [] }
             let ccItems = AccessibilityMenuExtraService.enumerateControlCenterItems(pid: ccPID)
             accessibilityScanningLogger.debug("Expanded Control Center into \(ccItems.count) individual owners")
             for item in ccItems {
+                guard !Task.isCancelled else { return [] }
                 let key = item.app.uniqueId
                 guard !seenIds.contains(key) else { continue }
                 seenIds.insert(key)
@@ -275,9 +288,11 @@ final class AccessibilityMenuBarScanningService {
 
         // Expand SystemUIServer into individual items (Wi‑Fi, Bluetooth, etc.)
         if let suPID = systemUIServerPID {
+            guard !Task.isCancelled else { return [] }
             let suItems = AccessibilityMenuExtraService.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
             accessibilityScanningLogger.debug("Expanded SystemUIServer into \(suItems.count) individual owners")
             for item in suItems {
+                guard !Task.isCancelled else { return [] }
                 let key = item.app.uniqueId
                 guard !seenIds.contains(key) else { continue }
                 seenIds.insert(key)
@@ -286,6 +301,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        guard !Task.isCancelled else { return [] }
 
         // Update cache
         accessibilityService.menuBarOwnersCache = sortedApps
@@ -301,6 +317,7 @@ final class AccessibilityMenuBarScanningService {
             accessibilityScanningLogger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
         }
+        guard !Task.isCancelled else { return [] }
 
         // Check cache validity - return cached results if still fresh
         let now = Date()
@@ -313,6 +330,7 @@ final class AccessibilityMenuBarScanningService {
             candidateApps: filteredMenuBarCandidateApps(),
             includeSystemWideFallback: true
         )
+        guard !Task.isCancelled else { return [] }
         accessibilityService.menuBarItemCache = apps
         accessibilityService.menuBarItemCacheTime = now
         return apps
@@ -323,9 +341,11 @@ final class AccessibilityMenuBarScanningService {
             accessibilityScanningLogger.warning("listKnownMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
         }
+        guard !Task.isCancelled else { return [] }
 
         let now = Date()
         let apps = await scanKnownMenuBarItemsWithPositions(owners: owners)
+        guard !Task.isCancelled else { return [] }
         accessibilityService.menuBarItemCache = apps
         accessibilityService.menuBarItemCacheTime = now
         return apps
@@ -336,6 +356,7 @@ final class AccessibilityMenuBarScanningService {
             accessibilityScanningLogger.warning("scopedMenuBarItemsWithPositions: Not trusted for Accessibility")
             return []
         }
+        guard !Task.isCancelled else { return [] }
 
         return await scanKnownMenuBarItemsWithPositions(owners: owners)
     }
@@ -386,6 +407,7 @@ final class AccessibilityMenuBarScanningService {
             accessibilityScanningLogger.debug("No candidate apps available for menu bar item scan")
             return []
         }
+        guard !Task.isCancelled else { return [] }
 
         accessibilityScanningLogger.debug(
             "Scanning \(candidateApps.count) candidate apps for menu bar positions (systemWideFallback=\(includeSystemWideFallback, privacy: .public))"
@@ -394,96 +416,109 @@ final class AccessibilityMenuBarScanningService {
         let results: [ScannedStatusItem] = await withTaskGroup(of: [ScannedStatusItem].self) { group in
             for runningApp in candidateApps {
                 group.addTask {
-                    autoreleasepool { () -> [ScannedStatusItem] in
+                    guard !Task.isCancelled else { return [] }
+                    return autoreleasepool { () -> [ScannedStatusItem] in
+                        guard !Task.isCancelled else { return [] }
                         let pid = runningApp.processIdentifier
-                    let appElement = AXUIElementCreateApplication(pid)
+                        let appElement = AXUIElementCreateApplication(pid)
 
-                    var extrasBar: CFTypeRef?
-                    let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
-                    guard result == .success, let bar = extrasBar else { return [] }
-                    guard let barElement = safeAXUIElement(bar) else { return [] }
+                        var extrasBar: CFTypeRef?
+                        let result = AXUIElementCopyAttributeValue(appElement, "AXExtrasMenuBar" as CFString, &extrasBar)
+                        guard result == .success, let bar = extrasBar else { return [] }
+                        guard let barElement = safeAXUIElement(bar) else { return [] }
 
-                    var children: CFTypeRef?
-                    let childResult = AXUIElementCopyAttributeValue(barElement, kAXChildrenAttribute as CFString, &children)
-                    guard childResult == .success, let items = children as? [AXUIElement] else { return [] }
-
-                    func axString(_ value: CFTypeRef?) -> String? {
-                        if let s = value as? String { return s }
-                        if let attributed = value as? NSAttributedString { return attributed.string }
-                        return nil
-                    }
-
-                    var localResults: [ScannedStatusItem] = []
-
-                    var identifiersByIndex: [Int: String] = [:]
-                    var identifiers: [String] = []
-                    identifiers.reserveCapacity(items.count)
-                    for (index, item) in items.enumerated() {
-                        var identifierValue: CFTypeRef?
-                        AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
-                        if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
-                            identifiers.append(id)
-                            identifiersByIndex[index] = id
-                        }
-                    }
-
-                    if items.count > 1, !identifiers.isEmpty {
-                        let uniqueCount = Set(identifiers).count
-                        if uniqueCount != identifiers.count {
-                            identifiersByIndex.removeAll(keepingCapacity: true)
-                        }
-                    }
-
-                    for (index, item) in items.enumerated() {
-                        var titleValue: CFTypeRef?
-                        AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
-                        let rawTitle = axString(titleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                        var descValue: CFTypeRef?
-                        AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
-                        let rawDescription = axString(descValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                        var positionValue: CFTypeRef?
-                        let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
-
-                        var xPos: CGFloat = 0
-                        if posResult == .success, let posValue = positionValue,
-                           let axPosValue = safeAXValue(posValue) {
-                            var point = CGPoint.zero
-                            if AXValueGetValue(axPosValue, .cgPoint, &point) {
-                                xPos = point.x
-                            }
-                        }
-
-                        var sizeValue: CFTypeRef?
-                        let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
-
-                        var width: CGFloat = 0
-                        if sizeResult == .success, let sValue = sizeValue,
-                           let axSizeValue = safeAXValue(sValue) {
-                            var size = CGSize.zero
-                            if AXValueGetValue(axSizeValue, .cgSize, &size) {
-                                width = size.width
-                            }
-                        }
-
-                        let itemIndex = Self.scannedStatusItemIndex(
-                            itemCount: items.count,
-                            itemIndex: index,
-                            axIdentifier: identifiersByIndex[index]
+                        let childResult = AccessibilityBoundedAXChildFetch.children(
+                            of: barElement,
+                            maxCount: AccessibilityMenuExtraService.maxCollectedMenuExtraItems
                         )
-                        localResults.append(
-                            ScannedStatusItem(
-                                pid: pid,
-                                itemIndex: itemIndex,
-                                x: xPos,
-                                width: width,
-                                axIdentifier: identifiersByIndex[index],
-                                rawTitle: rawTitle,
-                                rawDescription: rawDescription
+                        if childResult.truncated {
+                            accessibilityScanningLogger.warning(
+                                "Skipping PID \(pid, privacy: .public) AXExtrasMenuBar scan because child enumeration was incomplete"
                             )
-                        )
-                    }
+                            return []
+                        }
+                        let items = childResult.children
+                        guard !items.isEmpty else { return [] }
+
+                        func axString(_ value: CFTypeRef?) -> String? {
+                            if let s = value as? String { return s }
+                            if let attributed = value as? NSAttributedString { return attributed.string }
+                            return nil
+                        }
+
+                        var localResults: [ScannedStatusItem] = []
+
+                        var identifiersByIndex: [Int: String] = [:]
+                        var identifiers: [String] = []
+                        identifiers.reserveCapacity(items.count)
+                        for (index, item) in items.enumerated() {
+                            guard !Task.isCancelled else { return [] }
+                            var identifierValue: CFTypeRef?
+                            AXUIElementCopyAttributeValue(item, kAXIdentifierAttribute as CFString, &identifierValue)
+                            if let id = axString(identifierValue)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
+                                identifiers.append(id)
+                                identifiersByIndex[index] = id
+                            }
+                        }
+
+                        if items.count > 1, !identifiers.isEmpty {
+                            let uniqueCount = Set(identifiers).count
+                            if uniqueCount != identifiers.count {
+                                identifiersByIndex.removeAll(keepingCapacity: true)
+                            }
+                        }
+
+                        for (index, item) in items.enumerated() {
+                            guard !Task.isCancelled else { return [] }
+                            var titleValue: CFTypeRef?
+                            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &titleValue)
+                            let rawTitle = axString(titleValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                            var descValue: CFTypeRef?
+                            AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &descValue)
+                            let rawDescription = axString(descValue)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                            var positionValue: CFTypeRef?
+                            let posResult = AXUIElementCopyAttributeValue(item, kAXPositionAttribute as CFString, &positionValue)
+
+                            var xPos: CGFloat = 0
+                            if posResult == .success, let posValue = positionValue,
+                               let axPosValue = safeAXValue(posValue) {
+                                var point = CGPoint.zero
+                                if AXValueGetValue(axPosValue, .cgPoint, &point) {
+                                    xPos = point.x
+                                }
+                            }
+
+                            var sizeValue: CFTypeRef?
+                            let sizeResult = AXUIElementCopyAttributeValue(item, kAXSizeAttribute as CFString, &sizeValue)
+
+                            var width: CGFloat = 0
+                            if sizeResult == .success, let sValue = sizeValue,
+                               let axSizeValue = safeAXValue(sValue) {
+                                var size = CGSize.zero
+                                if AXValueGetValue(axSizeValue, .cgSize, &size) {
+                                    width = size.width
+                                }
+                            }
+
+                            let itemIndex = Self.scannedStatusItemIndex(
+                                itemCount: items.count,
+                                itemIndex: index,
+                                axIdentifier: identifiersByIndex[index]
+                            )
+                            localResults.append(
+                                ScannedStatusItem(
+                                    pid: pid,
+                                    itemIndex: itemIndex,
+                                    x: xPos,
+                                    width: width,
+                                    axIdentifier: identifiersByIndex[index],
+                                    rawTitle: rawTitle,
+                                    rawDescription: rawDescription
+                                )
+                            )
+                        }
                         return localResults
                     }
                 }
@@ -491,10 +526,15 @@ final class AccessibilityMenuBarScanningService {
 
             var allResults: [ScannedStatusItem] = []
             for await groupResults in group {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    break
+                }
                 allResults.append(contentsOf: groupResults)
             }
             return allResults
         }
+        guard !Task.isCancelled else { return [] }
 
         let axResolvedPIDs = Set(results.map(\.pid))
         let candidatePIDs = Set(candidateApps.map(\.processIdentifier))
@@ -532,6 +572,7 @@ final class AccessibilityMenuBarScanningService {
         } else {
             systemWideItems = []
         }
+        guard !Task.isCancelled else { return [] }
 
         accessibilityScanningLogger.debug("Scanned candidate apps in parallel, found \(results.count) menu bar items")
 
@@ -540,6 +581,7 @@ final class AccessibilityMenuBarScanningService {
         var systemUIServerPID: pid_t?
 
         for scanned in results {
+            guard !Task.isCancelled else { return [] }
             let pid = scanned.pid
             let itemIndex = scanned.itemIndex
             let axIdentifier = scanned.axIdentifier
@@ -600,6 +642,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         for pid in topBarHostPIDs.subtracting(axResolvedPIDs) {
+            guard !Task.isCancelled else { return [] }
             guard let app = NSRunningApplication(processIdentifier: pid),
                   let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
@@ -634,6 +677,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         for windowBacked in windowBackedItems where !axResolvedPIDs.contains(windowBacked.pid) {
+            guard !Task.isCancelled else { return [] }
             guard let app = NSRunningApplication(processIdentifier: windowBacked.pid),
                   let bundleID = Self.resolvedBundleIdentifier(for: app) else { continue }
 
@@ -664,6 +708,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         for item in systemWideItems {
+            guard !Task.isCancelled else { return [] }
             AccessibilityMenuBarWindowFallbackPolicy.mergeSystemWideMenuBarItem(item, into: &appPositions)
         }
 
@@ -675,9 +720,11 @@ final class AccessibilityMenuBarScanningService {
         }
 
         if let ccPID = controlCenterPID {
+            guard !Task.isCancelled else { return [] }
             let ccItems = AccessibilityMenuExtraService.enumerateControlCenterItems(pid: ccPID)
             accessibilityScanningLogger.debug("Expanded Control Center into \(ccItems.count) individual items")
             for item in ccItems {
+                guard !Task.isCancelled else { return [] }
                 let key = item.app.uniqueId
 
                 var appWithProps = item.app
@@ -698,9 +745,11 @@ final class AccessibilityMenuBarScanningService {
         }
 
         if let suPID = systemUIServerPID {
+            guard !Task.isCancelled else { return [] }
             let suItems = AccessibilityMenuExtraService.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
             accessibilityScanningLogger.debug("Expanded SystemUIServer into \(suItems.count) individual items")
             for item in suItems {
+                guard !Task.isCancelled else { return [] }
                 let key = item.app.uniqueId
 
                 var appWithProps = item.app
@@ -722,6 +771,7 @@ final class AccessibilityMenuBarScanningService {
         }
 
         let apps = Array(appPositions.values).sorted { $0.x < $1.x }
+        guard !Task.isCancelled else { return [] }
         let hiddenCount = apps.filter { $0.x < 0 }.count
         accessibilityScanningLogger.debug("Found \(apps.count) apps with menu bar items (\(hiddenCount) hidden)")
         return apps
