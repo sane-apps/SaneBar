@@ -200,6 +200,63 @@ struct MenuBarOperationBrowseAndMoveTests {
             ) == .rejectInvalidStatusItems
         )
 
+        let exactHiddenDetachedSnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .stale,
+            structuralState: .unattachedWindows,
+            bootstrapPhase: .steady,
+            visibilityPhase: .hidden,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true,
+            mainItemVisible: true,
+            separatorItemVisible: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: exactHiddenDetachedSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .ready
+        )
+
+        let coarseHiddenDetachedSnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .coarse,
+            geometryConfidence: .stale,
+            structuralState: .unattachedWindows,
+            bootstrapPhase: .steady,
+            visibilityPhase: .hidden,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true,
+            mainItemVisible: true,
+            separatorItemVisible: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: coarseHiddenDetachedSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .rejectInvalidStatusItems
+        )
+
+        let expandedDetachedSnapshot = MenuBarRuntimeSnapshot(
+            identityPrecision: .exact,
+            geometryConfidence: .stale,
+            structuralState: .unattachedWindows,
+            bootstrapPhase: .steady,
+            visibilityPhase: .expanded,
+            hasAlwaysHiddenSeparator: true,
+            hasActiveMoveTask: false,
+            hasAnyScreens: true,
+            mainItemVisible: true,
+            separatorItemVisible: true
+        )
+        #expect(
+            MenuBarOperationCoordinator.moveQueueDecision(
+                snapshot: expandedDetachedSnapshot,
+                requiresAlwaysHiddenSeparator: false
+            ) == .rejectInvalidStatusItems
+        )
+
         let staleGeometrySnapshot = MenuBarRuntimeSnapshot(
             identityPrecision: .exact,
             geometryConfidence: .stale,

@@ -213,7 +213,10 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             await self.prepareOutboundAlwaysHiddenMove(request, wasHidden: wasHidden)
             await manager.hidingService.showAll()
             try? await Task.sleep(for: .milliseconds(alwaysHiddenOutboundRevealSettleMilliseconds))
-            guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else {
+            guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(
+                request,
+                requiresAlwaysHiddenToHiddenTargets: true
+            ) else {
                 await self.restoreFromShield(wasHidden: wasHidden)
                 return false
             }
@@ -476,10 +479,20 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         }
     }
 
-    private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async -> Bool {
-        if sourceFrameIsOnScreen(request) { return true }
+    private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(
+        _ request: Request,
+        requiresAlwaysHiddenToHiddenTargets: Bool = false
+    ) async -> Bool {
+        let sourceIsOnScreen = sourceFrameIsOnScreen(request)
+        let liveTargetsReady: Bool
+        if requiresAlwaysHiddenToHiddenTargets {
+            liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil
+        } else {
+            liveTargetsReady = true
+        }
+        if sourceIsOnScreen, liveTargetsReady { return true }
 
-        logger.warning("Outbound always-hidden source is still off-screen after showAll; recreating AH separator before retry")
+        logger.warning("Outbound always-hidden geometry is not live after showAll; recreating AH separator before retry")
         await MainActor.run {
             manager.clearCachedSeparatorGeometry()
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
@@ -499,6 +512,10 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
 
         guard sourceFrameIsOnScreen(request) else {
             logger.error("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag")
+            return false
+        }
+        if requiresAlwaysHiddenToHiddenTargets, await currentAlwaysHiddenToHiddenTargets() == nil {
+            logger.error("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair; aborting move before drag")
             return false
         }
         return true

@@ -201,6 +201,42 @@ mcps:
 website: true
 website_domain: sanebar.com
 
+setapp:
+  enabled: true
+  app_id: "1848"
+  version_id: "46885"
+  scheme: SaneBarSetapp
+  configuration: Release-Setapp
+  bundle_id: com.sanebar.app-setapp
+  public_key_path: Setapp/setappPublicKey.pem
+  release_notes_public: true
+  review_comments_private: true
+  require_manual_release_confirmation: true
+  listing:
+    setapp_url: "https://setapp.com/apps/sanebar"
+    privacy_policy_url: "https://sanebar.com/privacy"
+    support_url: "https://sanebar.com/support"
+    screenshot_source: "owned-site app-in-use screenshots"
+    screenshot_asset_root: docs/images/setapp
+    screenshot_roles:
+      - core_workflow_icon_panel
+      - core_workflow_second_menu_bar
+      - privacy_touch_id
+      - workflow_browse_icons
+      - settings_appearance
+    screenshots:
+      - docs/images/setapp/sanebar-setapp-01-icon-panel.png
+      - docs/images/setapp/sanebar-setapp-02-second-menu-bar.png
+      - docs/images/setapp/sanebar-setapp-03-touch-id.png
+      - docs/images/setapp/sanebar-setapp-04-browse-icons.png
+      - docs/images/setapp/sanebar-setapp-05-appearance.png
+  restrictions:
+    no_sparkle: true
+    no_direct_checkout: true
+    no_license_keys: true
+    no_donation_ui: true
+    no_demo_or_trial_mode: true
+
 appstore:
   enabled: false
   # Current strategy: direct-download only.

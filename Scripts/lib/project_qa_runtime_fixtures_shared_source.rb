@@ -8,6 +8,58 @@
 class ProjectQA
   private
 
+  def owned_runtime_fixture_process_detail(executable_name, app_path:)
+    matches = owned_runtime_fixture_processes(executable_name, app_path: app_path)
+    matches.empty? ? 'none' : matches.join(' | ')
+  rescue StandardError
+    'unavailable'
+  end
+
+  def owned_runtime_fixture_processes(executable_name, app_path:)
+    expected = owned_runtime_fixture_executable_path(app_path, executable_name)
+    output, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,command=')
+    return [] unless status.success?
+
+    output.lines.each_with_object([]) do |line, matches|
+      pid, command = line.strip.split(/\s+/, 2)
+      next unless pid && command
+
+      executable_path = command.split(/\s+/, 2).first.to_s
+      next unless File.basename(executable_path) == executable_name
+      next unless owned_runtime_fixture_executable_path(File.dirname(File.dirname(File.dirname(executable_path))), executable_name) == expected
+
+      matches << "#{pid} #{command}"
+    end
+  end
+
+  def owned_runtime_fixture_executable_path(app_path, executable_name)
+    path = File.join(app_path, 'Contents', 'MacOS', executable_name)
+    File.realpath(path)
+  rescue StandardError
+    File.expand_path(path)
+  end
+
+  def runtime_shared_bundle_fixture_process_detail
+    owned_runtime_fixture_process_detail(
+      'SaneBarSharedFixture',
+      app_path: RUNTIME_SHARED_BUNDLE_FIXTURE_APP_PATH
+    )
+  end
+
+  def runtime_dynamic_helper_fixture_process_detail
+    owned_runtime_fixture_process_detail(
+      'SaneBarDynamicHelperFixture',
+      app_path: RUNTIME_DYNAMIC_HELPER_FIXTURE_APP_PATH
+    )
+  end
+
+  def runtime_host_exact_id_fixture_process_detail
+    owned_runtime_fixture_process_detail(
+      'SaneBarHostExactIDFixture',
+      app_path: RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH
+    )
+  end
+
   # Prelaunch alongside the other fixtures: the ad-hoc /tmp app needs minutes
   # of settle time before its status item resolves in scans (Gatekeeper
   # assessment + registration latency), and launching it only inside the
@@ -88,6 +140,13 @@ class ProjectQA
               return image
           }
 
+          func fixtureMenu(for title: String) -> NSMenu {
+              let menu = NSMenu()
+              menu.addItem(NSMenuItem(title: "SaneBar Shared Fixture \\(title)", action: nil, keyEquivalent: ""))
+              menu.addItem(NSMenuItem(title: "Activation Probe \\(title)", action: nil, keyEquivalent: ""))
+              return menu
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
               NSApp.applicationIconImage = fixtureImage(for: "SBF-A")
               // Five items, not three: the seeding donor pool needs headroom
@@ -101,6 +160,8 @@ class ProjectQA
                   item.button?.title = title
                   item.button?.toolTip = "SaneBar Shared Fixture \\(title)"
                   item.button?.identifier = NSUserInterfaceItemIdentifier("com.sanebar.sharedfixture.\\(title)")
+                  item.button?.setAccessibilityIdentifier("com.sanebar.sharedfixture.\\(title)")
+                  item.menu = fixtureMenu(for: title)
                   items.append(item)
               }
           }

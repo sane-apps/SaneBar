@@ -32,18 +32,18 @@ enum MenuBarAnchorSource: String {
 extension MenuBarAnchorSource {
     var isTrustworthySeparatorAnchor: Bool {
         switch self {
-        case .live, .cached:
+        case .live:
             true
-        case .estimated, .missing:
+        case .cached, .estimated, .missing:
             false
         }
     }
 
     var isTrustworthyMainAnchor: Bool {
         switch self {
-        case .live, .cached:
+        case .live:
             true
-        case .estimated, .missing:
+        case .cached, .estimated, .missing:
             false
         }
     }
@@ -170,5 +170,9 @@ struct MenuBarRuntimeSnapshot {
         guard structuralState == .ready else { return false }
         guard separatorAnchorSource.isTrustworthySeparatorAnchor else { return false }
         return mainAnchorSource.isTrustworthyMainAnchor
+    }
+
+    var hasLiveCoreAnchors: Bool {
+        hasTrustworthyBootstrapAnchors
     }
 }

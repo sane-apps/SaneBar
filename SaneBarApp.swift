@@ -9,6 +9,10 @@ import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
 
+extension Notification.Name {
+    static let saneBarExplicitTerminationRequested = Notification.Name("SaneBarExplicitTerminationRequested")
+}
+
 private enum SaneBarSettingsWindowMetrics {
     static let idealWidth: CGFloat = 600
     static let idealHeight: CGFloat = 560
@@ -27,7 +31,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     static let duplicateLaunchGraceNanoseconds: UInt64 = 2_000_000_000
     static let automaticTerminationReason = "SaneBar must stay active as a menu bar app"
+    static let automationLifecycleBreadcrumbPath = "/tmp/sanebar_lifecycle_breadcrumb.log"
+    static let automationQuitTokenEnvironmentKey = "SANEBAR_AUTOMATION_QUIT_TOKEN"
+    static let automationExplicitTerminationMarkerPath = "/tmp/sanebar_explicit_termination.token"
     private var keepAliveActivity: NSObjectProtocol?
+    private var explicitTerminationRequested = false
 
     static func duplicateLaunchResolution(othersAtLaunch: Int, othersAfterGrace: Int?) -> DuplicateLaunchResolution {
         guard othersAtLaunch > 0 else { return .noConflict }
@@ -43,6 +51,30 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             arguments.contains("--sane-no-keychain")
     }
 
+    nonisolated static func shouldCancelUnexpectedTerminationForAutomation(
+        explicitTerminationRequested: Bool,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        automationExplicitTerminationRequested: Bool? = nil
+    ) -> Bool {
+        guard !explicitTerminationRequested else { return false }
+        if automationExplicitTerminationRequested ?? hasMatchingAutomationQuitMarker(environment: environment) {
+            return false
+        }
+        return shouldSkipDuplicateTerminationForAutomation(environment: environment, arguments: arguments)
+    }
+
+    nonisolated static func hasMatchingAutomationQuitMarker(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        markerContents: String? = nil
+    ) -> Bool {
+        let token = environment[automationQuitTokenEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !token.isEmpty else { return false }
+
+        let contents = markerContents ?? (try? String(contentsOfFile: automationExplicitTerminationMarkerPath, encoding: .utf8))
+        return contents?.trimmingCharacters(in: .whitespacesAndNewlines) == token
+    }
+
     // No @main - using main.swift instead
 
     nonisolated static func shouldUpdateAppShortcutParameters(
@@ -56,6 +88,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         appLogger.info("🏁 applicationDidFinishLaunching START")
+        writeAutomationLifecycleBreadcrumb("applicationDidFinishLaunching start")
 
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
@@ -76,6 +109,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // Guard against accidental duplicate launches of the same bundle.
         // Use a handoff grace window so update relaunches do not self-terminate.
         scheduleDuplicateInstanceTerminationCheckIfNeeded()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(explicitTerminationWasRequested(_:)),
+            name: .saneBarExplicitTerminationRequested,
+            object: nil
+        )
 
         // Move to /Applications if running from Downloads or other location (Release only)
         #if !DEBUG && !APP_STORE && !SETAPP
@@ -116,15 +155,74 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         appLogger.info("🏁 applicationDidFinishLaunching complete")
+        writeAutomationLifecycleBreadcrumb("applicationDidFinishLaunching complete")
+    }
+
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        let automationExplicitTerminationRequested = Self.consumeMatchingAutomationQuitMarker()
+        if Self.shouldCancelUnexpectedTerminationForAutomation(
+            explicitTerminationRequested: explicitTerminationRequested,
+            automationExplicitTerminationRequested: automationExplicitTerminationRequested
+        ) {
+            appLogger.error("Cancelling unexpected termination request during no-keychain automation.")
+            writeAutomationLifecycleBreadcrumb("applicationShouldTerminate cancel unexpected")
+            return .terminateCancel
+        }
+        if automationExplicitTerminationRequested && !explicitTerminationRequested {
+            requestExplicitTermination(reason: "automation-marker")
+        }
+
+        writeAutomationLifecycleBreadcrumb("applicationShouldTerminate allow explicit=\(explicitTerminationRequested)")
+        return .terminateNow
     }
 
     func applicationWillTerminate(_: Notification) {
+        writeAutomationLifecycleBreadcrumb("applicationWillTerminate explicit=\(explicitTerminationRequested)")
+        NotificationCenter.default.removeObserver(self, name: .saneBarExplicitTerminationRequested, object: nil)
         if let keepAliveActivity {
             ProcessInfo.processInfo.endActivity(keepAliveActivity)
             self.keepAliveActivity = nil
         }
         ProcessInfo.processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
         ProcessInfo.processInfo.enableSuddenTermination()
+    }
+
+    @objc private func explicitTerminationWasRequested(_: Notification) {
+        requestExplicitTermination(reason: "notification")
+    }
+
+    private func requestExplicitTermination(reason: String) {
+        explicitTerminationRequested = true
+        writeAutomationLifecycleBreadcrumb("explicitTerminationRequested reason=\(reason)")
+    }
+
+    private static func consumeMatchingAutomationQuitMarker(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        guard hasMatchingAutomationQuitMarker(environment: environment) else { return false }
+        try? FileManager.default.removeItem(atPath: automationExplicitTerminationMarkerPath)
+        return true
+    }
+
+    private func writeAutomationLifecycleBreadcrumb(_ message: String) {
+        guard Self.shouldSkipDuplicateTerminationForAutomation() else { return }
+
+        let line = "\(ISO8601DateFormatter().string(from: Date())) pid=\(ProcessInfo.processInfo.processIdentifier) \(message)\n"
+        guard let data = line.data(using: .utf8) else { return }
+
+        let url = URL(fileURLWithPath: Self.automationLifecycleBreadcrumbPath)
+        if (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path)) != nil {
+            return
+        }
+        if FileManager.default.fileExists(atPath: url.path),
+           let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            handle.closeFile()
+        } else {
+            try? data.write(to: url, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
     }
 
     @MainActor
@@ -207,8 +305,8 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             whatsNewAction: LicenseService.shared.usesSetappDistribution
                 ? #selector(showReleaseNotesFromDock(_:))
                 : nil,
-            quitTarget: NSApplication.shared,
-            quitAction: #selector(NSApplication.terminate(_:)),
+            quitTarget: self,
+            quitAction: #selector(quitFromDock(_:)),
             settingsKeyEquivalent: ","
         )
 
@@ -247,6 +345,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         SetappIntegration.showReleaseNotes()
     }
 
+    @MainActor
+    @objc private func quitFromDock(_ sender: Any?) {
+        requestExplicitTermination(reason: "dock-menu")
+        NSApp.terminate(sender)
+    }
+
     private func handleURL(_ url: URL) {
         guard url.scheme?.lowercased() == "sanebar" else { return }
 
@@ -277,8 +381,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                 SearchWindowController.shared.show(mode: .findIcon, prefill: searchQuery)
             case "settings":
                 SettingsOpener.open()
-            case "health", "repair":
+            case "health":
                 SettingsOpener.open(tab: .health)
+            case "repair":
+                SettingsOpener.open(tab: .health)
+                _ = await MenuBarManager.shared.profileWorkflow.repairMenuBarHealth(reason: "url-repair")
             default:
                 appLogger.log("🌐 Unknown URL command: \(command, privacy: .public)")
             }

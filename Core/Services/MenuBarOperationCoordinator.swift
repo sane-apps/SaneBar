@@ -199,7 +199,11 @@ enum MenuBarOperationCoordinator {
             return .repairPersistedLayoutAndRecreate(.invalidGeometry)
         }
 
-        if context == .startupFollowUp, recoveryCount < maxRecoveryCount {
+        if context == .startupFollowUp ||
+            context == .screenParametersChanged ||
+            context == .activeSpaceChanged ||
+            context == .wakeResume,
+            recoveryCount < maxRecoveryCount {
             return .bumpAutosaveVersion(.invalidGeometry)
         }
 
@@ -284,6 +288,19 @@ enum MenuBarOperationCoordinator {
                 // to avoid autosave churn while macOS suppresses the items.
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+                return .stop(recoveryReason)
+            }
+
+            if recoveryReason == .invalidStatusItems,
+               validationContext == .screenParametersChanged ||
+               validationContext == .activeSpaceChanged ||
+               validationContext == .wakeResume {
+                if recoveryCount == 0 {
+                    return .repairPersistedLayoutAndRecreate(recoveryReason)
+                }
+                if recoveryCount < maxRecoveryCount {
+                    return .bumpAutosaveVersion(recoveryReason)
                 }
                 return .stop(recoveryReason)
             }
@@ -426,6 +443,23 @@ enum MenuBarOperationCoordinator {
         return snapshot.identityPrecision != .exact
     }
 
+    private static func moveQueueHasUsableStructuralState(
+        snapshot: MenuBarRuntimeSnapshot
+    ) -> Bool {
+        if snapshot.structuralState == .ready {
+            return true
+        }
+
+        // Hidden presentation can make the separator window look detached until
+        // the move workflow runs its showAll shield. Exact identity is required
+        // so this exception cannot mask broad/ambiguous recovery failures.
+        return snapshot.visibilityPhase == .hidden &&
+            snapshot.identityPrecision == .exact &&
+            snapshot.structuralState == .unattachedWindows &&
+            snapshot.mainItemVisible == true &&
+            snapshot.separatorItemVisible == true
+    }
+
     static func moveQueueDecision(
         snapshot: MenuBarRuntimeSnapshot,
         requiresAlwaysHiddenSeparator: Bool
@@ -434,7 +468,7 @@ enum MenuBarOperationCoordinator {
             return .rejectMissingScreenGeometry
         }
 
-        if snapshot.structuralState != .ready {
+        if !moveQueueHasUsableStructuralState(snapshot: snapshot) {
             return .rejectInvalidStatusItems
         }
 

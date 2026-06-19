@@ -222,6 +222,39 @@ final class RuntimeGuardSettingsSurfaceXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testRepairURLRunsHealthRepairInsteadOfOnlyOpeningHealth() throws {
+        let appURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let appSource = try String(contentsOf: appURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            appSource.contains("case \"health\":") &&
+                appSource.contains("case \"repair\":") &&
+                appSource.contains("repairMenuBarHealth(reason: \"url-repair\")") &&
+                !appSource.contains("case \"health\", \"repair\":"),
+            "sanebar://repair should run the same health repair path customers get from Arrange Now, not merely open the Health tab"
+        )
+    }
+
+    func testHealthRepairRespectsTouchIDProtectionBeforeRevealingIcons() throws {
+        let profileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarProfileWorkflow.swift")
+        let profileSource = try String(contentsOf: profileURL, encoding: .utf8)
+        let appURL = projectRootURL().appendingPathComponent("SaneBarApp.swift")
+        let appSource = try String(contentsOf: appURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            profileSource.contains("func revealHiddenIconsForHealthRepair(reason: String) async -> Bool") &&
+                profileSource.contains("manager.settings.requireAuthToShowHiddenIcons") &&
+                profileSource.contains("manager.visibilityWorkflow.authenticate(reason: \"Repair hidden menu bar icons\")") &&
+                profileSource.contains("await revealHiddenIconsForHealthRepair(reason: reason)") &&
+                profileSource.contains("await manager.hidingService.show()"),
+            "Health repair must enforce the Touch ID hidden-icon gate before it reveals hidden icons"
+        )
+        XCTAssertFalse(
+            appSource.contains("case \"repair\":\n                if MenuBarManager.shared.hidingService.state == .hidden"),
+            "sanebar://repair should not carry a duplicate auth branch that can drift from the repair workflow"
+        )
+    }
+
     func testAppearanceIconMenuUsesRuntimeSymbolsInsteadOfApproximateGlyphs() throws {
         let appearanceURL = projectRootURL().appendingPathComponent("UI/Settings/AppearanceSettingsView.swift")
         let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)

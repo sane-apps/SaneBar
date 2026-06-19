@@ -251,6 +251,8 @@ class LiveZoneSmoke
       return
     end
 
+    close_settings_window_for_visual_probe!('appearance transition setup')
+
     baseline = capture_appearance_overlay_screenshot('baseline')
     unless baseline
       raise 'Appearance transition smoke requires a visible custom appearance overlay' if @require_appearance_transitions
@@ -286,8 +288,10 @@ class LiveZoneSmoke
       begin
         open_visible_transition_probe_window(probe)
         sleep_with_watchdog(0.2)
+        assert_frontmost_probe_surface!(probe, "#{probe[:label]} activation", fullscreen_expected: false)
         assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-immediate", expected_visible: true)
         sleep_with_watchdog(0.7)
+        assert_frontmost_probe_surface!(probe, "#{probe[:label]} activation settled", fullscreen_expected: false)
         assert_customer_visible_top_strip_tint!("#{probe[:label]}-activation-settled", expected_visible: true)
         mark_fullscreen_matrix_scenario('app activation keeps dark custom tint visible')
       rescue StandardError => e
@@ -311,16 +315,19 @@ class LiveZoneSmoke
         set_fullscreen_probe_window(probe, true)
         sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
         assert_fullscreen_probe_window_state!(probe, true)
+        assert_frontmost_probe_surface!(probe, "#{probe[:label]} fullscreen enter", fullscreen_expected: true)
         assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
-        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false)
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false, restore_bundle_id: probe[:bundle])
 
         sleep_with_watchdog(0.8)
 
         set_fullscreen_probe_window(probe, false)
+        ensure_visible_transition_probe_window_available!(probe)
         sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
         assert_fullscreen_probe_window_state!(probe, false)
+        assert_frontmost_probe_surface!(probe, "#{probe[:label]} fullscreen exit", fullscreen_expected: false)
         assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
-        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true)
+        assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true, restore_bundle_id: probe[:bundle])
         mark_fullscreen_matrix_scenario('native fullscreen enter and exit')
       rescue StandardError => e
         handle_transition_probe_failure(probe, 'fullscreen transition', e)
@@ -339,10 +346,10 @@ class LiveZoneSmoke
     puts "⚠️ Optional #{probe[:app]} #{context} probe skipped: #{error.message}"
   end
 
-  def assert_customer_visible_top_strip_tint!(label, expected_visible:)
+  def assert_customer_visible_top_strip_tint!(label, expected_visible:, restore_bundle_id: nil)
     return unless @require_visible_appearance_pixels
 
-    path = capture_customer_visible_top_strip(label)
+    path = capture_customer_visible_top_strip(label, restore_bundle_id: restore_bundle_id)
     stats = self.class.appearance_tint_pixel_stats(path, max_rows: CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT)
     visible = self.class.visible_orange_tint_pixel_stats?(stats)
     if expected_visible && !visible
@@ -398,15 +405,15 @@ class LiveZoneSmoke
     nil
   end
 
-  def capture_customer_visible_top_strip(label)
+  def capture_customer_visible_top_strip(label, restore_bundle_id: nil)
     FileUtils.mkdir_p(@screenshot_dir)
     path = File.join(
       @screenshot_dir,
       "sanebar-appearance-top-strip-#{label}-#{Time.now.utc.strftime('%Y%m%d-%H%M%S')}.png"
     )
-    if (screen_path = capture_customer_visible_screen_via_peekaboo(label, output_path: path))
-      @fullscreen_matrix_artifacts << screen_path
-      return screen_path
+    if (crop_path = capture_customer_visible_top_strip_via_mini_gui(label, output_path: path, restore_bundle_id: restore_bundle_id))
+      @fullscreen_matrix_artifacts << crop_path
+      return crop_path
     end
 
     rect = main_display_top_strip_rect
@@ -426,58 +433,118 @@ class LiveZoneSmoke
     screenshot
   end
 
-  def capture_customer_visible_screen_via_peekaboo(label, output_path: nil)
-    peekaboo = resolve_peekaboo_capture_tool
-    return nil unless peekaboo
+  def capture_customer_visible_top_strip_via_mini_gui(label, output_path:, restore_bundle_id: nil)
+    runner = resolve_mini_gui_runner_tool
+    return nil unless runner
 
-    FileUtils.mkdir_p(TOP_STRIP_CAPTURE_WORKDIR)
+    FileUtils.mkdir_p(top_strip_capture_workdir)
+    prune_top_strip_capture_workdir!
     stamp = Time.now.utc.strftime('%Y%m%d-%H%M%S')
     safe_label = label.gsub(/[^A-Za-z0-9._-]+/, '-')
-    screen_path = output_path || File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.png")
-    status_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.status")
-    stdout_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.stdout")
-    stderr_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.stderr")
-    script_path = File.join(TOP_STRIP_CAPTURE_WORKDIR, "screen-#{safe_label}-#{stamp}.zsh")
-    File.write(
-      script_path,
-      [
-        '#!/bin/zsh',
-        'set +e',
-        '/usr/bin/osascript -e \'tell application "System Events" to if exists process "Terminal" then set visible of process "Terminal" to false\' >/dev/null 2>&1',
-        'sleep 0.4',
-        "#{Shellwords.escape(peekaboo)} image --mode screen --path #{Shellwords.escape(screen_path)} > #{Shellwords.escape(stdout_path)} 2> #{Shellwords.escape(stderr_path)}",
-        "echo $? > #{Shellwords.escape(status_path)}"
-      ].join("\n")
-    )
-    File.chmod(0o700, script_path)
+    x, y, width, height = main_display_top_strip_rect
+    screencapture_rect = [x, y, width, height].join(',')
 
-    apple_script = <<~APPLESCRIPT
-      on run argv
-        tell application "Terminal"
-          do script item 1 of argv
-        end tell
-      end run
-    APPLESCRIPT
-    _out, launch_status = capture2e_with_timeout(
-      '/usr/bin/osascript',
-      '-e',
-      apple_script,
-      "/bin/zsh #{Shellwords.escape(script_path)}; exit",
-      timeout: APPLESCRIPT_TIMEOUT_SECONDS
-    )
-    return nil unless launch_status.success?
+    last_failure = nil
+    2.times do |attempt|
+      attempt_stamp = attempt.zero? ? stamp : "#{stamp}-retry#{attempt + 1}"
+      stdout_path = File.join(top_strip_capture_workdir, "screen-crop-#{safe_label}-#{attempt_stamp}.stdout")
+      runner_log_path = File.join(top_strip_capture_workdir, "screen-crop-#{safe_label}-#{attempt_stamp}.log")
+      runner_status_path = File.join(top_strip_capture_workdir, "screen-crop-#{safe_label}-#{attempt_stamp}.status")
+      command = [
+        'set -euo pipefail',
+        "rm -f #{Shellwords.escape(output_path)}",
+        [
+          '/usr/sbin/screencapture',
+          '-x',
+          "-R#{screencapture_rect}",
+          Shellwords.escape(output_path)
+        ].join(' '),
+        "test -s #{Shellwords.escape(output_path)}",
+        "echo #{Shellwords.escape(output_path)}"
+      ].join(' && ')
 
-    hide_terminal_capture_host
-    deadline = Time.now + SCREENSHOT_CAPTURE_TIMEOUT_SECONDS
-    sleep 0.2 until File.exist?(status_path) || Time.now >= deadline
-    close_terminal_capture_host
-    return nil unless File.exist?(status_path)
+      out = nil
+      status = nil
+      begin
+        runner_args = [
+          runner,
+          '--log-file',
+          runner_log_path,
+          '--status-file',
+          runner_status_path,
+          '--title',
+          'SaneBar Top Strip Capture',
+          '--close-window',
+          '--poll-seconds',
+          '1'
+        ]
+        if restore_bundle_id.to_s.empty?
+          runner_args << '--restore-frontmost'
+        else
+          runner_args += ['--restore-bundle-id', restore_bundle_id.to_s]
+        end
+        runner_args += ['--', command]
+        out, status = capture2e_with_timeout(
+          *runner_args,
+          timeout: SCREENSHOT_CAPTURE_TIMEOUT_SECONDS + 20
+        )
+      rescue StandardError => e
+        last_failure = "#{e.message}; #{top_strip_capture_debug_details(runner_log_path, runner_status_path)}"
+        sleep_with_watchdog(0.5) if attempt.zero?
+        next
+      end
+      File.write(stdout_path, out)
+      return await_screenshot_file(output_path) if status.success?
 
-    exit_status = File.read(status_path).to_i
-    return nil unless exit_status.zero? && File.size?(screen_path)
+      last_failure = top_strip_capture_debug_details(runner_log_path, runner_status_path, wrapper_stdout: out)
+      sleep_with_watchdog(0.5) if attempt.zero?
+    end
 
-    screen_path
-  ensure
-    close_terminal_capture_host
+    raise "Official Mini GUI top-strip capture failed for #{label}: #{last_failure}"
+  end
+
+  def top_strip_capture_workdir
+    TOP_STRIP_CAPTURE_WORKDIR
+  end
+
+  def prune_top_strip_capture_workdir!
+    dir = top_strip_capture_workdir
+    return unless Dir.exist?(dir)
+
+    entries = Dir.glob(File.join(dir, '*')).select { |path| File.file?(path) }
+    now = Time.now
+    stale = entries.select do |path|
+      now - File.mtime(path) > TOP_STRIP_CAPTURE_ARTIFACT_RETENTION_SECONDS
+    rescue StandardError
+      false
+    end
+    FileUtils.rm_f(stale)
+
+    remaining = (entries - stale).select { |path| File.file?(path) }
+    overflow = remaining.sort_by { |path| File.mtime(path) }.reverse.drop(TOP_STRIP_CAPTURE_MAX_ARTIFACTS)
+    FileUtils.rm_f(overflow)
+  end
+
+  def top_strip_capture_debug_details(log_path, status_path, wrapper_stdout: nil)
+    details = ["log=#{log_path}", "status_file=#{status_path}"]
+    if File.exist?(status_path)
+      status = File.read(status_path).strip
+      details << "status=#{status.empty? ? '<empty>' : status}"
+    else
+      details << 'status=<missing>'
+    end
+    if File.exist?(log_path)
+      lines = File.readlines(log_path, chomp: true).last(12)
+      details << "log_tail=#{lines.join(' | ')}" unless lines.empty?
+    else
+      details << 'log=<missing>'
+    end
+    if wrapper_stdout && !wrapper_stdout.to_s.strip.empty?
+      stdout_tail = wrapper_stdout.to_s.lines.last(8).map(&:strip).join(' | ')
+      details << "wrapper_stdout=#{stdout_tail}"
+    end
+    details.join('; ')
+  rescue StandardError => e
+    "log=#{log_path}; status_file=#{status_path}; debug_unavailable=#{e.message}"
   end
 end

@@ -5,38 +5,14 @@ class LiveZoneSmoke
 
   private
 
-  def resolve_peekaboo_capture_tool
-    requested = ENV.fetch('PEEKABOO_BIN', 'peekaboo')
-    if requested.include?(File::SEPARATOR)
-      path = File.expand_path(requested)
-      return path if File.executable?(path)
-    end
+  def resolve_mini_gui_runner_tool
+    requested = ENV.fetch(
+      'SANE_MINI_GUI_RUN',
+      File.expand_path('~/SaneApps/infra/SaneProcess/scripts/mini/mini-gui-run.sh')
+    )
+    path = File.expand_path(requested)
+    return path if File.executable?(path)
 
-    ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).concat(['/opt/homebrew/bin', '/usr/local/bin']).uniq.each do |dir|
-      candidate = File.join(dir, requested)
-      return candidate if File.executable?(candidate) && !File.directory?(candidate)
-    end
-
-    nil
-  end
-
-  def hide_terminal_capture_host
-    apple_script = 'tell application "System Events" to if exists process "Terminal" then set visible of process "Terminal" to false'
-    capture2e_with_timeout('/usr/bin/osascript', '-e', apple_script, timeout: 2)
-  rescue StandardError
-    nil
-  end
-
-  def close_terminal_capture_host
-    apple_script = <<~APPLESCRIPT
-      tell application "Terminal"
-        close every window
-        quit
-      end tell
-    APPLESCRIPT
-    capture2e_with_timeout('/usr/bin/osascript', '-e', apple_script, timeout: 2)
-    system('/usr/bin/pkill', '-x', 'Terminal', out: File::NULL, err: File::NULL)
-  rescue StandardError
     nil
   end
 
@@ -197,7 +173,7 @@ class LiveZoneSmoke
       completed_scenarios: @fullscreen_matrix_scenarios,
       evidence_paths: @fullscreen_matrix_artifacts.uniq,
       evidence_types: %w[mini_runtime screenshot log],
-      note: 'Customer-visible top-strip screenshots are full-screen crops captured with screencapture, not internal overlay snapshots.'
+      note: 'Customer-visible top-strip screenshots are captured through the official Mini GUI runner and cropped to the menu-bar strip, not internal overlay snapshots.'
     }
     File.write(FULLSCREEN_MATRIX_ARTIFACT_PATH, JSON.pretty_generate(payload) + "\n")
     puts "✅ Fullscreen runtime matrix proof written: #{FULLSCREEN_MATRIX_ARTIFACT_PATH}"
@@ -221,16 +197,23 @@ class LiveZoneSmoke
   end
 
   def open_full_width_transition_probe_window
-    probe_html = File.join(Dir.tmpdir, 'sanebar-fullscreen-probe.html')
     File.write(
-      probe_html,
+      VISIBLE_TRANSITION_PROBE_HTML_PATH,
       '<!doctype html><title>SaneBar Full Width Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar full-width transition probe</body>'
     )
     script = <<~APPLESCRIPT
       tell application "Finder" to set screenBounds to bounds of window of desktop
       tell application "Safari"
         activate
-        make new document with properties {URL:"file://#{probe_html}"}
+        make new document
+        set URL of current tab of front window to "#{VISIBLE_TRANSITION_PROBE_URL}"
+        repeat 50 times
+          try
+            if URL of current tab of front window starts with "#{VISIBLE_TRANSITION_PROBE_URL}" then exit repeat
+          end try
+          delay 0.1
+        end repeat
+        if URL of current tab of front window does not start with "#{VISIBLE_TRANSITION_PROBE_URL}" then error "Safari probe URL did not load"
         set bounds of front window to screenBounds
       end tell
     APPLESCRIPT
@@ -239,6 +222,10 @@ class LiveZoneSmoke
   end
 
   def open_visible_transition_probe_window(probe)
+    close_browse_panel_safely
+    close_settings_window_for_visual_probe!("before opening #{probe[:label]} transition probe")
+    close_visible_transition_probe_window_safely(probe)
+
     case probe[:app]
     when 'Safari'
       open_safari_transition_probe_window
@@ -250,15 +237,22 @@ class LiveZoneSmoke
   end
 
   def open_safari_transition_probe_window
-    probe_html = File.join(Dir.tmpdir, 'sanebar-fullscreen-probe.html')
     File.write(
-      probe_html,
+      VISIBLE_TRANSITION_PROBE_HTML_PATH,
       '<!doctype html><title>SaneBar Fullscreen Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar fullscreen transition probe</body>'
     )
     script = <<~APPLESCRIPT
       tell application "Safari"
         activate
-        make new document with properties {URL:"file://#{probe_html}"}
+        make new document
+        set URL of current tab of front window to "#{VISIBLE_TRANSITION_PROBE_URL}"
+        repeat 50 times
+          try
+            if URL of current tab of front window starts with "#{VISIBLE_TRANSITION_PROBE_URL}" then return URL of current tab of front window
+          end try
+          delay 0.1
+        end repeat
+        error "Safari probe URL did not load"
       end tell
     APPLESCRIPT
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
@@ -272,40 +266,78 @@ class LiveZoneSmoke
   def set_fullscreen_probe_window(probe, enabled)
     return unless probe
 
-    script = <<~APPLESCRIPT
-      tell application "#{probe[:app]}" to activate
-      delay 0.2
-      tell application "System Events"
-        tell process "#{probe[:process]}"
-          set frontmost to true
-          if (count of windows) = 0 then error "No #{probe[:process]} windows available for fullscreen probe"
-          if #{enabled ? 'true' : 'false'} then
-            set value of attribute "AXFullScreen" of window 1 to true
-          else
-            repeat with candidateWindow in windows
+    script =
+      if enabled
+        <<~APPLESCRIPT
+          #{transition_probe_focus_script(probe)}
+          delay 0.2
+          #{transition_probe_target_index_script(probe)}
+          tell application "System Events"
+            tell process "#{probe[:process]}"
+              set frontmost to true
+              if targetIndex < 1 or targetIndex > (count of windows) then error "No #{probe[:process]} target window available for fullscreen probe"
+              set targetWindow to window targetIndex
               try
-                set value of attribute "AXFullScreen" of candidateWindow to false
+                perform action "AXRaise" of targetWindow
               end try
-            end repeat
-          end if
-        end tell
-      end tell
-    APPLESCRIPT
+              set value of attribute "AXFullScreen" of targetWindow to true
+            end tell
+          end tell
+        APPLESCRIPT
+      else
+        <<~APPLESCRIPT
+          #{transition_probe_focus_script(probe)}
+          delay 0.2
+          tell application "System Events"
+            tell process "#{probe[:process]}"
+              set frontmost to true
+              repeat with candidateWindow in windows
+                try
+                  set value of attribute "AXFullScreen" of candidateWindow to false
+                end try
+              end repeat
+            end tell
+          end tell
+        APPLESCRIPT
+      end
     out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     raise "Could not set #{probe[:app]} fullscreen=#{enabled}: #{out.strip}" unless code.success?
   rescue StandardError
     raise if enabled
   end
 
+  def ensure_visible_transition_probe_window_available!(probe, force: false)
+    return unless probe&.fetch(:app, nil) == 'Safari'
+    return if !force && safari_transition_probe_window_available?
+
+    open_safari_transition_probe_window
+  end
+
   def assert_fullscreen_probe_window_state!(probe, expected)
     deadline = Time.now + 8.0
     last_states = []
+    exit_retry_count = 0
     while Time.now < deadline
-      last_states = fullscreen_probe_window_states(probe)
+      ensure_visible_transition_probe_window_available!(probe) unless expected
+      begin
+        last_states = fullscreen_probe_window_states(probe)
+      rescue StandardError => e
+        if !expected && recoverable_transition_probe_target_loss?(probe, e)
+          ensure_visible_transition_probe_window_available!(probe, force: true)
+          sleep_with_watchdog(0.25)
+          next
+        end
+
+        raise
+      end
       if expected
         return if last_states.any? { |state| state.casecmp('true').zero? }
       else
         return if !last_states.empty? && last_states.none? { |state| state.casecmp('true').zero? }
+        if last_states.any? { |state| state.casecmp('true').zero? } && exit_retry_count < 3
+          request_fullscreen_exit_fallback!(probe, attempt: exit_retry_count)
+          exit_retry_count += 1
+        end
       end
 
       sleep_with_watchdog(0.25)
@@ -314,16 +346,44 @@ class LiveZoneSmoke
     raise "#{probe[:app]} fullscreen probe state mismatch: expected #{expected}, got #{last_states.inspect}"
   end
 
-  def fullscreen_probe_window_states(probe)
+  def request_fullscreen_exit_fallback!(probe, attempt:)
+    if attempt.zero?
+      toggle_fullscreen_probe_window_via_keyboard(probe)
+    else
+      set_fullscreen_probe_window(probe, false)
+    end
+  end
+
+  def toggle_fullscreen_probe_window_via_keyboard(probe)
     script = <<~APPLESCRIPT
+      tell application "#{probe[:app]}" to activate
+      delay 0.2
+      #{transition_probe_target_index_script(probe)}
       tell application "System Events"
         tell process "#{probe[:process]}"
-          if (count of windows) = 0 then return "no-window"
-          set fullscreenStates to {}
-          repeat with candidateWindow in windows
-            set end of fullscreenStates to ((value of attribute "AXFullScreen" of candidateWindow) as text)
-          end repeat
-          return fullscreenStates as text
+          set frontmost to true
+          if targetIndex < 1 or targetIndex > (count of windows) then error "No #{probe[:process]} target window available for fullscreen probe"
+          try
+            perform action "AXRaise" of window targetIndex
+          end try
+          keystroke "f" using {control down, command down}
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not toggle #{probe[:app]} fullscreen via keyboard: #{out.strip}" unless code.success?
+  end
+
+  def fullscreen_probe_window_states(probe)
+    script = <<~APPLESCRIPT
+      #{transition_probe_focus_script(probe)}
+      delay 0.2
+      #{transition_probe_target_index_script(probe)}
+      tell application "System Events"
+        tell process "#{probe[:process]}"
+          if targetIndex < 1 or targetIndex > (count of windows) then return "no-window"
+          set targetWindow to window targetIndex
+          return ((value of attribute "AXFullScreen" of targetWindow) as text)
         end tell
       end tell
     APPLESCRIPT
@@ -332,6 +392,138 @@ class LiveZoneSmoke
 
     states = out.scan(/true|false|no-window/i).map(&:downcase)
     states.empty? ? [out.strip].reject(&:empty?) : states
+  end
+
+  def assert_frontmost_probe_surface!(probe, label, fullscreen_expected:)
+    expected_bundle = probe.fetch(:bundle)
+    deadline = Time.now + 6.0
+    last_state = nil
+    last_states = []
+
+    while Time.now < deadline
+      ensure_visible_transition_probe_window_available!(probe) unless fullscreen_expected
+      begin
+        activate_transition_probe_window(probe)
+      rescue StandardError => e
+        if !fullscreen_expected && recoverable_transition_probe_target_loss?(probe, e)
+          ensure_visible_transition_probe_window_available!(probe, force: true)
+          sleep_with_watchdog(0.25)
+          next
+        end
+
+        raise
+      end
+      sleep_with_watchdog(0.2)
+      last_state = frontmost_app_state
+      last_states = fullscreen_probe_window_states(probe)
+      if probe_surface_ready?(
+        probe,
+        fullscreen_expected: fullscreen_expected,
+        state: last_state,
+        fullscreen_states: last_states
+      )
+        return
+      end
+
+      sleep_with_watchdog(0.25)
+    end
+
+    raise "Wrong customer-visible #{label} surface: expected frontmost=#{expected_bundle} fullscreen=#{fullscreen_expected}, got frontmost=#{last_state.inspect} fullscreenStates=#{last_states.inspect}"
+  end
+
+  def probe_surface_ready?(probe, fullscreen_expected:, state:, fullscreen_states:)
+    frontmost_matches = state.fetch('bundleId', '').to_s == probe.fetch(:bundle).to_s
+    fullscreen_matches =
+      if fullscreen_expected
+        fullscreen_states.any? { |probe_state| probe_state.casecmp('true').zero? }
+      else
+        !fullscreen_states.empty? && fullscreen_states.none? { |probe_state| probe_state.casecmp('true').zero? }
+      end
+
+    frontmost_matches && fullscreen_matches
+  end
+
+  def recoverable_transition_probe_target_loss?(probe, error)
+    return false unless probe&.fetch(:app, nil) == 'Safari'
+
+    message = error.message.to_s
+    message.include?('No Safari fullscreen probe window') ||
+      message.include?('No Safari target window available for fullscreen probe')
+  end
+
+  def activate_transition_probe_window(probe)
+    script = <<~APPLESCRIPT
+      #{transition_probe_focus_script(probe)}
+      delay 0.2
+      #{transition_probe_target_index_script(probe)}
+      tell application "System Events"
+        tell process "#{probe[:process]}"
+          set frontmost to true
+          if targetIndex < 1 or targetIndex > (count of windows) then error "No #{probe[:process]} target window available for fullscreen probe"
+          try
+            perform action "AXRaise" of window targetIndex
+          end try
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not activate #{probe[:app]} transition probe window: #{out.strip}" unless code.success?
+  end
+
+  def transition_probe_focus_script(probe)
+    if probe[:app] == 'Safari'
+      <<~APPLESCRIPT
+        set didFocusExistingProcess to false
+        tell application "System Events"
+          if exists process "#{probe[:process]}" then
+            tell process "#{probe[:process]}" to set frontmost to true
+            set didFocusExistingProcess to true
+          end if
+        end tell
+        if didFocusExistingProcess is false then tell application "#{probe[:app]}" to activate
+      APPLESCRIPT
+    else
+      %(tell application "#{probe[:app]}" to activate)
+    end
+  end
+
+  def safari_transition_probe_window_available?
+    script = <<~APPLESCRIPT
+      tell application "Safari"
+        repeat with i from 1 to count of windows
+          try
+            if URL of current tab of window i starts with "#{VISIBLE_TRANSITION_PROBE_URL}" then return "true"
+          end try
+        end repeat
+      end tell
+      return "false"
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    code.success? && out.strip.casecmp('true').zero?
+  rescue StandardError
+    false
+  end
+
+  def transition_probe_target_index_script(probe)
+    case probe[:app]
+    when 'Safari'
+      <<~APPLESCRIPT
+        tell application "Safari"
+          set targetIndex to 0
+          repeat with i from 1 to count of windows
+            try
+              if URL of current tab of window i starts with "#{VISIBLE_TRANSITION_PROBE_URL}" then
+                set targetIndex to i
+                exit repeat
+              end if
+            end try
+          end repeat
+          if targetIndex = 0 then error "No Safari fullscreen probe window"
+        end tell
+      APPLESCRIPT
+    else
+      'set targetIndex to 1'
+    end
   end
 
   def toggle_native_fullscreen_probe_window
@@ -370,7 +562,7 @@ class LiveZoneSmoke
         tell application "Safari"
           repeat with candidateWindow in windows
             try
-              if URL of current tab of candidateWindow starts with "file:///tmp/sanebar-fullscreen-probe.html" then
+              if URL of current tab of candidateWindow starts with "#{VISIBLE_TRANSITION_PROBE_URL}" then
                 close candidateWindow
                 exit repeat
               end if
@@ -720,6 +912,136 @@ class LiveZoneSmoke
     app_script('close settings window')
   rescue StandardError
     nil
+  end
+
+  def close_settings_window_for_visual_probe!(label)
+    close_settings_window_safely
+    close_visible_sanebar_customer_windows_safely
+    wait_for_sanebar_customer_windows_closed!(label)
+  end
+
+  def close_visible_sanebar_customer_windows_safely
+    script = <<~APPLESCRIPT
+      tell application "System Events"
+        if not (exists process "#{@app_name}") then return
+        tell process "#{@app_name}"
+          repeat with windowIndex from (count of windows) to 1 by -1
+            try
+              set candidateWindow to window windowIndex
+              set windowTitle to ""
+              try
+                set windowTitle to name of candidateWindow as text
+              end try
+              set windowSubrole to ""
+              try
+                set windowSubrole to subrole of candidateWindow as text
+              end try
+              set windowPosition to {9999, 9999}
+              set windowSize to {0, 0}
+              try
+                set windowPosition to position of candidateWindow
+              end try
+              try
+                set windowSize to size of candidateWindow
+              end try
+              set isAppearanceOverlay to false
+              try
+                set isAppearanceOverlay to windowTitle is "" and windowSubrole is "AXSystemDialog" and (item 2 of windowPosition) <= 40 and (item 1 of windowSize) >= 1000 and (item 2 of windowSize) <= 80
+              end try
+              if isAppearanceOverlay then error number -128
+
+              set windowVisible to true
+              try
+                set windowVisible to (value of attribute "AXVisible" of candidateWindow) as boolean
+              end try
+              set windowMinimized to false
+              try
+                set windowMinimized to (value of attribute "AXMinimized" of candidateWindow) as boolean
+              end try
+              if windowVisible and not windowMinimized then
+                try
+                  perform action "AXPress" of button 1 of candidateWindow
+                on error
+                  try
+                    perform action "AXClose" of candidateWindow
+                  end try
+                end try
+              end if
+            end try
+          end repeat
+        end tell
+      end tell
+    APPLESCRIPT
+    capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+  rescue StandardError
+    nil
+  end
+
+  def wait_for_sanebar_customer_windows_closed!(label)
+    deadline = Time.now + 4.0
+    last_titles = []
+    while Time.now < deadline
+      last_titles = sanebar_visible_window_titles
+      return if last_titles.empty?
+
+      sleep_with_watchdog(0.2)
+    end
+
+    raise "SaneBar customer window still visible before #{label}: #{last_titles.join(', ')}"
+  end
+
+  def sanebar_visible_window_titles
+    script = <<~APPLESCRIPT
+      tell application "System Events"
+        if not (exists process "#{@app_name}") then return ""
+        tell process "#{@app_name}"
+          set visibleWindows to {}
+          repeat with candidateWindow in windows
+            try
+              set windowVisible to true
+              try
+                set windowVisible to (value of attribute "AXVisible" of candidateWindow) as boolean
+              end try
+              set windowMinimized to false
+              try
+                set windowMinimized to (value of attribute "AXMinimized" of candidateWindow) as boolean
+              end try
+              if windowVisible and not windowMinimized then
+                set windowTitle to ""
+                try
+                  set windowTitle to name of candidateWindow as text
+                end try
+                set windowSubrole to ""
+                try
+                  set windowSubrole to subrole of candidateWindow as text
+                end try
+                set windowPosition to {9999, 9999}
+                set windowSize to {0, 0}
+                try
+                  set windowPosition to position of candidateWindow
+                end try
+                try
+                  set windowSize to size of candidateWindow
+                end try
+                set isAppearanceOverlay to false
+                try
+                  set isAppearanceOverlay to windowTitle is "" and windowSubrole is "AXSystemDialog" and (item 2 of windowPosition) <= 40 and (item 1 of windowSize) >= 1000 and (item 2 of windowSize) <= 80
+                end try
+                if isAppearanceOverlay then error number -128
+
+                if windowTitle is "" then set windowTitle to "<untitled>"
+                set end of visibleWindows to windowTitle
+              end if
+            end try
+          end repeat
+          return visibleWindows as text
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not read #{@app_name} visible window state: #{out.strip}" unless code.success?
+
+    out.split(/\s*,\s*/).map(&:strip).reject(&:empty?)
   end
 
   def disable_screenshot_capture!(reason, path = nil)

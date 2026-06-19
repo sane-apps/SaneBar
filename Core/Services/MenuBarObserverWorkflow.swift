@@ -131,6 +131,21 @@ final class MenuBarObserverWorkflow {
                 logger.debug("App changed - ignoring SaneBar self-activation")
             }
         }
+
+        if MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+            hidingState: manager.hidingState,
+            shouldSkipHideForExternalMonitor: manager.shouldSkipHideForExternalMonitor,
+            isBrowseSessionActive: browseSessionActive,
+            activatedBundleID: activatedBundleID,
+            ownBundleID: ownBundleID
+        ) {
+            manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "applicationActivated")
+            logger.debug(
+                "App activated - scheduling hidden status-item validation for \(activatedBundleID ?? "unknown", privacy: .public)"
+            )
+            manager.schedulePositionValidation(context: .activeSpaceChanged)
+            manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "applicationActivated")
+        }
     }
 
     private func installScreenAndWakeObservers() {

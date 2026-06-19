@@ -136,6 +136,54 @@ struct MenuBarOperationRuntimeValidationTests {
         )
     }
 
+    @Test("Lifecycle validation treats cached separator anchors as missing until live")
+    func lifecycleValidationRecreatesForCachedSeparatorAnchor() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .waitForLiveAnchor
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 1,
+                maxRecoveryCount: 4
+            ) == .recreateFromPersistedLayout(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.activeSpaceChanged),
+                recoveryCount: 2,
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
+        )
+    }
+
     @Test("Screen-change validation waits briefly then recreates when only the separator anchor is estimated")
     func screenChangeValidationRecreatesForEstimatedSeparatorAnchor() {
         let snapshot = MenuBarRuntimeSnapshot(
@@ -300,6 +348,50 @@ struct MenuBarOperationRuntimeValidationTests {
                 maxRecoveryCount: 4
             ) == .stop(.missingCoordinates)
         )
+    }
+
+    @Test("Lifecycle validation repairs detached status items instead of doing a weak recreate")
+    func lifecycleValidationRepairsDetachedStatusItems() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            startupItemsValid: false,
+            likelySystemSuppressedStatusItems: false,
+            separatorX: 832,
+            mainX: 852,
+            mainRightGap: nil,
+            screenWidth: 1920
+        )
+
+        for context in [
+            MenuBarOperationCoordinator.PositionValidationContext.screenParametersChanged,
+            .activeSpaceChanged,
+            .wakeResume
+        ] {
+            #expect(
+                MenuBarOperationCoordinator.statusItemRecoveryAction(
+                    snapshot: snapshot,
+                    context: .positionValidation(context),
+                    recoveryCount: 0,
+                    maxRecoveryCount: 4
+                ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
+            )
+            #expect(
+                MenuBarOperationCoordinator.statusItemRecoveryAction(
+                    snapshot: snapshot,
+                    context: .positionValidation(context),
+                    recoveryCount: 1,
+                    maxRecoveryCount: 4
+                ) == .bumpAutosaveVersion(.invalidStatusItems)
+            )
+            #expect(
+                MenuBarOperationCoordinator.statusItemRecoveryAction(
+                    snapshot: snapshot,
+                    context: .positionValidation(context),
+                    recoveryCount: 4,
+                    maxRecoveryCount: 4
+                ) == .stop(.invalidStatusItems)
+            )
+        }
     }
 
     @Test("Startup follow-up escalates persistent missing coordinates and invalid items after the retry window")

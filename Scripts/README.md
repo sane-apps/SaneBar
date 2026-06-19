@@ -47,8 +47,8 @@ Release preflight now enforces project QA guardrails for the ZIP-first direct-do
 - 24h soak window between releases (override requires an interactive typed approval phrase)
 - reporter confirmation check for recently closed regression issues (override requires an interactive typed approval phrase)
 - dedicated stability suite focused on upgrade state + second-menu-bar behavior
-- staged `Release` runtime smoke on Mini, including dual browse-mode screenshots
-- two runtime smoke passes: cold launch and immediate repeat, so warm-state browse regressions fail preflight instead of slipping through a one-pass check
+- staged `Release` runtime smoke on Mini, including second-menu-bar, Find Icon, Settings, fullscreen, and tint proof
+- one default runtime smoke pass plus focused exact-ID lanes for shared fixture, native Apple, and host sentinel items, so the expensive work stays bounded while the historical move failures remain release-blocking
 - live-anchor structural recovery contract: dirty startup/reboot/wake/display probes must prove live SaneBar main and separator status-item anchors before trusting persisted Visible/Hidden state or cached geometry
 - `/tmp/sanebar_runtime_smoke.log` now keeps the actual browse activation diagnostics when a pass fails
 

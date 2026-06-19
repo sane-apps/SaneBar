@@ -2,9 +2,11 @@
 # frozen_string_literal: true
 
 require 'minitest/autorun'
+require 'fileutils'
 require 'tempfile'
 require_relative 'qa'
 require_relative 'live_zone_smoke'
+require_relative 'startup_layout_probe'
 
 class ProjectQATest < Minitest::Test
   def setup
@@ -16,6 +18,9 @@ class ProjectQATest < Minitest::Test
   def live_zone_smoke_source
     @live_zone_smoke_source ||= source_bundle('live_zone_smoke.rb', 'live_zone_smoke_*.rb')
   end
+  def startup_layout_probe_source
+    @startup_layout_probe_source ||= File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+  end
   def project_doc(path)
     File.read(File.join(ProjectQA::PROJECT_ROOT, path))
   end
@@ -26,9 +31,57 @@ class ProjectQATest < Minitest::Test
     ]
     paths.map { |path| File.read(path) }.join("\n")
   end
+
+  def with_startup_layout_probe
+    probe = StartupLayoutProbe.new
+    yield probe
+  ensure
+    workspace = probe&.instance_variable_get(:@workspace)
+    FileUtils.remove_entry(workspace) if workspace && File.directory?(workspace)
+  end
+
+  def with_stubbed_process_table(process_table)
+    original_capture2e = Open3.method(:capture2e)
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    Open3.define_singleton_method(:capture2e) do |*args|
+      if args == ['ps', 'ax', '-o', 'pid=,comm=,command='] ||
+         args == ['ps', 'ax', '-o', 'pid=,command=']
+        [process_table, status]
+      else
+        original_capture2e.call(*args)
+      end
+    end
+    yield
+  ensure
+    Open3.define_singleton_method(:capture2e) { |*args| original_capture2e.call(*args) }
+  end
+
+  def with_file_backup(path)
+    existed = File.exist?(path)
+    content = File.binread(path) if existed
+    yield
+  ensure
+    if existed
+      FileUtils.mkdir_p(File.dirname(path))
+      File.binwrite(path, content)
+    else
+      FileUtils.rm_f(path)
+    end
+  end
+
   def test_reporter_confirmation_accepts_plain_working_reply
     assert @qa.send(:reporter_confirmation_text?, "It's working. The updates are a bit slow in the UI but that's ok.")
   end
+
+  def test_qa_script_refuses_overlapping_runs_before_runtime_fixtures_launch
+    assert_includes qa_source, 'QA_LOCK_PATH'
+    assert_includes qa_source, 'def self.acquire_process_lock!'
+    assert_includes qa_source, 'flock(File::LOCK_EX | File::LOCK_NB)'
+    assert_includes qa_source, 'Refusing overlapping QA because it corrupts runtime fixture/menu-bar state'
+    assert_includes qa_source, 'ProjectQA.acquire_process_lock!'
+  end
+
   def test_reporter_confirmation_rejects_negative_reply
     refute @qa.send(:reporter_confirmation_text?, "It's not working. The same problem is still happening.")
   end
@@ -533,7 +586,11 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH"
     assert_includes source, 'startup_probe_env.merge!(runtime_probe_no_keychain_env(target))'
     assert_includes source, "runtime startup layout probe"
+    assert_includes source, 'startup_probe_started_at = Time.now'
+    assert_includes source, 'timeout: 300'
+    assert_includes source, 'startup_probe_artifact_contract_error(started_at: startup_probe_started_at)'
     assert_includes preflight_source, 'startup_probe_artifact_contract_error'
+    assert_includes preflight_source, 'stale_runtime_artifact?'
     assert_includes preflight_source, '#157 dirty reboot recovery keeps live anchors before hiding'
     assert_includes preflight_source, '#157 dirty startup waits for valid status-item windows before auto-hide'
     assert_includes preflight_source, '#155 dirty startup AH replay allows outbound moves'
@@ -549,6 +606,9 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS' => visible_dynamic_helper_ids.join(',')"
     assert_includes source, 'wake_probe_env.merge!(runtime_probe_no_keychain_env(target))'
     assert_includes source, "'SANEBAR_PROBE_FORCE_NO_KEYCHAIN' => '1'"
+    assert_includes source, 'wake_probe_started_at = Time.now'
+    assert_includes source, 'timeout: 240'
+    assert_includes source, 'wake_probe_artifact_contract_error(started_at: wake_probe_started_at)'
     assert_includes source, 'Lungo-style Hidden-to-Visible wake drift is release-blocking'
     assert_includes source, 'SwiftBar-style Visible-to-Hidden wake drift is release-blocking'
     assert_includes source, "runtime wake layout probe"
@@ -599,8 +659,12 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'NSApp.applicationIconImage = fixtureImage(for: "SBF-A")'
     assert_includes source, 'case "SBF-A": symbolName = "circle.grid.2x2.fill"'
     assert_includes source, 'case "SBF-B": symbolName = "square.grid.2x2.fill"'
+    assert_includes source, 'case "SBF-D": symbolName = "circle.hexagongrid.fill"'
     assert_includes source, 'default: symbolName = "diamond.grid.3x3.fill"'
     assert_includes source, 'item.button?.image = fixtureImage(for: title)'
+    assert_includes source, 'func fixtureMenu(for title: String) -> NSMenu'
+    assert_includes source, 'Activation Probe \\\\(title)'
+    assert_includes source, 'item.menu = fixtureMenu(for: title)'
     assert_includes source, 'image?.isTemplate = true'
   end
 
@@ -618,6 +682,7 @@ class ProjectQATest < Minitest::Test
 
     assert_includes source, 'runtime_smoke_host_allowed?'
     assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
+    assert_includes source, 'SANE_MINI_UNAVAILABLE'
     assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!(target)'
     assert_includes source, 'representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)'
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1'"
@@ -625,7 +690,456 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
     assert_includes source, "target[:no_keychain] = true"
+    assert_includes source, 'seed_runtime_smoke_no_keychain_pro_defaults!'
+    assert_includes source, "write_runtime_smoke_default(\n      'sane.no-keychain.com.sanebar.app.pro_license_key',\n      'early-adopter'"
+    assert_includes source, "settings['hasSeenFreemiumIntro'] = true"
+    assert_includes source, "settings['hasCompletedHealthWizard'] = true"
     assert_includes source, "Runtime smoke requires a Pro-enabled target for Always Hidden checks;"
+  end
+
+  def test_runtime_smoke_locks_shared_runtime_target_against_overlapping_probes
+    source = qa_source
+    preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
+
+    assert_includes preflight_source, "RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH']"
+    assert_includes preflight_source, "ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH']"
+    assert_includes preflight_source, 'def acquire_runtime_target_lock'
+    assert_includes preflight_source, 'flock(File::LOCK_EX | File::LOCK_NB)'
+    assert_includes preflight_source, 'runtime_probe_conflict_error'
+    assert_includes preflight_source, "'Scripts/startup_layout_probe.rb'"
+    assert_includes preflight_source, "'Scripts/wake_layout_probe.rb'"
+    assert_includes preflight_source, "'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'"
+    assert_includes preflight_source, 'File::NOFOLLOW'
+    assert_includes preflight_source, 'File::EXCL'
+    assert_includes preflight_source, 'File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)'
+    assert_includes preflight_source, 'safe_write_runtime_file'
+    assert_includes preflight_source, 'cleanup_runtime_target_lock_file'
+    assert_includes preflight_source, 'runtime_target_lock_holder_detail'
+    assert_includes preflight_source, 'FileUtils.rm_f(RUNTIME_TARGET_LOCK_PATH)'
+    assert_includes source, 'release_runtime_target_lock(runtime_lock)'
+  end
+
+  def test_wake_probe_artifact_contract_rejects_nested_failures
+    path = ProjectQA::RUNTIME_WAKE_PROBE_ARTIFACT_PATH
+    visible_scenarios = [
+      'baseline visible icon-zone snapshot before display sleep',
+      'fresh authoritative icon-zone snapshot at 1s after wake',
+      'fresh authoritative icon-zone snapshot at 5s after wake',
+      'fresh authoritative icon-zone snapshot at 15s after wake',
+      'visible required IDs remain visible and are not moved into Hidden or Always Hidden'
+    ]
+    hidden_scenarios = [
+      'baseline hidden icon-zone snapshot before display sleep',
+      'fresh authoritative icon-zone snapshot at 1s after wake',
+      'fresh authoritative icon-zone snapshot at 5s after wake',
+      'fresh authoritative icon-zone snapshot at 15s after wake',
+      'hidden required IDs remain hidden and are not moved into Visible or Always Hidden'
+    ]
+    dynamic_scenarios = [
+      'dynamic helper required IDs are present before wake',
+      'dynamic helper required IDs remain in intended zones after wake',
+      'helper-specific Hidden to Visible drift is rejected as a release blocker'
+    ]
+    artifact = {
+      'status' => 'pass',
+      'visible_zone_persistence' => {
+        'status' => 'pass',
+        'completed_scenarios' => visible_scenarios
+      },
+      'hidden_zone_persistence' => {
+        'status' => 'fail',
+        'completed_scenarios' => hidden_scenarios
+      },
+      'dynamic_helper_wake_drift' => {
+        'status' => 'pass',
+        'completed_scenarios' => dynamic_scenarios
+      }
+    }
+
+    with_file_backup(path) do
+      File.write(path, JSON.pretty_generate(artifact) + "\n")
+      assert_match(/Wake layout probe artifact failed proof section\(s\): hidden_zone_persistence/, @qa.send(:wake_probe_artifact_contract_error))
+
+      artifact['hidden_zone_persistence']['status'] = 'pass'
+      File.write(path, JSON.pretty_generate(artifact) + "\n")
+      assert_nil @qa.send(:wake_probe_artifact_contract_error)
+    end
+  end
+
+  def test_startup_layout_probe_restores_current_host_status_item_state
+    source = startup_layout_probe_source
+
+    assert_includes source, 'CURRENT_HOST_STATUS_ITEM_KEY_PATTERN'
+    assert_includes source, 'backup_current_host_status_item_state!'
+    assert_includes source, 'restore_current_host_status_item_state!'
+    assert_includes source, "defaults', '-currentHost', 'export', 'NSGlobalDomain', '-'"
+    assert_includes source, 'parse_current_host_status_item_plist'
+    assert_includes source, "current_host_status_item_state.keys.each { |key| delete_current_host_default(key) }"
+    assert_includes source, 'write_current_host_default_value(key, value)'
+    refute_includes source, "'plutil'"
+  end
+
+  def test_startup_layout_probe_current_host_parser_ignores_non_status_item_data
+    with_startup_layout_probe do |probe|
+      plist = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>com.apple.gms.availability.unifiedReasons</key>
+          <data>YnBsaXN0MDDRAQJUaW5mbw==</data>
+          <key>NSStatusItem Preferred Position SaneBar_main_v39_v6</key>
+          <real>144</real>
+          <key>NSStatusItem Visible SaneBar_Main_v32</key>
+          <false/>
+          <key>NSStatusItem VisibleCC SaneBar_Separator_v32</key>
+          <true/>
+        </dict>
+        </plist>
+      XML
+
+      state = probe.send(:parse_current_host_status_item_plist, plist)
+
+      assert_equal 144.0, state['NSStatusItem Preferred Position SaneBar_main_v39_v6']
+      assert_equal false, state['NSStatusItem Visible SaneBar_Main_v32']
+      assert_equal true, state['NSStatusItem VisibleCC SaneBar_Separator_v32']
+      refute_includes state.keys, 'com.apple.gms.availability.unifiedReasons'
+    end
+  end
+
+  def test_startup_layout_probe_quit_escalates_after_failed_graceful_quit
+    with_startup_layout_probe do |probe|
+      failed = Object.new
+      failed.define_singleton_method(:success?) { false }
+      failed.define_singleton_method(:exitstatus) { 1 }
+      running = true
+      signals = []
+
+      probe.instance_variable_set(:@app_name, 'SaneBar')
+      probe.instance_variable_set(:@bundle_id, 'com.sanebar.app')
+      probe.define_singleton_method(:app_running?) { running }
+      probe.define_singleton_method(:capture) { |_cmd, *_args| ['User canceled', failed] }
+      probe.define_singleton_method(:graceful_quit_timeout_seconds) { |_status| 0.0 }
+      probe.define_singleton_method(:force_quit_timeout_seconds) { 0.0 }
+      probe.define_singleton_method(:terminate_lingering_app_processes_until_gone!) do |timeout:, signal:|
+        signals << [signal, timeout]
+        running = false if signal == 'TERM'
+      end
+      probe.define_singleton_method(:reap_direct_launch_children!) {}
+
+      probe.send(:quit_app)
+
+      assert_equal [['TERM', 0.0]], signals
+    end
+  end
+
+  def test_startup_layout_probe_marks_explicit_automation_quit_before_apple_event
+    Tempfile.create('sanebar-startup-quit-marker') do |file|
+      marker_path = file.path
+      File.unlink(marker_path)
+      old_marker = ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH']
+      ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] = marker_path
+
+      with_startup_layout_probe do |probe|
+        succeeded = Object.new
+        succeeded.define_singleton_method(:success?) { true }
+        succeeded.define_singleton_method(:exitstatus) { 0 }
+        running = true
+        marker_seen_during_quit = false
+
+        probe.instance_variable_set(:@app_name, 'SaneBar')
+        probe.instance_variable_set(:@bundle_id, 'com.sanebar.app')
+        probe.instance_variable_set(:@automation_quit_token, 'startup-token')
+        probe.define_singleton_method(:app_running?) { running }
+        probe.define_singleton_method(:capture) do |_cmd, *_args|
+          marker_seen_during_quit = File.read(marker_path).strip == 'startup-token'
+          running = false
+          ['', succeeded]
+        end
+        probe.define_singleton_method(:terminate_lingering_app_processes_until_gone!) { |timeout:, signal:| }
+        probe.define_singleton_method(:reap_direct_launch_children!) {}
+
+        probe.send(:quit_app)
+
+        assert marker_seen_during_quit
+        refute File.exist?(marker_path), 'Startup probe should remove its explicit quit marker after cleanup'
+      end
+    ensure
+      ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] = old_marker
+      FileUtils.rm_f(marker_path) if marker_path
+    end
+  end
+
+  def test_startup_layout_probe_cleans_up_fixture_it_seeds
+    with_startup_layout_probe do |probe|
+      helper = Object.new
+      cleaned = false
+      helper.define_singleton_method(:send) do |method_name, *_args|
+        cleaned = true if method_name == :cleanup_runtime_shared_bundle_fixture!
+      end
+      probe.instance_variable_set(:@shared_fixture_helper, helper)
+      probe.instance_variable_set(:@seeded_shared_fixture_for_probe, true)
+
+      probe.send(:cleanup_seeded_shared_fixture!)
+
+      assert cleaned
+      refute probe.instance_variable_get(:@seeded_shared_fixture_for_probe)
+    end
+  end
+
+  def test_runtime_smoke_test_mode_launch_uses_progress_capture
+    source = qa_source
+
+    assert_includes source, "launch_out, launch_status = capture2e_with_progress("
+    assert_includes source, "heartbeat_label: 'runtime smoke test_mode launch'"
+    assert_includes source, 'def capture2e_with_progress(env, *cmd, heartbeat_label:, timeout: nil)'
+    assert_includes source, 'terminate_runtime_command_child(wait_thr)'
+    assert_includes source, 'runtime_command_failed_status'
+    refute_includes source, "launch_out, launch_status = Open3.capture2e(\n        { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' }"
+  end
+
+  def test_runtime_smoke_target_running_requires_nonempty_process_match
+    checks = 0
+    launches = 0
+    terminations = 0
+    target = {
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar',
+      relaunch: true,
+      no_keychain: true
+    }
+
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+    @qa.define_singleton_method(:terminate_runtime_smoke_target_processes!) do |_target|
+      terminations += 1
+      true
+    end
+    @qa.define_singleton_method(:launch_runtime_smoke_target!) do |_target|
+      launches += 1
+      true
+    end
+    @qa.define_singleton_method(:runtime_smoke_target_processes) do |_target, require_no_keychain: true|
+      checks += 1 if require_no_keychain
+      checks >= 2 ? ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain'] : []
+    end
+
+    assert @qa.send(:ensure_runtime_smoke_target_running!, target)
+    assert_equal 1, launches
+    assert_equal 1, terminations
+    assert_operator checks, :>=, 2
+    refute target[:relaunch], 'successful ensure should not keep relaunching on later snapshot reads'
+  end
+
+  def test_runtime_smoke_target_running_waits_for_exclusive_no_keychain_process
+    target = {
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar',
+      relaunch: false,
+      no_keychain: true
+    }
+    checks = 0
+
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+    @qa.define_singleton_method(:runtime_smoke_target_processes) do |_target, require_no_keychain: true|
+      checks += 1
+      if checks < 3
+        require_no_keychain ? ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain'] : [
+          '123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain',
+          '124 /Applications/SaneBar.app/Contents/MacOS/SaneBar'
+        ]
+      else
+        ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain']
+      end
+    end
+
+    assert @qa.send(:ensure_runtime_smoke_target_running!, target)
+    refute target[:relaunch]
+    assert_operator checks, :>=, 3
+  end
+
+  def test_runtime_smoke_target_running_rejects_duplicate_processes
+    target = {
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar',
+      relaunch: false,
+      no_keychain: true
+    }
+
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+    @qa.define_singleton_method(:runtime_smoke_target_processes) do |_target, require_no_keychain: true|
+      next [] unless require_no_keychain
+
+      [
+        '123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain',
+        '124 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain'
+      ]
+    end
+
+    refute @qa.send(:ensure_runtime_smoke_target_running!, target)
+  end
+
+  def test_runtime_smoke_layout_snapshot_retries_until_app_command_is_ready
+    target = {
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar',
+      relaunch: false,
+      no_keychain: true
+    }
+    attempts = 0
+    requested_timeouts = []
+    requested_labels = []
+    failed = Object.new
+    failed.define_singleton_method(:success?) { false }
+    passed = Object.new
+    passed.define_singleton_method(:success?) { true }
+
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+    @qa.define_singleton_method(:ensure_runtime_smoke_target_running!) { |_probe_target| true }
+    @qa.define_singleton_method(:runtime_smoke_target_processes) do |_probe_target, require_no_keychain: true|
+      ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain']
+    end
+    @qa.define_singleton_method(:capture2e_with_runtime_timeout) do |*_cmd, timeout:, label:|
+      attempts += 1
+      requested_timeouts << timeout
+      requested_labels << label
+      if attempts == 1
+        ['AppleScript layout snapshot timeout', failed]
+      else
+        ['{"licenseIsPro":true,"startupItemsValid":true}', passed]
+      end
+    end
+
+    snapshot = @qa.send(:runtime_smoke_layout_snapshot, target)
+
+    assert_equal true, snapshot['licenseIsPro']
+    assert_equal true, snapshot['startupItemsValid']
+    assert_equal 2, attempts
+    assert_equal [4, 4], requested_timeouts
+    assert_equal ['AppleScript layout snapshot', 'AppleScript layout snapshot'], requested_labels
+  end
+
+  def test_runtime_smoke_layout_snapshot_relaunches_after_basic_duplicate_snapshot
+    target = {
+      app_path: '/Applications/SaneBar.app',
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar',
+      relaunch: false,
+      no_keychain: true
+    }
+    attempts = 0
+    relaunch_checks = 0
+    passed = Object.new
+    passed.define_singleton_method(:success?) { true }
+
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+    @qa.define_singleton_method(:ensure_runtime_smoke_target_running!) do |probe_target|
+      relaunch_checks += 1 if probe_target[:relaunch]
+      probe_target[:relaunch] = false
+      true
+    end
+    @qa.define_singleton_method(:runtime_smoke_target_processes) do |_target, require_no_keychain: true|
+      require_no_keychain ? ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain'] : ['123 /Applications/SaneBar.app/Contents/MacOS/SaneBar --sane-no-keychain']
+    end
+    @qa.define_singleton_method(:capture2e_with_runtime_timeout) do |*_cmd, timeout:, label:|
+      attempts += 1
+      if attempts == 1
+        ['{"licenseIsPro":false}', passed]
+      else
+        ['{"licenseIsPro":true,"startupItemsValid":true}', passed]
+      end
+    end
+
+    snapshot = @qa.send(:runtime_smoke_layout_snapshot, target)
+
+    assert_equal true, snapshot['licenseIsPro']
+    assert_equal true, snapshot['startupItemsValid']
+    assert_equal 2, attempts
+    assert_equal 1, relaunch_checks
+  end
+
+  def test_runtime_smoke_relaunch_force_terminates_exact_target_processes
+    source = qa_source
+
+    assert_includes source, 'def terminate_runtime_smoke_target_processes!(target)'
+    assert_includes source, "signal_runtime_smoke_target_pids(pids, 'TERM')"
+    assert_includes source, "signal_runtime_smoke_target_pids(pids, 'KILL')"
+    assert_includes source, 'matches.length == 1'
+    refute_includes source, "system('killall', PROJECT_NAME"
+  end
+
+  def test_runtime_smoke_no_keychain_relaunch_uses_direct_executable
+    source = qa_source
+
+    assert_includes source, 'def launch_runtime_smoke_target!(target)'
+    assert_includes source, "if target[:no_keychain]"
+    assert_includes source, "Process.spawn("
+    assert_includes source, "'SANEAPPS_DISABLE_KEYCHAIN' => '1'"
+    assert_includes source, "'--sane-no-keychain'"
+    assert_includes source, 'launch_runtime_smoke_target!(target)'
+    assert_includes source, 'matches.length == 1'
+    assert_includes source, 'return false if matches.length > 1'
+    refute_includes source, 'return true if matches'
+  end
+
+  def test_runtime_fixture_process_detail_ignores_diagnostic_shell_mentions
+    process_table = <<~PS
+      123 /bin/zsh /bin/zsh -c tail /tmp/log; pgrep -fl SaneBarHostExactIDFixture
+      124 /usr/bin/grep grep SaneBarHostExactIDFixture
+    PS
+
+    with_stubbed_process_table(process_table) do
+      detail = @qa.send(
+        :runtime_fixture_process_detail,
+        'SaneBarHostExactIDFixture',
+        app_path: '/tmp/SaneBarHostExactIDFixture.app'
+      )
+
+      assert_equal 'none', detail
+      owned_detail = @qa.send(
+        :owned_runtime_fixture_process_detail,
+        'SaneBarHostExactIDFixture',
+        app_path: '/tmp/SaneBarHostExactIDFixture.app'
+      )
+      assert_equal 'none', owned_detail
+    end
+  end
+
+  def test_runtime_fixture_process_detail_matches_exact_fixture_executable
+    executable = '/tmp/SaneBarHostExactIDFixture.app/Contents/MacOS/SaneBarHostExactIDFixture'
+    process_table = "321 #{executable} #{executable}\n"
+
+    with_stubbed_process_table(process_table) do
+      detail = @qa.send(
+        :runtime_fixture_process_detail,
+        'SaneBarHostExactIDFixture',
+        app_path: '/tmp/SaneBarHostExactIDFixture.app'
+      )
+
+      assert_includes detail, "321 #{executable}"
+      owned_detail = @qa.send(
+        :owned_runtime_fixture_process_detail,
+        'SaneBarHostExactIDFixture',
+        app_path: '/tmp/SaneBarHostExactIDFixture.app'
+      )
+      assert_includes owned_detail, "321 #{executable}"
+    end
+  end
+
+  def test_focused_exact_id_lanes_skip_duplicate_launch_idle_budget
+    source = qa_source
+
+    assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET'] = '1'"
+    assert_includes live_zone_smoke_source, 'default runtime smoke covers cold launch and watchdog/post-smoke budgets remain active'
+  end
+
+  def test_visible_dynamic_process_detail_uses_loaded_owned_helper
+    process_table = "456 /bin/zsh /bin/zsh -c echo SaneBarVisibleDynamicHelperFixture\n"
+
+    with_stubbed_process_table(process_table) do
+      detail = @qa.send(:runtime_visible_dynamic_helper_fixture_process_detail)
+
+      assert_equal 'none', detail
+    end
   end
 
   def test_runtime_smoke_seeds_missing_representative_always_hidden_zone
@@ -721,10 +1235,45 @@ class ProjectQATest < Minitest::Test
     ], calls
   end
 
+  def test_runtime_smoke_zone_seed_stops_when_retry_snapshot_sees_target_populated
+    zones = [
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A' },
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B' },
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C' },
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-D' },
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-E' },
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
+      { zone: 'visible', movable: true, bundle: 'com.example.visible2', unique_id: 'com.example.visible2::statusItem:0' }
+    ]
+    calls = []
+    stale_count_reads = 0
+    status = Object.new
+    status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_candidates) { |_target| zones }
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_counts) do |_target|
+      stale_count_reads += 1
+      next({ 'visible' => 7, 'hidden' => 0 }) if stale_count_reads == 1
+
+      zones.group_by { |item| item[:zone] }.transform_values(&:length)
+    end
+    @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, unique_id|
+      calls << [command, unique_id]
+      zones.find { |item| item[:unique_id] == unique_id }[:zone] = 'hidden'
+      ["true\n", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:seed_runtime_smoke_zone!, { app_path: '/Applications/SaneBar.app' }, 'hidden')
+
+    assert_nil error
+    assert_equal 1, calls.length
+    assert_equal({ 'visible' => 6, 'hidden' => 1 }, zones.group_by { |item| item[:zone] }.transform_values(&:length))
+  end
+
   def test_runtime_smoke_seeds_preferred_shared_fixture_into_always_hidden_before_filling_minimum
     zones = [
       { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
-      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::statusItem:1' },
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B' },
       { zone: 'hidden', movable: true, bundle: 'com.knollsoft.Rectangle', unique_id: 'com.knollsoft.Rectangle::statusItem:0' },
       { zone: 'hidden', movable: true, bundle: 'com.example.another', unique_id: 'com.example.another::statusItem:0' },
       { zone: 'hidden', movable: true, bundle: 'com.example.another2', unique_id: 'com.example.another2::statusItem:0' }
@@ -744,7 +1293,7 @@ class ProjectQATest < Minitest::Test
 
     assert_nil error
     assert_equal [
-      ['move icon to always hidden', 'com.sanebar.sharedfixture::statusItem:1'],
+      ['move icon to always hidden', 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'],
       ['move icon to always hidden', 'com.knollsoft.Rectangle::statusItem:0'],
       ['move icon to always hidden', 'com.example.another::statusItem:0']
     ], calls
@@ -757,10 +1306,21 @@ class ProjectQATest < Minitest::Test
     assert_operator shared_rank, :<, apple_rank
   end
 
+  def test_runtime_smoke_generic_seeding_keeps_visible_dynamic_fixture_as_last_donor
+    shared_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.sanebar.sharedfixture')
+    stable_third_party_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.example.stable')
+    apple_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.apple.weather.menu')
+    visible_dynamic_rank = @qa.send(:runtime_smoke_seed_donor_rank, bundle: 'com.ameba.SwiftBar')
+
+    assert_operator shared_rank, :<, stable_third_party_rank
+    assert_operator stable_third_party_rank, :<, visible_dynamic_rank
+    assert_operator apple_rank, :<, visible_dynamic_rank
+  end
+
   def test_runtime_smoke_rebalances_hidden_zone_from_always_hidden_surplus
     zones = [
       { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::statusItem:0' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A' },
       { zone: 'alwaysHidden', movable: true, bundle: 'com.knollsoft.Rectangle', unique_id: 'com.knollsoft.Rectangle::statusItem:0' },
       { zone: 'alwaysHidden', movable: true, bundle: 'com.apple.weather.menu', unique_id: 'com.apple.weather.menu::statusItem:0' },
       { zone: 'alwaysHidden', movable: true, bundle: 'com.example.another', unique_id: 'com.example.another::statusItem:0' }
@@ -784,20 +1344,204 @@ class ProjectQATest < Minitest::Test
     ], calls
   end
 
+  def test_runtime_smoke_relaunches_once_when_representative_pool_loses_target
+    target = { app_path: '/Applications/SaneBar.app' }
+    candidate = { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'com.example.visible::statusItem:0' }
+    candidate_calls = 0
+    ensure_calls = []
+    warmed = false
+
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_candidates) do |_probe_target|
+      candidate_calls += 1
+      warmed ? [candidate] : []
+    end
+    @qa.define_singleton_method(:ensure_runtime_smoke_target_running!) do |probe_target|
+      ensure_calls << probe_target.dup
+      probe_target[:relaunch] == true
+    end
+    @qa.define_singleton_method(:warm_runtime_smoke_candidate_pool!) { |_probe_target| warmed = true }
+    @qa.define_singleton_method(:runtime_smoke_target_process_detail) { |_probe_target| 'none' }
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    error = @qa.send(:recover_runtime_smoke_candidate_pool_if_target_exited!, target, stage: 'representative setup')
+
+    assert_nil error
+    assert_operator candidate_calls, :>=, 1
+    assert_equal [nil, true], ensure_calls.map { |entry| entry[:relaunch] }
+  end
+
+  def test_runtime_smoke_warm_pool_reensures_shared_fixture_when_starved
+    target = { app_path: '/Applications/SaneBar.app' }
+    status = Object.new
+    status.define_singleton_method(:exitstatus) { 0 }
+    fixture_ensured = false
+    refresh_calls = 0
+
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_candidates) do |_probe_target|
+      if fixture_ensured
+        [
+          { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'sbf-b' },
+          { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'sbf-a' }
+        ]
+      else
+        []
+      end
+    end
+    @qa.define_singleton_method(:ensure_runtime_shared_bundle_fixture!) do |_probe_target|
+      fixture_ensured = true
+      ['sbf-a', 'sbf-b']
+    end
+    @qa.define_singleton_method(:refresh_runtime_smoke_icon_inventory) do |_probe_target|
+      refresh_calls += 1
+      ["", status]
+    end
+    @qa.define_singleton_method(:sleep) { |_seconds| }
+
+    @qa.send(:warm_runtime_smoke_candidate_pool!, target, minimum_candidates: 2, attempts: 2)
+
+    assert fixture_ensured
+    assert_equal 1, refresh_calls
+  end
+
+  def test_runtime_smoke_candidate_pool_summary_includes_raw_rows_when_filter_starves
+    target = { app_path: '/Applications/SaneBar.app' }
+
+    @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_probe_target|
+      [
+        {
+          zone: 'hidden',
+          movable: true,
+          bundle: 'com.openai.codex',
+          unique_id: 'com.openai.codex::statusItem:0',
+          name: 'Codex'
+        }
+      ]
+    end
+
+    summary = @qa.send(:runtime_smoke_candidate_pool_summary, target)
+
+    assert_includes summary, 'filtered=empty'
+    assert_includes summary, 'hidden:movable:com.openai.codex:com.openai.codex::statusItem:0'
+  end
+
+  def test_runtime_smoke_representative_readiness_accepts_complete_counts
+    target = { app_path: '/Applications/SaneBar.app' }
+
+    error = @qa.send(
+      :runtime_smoke_representative_zone_readiness_error,
+      target,
+      counts: { 'visible' => 1, 'hidden' => 1, 'alwaysHidden' => 3 }
+    )
+
+    assert_nil error
+  end
+
+  def test_runtime_smoke_representative_readiness_reports_under_minimum_with_pool
+    target = { app_path: '/Applications/SaneBar.app' }
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_candidates) do |_probe_target|
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.sanebar.sharedfixture',
+          unique_id: 'sbf-a',
+          name: 'SaneBarSharedFixture'
+        }
+      ]
+    end
+
+    error = @qa.send(
+      :runtime_smoke_representative_zone_readiness_error,
+      target,
+      counts: { 'visible' => 1, 'hidden' => 1, 'alwaysHidden' => 2 }
+    )
+
+    assert_includes error, 'minimum representative candidates'
+    assert_includes error, 'pool=alwaysHidden:sbf-a'
+  end
+
+  def test_runtime_smoke_post_settle_uses_lightweight_readiness_before_reseeding
+    preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
+
+    assert_includes preflight_source, 'representative_zone_setup_error = runtime_smoke_representative_zone_readiness_error(target)'
+    assert_includes preflight_source, 'representative candidate pool already ready'
+    assert_includes preflight_source, 'representative candidate pool incomplete; seeding fixtures'
+    assert_includes preflight_source, 'settle_readiness_error = runtime_smoke_representative_zone_readiness_error(target)'
+    assert_includes preflight_source, "representative setup drifted after settle; reseeding once"
+  end
+
+  def test_runtime_smoke_representative_setup_has_progress_and_timeout
+    helper_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_helpers.rb'))
+    source = qa_source
+
+    assert_includes source, 'RUNTIME_SMOKE_REPRESENTATIVE_SETUP_TIMEOUT_SECONDS = 90'
+    assert_includes helper_source, 'warming representative runtime candidate pool'
+    assert_includes helper_source, 'representative candidates after warm'
+    assert_includes helper_source, 'Runtime smoke representative setup exceeded'
+    assert_includes helper_source, 'setup_deadline: setup_deadline'
+  end
+
+  def test_runtime_smoke_representative_setup_timeout_reports_pool
+    target = { app_path: '/Applications/SaneBar.app' }
+    @qa.define_singleton_method(:runtime_smoke_candidate_pool_summary) { |_probe_target| 'hidden:fixture-one' }
+
+    error = @qa.send(:seed_runtime_smoke_zone!, target, 'alwaysHidden', setup_deadline: Time.now - 1)
+
+    assert_includes error, 'Runtime smoke representative setup exceeded'
+    assert_includes error, 'seeding alwaysHidden'
+    assert_includes error, 'pool=hidden:fixture-one'
+  end
+
+  def test_runtime_smoke_reports_target_loss_when_representative_pool_relaunch_fails
+    target = { app_path: '/Applications/SaneBar.app' }
+    @qa.define_singleton_method(:runtime_smoke_representative_zone_candidates) { |_probe_target| [] }
+    @qa.define_singleton_method(:ensure_runtime_smoke_target_running!) { |_probe_target| false }
+    @qa.define_singleton_method(:runtime_smoke_target_process_detail) { |_probe_target| 'process detail: none' }
+
+    error = @qa.send(:recover_runtime_smoke_candidate_pool_if_target_exited!, target, stage: 'representative setup')
+
+    assert_includes error, 'Runtime smoke target exited during representative setup'
+    assert_includes error, 'process detail: none'
+  end
+
 def test_runtime_smoke_cleanup_includes_host_exact_id_fixture
   preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
   fixture_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_fixtures.rb'))
 
   assert_includes fixture_source, "def cleanup_runtime_host_exact_id_fixture!"
   assert_includes fixture_source, "killall', 'SaneBarHostExactIDFixture'"
-  assert_includes fixture_source, 'for title in ["SBF-A", "SBF-B", "SBF-C"]'
+  assert_includes fixture_source, 'for title in ["SBF-A", "SBF-B", "SBF-C", "SBF-D", "SBF-E"]'
+  assert_includes fixture_source, 'item.menu = fixtureMenu(for: title)'
   assert_includes preflight_source, "cleanup_runtime_host_exact_id_fixture!"
 end
 
-def test_startup_layout_probe_restores_state_before_marking_success
+def test_owned_runtime_fixture_detection_uses_exact_executable_paths
+  source = qa_source
+
+  assert_includes source, 'def owned_runtime_fixture_processes'
+  assert_includes source, "Open3.capture2e('ps', 'ax', '-o', 'pid=,command=')"
+  assert_includes source, 'File.realpath(path)'
+  assert_includes source, "owned_runtime_fixture_process_detail(\n      'SaneBarHostExactIDFixture'"
+  assert_includes source, "owned_runtime_fixture_process_detail(\n      'SaneBarVisibleDynamicHelperFixture'"
+  refute_includes source, "pgrep', '-fl', 'SaneBarHostExactIDFixture'"
+  refute_includes source, "pgrep', '-fl', 'SaneBarVisibleDynamicHelperFixture'"
+end
+
+  def test_startup_layout_probe_restores_state_before_marking_success
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
     assert_includes source, "restore_state!\n    @state_restored = true\n\n    write_artifact!(\n      status: 'pass'"
+  end
+
+  def test_startup_layout_probe_prepares_post_onboarding_settings_before_first_case
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, "backup_state!\n    prepare_startup_probe_settings!\n\n    poisoned_backup_case"
+    assert_includes source, 'def prepare_startup_probe_settings!'
+    assert_includes source, "run_probe_case('current-width backup restore')"
+    assert_includes source, "run_probe_case('#155 Always Hidden dirty replay')"
+    assert_includes source, 'puts "   ↳ startup probe: #{label}"'
+    assert_includes source, "save_settings_json(dirty_reboot_settings(load_settings_json))"
   end
 
   def test_startup_layout_probe_persists_restore_failures
@@ -808,14 +1552,50 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, "persist_log!"
   end
 
+  def test_startup_layout_probe_refuses_overlapping_runtime_target_lock
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, "RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH']"
+    assert_includes source, "ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH']"
+    assert_includes source, "return nil if ENV['SANEBAR_RUNTIME_TARGET_LOCK_BYPASS'] == '1'"
+    assert_includes source, 'flock(File::LOCK_EX | File::LOCK_NB)'
+    assert_includes source, 'Startup layout probe refused to run because the SaneBar runtime target is locked'
+    assert_includes source, 'status = 75'
+    assert_includes source, 'StartupLayoutProbe.release_runtime_target_lock(runtime_lock)'
+    assert_includes source, '$stdout.flush'
+    assert_includes source, '$stderr.flush'
+    assert_includes source, 'exit!(status)'
+    assert_includes source, 'File::NOFOLLOW'
+    assert_includes source, 'File::EXCL'
+    assert_includes source, 'File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)'
+    assert_includes source, 'safe_write_file'
+    assert_includes source, 'cleanup_runtime_target_lock_file'
+    assert_includes source, 'runtime_target_lock_holder_detail'
+    assert_includes source, 'FileUtils.rm_f(RUNTIME_TARGET_LOCK_PATH)'
+    assert_includes source, '@direct_launch_pids = []'
+    assert_includes source, '@direct_launch_pids << pid'
+    assert_includes source, 'reap_direct_launch_children!'
+    assert_includes source, 'Process.waitpid(pid, Process::WNOHANG)'
+    assert_includes source, 'CAPTURE_LOG_OUTPUT_MAX_BYTES'
+    assert_includes source, 'log_capture_output'
+    assert_includes source, 'truncated_log_output'
+    refute_includes source, 'Process.detach('
+    refute_includes source, '/tmp/sanebar_startup_probe_launch.log'
+  end
+
   def test_startup_layout_probe_quit_cleanup_scopes_to_staged_app_path
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
     assert_includes source, "def app_pids"
     assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
     assert_includes source, "ps', '-axo', 'pid=,command='"
+    assert_includes source, 'terminate_lingering_app_processes_until_gone!(timeout:'
+    assert_includes source, "signal: 'TERM'"
+    assert_includes source, "signal: 'KILL'"
+    assert_includes source, 'while app_running? && Time.now < deadline'
+    assert_includes source, 'Process.kill(signal, pid)'
     refute_includes source, "pgrep', '-x', @app_name.to_s"
-    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid}'
+    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid} signal=#{signal}'
   end
 
   def test_startup_layout_probe_requires_visible_lane_after_recovery
@@ -824,6 +1604,109 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, 'assert_restored_backup_pair!'
     assert_includes source, 'visible lane too narrow after recovery'
     assert_includes source, 'preferred_visible_lane_gap'
+  end
+
+  def test_startup_layout_probe_accepts_safe_reanchored_separator_below_backup
+    with_startup_layout_probe do |probe|
+      assert_nil probe.send(
+        :assert_restored_backup_pair!,
+        main: 144.0,
+        separator: 324.0,
+        backup_main: 144.0,
+        backup_separator: 400.0,
+        width: 1920.0,
+        label: 'restored preferred positions'
+      )
+    end
+  end
+
+  def test_startup_layout_probe_accepts_safe_main_canonicalization_above_backup
+    with_startup_layout_probe do |probe|
+      assert_nil probe.send(
+        :assert_restored_backup_pair!,
+        main: 194.0,
+        separator: 374.0,
+        backup_main: 144.0,
+        backup_separator: 364.0,
+        width: 1920.0,
+        label: 'restored preferred positions'
+      )
+    end
+  end
+
+  def test_startup_layout_probe_rejects_main_outside_healthy_startup_zone
+    with_startup_layout_probe do |probe|
+      error = assert_raises(RuntimeError) do
+        probe.send(
+          :assert_restored_backup_pair!,
+          main: 500.0,
+          separator: 680.0,
+          backup_main: 144.0,
+          backup_separator: 324.0,
+          width: 1920.0,
+          label: 'restored preferred positions'
+        )
+      end
+
+      assert_includes error.message, 'main outside healthy startup zone'
+    end
+  end
+
+  def test_startup_layout_probe_rejects_reanchored_separator_when_lane_is_too_narrow
+    with_startup_layout_probe do |probe|
+      error = assert_raises(RuntimeError) do
+        probe.send(
+          :assert_restored_backup_pair!,
+          main: 144.0,
+          separator: 260.0,
+          backup_main: 144.0,
+          backup_separator: 400.0,
+          width: 1920.0,
+          label: 'restored preferred positions'
+        )
+      end
+
+      assert_includes error.message, 'visible lane too narrow after recovery'
+    end
+  end
+
+  def test_startup_layout_probe_reads_recovered_autosave_namespace
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'def preferred_position_keys(version = autosave_version)'
+    assert_includes source, 'main_key, separator_key = preferred_position_keys'
+    assert_includes source, 'restored_main_key, restored_separator_key = preferred_position_keys'
+    assert_includes source, 'replay_main_key, replay_separator_key = preferred_position_keys'
+  end
+
+  def test_startup_layout_probe_self_seeds_shared_fixture_candidates
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'ensure_preferred_always_hidden_replay_candidates!'
+    assert_includes source, "require_relative 'qa'"
+    assert_includes source, ':ensure_runtime_shared_bundle_fixture!'
+    assert_includes source, '::axid:com.sanebar.sharedfixture.'
+    refute_includes source, "item[:unique_id].to_s.include?('::statusItem:') }"
+  end
+
+  def test_startup_layout_probe_self_seeds_no_keychain_pro_runtime
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'ensure_pro_unlocked_for_always_hidden_moves!'
+    assert_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key', 'early-adopter')"
+    assert_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation'"
+    assert_includes source, '@force_no_keychain = true'
+    assert_includes source, '@probe_forced_no_keychain = true'
+    assert_includes source, 'restore_original_launch_mode!'
+    assert_includes source, 'return if no_keychain_env_requested?'
+    assert_match(
+      /Process\.spawn\(\s*\{\s*'SANEAPPS_DISABLE_KEYCHAIN' => '1',\s*AUTOMATION_QUIT_TOKEN_ENV => @automation_quit_token\s*\},\s*binary,\s*'--sane-no-keychain'/m,
+      source
+    )
+    assert_includes source, "AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'"
+    assert_includes source, 'write_automation_quit_marker!'
+    assert_includes source, "key = 'sane.no-keychain.com.sanebar.app.pro_license_key'"
+    assert_includes source, '"fallbackDefaults.#{key}=#{value}"'
   end
 
   def test_startup_layout_probe_waits_through_bounded_status_item_attachment_recovery
@@ -838,6 +1721,9 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, 'Startup probe requires cliclick on the Mini to prove passive recovery does not move the cursor'
     assert_includes source, 'Passive startup recovery moved cursor'
     assert_includes source, "completed_scenario: 'passive startup recovery did not physically move the cursor'"
+    assert_includes source, 'launched = false'
+    assert_includes source, 'if layout_snapshot_available?'
+    refute_includes source, 'raise "Timed out waiting for #{@app_name} launch" unless app_running? && layout_snapshot_available?'
   end
 
   def test_startup_layout_probe_covers_dirty_reboot_recovery_contract
@@ -874,9 +1760,14 @@ def test_startup_layout_probe_restores_state_before_marking_success
   def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions
     source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
 
-    assert_includes source, "wait_for_healthy_snapshot(label: 'hidden launch baseline')"
-    assert_includes source, "wait_for_healthy_snapshot(label: 'expanded launch baseline')"
-    assert_includes source, "wait_for_healthy_snapshot(label: 'hide-all-other seeded launch baseline')"
+    assert_includes source, "wait_for_configured_launch_baseline(label: 'hidden launch baseline', auto_rehide: true)"
+    assert_includes source, "wait_for_configured_launch_baseline(label: 'expanded launch baseline', auto_rehide: false)"
+    assert_includes source, "wait_for_configured_launch_baseline(label: 'hide-all-other seeded launch baseline', auto_rehide: true)"
+    assert_includes source, "'hasCompletedOnboarding' => true"
+    assert_includes source, "'hasSeenFreemiumIntro' => true"
+    assert_includes source, "'hasCompletedHealthWizard' => true"
+    assert_includes source, "'hideAllOtherMenuBarItems' => false"
+    assert_includes source, 'autoRehideEnabled did not match configured value'
     assert_includes source, "(!snapshot.key?('startupItemsValid') || truthy?(snapshot['startupItemsValid']))"
     assert_includes source, "!truthy?(snapshot['possibleSystemMenuBarSuppression'])"
     assert_includes source, 'SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS'
@@ -887,6 +1778,80 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, "completed_scenario: 'passive wake recovery did not physically move the cursor'"
   end
 
+  def test_wake_layout_probe_refuses_overlapping_runtime_target_lock
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    assert_includes source, "RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH']"
+    assert_includes source, "ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH']"
+    assert_includes source, "return nil if ENV['SANEBAR_RUNTIME_TARGET_LOCK_BYPASS'] == '1'"
+    assert_includes source, 'flock(File::LOCK_EX | File::LOCK_NB)'
+    assert_includes source, 'Wake layout probe refused to run because the SaneBar runtime target is locked'
+    assert_includes source, 'status = 75'
+    assert_includes source, 'WakeLayoutProbe.release_runtime_target_lock(runtime_lock)'
+    assert_includes source, '$stdout.flush'
+    assert_includes source, '$stderr.flush'
+    assert_includes source, 'exit!(status)'
+    assert_includes source, 'File::NOFOLLOW'
+    assert_includes source, 'File::EXCL'
+    assert_includes source, 'File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)'
+    assert_includes source, 'safe_write_file'
+    assert_includes source, 'cleanup_runtime_target_lock_file'
+    assert_includes source, 'runtime_target_lock_holder_detail'
+    assert_includes source, '@direct_launch_pids = []'
+    assert_includes source, '@direct_launch_pids << pid'
+    assert_includes source, 'reap_direct_launch_children!'
+    assert_includes source, 'Process.waitpid(pid, Process::WNOHANG)'
+    assert_includes source, 'CAPTURE_LOG_OUTPUT_MAX_BYTES'
+    assert_includes source, 'log_capture_output'
+    assert_includes source, 'truncated_log_output'
+    refute_includes source, 'Process.detach('
+    refute_includes source, '/tmp/sanebar_wake_probe_launch.log'
+  end
+
+  def test_wake_layout_probe_writes_fail_artifact_when_interrupted
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    assert_includes source, 'rescue SignalException => e'
+    assert_includes source, 'error: "Wake probe interrupted by #{e.class}: #{e.message}"'
+    assert_includes source, 'signal: e.signo'
+    assert_includes source, 'log("❌ Wake layout probe interrupted: #{e.class} #{e.message}")'
+  end
+
+  def test_wake_layout_probe_reseeds_required_visible_ids_before_wake
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    assert_includes source, 'seed_required_visible_ids!(missing_visible)'
+    assert_includes source, 'wait_for_required_visible_baseline!'
+    assert_includes source, 'seed_required_visible_ids!(non_visible)'
+    assert_includes source, 'def seed_required_visible_ids!'
+    assert_includes source, 'move icon to visible'
+    assert_includes source, 'Required visible seed failed'
+    assert_includes source, 'Required visible baseline inventory unavailable'
+    assert_includes source, 'zone_read_error'
+    assert_includes source, 'inventory unavailable while waiting'
+    assert_includes source, 'Hide-all-other seeded baseline did not settle before wake proof'
+    assert_operator source.scan('wait_for_hide_all_other_zone_settle!(seeded_visible_ids)').length, :>=, 2
+  end
+
+  def test_wake_layout_probe_capture_timeout_returns_failed_status
+    require_relative 'wake_layout_probe'
+
+    probe = WakeLayoutProbe.new
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    output, status = probe.send(
+      :capture,
+      '/bin/sh',
+      '-c',
+      'sleep 2',
+      timeout: 0.1
+    )
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    refute status.success?
+    assert_operator elapsed, :<, 2.0
+    assert_includes output, 'wake probe command timeout after 0.1s'
+  end
+
   def test_wake_layout_probe_quit_cleanup_scopes_to_staged_app_path
     source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
 
@@ -894,7 +1859,120 @@ def test_startup_layout_probe_restores_state_before_marking_success
     assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
     assert_includes source, "ps', '-axo', 'pid=,command='"
     refute_includes source, "pgrep', '-x', @app_name.to_s"
-    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid}'
+    assert_includes source, 'terminate_lingering_app_processes_until_gone!(timeout:'
+    assert_includes source, "signal: 'TERM'"
+    assert_includes source, "signal: 'KILL'"
+    assert_includes source, 'Process.kill(signal, pid)'
+    assert_includes source, 'Force terminating lingering #{@app_name} test process pid=#{pid} signal=#{signal}'
+  end
+
+  def test_wake_layout_probe_quit_escalates_after_failed_graceful_quit
+    require_relative 'wake_layout_probe'
+
+    probe = WakeLayoutProbe.new
+    failed = Object.new
+    failed.define_singleton_method(:success?) { false }
+    failed.define_singleton_method(:exitstatus) { 1 }
+    running = true
+    signals = []
+
+    probe.instance_variable_set(:@app_name, 'SaneBar')
+    probe.instance_variable_set(:@bundle_id, 'com.sanebar.app')
+    probe.define_singleton_method(:app_running?) { running }
+    probe.define_singleton_method(:capture) { |_cmd, *_args| ['User canceled', failed] }
+    probe.define_singleton_method(:graceful_quit_timeout_seconds) { |_status| 0.0 }
+    probe.define_singleton_method(:force_quit_timeout_seconds) { 0.0 }
+    probe.define_singleton_method(:terminate_lingering_app_processes_until_gone!) do |timeout:, signal:|
+      signals << [signal, timeout]
+      running = false if signal == 'TERM'
+    end
+    probe.define_singleton_method(:reap_direct_launch_children!) {}
+
+    probe.send(:quit_app)
+
+    assert_equal [['TERM', 0.0]], signals
+  end
+
+  def test_wake_layout_probe_marks_explicit_automation_quit_before_apple_event
+    require_relative 'wake_layout_probe'
+
+    Tempfile.create('sanebar-wake-quit-marker') do |file|
+      marker_path = file.path
+      File.unlink(marker_path)
+      old_marker = ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH']
+      ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] = marker_path
+
+      probe = WakeLayoutProbe.new
+      succeeded = Object.new
+      succeeded.define_singleton_method(:success?) { true }
+      succeeded.define_singleton_method(:exitstatus) { 0 }
+      running = true
+      marker_seen_during_quit = false
+
+      probe.instance_variable_set(:@app_name, 'SaneBar')
+      probe.instance_variable_set(:@bundle_id, 'com.sanebar.app')
+      probe.instance_variable_set(:@automation_quit_token, 'wake-token')
+      probe.define_singleton_method(:app_running?) { running }
+      probe.define_singleton_method(:capture) do |_cmd, *_args|
+        marker_seen_during_quit = File.read(marker_path).strip == 'wake-token'
+        running = false
+        ['', succeeded]
+      end
+      probe.define_singleton_method(:terminate_lingering_app_processes_until_gone!) { |timeout:, signal:| }
+      probe.define_singleton_method(:reap_direct_launch_children!) {}
+
+      probe.send(:quit_app)
+
+      assert marker_seen_during_quit
+      refute File.exist?(marker_path), 'Wake probe should remove its explicit quit marker after cleanup'
+    ensure
+      ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] = old_marker
+      FileUtils.rm_f(marker_path) if marker_path
+    end
+  end
+
+  def test_wake_layout_probe_settings_are_self_contained_post_onboarding
+    require_relative 'wake_layout_probe'
+
+    settings = WakeLayoutProbe.new.send(
+      :wake_probe_settings,
+      {
+        'autoRehide' => true,
+        'hasCompletedOnboarding' => false,
+        'hideAllOtherMenuBarItems' => true,
+        'hideAllOtherVisibleItemIds' => ['com.example'],
+        'alwaysHiddenPinnedItemIds' => ['com.example']
+      },
+      auto_rehide: false
+    )
+
+    assert_equal false, settings['autoRehide']
+    assert_equal true, settings['hasCompletedOnboarding']
+    assert_equal true, settings['hasSeenFreemiumIntro']
+    assert_equal true, settings['hasCompletedHealthWizard']
+    assert_equal false, settings['hideAllOtherMenuBarItems']
+    assert_empty settings['hideAllOtherVisibleItemIds']
+    assert_empty settings['alwaysHiddenPinnedItemIds']
+  end
+
+  def test_wake_layout_probe_uses_bounded_capture_for_probe_commands
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    refute_includes source, 'Open3.capture2e(*cmd)'
+    assert_includes source, 'Open3.popen2e(*cmd)'
+    assert_includes source, 'reader.report_on_exception = false'
+    assert_includes source, "ENV.fetch('SANEBAR_WAKE_PROBE_COMMAND_TIMEOUT_SECONDS', '8')"
+    assert_includes source, 'wake probe command timeout after'
+    assert_includes source, "Process.kill('TERM', pid)"
+  end
+
+  def test_wake_layout_probe_retries_blank_icon_zone_inventory
+    source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
+
+    assert_includes source, 'def parse_icon_zone_rows(raw)'
+    assert_includes source, 'deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS'
+    assert_includes source, 'list authoritative icon zones returned no parseable rows; retrying within settle window'
+    assert_includes source, 'raise "list authoritative icon zones returned no parseable rows: #{raw.inspect}"'
   end
 
   def test_runtime_smoke_filters_always_hidden_required_ids_when_runtime_is_not_pro
@@ -1067,6 +2145,8 @@ end
 
 def test_representative_runtime_smoke_excludes_volatile_swiftbar_fixture_from_move_candidates
   target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_fixture_running?) { false }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_external_running?) { false }
   @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
     [
       {
@@ -1084,6 +2164,127 @@ def test_representative_runtime_smoke_excludes_volatile_swiftbar_fixture_from_mo
   assert_empty candidates
 end
 
+def test_representative_runtime_smoke_accepts_owned_visible_dynamic_fixture
+  target = { app_path: '/Applications/SaneBar.app' }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_fixture_running?) { true }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_external_running?) { false }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) do |_target|
+    [
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.ameba.SwiftBar',
+        unique_id: 'com.ameba.SwiftBar::statusItem:0',
+        name: 'SwiftBar dynamic counter'
+      }
+    ]
+  end
+
+  candidates = @qa.send(:runtime_smoke_representative_zone_candidates, target)
+
+  assert_equal ['com.ameba.SwiftBar::statusItem:0'], candidates.map { |item| item[:unique_id] }
+end
+
+def test_visible_dynamic_helper_wake_fixture_moves_owned_fixture_to_visible_before_probe
+  target = { app_path: '/Applications/SaneBar.app' }
+  fixture_id = 'com.ameba.SwiftBar::statusItem:0'
+  zones = [
+    {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.ameba.SwiftBar',
+      unique_id: fixture_id,
+      name: 'SwiftBar dynamic counter'
+    }
+  ]
+  move_calls = []
+  successful_status = Class.new do
+    def success?
+      true
+    end
+  end.new
+
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_external_running?) { false }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_fixture_running?) { true }
+  @qa.define_singleton_method(:wait_for_runtime_visible_dynamic_helper_fixture_ids) do |_target, fixture_log|
+    fixture_log << "resolved_ids=#{fixture_id}"
+    [fixture_id]
+  end
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+  @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, identifier|
+    move_calls << [command, identifier]
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.ameba.SwiftBar',
+        unique_id: fixture_id,
+        name: 'SwiftBar dynamic counter'
+      }
+    ]
+    ["true\n", successful_status]
+  end
+
+  ids = @qa.send(:ensure_runtime_visible_dynamic_helper_wake_fixture!, target)
+
+  assert_equal [fixture_id], ids
+  assert_equal [['move icon to visible', fixture_id]], move_calls
+end
+
+def test_visible_dynamic_helper_wake_fixture_retries_failed_visible_move
+  target = { app_path: '/Applications/SaneBar.app' }
+  fixture_id = 'com.ameba.SwiftBar::statusItem:0'
+  zones = [
+    {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.ameba.SwiftBar',
+      unique_id: fixture_id,
+      name: 'SwiftBar dynamic counter'
+    }
+  ]
+  move_calls = []
+  status_class = Class.new do
+    def initialize(success)
+      @success = success
+    end
+
+    def success?
+      @success
+    end
+  end
+
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_external_running?) { false }
+  @qa.define_singleton_method(:runtime_visible_dynamic_helper_fixture_running?) { true }
+  @qa.define_singleton_method(:wait_for_runtime_visible_dynamic_helper_fixture_ids) { |_target, _fixture_log| [fixture_id] }
+  @qa.define_singleton_method(:runtime_smoke_list_icon_zones) { |_target| zones }
+  @qa.define_singleton_method(:runtime_smoke_move_icon) do |_target, command, identifier|
+    move_calls << [command, identifier]
+    if move_calls.length == 1
+      ["failed\n", status_class.new(false)]
+    else
+      zones = [
+        {
+          zone: 'visible',
+          movable: true,
+          bundle: 'com.ameba.SwiftBar',
+          unique_id: fixture_id,
+          name: 'SwiftBar dynamic counter'
+        }
+      ]
+      ["true\n", status_class.new(true)]
+    end
+  end
+
+  ids = @qa.send(:ensure_runtime_visible_dynamic_helper_wake_fixture!, target)
+
+  assert_equal [fixture_id], ids
+  assert_equal(
+    [['move icon to visible', fixture_id], ['move icon to visible', fixture_id]],
+    move_calls
+  )
+end
+
 def test_shared_bundle_runtime_smoke_accepts_deterministic_fixture_cluster
   target = { app_path: '/Applications/SaneBar.app' }
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
@@ -1093,13 +2294,13 @@ def test_shared_bundle_runtime_smoke_accepts_deterministic_fixture_cluster
         zone: 'hidden',
         movable: true,
         bundle: 'com.sanebar.sharedfixture',
-        unique_id: 'com.sanebar.sharedfixture::statusItem:1'
+        unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
       },
       {
         zone: 'hidden',
         movable: true,
         bundle: 'com.sanebar.sharedfixture',
-        unique_id: 'com.sanebar.sharedfixture::statusItem:0'
+        unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A'
       }
     ]
   end
@@ -1108,14 +2309,14 @@ def test_shared_bundle_runtime_smoke_accepts_deterministic_fixture_cluster
     :runtime_smoke_available_shared_bundle_candidate_ids,
     target,
     required_ids: [
-      'com.sanebar.sharedfixture::statusItem:0',
-      'com.sanebar.sharedfixture::statusItem:1'
+      'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+      'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
     ]
   )
 
   assert_equal [
-    'com.sanebar.sharedfixture::statusItem:0',
-    'com.sanebar.sharedfixture::statusItem:1'
+    'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+    'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
   ], ids
 end
 
@@ -1124,7 +2325,7 @@ end
 
     assert_includes source, 'set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)'
     assert_includes source, 'using terms from application id "#{expected_bundle_id}"'
-    assert_includes source, "tell application appTarget to list icon zones"
+    assert_includes source, "tell application appTarget to list authoritative icon zones"
   end
 
   def test_runtime_smoke_tracks_native_apple_and_host_exact_id_lanes
@@ -1197,23 +2398,83 @@ end
     assert_includes lines, 'candidate_app_build=2162'
   end
 
-  def test_shared_bundle_exact_id_smoke_launches_fixture_instead_of_skipping
-    source = qa_source
+def test_shared_bundle_exact_id_smoke_launches_fixture_instead_of_skipping
+  source = qa_source
 
-    assert_includes source, 'shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)'
-    assert_includes source, 'Shared-bundle move regressions are release-blocking'
-    refute_includes source, 'shared-bundle focused smoke skipped'
-  end
+  assert_includes source, 'shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)'
+  assert_includes source, 'Runtime smoke had no deterministic shared-bundle exact-id fixture candidates'
+  assert_includes source, 'requiredIds: RUNTIME_SHARED_BUNDLE_FIXTURE_IDS'
+  assert_includes source, 'Shared-bundle move regressions are release-blocking'
+  refute_includes source, 'required_ids: RUNTIME_SHARED_BUNDLE_IDS'
+  refute_includes source, 'requiredIds: RUNTIME_SHARED_BUNDLE_IDS'
+  refute_includes source, 'shared-bundle focused smoke skipped'
+end
 
-  def test_focused_exact_id_runtime_smoke_uses_move_only_no_keychain_guard
-    source = qa_source
+def test_runtime_fixture_inventory_uses_bounded_applescript_refresh
+  source = qa_source
+
+  assert_includes source, 'def capture2e_with_runtime_timeout(*cmd, timeout:, label:)'
+  assert_includes source, 'capture2e_with_runtime_timeout('
+  assert_includes source, 'tell #{script_target} to list authoritative icon zones'
+  assert_includes source, 'timeout: 8'
+  assert_includes source, "label: 'AppleScript inventory'"
+  assert_includes source, "label: 'AppleScript icon-zone list'"
+  assert_includes source, 'label: "AppleScript icon move #{command}"'
+  assert_includes source, "label: 'AppleScript dark-mode read'"
+  assert_includes source, "label: 'AppleScript dark-mode write'"
+  assert_includes source, 'terminate_runtime_command_child(wait_thr)'
+  assert_includes source, 'Open3.popen2e(*cmd, pgroup: true)'
+  assert_includes source, 'max_drain_seconds: 0.4'
+  assert_includes source, "Process.kill('TERM', -wait_thr.pid)"
+  assert_includes source, "Process.kill('KILL', -wait_thr.pid)"
+  refute_includes source, 'def capture2e_with_runtime_inventory_timeout'
+  refute_includes source, 'terminate_runtime_inventory_child'
+  refute_includes source, 'Open3.capture2e(\'/usr/bin/osascript\', \'-e\', "tell #{script_target} to list authoritative icon zones")'
+  refute_includes source, "Open3.capture2e('/usr/bin/osascript', '-e', script)"
+  refute_includes source, 'loop { output << normalize_output_chunk(stdout_err.read_nonblock(4096)) }'
+end
+
+def test_runtime_timeout_helper_returns_failed_status_on_timeout
+  output, status = @qa.send(
+    :capture2e_with_runtime_timeout,
+    '/bin/sh',
+    '-c',
+    'sleep 2',
+    timeout: 0.1,
+    label: 'test command'
+  )
+
+  refute status.success?
+  assert_includes output, 'test command timeout after 0.1s'
+end
+
+def test_runtime_timeout_helper_interrupts_chatty_output
+  started_at = Time.now
+  output, status = @qa.send(
+    :capture2e_with_runtime_timeout,
+    '/bin/sh',
+    '-c',
+    'while true; do printf x; sleep 0.01; done',
+    timeout: 0.2,
+    label: 'chatty command'
+  )
+
+  elapsed = Time.now - started_at
+  refute status.success?
+  assert_includes output, 'chatty command timeout after 0.2s'
+  assert_operator elapsed, :<, 2.0
+end
+
+def test_focused_exact_id_runtime_smoke_uses_move_only_no_keychain_guard
+  source = qa_source
 
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => target[:no_keychain] ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
+    refute_includes source, "else\n      focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'"
-    assert_includes source, "focused_env['SANEBAR_SMOKE_MIN_PASSING_CANDIDATES'] = '1' if lane_name == 'shared-bundle'"
-    assert_includes source, 'com.sanebar.sharedfixture::statusItem:2'
+    refute_includes source, "SANEBAR_SMOKE_MIN_PASSING_CANDIDATES"
+    assert_includes source, 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C'
   end
 
   def test_live_zone_smoke_second_menu_bar_prefers_precise_non_apple_candidates

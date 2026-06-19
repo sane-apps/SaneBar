@@ -126,6 +126,12 @@ final class MenuBarMoveTargetResolver {
                 return (nil, nil)
             }
         }
+        if toHidden,
+           separatorOverrideX == nil,
+           manager.geometryResolver.currentLiveSeparatorFrame() == nil {
+            logger.error("Hidden move target resolution failed without live separator geometry")
+            return (nil, nil)
+        }
         if !toHidden, manager.geometryResolver.currentLiveSeparatorFrame() == nil {
             logger.error("Visible move target resolution failed without live separator geometry")
             return (nil, nil)

@@ -36,6 +36,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var screensDidWakeObserver: Any?
     private var sessionDidBecomeActiveObserver: Any?
     private var pendingOverlayRefreshWorkItems: [DispatchWorkItem] = []
+    private var pendingPostSuppressionValidationWorkItem: DispatchWorkItem?
+    private var lastOverlaySuppressionReason: OverlaySuppressionReason?
     private var visibilityReconciliationTimer: Timer?
 
     // MARK: - Initialization
@@ -79,6 +81,8 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             sessionDidBecomeActiveObserver = nil
         }
         cancelPendingOverlayVisibilityRefreshes()
+        pendingPostSuppressionValidationWorkItem?.cancel()
+        pendingPostSuppressionValidationWorkItem = nil
         stopVisibilityReconciliationTimer()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
@@ -219,7 +223,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
 
         let frontmostApp = NSWorkspace.shared.frontmostApplication
         let frontmostHasFullscreenAXWindow = frontmostApp.map {
-            Self.applicationHasFullscreenAXWindow(processIdentifier: $0.processIdentifier)
+            MenuBarAppearanceSuppressionPolicy.applicationHasFullscreenAXWindow(processIdentifier: $0.processIdentifier)
         } ?? false
         let suppressionReason = Self.overlaySuppressionReason(
             frontmostPID: frontmostApp?.processIdentifier,
@@ -229,6 +233,15 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             targetScreenFrame: preferredMenuBarScreen()?.frame,
             windowInfos: currentWindowInfos()
         )
+        let previousSuppressionReason = lastOverlaySuppressionReason
+        lastOverlaySuppressionReason = suppressionReason
+
+        if Self.shouldValidateStatusItemsAfterOverlaySuppression(
+            previousReason: previousSuppressionReason,
+            currentReason: suppressionReason
+        ) {
+            schedulePostOverlaySuppressionStatusItemValidation(endedReason: previousSuppressionReason)
+        }
 
         if suppressionReason != nil {
             logger.debug("Suppressing menu bar appearance overlay: \(String(describing: suppressionReason), privacy: .public)")
@@ -255,6 +268,33 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             pendingOverlayRefreshWorkItems.append(workItem)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
+    }
+
+    private func schedulePostOverlaySuppressionStatusItemValidation(
+        endedReason: OverlaySuppressionReason?
+    ) {
+        pendingPostSuppressionValidationWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard self != nil else { return }
+                let manager = MenuBarManager.shared
+                guard manager.hidingState == .hidden else { return }
+
+                manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "fullscreenSuppressionEnded")
+                manager.schedulePositionValidation(context: .activeSpaceChanged)
+                manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "fullscreenSuppressionEnded")
+                logger.debug(
+                    "Scheduled status-item validation after overlay suppression ended (\(String(describing: endedReason), privacy: .public))"
+                )
+            }
+        }
+
+        pendingPostSuppressionValidationWorkItem = workItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.postOverlaySuppressionStatusItemValidationDelay,
+            execute: workItem
+        )
     }
 
     private func cancelPendingOverlayVisibilityRefreshes() {
@@ -287,6 +327,9 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     ]
 
     internal nonisolated static let overlayVisibilityReconciliationInterval: TimeInterval = 0.5
+    internal nonisolated static let postOverlaySuppressionStatusItemValidationDelay: TimeInterval = 0.75
+
+    internal typealias OverlaySuppressionReason = MenuBarAppearanceSuppressionPolicy.OverlaySuppressionReason
 
     private func currentWindowInfos() -> [[String: Any]] {
         (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
@@ -301,7 +344,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         windowInfos: [[String: Any]],
         selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
     ) -> Bool {
-        overlaySuppressionReason(
+        return MenuBarAppearanceSuppressionPolicy.shouldSuppressOverlay(
             frontmostPID: frontmostPID,
             frontmostBundleID: frontmostBundleID,
             frontmostIsAccessoryApp: frontmostIsAccessoryApp,
@@ -309,13 +352,14 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             targetScreenFrame: targetScreenFrame,
             windowInfos: windowInfos,
             selfPID: selfPID
-        ) != nil
+        )
     }
 
-    internal enum OverlaySuppressionReason: Equatable {
-        case fullscreenContentWindow
-        case systemSpaceControl
-        case thinTopHost
+    internal nonisolated static func shouldValidateStatusItemsAfterOverlaySuppression(
+        previousReason: OverlaySuppressionReason?,
+        currentReason: OverlaySuppressionReason?
+    ) -> Bool {
+        previousReason != nil && currentReason == nil
     }
 
     internal nonisolated static func overlaySuppressionReason(
@@ -327,204 +371,15 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         windowInfos: [[String: Any]],
         selfPID: pid_t = ProcessInfo.processInfo.processIdentifier
     ) -> OverlaySuppressionReason? {
-        guard let frontmostPID,
-              let bundleID = frontmostBundleID else {
-            return nil
-        }
-
-        guard frontmostPID != selfPID else { return nil }
-        if frontmostHasFullscreenAXWindow && !frontmostIsAccessoryApp {
-            return .fullscreenContentWindow
-        }
-        guard let targetScreenFrame else { return nil }
-
-        func number(_ value: Any?) -> CGFloat? {
-            switch value {
-            case let number as NSNumber:
-                return CGFloat(truncating: number)
-            case let value as CGFloat:
-                return value
-            case let value as Double:
-                return value
-            case let value as Int:
-                return CGFloat(value)
-            default:
-                return nil
-            }
-        }
-
-        func bool(_ value: Any?) -> Bool? {
-            switch value {
-            case let number as NSNumber:
-                return number.boolValue
-            case let value as Bool:
-                return value
-            default:
-                return nil
-            }
-        }
-
-        let targetFrame = targetScreenFrame.standardized
-        let minimumCoveredWidth = targetFrame.width * 0.97
-        let maximumHorizontalDrift: CGFloat = 8
-        let maximumTopDrift: CGFloat = 8
-        let maximumFullscreenMenuBarOffset: CGFloat = 48
-        let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
-
-        func isSystemSpaceControlWindow(_ info: [String: Any]) -> Bool {
-            guard bundleID == "com.apple.dock" else { return false }
-            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
-            let ownerPID = pid_t(ownerPIDValue.intValue)
-            guard ownerPID == frontmostPID else { return false }
-
-            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
-                  let x = number(bounds["X"]),
-                  let y = number(bounds["Y"]),
-                  let width = number(bounds["Width"]),
-                  let height = number(bounds["Height"]) else {
-                return false
-            }
-
-            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            let coveredRect = rect.intersection(targetFrame)
-            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
-            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
-            guard isOnscreen, alpha > 0 else { return false }
-            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { return false }
-            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { return false }
-            guard coveredRect.width >= minimumCoveredWidth else { return false }
-            return coveredRect.height >= targetFrame.height * 0.6
-        }
-
-        func isCompanionContentWindow(_ info: [String: Any], excluding thinRect: CGRect) -> Bool {
-            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
-            let ownerPID = pid_t(ownerPIDValue.intValue)
-            guard ownerPID == frontmostPID else { return false }
-
-            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
-                  let x = number(bounds["X"]),
-                  let y = number(bounds["Y"]),
-                  let width = number(bounds["Width"]),
-                  let height = number(bounds["Height"]) else {
-                return false
-            }
-
-            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            guard rect != thinRect else { return false }
-            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
-            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
-            let layer = number(info[kCGWindowLayer as String]) ?? 0
-            guard isOnscreen else { return false }
-            guard alpha > 0 else { return false }
-            guard layer == 0 else { return false }
-
-            let coveredRect = rect.intersection(targetFrame)
-            guard coveredRect.width >= targetFrame.width * 0.25 else { return false }
-            guard coveredRect.height >= 80 else { return false }
-            guard rect.minY >= targetFrame.minY + 20 || rect.height >= targetFrame.height * 0.5 else { return false }
-            return true
-        }
-
-        func isFullscreenTransitionTopHost(_ info: [String: Any]) -> Bool {
-            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
-            let ownerPID = pid_t(ownerPIDValue.intValue)
-            guard ownerPID == frontmostPID else { return false }
-
-            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
-                  let x = number(bounds["X"]),
-                  let y = number(bounds["Y"]),
-                  let width = number(bounds["Width"]),
-                  let height = number(bounds["Height"]) else {
-                return false
-            }
-
-            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            let coveredRect = rect.intersection(targetFrame)
-            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
-            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
-            let layer = number(info[kCGWindowLayer as String]) ?? 0
-            guard isOnscreen else { return false }
-            guard alpha <= 0.01 else { return false }
-            guard layer > 0 else { return false }
-            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { return false }
-            guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { return false }
-            guard coveredRect.width >= minimumCoveredWidth else { return false }
-            return height >= 40 && height <= 120
-        }
-
-        let hasFullscreenTransitionTopHost = windowInfos.contains(where: isFullscreenTransitionTopHost)
-        if windowInfos.contains(where: isSystemSpaceControlWindow) {
-            return .systemSpaceControl
-        }
-
-        for info in windowInfos {
-            guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { continue }
-            let ownerPID = pid_t(ownerPIDValue.intValue)
-            guard ownerPID == frontmostPID else { continue }
-
-            guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
-                  let x = number(bounds["X"]),
-                  let y = number(bounds["Y"]),
-                  let width = number(bounds["Width"]),
-                  let height = number(bounds["Height"]) else {
-                continue
-            }
-
-            let rect = CGRect(x: x, y: y, width: width, height: height).standardized
-            let coveredRect = rect.intersection(targetFrame)
-            let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
-            let alpha = number(info[kCGWindowAlpha as String]) ?? 1
-            let layer = number(info[kCGWindowLayer as String]) ?? 0
-            guard isOnscreen, alpha > 0 else { continue }
-
-            guard layer == 0 else { continue }
-            guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { continue }
-            // Fullscreen content can sit either at the very top of the screen
-            // or offset just below a transparent fullscreen-transition top host
-            // (e.g. Safari fullscreen leaves its content at y = menu bar height).
-            let isTopAligned = abs(rect.minY - targetFrame.minY) <= maximumTopDrift
-            let isMenuBarOffset = hasFullscreenTransitionTopHost &&
-                rect.minY >= targetFrame.minY &&
-                rect.minY <= targetFrame.minY + maximumFullscreenMenuBarOffset
-            guard isTopAligned || isMenuBarOffset else { continue }
-            let isTopAlignedFullscreen = isTopAligned &&
-                coveredRect.height >= targetFrame.height * 0.9
-            let isMenuBarOffsetFullscreen = isMenuBarOffset &&
-                coveredRect.height >= targetFrame.height * 0.85
-            if !frontmostIsAccessoryApp,
-               coveredRect.width >= minimumCoveredWidth,
-               isTopAlignedFullscreen || isMenuBarOffsetFullscreen {
-                return .fullscreenContentWindow
-            }
-            guard suppressThinTopHost, isTopAligned else { continue }
-            guard height >= 20, height <= 26 else { continue }
-            guard coveredRect.width >= minimumCoveredWidth else { continue }
-            guard !windowInfos.contains(where: { isCompanionContentWindow($0, excluding: rect) }) else { continue }
-            return .thinTopHost
-        }
-
-        return nil
-    }
-
-    private nonisolated static func applicationHasFullscreenAXWindow(processIdentifier: pid_t) -> Bool {
-        let appElement = AXUIElementCreateApplication(processIdentifier)
-        var rawWindows: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &rawWindows) == .success,
-              let windows = rawWindows as? [AXUIElement] else {
-            return false
-        }
-
-        for window in windows {
-            var rawFullscreen: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &rawFullscreen) == .success else {
-                continue
-            }
-            if let isFullscreen = rawFullscreen as? Bool, isFullscreen {
-                return true
-            }
-        }
-
-        return false
+        MenuBarAppearanceSuppressionPolicy.overlaySuppressionReason(
+            frontmostPID: frontmostPID,
+            frontmostBundleID: frontmostBundleID,
+            frontmostIsAccessoryApp: frontmostIsAccessoryApp,
+            frontmostHasFullscreenAXWindow: frontmostHasFullscreenAXWindow,
+            targetScreenFrame: targetScreenFrame,
+            windowInfos: windowInfos,
+            selfPID: selfPID
+        )
     }
 
     private func applyResolvedAppearance() {

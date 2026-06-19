@@ -265,9 +265,14 @@ enum StatusBarPositionStore {
         guard screenWidth > 0 else { return 120.0 }
         // Recovery is allowed to move SaneBar back beside Control Center, but it
         // must not collapse the user's visible lane so far that leftmost shown
-        // items wake up hidden. Keep a moderate lane on external displays while
-        // bounding it on smaller screens.
-        return min(240.0, max(180.0, screenWidth * 0.09))
+        // items wake up hidden. macOS can canonicalize preferred-position
+        // values after status item creation, so leave enough extra gap that the
+        // live lane remains usable after that rewrite.
+        if screenWidth >= 1_800 {
+            return min(260.0, max(220.0, screenWidth * 0.10))
+        }
+
+        return min(220.0, max(160.0, screenWidth * 0.09))
     }
 
     nonisolated static func migratedLegacyNarrowRecoveryPair(
@@ -519,84 +524,11 @@ enum StatusBarPositionStore {
         mainPosition overrideMainPosition: Double? = nil,
         separatorPosition overrideSeparatorPosition: Double? = nil
     ) -> Bool {
-        guard let resolvedReferenceScreen = Self.resolvedReferenceScreen(referenceScreen) else { return false }
-        let currentWidth = resolvedReferenceScreen.frame.width
-        let currentScreenHasTopSafeAreaInset = screenHasTopSafeAreaInset(resolvedReferenceScreen)
-        let persistedMainPosition = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: mainAutosaveName)
-        let persistedSeparatorPosition = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
-        let hasExplicitOverride = overrideMainPosition != nil || overrideSeparatorPosition != nil
-        let overridePairCanSeedBackup = canSeedCurrentDisplayBackup(
+        StatusBarPositionBackupCaptureStore.captureCurrentDisplayPositionBackupIfPossible(
+            referenceScreen: referenceScreen,
             mainPosition: overrideMainPosition,
-            separatorPosition: overrideSeparatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
+            separatorPosition: overrideSeparatorPosition
         )
-        let persistedPairCanSeedBackup = canSeedCurrentDisplayBackup(
-            mainPosition: persistedMainPosition,
-            separatorPosition: persistedSeparatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        )
-        let shouldIgnoreOverridePair = hasExplicitOverride && !overridePairCanSeedBackup && persistedPairCanSeedBackup
-        let mainPosition = shouldIgnoreOverridePair ? persistedMainPosition : (overrideMainPosition ?? persistedMainPosition)
-        let separatorPosition = shouldIgnoreOverridePair ? persistedSeparatorPosition : (overrideSeparatorPosition ?? persistedSeparatorPosition)
-
-        if shouldIgnoreOverridePair {
-            logger.warning(
-                "Display validation: ignoring invalid override positions during current-width backup capture (main=\(overrideMainPosition ?? -1, privacy: .public), separator=\(overrideSeparatorPosition ?? -1, privacy: .public))"
-            )
-        }
-
-        if isLaunchSafeDisplayBackup(
-            mainBackup: mainPosition,
-            separatorBackup: separatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            saveDisplayPositionBackupIfNeeded(
-                for: currentWidth,
-                mainPosition: mainPosition,
-                separatorPosition: separatorPosition,
-                referenceScreen: referenceScreen
-            )
-            return true
-        }
-
-        if let reanchored = reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            setDisplayPositionBackup(
-                for: currentWidth,
-                mainPosition: reanchored.main,
-                separatorPosition: reanchored.separator,
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.info(
-                "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
-            )
-            return true
-        }
-
-        if let recoveryPair = launchSafeCurrentDisplayRecoveryPair(
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            setDisplayPositionBackup(
-                for: currentWidth,
-                mainPosition: recoveryPair.main,
-                separatorPosition: recoveryPair.separator,
-                referenceScreen: resolvedReferenceScreen
-            )
-            logger.info(
-                "Display validation: captured launch-safe current-width backup from clean startup state (main=\(recoveryPair.main, privacy: .public), separator=\(recoveryPair.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
-            )
-            return true
-        }
-
-        return hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: referenceScreen)
     }
 
     static func reanchorCurrentDisplayPositionsIfNeeded(for width: Double, referenceScreen: NSScreen? = nil) -> Bool {

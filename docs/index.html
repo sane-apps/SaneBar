@@ -802,6 +802,47 @@
             color: var(--text-muted);
         }
 
+        .setapp-availability {
+            max-width: 700px;
+            margin: calc(-1 * var(--phi-lg)) auto var(--phi-lg);
+            padding: var(--phi-sm) var(--phi-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--phi-md);
+            border: 1px solid rgba(92, 232, 255, 0.22);
+            border-radius: 12px;
+            background: rgba(7, 14, 28, 0.72);
+        }
+
+        .setapp-availability p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .setapp-availability strong {
+            color: var(--text-primary);
+        }
+
+        .setapp-link {
+            flex-shrink: 0;
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(92, 232, 255, 0.35);
+            background: rgba(92, 232, 255, 0.12);
+        }
+
+        .setapp-link:hover {
+            background: rgba(92, 232, 255, 0.18);
+            border-color: rgba(92, 232, 255, 0.55);
+        }
+
         @media (max-width: 768px) {
             .hero-pricing-grid {
                 grid-template-columns: 1fr;
@@ -815,6 +856,18 @@
 
             .pricing-price {
                 font-size: 2rem;
+            }
+
+            .setapp-availability {
+                max-width: 340px;
+                margin-top: calc(-1 * var(--phi-md));
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .setapp-link {
+                text-align: center;
             }
 
             .hero-pricing-footer {
@@ -2387,6 +2440,10 @@
                     </ul>
                     <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" class="pricing-cta pricing-cta-pro" data-cta="buy_pro">Buy Pro</a>
                 </div>
+            </div>
+            <div class="setapp-availability animate-in delay-4">
+                <p><strong>Prefer Setapp?</strong> SaneBar is also available there for private menu bar control with Touch ID.</p>
+                <a href="https://setapp.com/apps/sanebar" class="setapp-link" data-cta="setapp_sanebar" target="_blank" rel="noopener">Get SaneBar on Setapp</a>
             </div>
             <p class="animate-in delay-4 hero-pricing-footer" style="color: var(--text-muted); font-size: 0.85rem; margin-top: var(--phi-sm);"><code style="background: var(--bg-card); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;" onclick="copyToClipboard(this)" title="Click to copy">brew install --cask sane-apps/tap/sanebar</code></p>
             <div class="animate-in delay-4" style="max-width: 780px; margin: 22px auto 0; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: rgba(92, 232, 255, 0.08); text-align: center;">

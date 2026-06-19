@@ -74,6 +74,61 @@ struct MenuBarManagerRehideStartupTests {
         )
     }
 
+    @Test("App activation validation runs only for hidden external app switches")
+    func appActivationStatusValidationDecisionMatrix() {
+        let ownBundleID = "com.sanebar.app"
+
+        #expect(
+            MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.Safari",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+                hidingState: .expanded,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.Safari",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: true,
+                activatedBundleID: "com.apple.Safari",
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                isBrowseSessionActive: false,
+                activatedBundleID: ownBundleID,
+                ownBundleID: ownBundleID
+            )
+        )
+
+        #expect(
+            !MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: true,
+                isBrowseSessionActive: false,
+                activatedBundleID: "com.apple.Safari",
+                ownBundleID: ownBundleID
+            )
+        )
+    }
+
     @Test("Mouse-location helper only treats below-strip hover as an interaction")
     func mouseLocationRehideInteractionPolicy() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)

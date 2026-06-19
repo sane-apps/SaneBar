@@ -402,6 +402,47 @@ struct MenuBarAppearanceSuppressionTests {
         )
     }
 
+    @Test("Appearance overlay stays visible for Safari maximized below menu bar with Dock gap")
+    func testDoesNotSuppressSafariDesktopMaximizedWindowWithTransparentTopHost() {
+        let infos: [[String: Any]] = [
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 26),
+                kCGWindowAlpha as String: NSNumber(value: 0),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 0),
+                    "Width": NSNumber(value: 1920),
+                    "Height": NSNumber(value: 85)
+                ]
+            ],
+            [
+                kCGWindowOwnerPID as String: NSNumber(value: 5151),
+                kCGWindowLayer as String: NSNumber(value: 0),
+                kCGWindowAlpha as String: NSNumber(value: 1),
+                kCGWindowIsOnscreen as String: NSNumber(value: true),
+                kCGWindowBounds as String: [
+                    "X": NSNumber(value: 0),
+                    "Y": NSNumber(value: 31),
+                    "Width": NSNumber(value: 1920),
+                    "Height": NSNumber(value: 959)
+                ]
+            ]
+        ]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 5151,
+                frontmostBundleID: "com.apple.Safari",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil,
+            "A normal maximized Safari window below the menu bar leaves enough desktop/Dock gap that it must not be treated as fullscreen"
+        )
+    }
+
     @Test("Appearance overlay does not suppress for wide titlebar windows")
     func testDoesNotSuppressOverlayForWideTopAlignedWindow() {
         let infos: [[String: Any]] = [[

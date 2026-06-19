@@ -199,7 +199,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "hover_auto_rehide",
             "license_clipboard_paste",
             "resource_soak_growth",
-            "at least 10m Mini soak sampled on the release candidate"
+            "adaptive Mini resource check passed for this release build"
         ] {
             XCTAssertTrue(contract.contains(marker), "Runtime matrix must include \(marker)")
         }

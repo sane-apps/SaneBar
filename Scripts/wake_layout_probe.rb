@@ -7,14 +7,19 @@ require 'fileutils'
 require 'tmpdir'
 require 'time'
 require 'set'
+require 'securerandom'
 
 class WakeLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+  RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH'] ||
+                             ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH'] ||
+                             '/tmp/sanebar_runtime_probe.lock'
   SNAPSHOT_DELAYS = [1.0, 5.0, 15.0].freeze
   SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0
   SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   HIDDEN_BASELINE_TIMEOUT_SECONDS = 45.0
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
+  CAPTURE_LOG_OUTPUT_MAX_BYTES = 16_000
   PARKED_CURSOR_X = 400.0
   PARKED_CURSOR_Y = 400.0
   PARKED_CURSOR_TOLERANCE = 3.0
@@ -22,6 +27,10 @@ class WakeLayoutProbe
   PARKED_CURSOR_SETTLE_POLL_SECONDS = 0.25
   REQUIRED_VISIBLE_ID_LIMIT = 6
   REQUIRED_HIDDEN_ID_LIMIT = 6
+  DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS = 3.0
+  DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS = 2.0
+  AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'
+  DEFAULT_AUTOMATION_QUIT_MARKER_PATH = '/tmp/sanebar_explicit_termination.token'
   BLOCKED_LOG_PATTERNS = [
     /Status item remained off-menu-bar/i,
     /Falling back to separator-only hidden move target without always-hidden boundary/i,
@@ -38,6 +47,136 @@ class WakeLayoutProbe
     /Display is turned off/i,
     /Display is turned on/i
   ].freeze
+
+  def self.acquire_runtime_target_lock
+    return nil if ENV['SANEBAR_RUNTIME_TARGET_LOCK_BYPASS'] == '1'
+
+    raise Errno::ELOOP if File.symlink?(RUNTIME_TARGET_LOCK_PATH)
+
+    2.times do
+      cleanup_runtime_target_lock_file
+      lock_file = publish_runtime_target_lock_file('wake-layout-probe')
+      return lock_file if lock_file
+    end
+
+    holder = runtime_target_lock_holder_detail
+    detail = holder.empty? ? '' : " (#{holder})"
+    warn "Wake layout probe refused to run because the SaneBar runtime target is locked#{detail}."
+    false
+  rescue Errno::ELOOP
+    warn "Wake layout probe refused to use unsafe symlink lock path: #{RUNTIME_TARGET_LOCK_PATH}"
+    false
+  end
+
+  def self.release_runtime_target_lock(lock_file)
+    return unless lock_file
+
+    begin
+      lock_file.flock(File::LOCK_UN)
+    rescue StandardError
+      nil
+    end
+    begin
+      lock_file.close unless lock_file.closed?
+    rescue StandardError
+      nil
+    end
+    cleanup_runtime_target_lock_file
+  end
+
+  def self.open_runtime_target_lock
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_open_flags, 0o600)
+  end
+
+  def self.publish_runtime_target_lock_file(command)
+    FileUtils.mkdir_p(File.dirname(RUNTIME_TARGET_LOCK_PATH))
+    temp_path = runtime_target_lock_temp_path
+    published = false
+    lock_file = File.open(temp_path, runtime_target_lock_publish_flags, 0o600)
+    lock_file.flock(File::LOCK_EX)
+    lock_file.write("pid=#{Process.pid} started=#{Time.now.utc.iso8601} command=#{command}\n")
+    lock_file.flush
+    File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)
+    published = true
+    lock_file
+  rescue Errno::EEXIST
+    nil
+  ensure
+    FileUtils.rm_f(temp_path) if temp_path && File.exist?(temp_path)
+    unless published
+      begin
+        lock_file&.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        lock_file&.close unless lock_file&.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def self.runtime_target_lock_temp_path
+    dir = File.dirname(RUNTIME_TARGET_LOCK_PATH)
+    base = File.basename(RUNTIME_TARGET_LOCK_PATH)
+    File.join(dir, ".#{base}.#{Process.pid}.#{rand(1_000_000)}.tmp")
+  end
+
+  def self.runtime_target_lock_publish_flags
+    flags = File::RDWR | File::CREAT | File::EXCL
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def self.runtime_target_lock_open_flags
+    flags = File::RDWR | File::CREAT
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def self.cleanup_runtime_target_lock_file
+    return unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    cleanup_lock = open_runtime_target_lock
+    return unless cleanup_lock
+
+    return unless cleanup_lock.flock(File::LOCK_EX | File::LOCK_NB)
+
+    FileUtils.rm_f(RUNTIME_TARGET_LOCK_PATH)
+  rescue Errno::ENOENT, Errno::ELOOP
+    nil
+  ensure
+    if cleanup_lock
+      begin
+        cleanup_lock.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        cleanup_lock.close unless cleanup_lock.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def self.runtime_target_lock_holder_detail
+    return '' unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_read_flags) do |file|
+      file.read.to_s.strip
+    end
+  rescue Errno::ENOENT
+    ''
+  end
+
+  def self.runtime_target_lock_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
   def initialize
     @app_path = ENV.fetch('SANEBAR_SMOKE_APP_PATH', '').strip
     @log_path = ENV.fetch('SANEBAR_WAKE_PROBE_LOG_PATH', '/tmp/sanebar_wake_layout_probe.log')
@@ -59,6 +198,8 @@ class WakeLayoutProbe
     @state_restored = false
     @visible_zone_proofs = []
     @hidden_zone_proofs = []
+    @direct_launch_pids = []
+    @automation_quit_token = nil
     @dynamic_helper_ids = ENV.fetch('SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS', '')
       .split(',')
       .map(&:strip)
@@ -82,6 +223,19 @@ class WakeLayoutProbe
     )
     puts "✅ Wake layout probe passed (#{@cases.map { |entry| entry[:name] }.join(', ')})"
     true
+  rescue SignalException => e
+    write_artifact!(
+      status: 'fail',
+      bundle_id: @bundle_id,
+      app_path: @app_path,
+      error: "Wake probe interrupted by #{e.class}: #{e.message}",
+      signal: e.signo,
+      backtrace: Array(e.backtrace).first(12),
+      cases: @cases
+    )
+    log("❌ Wake layout probe interrupted: #{e.class} #{e.message}")
+    warn "Wake probe interrupted by #{e.class}: #{e.message}"
+    false
   rescue StandardError => e
     write_artifact!(
       status: 'fail',
@@ -134,7 +288,7 @@ class WakeLayoutProbe
   def run_hidden_case
     configure_settings!(auto_rehide: true)
     launch_app
-    wait_for_healthy_snapshot(label: 'hidden launch baseline')
+    wait_for_configured_launch_baseline(label: 'hidden launch baseline', auto_rehide: true)
 
     app_script('hide items')
     baseline = wait_for_snapshot(label: 'hidden baseline', timeout: HIDDEN_BASELINE_TIMEOUT_SECONDS) do |snapshot|
@@ -149,6 +303,7 @@ class WakeLayoutProbe
       baseline = wait_for_snapshot(label: 'hidden seeded baseline', timeout: HIDDEN_BASELINE_TIMEOUT_SECONDS) do |snapshot|
         snapshot['hidingState'] == 'hidden' && snapshot_healthy?(snapshot)
       end
+      wait_for_hide_all_other_zone_settle!(seeded_visible_ids)
       visible_baseline = capture_visible_zone_baseline!(required_override: seeded_visible_ids)
     end
     hidden_baseline = capture_hidden_zone_baseline!
@@ -183,7 +338,7 @@ class WakeLayoutProbe
   def run_expanded_case
     configure_settings!(auto_rehide: false)
     launch_app
-    wait_for_healthy_snapshot(label: 'expanded launch baseline')
+    wait_for_configured_launch_baseline(label: 'expanded launch baseline', auto_rehide: false)
 
     app_script('show hidden')
     baseline = wait_for_snapshot(label: 'expanded baseline') do |snapshot|
@@ -214,11 +369,30 @@ class WakeLayoutProbe
   end
 
   def configure_settings!(auto_rehide:)
-    settings = load_settings_json
-    settings['autoRehide'] = auto_rehide
+    settings = wake_probe_settings(load_settings_json, auto_rehide: auto_rehide)
     quit_app
     save_settings_json(settings)
     log("Updated settings.json for wake probe: autoRehide=#{auto_rehide}")
+  end
+
+  def wake_probe_settings(settings, auto_rehide:)
+    settings.merge(
+      'hasCompletedOnboarding' => true,
+      'hasSeenFreemiumIntro' => true,
+      'hasCompletedHealthWizard' => true,
+      'autoRehide' => auto_rehide,
+      'showOnHover' => false,
+      'showOnScroll' => false,
+      'showOnClick' => false,
+      'showOnUserDrag' => false,
+      'rehideOnAppChange' => false,
+      'disableOnExternalMonitor' => false,
+      'hideApplicationMenusOnInlineReveal' => false,
+      'leftClickOpensBrowseIcons' => false,
+      'alwaysHiddenPinnedItemIds' => [],
+      'hideAllOtherMenuBarItems' => false,
+      'hideAllOtherVisibleItemIds' => []
+    )
   end
 
   def seed_hide_all_other_allowlist?
@@ -236,7 +410,7 @@ class WakeLayoutProbe
     save_settings_json(settings)
     log("Seeded hide-all-other visible allow-list for wake probe: #{required.join(', ')}")
     launch_app
-    wait_for_healthy_snapshot(label: 'hide-all-other seeded launch baseline')
+    wait_for_configured_launch_baseline(label: 'hide-all-other seeded launch baseline', auto_rehide: true)
     required
   end
 
@@ -264,16 +438,23 @@ class WakeLayoutProbe
   def wait_for_dynamic_helper_ids!
     deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS
     missing = @dynamic_helper_ids
+    last_error = nil
 
     while Time.now < deadline
-      by_id = icon_zone_lookup(read_icon_zones!)
-      missing = @dynamic_helper_ids.reject { |identifier| by_id.key?(identifier) }
-      return if missing.empty?
+      begin
+        by_id = icon_zone_lookup(read_icon_zones!)
+        missing = @dynamic_helper_ids.reject { |identifier| by_id.key?(identifier) }
+        return if missing.empty?
+      rescue StandardError => e
+        last_error = e.message
+        log("Dynamic helper icon-zone inventory unavailable while waiting: #{e.message}")
+      end
 
       sleep SNAPSHOT_SETTLE_POLL_SECONDS
     end
 
-    raise "Dynamic helper IDs did not appear before wake proof: #{missing.join(', ')}"
+    detail = last_error ? " last_inventory_error=#{last_error.inspect}" : ''
+    raise "Dynamic helper IDs did not appear before wake proof: #{missing.join(', ')}#{detail}"
   end
 
   def trigger_display_sleep_cycle!
@@ -370,6 +551,8 @@ class WakeLayoutProbe
         .compact
         .reject(&:empty?)
         .first(REQUIRED_VISIBLE_ID_LIMIT)
+    else
+      zones = wait_for_required_visible_baseline!(required, initial_zones: zones)
     end
     raise 'Wake visible-zone proof could not find any baseline visible IDs' if required.empty?
 
@@ -385,6 +568,34 @@ class WakeLayoutProbe
     proof
   end
 
+  def wait_for_required_visible_baseline!(required, initial_zones: nil)
+    deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS
+    zones = initial_zones
+    last_problem = nil
+
+    while Time.now < deadline
+      begin
+        zones ||= read_icon_zones!
+      rescue StandardError => e
+        last_problem = "zone_read_error:#{e.message}"
+        log("Required visible baseline inventory unavailable: #{e.message}")
+        sleep SNAPSHOT_SETTLE_POLL_SECONDS
+        next
+      end
+
+      by_id = icon_zone_lookup(zones)
+      non_visible = required.select { |identifier| by_id[identifier].nil? || by_id[identifier][:zone] != 'visible' }
+      return zones if non_visible.empty?
+
+      seed_required_visible_ids!(non_visible)
+      last_problem = non_visible.join(', ')
+      zones = nil
+      sleep SNAPSHOT_SETTLE_POLL_SECONDS
+    end
+
+    raise "Wake visible-zone proof required IDs are not visible at baseline: #{last_problem}"
+  end
+
   def wait_for_hide_all_other_zone_settle!(visible_ids)
     required = Array(visible_ids).map(&:to_s).reject(&:empty?)
     allowed = required.to_set
@@ -392,7 +603,14 @@ class WakeLayoutProbe
     last_problem = nil
 
     while Time.now < deadline
-      zones = read_icon_zones!
+      begin
+        zones = read_icon_zones!
+      rescue StandardError => e
+        last_problem = { zone_read_error: e.message }
+        log("Hide-all-other zone settle inventory unavailable: #{e.message}")
+        sleep SNAPSHOT_SETTLE_POLL_SECONDS
+        next
+      end
       by_id = icon_zone_lookup(zones)
       missing_visible = required.select { |identifier| by_id[identifier].nil? || by_id[identifier][:zone] != 'visible' }
       exposed_unallowed = zones.select do |item|
@@ -410,6 +628,8 @@ class WakeLayoutProbe
         return zones
       end
 
+      seed_required_visible_ids!(missing_visible) unless missing_visible.empty?
+
       last_problem = {
         missing_visible: missing_visible,
         exposed_unallowed: exposed_unallowed.map { |item| "#{item[:unique_id]}:#{item[:zone]}" }
@@ -418,6 +638,17 @@ class WakeLayoutProbe
     end
 
     raise "Hide-all-other seeded baseline did not settle before wake proof: #{last_problem.inspect}"
+  end
+
+  def seed_required_visible_ids!(identifiers)
+    Array(identifiers).map(&:to_s).reject(&:empty?).uniq.each do |identifier|
+      result = app_script(%(move icon to visible "#{escape_quotes(identifier)}")).strip.downcase
+      unless %w[true 1].include?(result)
+        log("Required visible seed returned #{result.inspect} for #{identifier}")
+      end
+    rescue StandardError => e
+      log("Required visible seed failed for #{identifier}: #{e.message}")
+    end
   end
 
   def assert_visible_zone_persistence!(baseline, delay)
@@ -536,7 +767,14 @@ class WakeLayoutProbe
     last_moved = []
 
     while Time.now < deadline
-      zones = read_icon_zones!
+      begin
+        zones = read_icon_zones!
+      rescue StandardError => e
+        last_moved = ["zone_read_error:#{e.message}"]
+        log("#{failure_prefix} inventory unavailable while waiting: #{e.message}")
+        sleep SNAPSHOT_SETTLE_POLL_SECONDS
+        next
+      end
       by_id = icon_zone_lookup(zones)
       moved = required.map do |identifier|
         item = by_id[identifier]
@@ -556,8 +794,26 @@ class WakeLayoutProbe
   end
 
   def read_icon_zones!
-    raw = app_script('list authoritative icon zones')
-    zones = raw.each_line.map do |line|
+    deadline = Time.now + SNAPSHOT_SETTLE_TIMEOUT_SECONDS
+    raw = +''
+    zones = []
+
+    loop do
+      raw = app_script('list authoritative icon zones')
+      zones = parse_icon_zone_rows(raw)
+      return zones unless zones.empty?
+
+      break if Time.now >= deadline
+
+      log('list authoritative icon zones returned no parseable rows; retrying within settle window')
+      sleep SNAPSHOT_SETTLE_POLL_SECONDS
+    end
+
+    raise "list authoritative icon zones returned no parseable rows: #{raw.inspect}"
+  end
+
+  def parse_icon_zone_rows(raw)
+    raw.each_line.map do |line|
       parts = line.strip.split("\t", 5)
       next if parts.length < 5
 
@@ -569,9 +825,6 @@ class WakeLayoutProbe
         name: parts[4]
       }
     end.compact
-    raise "list authoritative icon zones returned no parseable rows: #{raw.inspect}" if zones.empty?
-
-    zones
   end
 
   def icon_zone_lookup(zones)
@@ -592,7 +845,8 @@ class WakeLayoutProbe
       '--style', 'compact',
       '--info',
       '--start', start_arg,
-      '--predicate', predicate
+      '--predicate', predicate,
+      timeout: 30
     )
     raise "Could not read logs for #{@app_name}" unless status.success?
 
@@ -677,6 +931,13 @@ class WakeLayoutProbe
     end
   end
 
+  def wait_for_configured_launch_baseline(label:, auto_rehide:)
+    snapshot = wait_for_healthy_snapshot(label: label)
+    return snapshot if snapshot['autoRehideEnabled'] == auto_rehide
+
+    raise "#{label}: autoRehideEnabled did not match configured value (expected=#{auto_rehide}, actual=#{snapshot['autoRehideEnabled'].inspect})"
+  end
+
   def assert_main_right_gap_stable!(baseline, current, label:)
     baseline_gap = numeric_snapshot_value(baseline, 'mainRightGap')
     current_gap = numeric_snapshot_value(current, 'mainRightGap')
@@ -707,31 +968,60 @@ class WakeLayoutProbe
 
   def quit_app
     return unless @app_name
-    return unless app_running?
-
-    capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-    deadline = Time.now + ENV.fetch('SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS', '20').to_f
-    while app_running? && Time.now < deadline
-      sleep 0.2
+    unless app_running?
+      reap_direct_launch_children!
+      return
     end
-    if app_running?
-      capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-      deadline = Time.now + 5
+
+    begin
+      write_automation_quit_marker!
+      out, status = capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
+      deadline = Time.now + graceful_quit_timeout_seconds(status)
       while app_running? && Time.now < deadline
         sleep 0.2
       end
+      if app_running?
+        log("Graceful quit did not exit #{@app_name}; status=#{status.exitstatus.inspect} output=#{truncated_log_output(out.to_s.strip)}")
+      end
+      terminate_lingering_app_processes_until_gone!(
+        timeout: force_quit_timeout_seconds,
+        signal: 'TERM'
+      )
+      terminate_lingering_app_processes_until_gone!(
+        timeout: force_quit_timeout_seconds,
+        signal: 'KILL'
+      ) if app_running?
+      raise "Timed out waiting for #{@app_name} to quit" if app_running?
+    ensure
+      remove_matching_automation_quit_marker!
+      reap_direct_launch_children!
     end
-    app_pids.each do |pid|
-      log("Force terminating lingering #{@app_name} test process pid=#{pid}")
-      Process.kill('TERM', pid)
-    rescue Errno::ESRCH
-      nil
-    end
-    deadline = Time.now + 3
+  end
+
+  def graceful_quit_timeout_seconds(status)
+    override = ENV['SANEBAR_WAKE_PROBE_QUIT_TIMEOUT_SECONDS']
+    return override.to_f if override && !override.empty?
+
+    return DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS if status&.success?
+
+    0.5
+  end
+
+  def force_quit_timeout_seconds
+    ENV.fetch('SANEBAR_WAKE_PROBE_FORCE_QUIT_TIMEOUT_SECONDS', DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS.to_s).to_f
+  end
+
+  def terminate_lingering_app_processes_until_gone!(timeout:, signal:)
+    deadline = Time.now + timeout
     while app_running? && Time.now < deadline
-      sleep 0.2
+      app_pids.each do |pid|
+        log("Force terminating lingering #{@app_name} test process pid=#{pid} signal=#{signal}")
+        Process.kill(signal, pid)
+      rescue Errno::ESRCH
+        nil
+      end
+      sleep 0.25
     end
-    raise "Timed out waiting for #{@app_name} to quit" if app_running?
   end
 
   def app_pids
@@ -773,18 +1063,60 @@ class WakeLayoutProbe
     binary = File.join(@app_path, 'Contents', 'MacOS', @app_name)
     raise "Executable missing for #{@app_path}" unless File.executable?(binary)
 
+    remove_matching_automation_quit_marker!
+    @automation_quit_token = SecureRandom.hex(24)
     log("Launching #{@app_name} directly with --sane-no-keychain")
-    Process.detach(
-      Process.spawn(
-        { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
-        binary,
-        '--sane-no-keychain',
-        out: '/tmp/sanebar_wake_probe_launch.log',
-        err: '/tmp/sanebar_wake_probe_launch.log'
-      )
+    pid = Process.spawn(
+      { 'SANEAPPS_DISABLE_KEYCHAIN' => '1', AUTOMATION_QUIT_TOKEN_ENV => @automation_quit_token },
+      binary,
+      '--sane-no-keychain',
+      out: File::NULL,
+      err: File::NULL
     )
+    @direct_launch_pids << pid
+    pid
   rescue StandardError => e
     raise "Failed to launch #{@app_path} directly: #{e.message}"
+  end
+
+  def automation_quit_marker_path
+    ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] || DEFAULT_AUTOMATION_QUIT_MARKER_PATH
+  end
+
+  def write_automation_quit_marker!
+    return if @automation_quit_token.to_s.empty?
+
+    path = automation_quit_marker_path
+    temp_path = "#{path}.#{Process.pid}.tmp"
+    File.open(temp_path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |file|
+      file.write("#{@automation_quit_token}\n")
+    end
+    File.chmod(0o600, temp_path)
+    File.rename(temp_path, path)
+  ensure
+    FileUtils.rm_f(temp_path) if temp_path && File.exist?(temp_path)
+  end
+
+  def remove_matching_automation_quit_marker!
+    return if @automation_quit_token.to_s.empty?
+
+    path = automation_quit_marker_path
+    return unless File.file?(path)
+    return unless File.read(path).strip == @automation_quit_token
+
+    FileUtils.rm_f(path)
+  rescue Errno::ENOENT
+    nil
+  end
+
+  def reap_direct_launch_children!
+    @direct_launch_pids.delete_if do |pid|
+      begin
+        !Process.waitpid(pid, Process::WNOHANG).nil?
+      rescue Errno::ECHILD
+        true
+      end
+    end
   end
 
   def layout_snapshot_available?
@@ -844,4 +1176,19 @@ class WakeLayoutProbe
 end
 require_relative 'lib/wake_layout_probe_artifacts'
 
-exit(WakeLayoutProbe.new.run ? 0 : 1) if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  runtime_lock = WakeLayoutProbe.acquire_runtime_target_lock
+  status = 75
+
+  unless runtime_lock == false
+    begin
+      status = WakeLayoutProbe.new.run ? 0 : 1
+    ensure
+      WakeLayoutProbe.release_runtime_target_lock(runtime_lock)
+    end
+  end
+
+  $stdout.flush
+  $stderr.flush
+  exit!(status)
+end

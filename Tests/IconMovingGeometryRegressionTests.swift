@@ -256,7 +256,7 @@ struct SeparatorCachingTests {
     @Test("Hidden wake preserves trustworthy cache while display removal invalidates it")
     func hiddenWakePreservesTrustworthyCacheWhileDisplayRemovalInvalidatesIt() {
         #expect(
-            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,
                 separatorRightEdgeX: 520,
@@ -266,7 +266,7 @@ struct SeparatorCachingTests {
             "Hidden wake should preserve the last trustworthy separator cache until live anchors return"
         )
         #expect(
-            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: -600,
                 separatorRightEdgeX: -580,
@@ -276,7 +276,7 @@ struct SeparatorCachingTests {
             "Hidden wake should preserve ordered cached geometry on displays arranged left of the primary"
         )
         #expect(
-            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            !MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,
                 separatorRightEdgeX: 520,

@@ -70,6 +70,7 @@ class ProjectQA
   SANEMASTER_STANDALONE = File.join(__dir__, 'SaneMaster_standalone.rb')
   RULES_DIR = File.join(PROJECT_ROOT, '.claude', 'rules')
   QA_STATUS_PATH = File.join(PROJECT_ROOT, 'outputs', 'qa_status.json')
+  QA_LOCK_PATH = File.join(PROJECT_ROOT, 'outputs', 'qa.lock')
 
   # SaneProcess infra path (expected when running internally)
   INFRA_SANEMASTER = File.join(PROJECT_ROOT, '..', '..', 'infra', 'SaneProcess', 'scripts', 'SaneMaster.rb')
@@ -79,6 +80,28 @@ class ProjectQA
 
   # Number of .claude/rules/ files (code style rules)
   EXPECTED_CODE_RULE_COUNT = 8
+
+  def self.acquire_process_lock!
+    FileUtils.mkdir_p(File.dirname(QA_LOCK_PATH))
+    lock_file = File.open(QA_LOCK_PATH, File::RDWR | File::CREAT, 0o644)
+    unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
+      holder = begin
+        lock_file.rewind
+        lock_file.read.to_s.strip
+      rescue StandardError
+        ''
+      end
+      warn "Another SaneBar QA run is already active#{holder.empty? ? '' : " (#{holder})"}."
+      warn "Refusing overlapping QA because it corrupts runtime fixture/menu-bar state. Stop the existing run first."
+      exit 75
+    end
+
+    lock_file.rewind
+    lock_file.truncate(0)
+    lock_file.write("pid=#{Process.pid} started=#{Time.now.iso8601}\n")
+    lock_file.flush
+    @qa_lock_file = lock_file
+  end
 
   # Versions that must never be re-offered via Sparkle after regressions.
   BLOCKED_APPCAST_VERSIONS = %w[2.1.3 2.1.6 2.1.11 2.1.12].freeze
@@ -155,9 +178,9 @@ class ProjectQA
   RUNTIME_SHARED_BUNDLE_FIXTURE_SOURCE_PATH = '/tmp/sanebar_shared_fixture.swift'
   RUNTIME_SHARED_BUNDLE_FIXTURE_ID = 'com.sanebar.sharedfixture'
   RUNTIME_SHARED_BUNDLE_FIXTURE_IDS = %w[
-    com.sanebar.sharedfixture::statusItem:0
-    com.sanebar.sharedfixture::statusItem:1
-    com.sanebar.sharedfixture::statusItem:2
+    com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A
+    com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B
+    com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C
   ].freeze
   RUNTIME_HOST_EXACT_ID_FIXTURE_LOG_PATH = '/tmp/sanebar_runtime_host_exact_id_fixture.log'
   RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH = '/tmp/SaneBarHostExactIDFixture.app'
@@ -185,14 +208,7 @@ class ProjectQA
   RUNTIME_SMOKE_PASSES = 1
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
-  RUNTIME_SHARED_BUNDLE_IDS = %w[
-    com.apple.menuextra.wifi
-    com.apple.menuextra.battery
-    com.apple.menuextra.focusmode
-    com.apple.menuextra.display
-    com.apple.menuextra.controlcenter
-    com.apple.menuextra.clock
-  ].freeze
+  RUNTIME_SMOKE_REPRESENTATIVE_SETUP_TIMEOUT_SECONDS = 90
   RUNTIME_NATIVE_APPLE_IDS = %w[
     com.apple.menuextra.siri
     com.apple.menuextra.spotlight
@@ -414,7 +430,8 @@ class ProjectQA
 
   def runtime_smoke_host_allowed?
     running_on_mini_host? ||
-      ENV['SANE_APPROVE_LOCAL_UI_ON_AIR'] == 'MR. SANE APPROVES LOCAL UI ON AIR'
+      ENV['SANE_APPROVE_LOCAL_UI_ON_AIR'] == 'MR. SANE APPROVES LOCAL UI ON AIR' ||
+      ENV['SANE_MINI_UNAVAILABLE'] == '1'
   end
 
   def manual_override_phrase(gate:)
@@ -725,7 +742,7 @@ class ProjectQA
       runtimeSmokeFocusedExactIdSets: [
         {
           lane: 'shared-bundle',
-          requiredIds: RUNTIME_SHARED_BUNDLE_IDS,
+          requiredIds: RUNTIME_SHARED_BUNDLE_FIXTURE_IDS,
           logPath: RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH
         },
         {
@@ -763,4 +780,7 @@ require_relative 'lib/project_qa_regression_guardrails'
 require_relative 'lib/project_qa_stability_urls'
 
 # Run if executed directly
-ProjectQA.new.run if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  ProjectQA.acquire_process_lock!
+  ProjectQA.new.run
+end

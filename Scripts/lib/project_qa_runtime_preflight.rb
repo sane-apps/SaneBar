@@ -1,6 +1,15 @@
 # frozen_string_literal: true
 
 class ProjectQA
+  RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH'] ||
+                             ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH'] ||
+                             '/tmp/sanebar_runtime_probe.lock'
+  RUNTIME_PROBE_CONFLICT_PATTERNS = [
+    'Scripts/startup_layout_probe.rb',
+    'Scripts/live_zone_smoke.rb',
+    'Scripts/wake_layout_probe.rb'
+  ].freeze
+
   private
 
   def check_runtime_release_smoke
@@ -42,8 +51,16 @@ class ProjectQA
       return
     end
 
+    if (conflict_error = runtime_probe_conflict_error)
+      @errors << conflict_error
+      puts '❌ overlapping runtime probe active'
+      return
+    end
+
     restore_mode = nil
     appearance_settings_backup = nil
+    runtime_lock = acquire_runtime_target_lock
+    return unless runtime_lock
 
     begin
       restore_mode, mode_error = ensure_runtime_smoke_pro_mode!
@@ -60,6 +77,10 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_LAUNCH_LOG_PATH)
       FileUtils.rm_f(RUNTIME_WAKE_PROBE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
+      FileUtils.rm_f("#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout")
+      FileUtils.rm_f(RUNTIME_STARTUP_PROBE_LOG_PATH)
+      FileUtils.rm_f(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH)
+      FileUtils.rm_f("#{RUNTIME_STARTUP_PROBE_LOG_PATH}.stdout")
       FileUtils.rm_f('/tmp/sanebar_runtime_fullscreen_matrix.json')
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_SHARED_BUNDLE_FIXTURE_LOG_PATH)
@@ -69,6 +90,7 @@ class ProjectQA
       release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
       capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available
       appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
+      seed_runtime_smoke_no_keychain_pro_defaults!
       if release_smoke_screenshots_required && !capture_runtime_smoke_screenshots
         @errors << 'Runtime smoke screenshot/tint evidence is required but unavailable on this host.'
         puts '❌ runtime smoke screenshot/tint evidence unavailable'
@@ -79,14 +101,15 @@ class ProjectQA
       prelaunch_runtime_visible_dynamic_helper_fixture!
       prelaunch_runtime_host_exact_id_fixture!
 
-      launch_out, launch_status = Open3.capture2e(
+      launch_out, launch_status = capture2e_with_progress(
         { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' },
         SANEMASTER_CLI,
         'test_mode',
         '--release',
-        '--no-logs'
+        '--no-logs',
+        heartbeat_label: 'runtime smoke test_mode launch'
       )
-      File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)
+      safe_write_runtime_file(RUNTIME_LAUNCH_LOG_PATH, launch_out)
       unless launch_status.success?
         @errors << "Runtime smoke launch failed. See #{RUNTIME_LAUNCH_LOG_PATH}"
         puts "❌ launch failed (#{RUNTIME_LAUNCH_LOG_PATH})"
@@ -113,6 +136,8 @@ class ProjectQA
         return
       end
 
+      puts
+      puts '   ↳ runtime target launched; validating candidate pool'
       always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)
       if always_hidden_setup_error
         @errors << always_hidden_setup_error
@@ -122,18 +147,29 @@ class ProjectQA
 
       ensure_runtime_shared_bundle_fixture!(target)
 
-      representative_zone_setup_error = ensure_runtime_smoke_representative_zones_ready!(target)
+      puts '   ↳ checking representative runtime candidate pool'
+      representative_zone_setup_error = runtime_smoke_representative_zone_readiness_error(target)
       if representative_zone_setup_error
-        @errors << representative_zone_setup_error
-        puts '❌ representative runtime zone setup failed'
-        return
+        puts '   ↳ representative candidate pool incomplete; seeding fixtures'
+        representative_zone_setup_error = ensure_runtime_smoke_representative_zones_ready!(target)
+        if representative_zone_setup_error
+          @errors << representative_zone_setup_error
+          puts '❌ representative runtime zone setup failed'
+          return
+        end
+      else
+        puts '   ↳ representative candidate pool already ready'
       end
       sleep 1.5
-      representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)
-      if representative_zone_settle_error
-        @errors << representative_zone_settle_error
-        puts '❌ representative runtime zone setup drifted after settle'
-        return
+      settle_readiness_error = runtime_smoke_representative_zone_readiness_error(target)
+      if settle_readiness_error
+        puts '   ↳ representative setup drifted after settle; reseeding once'
+        representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)
+        if representative_zone_settle_error
+          @errors << representative_zone_settle_error
+          puts '❌ representative runtime zone setup drifted after settle'
+          return
+        end
       end
 
       puts
@@ -169,7 +205,8 @@ class ProjectQA
         'SANEBAR_SMOKE_SCREENSHOT_DIR' => screenshot_dir,
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_SMOKE_PROCESS_PATH' => target[:process_path],
-        'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => '0'
+        'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => '0',
+        'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'
       }
       if capture_runtime_smoke_screenshots
         puts '   ↳ smoke screenshots enabled by SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1'
@@ -186,7 +223,7 @@ class ProjectQA
 
         if pass_number > 1
           unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
-            File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+            safe_write_runtime_file(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
             @errors << "Runtime smoke could not relaunch target #{target[:app_path]} before pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}."
             puts "❌ relaunch failed before pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
             return
@@ -215,7 +252,7 @@ class ProjectQA
           if attempt <= RUNTIME_SMOKE_RETRIES_PER_PASS && retryable_runtime_smoke_failure?(smoke_out)
             puts "   ↳ relaunching after transient runtime smoke failure (retry #{attempt}/#{RUNTIME_SMOKE_RETRIES_PER_PASS})"
             unless ensure_runtime_smoke_target_running!(target.merge(relaunch: true))
-              File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+              safe_write_runtime_file(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
               @errors << "Runtime smoke retry could not relaunch target #{target[:app_path]}. See #{RUNTIME_SMOKE_LOG_PATH}."
               puts "❌ retry relaunch failed (#{RUNTIME_SMOKE_LOG_PATH})"
               return
@@ -229,7 +266,7 @@ class ProjectQA
             break
           end
 
-          File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+          safe_write_runtime_file(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
           sample_suffix = File.exist?(resource_sample_path) ? " Resource sample: #{resource_sample_path}" : ''
           @errors << "Runtime smoke failed on pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}. See #{RUNTIME_SMOKE_LOG_PATH}.#{sample_suffix}"
           puts "❌ failed on pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (#{RUNTIME_SMOKE_LOG_PATH})"
@@ -237,15 +274,9 @@ class ProjectQA
         end
       end
 
-      File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
+      safe_write_runtime_file(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join("\n\n"))
       focused_runtime_smoke_ran = false
-      shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(
-        target,
-        required_ids: RUNTIME_SHARED_BUNDLE_IDS
-      )
-      if shared_bundle_ids.empty?
-        shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)
-      end
+      shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)
       if shared_bundle_ids.empty?
         File.write(
           RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH,
@@ -256,7 +287,7 @@ class ProjectQA
             'shared_bundle_exact_id_pool_empty=1'
           ].join("\n")
         )
-        @errors << "Runtime smoke had no shared-bundle exact-id candidates. Shared-bundle move regressions are release-blocking; the Mini needs either two movable Control Center/Clock/Focus/Wi-Fi/Battery/Display items or the deterministic shared-bundle fixture must launch. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH} and #{RUNTIME_SHARED_BUNDLE_FIXTURE_LOG_PATH}."
+        @errors << "Runtime smoke had no deterministic shared-bundle exact-id fixture candidates. Shared-bundle move regressions are release-blocking; the Mini must launch the shared-bundle fixture before release. See #{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH} and #{RUNTIME_SHARED_BUNDLE_FIXTURE_LOG_PATH}."
         puts "❌ shared-bundle exact-id smoke unavailable (#{RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH})"
         return
       else
@@ -324,21 +355,24 @@ class ProjectQA
       startup_probe_env = {
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH,
-        'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH
+        'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH,
+        'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'
       }
       startup_probe_env.merge!(runtime_probe_no_keychain_env(target))
+      startup_probe_started_at = Time.now
       startup_probe_out, startup_probe_status = capture2e_with_progress(
         startup_probe_env,
         startup_probe_script,
-        heartbeat_label: 'runtime startup layout probe'
+        heartbeat_label: 'runtime startup layout probe',
+        timeout: 300
       )
-      File.write("#{RUNTIME_STARTUP_PROBE_LOG_PATH}.stdout", startup_probe_out)
+      safe_write_runtime_file("#{RUNTIME_STARTUP_PROBE_LOG_PATH}.stdout", startup_probe_out)
       unless startup_probe_status.success?
         @errors << "Startup layout probe failed. See #{RUNTIME_STARTUP_PROBE_LOG_PATH} and #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH}."
         puts "❌ startup probe failed (#{RUNTIME_STARTUP_PROBE_LOG_PATH})"
         return
       end
-      if (startup_artifact_error = startup_probe_artifact_contract_error)
+      if (startup_artifact_error = startup_probe_artifact_contract_error(started_at: startup_probe_started_at))
         @errors << startup_artifact_error
         puts "❌ startup probe artifact incomplete (#{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH})"
         return
@@ -362,19 +396,27 @@ class ProjectQA
         'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH,
         'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH,
         'SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS' => dynamic_helper_ids.join(','),
-        'SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS' => visible_dynamic_helper_ids.join(',')
+        'SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS' => visible_dynamic_helper_ids.join(','),
+        'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'
       }
       wake_probe_env.merge!(runtime_probe_no_keychain_env(target))
       puts 'ℹ️ Wake layout probe intentionally sleeps/wakes the Mini display to test real wake recovery.'
+      wake_probe_started_at = Time.now
       wake_probe_out, wake_probe_status = capture2e_with_progress(
         wake_probe_env,
         wake_probe_script,
-        heartbeat_label: 'runtime wake layout probe'
+        heartbeat_label: 'runtime wake layout probe',
+        timeout: 240
       )
-      File.write("#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout", wake_probe_out)
+      safe_write_runtime_file("#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout", wake_probe_out)
       unless wake_probe_status.success?
         @errors << "Wake layout probe failed. See #{RUNTIME_WAKE_PROBE_LOG_PATH} and #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
         puts "❌ wake probe failed (#{RUNTIME_WAKE_PROBE_LOG_PATH})"
+        return
+      end
+      if (wake_artifact_error = wake_probe_artifact_contract_error(started_at: wake_probe_started_at))
+        @errors << wake_artifact_error
+        puts "❌ wake probe artifact incomplete (#{RUNTIME_WAKE_PROBE_ARTIFACT_PATH})"
         return
       end
 
@@ -409,7 +451,170 @@ class ProjectQA
       cleanup_runtime_visible_dynamic_helper_fixture!
       restore_runtime_smoke_appearance_settings!(appearance_settings_backup)
       restore_runtime_smoke_mode(restore_mode)
+      release_runtime_target_lock(runtime_lock)
     end
+  end
+
+  def acquire_runtime_target_lock
+    raise Errno::ELOOP if File.symlink?(RUNTIME_TARGET_LOCK_PATH)
+
+    2.times do
+      cleanup_runtime_target_lock_file
+      lock_file = publish_runtime_target_lock_file('qa-runtime-smoke')
+      return lock_file if lock_file
+    end
+
+    holder = runtime_target_lock_holder_detail
+    detail = holder.empty? ? '' : " (#{holder})"
+    @errors << "Runtime smoke target is already locked by another probe#{detail}."
+    puts '❌ runtime target locked'
+    nil
+  rescue Errno::ELOOP
+    @errors << "Runtime smoke target lock path is a symlink: #{RUNTIME_TARGET_LOCK_PATH}"
+    puts '❌ runtime target lock path is unsafe'
+    nil
+  end
+
+  def release_runtime_target_lock(lock_file)
+    return unless lock_file
+
+    begin
+      lock_file.flock(File::LOCK_UN)
+    rescue StandardError
+      nil
+    end
+    begin
+      lock_file.close unless lock_file.closed?
+    rescue StandardError
+      nil
+    end
+    cleanup_runtime_target_lock_file
+  end
+
+  def open_runtime_target_lock
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_open_flags, 0o600)
+  end
+
+  def publish_runtime_target_lock_file(command)
+    FileUtils.mkdir_p(File.dirname(RUNTIME_TARGET_LOCK_PATH))
+    temp_path = runtime_target_lock_temp_path
+    published = false
+    lock_file = File.open(temp_path, runtime_target_lock_publish_flags, 0o600)
+    lock_file.flock(File::LOCK_EX)
+    lock_file.write("pid=#{Process.pid} started=#{Time.now.utc.iso8601} command=#{command}\n")
+    lock_file.flush
+    File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)
+    published = true
+    lock_file
+  rescue Errno::EEXIST
+    nil
+  ensure
+    FileUtils.rm_f(temp_path) if temp_path && File.exist?(temp_path)
+    unless published
+      begin
+        lock_file&.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        lock_file&.close unless lock_file&.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def runtime_target_lock_temp_path
+    dir = File.dirname(RUNTIME_TARGET_LOCK_PATH)
+    base = File.basename(RUNTIME_TARGET_LOCK_PATH)
+    File.join(dir, ".#{base}.#{Process.pid}.#{rand(1_000_000)}.tmp")
+  end
+
+  def runtime_target_lock_publish_flags
+    flags = File::RDWR | File::CREAT | File::EXCL
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def runtime_target_lock_open_flags
+    flags = File::RDWR | File::CREAT
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def cleanup_runtime_target_lock_file
+    return unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    cleanup_lock = open_runtime_target_lock
+    return unless cleanup_lock
+
+    return unless cleanup_lock.flock(File::LOCK_EX | File::LOCK_NB)
+
+    FileUtils.rm_f(RUNTIME_TARGET_LOCK_PATH)
+  rescue Errno::ENOENT, Errno::ELOOP
+    nil
+  ensure
+    if cleanup_lock
+      begin
+        cleanup_lock.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        cleanup_lock.close unless cleanup_lock.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def runtime_target_lock_holder_detail
+    return '' unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_read_flags) do |file|
+      file.read.to_s.strip
+    end
+  rescue Errno::ENOENT
+    ''
+  end
+
+  def runtime_target_lock_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_write_runtime_file(path, content)
+    File.open(path, safe_runtime_file_write_flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_runtime_file_write_flags
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def runtime_probe_conflict_error
+    output, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,ppid=,command=')
+    return nil unless status.success?
+
+    conflicts = output.lines.map do |line|
+      pid_raw, ppid_raw, command = line.strip.split(/\s+/, 3)
+      next nil unless pid_raw && command
+
+      pid = pid_raw.to_i
+      ppid = ppid_raw.to_i
+      next nil if pid == Process.pid || ppid == Process.pid
+      next nil unless RUNTIME_PROBE_CONFLICT_PATTERNS.any? { |pattern| command.include?(pattern) }
+
+      "#{pid} #{command}"
+    end.compact
+
+    return nil if conflicts.empty?
+
+    "Overlapping SaneBar runtime probe process is active: #{conflicts.join(' | ')}"
   end
 
   def runtime_screenshot_capture_available?(screenshot_dir)
@@ -447,6 +652,8 @@ class ProjectQA
     settings = backup[:content].to_s.empty? ? {} : JSON.parse(backup[:content])
     appearance = settings['menuBarAppearance'].is_a?(Hash) ? settings['menuBarAppearance'] : {}
     settings['hasCompletedOnboarding'] = true
+    settings['hasSeenFreemiumIntro'] = true
+    settings['hasCompletedHealthWizard'] = true
     # Neutralize standing layout intent for the smoke: hide-all-other
     # allow-lists and always-hidden pins left over from earlier QA/probe runs
     # make the app's startup reconciliation physically rearrange the very
@@ -475,6 +682,23 @@ class ProjectQA
     backup
   end
 
+  def seed_runtime_smoke_no_keychain_pro_defaults!
+    write_runtime_smoke_default(
+      'sane.no-keychain.com.sanebar.app.pro_license_key',
+      'early-adopter'
+    )
+    write_runtime_smoke_default(
+      'sane.no-keychain.com.sanebar.app.pro_last_validation',
+      Time.now.utc.iso8601
+    )
+  end
+
+  def write_runtime_smoke_default(key, value)
+    Open3.capture2e('/usr/bin/defaults', 'write', 'com.sanebar.app', key, value.to_s)
+  rescue StandardError
+    nil
+  end
+
   def restore_runtime_smoke_appearance_settings!(backup)
     return if backup.nil?
 
@@ -491,7 +715,13 @@ class ProjectQA
 
   def runtime_smoke_dark_mode_enabled?
     script = 'tell application "System Events" to tell appearance preferences to get dark mode'
-    out, status = Open3.capture2e('/usr/bin/osascript', '-e', script)
+    out, status = capture2e_with_runtime_timeout(
+      '/usr/bin/osascript',
+      '-e',
+      script,
+      timeout: 8,
+      label: 'AppleScript dark-mode read'
+    )
     raise "Could not read dark mode setting: #{out.strip}" unless status.success?
 
     out.strip.casecmp('true').zero?
@@ -499,7 +729,13 @@ class ProjectQA
 
   def set_runtime_smoke_dark_mode!(enabled)
     script = "tell application \"System Events\" to tell appearance preferences to set dark mode to #{enabled ? 'true' : 'false'}"
-    out, status = Open3.capture2e('/usr/bin/osascript', '-e', script)
+    out, status = capture2e_with_runtime_timeout(
+      '/usr/bin/osascript',
+      '-e',
+      script,
+      timeout: 8,
+      label: 'AppleScript dark-mode write'
+    )
     raise "Could not set dark mode=#{enabled}: #{out.strip}" unless status.success?
   end
 
@@ -542,9 +778,12 @@ class ProjectQA
     Open3.capture2e('/usr/bin/killall', 'cfprefsd')
   end
 
-  def startup_probe_artifact_contract_error
+  def startup_probe_artifact_contract_error(started_at: nil)
     unless File.exist?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH)
       return "Startup layout probe did not write artifact #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH}."
+    end
+    if stale_runtime_artifact?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH, started_at)
+      return "Startup layout probe artifact is stale: #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH} predates this probe run."
     end
 
     artifact = JSON.parse(File.read(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH))
@@ -579,6 +818,67 @@ class ProjectQA
     "Startup layout probe artifact missing completed scenario(s): #{missing.join(', ')}."
   rescue JSON::ParserError => e
     "Startup layout probe artifact is invalid JSON: #{e.message}."
+  end
+
+  def wake_probe_artifact_contract_error(started_at: nil)
+    unless File.exist?(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
+      return "Wake layout probe did not write artifact #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
+    end
+    if stale_runtime_artifact?(RUNTIME_WAKE_PROBE_ARTIFACT_PATH, started_at)
+      return "Wake layout probe artifact is stale: #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH} predates this probe run."
+    end
+
+    artifact = JSON.parse(File.read(RUNTIME_WAKE_PROBE_ARTIFACT_PATH))
+    unless artifact['status'] == 'pass'
+      return "Wake layout probe artifact status is #{artifact['status'].inspect}, expected pass."
+    end
+
+    required_sections = %w[
+      visible_zone_persistence
+      hidden_zone_persistence
+      dynamic_helper_wake_drift
+    ]
+    missing_sections = required_sections.reject { |section| artifact[section].is_a?(Hash) }
+    unless missing_sections.empty?
+      return "Wake layout probe artifact missing proof section(s): #{missing_sections.join(', ')}."
+    end
+
+    failed_sections = required_sections.select do |section|
+      artifact.fetch(section).fetch('status', nil) != 'pass'
+    end
+    unless failed_sections.empty?
+      return "Wake layout probe artifact failed proof section(s): #{failed_sections.join(', ')}."
+    end
+
+    required_scenarios = [
+      'baseline visible icon-zone snapshot before display sleep',
+      'fresh authoritative icon-zone snapshot at 1s after wake',
+      'fresh authoritative icon-zone snapshot at 5s after wake',
+      'fresh authoritative icon-zone snapshot at 15s after wake',
+      'visible required IDs remain visible and are not moved into Hidden or Always Hidden',
+      'baseline hidden icon-zone snapshot before display sleep',
+      'hidden required IDs remain hidden and are not moved into Visible or Always Hidden',
+      'dynamic helper required IDs are present before wake',
+      'dynamic helper required IDs remain in intended zones after wake',
+      'helper-specific Hidden to Visible drift is rejected as a release blocker'
+    ]
+    completed_scenarios = required_sections.flat_map do |section|
+      Array(artifact.dig(section, 'completed_scenarios')).map(&:to_s)
+    end.uniq
+    missing = required_scenarios - completed_scenarios
+    return nil if missing.empty?
+
+    "Wake layout probe artifact missing completed scenario(s): #{missing.join(', ')}."
+  rescue JSON::ParserError => e
+    "Wake layout probe artifact is invalid JSON: #{e.message}."
+  end
+
+  def stale_runtime_artifact?(path, started_at)
+    return false unless started_at
+
+    File.mtime(path) < (started_at - 1)
+  rescue Errno::ENOENT
+    true
   end
 
   def retryable_runtime_smoke_failure?(smoke_output)

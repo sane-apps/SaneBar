@@ -382,10 +382,13 @@ func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
         AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
         let refreshTimeout = cached.isEmpty ? 2.5 : 1.8
         let refreshed = refreshedIconZones(timeoutSeconds: refreshTimeout)
-        if !refreshed.isEmpty {
-            return refreshed
+        return scriptMoveResolutionZonesAfterRefresh(
+            identifier: identifier,
+            cached: cached,
+            refreshed: refreshed
+        ) {
+            authoritativeScriptListingZonesForCommand()
         }
-        return refreshedIconZones(timeoutSeconds: 2.5, allowAuthoritativeFallback: true)
     }
 
     let sameBundleCount = cached.reduce(into: 0) { count, item in
@@ -405,8 +408,36 @@ func zonesForScriptMoveResolution(_ identifier: String) -> [ScriptZonedIcon] {
 
     AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     let refreshed = refreshedIconZones(timeoutSeconds: 1.8)
+    return scriptMoveResolutionZonesAfterRefresh(
+        identifier: identifier,
+        cached: cached,
+        refreshed: refreshed
+    ) {
+        authoritativeScriptListingZonesForCommand()
+    }
+}
+
+@MainActor
+func scriptMoveResolutionZonesAfterRefresh(
+    identifier: String,
+    cached: [ScriptZonedIcon],
+    refreshed: [ScriptZonedIcon],
+    authoritative: () -> [ScriptZonedIcon]
+) -> [ScriptZonedIcon] {
     if resolveScriptIcon(identifier, from: refreshed) != nil {
         return refreshed
+    }
+
+    let authoritativeZones = authoritative()
+    if resolveScriptIcon(identifier, from: authoritativeZones) != nil {
+        return authoritativeZones
+    }
+
+    if !refreshed.isEmpty {
+        return refreshed
+    }
+    if !authoritativeZones.isEmpty {
+        return authoritativeZones
     }
     return cached
 }

@@ -283,9 +283,14 @@ final class MenuBarGeometryResolver {
         }
 
         if separatorItem.length > 1000 {
-            let cachedX = resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback) ?? -1
+            guard let cachedX = resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: allowEstimatedFallback),
+                  cachedX.isFinite
+            else {
+                logger.debug("getSeparatorRightEdgeX: blocking mode (length=\(separatorItem.length)), no cached right edge available")
+                return nil
+            }
             logger.debug("getSeparatorRightEdgeX: blocking mode (length=\(separatorItem.length)), using cached \(cachedX)")
-            return cachedX > 0 ? cachedX : nil
+            return cachedX
         }
 
         guard let separatorButton = separatorItem.button,

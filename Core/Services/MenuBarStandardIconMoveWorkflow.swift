@@ -179,7 +179,9 @@ final class MenuBarStandardIconMoveWorkflow {
             var activeSeparatorX = resolvedSeparatorX
             var activeVisibleBoundaryX = visibleBoundaryX
             if !request.toHidden {
-                guard let activeVisibleBoundaryX, activeVisibleBoundaryX > 0 else {
+                guard let activeVisibleBoundaryX,
+                      activeVisibleBoundaryX.isFinite,
+                      activeVisibleBoundaryX > activeSeparatorX else {
                     logger.error("Missing visible boundary for move-to-visible - ABORTING")
                     await restoreShieldIfNeeded()
                     return false
@@ -327,24 +329,28 @@ final class MenuBarStandardIconMoveWorkflow {
         )
 
         if let fallbackSeparatorX {
-            if !request.toHidden, (fallbackVisibleBoundaryX ?? 0) <= 0 {
-                logger.error("Shield fallback could not resolve visible boundary - keeping failure")
-            } else {
-                success = dragContext.accessibilityService.moveMenuBarIcon(
-                    bundleID: request.bundleID,
-                    menuExtraId: request.menuExtraId,
-                    statusItemIndex: request.statusItemIndex,
-                    preferredCenterX: request.preferredCenterX,
-                    toHidden: request.toHidden,
-                    separatorX: fallbackSeparatorX,
-                    visibleBoundaryX: fallbackVisibleBoundaryX,
-                    eventTap: .cgSessionEventTap,
-                    originalMouseLocation: dragContext.originalMouseLocation,
-                    physicalMoveOrigin: request.physicalMoveOrigin,
-                    referenceScreenFrame: dragContext.referenceScreenFrame
-                )
-                logger.info("Shield fallback returned: \(success, privacy: .public)")
+            if !request.toHidden {
+                guard let fallbackVisibleBoundaryX,
+                      fallbackVisibleBoundaryX.isFinite,
+                      fallbackVisibleBoundaryX > fallbackSeparatorX else {
+                    logger.error("Shield fallback could not resolve ordered visible boundary - keeping failure")
+                    return success
+                }
             }
+            success = dragContext.accessibilityService.moveMenuBarIcon(
+                bundleID: request.bundleID,
+                menuExtraId: request.menuExtraId,
+                statusItemIndex: request.statusItemIndex,
+                preferredCenterX: request.preferredCenterX,
+                toHidden: request.toHidden,
+                separatorX: fallbackSeparatorX,
+                visibleBoundaryX: fallbackVisibleBoundaryX,
+                eventTap: .cgSessionEventTap,
+                originalMouseLocation: dragContext.originalMouseLocation,
+                physicalMoveOrigin: request.physicalMoveOrigin,
+                referenceScreenFrame: dragContext.referenceScreenFrame
+            )
+            logger.info("Shield fallback returned: \(success, privacy: .public)")
         } else {
             logger.error("Shield fallback could not resolve separator - keeping failure")
         }

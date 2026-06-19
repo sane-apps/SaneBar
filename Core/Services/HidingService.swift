@@ -249,15 +249,19 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
     /// Hide items by expanding delimiter to push them off screen
     func hide() async {
         guard !isAnimating, !isTransitioning else { return }
-        guard state != .hidden else { return }
         guard let delimiterItem else {
             logger.error("hide() called but delimiterItem is nil")
             return
         }
 
+        let wasAlreadyHidden = state == .hidden
         isAnimating = true
         defer { isAnimating = false }
-        logger.info("Hiding items (length → \(StatusItemLength.collapsed))")
+        if wasAlreadyHidden {
+            logger.info("Reapplying hidden menu bar layout (length → \(StatusItemLength.collapsed))")
+        } else {
+            logger.info("Hiding items (length → \(StatusItemLength.collapsed))")
+        }
 
         delimiterItem.length = StatusItemLength.collapsed
 
@@ -277,10 +281,12 @@ final class HidingService: ObservableObject, HidingServiceProtocol {
 
         state = .hidden
 
-        NotificationCenter.default.post(
-            name: .hiddenSectionHidden,
-            object: nil
-        )
+        if !wasAlreadyHidden {
+            NotificationCenter.default.post(
+                name: .hiddenSectionHidden,
+                object: nil
+            )
+        }
 
         AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .conceal)
     }

@@ -22,6 +22,7 @@ class ProjectQA
     end
 
     ids = wait_for_runtime_visible_dynamic_helper_fixture_ids(target, fixture_log)
+    ids = ensure_runtime_visible_dynamic_helper_fixture_visible!(target, ids, fixture_log)
     File.write(RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_LOG_PATH, fixture_log.join("\n") + "\n")
     ids
   end
@@ -104,13 +105,46 @@ class ProjectQA
     ids
   end
 
-  def runtime_visible_dynamic_helper_fixture_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'SaneBarVisibleDynamicHelperFixture')
-    return 'none' unless status.success?
+  def ensure_runtime_visible_dynamic_helper_fixture_visible!(target, ids, fixture_log)
+    required = Array(ids).map(&:to_s).reject(&:empty?).uniq
+    return [] if required.empty?
 
-    output.lines.map(&:strip).reject(&:empty?).join(' | ')
-  rescue StandardError
-    'unavailable'
+    deadline = Time.now + 20
+    last_problem = nil
+    move_attempts = Hash.new(0)
+
+    while Time.now < deadline
+      zones = runtime_smoke_list_icon_zones(target)
+      by_id = zones.each_with_object({}) { |item, map| map[item[:unique_id].to_s] = item }
+      missing = required.reject { |identifier| by_id.key?(identifier) }
+      non_visible = required.select { |identifier| by_id[identifier] && by_id[identifier][:zone] != 'visible' }
+      if missing.empty? && non_visible.empty?
+        fixture_log << "visible_ids=#{required.join(',')}"
+        return required
+      end
+
+      non_visible.each do |identifier|
+        next if move_attempts[identifier] >= 3
+
+        output, status = runtime_smoke_move_icon(target, 'move icon to visible', identifier)
+        move_attempts[identifier] += 1
+        fixture_log << "move_visible=#{identifier}:#{status&.success? ? 'ok' : 'failed'}"
+        fixture_log << output.lines.last.to_s.strip unless output.to_s.strip.empty?
+      end
+
+      last_problem = "missing=#{missing.join(',')} non_visible=#{non_visible.join(',')}"
+      sleep 0.5
+    end
+
+    fixture_log << "visible_settle_failed=#{last_problem}"
+    []
+  end
+
+  def runtime_visible_dynamic_helper_fixture_process_detail
+    owned_runtime_fixture_process_detail(
+      'SaneBarVisibleDynamicHelperFixture',
+      app_path: RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_APP_PATH
+    )
   end
 
   def runtime_visible_dynamic_helper_fixture_running?
@@ -118,15 +152,7 @@ class ProjectQA
   end
 
   def runtime_visible_dynamic_helper_external_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'SwiftBar')
-    return 'none' unless status.success?
-
-    lines = output.lines.map(&:strip).reject(&:empty?).reject do |line|
-      line.include?('SaneBarVisibleDynamicHelperFixture')
-    end
-    lines.empty? ? 'none' : lines.join(' | ')
-  rescue StandardError
-    'unavailable'
+    runtime_fixture_process_detail('SwiftBar')
   end
 
   def runtime_visible_dynamic_helper_external_running?

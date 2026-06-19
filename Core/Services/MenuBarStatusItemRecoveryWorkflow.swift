@@ -34,9 +34,9 @@ final class MenuBarStatusItemRecoveryWorkflow {
         switch context {
         case .startupFollowUp:
             return recoveryCount == 0 ? 1.5 : 2.0
-        case .manualLayoutRestore:
-            return recoveryCount == 0 ? 0.35 : 0.75
         case .activeSpaceChanged:
+            return recoveryCount == 0 ? 2.0 : 2.5
+        case .manualLayoutRestore:
             return recoveryCount == 0 ? 0.35 : 0.75
         case .screenParametersChanged:
             return recoveryCount == 0 ? 2.0 : 2.5
@@ -49,9 +49,9 @@ final class MenuBarStatusItemRecoveryWorkflow {
         context: MenuBarOperationCoordinator.PositionValidationContext
     ) -> TimeInterval {
         switch context {
-        case .startupFollowUp, .screenParametersChanged, .wakeResume:
+        case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:
             return 0.5
-        case .manualLayoutRestore, .activeSpaceChanged:
+        case .manualLayoutRestore:
             return 0.25
         }
     }
@@ -297,7 +297,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             notchRightSafeMinX: snapshot.notchRightSafeMinX,
             persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
         ) {
-            if hiddenPresentationCanShieldGeometryDrift(
+            if hiddenPresentationHasHealthyCollapsedSeparator(
                 snapshot: snapshot,
                 hidingState: hidingState
             ) {
@@ -305,7 +305,13 @@ final class MenuBarStatusItemRecoveryWorkflow {
             }
             return .stale
         }
-        guard snapshot.separatorAnchorSource.isTrustworthySeparatorAnchor else {
+        if !snapshot.separatorAnchorSource.isTrustworthySeparatorAnchor {
+            if hiddenPresentationHasHealthyCollapsedSeparator(
+                snapshot: snapshot,
+                hidingState: hidingState
+            ) {
+                return .cached
+            }
             return .stale
         }
         if snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live {
@@ -317,12 +323,16 @@ final class MenuBarStatusItemRecoveryWorkflow {
         return .cached
     }
 
-    private nonisolated static func hiddenPresentationCanShieldGeometryDrift(
+    private nonisolated static func hiddenPresentationHasHealthyCollapsedSeparator(
         snapshot: MenuBarRuntimeSnapshot,
         hidingState: HidingState
     ) -> Bool {
         guard hidingState == .hidden else { return false }
-        guard snapshot.separatorAnchorSource.isTrustworthySeparatorAnchor else { return false }
+        let hiddenStructureHealthy =
+            snapshot.structuralState == .ready &&
+            snapshot.startupItemsValid
+        guard snapshot.separatorAnchorSource == .live ||
+            (snapshot.separatorAnchorSource == .cached && hiddenStructureHealthy) else { return false }
         guard snapshot.mainAnchorSource != .missing else { return false }
         return MenuBarVisibilityPolicy.isMainNearControlCenter(
             mainX: snapshot.mainX,
