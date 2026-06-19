@@ -10,6 +10,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.73] - 2026-06-19
+
+Improves Always Hidden icon moves after wake/display changes.
+Restores hidden menu bar layouts more reliably after display sleep, Spaces, and off-screen window recovery.
+Keeps Health repair consistent with Touch ID protection for hidden icons.
+
+---
+
 ## [2.1.72] - 2026-06-17
 
 Improves Browse Icons reliability when moving items between Visible, Hidden, and Always Hidden. Reduces background menu-bar scanning work and strengthens resource checks so idle memory growth is caught before release.
