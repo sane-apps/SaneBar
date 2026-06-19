@@ -235,3 +235,32 @@ final class MenuBarLifecycleWorkflow {
         return bundlePath.hasPrefix("/Applications/")
     }
 }
+
+extension MenuBarLifecycleWorkflow {
+    nonisolated static func shouldPreserveCachedGeometryForHiddenLifecycle(
+        hidingState: HidingState,
+        separatorX: CGFloat?,
+        separatorRightEdgeX: CGFloat?,
+        mainStatusItemX: CGFloat?,
+        displayStillPresent: Bool
+    ) -> Bool {
+        guard hidingState == .hidden, displayStillPresent else { return false }
+        guard let separatorX, separatorX.isFinite,
+              let separatorRightEdgeX, separatorRightEdgeX.isFinite, separatorRightEdgeX > separatorX,
+              let mainStatusItemX, mainStatusItemX.isFinite, mainStatusItemX > separatorRightEdgeX
+        else {
+            return false
+        }
+        return true
+    }
+
+    nonisolated static func lifecycleTransitionRequiresFreshLiveAnchors(reason: String) -> Bool {
+        switch reason {
+        case "screenParametersChanged", "willSleep", "screensDidSleep", "wakeResume", "activeSpaceChanged", "applicationActivated", "fullscreenSuppressionEnded":
+            return true
+        default:
+            return false
+        }
+    }
+
+}

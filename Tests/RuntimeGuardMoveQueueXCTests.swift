@@ -696,7 +696,9 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "The outbound AH repair should be gated on live source geometry instead of running unconditionally"
         )
         XCTAssertTrue(
-            source.contains("private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(_ request: Request) async -> Bool") &&
+            source.contains("private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(") &&
+                source.contains("_ request: Request,") &&
+                source.contains("requiresAlwaysHiddenToHiddenTargets: Bool = false") &&
                 source.contains("guard sourceFrameIsOnScreen(request) else") &&
                 source.contains("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag") &&
                 source.contains("guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else"),

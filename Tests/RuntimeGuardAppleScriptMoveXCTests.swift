@@ -123,14 +123,67 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
             "AppleScript move resolution should gate fresh scans on real cache freshness and give cold-start moves the same patience as list icon zones"
         )
         XCTAssertTrue(
-            source.contains("if !refreshed.isEmpty {\n            return refreshed\n        }") &&
-                source.contains("return refreshedIconZones(timeoutSeconds: 2.5, allowAuthoritativeFallback: true)"),
-            "AppleScript move resolution should not force users to warm the zone cache with list icon zones before a cold-start move"
+            source.contains("scriptMoveResolutionZonesAfterRefresh(") &&
+                source.contains("authoritativeScriptListingZonesForCommand()"),
+            "AppleScript move resolution should not report not-found from a cheap refresh that missed the requested exact ID"
         )
         XCTAssertTrue(
             source.contains("AccessibilityService.shared.invalidateMenuBarItemPositionsCache()"),
             "AppleScript move resolution should invalidate only positioned item state before the refreshed lookup"
         )
+    }
+
+    func testScriptMoveResolutionFallsBackToAuthoritativeWhenCheapRefreshMissesExactId() {
+        let target = RunningApp(
+            id: "com.example.target",
+            name: "Target",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 120,
+            width: 22
+        )
+        let other = RunningApp(
+            id: "com.example.other",
+            name: "Other",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 160,
+            width: 22
+        )
+
+        let zones = scriptMoveResolutionZonesAfterRefresh(
+            identifier: target.uniqueId,
+            cached: [],
+            refreshed: [(other, .visible)]
+        ) {
+            [(target, .hidden)]
+        }
+
+        XCTAssertEqual(resolveScriptIcon(target.uniqueId, from: zones)?.app.uniqueId, target.uniqueId)
+    }
+
+    func testScriptMoveResolutionDoesNotPayAuthoritativeRefreshWhenCheapRefreshHasExactId() {
+        let target = RunningApp(
+            id: "com.example.target",
+            name: "Target",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 120,
+            width: 22
+        )
+        var usedAuthoritativeFallback = false
+
+        let zones = scriptMoveResolutionZonesAfterRefresh(
+            identifier: target.uniqueId,
+            cached: [],
+            refreshed: [(target, .visible)]
+        ) {
+            usedAuthoritativeFallback = true
+            return []
+        }
+
+        XCTAssertEqual(resolveScriptIcon(target.uniqueId, from: zones)?.zone, .visible)
+        XCTAssertFalse(usedAuthoritativeFallback)
     }
 
     func testAppleScriptMoveCommandsFallbackToFreshExactZoneVerification() throws {

@@ -279,8 +279,16 @@ final class OpenSettingsWindowCommand: SaneBarScriptCommand {
 @objc(CloseSettingsWindowCommand)
 final class CloseSettingsWindowCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        Task { @MainActor in
-            SettingsOpener.close()
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                SettingsOpener.close()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    SettingsOpener.close()
+                }
+            }
         }
         return true
     }

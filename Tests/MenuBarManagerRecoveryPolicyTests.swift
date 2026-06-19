@@ -111,7 +111,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             MenuBarManager.statusItemValidationInitialDelaySeconds(
                 context: .activeSpaceChanged,
                 recoveryCount: 0
-            ) == 0.35
+            ) == 2.0
         )
         #expect(
             MenuBarManager.statusItemValidationRetryDelaySeconds(
@@ -126,7 +126,7 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(
             MenuBarManager.statusItemValidationRetryDelaySeconds(
                 context: .activeSpaceChanged
-            ) == 0.25
+            ) == 0.5
         )
         #expect(
             MenuBarManager.statusItemValidationMaxAttempts(
@@ -296,7 +296,7 @@ struct MenuBarManagerRecoveryPolicyTests {
     @Test("Hidden lifecycle preserves trustworthy cached separator geometry")
     func hiddenLifecyclePreservesTrustworthyCachedSeparatorGeometry() {
         #expect(
-            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,
                 separatorRightEdgeX: 520,
@@ -305,7 +305,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: -600,
                 separatorRightEdgeX: -580,
@@ -314,7 +314,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            !MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .expanded,
                 separatorX: 500,
                 separatorRightEdgeX: 520,
@@ -323,7 +323,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            !MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,
                 separatorRightEdgeX: 520,
@@ -332,11 +332,32 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            !MenuBarManager.shouldPreserveCachedGeometryForHiddenLifecycle(
+            !MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
                 hidingState: .hidden,
                 separatorX: 500,
                 separatorRightEdgeX: 520,
                 mainStatusItemX: 510,
+                displayStillPresent: true
+            )
+        )
+    }
+
+    @Test("Screen wake and Space transitions clear cached geometry while hidden")
+    func lifecycleTransitionsRequireFreshLiveAnchorsWhileHidden() {
+        for reason in ["screenParametersChanged", "willSleep", "screensDidSleep", "wakeResume", "activeSpaceChanged", "applicationActivated", "fullscreenSuppressionEnded"] {
+            #expect(
+                MenuBarLifecycleWorkflow.lifecycleTransitionRequiresFreshLiveAnchors(reason: reason)
+            )
+        }
+        #expect(
+            !MenuBarLifecycleWorkflow.lifecycleTransitionRequiresFreshLiveAnchors(reason: "internalHiddenCollapse")
+        )
+        #expect(
+            MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
+                hidingState: .hidden,
+                separatorX: -600,
+                separatorRightEdgeX: -580,
+                mainStatusItemX: -540,
                 displayStillPresent: true
             )
         )
@@ -366,7 +387,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             separatorX: 520,
             mainX: 620
         )
-        #expect(MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: cached))
+        #expect(!MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: cached))
 
         let stale = MenuBarRuntimeSnapshot(
             identityPrecision: .exact,
@@ -518,8 +539,8 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(snapshot.startupItemsValid == false)
     }
 
-    @Test("Bootstrap trust requires non-estimated separator and main anchors")
-    func bootstrapTrustRequiresNonEstimatedSeparatorAnchor() {
+    @Test("Bootstrap trust requires live separator and main anchors")
+    func bootstrapTrustRequiresLiveCoreAnchors() {
         let estimatedSeparatorSnapshot = MenuBarRuntimeSnapshot(
             structuralState: .ready,
             separatorAnchorSource: .estimated,
@@ -528,17 +549,24 @@ struct MenuBarManagerRecoveryPolicyTests {
         let cachedSeparatorSnapshot = MenuBarRuntimeSnapshot(
             structuralState: .ready,
             separatorAnchorSource: .cached,
-            mainAnchorSource: .estimated
+            mainAnchorSource: .live
         )
         let cachedAnchorSnapshot = MenuBarRuntimeSnapshot(
             structuralState: .ready,
             separatorAnchorSource: .cached,
             mainAnchorSource: .cached
         )
+        let liveAnchorSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live
+        )
 
         #expect(!estimatedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
         #expect(!cachedSeparatorSnapshot.hasTrustworthyBootstrapAnchors)
-        #expect(cachedAnchorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(!cachedAnchorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(liveAnchorSnapshot.hasTrustworthyBootstrapAnchors)
+        #expect(liveAnchorSnapshot.hasLiveCoreAnchors)
     }
 
     @Test("Hidden near-control-center presentation is protected instead of stale")
@@ -551,6 +579,46 @@ struct MenuBarManagerRecoveryPolicyTests {
                 separatorX: 1667,
                 mainX: 1660,
                 mainRightGap: 260,
+                screenWidth: 1920
+            ),
+            hidingState: .hidden,
+            alwaysHiddenSeparatorMisordered: false
+        )
+
+        #expect(confidence == .shielded)
+    }
+
+    @Test("Hidden collapsed presentation can use cached separator anchor without becoming stale")
+    func hiddenCollapsedCachedSeparatorPresentationIsCached() {
+        let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
+            for: MenuBarRuntimeSnapshot(
+                structuralState: .ready,
+                separatorAnchorSource: .cached,
+                mainAnchorSource: .live,
+                startupItemsValid: true,
+                separatorX: 1648,
+                mainX: 1684,
+                mainRightGap: 236,
+                screenWidth: 1920
+            ),
+            hidingState: .hidden,
+            alwaysHiddenSeparatorMisordered: false
+        )
+
+        #expect(confidence == .cached)
+    }
+
+    @Test("Hidden collapsed drift can be shielded with cached separator anchor")
+    func hiddenCollapsedDriftWithCachedSeparatorPresentationIsShielded() {
+        let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
+            for: MenuBarRuntimeSnapshot(
+                structuralState: .ready,
+                separatorAnchorSource: .cached,
+                mainAnchorSource: .live,
+                startupItemsValid: true,
+                separatorX: 1712,
+                mainX: 1684,
+                mainRightGap: 236,
                 screenWidth: 1920
             ),
             hidingState: .hidden,

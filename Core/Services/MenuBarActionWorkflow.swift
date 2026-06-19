@@ -201,6 +201,7 @@ final class MenuBarActionWorkflow: NSObject, NSMenuDelegate {
 
     @objc func quitApp(_: Any?) {
         logger.info("Menu: Quit")
+        NotificationCenter.default.post(name: .saneBarExplicitTerminationRequested, object: nil)
         NSApplication.shared.terminate(nil)
     }
 

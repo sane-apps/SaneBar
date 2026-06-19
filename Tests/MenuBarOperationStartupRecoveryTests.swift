@@ -247,8 +247,8 @@ struct MenuBarOperationStartupRecoveryTests {
         )
     }
 
-    @Test("Always-hidden runtime drift stays bounded outside startup")
-    func alwaysHiddenRuntimeValidationStopsAfterOneRepair() {
+    @Test("Always-hidden runtime drift escalates through fresh autosave namespaces")
+    func alwaysHiddenRuntimeValidationBumpsAutosaveVersionAfterRetry() {
         #expect(
             MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
                 context: .screenParametersChanged,
@@ -260,6 +260,27 @@ struct MenuBarOperationStartupRecoveryTests {
             MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
                 context: .screenParametersChanged,
                 recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .activeSpaceChanged,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .wakeResume,
+                recoveryCount: 1,
+                maxRecoveryCount: 2
+            ) == .bumpAutosaveVersion(.invalidGeometry)
+        )
+        #expect(
+            MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(
+                context: .activeSpaceChanged,
+                recoveryCount: 2,
                 maxRecoveryCount: 2
             ) == .stop(.invalidGeometry)
         )

@@ -182,21 +182,17 @@ struct MenuBarAutomaticMoveGateTests {
         }
     }
 
-    @Test("Startup reconciliation uses physical moves only on trustworthy geometry")
-    func startupReconciliationRequiresTrustworthyGeometry() {
-        // Live and provenance-pure cached geometry allow physical restoration
-        // of standing intent right after launch.
-        for confidence in [MenuBarGeometryConfidence.live, .cached] {
-            let startup = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
-                reason: "healthy-validation-startup-follow-up",
-                geometryConfidence: confidence,
-                hidingState: .expanded
-            )
-            #expect(startup.mode == .repairWithPhysicalMoves)
-            #expect(startup.physicalMoveOrigin == .systemWakeRecovery)
-        }
+    @Test("Startup reconciliation uses physical moves only on live geometry")
+    func startupReconciliationRequiresLiveGeometry() {
+        let liveStartup = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-startup-follow-up",
+            geometryConfidence: .live,
+            hidingState: .expanded
+        )
+        #expect(liveStartup.mode == .repairWithPhysicalMoves)
+        #expect(liveStartup.physicalMoveOrigin == .systemWakeRecovery)
 
-        for confidence in [MenuBarGeometryConfidence.shielded, .stale, .missing] {
+        for confidence in [MenuBarGeometryConfidence.cached, .shielded, .stale, .missing] {
             let degraded = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
                 reason: "healthy-validation-startup-follow-up",
                 geometryConfidence: confidence,

@@ -239,14 +239,15 @@ See `PRIVACY.md` for details and rationale.
 
 ## Updates and Distribution
 
-- Current public channel is direct download:
+- Current public channels are direct download and Setapp:
   - Sparkle is used for updates (appcast in Info.plist)
   - update feed: `https://sanebar.com/appcast.xml`
   - release builds produce a notarized ZIP-first direct-download/Sparkle artifact hosted via Cloudflare R2 at `dist.sanebar.com/updates/SaneBar-X.Y.Z.zip`
-- The current public channel is direct download only.
 - Basic stays free and Pro is a one-time `$14.99` unlock on direct surfaces.
 - The current full-featured Mac App Store lane is intentionally disabled.
-- Experimental Setapp artifacts still exist in the repo, but Setapp is not an active distribution lane and should not be described as current strategy until a dedicated lane is deliberately revived and re-validated.
+- Setapp is an active distribution lane. The Setapp build uses the `SaneBarSetapp`
+  scheme, `com.sanebar.app-setapp` bundle ID, Setapp Framework access, Setapp
+  update policy, no Sparkle/direct-pay UI, and Setapp-managed Pro access.
 - Direct Lemon Squeezy sales stay in place for the website/direct channel.
 
 ## Build and Release Infrastructure
@@ -256,11 +257,20 @@ See `PRIVACY.md` for details and rationale.
 - **Appcast**: Sparkle reads `SUFeedURL` from `SaneBar/Info.plist` → `https://sanebar.com/appcast.xml`.
 - **Sparkle key**: `7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=` (shared across all SaneApps).
 - **Release workflow**: see DEVELOPMENT.md § Release Process and ARCHITECTURE.md § Operations & Scripts Reference.
-- **Dormant Setapp notes**:
+- **Setapp lane notes**:
   - menu bar apps must report Setapp `.userInteraction` events on real menu bar activation
   - Setapp macOS 13+ updates require `NSUpdateSecurityPolicy` authorizing `com.setapp.DesktopClient.SetappAgent`
   - if the Setapp build is sandboxed, it needs the `com.setapp.ProvisioningService` Mach lookup exception
-  - current project settings are `arm64` only, so Setapp universal-binary readiness must be re-verified instead of assumed
+  - Setapp packages must be universal (`arm64` and `x86_64`) and declare matching `MPSupportedArchitectures`
+  - Setapp final ZIP validation must reject Sparkle framework residue, Lemon
+    Squeezy/license-key/checkout strings, and donation/direct-download copy in
+    the uploaded archive
+  - Setapp listing screenshots are manifest-backed assets in
+    `docs/images/setapp/`, derived from owned-site app-in-use screenshots, and
+    must pass 16:10 / 1280x800 validation before upload
+  - Setapp public release notes must be user-facing. Review-team comments,
+    icon geometry, archive/signing details, and direct-channel licensing/update
+    terms belong in private review comments or email, not in Release notes.
 
 ## Error Handling and Recovery
 

@@ -65,6 +65,26 @@ enum MenuBarVisibilityPolicy {
         return true
     }
 
+    nonisolated static func shouldValidateStatusItemsAfterAppActivation(
+        hidingState: HidingState,
+        shouldSkipHideForExternalMonitor: Bool,
+        isBrowseSessionActive: Bool,
+        activatedBundleID: String?,
+        ownBundleID: String?
+    ) -> Bool {
+        guard hidingState == .hidden else { return false }
+        guard !shouldSkipHideForExternalMonitor else { return false }
+        guard !isBrowseSessionActive else { return false }
+
+        if let activatedBundleID,
+           let ownBundleID,
+           activatedBundleID == ownBundleID {
+            return false
+        }
+
+        return true
+    }
+
     nonisolated static func shouldArmAutoRehideAfterSettingsChange(
         _ context: AutoRehideSettingsChangeContext
     ) -> Bool {
@@ -282,16 +302,15 @@ extension MenuBarVisibilityPolicy {
         // settles: restoring hidden state and auto-rehide is safe, but cursor-
         // moving repairs during wake violate the passive recovery contract.
         //
-        // .cached is trustworthy by construction: only live observations enter
-        // the geometry cache and entries expire when the display configuration
-        // changes. Estimated, stale, and missing geometry still downgrade to
-        // audit-only.
+        // Physical replay only runs on a live snapshot. Cached geometry is a
+        // recovery hint, not proof that the current status-item windows are
+        // attached after wake, Space, or display-topology churn.
         let isWakeReplay = reason.contains("wake-resume")
         if isWakeReplay {
             return (.auditOnly, nil)
         }
 
-        let confidenceAllowsMoves = geometryConfidence == .live || geometryConfidence == .cached
+        let confidenceAllowsMoves = geometryConfidence == .live
         if reason.contains("healthy-validation"), confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
         }

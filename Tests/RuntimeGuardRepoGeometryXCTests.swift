@@ -25,6 +25,20 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(workflow.contains("CODE_SIGNING_ALLOWED=NO"), "CI should not require private signing credentials")
     }
 
+    func testFileBackedAppInfoPlistDoesNotInheritGeneratedPlistSetting() throws {
+        let projectURL = projectRootURL().appendingPathComponent("project.yml")
+        let project = try String(contentsOf: projectURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            project.contains("info:\n      path: SaneBar/Info.plist"),
+            "The app target should keep its checked-in Info.plist as the source of truth"
+        )
+        XCTAssertTrue(
+            project.contains("GENERATE_INFOPLIST_FILE: NO"),
+            "The app target must not inherit generated Info.plist mode; Xcode can otherwise build an app bundle missing Contents/Info.plist"
+        )
+    }
+
     func testSaneUIPackageIsPinnedForReproducibleBuilds() throws {
         let projectURL = projectRootURL().appendingPathComponent("project.yml")
         let project = try String(contentsOf: projectURL, encoding: .utf8)
@@ -120,6 +134,20 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("--sane-no-keychain"),
             "No-keychain automation launches should not self-terminate during runtime smoke relaunch probes"
         )
+        XCTAssertTrue(
+            source.contains("applicationShouldTerminate") &&
+                source.contains("shouldCancelUnexpectedTerminationForAutomation") &&
+                source.contains("automationLifecycleBreadcrumbPath"),
+            "No-keychain automation should record and cancel unexpected AppKit termination instead of disappearing without diagnostics"
+        )
+
+        let actionSource = try String(contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarActionWorkflow.swift"), encoding: .utf8)
+        let explicitQuitMarker = actionSource.range(of: ".saneBarExplicitTerminationRequested")?.lowerBound
+        let terminateCall = actionSource.range(of: "NSApplication.shared.terminate(nil)")?.lowerBound
+        XCTAssertTrue(
+            explicitQuitMarker != nil && terminateCall != nil && explicitQuitMarker! < terminateCall!,
+            "Explicit menu Quit should mark termination intent before calling terminate"
+        )
     }
 
     func testAppStartupInitializesSingleMenuBarRuntimePath() throws {
@@ -161,6 +189,27 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("StatusBarController.validateItemPosition(separator)") &&
                 recoverySource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy"),
             "Startup validation should require attached status-item windows except for the hidden collapsed separator state, where the main item must stay attached and ordered near Control Center"
+        )
+        let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
+        let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
+        XCTAssertTrue(
+            coordinatorSource.contains("moveQueueHasUsableStructuralState") &&
+                coordinatorSource.contains("snapshot.visibilityPhase == .hidden") &&
+                coordinatorSource.contains("snapshot.identityPrecision == .exact") &&
+                coordinatorSource.contains("snapshot.structuralState == .unattachedWindows"),
+            "Hidden-state exact moves should be allowed through pre-queue admission so the move workflow can run its showAll shield before live geometry checks"
+        )
+        let standardMoveURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStandardIconMoveWorkflow.swift")
+        let standardMoveSource = try String(contentsOf: standardMoveURL, encoding: .utf8)
+        XCTAssertTrue(
+            standardMoveSource.contains("activeVisibleBoundaryX > activeSeparatorX") &&
+                standardMoveSource.contains("fallbackVisibleBoundaryX > fallbackSeparatorX"),
+            "Move-to-visible boundary checks must be ordered-boundary checks, not positive-global-X checks, so left-arranged displays stay valid"
+        )
+        XCTAssertFalse(
+            standardMoveSource.contains("activeVisibleBoundaryX > 0") ||
+                standardMoveSource.contains("fallbackVisibleBoundaryX ?? 0"),
+            "Move-to-visible code must not reintroduce positive-X assumptions"
         )
         XCTAssertFalse(
             source.contains("self.statusBarController = statusBarController ?? StatusBarController()"),
@@ -221,7 +270,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 setupSource.contains("manager.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
                 setupSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
                 source.contains("func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool") &&
-                source.contains("snapshot.hasTrustworthyBootstrapAnchors") &&
+                source.contains("snapshot.hasLiveCoreAnchors") &&
+                source.contains("snapshot.geometryConfidence == .live") &&
                 source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
                 source.contains("for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts") &&
                 source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-no-visibility-intent\")") &&
@@ -531,7 +581,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
-                source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
+                source.contains("snapshot.geometryConfidence == .live") &&
+                !source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
             "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, keep wake replay passive, and restrict physical repair to trustworthy healthy validation"
         )
     }
@@ -688,6 +739,14 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("seed_hide_all_other_allowlist!") &&
                 source.contains("hideAllOtherVisibleItemIds") &&
                 source.contains("wait_for_hide_all_other_zone_settle!") &&
+                source.contains("seed_required_visible_ids!(missing_visible)") &&
+                source.contains("wait_for_required_visible_baseline!") &&
+                source.contains("seed_required_visible_ids!(non_visible)") &&
+                source.contains("Required visible baseline inventory unavailable") &&
+                source.contains("zone_read_error") &&
+                source.contains("inventory unavailable while waiting") &&
+                source.contains("SANEBAR_WAKE_PROBE_COMMAND_TIMEOUT_SECONDS") &&
+                source.contains("wake probe command timeout after") &&
                 source.contains("Hide-all-other seeded baseline did not settle before wake proof") &&
                 source.contains("hidden_baseline_skip_item?") &&
                 source.contains("!item[:bundle_id].to_s.start_with?('com.apple.')") &&

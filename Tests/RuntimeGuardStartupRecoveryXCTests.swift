@@ -102,7 +102,8 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("statusItemValidationMaxAttempts(context: context)") &&
                 recoverySource.contains("statusItemValidationRetryDelaySeconds(context: context)") &&
                 recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            return 6") &&
-                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .wakeResume:\n            return 0.5"),
+                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            return 0.5") &&
+                recoverySource.contains("case .activeSpaceChanged:\n            return recoveryCount == 0 ? 2.0 : 2.5"),
             "Startup position validation should retry before escalating to autosave recovery"
         )
         XCTAssertTrue(
@@ -157,6 +158,12 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             recoverySource.contains("MenuBarOperationCoordinator.alwaysHiddenMisorderRecoveryAction(") &&
                 recoverySource.contains("trigger: \"always-hidden-position-validation-\\(context.rawValue)\""),
             "Persistent always-hidden separator drift should escalate through the shared bounded recovery policy instead of repeating same-version repairs forever"
+        )
+        XCTAssertTrue(
+            coordinatorSource.contains("static func alwaysHiddenMisorderRecoveryAction(") &&
+                coordinatorSource.contains("context == .screenParametersChanged ||\n            context == .activeSpaceChanged ||\n            context == .wakeResume") &&
+                coordinatorSource.contains("return .bumpAutosaveVersion(.invalidGeometry)"),
+            "Always-hidden separator drift from screen, wake, and Space transitions should use the same bounded fresh-autosave recovery path as generic runtime geometry drift"
         )
         XCTAssertTrue(
             recoverySource.contains("case let .repairPersistedLayoutAndRecreate(reason):") &&
@@ -323,6 +330,8 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let observerSource = try String(contentsOf: observerURL, encoding: .utf8)
         let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
         let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
+        let appearanceURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAppearanceService.swift")
+        let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
 
         XCTAssertTrue(
             observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
@@ -334,8 +343,11 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("NSWorkspace.didWakeNotification") &&
                 observerSource.contains("NSWorkspace.screensDidWakeNotification") &&
                 observerSource.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
+                observerSource.contains("MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation") &&
+                observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"applicationActivated\")") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .activeSpaceChanged)") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .wakeResume)") &&
+                observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"applicationActivated\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"activeSpaceChanged\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"wakeResume\")") &&
                 observerSource.contains("Replay pinned visibility intent only after validation reports healthy anchors.") &&
@@ -351,6 +363,13 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 recoverySource.contains("guard self.manager.positionValidationGeneration == validationGeneration else"),
             "Screen and wake topology changes should invalidate stale validation work while preserving trustworthy hidden-state anchors, rearm auto-rehide after wake movement, then replay visibility intent only after wake-aware validation confirms healthy anchors"
+        )
+        XCTAssertTrue(
+            appearanceSource.contains("shouldValidateStatusItemsAfterOverlaySuppression(") &&
+                appearanceSource.contains("schedulePostOverlaySuppressionStatusItemValidation(") &&
+                appearanceSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"fullscreenSuppressionEnded\")") &&
+                appearanceSource.contains("manager.schedulePositionValidation(context: .activeSpaceChanged)"),
+            "Fullscreen overlay suppression exit should schedule status-item validation, because tint restoration alone does not prove hidden menu-bar anchors recovered"
         )
 
         let wakeProbeURL = projectRootURL().appendingPathComponent("Scripts/wake_layout_probe.rb")

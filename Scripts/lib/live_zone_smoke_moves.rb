@@ -4,6 +4,7 @@ class LiveZoneSmoke
   private
 
   def exercise_representative_move_action_matrix(candidates)
+    candidates = refresh_representative_move_action_matrix_candidates(candidates)
     by_zone = candidates.group_by { |candidate| candidate[:zone].to_s }
     visible_candidate = Array(by_zone['visible']).first
     hidden_candidate = Array(by_zone['hidden']).first
@@ -67,6 +68,24 @@ class LiveZoneSmoke
 
     puts "✅ Candidate set passed: #{passed.map { |candidate| candidate[:unique_id] }.uniq.join(', ')}"
     passed
+  end
+
+  def refresh_representative_move_action_matrix_candidates(candidates)
+    return candidates if representative_move_matrix_candidate_set_complete?(candidates)
+
+    zones = require_representative_zone_candidates!(list_icon_zones)
+    refreshed = selected_candidates(zones)
+    representative_move_matrix_candidate_set_complete?(refreshed) ? refreshed : candidates
+  rescue StandardError => e
+    puts "⚠️ Representative move matrix live refresh failed: #{e.message}"
+    candidates
+  end
+
+  def representative_move_matrix_candidate_set_complete?(candidates)
+    by_zone = Array(candidates).group_by { |candidate| candidate[:zone].to_s }
+    Array(by_zone['visible']).any? &&
+      Array(by_zone['hidden']).any? &&
+      Array(by_zone['alwaysHidden']).length >= 3
   end
 
   def matrix_hidden_visible_candidates(primary:, visible_candidate:, hidden_candidate:, all_candidates:)
@@ -347,6 +366,7 @@ class LiveZoneSmoke
   def matched_move_candidate(zones, requested_unique_id, candidate)
     exact = zones.find { |item| item[:unique_id] == requested_unique_id }
     return exact if exact
+    return nil if focused_required_id_mode?
 
     same_bundle = same_bundle_movable_candidates(zones, candidate)
     return nil if same_bundle.length > 1
@@ -360,6 +380,11 @@ class LiveZoneSmoke
 
     exact = zones.find { |item| item[:unique_id] == candidate[:unique_id] }
     return exact[:unique_id] if exact
+
+    if focused_required_id_mode?
+      live_ids = same_bundle_movable_candidates(zones, candidate).map { |item| item[:unique_id] }
+      raise "Required exact move candidate missing before action: requested=#{candidate[:unique_id]} bundle=#{candidate[:bundle]} live=#{live_ids.join(', ')}"
+    end
 
     same_bundle = same_bundle_movable_candidates(zones, candidate)
     if same_bundle.length > 1
@@ -492,34 +517,71 @@ class LiveZoneSmoke
   def capture2e_with_timeout(*cmd, timeout:)
     output = +''
     status = nil
+    timed_out = false
 
-    Open3.popen2e(*cmd) do |stdin, stdout, wait_thr|
+    Open3.popen2e(*cmd, pgroup: true) do |stdin, stdout, wait_thr|
       stdin.close
-      reader = Thread.new { stdout.read.to_s }
-
       begin
         deadline = Time.now + timeout
         loop do
           check_resource_watchdog!
+          read_command_output_nonblocking!(stdout, output)
           if wait_thr.join(0.2)
             status = wait_thr.value
-            output = reader.value
+            read_command_output_nonblocking!(stdout, output, max_drain_seconds: 1.0)
             break
           end
 
-          raise "AppleScript timeout after #{timeout}s (#{cmd.join(' ')})" if Time.now >= deadline
+          if Time.now >= deadline
+            timed_out = true
+            terminate_child_process(wait_thr)
+            read_command_output_nonblocking!(stdout, output, max_drain_seconds: 1.0)
+            break
+          end
         end
       rescue StandardError
         terminate_child_process(wait_thr)
-        begin
-          output = reader.value
-        rescue StandardError
-          output = ''
-        end
+        read_command_output_nonblocking!(stdout, output, max_drain_seconds: 1.0)
         raise
       end
     end
 
+    if timed_out
+      tail = output.lines.last(12).join.strip
+      detail = tail.empty? ? '' : " output_tail=#{tail}"
+      raise "AppleScript timeout after #{timeout}s (#{cmd.join(' ')})#{detail}"
+    end
+
     [output, status]
+  end
+
+  def read_command_output_nonblocking!(stdout, output, max_drain_seconds: 0.4)
+    deadline = Time.now + max_drain_seconds
+    loop do
+      break if Time.now >= deadline
+
+      ready = IO.select([stdout], nil, nil, 0.05)
+      break unless ready
+
+      chunk = stdout.read_nonblock(4096, exception: false)
+      case chunk
+      when String
+        output << normalize_command_output_chunk(chunk)
+      when :wait_readable
+        next
+      else
+        break
+      end
+    end
+  rescue IOError
+    nil
+  end
+
+  def normalize_command_output_chunk(chunk)
+    chunk.to_s.encode(Encoding::UTF_8, Encoding::BINARY, invalid: :replace, undef: :replace, replace: '?')
+  rescue EncodingError
+    normalized = chunk.to_s.dup
+    normalized.force_encoding(Encoding::UTF_8)
+    normalized.valid_encoding? ? normalized : normalized.encode(Encoding::UTF_8, invalid: :replace, undef: :replace, replace: '?')
   end
 end

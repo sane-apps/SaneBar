@@ -315,6 +315,31 @@ struct AlwaysHiddenRegressionTests {
                 "AH must be at visual length (14) when hidden — main already shields everything")
     }
 
+    @Test("hide() reapplies hidden lengths when state is already hidden")
+    @MainActor
+    func hideReappliesHiddenLengthsWhenAlreadyHidden() async {
+        let service = HidingService()
+        let mainItem = RecordingMockStatusItem()
+        let ahItem = RecordingMockStatusItem()
+
+        service.configure(delimiterItem: mainItem)
+        service.configureAlwaysHiddenDelimiter(ahItem)
+        await service.hide()
+
+        // Simulate WindowServer/status-item drift where logical state remains
+        // hidden but the live status-item lengths no longer match that state.
+        mainItem.length = 20
+        ahItem.length = 10000
+
+        await service.hide()
+
+        #expect(service.state == .hidden)
+        #expect(mainItem.length == 10000,
+                "A repeated hide must re-collapse the main delimiter instead of trusting stale logical state")
+        #expect(ahItem.length == 14,
+                "A repeated hide must restore the Always Hidden delimiter to its hidden visual length")
+    }
+
     @Test("show() sets AH to collapsed BEFORE revealing main")
     @MainActor
     func showSetsAHCollapsedBeforeMain() async {

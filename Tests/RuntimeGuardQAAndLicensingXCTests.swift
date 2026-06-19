@@ -114,13 +114,15 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             source.contains("RUNTIME_SMOKE_PASSES = 1"),
-            "Project QA runtime smoke should require a repeat pass to catch warm-state regressions"
+            "Project QA runtime smoke should use one default pass plus focused exact-ID lanes to keep release proof bounded"
         )
         XCTAssertTrue(
-            source.contains("RUNTIME_SHARED_BUNDLE_IDS = %w[") &&
-                source.contains("com.apple.menuextra.focusmode") &&
-                source.contains("com.apple.menuextra.display"),
-            "Project QA runtime smoke should keep a stable focused shared-bundle candidate set for high-risk Apple menu extras"
+            source.contains("RUNTIME_SHARED_BUNDLE_FIXTURE_IDS = %w[") &&
+                source.contains("com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A") &&
+                source.contains("com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B") &&
+                source.contains("com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C") &&
+                !source.contains("RUNTIME_SHARED_BUNDLE_IDS = %w["),
+            "Project QA runtime smoke should keep a deterministic shared-bundle fixture set instead of volatile Apple menu extras"
         )
         XCTAssertTrue(
             source.contains("RUNTIME_NATIVE_APPLE_IDS = %w[") &&
@@ -187,28 +189,29 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Project QA runtime smoke should clear stale launch/smoke logs before each run"
         )
         XCTAssertTrue(
-            source.contains("File.write(RUNTIME_LAUNCH_LOG_PATH, launch_out)"),
+            source.contains("safe_write_runtime_file(RUNTIME_LAUNCH_LOG_PATH, launch_out)"),
             "Project QA runtime smoke should persist the current launch transcript even on success so stale launch failures do not mislead later debugging"
         )
         XCTAssertTrue(
-            source.contains("File.write(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join(\"\\n\\n\"))"),
+            source.contains("safe_write_runtime_file(RUNTIME_SMOKE_LOG_PATH, smoke_outputs.join(\"\\n\\n\"))"),
             "Project QA runtime smoke should persist the latest smoke transcript on success so the artifact always matches the current run"
         )
         XCTAssertTrue(
-            source.contains("shared_bundle_ids = runtime_smoke_available_shared_bundle_candidate_ids(") &&
+            source.contains("shared_bundle_ids = ensure_runtime_shared_bundle_fixture!(target)") &&
                 source.contains("ensure_runtime_shared_bundle_fixture!(target)") &&
                 source.contains("RUNTIME_SHARED_BUNDLE_FIXTURE_IDS = %w[") &&
-                source.contains("def runtime_smoke_available_shared_bundle_candidate_ids(target, required_ids:)") &&
+                source.contains("com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A") &&
+                !source.contains("com.sanebar.sharedfixture::statusItem:0") &&
                 source.contains("next unless zone[:movable]") &&
                 source.contains("shared_group = grouped.values.find { |items| items.length >= 2 }") &&
-                source.contains("Runtime smoke had no shared-bundle exact-id candidates.") &&
-                source.contains("the deterministic shared-bundle fixture must launch") &&
+                source.contains("Runtime smoke had no deterministic shared-bundle exact-id fixture candidates.") &&
+                source.contains("the Mini must launch the shared-bundle fixture before release") &&
                 source.contains("run_focused_runtime_smoke_exact_ids(") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(',')") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'") &&
                 source.contains("lane_name: 'shared-bundle'") &&
                 source.contains("retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?"),
-            "Project QA runtime smoke should always prove shared-bundle exact-ID movement with either host items or the deterministic fixture"
+            "Project QA runtime smoke should always prove shared-bundle exact-ID movement with the deterministic fixture"
         )
         XCTAssertTrue(
             source.contains("native_apple_ids = runtime_smoke_available_required_candidate_ids(") &&
@@ -227,7 +230,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             source.contains("shared_bundle_exact_id_pool_empty=1") &&
-                source.contains("Runtime smoke had no shared-bundle exact-id candidates.") &&
+                source.contains("Runtime smoke had no deterministic shared-bundle exact-id fixture candidates.") &&
                 source.contains("Shared-bundle move regressions are release-blocking") &&
                 source.contains("shared-bundle exact-id smoke unavailable"),
             "Project QA runtime smoke should fail release QA when the shared-bundle exact-ID lane is unavailable"
@@ -239,12 +242,27 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
                 source.contains("launch_args = ['--sane-skip-app-move']") &&
                 source.contains("launch_args << '--sane-no-keychain' if target[:no_keychain]") &&
                 source.contains("command += ['--args', *launch_args]") &&
+                source.contains("def launch_runtime_smoke_target!(target)") &&
+                source.contains("Process.spawn(") &&
+                source.contains("'SANEAPPS_DISABLE_KEYCHAIN' => '1'") &&
+                source.contains("'--sane-no-keychain'") &&
+                source.contains("launch_runtime_smoke_target!(target)") &&
+                source.contains("matches.length == 1") &&
+                source.contains("return false if matches.length > 1") &&
+                source.contains("def terminate_runtime_smoke_target_processes!(target)") &&
+                source.contains("signal_runtime_smoke_target_pids(pids, 'TERM')") &&
+                source.contains("signal_runtime_smoke_target_pids(pids, 'KILL')") &&
+                !source.contains("return true if matches") &&
+                !source.contains("system('killall', PROJECT_NAME") &&
+                source.contains("target[:relaunch] = false") &&
                 source.contains("def runtime_probe_no_keychain_env(target)") &&
                 source.contains("wake_probe_env.merge!(runtime_probe_no_keychain_env(target))") &&
                 source.contains("'SANEBAR_PROBE_FORCE_NO_KEYCHAIN' => '1'") &&
-                source.contains("File.write(\"#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout\", wake_probe_out)") &&
+                source.contains("launch_out, launch_status = capture2e_with_progress(") &&
+                source.contains("heartbeat_label: 'runtime smoke test_mode launch'") &&
+                source.contains("safe_write_runtime_file(\"#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout\", wake_probe_out)") &&
                 source.contains("system(*runtime_smoke_relaunch_command(target), out: File::NULL, err: File::NULL)"),
-            "Project QA runtime smoke relaunches should mirror SaneMaster's fresh no-keychain launch shape so Pro-only checks do not silently downgrade or bind to a stale process"
+            "Project QA runtime smoke relaunches should direct-launch no-keychain Pro checks so Launch Services cannot drop automation arguments or bind to a stale process"
         )
         XCTAssertTrue(
             source.contains("Runtime smoke requires a Pro-enabled target for Always Hidden checks; the mini runtime target stayed in free mode") &&
@@ -254,8 +272,8 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("def runtime_smoke_available_required_candidate_ids") &&
                 source.contains("'osascript'") &&
-                source.contains("list icon zones"),
-            "Project QA should discover whether the focused shared-bundle candidates are actually present before requiring that smoke pass"
+                source.contains("list authoritative icon zones"),
+            "Project QA should authoritative-refresh fixture zones before deciding focused shared-bundle candidates are unavailable"
         )
         XCTAssertTrue(
             source.contains("runtimeSmokeResourceWatchdog: {") &&

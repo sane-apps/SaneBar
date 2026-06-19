@@ -137,11 +137,10 @@ class ProjectQA
       'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0',
       'SANEBAR_SMOKE_REQUIRE_NO_KEYCHAIN' => target[:no_keychain] ? '1' : '0'
     )
+    focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'
+    focused_env['SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET'] = '1'
     if lane_name == 'host exact-id'
       focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
-    else
-      focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'
-      focused_env['SANEBAR_SMOKE_MIN_PASSING_CANDIDATES'] = '1' if lane_name == 'shared-bundle'
     end
     focused_attempt = 0
 
@@ -259,20 +258,46 @@ class ProjectQA
     return nil unless ensure_runtime_smoke_target_running!(target)
 
     expected_bundle_id = 'com.sanebar.app'
-    output, status = Open3.capture2e(
-      'osascript',
-      '-e',
-      %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
-      '-e',
-      %(using terms from application id "#{expected_bundle_id}"),
-      '-e',
-      'tell application appTarget to layout snapshot',
-      '-e',
-      'end using terms from'
-    )
-    return nil unless status.success?
+    deadline = Time.now + 12.0
+    relaunched_after_wrong_target = false
+    loop do
+      output, status = capture2e_with_runtime_timeout(
+        'osascript',
+        '-e',
+        %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
+        '-e',
+        %(using terms from application id "#{expected_bundle_id}"),
+        '-e',
+        'tell application appTarget to layout snapshot',
+        '-e',
+        'end using terms from',
+        timeout: 4,
+        label: 'AppleScript layout snapshot'
+      )
+      if status.success?
+        snapshot = JSON.parse(output)
+        if target[:no_keychain] &&
+           (!runtime_smoke_no_keychain_target_exclusive?(target) || snapshot['licenseIsPro'] != true)
+          unless relaunched_after_wrong_target
+            target[:relaunch] = true
+            ensure_runtime_smoke_target_running!(target)
+            relaunched_after_wrong_target = true
+          end
+        else
+          return snapshot
+        end
+      end
 
-    JSON.parse(output)
+      break if Time.now >= deadline
+
+      sleep 0.5
+    rescue JSON::ParserError
+      break if Time.now >= deadline
+
+      sleep 0.5
+    end
+
+    nil
   rescue JSON::ParserError, StandardError
     nil
   end
@@ -297,6 +322,7 @@ class ProjectQA
 
     target[:no_keychain] = true
     target[:relaunch] = true
+    seed_runtime_smoke_no_keychain_pro_defaults!
 
     snapshot = runtime_smoke_layout_snapshot(target)
     return nil if snapshot && snapshot['licenseIsPro'] == true
@@ -325,6 +351,29 @@ class ProjectQA
     launch_args << '--sane-no-keychain' if target[:no_keychain]
     command += ['--args', *launch_args]
     command
+  end
+
+  def launch_runtime_smoke_target!(target)
+    if target[:no_keychain]
+      binary = target[:process_path]
+      return false unless binary && File.executable?(binary)
+
+      Process.detach(
+        Process.spawn(
+          { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
+          binary,
+          '--sane-skip-app-move',
+          '--sane-no-keychain',
+          out: File::NULL,
+          err: File::NULL
+        )
+      )
+      return true
+    end
+
+    system(*runtime_smoke_relaunch_command(target), out: File::NULL, err: File::NULL)
+  rescue StandardError
+    false
   end
 
   def runtime_smoke_target(launch_output:)
@@ -381,17 +430,31 @@ class ProjectQA
 
   def ensure_runtime_smoke_target_running!(target)
     if target[:relaunch]
-      system('killall', PROJECT_NAME, out: File::NULL, err: File::NULL)
-      sleep 1
-      launched = system(*runtime_smoke_relaunch_command(target), out: File::NULL, err: File::NULL)
+      return false unless terminate_runtime_smoke_target_processes!(target)
+
+      launched = launch_runtime_smoke_target!(target)
       return false unless launched
+      sleep 1.5 if target[:no_keychain]
     end
 
     deadline = Time.now + 8
     while Time.now < deadline
+      all_matches = runtime_smoke_target_processes(target, require_no_keychain: false)
       matches = runtime_smoke_target_processes(target)
-      return true if matches
-      if target[:no_keychain] && !runtime_smoke_target_processes(target, require_no_keychain: false).empty?
+      if matches.length == 1
+        if target[:no_keychain]
+          if all_matches.length == 1
+            target[:relaunch] = false
+            return true
+          end
+        else
+          target[:relaunch] = false
+          return true
+        end
+      end
+      return false if matches.length > 1
+
+      if target[:no_keychain] && !all_matches.empty?
         # Launch Services can briefly keep the old instance around. Keep polling,
         # but do not accept a real-keychain process for release smoke.
         sleep 0.5
@@ -402,6 +465,50 @@ class ProjectQA
     end
 
     false
+  end
+
+  def runtime_smoke_no_keychain_target_exclusive?(target)
+    return true unless target[:no_keychain]
+
+    all_matches = runtime_smoke_target_processes(target, require_no_keychain: false)
+    no_keychain_matches = runtime_smoke_target_processes(target, require_no_keychain: true)
+    all_matches.length == 1 && no_keychain_matches.length == 1
+  end
+
+  def terminate_runtime_smoke_target_processes!(target)
+    pids = runtime_smoke_target_pids(target)
+    return true if pids.empty?
+
+    signal_runtime_smoke_target_pids(pids, 'TERM')
+    return true if wait_for_runtime_smoke_target_exit!(target, seconds: 3.0)
+
+    signal_runtime_smoke_target_pids(pids, 'KILL')
+    wait_for_runtime_smoke_target_exit!(target, seconds: 3.0)
+  end
+
+  def runtime_smoke_target_pids(target)
+    runtime_smoke_target_processes(target, require_no_keychain: false).map do |line|
+      pid = line.split(/\s+/, 2).first.to_i
+      pid.positive? ? pid : nil
+    end.compact
+  end
+
+  def signal_runtime_smoke_target_pids(pids, signal)
+    pids.each do |pid|
+      Process.kill(signal, pid)
+    rescue Errno::ESRCH, Errno::EPERM
+      nil
+    end
+  end
+
+  def wait_for_runtime_smoke_target_exit!(target, seconds:)
+    deadline = Time.now + seconds
+    loop do
+      return true if runtime_smoke_target_processes(target, require_no_keychain: false).empty?
+      return false if Time.now >= deadline
+
+      sleep 0.2
+    end
   end
 
   def runtime_smoke_target_processes(target, require_no_keychain: target[:no_keychain])
@@ -538,18 +645,43 @@ class ProjectQA
 
   def refresh_runtime_smoke_icon_inventory(target)
     script_target = %(application id "com.sanebar.app")
-    Open3.capture2e('/usr/bin/osascript', '-e', "tell #{script_target} to list icons")
+    capture2e_with_runtime_timeout(
+      '/usr/bin/osascript',
+      '-e',
+      "tell #{script_target} to list authoritative icon zones",
+      timeout: 8,
+      label: 'AppleScript inventory'
+    )
   rescue StandardError
     ['', nil]
   end
 
-  def runtime_shared_bundle_fixture_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'SaneBarSharedFixture')
+  def runtime_fixture_process_detail(process_name, app_path: nil)
+    executable_path = app_path ? File.join(app_path, 'Contents', 'MacOS', process_name) : nil
+    output, status = Open3.capture2e('ps', 'ax', '-o', 'pid=,comm=,command=')
     return 'none' unless status.success?
 
-    output.lines.map(&:strip).reject(&:empty?).join(' | ')
+    matches = output.lines.each_with_object([]) do |line, process_matches|
+      pid, comm, command = line.strip.split(/\s+/, 3)
+      next unless pid && command
+
+      executable = command.split(/\s+/, 2).first.to_s
+      names_match = File.basename(comm.to_s) == process_name || File.basename(executable) == process_name
+      path_matches = executable_path && executable == executable_path
+      next unless names_match || path_matches
+
+      process_matches << "#{pid} #{command}"
+    end
+    matches.empty? ? 'none' : matches.join(' | ')
   rescue StandardError
     'unavailable'
+  end
+
+  def runtime_shared_bundle_fixture_process_detail
+    runtime_fixture_process_detail(
+      'SaneBarSharedFixture',
+      app_path: RUNTIME_SHARED_BUNDLE_FIXTURE_APP_PATH
+    )
   end
 
   def runtime_shared_bundle_fixture_running?
@@ -639,12 +771,10 @@ class ProjectQA
   end
 
   def runtime_host_exact_id_fixture_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'SaneBarHostExactIDFixture')
-    return 'none' unless status.success?
-
-    output.lines.map(&:strip).reject(&:empty?).join(' | ')
-  rescue StandardError
-    'unavailable'
+    runtime_fixture_process_detail(
+      'SaneBarHostExactIDFixture',
+      app_path: RUNTIME_HOST_EXACT_ID_FIXTURE_APP_PATH
+    )
   end
 
   def runtime_host_exact_id_fixture_running?
@@ -817,12 +947,10 @@ class ProjectQA
   end
 
   def runtime_dynamic_helper_fixture_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'SaneBarDynamicHelperFixture')
-    return 'none' unless status.success?
-
-    output.lines.map(&:strip).reject(&:empty?).join(' | ')
-  rescue StandardError
-    'unavailable'
+    runtime_fixture_process_detail(
+      'SaneBarDynamicHelperFixture',
+      app_path: RUNTIME_DYNAMIC_HELPER_FIXTURE_APP_PATH
+    )
   end
 
   def runtime_dynamic_helper_fixture_running?
@@ -830,15 +958,7 @@ class ProjectQA
   end
 
   def runtime_dynamic_helper_external_process_detail
-    output, status = Open3.capture2e('pgrep', '-fl', 'Lungo')
-    return 'none' unless status.success?
-
-    lines = output.lines.map(&:strip).reject(&:empty?).reject do |line|
-      line.include?('SaneBarDynamicHelperFixture')
-    end
-    lines.empty? ? 'none' : lines.join(' | ')
-  rescue StandardError
-    'unavailable'
+    runtime_fixture_process_detail('Lungo')
   end
 
   def runtime_dynamic_helper_external_running?
@@ -942,6 +1062,8 @@ class ProjectQA
               switch title {
               case "SBF-A": symbolName = "circle.grid.2x2.fill"
               case "SBF-B": symbolName = "square.grid.2x2.fill"
+              case "SBF-D": symbolName = "circle.hexagongrid.fill"
+              case "SBF-E": symbolName = "square.grid.3x3.fill"
               default: symbolName = "diamond.grid.3x3.fill"
               }
               let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
@@ -949,15 +1071,24 @@ class ProjectQA
               return image
           }
 
+          func fixtureMenu(for title: String) -> NSMenu {
+              let menu = NSMenu()
+              menu.addItem(NSMenuItem(title: "SaneBar Shared Fixture \\(title)", action: nil, keyEquivalent: ""))
+              menu.addItem(NSMenuItem(title: "Activation Probe \\(title)", action: nil, keyEquivalent: ""))
+              return menu
+          }
+
           func applicationDidFinishLaunching(_ notification: Notification) {
               NSApp.applicationIconImage = fixtureImage(for: "SBF-A")
-              for title in ["SBF-A", "SBF-B", "SBF-C"] {
+              for title in ["SBF-A", "SBF-B", "SBF-C", "SBF-D", "SBF-E"] {
                   let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
                   item.button?.image = fixtureImage(for: title)
                   item.button?.imagePosition = .imageLeading
                   item.button?.title = title
                   item.button?.toolTip = "SaneBar Shared Fixture \\(title)"
                   item.button?.identifier = NSUserInterfaceItemIdentifier("com.sanebar.sharedfixture.\\(title)")
+                  item.button?.setAccessibilityIdentifier("com.sanebar.sharedfixture.\\(title)")
+                  item.menu = fixtureMenu(for: title)
                   items.append(item)
               }
           }

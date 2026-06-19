@@ -105,8 +105,12 @@ final class RuntimeGuardQASmokeXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("exercise_settings_window_visual_check") &&
                 source.contains("capture_settings_screenshot") &&
-                source.contains("exercise_appearance_transition_visual_check"),
-            "Live smoke should also open settings, capture it, exercise appearance transitions, and close it as part of standard visual QA"
+                source.contains("exercise_appearance_transition_visual_check") &&
+                source.contains("close_settings_window_for_visual_probe!") &&
+                source.contains("close_visible_sanebar_customer_windows_safely") &&
+                source.contains("perform action \"AXPress\" of button 1 of candidateWindow") &&
+                source.contains("SaneBar customer window still visible before"),
+            "Live smoke should also open settings, capture it, actively clear leftover customer windows, and fail before fullscreen proof if SaneBar UI still contaminates the customer-visible surface"
         )
         XCTAssertTrue(
             source.contains("capture_internal_browse_screenshot") &&
@@ -197,6 +201,9 @@ final class RuntimeGuardQASmokeXCTests: RuntimeGuardTestCase {
                 source.contains("precise_non_apple + coarse_non_apple + preferred + fallback") &&
                 source.contains("com.apple.menuextra.bluetooth") &&
                 source.contains("browse_activation_denied?(item, expected_mode: expected_mode)") &&
+                source.contains("snapshot['hidingState'] == 'hidden' && layout_invariants_satisfied?(snapshot)") &&
+                source.contains("supports_applescript_command?('hide items')") &&
+                source.contains("'hide items'") &&
                 source.contains("item[:bundle].start_with?('com.apple.')") &&
                 source.contains("Exact MenuMeters rows are stable browse fixtures on the Mini in both") &&
                 source.contains("candidate_order.uniq { |item| item[:unique_id] }.take(3)"),
@@ -342,6 +349,29 @@ final class RuntimeGuardQASmokeXCTests: RuntimeGuardTestCase {
                 source.contains("using terms from") &&
                 source.contains("tell application appTarget to"),
             "Live smoke AppleScript should target the exact staged app path when SANEBAR_SMOKE_APP_PATH is provided"
+        )
+    }
+
+    func testCloseSettingsAppleScriptCommandClosesSynchronously() throws {
+        let sourceURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let commandStart = try XCTUnwrap(source.range(of: "final class CloseSettingsWindowCommand"))
+        let commandEnd = try XCTUnwrap(
+            source.range(
+                of: "@objc(CaptureBrowsePanelSnapshotCommand)",
+                range: commandStart.upperBound ..< source.endIndex
+            )
+        )
+        let commandSource = String(source[commandStart.lowerBound ..< commandEnd.lowerBound])
+
+        XCTAssertTrue(
+            commandSource.contains("MainActor.assumeIsolated") &&
+                commandSource.contains("DispatchQueue.main.sync"),
+            "close settings window should complete the close on the main actor before AppleScript reports success"
+        )
+        XCTAssertFalse(
+            commandSource.contains("Task { @MainActor"),
+            "close settings window should not be fire-and-forget; visual QA depends on deterministic teardown"
         )
     }
 

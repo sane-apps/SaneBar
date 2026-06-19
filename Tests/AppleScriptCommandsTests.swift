@@ -420,7 +420,7 @@ struct AppleScriptCommandsTests {
         let expectedMappings = [
             "ToggleCommand": "toggle",
             "ShowCommand": "show",
-            "HideCommand": "hide",
+            "HideCommand": "hide items",
             "ShowIconPanelCommand": "open icon panel",
             "ShowSecondMenuBarCommand": "show second menu bar",
             "CloseBrowsePanelCommand": "close browse panel",

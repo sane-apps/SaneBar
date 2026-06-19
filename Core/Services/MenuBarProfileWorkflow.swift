@@ -150,7 +150,10 @@ final class MenuBarProfileWorkflow {
     func repairMenuBarHealth(reason: String = "manual") async -> MenuBarRuntimeSnapshot {
         manager.hidingService.cancelRehide()
         if manager.hidingService.state == .hidden {
-            await manager.hidingService.show()
+            let didReveal = await revealHiddenIconsForHealthRepair(reason: reason)
+            guard didReveal else {
+                return manager.currentRuntimeSnapshot()
+            }
         }
 
         await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
@@ -167,7 +170,9 @@ final class MenuBarProfileWorkflow {
                 try? await Task.sleep(for: .milliseconds(150))
             }
             if manager.hidingService.state == .hidden {
-                await manager.hidingService.show()
+                guard await revealHiddenIconsForHealthRepair(reason: reason) else {
+                    return manager.currentRuntimeSnapshot()
+                }
             }
             await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 4)
             _ = manager.geometryResolver.mainStatusItemLeftEdgeX()
@@ -189,6 +194,23 @@ final class MenuBarProfileWorkflow {
         )
         manager.schedulePostRecoveryVisibilityIntentReplay(reason: "repair-\(reason)")
         return finalSnapshot
+    }
+
+    private func revealHiddenIconsForHealthRepair(reason: String) async -> Bool {
+        if manager.settings.requireAuthToShowHiddenIcons {
+            guard !manager.isAuthenticating else { return false }
+            manager.isAuthenticating = true
+            let ok = await manager.visibilityWorkflow.authenticate(reason: "Repair hidden menu bar icons")
+            manager.isAuthenticating = false
+            guard ok else {
+                profileLogger.info("Health repair hidden-icon reveal blocked by auth reason=\(reason, privacy: .public)")
+                return false
+            }
+        }
+
+        manager.hidingService.cancelRehide()
+        await manager.hidingService.show()
+        return true
     }
 
     func setLayoutMode(_ mode: SaneBarSettings.LayoutMode, reason: String = "manual") async -> MenuBarRuntimeSnapshot? {

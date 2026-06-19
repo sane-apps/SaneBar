@@ -212,6 +212,150 @@ struct StatusBarControllerBackupCaptureTests {
         #expect(storedBackupSeparator == safeSeparator, "Stable live positions should seed a current-width separator backup for the next startup recovery")
     }
 
+    @Test("Stable validation restores current-width backup over app-domain ordinal seeds")
+    @MainActor
+    func captureCurrentDisplayPositionBackupRepairsOrdinalAppDefaultsFromBackup() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for ordinal backup repair test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+        }
+
+        defaults.set(0.0, forKey: mainKey)
+        defaults.set(1.0, forKey: separatorKey)
+        defaults.set(safeRecovery.main, forKey: backupMainKey)
+        defaults.set(safeRecovery.separator, forKey: backupSeparatorKey)
+
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            "Stable validation should repair app-domain ordinal seeds from the current-width backup"
+        )
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == safeRecovery.main)
+        #expect(restoredSeparator == safeRecovery.separator)
+    }
+
+    @Test("Stable validation promotes safe ByHost preferred positions over app-domain ordinal seeds")
+    @MainActor
+    func captureCurrentDisplayPositionBackupPromotesSafeByHostOverOrdinalAppDefaults() {
+        guard let currentWidth = NSScreen.main?.frame.width,
+              let safeRecovery = launchSafeRecoveryPair()
+        else {
+            Issue.record("Expected a main screen for ByHost promotion test")
+            return
+        }
+
+        let defaults = UserDefaults.standard
+        let mainAutosaveName = StatusBarController.mainAutosaveName
+        let separatorAutosaveName = StatusBarController.separatorAutosaveName
+        let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
+        let separatorKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
+        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let scopedBackupMainKey = StatusBarPositionStore.displayPositionBackupKey(
+            for: currentWidth,
+            referenceScreen: NSScreen.main,
+            slot: "main"
+        )
+        let scopedBackupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(
+            for: currentWidth,
+            referenceScreen: NSScreen.main,
+            slot: "separator"
+        )
+        let byHostMainKey = StatusBarPositionDefaultsStore.byHostPreferredPositionKey(for: mainAutosaveName)
+        let byHostSeparatorKey = StatusBarPositionDefaultsStore.byHostPreferredPositionKey(for: separatorAutosaveName)
+        let globalDomain = ".GlobalPreferences" as CFString
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey, scopedBackupMainKey, scopedBackupSeparatorKey]
+        let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+        let originalByHostMain = CFPreferencesCopyValue(
+            byHostMainKey as CFString,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        let originalByHostSeparator = CFPreferencesCopyValue(
+            byHostSeparatorKey as CFString,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+
+        defer {
+            for (key, value) in originalValues {
+                if let value {
+                    defaults.set(value, forKey: key)
+                } else {
+                    defaults.removeObject(forKey: key)
+                }
+            }
+            CFPreferencesSetValue(
+                byHostMainKey as CFString,
+                originalByHostMain,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSetValue(
+                byHostSeparatorKey as CFString,
+                originalByHostSeparator,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSynchronize(
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+        }
+
+        defaults.set(0.0, forKey: mainKey)
+        defaults.set(1.0, forKey: separatorKey)
+        defaults.removeObject(forKey: backupMainKey)
+        defaults.removeObject(forKey: backupSeparatorKey)
+        defaults.removeObject(forKey: scopedBackupMainKey)
+        defaults.removeObject(forKey: scopedBackupSeparatorKey)
+        StatusBarPositionDefaultsStore.setByHostPreferredPosition(safeRecovery.main, forAutosaveName: mainAutosaveName)
+        StatusBarPositionDefaultsStore.setByHostPreferredPosition(safeRecovery.separator, forAutosaveName: separatorAutosaveName)
+
+        #expect(
+            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            "Stable validation should promote a safe ByHost position pair when app-domain values are only ordinal seeds"
+        )
+
+        let restoredMain = (defaults.object(forKey: mainKey) as? NSNumber)?.doubleValue
+        let restoredSeparator = (defaults.object(forKey: separatorKey) as? NSNumber)?.doubleValue
+        let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
+        let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
+
+        #expect(restoredMain == safeRecovery.main)
+        #expect(restoredSeparator == safeRecovery.separator)
+        #expect(storedBackupMain == safeRecovery.main)
+        #expect(storedBackupSeparator == safeRecovery.separator)
+    }
+
     @Test("Stable but startup-unsafe positions backfill a reanchored current-width backup")
     @MainActor
     func captureCurrentDisplayPositionBackupReanchorsUnsafePositions() {

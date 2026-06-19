@@ -391,28 +391,16 @@ final class MenuBarManager: NSObject, ObservableObject {
         geometryCache.clearSeparatorGeometry()
     }
 
-    nonisolated static func shouldPreserveCachedGeometryForHiddenLifecycle(
-        hidingState: HidingState,
-        separatorX: CGFloat?,
-        separatorRightEdgeX: CGFloat?,
-        mainStatusItemX: CGFloat?,
-        displayStillPresent: Bool
-    ) -> Bool {
-        guard hidingState == .hidden, displayStillPresent else { return false }
-        guard let separatorX, separatorX.isFinite,
-              let separatorRightEdgeX, separatorRightEdgeX.isFinite, separatorRightEdgeX > separatorX,
-              let mainStatusItemX, mainStatusItemX.isFinite, mainStatusItemX > separatorRightEdgeX
-        else {
-            return false
-        }
-        return true
-    }
-
     @MainActor
     func clearCachedSeparatorGeometryForLifecycleTransition(reason: String) {
         let displayStillPresent = statusItemScreenResolver.lastKnownDisplayStillPresent()
 
-        guard !Self.shouldPreserveCachedGeometryForHiddenLifecycle(
+        guard !MenuBarLifecycleWorkflow.lifecycleTransitionRequiresFreshLiveAnchors(reason: reason) else {
+            clearCachedSeparatorGeometry()
+            return
+        }
+
+        guard !MenuBarLifecycleWorkflow.shouldPreserveCachedGeometryForHiddenLifecycle(
             hidingState: hidingService.state,
             separatorX: geometryCache.lastKnownSeparatorX,
             separatorRightEdgeX: geometryCache.lastKnownSeparatorRightEdgeX,
@@ -701,9 +689,9 @@ final class MenuBarManager: NSObject, ObservableObject {
 
         let snapshot = currentStatusItemRecoverySnapshot()
         guard snapshot.structuralState == .ready,
-              snapshot.hasTrustworthyBootstrapAnchors,
+              snapshot.hasLiveCoreAnchors,
               snapshot.visibilityPhase != .transitioning,
-              snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached
+              snapshot.geometryConfidence == .live
         else {
             logger.warning(
                 "Visibility intent enforcement skipped until status-item anchors are healthy (\(reason, privacy: .public), structure=\(snapshot.structuralState.rawValue, privacy: .public), geometry=\(snapshot.geometryConfidence.rawValue, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"

@@ -3,11 +3,99 @@
 class WakeLayoutProbe
   private
 
-  def capture(*cmd)
-    out, status = Open3.capture2e(*cmd)
+  def capture(*cmd, timeout: nil)
+    out, status = capture_with_timeout(*cmd, timeout: timeout)
     log("$ #{cmd.join(' ')}")
-    log(out.strip) unless out.strip.empty?
+    log_capture_output(out)
     [out, status]
+  end
+
+  def log_capture_output(output)
+    text = output.to_s.strip
+    return if text.empty?
+
+    log(truncated_log_output(text))
+  end
+
+  def truncated_log_output(text)
+    return text if text.bytesize <= CAPTURE_LOG_OUTPUT_MAX_BYTES
+
+    omitted = text.bytesize - CAPTURE_LOG_OUTPUT_MAX_BYTES
+    prefix = text.byteslice(0, CAPTURE_LOG_OUTPUT_MAX_BYTES).to_s.scrub
+    "#{prefix}\n... truncated #{omitted} byte(s) of command output ..."
+  end
+
+  def capture_with_timeout(*cmd, timeout: nil)
+    timeout ||= wake_probe_command_timeout_seconds
+    output = +''
+    status = nil
+    timed_out = false
+
+    Open3.popen2e(*cmd) do |stdin, stdout_err, wait_thr|
+      stdin.close
+      reader = Thread.new do
+        stdout_err.read.to_s
+      rescue IOError, Errno::EIO => e
+        "#{e.class}: #{e.message}"
+      end
+      reader.report_on_exception = false
+
+      unless wait_thr.join(timeout)
+        timed_out = true
+        terminate_capture_child(wait_thr.pid)
+        status = wake_probe_failed_status
+      end
+      status ||= wait_thr.value
+      reader.join(1)
+      output << (reader.value || '')
+    end
+
+    if timed_out
+      timeout_line = "wake probe command timeout after #{format_timeout_seconds(timeout)}s: #{cmd.join(' ')}"
+      output = [output.strip, timeout_line].reject(&:empty?).join("\n") + "\n"
+    end
+
+    [output, status]
+  end
+
+  def wake_probe_command_timeout_seconds
+    value = ENV.fetch('SANEBAR_WAKE_PROBE_COMMAND_TIMEOUT_SECONDS', '8').to_f
+    value.positive? ? value : 8.0
+  end
+
+  def format_timeout_seconds(value)
+    value.to_f == value.to_i ? value.to_i.to_s : value.to_s
+  end
+
+  def terminate_capture_child(pid)
+    Process.kill('TERM', pid)
+  rescue Errno::ESRCH
+    return
+  ensure
+    deadline = Time.now + 1.0
+    while process_alive?(pid) && Time.now < deadline
+      sleep 0.05
+    end
+    begin
+      Process.kill('KILL', pid) if process_alive?(pid)
+    rescue Errno::ESRCH
+      nil
+    end
+  end
+
+  def process_alive?(pid)
+    Process.kill(0, pid)
+    true
+  rescue Errno::ESRCH
+    false
+  end
+
+  def wake_probe_failed_status
+    @wake_probe_failed_status ||= Struct.new(:exitstatus) do
+      def success?
+        false
+      end
+    end.new(nil)
   end
 
   def log(line)
@@ -16,7 +104,7 @@ class WakeLayoutProbe
 
   def persist_log!
     FileUtils.mkdir_p(File.dirname(@log_path))
-    File.write(@log_path, @lines.join("\n") + "\n")
+    safe_write_file(@log_path, @lines.join("\n") + "\n")
   end
 
   def cliclick_path
@@ -77,7 +165,19 @@ class WakeLayoutProbe
       end
     end
     FileUtils.mkdir_p(File.dirname(@artifact_path))
-    File.write(@artifact_path, JSON.pretty_generate(payload) + "\n")
+    safe_write_file(@artifact_path, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def safe_write_file(path, content)
+    File.open(path, safe_file_write_flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_file_write_flags
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
   end
 
   def runtime_candidate_metadata

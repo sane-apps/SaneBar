@@ -30,7 +30,7 @@ class LiveZoneSmoke
           sleep @resource_poll_seconds
           next
         end
-        record_resource_watchdog_failure("resource_watchdog process_monitor_failed reason=#{e.message}")
+        record_resource_watchdog_failure("resource_watchdog process_monitor_failed reason=#{process_monitor_error_detail(e)}")
         break
       end
     end
@@ -174,6 +174,30 @@ class LiveZoneSmoke
     }
   end
 
+  def process_monitor_error_detail(error)
+    return error.message unless error.message == 'process_missing'
+
+    state = @resource_watchdog_mutex.synchronize { @resource_watchdog_state.dup }
+    last_sample = state[:last_sample]
+    last_detail =
+      if last_sample
+        format(
+          'lastPid=%<pid>d lastElapsed=%<elapsed>s lastCpu=%<cpu>.1f%% lastRss=%<rss>.1fMB',
+          pid: last_sample[:pid],
+          elapsed: last_sample[:elapsed],
+          cpu: last_sample[:cpu],
+          rss: last_sample[:rss_mb]
+        )
+      else
+        'lastSample=none'
+      end
+    expected = expected_process_path || @app_name
+    matches = current_matching_process_summary
+    "process_missing pid=#{@app_pid} expected=#{expected} #{last_detail} currentMatches=#{matches}"
+  rescue StandardError => detail_error
+    "process_missing pid=#{@app_pid} detail_error=#{detail_error.message}"
+  end
+
   def record_resource_watchdog_failure(message)
     @resource_watchdog_mutex.synchronize do
       @resource_watchdog_state[:failure] ||= message
@@ -216,6 +240,21 @@ class LiveZoneSmoke
     true
   rescue StandardError
     false
+  end
+
+  def current_matching_process_summary
+    out, status = sh('ps ax -o pid=,command=')
+    return 'ps_failed' unless status.success?
+
+    matches = out.lines.map(&:strip).reject(&:empty?).select do |line|
+      _pid, command = line.split(/\s+/, 2)
+      command && matching_app_process?(command.to_s)
+    end
+    return 'none' if matches.empty?
+
+    matches.join(' | ')
+  rescue StandardError => e
+    "unavailable:#{e.message}"
   end
 
   def resource_watchdog_failure
@@ -410,19 +449,23 @@ class LiveZoneSmoke
   end
 
   def terminate_child_process(wait_thr)
-    begin
-      Process.kill('TERM', wait_thr.pid)
-    rescue StandardError
-      nil
+    [-(wait_thr.pid), wait_thr.pid].each do |pid|
+      begin
+        Process.kill('TERM', pid)
+      rescue StandardError
+        nil
+      end
     end
     return if wait_thr.join(1)
 
-    begin
-      Process.kill('KILL', wait_thr.pid)
-    rescue StandardError
-      nil
+    [-(wait_thr.pid), wait_thr.pid].each do |pid|
+      begin
+        Process.kill('KILL', pid)
+      rescue StandardError
+        nil
+      end
     end
-    wait_thr.join
+    wait_thr.join(1)
   end
 
   def truthy?(value)

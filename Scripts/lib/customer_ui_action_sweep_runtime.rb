@@ -4,10 +4,12 @@ class CustomerUIActionSweep
   RELEASE_RUNTIME_EVIDENCE_MAX_AGE_SECONDS = 2 * 60 * 60
   SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS = 30 * 60
   RESOURCE_SOAK_ARTIFACT_PATH = '/tmp/sanebar_runtime_resource_soak.json'
-  RESOURCE_SOAK_MAX_AGE_SECONDS = 24 * 60 * 60
-  RESOURCE_SOAK_MIN_DURATION_SECONDS = 10 * 60
+  RESOURCE_SOAK_MAX_AGE_SECONDS = SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS
+  RESOURCE_SOAK_CLOCK_SKEW_SECONDS = 5 * 60
+  RESOURCE_SOAK_MIN_DURATION_SECONDS = 4 * 60
+  RESOURCE_SOAK_ACCEPTED_ADAPTIVE_STATUSES = %w[early_pass full_duration_pass].freeze
   RESOURCE_SOAK_RAW_SCENARIOS = [
-    'at least 10m Mini soak sampled on the release candidate',
+    'adaptive Mini resource check passed for this release build',
     'raw current-build resource soak artifact and log references exist',
     'per-sample CPU/RSS/physical footprint trend fields were captured'
   ].freeze
@@ -80,6 +82,8 @@ class CustomerUIActionSweep
     @transcript << "wake_probe=#{wake_log} ok"
     @transcript << "native_exact_id=#{native_log} ok" if fresh_release_runtime_evidence?(native_log) && File.read(native_log).include?('Live zone smoke passed')
     @transcript << "host_exact_id=#{host_log} ok" if fresh_release_runtime_evidence?(host_log) && File.read(host_log).include?('Live zone smoke passed')
+    retained = retain_runtime_evidence_paths([smoke_log, startup_log, wake_log, *exact_logs], label: 'runtime-smoke')
+    @transcript << "runtime_evidence_retained=#{retained.join(',')}" unless retained.empty?
   end
 
   def fresh_release_runtime_evidence?(path)
@@ -133,6 +137,7 @@ class CustomerUIActionSweep
         url_routes: @transcript.select { |line| line.start_with?('url_route=') },
         applescript_commands: @transcript.select { |line| line.start_with?('applescript=') },
         runtime_smoke: @transcript.select { |line| line.include?('runtime_smoke=') || line.include?('startup_probe=') || line.include?('native_exact_id=') },
+        durable_runtime_evidence: Array(@retained_runtime_evidence_paths).uniq,
         release_note: 'Customer UI sweep records only evidence produced by this Mini run; missing required action evidence blocks release.'
       }
     }
@@ -143,6 +148,7 @@ class CustomerUIActionSweep
     end
 
     transcript_path = File.join(OUTPUT_DIR, "customer-ui-action-sweep-#{@timestamp}.txt")
+    FileUtils.mkdir_p(File.dirname(transcript_path))
     File.write(transcript_path, @transcript.join("\n") + "\n")
     puts "🧾 Transcript: #{relative(transcript_path)}"
   end
@@ -180,6 +186,9 @@ class CustomerUIActionSweep
       failure_reasons << "missing evidence types: #{missing_types.join(', ')}" unless missing_types.empty?
       failure_reasons << "missing completed scenarios: #{missing_scenarios.join(', ')}" unless missing_scenarios.empty?
       failure_reasons << 'missing evidence paths' if evidence_paths.empty?
+      if id.to_s == 'resource_soak_growth' && runtime_artifact.nil?
+        failure_reasons.concat(Array(@resource_soak_failure_reasons).uniq)
+      end
       if completed_scenarios.empty? && informational_reason.to_s.empty?
         failure_reasons << 'missing completed_scenarios for named runtime state'
       end
@@ -262,7 +271,7 @@ class CustomerUIActionSweep
 
     {
       evidence_types: Array(payload['evidence_types']).map(&:to_s),
-      evidence_paths: ([path] + Array(payload['evidence_paths'])).map(&:to_s),
+      evidence_paths: runtime_evidence_with_retained_paths([path] + Array(payload['evidence_paths']), label: 'fullscreen-matrix'),
       completed_scenarios: Array(payload['completed_scenarios']).map(&:to_s),
       candidate: runtime_candidate(payload)
     }
@@ -285,7 +294,7 @@ class CustomerUIActionSweep
 
     {
       evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: [path, '/tmp/sanebar_runtime_wake_probe.log'].select { |candidate| File.exist?(candidate) },
+      evidence_paths: runtime_evidence_with_retained_paths([path, '/tmp/sanebar_runtime_wake_probe.log'], label: 'wake-visible-zone'),
       completed_scenarios: (
         Array(visible_proof['completed_scenarios']) +
           Array(hidden_proof['completed_scenarios'])
@@ -305,7 +314,7 @@ class CustomerUIActionSweep
 
     {
       evidence_types: Array(payload['evidence_types']).map(&:to_s),
-      evidence_paths: ([path] + Array(payload['evidence_paths'])).map(&:to_s),
+      evidence_paths: runtime_evidence_with_retained_paths([path] + Array(payload['evidence_paths']), label: File.basename(path, '.*')),
       completed_scenarios: Array(payload['completed_scenarios']).map(&:to_s),
       candidate: runtime_candidate(payload)
     }
@@ -314,6 +323,7 @@ class CustomerUIActionSweep
   end
 
   def resource_soak_artifact
+    @resource_soak_failure_reasons = []
     resource_soak_artifact_paths.each do |path|
       artifact = resource_soak_artifact_at(path)
       return artifact if artifact
@@ -324,19 +334,23 @@ class CustomerUIActionSweep
 
   def resource_soak_artifact_paths
     durable_paths = Dir.glob(File.join(OUTPUT_DIR, '**', 'resource-soak-*.json'))
+    ([RESOURCE_SOAK_ARTIFACT_PATH] + durable_paths)
+      .uniq
       .select { |path| File.file?(path) }
       .sort_by { |path| File.mtime(path) }
       .reverse
-    ([RESOURCE_SOAK_ARTIFACT_PATH] + durable_paths).uniq
   end
 
   def resource_soak_artifact_at(path)
     return nil unless fresh_runtime_evidence?(path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
+    return nil if File.symlink?(path)
+
     payload = JSON.parse(File.read(path))
     return nil unless payload['status'] == 'pass'
     return nil unless runtime_candidate_matches?(payload)
 
     validation = validate_resource_soak_raw_proof(payload, path)
+    @resource_soak_failure_reasons << "resource soak #{File.basename(path)} rejected: #{validation[:reason]}" if validation[:reason]
     return nil unless validation[:ok]
 
     {
@@ -351,34 +365,49 @@ class CustomerUIActionSweep
 
   def validate_resource_soak_raw_proof(payload, artifact_path)
     evidence_paths = resource_soak_evidence_paths(payload, artifact_path)
-    return { ok: false, evidence_paths: evidence_paths } unless evidence_paths.include?(artifact_path)
+    return resource_soak_reject('artifact path was not included in candidate evidence', evidence_paths) unless evidence_paths.include?(artifact_path)
+    return resource_soak_reject('resource proof timestamp is stale or future-dated', evidence_paths) unless resource_soak_payload_fresh?(payload)
+    return resource_soak_reject('resource proof was not produced in adaptive mode', evidence_paths) unless payload['adaptive'] == true
+    unless RESOURCE_SOAK_ACCEPTED_ADAPTIVE_STATUSES.include?(payload['adaptive_status'].to_s)
+      return resource_soak_reject("resource proof adaptive status #{payload['adaptive_status'].inspect} is not accepted", evidence_paths)
+    end
 
-    existing_paths = evidence_paths.select { |candidate| File.file?(candidate) }
+    existing_paths = evidence_paths.select { |candidate| resource_soak_regular_file?(candidate) }
     log_paths = existing_paths.select { |candidate| File.extname(candidate) == '.log' }
-    return { ok: false, evidence_paths: evidence_paths } if log_paths.empty?
-    return { ok: false, evidence_paths: evidence_paths } if log_paths.any? { |log_path| resource_soak_log_has_missing_samples?(log_path) }
-    return { ok: false, evidence_paths: evidence_paths } if payload['duration_seconds'].to_f < RESOURCE_SOAK_MIN_DURATION_SECONDS
-    return { ok: false, evidence_paths: evidence_paths } if payload['sample_count'].to_i < 2
+    return resource_soak_reject('resource proof log file is missing', evidence_paths) if log_paths.empty?
+    log_rejection = log_paths.map { |log_path| resource_soak_log_rejection_reason(log_path, payload) }.compact.first
+    return resource_soak_reject(log_rejection, evidence_paths) if log_rejection
+    if payload['duration_seconds'].to_f < RESOURCE_SOAK_MIN_DURATION_SECONDS
+      return resource_soak_reject("resource proof duration #{payload['duration_seconds'].to_f.round(1)}s is shorter than #{RESOURCE_SOAK_MIN_DURATION_SECONDS}s", evidence_paths)
+    end
+    declared_sample_count = payload['sample_count'].to_i
+    return resource_soak_reject('resource proof has fewer than 2 samples', evidence_paths) if declared_sample_count < 2
+    unless payload['physical_sample_count'].to_i == declared_sample_count
+      return resource_soak_reject("resource proof physical sample count #{payload['physical_sample_count'].to_i} does not match sample count #{declared_sample_count}", evidence_paths)
+    end
+    unless payload['physical_missing_sample_count'].to_i == 0
+      return resource_soak_reject("resource proof is missing physical footprint for #{payload['physical_missing_sample_count'].to_i} sample(s)", evidence_paths)
+    end
 
     sample_count = resource_soak_json_trend_samples(payload).length
-    return { ok: false, evidence_paths: evidence_paths } if sample_count < 2
+    return resource_soak_reject("resource proof has #{sample_count} complete JSON sample(s), expected #{declared_sample_count}", evidence_paths) unless sample_count == declared_sample_count
+    if log_paths.any? { |log_path| resource_soak_log_trend_samples(log_path).length != declared_sample_count }
+      return resource_soak_reject('resource proof log sample count does not match JSON sample count', evidence_paths)
+    end
 
     durable_paths = durable_resource_soak_evidence_paths(existing_paths)
-    return { ok: false, evidence_paths: durable_paths } if durable_paths.empty?
+    return resource_soak_reject('resource proof could not be copied into durable evidence', durable_paths) if durable_paths.empty?
 
     { ok: true, evidence_paths: durable_paths }
   end
 
-  def resource_soak_evidence_paths(payload, artifact_path)
+  def resource_soak_reject(reason, evidence_paths)
+    { ok: false, evidence_paths: evidence_paths, reason: reason }
+  end
+
+  def resource_soak_evidence_paths(_payload, artifact_path)
     sibling_log = artifact_path.to_s.sub(/\.json\z/, '.log')
-    raw_paths = [
-      artifact_path,
-      sibling_log,
-      *Array(payload['evidence_paths']),
-      *Array(payload['raw_evidence_paths']),
-      *Array(payload['artifact_paths']),
-      *Array(payload['log_paths'])
-    ]
+    raw_paths = [artifact_path, sibling_log]
     raw_paths.map(&:to_s).map(&:strip).reject(&:empty?).uniq
   end
 
@@ -387,7 +416,7 @@ class CustomerUIActionSweep
     FileUtils.mkdir_p(evidence_dir)
 
     paths.each_with_object([]) do |path, durable_paths|
-      next unless File.file?(path)
+      next unless resource_soak_regular_file?(path)
 
       expanded_path = File.expand_path(path)
       project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
@@ -400,6 +429,60 @@ class CustomerUIActionSweep
       FileUtils.cp(path, durable_path)
       durable_paths << durable_path if File.file?(durable_path)
     end.uniq
+  end
+
+  def resource_soak_regular_file?(path)
+    File.file?(path) && !File.symlink?(path)
+  end
+
+  def resource_soak_payload_fresh?(payload)
+    timestamp = payload['finished_at'] || payload['generated_at'] || payload['started_at']
+    return false if timestamp.to_s.strip.empty?
+
+    resource_soak_time_within_window?(Time.parse(timestamp.to_s))
+  rescue ArgumentError, TypeError
+    false
+  end
+
+  def resource_soak_time_within_window?(timestamp)
+    timestamp >= @started_at - RESOURCE_SOAK_MAX_AGE_SECONDS &&
+      timestamp <= @started_at + RESOURCE_SOAK_CLOCK_SKEW_SECONDS
+  end
+
+  def resource_soak_log_rejection_reason(log_path, payload)
+    return 'resource proof log file is stale or future-dated' unless fresh_runtime_evidence?(log_path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
+    return 'resource proof log file is a symlink' if File.symlink?(log_path)
+
+    lines = File.readlines(log_path, chomp: true)
+    return 'resource proof log has missing process or physical samples' if lines.any? { |line| line.include?('sample_missing') || line.include?('physical=unknown') }
+
+    finished_at = lines.find { |line| line.start_with?('resource_soak_finished_at=') }.to_s.sub(/\Aresource_soak_finished_at=/, '')
+    return 'resource proof log has no finished timestamp' if finished_at.strip.empty?
+    return 'resource proof log timestamp is stale or future-dated' unless resource_soak_time_within_window?(Time.parse(finished_at))
+
+    candidate = runtime_candidate(payload)
+    body = lines.join("\n")
+    if candidate && !resource_soak_log_candidate_value?(body, 'app_version', candidate[:app_version])
+      return 'resource proof log candidate version does not match JSON artifact'
+    end
+    if candidate && !resource_soak_log_candidate_value?(body, 'app_build', candidate[:app_build])
+      return 'resource proof log candidate build does not match JSON artifact'
+    end
+    return 'resource proof log did not record pass status' unless body.include?('status=pass')
+
+    nil
+  rescue ArgumentError, TypeError
+    'resource proof log timestamp is unreadable'
+  rescue StandardError
+    'resource proof log could not be read'
+  end
+
+  def resource_soak_log_candidate_value?(body, key, value)
+    escaped_value = Regexp.escape(value.to_s)
+    escaped_key = Regexp.escape(key.to_s)
+    body.match?(/:?#{escaped_key}\s*=>\s*"#{escaped_value}"/) ||
+      body.match?(/#{escaped_key}:\s+"#{escaped_value}"/) ||
+      body.match?(/"#{escaped_key}"\s*=>\s*"#{escaped_value}"/)
   end
 
   def resource_soak_json_trend_samples(payload)
@@ -434,12 +517,6 @@ class CustomerUIActionSweep
     []
   end
 
-  def resource_soak_log_has_missing_samples?(log_path)
-    File.readlines(log_path, chomp: true).any? { |line| line.include?('sample_missing') }
-  rescue StandardError
-    true
-  end
-
   def shared_bundle_exact_id_artifact
     path = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     return nil unless fresh_release_runtime_evidence?(path)
@@ -456,7 +533,7 @@ class CustomerUIActionSweep
     sample_paths = body.scan(%r{resource_sample=(/tmp/[^\s]+)}).flatten
     {
       evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: ([path] + sample_paths).select { |candidate| File.exist?(candidate) },
+      evidence_paths: runtime_evidence_with_retained_paths([path] + sample_paths, label: 'shared-bundle-exact-id'),
       completed_scenarios: [
         'shared-bundle exact-id smoke ran with non-empty required_ids',
         'every required shared-bundle candidate moved by unique ID, not sibling fallback'
@@ -477,7 +554,7 @@ class CustomerUIActionSweep
 
     {
       evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: [path, '/tmp/sanebar_runtime_wake_probe.log'].select { |candidate| File.exist?(candidate) },
+      evidence_paths: runtime_evidence_with_retained_paths([path, '/tmp/sanebar_runtime_wake_probe.log'], label: 'dynamic-helper-wake'),
       completed_scenarios: Array(proof['completed_scenarios']).map(&:to_s),
       candidate: runtime_candidate(payload)
     }
@@ -537,6 +614,33 @@ class CustomerUIActionSweep
       'dynamic helper required IDs remain in intended zones after wake',
       'helper-specific Hidden to Visible drift is rejected as a release blocker'
     ]
+  end
+
+  def runtime_evidence_with_retained_paths(paths, label:)
+    raw_paths = Array(paths).map(&:to_s).map(&:strip).reject(&:empty?).select { |path| File.exist?(path) }
+    (raw_paths + retain_runtime_evidence_paths(raw_paths, label: label)).uniq
+  end
+
+  def retain_runtime_evidence_paths(paths, label:)
+    evidence_dir = @evidence_dir || OUTPUT_DIR
+    FileUtils.mkdir_p(evidence_dir)
+    retained = Array(paths).each_with_object([]) do |path, retained_paths|
+      next unless path && File.file?(path) && !File.symlink?(path)
+
+      expanded_path = File.expand_path(path)
+      project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
+      if expanded_path.start_with?(project_root)
+        retained_paths << expanded_path
+        next
+      end
+
+      safe_label = label.to_s.gsub(/[^A-Za-z0-9_.-]/, '-')
+      destination = File.join(evidence_dir, "#{safe_label}-#{File.basename(path)}")
+      FileUtils.cp(path, destination)
+      retained_paths << destination if File.file?(destination)
+    end.uniq
+    @retained_runtime_evidence_paths = (Array(@retained_runtime_evidence_paths) + retained).uniq
+    retained
   end
 
   def write_failure_artifact(error)

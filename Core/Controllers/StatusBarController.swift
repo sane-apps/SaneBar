@@ -307,6 +307,7 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
 
         let restoredCurrentDisplayBackup = allowCurrentDisplayBackup &&
             StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
+        var shouldFlushCurrentDisplayBackupAfterRecreate = restoredCurrentDisplayBackup
         if !restoredCurrentDisplayBackup {
             if let reanchoredCurrentPair {
                 StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredCurrentPair.main, forAutosaveName: Self.mainAutosaveName)
@@ -319,9 +320,11 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
                         referenceScreen: resolvedReferenceScreen
                     )
                 }
+                shouldFlushCurrentDisplayBackupAfterRecreate = true
                 logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
             } else {
                 if StatusBarPositionStore.applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: resolvedReferenceScreen) {
+                    shouldFlushCurrentDisplayBackupAfterRecreate = true
                     logger.info("Recreated status items with autosave version \(nextVersion) using launch-safe recovery positions")
                 } else {
                     StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
@@ -341,6 +344,10 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
         Self.enforceNonRemovableBehavior(for: separatorItem, role: "separator(recreated)")
         separatorItem.autosaveName = Self.separatorAutosaveName
         separatorItem.isVisible = true
+
+        if shouldFlushCurrentDisplayBackupAfterRecreate {
+            _ = StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
+        }
 
         if let button = separatorItem.button {
             configureSeparatorButton(button)

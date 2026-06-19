@@ -232,12 +232,41 @@ struct MenuBarAppearanceTintAndSupportTests {
         #expect(source.contains("internal nonisolated static let overlayVisibilityRefreshRetryDelays"))
         #expect(MenuBarAppearanceService.overlayVisibilityRefreshRetryDelays == [0.15, 0.5, 1.5, 3.0])
         #expect(MenuBarAppearanceService.overlayVisibilityReconciliationInterval == 0.5)
+        #expect(MenuBarAppearanceService.postOverlaySuppressionStatusItemValidationDelay == 0.75)
         #expect(source.contains("NSWorkspace.didActivateApplicationNotification"))
         #expect(source.contains("NSWorkspace.activeSpaceDidChangeNotification"))
         #expect(source.contains("NSWorkspace.didWakeNotification"))
         #expect(source.contains("NSWorkspace.screensDidWakeNotification"))
         #expect(source.contains("NSWorkspace.sessionDidBecomeActiveNotification"))
         #expect(source.contains("func refreshAfterStatusItemRecovery()"))
+    }
+
+    @Test("Ending fullscreen overlay suppression schedules status-item validation once")
+    func overlaySuppressionEndSchedulesStatusItemValidation() {
+        #expect(
+            MenuBarAppearanceService.shouldValidateStatusItemsAfterOverlaySuppression(
+                previousReason: .fullscreenContentWindow,
+                currentReason: nil
+            )
+        )
+        #expect(
+            MenuBarAppearanceService.shouldValidateStatusItemsAfterOverlaySuppression(
+                previousReason: .systemSpaceControl,
+                currentReason: nil
+            )
+        )
+        #expect(
+            !MenuBarAppearanceService.shouldValidateStatusItemsAfterOverlaySuppression(
+                previousReason: nil,
+                currentReason: nil
+            )
+        )
+        #expect(
+            !MenuBarAppearanceService.shouldValidateStatusItemsAfterOverlaySuppression(
+                previousReason: .fullscreenContentWindow,
+                currentReason: .fullscreenContentWindow
+            )
+        )
     }
 
     @Test("Overlay hides for fullscreen content and thin top hosts")
@@ -247,6 +276,8 @@ struct MenuBarAppearanceTintAndSupportTests {
             .deletingLastPathComponent()
         let sourceURL = root.appendingPathComponent("Core/Services/MenuBarAppearanceService.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let policyURL = root.appendingPathComponent("Core/Services/MenuBarAppearanceSuppressionPolicy.swift")
+        let policySource = try String(contentsOf: policyURL, encoding: .utf8)
 
         guard let refreshStart = source.range(of: "private func refreshOverlayVisibility()"),
               let refreshEnd = source.range(of: "private func scheduleOverlayVisibilityRefreshes()") else {
@@ -255,14 +286,14 @@ struct MenuBarAppearanceTintAndSupportTests {
         }
 
         let refreshBody = String(source[refreshStart.lowerBound..<refreshEnd.lowerBound])
-        #expect(source.contains("case fullscreenContentWindow"))
-        #expect(source.contains("case systemSpaceControl"))
+        #expect(policySource.contains("case fullscreenContentWindow"))
+        #expect(policySource.contains("case systemSpaceControl"))
         #expect(!refreshBody.contains("scheduleStableFullscreenSuppression()"))
         #expect(refreshBody.contains("if suppressionReason != nil"))
         #expect(refreshBody.contains("window.orderOut(nil)"))
         #expect(source.contains(".optionOnScreenOnly"))
-        #expect(source.contains("kCGWindowIsOnscreen"))
-        #expect(source.contains("kCGWindowAlpha"))
+        #expect(policySource.contains("kCGWindowIsOnscreen"))
+        #expect(policySource.contains("kCGWindowAlpha"))
         #expect(source.contains(".fullScreenAuxiliary"))
     }
 

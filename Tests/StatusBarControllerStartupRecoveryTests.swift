@@ -435,6 +435,10 @@ struct StatusBarControllerStartupRecoveryTests {
 
     @Test("Launch-safe recovery preserves enough visible lane for leftmost shown items")
     func launchSafeRecoveryUsesWiderVisibleLane() {
+        let miniExternalPair = StatusBarController.launchSafeCurrentDisplayRecoveryPair(
+            screenWidth: 1920,
+            screenHasTopSafeAreaInset: false
+        )
         let externalDisplayPair = StatusBarController.launchSafeCurrentDisplayRecoveryPair(
             screenWidth: 2560,
             screenHasTopSafeAreaInset: false
@@ -444,6 +448,8 @@ struct StatusBarControllerStartupRecoveryTests {
             screenHasTopSafeAreaInset: true
         )
 
+        #expect(miniExternalPair?.main == 144)
+        #expect((miniExternalPair?.separator ?? 0) - (miniExternalPair?.main ?? 0) >= 220)
         #expect(externalDisplayPair?.main == 160)
         #expect((externalDisplayPair?.separator ?? 0) - (externalDisplayPair?.main ?? 0) >= 220)
         #expect(smallDisplayPair?.main == 180)
@@ -479,6 +485,47 @@ struct StatusBarControllerStartupRecoveryTests {
         #expect(!SaneBarAppDelegate.shouldSkipDuplicateTerminationForAutomation(
             environment: [:],
             arguments: ["SaneBar"]
+        ))
+    }
+
+    @Test("No-keychain automation cancels only unexpected termination")
+    func noKeychainAutomationCancelsOnlyUnexpectedTermination() {
+        #expect(SaneBarAppDelegate.shouldCancelUnexpectedTerminationForAutomation(
+            explicitTerminationRequested: false,
+            environment: ["SANEAPPS_DISABLE_KEYCHAIN": "1"],
+            arguments: []
+        ))
+        #expect(!SaneBarAppDelegate.shouldCancelUnexpectedTerminationForAutomation(
+            explicitTerminationRequested: false,
+            environment: ["SANEAPPS_DISABLE_KEYCHAIN": "1"],
+            arguments: [],
+            automationExplicitTerminationRequested: true
+        ))
+        #expect(!SaneBarAppDelegate.shouldCancelUnexpectedTerminationForAutomation(
+            explicitTerminationRequested: true,
+            environment: ["SANEAPPS_DISABLE_KEYCHAIN": "1"],
+            arguments: []
+        ))
+        #expect(!SaneBarAppDelegate.shouldCancelUnexpectedTerminationForAutomation(
+            explicitTerminationRequested: false,
+            environment: [:],
+            arguments: ["SaneBar"]
+        ))
+    }
+
+    @Test("No-keychain automation quit marker must match launch token")
+    func noKeychainAutomationQuitMarkerMustMatchLaunchToken() {
+        #expect(SaneBarAppDelegate.hasMatchingAutomationQuitMarker(
+            environment: [SaneBarAppDelegate.automationQuitTokenEnvironmentKey: "fixture-token"],
+            markerContents: "fixture-token\n"
+        ))
+        #expect(!SaneBarAppDelegate.hasMatchingAutomationQuitMarker(
+            environment: [SaneBarAppDelegate.automationQuitTokenEnvironmentKey: "fixture-token"],
+            markerContents: "other-token\n"
+        ))
+        #expect(!SaneBarAppDelegate.hasMatchingAutomationQuitMarker(
+            environment: [:],
+            markerContents: "fixture-token\n"
         ))
     }
 

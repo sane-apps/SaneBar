@@ -44,6 +44,7 @@ class LiveZoneSmoke
   RESOURCE_WATCHDOG_PROCESS_MISSING_TOLERANCE = 2
   LAYOUT_STABILIZE_TIMEOUT_SECONDS = 10
   LAYOUT_STABILIZE_POLL_SECONDS = 0.25
+  POINTER_PARK_MIN_MENU_BAR_CLEARANCE_Y = 240
   ZONE_API_READY_TIMEOUT_SECONDS = 25
   ZONE_API_READY_POLL_SECONDS = 0.5
   APPLESCRIPT_TIMEOUT_SECONDS = 8
@@ -70,9 +71,13 @@ class LiveZoneSmoke
   CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT = 40
   FULLSCREEN_MATRIX_ARTIFACT_PATH = '/tmp/sanebar_runtime_fullscreen_matrix.json'
   TOP_STRIP_CAPTURE_WORKDIR = '/tmp/sanebar-top-strip-capture'
+  TOP_STRIP_CAPTURE_ARTIFACT_RETENTION_SECONDS = 24 * 60 * 60
+  TOP_STRIP_CAPTURE_MAX_ARTIFACTS = 200
+  VISIBLE_TRANSITION_PROBE_HTML_PATH = '/tmp/sanebar-fullscreen-probe.html'
+  VISIBLE_TRANSITION_PROBE_URL = "file://#{VISIBLE_TRANSITION_PROBE_HTML_PATH}"
   FULLSCREEN_TRANSITION_PROBE_APPS = [
-    { label: 'safari', app: 'Safari', process: 'Safari', required: true },
-    { label: 'textedit', app: 'TextEdit', process: 'TextEdit', required: false }
+    { label: 'safari', app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', required: true },
+    { label: 'textedit', app: 'TextEdit', process: 'TextEdit', bundle: 'com.apple.TextEdit', required: false }
   ].freeze
   APPLE_FALLBACK_BUNDLE_DENYLIST = %w[
     com.apple.controlcenter
@@ -163,6 +168,7 @@ class LiveZoneSmoke
     @launch_idle_cpu_avg_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX') || DEFAULT_LAUNCH_IDLE_CPU_AVG_MAX
     @launch_idle_cpu_peak_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_CPU_PEAK_MAX') || DEFAULT_LAUNCH_IDLE_CPU_PEAK_MAX
     @launch_idle_rss_mb_max = float_env('SANEBAR_SMOKE_LAUNCH_IDLE_RSS_MB_MAX') || DEFAULT_LAUNCH_IDLE_RSS_MB_MAX
+    @skip_launch_idle_budget = ENV['SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET'] == '1'
     @post_smoke_idle_settle_seconds = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_SETTLE_SECONDS') || DEFAULT_POST_SMOKE_IDLE_SETTLE_SECONDS
     @post_smoke_idle_sample_seconds = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_SAMPLE_SECONDS') || DEFAULT_POST_SMOKE_IDLE_SAMPLE_SECONDS
     @post_smoke_idle_cpu_avg_max = float_env('SANEBAR_SMOKE_POST_SMOKE_IDLE_CPU_AVG_MAX') || DEFAULT_POST_SMOKE_IDLE_CPU_AVG_MAX
@@ -208,18 +214,11 @@ class LiveZoneSmoke
     check_layout_invariants(snapshot)
     check_always_hidden_preconditions(snapshot)
     wait_for_zone_api_ready
-    assert_idle_budget!(
-      label: 'launch',
-      settle_seconds: @launch_idle_settle_seconds,
-      sample_seconds: @launch_idle_sample_seconds,
-      cpu_avg_max: @launch_idle_cpu_avg_max,
-      cpu_peak_max: @launch_idle_cpu_peak_max,
-      rss_mb_max: @launch_idle_rss_mb_max
-    )
+    check_launch_idle_budget!
     reset_resource_watchdog_window!
 
     zones = list_icon_zones
-    require_representative_zone_candidates!(zones)
+    zones = require_representative_zone_candidates!(zones)
     if @exact_id_move_only
       puts 'ℹ️ Focused exact-ID move-only smoke: skipping browse/settings/fullscreen visual surfaces already covered by default smoke.'
     else
@@ -331,6 +330,22 @@ class LiveZoneSmoke
     stop_resource_watchdog
   end
 
+  def check_launch_idle_budget!
+    if @skip_launch_idle_budget
+      puts 'ℹ️ Idle budget launch: skipped for focused exact-ID move-only lane; default runtime smoke covers cold launch and watchdog/post-smoke budgets remain active.'
+      return
+    end
+
+    assert_idle_budget!(
+      label: 'launch',
+      settle_seconds: @launch_idle_settle_seconds,
+      sample_seconds: @launch_idle_sample_seconds,
+      cpu_avg_max: @launch_idle_cpu_avg_max,
+      cpu_peak_max: @launch_idle_cpu_peak_max,
+      rss_mb_max: @launch_idle_rss_mb_max
+    )
+  end
+
   private
 
   def prepare_zones_for_move_checks
@@ -342,7 +357,7 @@ class LiveZoneSmoke
 
     zones = list_icon_zones
     zones = seed_representative_always_hidden_candidates_for_move_checks(zones)
-    require_representative_zone_candidates!(zones)
+    zones = require_representative_zone_candidates!(zones)
     zones
   end
 
@@ -387,12 +402,20 @@ class LiveZoneSmoke
   def prepare_layout_baseline
     close_browse_panel_safely
     close_settings_window_safely
+    park_pointer_away_from_menu_bar_safely
 
     snapshot = layout_snapshot
-    return if snapshot['hidingState'] == 'hidden'
-    return unless supports_applescript_command?('hide')
+    return if snapshot['hidingState'] == 'hidden' && layout_invariants_satisfied?(snapshot)
 
-    app_script('hide')
+    hide_command =
+      if supports_applescript_command?('hide items')
+        'hide items'
+      elsif supports_applescript_command?('hide')
+        'hide'
+      end
+    return unless hide_command
+
+    app_script(hide_command)
     sleep_with_watchdog(0.35)
   rescue StandardError
     nil
@@ -448,6 +471,7 @@ class LiveZoneSmoke
       end
       return last_snapshot if layout_invariants_satisfied?(last_snapshot)
 
+      park_pointer_away_from_menu_bar_safely if truthy?(last_snapshot['hoverMouseInMenuBar'])
       sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
     end
 
@@ -456,6 +480,57 @@ class LiveZoneSmoke
     end
 
     raise "Layout did not stabilize in #{LAYOUT_STABILIZE_TIMEOUT_SECONDS}s (attempts=#{attempts}, snapshot=#{last_snapshot})"
+  end
+
+  def park_pointer_away_from_menu_bar_safely
+    cliclick = resolve_cliclick_tool
+    return false unless cliclick
+
+    x, y = pointer_parking_coordinate
+    out, status = capture2e_with_timeout(cliclick, "m:#{x},#{y}", timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    return true if status&.success?
+
+    debug_cursor_park_skip("cliclick failed: #{out.strip}")
+    false
+  rescue StandardError => e
+    debug_cursor_park_skip(e.message)
+    false
+  end
+
+  def resolve_cliclick_tool
+    ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick'].find { |path| File.executable?(path) }
+  end
+
+  def pointer_parking_coordinate
+    values = desktop_bounds
+    x1, y1, x2, y2 = values
+    width = x2 - x1
+    height = y2 - y1
+    raise "Invalid desktop bounds for pointer parking: #{values.inspect}" unless width.positive? && height.positive?
+
+    x = x1 + (width / 2)
+    y = y1 + (height / 2)
+    min_y = y1 + POINTER_PARK_MIN_MENU_BAR_CLEARANCE_Y
+    y = min_y if y < min_y
+    y = y2 - 10 if y >= y2
+    [x, y]
+  end
+
+  def desktop_bounds
+    script = 'tell application "Finder" to get bounds of window of desktop'
+    out, status = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not read desktop bounds for pointer parking: #{out.strip}" unless status&.success?
+
+    values = out.scan(/-?\d+/).map(&:to_i)
+    raise "Unexpected desktop bounds for pointer parking: #{out.inspect}" unless values.length >= 4
+
+    values.first(4)
+  end
+
+  def debug_cursor_park_skip(message)
+    return unless ENV['SANEBAR_SMOKE_DEBUG_CURSOR_PARK'] == '1'
+
+    puts "⚠️ Cursor park skipped: #{message}"
   end
 
   def check_layout_invariants(snapshot)
@@ -709,8 +784,8 @@ class LiveZoneSmoke
   end
 
   def require_representative_zone_candidates!(zones)
-    return unless @require_all_zones
-    return if focused_required_id_mode?
+    return zones unless @require_all_zones
+    return zones if focused_required_id_mode?
 
     zones = reseed_missing_zone_candidates(zones)
     candidates = candidate_pool(zones)
@@ -729,7 +804,7 @@ class LiveZoneSmoke
         "#{zone}=#{candidate[:unique_id]}"
       end.join(' ')
       puts "✅ Representative zone candidates ok: #{summary}"
-      return
+      return zones
     end
 
     counts = zones.group_by { |item| item[:zone].to_s }.transform_values(&:length)
@@ -750,16 +825,7 @@ class LiveZoneSmoke
   end
 
   def resolve_required_candidate(required_id, ordered)
-    exact = ordered.find { |candidate| candidate[:unique_id] == required_id }
-    return exact if exact
-
-    bundle_id = required_id.split('::', 2).first
-    return nil if bundle_id.nil? || bundle_id.empty?
-
-    bundle_matches = ordered.select { |candidate| candidate[:bundle] == bundle_id }
-    return bundle_matches.first if bundle_matches.length == 1
-
-    nil
+    ordered.find { |candidate| candidate[:unique_id] == required_id }
   end
 
 
@@ -801,6 +867,7 @@ class LiveZoneSmoke
 
   def strict_candidate_minimum(candidate_count)
     return 1 if representative_action_matrix_mode?
+    return candidate_count if @require_all_candidates || focused_required_id_mode?
 
     min_passing = @min_passing_candidates.to_i
     return candidate_count if min_passing <= 0

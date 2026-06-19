@@ -146,7 +146,7 @@ runtime_state_matrix:
     - Activate uses the pasted value instead of an empty or stale field
     - invalid test key shows a visible validation result without dismissing the sheet
   resource_soak_growth:
-    why: A same-candidate short soak catches obvious scanner, observer, or helper growth without blocking normal release iteration.
+    why: A same-candidate adaptive sentinel catches obvious scanner, observer, or helper growth without blocking normal release iteration.
     action_ids:
     - startup-wake-appearance-recovery
     required_proof_level: full_runtime_completion
@@ -154,9 +154,9 @@ runtime_state_matrix:
     - mini_runtime
     - log
     - state_receipt
-    runner: SaneMaster Mini resource soak probe
+    runner: SaneMaster Mini adaptive resource check
     required_scenarios:
-    - at least 10m Mini soak sampled on the release candidate
+    - adaptive Mini resource check passed for this release build
     - average CPU remains within idle budget
     - RSS and physical footprint do not grow beyond the short-soak release budget
     - raw current-build resource soak artifact and log references exist

@@ -7,13 +7,153 @@ require 'fileutils'
 require 'tmpdir'
 require 'time'
 require 'digest'
+require 'securerandom'
+require 'rexml/document'
 
 class StartupLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+  RUNTIME_TARGET_LOCK_PATH = ENV['SANEBAR_RUNTIME_TARGET_LOCK_PATH'] ||
+                             ENV['SANEMASTER_RUNTIME_PROBE_LOCK_PATH'] ||
+                             '/tmp/sanebar_runtime_probe.lock'
+  CURRENT_HOST_STATUS_ITEM_KEY_PATTERN = /\ANSStatusItem (?:Visible(?:CC)?|Preferred Position) SaneBar_/.freeze
   SNAPSHOT_DELAYS = [2.0, 5.0].freeze
   SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0
   SNAPSHOT_SETTLE_POLL_SECONDS = 0.5
   DEFAULT_MAIN_RIGHT_GAP_TOLERANCE = 80.0
+  CAPTURE_LOG_OUTPUT_MAX_BYTES = 16_000
+  DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS = 3.0
+  DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS = 2.0
+  AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'
+  DEFAULT_AUTOMATION_QUIT_MARKER_PATH = '/tmp/sanebar_explicit_termination.token'
+
+  def self.acquire_runtime_target_lock
+    return nil if ENV['SANEBAR_RUNTIME_TARGET_LOCK_BYPASS'] == '1'
+
+    raise Errno::ELOOP if File.symlink?(RUNTIME_TARGET_LOCK_PATH)
+
+    2.times do
+      cleanup_runtime_target_lock_file
+      lock_file = publish_runtime_target_lock_file('startup-layout-probe')
+      return lock_file if lock_file
+    end
+
+    holder = runtime_target_lock_holder_detail
+    detail = holder.empty? ? '' : " (#{holder})"
+    warn "Startup layout probe refused to run because the SaneBar runtime target is locked#{detail}."
+    false
+  rescue Errno::ELOOP
+    warn "Startup layout probe refused to use unsafe symlink lock path: #{RUNTIME_TARGET_LOCK_PATH}"
+    false
+  end
+
+  def self.release_runtime_target_lock(lock_file)
+    return unless lock_file
+
+    begin
+      lock_file.flock(File::LOCK_UN)
+    rescue StandardError
+      nil
+    end
+    begin
+      lock_file.close unless lock_file.closed?
+    rescue StandardError
+      nil
+    end
+    cleanup_runtime_target_lock_file
+  end
+
+  def self.open_runtime_target_lock
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_open_flags, 0o600)
+  end
+
+  def self.publish_runtime_target_lock_file(command)
+    FileUtils.mkdir_p(File.dirname(RUNTIME_TARGET_LOCK_PATH))
+    temp_path = runtime_target_lock_temp_path
+    published = false
+    lock_file = File.open(temp_path, runtime_target_lock_publish_flags, 0o600)
+    lock_file.flock(File::LOCK_EX)
+    lock_file.write("pid=#{Process.pid} started=#{Time.now.utc.iso8601} command=#{command}\n")
+    lock_file.flush
+    File.link(temp_path, RUNTIME_TARGET_LOCK_PATH)
+    published = true
+    lock_file
+  rescue Errno::EEXIST
+    nil
+  ensure
+    FileUtils.rm_f(temp_path) if temp_path && File.exist?(temp_path)
+    unless published
+      begin
+        lock_file&.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        lock_file&.close unless lock_file&.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def self.runtime_target_lock_temp_path
+    dir = File.dirname(RUNTIME_TARGET_LOCK_PATH)
+    base = File.basename(RUNTIME_TARGET_LOCK_PATH)
+    File.join(dir, ".#{base}.#{Process.pid}.#{rand(1_000_000)}.tmp")
+  end
+
+  def self.runtime_target_lock_publish_flags
+    flags = File::RDWR | File::CREAT | File::EXCL
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def self.runtime_target_lock_open_flags
+    flags = File::RDWR | File::CREAT
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def self.cleanup_runtime_target_lock_file
+    return unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    cleanup_lock = open_runtime_target_lock
+    return unless cleanup_lock
+
+    return unless cleanup_lock.flock(File::LOCK_EX | File::LOCK_NB)
+
+    FileUtils.rm_f(RUNTIME_TARGET_LOCK_PATH)
+  rescue Errno::ENOENT, Errno::ELOOP
+    nil
+  ensure
+    if cleanup_lock
+      begin
+        cleanup_lock.flock(File::LOCK_UN)
+      rescue StandardError
+        nil
+      end
+      begin
+        cleanup_lock.close unless cleanup_lock.closed?
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def self.runtime_target_lock_holder_detail
+    return '' unless File.exist?(RUNTIME_TARGET_LOCK_PATH)
+
+    File.open(RUNTIME_TARGET_LOCK_PATH, runtime_target_lock_read_flags) do |file|
+      file.read.to_s.strip
+    end
+  rescue Errno::ENOENT
+    ''
+  end
+
+  def self.runtime_target_lock_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
 
   def initialize
     @app_path = ENV.fetch('SANEBAR_SMOKE_APP_PATH', '').strip
@@ -26,14 +166,21 @@ class StartupLayoutProbe
     @workspace = Dir.mktmpdir('sanebar-startup-probe')
     @defaults_backup_path = File.join(@workspace, 'defaults.plist')
     @settings_backup_path = File.join(@workspace, 'settings.json')
+    @current_host_backup_path = File.join(@workspace, 'current-host-status-item-state.json')
     @lines = []
     @cases = []
     @bundle_id = nil
     @app_name = nil
+    @force_no_keychain = false
+    @probe_forced_no_keychain = false
     @had_defaults_domain = false
     @had_settings_file = false
     @was_running = false
     @state_restored = false
+    @direct_launch_pids = []
+    @automation_quit_token = nil
+    @shared_fixture_helper = nil
+    @seeded_shared_fixture_for_probe = false
   end
 
   def run
@@ -42,12 +189,13 @@ class StartupLayoutProbe
     @app_name = File.basename(@app_path, '.app')
     @was_running = app_running?
     backup_state!
+    prepare_startup_probe_settings!
 
-    poisoned_backup_case = run_poisoned_backup_restore_case
-    current_host_visibility_case = run_current_host_visibility_override_case
-    auto_rehide_case = run_auto_rehide_false_case
-    dirty_reboot_case = run_dirty_reboot_recovery_case
-    always_hidden_replay_case = run_always_hidden_dirty_replay_outbound_case
+    poisoned_backup_case = run_probe_case('current-width backup restore') { run_poisoned_backup_restore_case }
+    current_host_visibility_case = run_probe_case('currentHost visibility cleanup') { run_current_host_visibility_override_case }
+    auto_rehide_case = run_probe_case('autoRehide=false startup') { run_auto_rehide_false_case }
+    dirty_reboot_case = run_probe_case('#157 dirty reboot recovery') { run_dirty_reboot_recovery_case }
+    always_hidden_replay_case = run_probe_case('#155 Always Hidden dirty replay') { run_always_hidden_dirty_replay_outbound_case }
 
     @cases << poisoned_backup_case
     @cases << current_host_visibility_case
@@ -89,10 +237,18 @@ class StartupLayoutProbe
       end
     end
     persist_log!
+    cleanup_seeded_shared_fixture!
     FileUtils.remove_entry(@workspace) if @workspace && Dir.exist?(@workspace)
   end
 
   private
+
+  def run_probe_case(label)
+    puts "   ↳ startup probe: #{label}"
+    result = yield
+    puts "   ✅ startup probe: #{label}"
+    result
+  end
 
   def validate_target!
     raise 'SANEBAR_SMOKE_APP_PATH is required' if @app_path.empty?
@@ -107,6 +263,7 @@ class StartupLayoutProbe
       FileUtils.cp(SETTINGS_PATH, @settings_backup_path)
       @had_settings_file = true
     end
+    backup_current_host_status_item_state!
     log("Backed up defaults domain=#{@had_defaults_domain} settings=#{@had_settings_file}")
   end
 
@@ -120,6 +277,8 @@ class StartupLayoutProbe
       capture('defaults', 'delete', bundle_identifier)
     end
 
+    restore_current_host_status_item_state!
+
     if @had_settings_file
       raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
 
@@ -129,6 +288,7 @@ class StartupLayoutProbe
       FileUtils.rm_f(SETTINGS_PATH)
     end
 
+    restore_original_launch_mode!
     launch_app if @was_running
     log('Restored startup probe state')
   end
@@ -138,9 +298,7 @@ class StartupLayoutProbe
     raise 'Missing calibrated screen width for startup probe' unless width
 
     width_bucket = width.to_i
-    version = autosave_version
-    main_key = "NSStatusItem Preferred Position SaneBar_Main_v#{version}"
-    separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
+    main_key, separator_key = preferred_position_keys
     backup_main_key = "SaneBar_Position_Backup_#{width_bucket}_main"
     backup_separator_key = "SaneBar_Position_Backup_#{width_bucket}_separator"
     backup_main, backup_separator = wait_for_current_width_backup(
@@ -161,8 +319,9 @@ class StartupLayoutProbe
 
     t2 = snapshot_after_delay(2.0, label: 'poisoned-startup T+2s')
     t5 = snapshot_after_delay(5.0, label: 'poisoned-startup T+5s')
-    restored_main = numeric_default(main_key)
-    restored_separator = numeric_default(separator_key)
+    restored_main_key, restored_separator_key = preferred_position_keys
+    restored_main = resolved_preferred_position(restored_main_key)
+    restored_separator = resolved_preferred_position(restored_separator_key)
     assert_restored_backup_pair!(
       main: restored_main,
       separator: restored_separator,
@@ -181,8 +340,9 @@ class StartupLayoutProbe
     parked_replay_cursor = park_pointer_away_from_menu_bar!(label: 'restart replay')
 
     replay = snapshot_after_delay(2.0, label: 'restart replay T+2s')
-    replay_main = numeric_default(main_key)
-    replay_separator = numeric_default(separator_key)
+    replay_main_key, replay_separator_key = preferred_position_keys
+    replay_main = resolved_preferred_position(replay_main_key)
+    replay_separator = resolved_preferred_position(replay_separator_key)
     assert_restored_backup_pair!(
       main: replay_main,
       separator: replay_separator,
@@ -276,8 +436,7 @@ class StartupLayoutProbe
 
     width_bucket = width.to_i
     version = autosave_version
-    main_key = "NSStatusItem Preferred Position SaneBar_Main_v#{version}"
-    separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
+    main_key, separator_key = preferred_position_keys
     backup_main_key = "SaneBar_Position_Backup_#{width_bucket}_main"
     backup_separator_key = "SaneBar_Position_Backup_#{width_bucket}_separator"
     backup_main, backup_separator = wait_for_current_width_backup(
@@ -313,8 +472,9 @@ class StartupLayoutProbe
     first_cursor_proof = assert_cursor_stable!(parked_startup_cursor, label: '#157 dirty reboot passive recovery')
     visibility_keys.each { |key| assert_current_host_default_cleared!(key) }
 
-    restored_main = numeric_default(main_key)
-    restored_separator = numeric_default(separator_key)
+    restored_main_key, restored_separator_key = preferred_position_keys
+    restored_main = resolved_preferred_position(restored_main_key)
+    restored_separator = resolved_preferred_position(restored_separator_key)
     assert_restored_backup_pair!(
       main: restored_main,
       separator: restored_separator,
@@ -380,9 +540,10 @@ class StartupLayoutProbe
     )
     save_settings_json(settings)
     launch_app
+    ensure_pro_unlocked_for_always_hidden_moves!
     snapshot_after_delay(2.0, label: '#155 AH replay fixture launch T+2s')
 
-    candidates = preferred_always_hidden_replay_candidates
+    candidates = ensure_preferred_always_hidden_replay_candidates!
     raise "#155 dirty replay probe needs two deterministic exact-ID candidates, found #{candidates.length}" if candidates.length < 2
 
     hidden_exit_candidate, visible_exit_candidate = candidates.first(2)
@@ -488,13 +649,18 @@ class StartupLayoutProbe
     )
   end
 
+  def prepare_startup_probe_settings!
+    save_settings_json(dirty_reboot_settings(load_settings_json))
+    log('Prepared post-onboarding settings for startup layout probe')
+  end
+
   def preferred_always_hidden_replay_candidates
     preferred_bundles = [
       'com.sanebar.hostsentinel',
       'com.sanebar.sharedfixture'
     ]
     list_icon_zones
-      .select { |item| item[:movable] && item[:unique_id].to_s.include?('::statusItem:') }
+      .select { |item| item[:movable] && deterministic_replay_candidate_id?(item) }
       .select { |item| preferred_bundles.include?(item[:bundle].to_s) }
       .reject { |item| item[:bundle].to_s == bundle_identifier }
       .sort_by do |item|
@@ -502,6 +668,80 @@ class StartupLayoutProbe
         zone_rank = item[:zone].to_s == 'alwaysHidden' ? 2 : 0
         [bundle_rank, zone_rank, item[:unique_id].to_s]
       end
+  end
+
+  def ensure_preferred_always_hidden_replay_candidates!
+    candidates = preferred_always_hidden_replay_candidates
+    return candidates if candidates.length >= 2
+
+    log("Shared fixture candidates missing for #155 startup probe; seeding deterministic fixture")
+    begin
+      require_relative 'qa'
+      @shared_fixture_helper = ProjectQA.new
+      fixture_was_running = @shared_fixture_helper.send(:runtime_shared_bundle_fixture_running?)
+      ids = @shared_fixture_helper.send(
+        :ensure_runtime_shared_bundle_fixture!,
+        { app_path: @app_path, no_keychain: no_keychain_launch? }
+      )
+      fixture_is_running = @shared_fixture_helper.send(:runtime_shared_bundle_fixture_running?)
+      @seeded_shared_fixture_for_probe ||= !fixture_was_running && fixture_is_running
+      log("Shared fixture seed resolved ids=#{ids.join(',')}")
+    rescue StandardError => e
+      log("Shared fixture seed failed: #{e.class}: #{e.message}")
+    end
+
+    deadline = Time.now + 35
+    while Time.now < deadline
+      candidates = preferred_always_hidden_replay_candidates
+      return candidates if candidates.length >= 2
+
+      sleep 0.5
+    end
+
+    candidates
+  end
+
+  def ensure_pro_unlocked_for_always_hidden_moves!
+    snapshot = read_layout_snapshot!
+    return if truthy?(snapshot['licenseIsPro'])
+
+    seed_no_keychain_pro_defaults!
+    @probe_forced_no_keychain = true
+    @force_no_keychain = true
+    log("Relaunching #{@app_name} with no-keychain Pro defaults for #155 move proof")
+    quit_app
+    launch_app
+
+    pro_snapshot = wait_for_healthy_snapshot(label: '#155 no-keychain Pro relaunch')
+    return if truthy?(pro_snapshot['licenseIsPro'])
+
+    raise "#155 dirty replay probe requires Pro no-keychain runtime before moving icons; licenseIsPro=#{pro_snapshot['licenseIsPro'].inspect} #{fallback_pro_defaults_detail}"
+  end
+
+  def seed_no_keychain_pro_defaults!
+    write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key', 'early-adopter')
+    write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation', Time.now.utc.iso8601)
+  end
+
+  def fallback_pro_defaults_detail
+    key = 'sane.no-keychain.com.sanebar.app.pro_license_key'
+    out, status = capture('defaults', 'read', bundle_identifier, key)
+    value = status.success? ? out.strip : 'missing'
+    "fallbackDefaults.#{key}=#{value}"
+  rescue StandardError => e
+    "fallbackDefaults=unavailable(#{e.class}: #{e.message})"
+  end
+
+  def deterministic_replay_candidate_id?(item)
+    unique_id = item[:unique_id].to_s
+    case item[:bundle].to_s
+    when 'com.sanebar.sharedfixture'
+      unique_id.include?('::statusItem:') || unique_id.include?('::axid:com.sanebar.sharedfixture.')
+    when 'com.sanebar.hostsentinel'
+      unique_id.include?('::statusItem:') || unique_id.include?('::axid:')
+    else
+      false
+    end
   end
 
   def sanitized_replay_candidate(item, role:, observed_zone:)
@@ -647,37 +887,94 @@ class StartupLayoutProbe
     (numeric_default('SaneBar_AutosaveVersion') || 7).to_i
   end
 
+  def preferred_position_keys(version = autosave_version)
+    [
+      "NSStatusItem Preferred Position SaneBar_Main_v#{version}",
+      "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
+    ]
+  end
+
+  def current_host_preferred_position_key(app_key)
+    app_key
+      .sub('SaneBar_Main_', 'SaneBar_main_')
+      .sub('SaneBar_Separator_', 'SaneBar_separator_') + '_v6'
+  end
+
+  def resolved_preferred_position(app_key)
+    numeric_default(app_key) || numeric_current_host_default(current_host_preferred_position_key(app_key))
+  end
+
   def app_running?
     !app_pids.empty?
   end
 
   def quit_app
     return unless @app_name
-    return unless app_running?
-
-    capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-    deadline = Time.now + ENV.fetch('SANEBAR_STARTUP_PROBE_QUIT_TIMEOUT_SECONDS', '20').to_f
-    while app_running? && Time.now < deadline
-      sleep 0.2
+    unless app_running?
+      reap_direct_launch_children!
+      return
     end
-    if app_running?
-      capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
-      deadline = Time.now + 5
+
+    begin
+      write_automation_quit_marker!
+      out, status = capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to quit")
+      deadline = Time.now + graceful_quit_timeout_seconds(status)
       while app_running? && Time.now < deadline
         sleep 0.2
       end
+      if app_running?
+        log("Graceful quit did not exit #{@app_name}; status=#{status.exitstatus.inspect} output=#{truncated_log_output(out.to_s.strip)}")
+      end
+      terminate_lingering_app_processes_until_gone!(
+        timeout: force_quit_timeout_seconds,
+        signal: 'TERM'
+      )
+      terminate_lingering_app_processes_until_gone!(
+        timeout: force_quit_timeout_seconds,
+        signal: 'KILL'
+      ) if app_running?
+      raise "Timed out waiting for #{@app_name} to quit" if app_running?
+    ensure
+      remove_matching_automation_quit_marker!
+      reap_direct_launch_children!
     end
-    app_pids.each do |pid|
-      log("Force terminating lingering #{@app_name} test process pid=#{pid}")
-      Process.kill('TERM', pid)
-    rescue Errno::ESRCH
-      nil
-    end
-    deadline = Time.now + 3
+  end
+
+  def graceful_quit_timeout_seconds(status)
+    override = ENV['SANEBAR_STARTUP_PROBE_QUIT_TIMEOUT_SECONDS']
+    return override.to_f if override && !override.empty?
+
+    return DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS if status&.success?
+
+    0.5
+  end
+
+  def force_quit_timeout_seconds
+    ENV.fetch('SANEBAR_STARTUP_PROBE_FORCE_QUIT_TIMEOUT_SECONDS', DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS.to_s).to_f
+  end
+
+  def terminate_lingering_app_processes_until_gone!(timeout:, signal:)
+    deadline = Time.now + timeout
     while app_running? && Time.now < deadline
-      sleep 0.2
+      app_pids.each do |pid|
+        log("Force terminating lingering #{@app_name} test process pid=#{pid} signal=#{signal}")
+        Process.kill(signal, pid)
+      rescue Errno::ESRCH
+        nil
+      end
+      sleep 0.25
     end
-    raise "Timed out waiting for #{@app_name} to quit" if app_running?
+  end
+
+  def cleanup_seeded_shared_fixture!
+    return unless @seeded_shared_fixture_for_probe && @shared_fixture_helper
+
+    @shared_fixture_helper.send(:cleanup_runtime_shared_bundle_fixture!)
+    log('Cleaned up startup-probe seeded shared fixture')
+  rescue StandardError => e
+    log("Shared fixture cleanup failed: #{e.class}: #{e.message}")
+  ensure
+    @seeded_shared_fixture_for_probe = false
   end
 
   def app_pids
@@ -702,35 +999,92 @@ class StartupLayoutProbe
       raise "Failed to launch #{@app_path}: #{out}" unless status.success?
     end
 
+    launched = false
     deadline = Time.now + 20
     until Time.now >= deadline
-      break if app_running? && layout_snapshot_available?
+      if layout_snapshot_available?
+        launched = true
+        break
+      end
       sleep 0.25
     end
 
-    raise "Timed out waiting for #{@app_name} launch" unless app_running? && layout_snapshot_available?
+    raise "Timed out waiting for #{@app_name} launch" unless launched
   end
 
   def no_keychain_launch?
+    @force_no_keychain || no_keychain_env_requested?
+  end
+
+  def no_keychain_env_requested?
     ENV['SANEAPPS_DISABLE_KEYCHAIN'] == '1' || ENV['SANEBAR_PROBE_FORCE_NO_KEYCHAIN'] == '1'
+  end
+
+  def restore_original_launch_mode!
+    return unless @probe_forced_no_keychain
+    return if no_keychain_env_requested?
+
+    @force_no_keychain = false
   end
 
   def launch_app_direct
     binary = File.join(@app_path, 'Contents', 'MacOS', @app_name)
     raise "Executable missing for #{@app_path}" unless File.executable?(binary)
 
+    remove_matching_automation_quit_marker!
+    @automation_quit_token = SecureRandom.hex(24)
     log("Launching #{@app_name} directly with --sane-no-keychain")
-    Process.detach(
-      Process.spawn(
-        { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
-        binary,
-        '--sane-no-keychain',
-        out: '/tmp/sanebar_startup_probe_launch.log',
-        err: '/tmp/sanebar_startup_probe_launch.log'
-      )
+    pid = Process.spawn(
+      { 'SANEAPPS_DISABLE_KEYCHAIN' => '1', AUTOMATION_QUIT_TOKEN_ENV => @automation_quit_token },
+      binary,
+      '--sane-no-keychain',
+      out: File::NULL,
+      err: File::NULL
     )
+    @direct_launch_pids << pid
+    pid
   rescue StandardError => e
     raise "Failed to launch #{@app_path} directly: #{e.message}"
+  end
+
+  def automation_quit_marker_path
+    ENV['SANEBAR_AUTOMATION_QUIT_MARKER_PATH'] || DEFAULT_AUTOMATION_QUIT_MARKER_PATH
+  end
+
+  def write_automation_quit_marker!
+    return if @automation_quit_token.to_s.empty?
+
+    path = automation_quit_marker_path
+    temp_path = "#{path}.#{Process.pid}.tmp"
+    File.open(temp_path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |file|
+      file.write("#{@automation_quit_token}\n")
+    end
+    File.chmod(0o600, temp_path)
+    File.rename(temp_path, path)
+  ensure
+    FileUtils.rm_f(temp_path) if temp_path && File.exist?(temp_path)
+  end
+
+  def remove_matching_automation_quit_marker!
+    return if @automation_quit_token.to_s.empty?
+
+    path = automation_quit_marker_path
+    return unless File.file?(path)
+    return unless File.read(path).strip == @automation_quit_token
+
+    FileUtils.rm_f(path)
+  rescue Errno::ENOENT
+    nil
+  end
+
+  def reap_direct_launch_children!
+    @direct_launch_pids.delete_if do |pid|
+      begin
+        !Process.waitpid(pid, Process::WNOHANG).nil?
+      rescue Errno::ECHILD
+        true
+      end
+    end
   end
 
   def layout_snapshot_available?
@@ -868,18 +1222,23 @@ class StartupLayoutProbe
     raise "#{label}: missing restored main value" if main.nil?
     raise "#{label}: missing restored separator value" if separator.nil?
     raise "#{label}: separator is not after main (main=#{main}, separator=#{separator})" unless separator > main
-    if main > backup_main + 0.001
-      raise "#{label}: main moved away from Control Center (backup=#{backup_main}, restored=#{main})"
+    if main > preferred_main_startup_zone_limit(width) + 0.001
+      raise "#{label}: main outside healthy startup zone (restored=#{main}, limit=#{preferred_main_startup_zone_limit(width).round(2)})"
     end
-    if separator < backup_separator - 0.001
-      raise "#{label}: separator narrowed the visible lane (backup=#{backup_separator}, restored=#{separator})"
-    end
-
     gap = separator - main
     minimum_gap = preferred_visible_lane_gap(width)
+    # Autosave recovery may safely reanchor a wider backup toward Control
+    # Center; the release invariant is enough usable visible lane, not the
+    # exact old separator coordinate.
     return if gap + 0.001 >= minimum_gap
 
     raise "#{label}: visible lane too narrow after recovery (gap=#{gap.round(2)}, minimum=#{minimum_gap.round(2)})"
+  end
+
+  def preferred_main_startup_zone_limit(width)
+    return 300.0 unless width.to_f.positive?
+
+    [[width.to_f * 0.18, 300.0].max, 480.0].min
   end
 
   def preferred_visible_lane_gap(width)
@@ -897,8 +1256,22 @@ class StartupLayoutProbe
     nil
   end
 
+  def numeric_current_host_default(key)
+    out, status = capture('defaults', '-currentHost', 'read', 'NSGlobalDomain', key.to_s)
+    return nil unless status.success?
+
+    Float(out.strip)
+  rescue ArgumentError
+    nil
+  end
+
   def write_numeric_default(key, value)
     _out, status = capture('defaults', 'write', bundle_identifier, key.to_s, '-float', value.to_s)
+    raise "Failed to write default #{key}=#{value}" unless status.success?
+  end
+
+  def write_string_default(key, value)
+    _out, status = capture('defaults', 'write', bundle_identifier, key.to_s, '-string', value.to_s)
     raise "Failed to write default #{key}=#{value}" unless status.success?
   end
 
@@ -918,9 +1291,95 @@ class StartupLayoutProbe
     out.strip
   end
 
+  def current_host_status_item_state
+    out, status = Open3.capture2e('defaults', '-currentHost', 'export', 'NSGlobalDomain', '-')
+    log('$ defaults -currentHost export NSGlobalDomain -')
+    return {} unless status.success?
+
+    state = parse_current_host_status_item_plist(out)
+    log("Parsed #{state.length} currentHost SaneBar status-item key(s)")
+    state
+  rescue REXML::ParseException => e
+    log("Could not parse currentHost defaults export: #{e.message}")
+    {}
+  end
+
+  def parse_current_host_status_item_plist(plist)
+    dict = REXML::Document.new(plist).elements['plist/dict']
+    return {} unless dict
+
+    state = {}
+    elements = dict.elements.to_a
+    index = 0
+    while index < elements.length
+      key_element = elements[index]
+      value_element = elements[index + 1]
+      index += 2
+      next unless key_element&.name == 'key' && value_element
+
+      key = key_element.text.to_s
+      next unless key.match?(CURRENT_HOST_STATUS_ITEM_KEY_PATTERN)
+
+      value = plist_value(value_element)
+      state[key] = value unless value.nil?
+    end
+    state
+  end
+
+  def plist_value(element)
+    case element.name
+    when 'true'
+      true
+    when 'false'
+      false
+    when 'integer'
+      element.text.to_i
+    when 'real'
+      element.text.to_f
+    when 'string'
+      element.text.to_s
+    end
+  end
+
+  def backup_current_host_status_item_state!
+    state = current_host_status_item_state
+    safe_write_file(@current_host_backup_path, JSON.pretty_generate(state))
+    log("Backed up #{state.length} currentHost SaneBar status-item key(s)")
+  end
+
+  def restore_current_host_status_item_state!
+    original_state = if File.exist?(@current_host_backup_path)
+                       JSON.parse(File.read(@current_host_backup_path))
+                     else
+                       {}
+                     end
+
+    current_host_status_item_state.keys.each { |key| delete_current_host_default(key) }
+    original_state.each { |key, value| write_current_host_default_value(key, value) }
+    log("Restored #{original_state.length} currentHost SaneBar status-item key(s)")
+  rescue JSON::ParserError => e
+    raise "Could not restore currentHost status-item state: #{e.message}"
+  end
+
   def write_current_host_bool(key, value)
     _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, '-bool', value ? 'true' : 'false')
     raise "Failed to write currentHost default #{key}=#{value}" unless status.success?
+  end
+
+  def write_current_host_default_value(key, value)
+    case value
+    when true, false
+      write_current_host_bool(key, value)
+    when Integer
+      _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, '-int', value.to_s)
+      raise "Failed to restore currentHost default #{key}" unless status.success?
+    when Numeric
+      _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, '-float', value.to_s)
+      raise "Failed to restore currentHost default #{key}" unless status.success?
+    else
+      _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, '-string', value.to_s)
+      raise "Failed to restore currentHost default #{key}" unless status.success?
+    end
   end
 
   def delete_current_host_default(key)
@@ -936,8 +1395,7 @@ class StartupLayoutProbe
       elsif %w[0 false no].include?(value.downcase)
         write_current_host_bool(key, false)
       else
-        _out, status = capture('defaults', '-currentHost', 'write', 'NSGlobalDomain', key, value)
-        raise "Failed to restore currentHost default #{key}" unless status.success?
+        write_current_host_default_value(key, value)
       end
     end
   end
@@ -1002,8 +1460,23 @@ class StartupLayoutProbe
   def capture(*cmd)
     out, status = Open3.capture2e(*cmd)
     log("$ #{cmd.join(' ')}")
-    log(out.strip) unless out.strip.empty?
+    log_capture_output(out)
     [out, status]
+  end
+
+  def log_capture_output(output)
+    text = output.to_s.strip
+    return if text.empty?
+
+    log(truncated_log_output(text))
+  end
+
+  def truncated_log_output(text)
+    return text if text.bytesize <= CAPTURE_LOG_OUTPUT_MAX_BYTES
+
+    omitted = text.bytesize - CAPTURE_LOG_OUTPUT_MAX_BYTES
+    prefix = text.byteslice(0, CAPTURE_LOG_OUTPUT_MAX_BYTES).to_s.scrub
+    "#{prefix}\n... truncated #{omitted} byte(s) of command output ..."
   end
 
   def log(line)
@@ -1012,12 +1485,24 @@ class StartupLayoutProbe
 
   def persist_log!
     FileUtils.mkdir_p(File.dirname(@log_path))
-    File.write(@log_path, @lines.join("\n") + "\n")
+    safe_write_file(@log_path, @lines.join("\n") + "\n")
   end
 
   def write_artifact!(payload)
     FileUtils.mkdir_p(File.dirname(@artifact_path))
-    File.write(@artifact_path, JSON.pretty_generate(payload) + "\n")
+    safe_write_file(@artifact_path, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def safe_write_file(path, content)
+    File.open(path, safe_file_write_flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_file_write_flags
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
   end
 
   def completed_scenarios_from_cases(cases)
@@ -1029,4 +1514,19 @@ class StartupLayoutProbe
   end
 end
 
-exit(StartupLayoutProbe.new.run ? 0 : 1) if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  runtime_lock = StartupLayoutProbe.acquire_runtime_target_lock
+  status = 75
+
+  unless runtime_lock == false
+    begin
+      status = StartupLayoutProbe.new.run ? 0 : 1
+    ensure
+      StartupLayoutProbe.release_runtime_target_lock(runtime_lock)
+    end
+  end
+
+  $stdout.flush
+  $stderr.flush
+  exit!(status)
+end

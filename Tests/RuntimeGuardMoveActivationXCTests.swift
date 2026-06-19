@@ -71,8 +71,8 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "Visible moves that were already using the shield path should still get one last target refresh before failing"
         )
         XCTAssertTrue(
-            standardSource.contains("Shield fallback could not resolve visible boundary - keeping failure"),
-            "Visible shield fallback should refuse to retry with a missing visible boundary"
+            standardSource.contains("Shield fallback could not resolve ordered visible boundary - keeping failure"),
+            "Visible shield fallback should refuse to retry without an ordered visible boundary"
         )
         XCTAssertTrue(
             resolverSource.contains("func verifyVisibleMoveWithFreshGeometry("),
@@ -124,11 +124,17 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             source.contains("Accepting cached visible move target because source icon is already on-screen with a precise identity"),
             "Visible moves should have a narrow fallback for precise on-screen items when the separator frame is still stale"
         )
+        XCTAssertTrue(
+            source.contains("Hidden move target resolution failed without live separator geometry"),
+            "Hidden moves should fail closed instead of returning cached-only targets after lifecycle recovery"
+        )
     }
 
     func testMoveTargetResolutionUsesOrderedGeometryInsteadOfPositiveXGuards() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let geometryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarGeometryResolver.swift")
+        let geometrySource = try String(contentsOf: geometryURL, encoding: .utf8)
 
         XCTAssertTrue(
             source.contains("hiddenBoundaryIsOrdered") &&
@@ -141,6 +147,11 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
                 source.contains("candidateBoundaryX > 0") ||
                 source.contains("(targets.visibleBoundaryX ?? 0) > 0"),
             "Move target resolution must not use positive-X checks for live geometry validity"
+        )
+        XCTAssertFalse(
+            geometrySource.contains("cachedX > 0 ? cachedX : nil") ||
+                geometrySource.contains("return cachedX > 0"),
+            "Blocking-mode separator right-edge fallback must accept ordered negative coordinates on left-arranged displays"
         )
     }
 
@@ -240,6 +251,20 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         XCTAssertFalse(
             source.contains("alwaysHiddenSeparatorRightEdgeX > 0"),
             "AH-to-Hidden live geometry must stay sign-independent; negative global X is valid on displays arranged left of the primary"
+        )
+    }
+
+    func testAlwaysHiddenToHiddenRepairsMissingLiveTargetsAfterReveal() throws {
+        let fileURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("requiresAlwaysHiddenToHiddenTargets: true") &&
+                source.contains("if requiresAlwaysHiddenToHiddenTargets") &&
+                source.contains("liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil") &&
+                source.contains("Outbound always-hidden geometry is not live after showAll; recreating AH separator before retry") &&
+                source.contains("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair"),
+            "AH-to-Hidden moves must repair missing live AH/main separator targets after reveal instead of failing just because the source icon is visible"
         )
     }
 

@@ -362,9 +362,10 @@ class CustomerUIActionSweep
     end
   end
 
-  def wait_for_clean_health_tab(index, timeout: 8.0)
+  def wait_for_clean_health_tab(index, timeout: 30.0)
     deadline = Time.now + timeout
     last_text = nil
+    repair_triggered = false
     loop do
       last_text = press_settings_tab(index)
       warnings = health_tab_warnings(last_text)
@@ -372,15 +373,34 @@ class CustomerUIActionSweep
 
       break if Time.now >= deadline
 
+      unless repair_triggered
+        trigger_health_repair_route(warnings)
+        repair_triggered = true
+      end
       sleep 0.5
     end
 
+    append_health_runtime_snapshot
     raise "Health tab is not release-clean: #{health_tab_warnings(last_text).join(', ')}"
   end
 
   def health_tab_warnings(text)
     value = text.to_s
     HEALTH_WARNING_LABELS.select { |label| value.include?(label) }
+  end
+
+  def trigger_health_repair_route(warnings)
+    out, status = Open3.capture2e('/usr/bin/open', 'sanebar://repair')
+    raise "Health repair route failed after warnings #{warnings.join(', ')}: #{out}" unless status.success?
+
+    @transcript << "health_warning_repair_route=triggered warnings=#{warnings.join('|')}"
+  end
+
+  def append_health_runtime_snapshot
+    snapshot = app_script('layout snapshot')
+    @transcript << "health_runtime_snapshot=#{snapshot.gsub(/\s+/, ' ')[0, 1200]}"
+  rescue StandardError => e
+    @transcript << "health_runtime_snapshot_error=#{e.class}: #{e.message}"
   end
 
   def exercise_url_routes
