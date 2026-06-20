@@ -222,15 +222,11 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
     /// A missing window is treated as invalid so startup recovery can catch
     /// disconnected status-bar scenes where the item never renders at all.
     nonisolated static func isStatusItemWindowFrameValid(windowFrame: CGRect?, screenFrame: CGRect?) -> Bool {
-        guard let windowFrame, let screenFrame else {
-            return false
-        }
-        let verticalTolerance: CGFloat = 50
-        let horizontalTolerance: CGFloat = 8
-        let verticalMatch = abs(screenFrame.maxY - windowFrame.maxY) <= verticalTolerance
-        let horizontalOverlap = windowFrame.maxX >= (screenFrame.minX - horizontalTolerance) &&
-            windowFrame.minX <= (screenFrame.maxX + horizontalTolerance)
-        return verticalMatch && horizontalOverlap
+        guard let windowFrame else { return false }
+        return MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(
+            frame: windowFrame,
+            screenFrame: screenFrame
+        )
     }
 
     /// Checks whether a status item window appears in the menu bar area.
@@ -555,6 +551,13 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
         button.image = nil
         button.title = ""
         button.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        button.cell?.isEnabled = true
+
+        if isHidden {
+            button.alphaValue = 0
+            button.cell?.isEnabled = false
+            return
+        }
 
         // Determine the visual length for this style (only applies when expanded)
         let styleLength: CGFloat

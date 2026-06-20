@@ -82,6 +82,7 @@ final class MenuBarObserverWorkflow {
             .publisher(for: .hiddenSectionShown)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                self?.manager.updateDividerStyle()
                 self?.manager.visibilityWorkflow.scheduleAppMenuSuppressionEvaluation()
             }
             .store(in: &cancellables)
@@ -90,6 +91,7 @@ final class MenuBarObserverWorkflow {
             .publisher(for: .hiddenSectionHidden)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                self?.manager.updateDividerStyle()
                 self?.manager.visibilityWorkflow.restoreApplicationMenusIfNeeded(reason: "sectionHidden")
             }
             .store(in: &cancellables)
