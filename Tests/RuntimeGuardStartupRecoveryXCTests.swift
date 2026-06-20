@@ -111,6 +111,10 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             "Autosave recovery should only run after repeated validation failures"
         )
         XCTAssertTrue(
+            recoverySource.contains("MenuBarOperationCoordinator.positionValidationRecoveryReason(snapshot: snapshot)"),
+            "Position validation must use lifecycle recovery classification so protected hidden cached separators do not churn autosave recovery"
+        )
+        XCTAssertTrue(
             recoverySource.contains("Status item position validation recovered after"),
             "Startup validation should log successful transient recovery without bumping autosave version"
         )
@@ -127,10 +131,11 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             recoverySource.contains("stableSnapshotNeedsAlwaysHiddenRepair(") &&
-                recoverySource.contains("currentLiveAlwaysHiddenSeparatorFrame().map { $0.origin.x + $0.width }") &&
-                recoverySource.contains("alwaysHiddenSeparatorOriginX().map { $0 + MenuBarMoveGeometryPolicy.separatorVisualWidth }") &&
+                recoverySource.contains("alwaysHiddenMisorderNeedsRecovery(") &&
+                recoverySource.contains("let liveSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame()") &&
+                recoverySource.contains("let liveAlwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()") &&
                 recoverySource.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: \"position-validation-\\(context.rawValue)\")"),
-            "Position validation should repair a misordered always-hidden separator using the AH right edge, not the origin, before it blesses the layout as stable"
+            "Position validation should repair a misordered always-hidden separator only from live separator frames before it blesses the layout as stable"
         )
         XCTAssertTrue(
             recoverySource.contains("captureCurrentDisplayBackupAfterStableValidation(") &&
@@ -334,7 +339,9 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
 
         XCTAssertTrue(
-            observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
+                observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
+                observerSource.contains("manager.cancelVisibilityIntentReplayTask(reason: \"screenParametersChanged\")") &&
+                !observerSource.contains("manager.cancelWakeVisibleAllowListReplay(reason: \"screenParametersChanged\")") &&
                 source.contains("Preserving cached separator geometry during") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .screenParametersChanged)") &&
                 observerSource.contains("NSWorkspace.willSleepNotification") &&
@@ -343,16 +350,30 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("NSWorkspace.didWakeNotification") &&
                 observerSource.contains("NSWorkspace.screensDidWakeNotification") &&
                 observerSource.contains("NSWorkspace.sessionDidBecomeActiveNotification") &&
+                observerSource.contains("CGDisplayRegisterReconfigurationCallback") &&
+                observerSource.contains("CGDisplayRemoveReconfigurationCallback") &&
+                observerSource.contains("displayReconfigurationCallback") &&
+                observerSource.contains("displayDisabledFlag") &&
+                observerSource.contains("displayEnabledFlag") &&
+                observerSource.contains("displayResumePendingAfterDisable") &&
+                observerSource.contains("displayReconfigurationBegin") &&
+                observerSource.contains("displayReconfigurationDisabled") &&
                 observerSource.contains("MenuBarVisibilityPolicy.shouldValidateStatusItemsAfterAppActivation") &&
                 observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"applicationActivated\")") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .activeSpaceChanged)") &&
                 observerSource.contains("manager.schedulePositionValidation(context: .wakeResume)") &&
+                observerSource.contains("manager.positionValidationGeneration += 1\n        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"wakeResume\")") &&
+                observerSource.contains("handleSessionBecameActive()") &&
+                observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"sessionDidBecomeActive\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"applicationActivated\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"activeSpaceChanged\")") &&
+                observerSource.contains("manager.cancelVisibilityIntentReplayTask(reason: \"activeSpaceChanged\")") &&
+                !observerSource.contains("manager.cancelWakeVisibleAllowListReplay(reason: \"activeSpaceChanged\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"wakeResume\")") &&
                 observerSource.contains("Replay pinned visibility intent only after validation reports healthy anchors.") &&
-                observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.") &&
+                observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns\n        // any physical replay only after attachment loss is confirmed.") &&
                 observerSource.contains("Space switches can briefly report stale menu-bar coordinates on macOS 27;") &&
+                !observerSource.contains("manager.markWakeVisibleAllowListReplayPending(reason: \"wake-resume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"activeSpaceChanged\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"wakeResume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
@@ -418,7 +439,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testStoppedStatusItemRecoverySurfacesHealthFallback() throws {
+    func testStoppedBackgroundStatusItemRecoveryDoesNotOpenHealthFallback() throws {
         let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
         let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
         let policyURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift")
@@ -426,10 +447,11 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             policySource.contains("shouldSurfaceHealthAfterStatusItemRecoveryStop(") &&
+                policySource.contains("validationContext == .manualLayoutRestore") &&
                 recoverySource.contains("surfaceHealthFallbackAfterRecoveryStopIfNeeded(") &&
                 recoverySource.contains("NSApp.setActivationPolicy(.regular)") &&
                 recoverySource.contains("SettingsOpener.open(tab: .health)"),
-            "When automatic status-item recovery exhausts itself, SaneBar should surface an independent Health fallback instead of only logging while the menu bar icon may be unreachable"
+            "Background status-item recovery must not open Settings/Health by itself; only explicit manual repair may surface the Health fallback"
         )
     }
 

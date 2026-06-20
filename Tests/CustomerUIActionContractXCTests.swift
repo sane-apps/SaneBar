@@ -365,12 +365,21 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertFalse(lowercasedDetail.contains(placeholder), "\(actionID) \(type) evidence is a placeholder: \(detail)")
         }
 
+        let runtimePreflightPath = projectRootURL()
+            .appendingPathComponent("outputs/runtime-preflight")
+            .path
+        let durableRuntimePreflightPrefixes = [
+            "\(runtimePreflightPath)/sanebar_runtime_startup_probe.json",
+            "\(runtimePreflightPath)/sanebar_runtime_startup_probe.log",
+            "\(runtimePreflightPath)/sanebar_runtime_wake_probe.json",
+            "\(runtimePreflightPath)/sanebar_runtime_wake_probe.log"
+        ]
         let allowedPrefixesByType: [String: [String]] = [
             "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
             "mini_automation": ["applescript=", "url_route=", "settings_ax_tab_index=", "icon_hotkeys_groups_"],
             "mini_ax": ["settings_ax_tab_index="],
             "mini_url_route": ["url_route="],
-            "mini_runtime": ["/tmp/sanebar_runtime_"]
+            "mini_runtime": ["/tmp/sanebar_runtime_"] + durableRuntimePreflightPrefixes
         ]
         let allowedPrefixes = allowedPrefixesByType[type] ?? []
         XCTAssertTrue(

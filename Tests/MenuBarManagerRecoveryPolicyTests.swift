@@ -167,8 +167,30 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
-    @Test("Hidden state replay after status-item recovery requires live core anchors")
-    func statusItemRecoveryHiddenReplayRequiresLiveAnchors() {
+    @Test("Always Hidden replay is skipped when the section is effectively disabled")
+    func alwaysHiddenReplayRequiresEffectiveSectionAndPins() {
+        #expect(
+            MenuBarVisibilityPolicy.shouldReplayAlwaysHiddenIntent(
+                alwaysHiddenSectionEnabled: true,
+                pinnedItemCount: 1
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayAlwaysHiddenIntent(
+                alwaysHiddenSectionEnabled: false,
+                pinnedItemCount: 1
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayAlwaysHiddenIntent(
+                alwaysHiddenSectionEnabled: true,
+                pinnedItemCount: 0
+            )
+        )
+    }
+
+    @Test("Hidden state replay after status-item recovery accepts protected hidden geometry")
+    func statusItemRecoveryHiddenReplayAcceptsProtectedHiddenGeometry() {
         #expect(
             MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
                 hidingState: .hidden,
@@ -182,6 +204,34 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    geometryConfidence: .cached,
+                    structuralState: .ready,
+                    separatorAnchorSource: .cached,
+                    mainAnchorSource: .live,
+                    visibilityPhase: .hidden,
+                    startupItemsValid: true
+                )
+            )
+        )
+        #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    geometryConfidence: .shielded,
+                    structuralState: .ready,
+                    separatorAnchorSource: .cached,
+                    mainAnchorSource: .live,
+                    visibilityPhase: .hidden,
+                    startupItemsValid: true
+                )
+            )
+        )
+        #expect(
             !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
                 hidingState: .hidden,
                 shouldSkipHideForExternalMonitor: false,
@@ -190,6 +240,20 @@ struct MenuBarManagerRecoveryPolicyTests {
                     separatorAnchorSource: .live,
                     mainAnchorSource: .live,
                     startupItemsValid: false
+                )
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: MenuBarRuntimeSnapshot(
+                    geometryConfidence: .live,
+                    structuralState: .ready,
+                    separatorAnchorSource: .cached,
+                    mainAnchorSource: .live,
+                    visibilityPhase: .hidden,
+                    startupItemsValid: true
                 )
             )
         )
@@ -219,24 +283,86 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
-    @Test("Unrecoverable status-item recovery surfaces Health only after real recovery attempts")
+    @Test("Hide-all-other visible allow-list requires live geometry before hidden replay")
+    func hideAllOtherVisibleAllowListRequiresLiveHiddenReplayGeometry() {
+        let protectedCachedHidden = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true
+        )
+
+        #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: protectedCachedHidden
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: protectedCachedHidden,
+                requiresLiveGeometryForVisibleAllowList: true
+            )
+        )
+
+        let liveHidden = MenuBarRuntimeSnapshot(
+            geometryConfidence: .live,
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true
+        )
+        #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: liveHidden,
+                requiresLiveGeometryForVisibleAllowList: true
+            )
+        )
+    }
+
+    @Test("Unrecoverable status-item recovery surfaces Health only for explicit repair")
     func statusItemRecoveryStopHealthFallbackDecision() {
         #expect(
             MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
                 recoveryReason: .invalidStatusItems,
-                recoveryCount: 1
+                recoveryCount: 1,
+                validationContext: .manualLayoutRestore
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: .invalidStatusItems,
+                recoveryCount: 4,
+                validationContext: .wakeResume
             )
         )
         #expect(
             !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
                 recoveryReason: nil,
-                recoveryCount: 4
+                recoveryCount: 4,
+                validationContext: .manualLayoutRestore
             )
         )
         #expect(
             !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
                 recoveryReason: .missingCoordinates,
-                recoveryCount: 0
+                recoveryCount: 0,
+                validationContext: .manualLayoutRestore
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: .invalidStatusItems,
+                recoveryCount: 2,
+                validationContext: .startupFollowUp
             )
         )
     }
@@ -289,6 +415,36 @@ struct MenuBarManagerRecoveryPolicyTests {
                 mainRightGap: 260,
                 screenWidth: 1920,
                 notchRightSafeMinX: nil
+            ))
+        )
+    }
+
+    @Test("Hidden collapsed separator honors persisted user intent away from Control Center")
+    func hiddenCollapsedSeparatorStructuralHealthUsesPersistedIntent() {
+        #expect(
+            StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .hidden,
+                mainWindowValid: true,
+                separatorVisible: true,
+                separatorX: 900,
+                mainX: 980,
+                mainRightGap: 920,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil,
+                persistedMainDistanceFromRight: 910
+            ))
+        )
+        #expect(
+            !StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                hidingState: .hidden,
+                mainWindowValid: true,
+                separatorVisible: true,
+                separatorX: 900,
+                mainX: 980,
+                mainRightGap: 920,
+                screenWidth: 1920,
+                notchRightSafeMinX: nil,
+                persistedMainDistanceFromRight: 260
             ))
         )
     }
@@ -523,6 +679,39 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
+    @Test("Deferred wake repair stays actionable only while Hide All Other still has a visible allow-list")
+    @MainActor
+    func actionableDeferredWakeRepairRequiresCurrentVisibleAllowListIntent() {
+        let manager = MenuBarManager(statusBarController: nil)
+
+        manager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = "healthy-validation-wake-resume"
+        #expect(!manager.hasActionableDeferredWakeVisibleAllowListRepair())
+
+        manager.settings.hideAllOtherMenuBarItems = true
+        #expect(!manager.hasActionableDeferredWakeVisibleAllowListRepair())
+
+        manager.settings.hideAllOtherVisibleItemIds = ["com.example.visible"]
+        #expect(manager.hasActionableDeferredWakeVisibleAllowListRepair())
+    }
+
+    @Test("Manual deferred wake repair can re-arm while the menu bar is expanded")
+    @MainActor
+    func manualDeferredWakeRepairArmsPendingReplayWhenExpanded() {
+        let manager = MenuBarManager(statusBarController: nil)
+        manager.settings.hideAllOtherMenuBarItems = true
+        manager.settings.hideAllOtherVisibleItemIds = ["com.example.visible"]
+
+        manager.markWakeVisibleAllowListReplayPending(reason: "automatic-expanded")
+        #expect(!manager.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay())
+
+        manager.markWakeVisibleAllowListReplayPending(
+            reason: "manual-repair-health",
+            requiresHiddenState: false
+        )
+        #expect(manager.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay())
+        #expect(manager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason == "manual-repair-health")
+    }
+
     @Test("Runtime snapshot is safe before deferred status-item setup")
     @MainActor
     func currentRuntimeSnapshotBeforeDeferredSetupDoesNotCrash() {
@@ -569,8 +758,8 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(liveAnchorSnapshot.hasLiveCoreAnchors)
     }
 
-    @Test("Hidden near-control-center presentation is protected instead of stale")
-    func hiddenNearControlCenterPresentationIsShielded() {
+    @Test("Hidden misordered near-control-center presentation stays stale")
+    func hiddenMisorderedNearControlCenterPresentationStaysStale() {
         let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
             for: MenuBarRuntimeSnapshot(
                 structuralState: .ready,
@@ -585,7 +774,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             alwaysHiddenSeparatorMisordered: false
         )
 
-        #expect(confidence == .shielded)
+        #expect(confidence == .stale)
     }
 
     @Test("Hidden collapsed presentation can use cached separator anchor without becoming stale")
@@ -608,8 +797,8 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(confidence == .cached)
     }
 
-    @Test("Hidden collapsed drift can be shielded with cached separator anchor")
-    func hiddenCollapsedDriftWithCachedSeparatorPresentationIsShielded() {
+    @Test("Hidden collapsed cached separator misorder stays stale")
+    func hiddenCollapsedCachedSeparatorMisorderStaysStale() {
         let confidence = MenuBarStatusItemRecoveryWorkflow.resolvedGeometryConfidence(
             for: MenuBarRuntimeSnapshot(
                 structuralState: .ready,
@@ -625,7 +814,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             alwaysHiddenSeparatorMisordered: false
         )
 
-        #expect(confidence == .shielded)
+        #expect(confidence == .stale)
     }
 
     @Test("Expanded misordered geometry still needs repair")
@@ -728,6 +917,94 @@ struct MenuBarManagerRecoveryPolicyTests {
                 alwaysHiddenSeparatorRightEdgeX: -180
             ),
             "Repair should still trigger for misordered live geometry in negative global coordinates"
+        )
+    }
+
+    @Test("Always-hidden recovery requires live separators, not live main anchor")
+    func alwaysHiddenMisorderRecoveryRequiresLiveSeparators() {
+        let cachedWakeSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            hasAlwaysHiddenSeparator: true,
+            separatorX: 790,
+            alwaysHiddenSeparatorX: 890,
+            mainX: 1700
+        )
+
+        #expect(
+            !MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: cachedWakeSnapshot,
+                liveSeparatorX: 790,
+                liveAlwaysHiddenSeparatorRightEdgeX: 890
+            )
+        )
+
+        let cachedMainWakeSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .cached,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            hasAlwaysHiddenSeparator: true,
+            separatorX: 790,
+            alwaysHiddenSeparatorX: 890,
+            mainX: 1700
+        )
+        #expect(
+            MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: cachedMainWakeSnapshot,
+                liveSeparatorX: 790,
+                liveAlwaysHiddenSeparatorRightEdgeX: 890
+            ),
+            "Always-hidden separator repair only consumes live separator anchors, so cached main geometry should not suppress a valid repair"
+        )
+
+        let liveWakeSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            hasAlwaysHiddenSeparator: true,
+            separatorX: 790,
+            alwaysHiddenSeparatorX: 890,
+            mainX: 1700
+        )
+        #expect(
+            MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: liveWakeSnapshot,
+                liveSeparatorX: 790,
+                liveAlwaysHiddenSeparatorRightEdgeX: 890
+            )
+        )
+        let transitioningLiveSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            visibilityPhase: .transitioning,
+            startupItemsValid: true,
+            hasAlwaysHiddenSeparator: true,
+            separatorX: 790,
+            alwaysHiddenSeparatorX: 890,
+            mainX: 1700
+        )
+        #expect(
+            !MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: transitioningLiveSnapshot,
+                liveSeparatorX: 790,
+                liveAlwaysHiddenSeparatorRightEdgeX: 890
+            ),
+            "Always-hidden separator repair must not run while show/hide animation is transitioning"
+        )
+        #expect(
+            !MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: liveWakeSnapshot,
+                liveSeparatorX: nil,
+                liveAlwaysHiddenSeparatorRightEdgeX: 890
+            )
         )
     }
 }

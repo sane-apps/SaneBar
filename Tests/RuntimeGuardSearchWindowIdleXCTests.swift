@@ -60,6 +60,16 @@ final class RuntimeGuardSearchWindowIdleXCTests: RuntimeGuardTestCase {
             "Idle timeout should explicitly defer for a short post-activation grace window"
         )
         XCTAssertTrue(
+            controllerSource.contains("shouldDeferCloseForBrowseActivation()") &&
+                controllerSource.contains("close deferred during recent second menu bar activation"),
+            "Spurious close/cancel events during second-menu-bar activation should share the post-activation grace instead of collapsing the panel"
+        )
+        XCTAssertTrue(
+            controllerSource.contains("close(ignoringBrowseActivationGrace: true)") &&
+                controllerSource.contains("self?.close(ignoringBrowseActivationGrace: true)"),
+            "Explicit toggle and panel dismiss actions should bypass the activation grace so the user can intentionally close the panel"
+        )
+        XCTAssertTrue(
             smokeSource.contains("verify_post_activation_browse_state!") &&
                 smokeSource.contains("second menu bar collapsed after activation") &&
                 smokeSource.contains("expected_mode == 'secondMenuBar' ? 'windowVisible: true' : nil"),
@@ -70,6 +80,8 @@ final class RuntimeGuardSearchWindowIdleXCTests: RuntimeGuardTestCase {
     func testBrowseAppleScriptActivationUsesSameIdleProtectionAsUI() throws {
         let fileURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptActivationCommands.swift")
         let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let appleScriptCommandsURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let appleScriptCommandsSource = try String(contentsOf: appleScriptCommandsURL, encoding: .utf8)
         let searchServiceURL = projectRootURL().appendingPathComponent("Core/Services/SearchService.swift")
         let searchServiceSource = try String(contentsOf: searchServiceURL, encoding: .utf8)
         let navigationURL = projectRootURL().appendingPathComponent("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
@@ -80,6 +92,10 @@ final class RuntimeGuardSearchWindowIdleXCTests: RuntimeGuardTestCase {
                 searchServiceSource.contains("browseController.noteBrowseActivationStarted()") &&
                 searchServiceSource.contains("browseController.noteBrowseActivationFinished()"),
             "SearchService should own browse-panel activation grace bookkeeping so all callers get the same idle-close protection"
+        )
+        XCTAssertTrue(
+            appleScriptCommandsSource.contains("SearchWindowController.shared.close(ignoringBrowseActivationGrace: true)"),
+            "The scripted close command should still force cleanup so QA and automation can intentionally dismiss the panel"
         )
         XCTAssertTrue(
             !source.contains("noteBrowseActivationStarted()") &&

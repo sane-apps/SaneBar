@@ -17,9 +17,44 @@ final class MenuBarStatusItemRecoveryWorkflow {
     /// because geometry was not live. Surfaced in Health so the user can
     /// apply it explicitly via Repair; cleared when a physical replay runs.
     var pendingDeferredWakeRestoreReason: String?
+    private var pendingWakeVisibleAllowListReplayUntil: Date?
+    private static let pendingWakeVisibleAllowListReplayTTL: TimeInterval = 45
 
     init(manager: MenuBarManager) {
         self.manager = manager
+    }
+
+    func markWakeVisibleAllowListReplayPending(
+        reason: String,
+        now: Date = Date(),
+        surfaceDeferredReason: Bool = true
+    ) {
+        pendingWakeVisibleAllowListReplayUntil = now.addingTimeInterval(Self.pendingWakeVisibleAllowListReplayTTL)
+        if surfaceDeferredReason {
+            pendingDeferredWakeRestoreReason = reason
+        }
+        logger.info("Marked wake visible allow-list replay pending (\(reason, privacy: .public))")
+    }
+
+    func clearWakeVisibleAllowListReplayPending(clearDeferredReason: Bool = true) {
+        if clearDeferredReason {
+            pendingDeferredWakeRestoreReason = nil
+        }
+        pendingWakeVisibleAllowListReplayUntil = nil
+    }
+
+    func hasPendingWakeVisibleAllowListReplay(now: Date = Date()) -> Bool {
+        guard let pendingWakeVisibleAllowListReplayUntil else { return false }
+        guard now <= pendingWakeVisibleAllowListReplayUntil else {
+            clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
+            return false
+        }
+        return true
+    }
+
+    func pendingWakeVisibleAllowListReplayExpired(now: Date = Date()) -> Bool {
+        guard let pendingWakeVisibleAllowListReplayUntil else { return false }
+        return now > pendingWakeVisibleAllowListReplayUntil
     }
 
     func clearRecoveryDormancy() {
@@ -103,10 +138,14 @@ final class MenuBarStatusItemRecoveryWorkflow {
         let controller = manager.statusBarControllerStorage
         let mainItem = manager.mainStatusItem ?? controller?.mainItem
         let separator = manager.separatorItem ?? controller?.separatorItem
+        let liveSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame()
+        let liveAlwaysHiddenSeparatorRightEdgeX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()
+            .map { $0.origin.x + $0.width }
         let alwaysHiddenSeparatorX =
-            manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame().map { $0.origin.x + $0.width } ??
+            liveAlwaysHiddenSeparatorRightEdgeX ??
             manager.geometryResolver.alwaysHiddenSeparatorBoundaryX() ??
             manager.geometryResolver.alwaysHiddenSeparatorOriginX().map { $0 + MenuBarMoveGeometryPolicy.separatorVisualWidth }
+        let persistedMainDistanceFromRight = StatusBarDiagnostics.persistedMainDistanceFromRight()
         let startupItemsValid: Bool = {
             guard let mainItem, let separator else { return false }
             let mainWindow = mainItem.button?.window
@@ -135,7 +174,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 mainX: manager.geometryResolver.mainStatusItemLeftEdgeX(),
                 mainRightGap: mainRightGap,
                 screenWidth: runtimeScreen?.frame.width,
-                notchRightSafeMinX: runtimeScreen?.auxiliaryTopRightArea?.minX
+                notchRightSafeMinX: runtimeScreen?.auxiliaryTopRightArea?.minX,
+                persistedMainDistanceFromRight: persistedMainDistanceFromRight
             ))
             return mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)
         }()
@@ -174,23 +214,11 @@ final class MenuBarStatusItemRecoveryWorkflow {
         }()
         let screenWidth = runtimeScreen?.frame.width
         let notchRightSafeMinX = runtimeScreen?.auxiliaryTopRightArea?.minX
-        let persistedMainDistanceFromRight: CGFloat? = {
-            let persisted = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
-                forAutosaveName: StatusBarController.mainAutosaveName
-            )
-            guard StatusBarController.isPixelLikePosition(persisted), let persisted else { return nil }
-            return CGFloat(persisted)
-        }()
         let mainRightGap: CGFloat? = {
             guard mainFrameIsLive, let mainWindow else { return nil }
             guard let rightEdge = mainWindow.screen?.frame.maxX else { return nil }
             return rightEdge - mainWindow.frame.origin.x
         }()
-        let alwaysHiddenSeparatorMisordered = MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
-            hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
-            separatorX: separatorX,
-            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenSeparatorX
-        )
         let hasInvisibleRequiredItems =
             mainItemVisible == false ||
             separatorItemVisible == false ||
@@ -205,11 +233,16 @@ final class MenuBarStatusItemRecoveryWorkflow {
             guard startupItemsValid else { return .unattachedWindows }
             return .ready
         }()
+        let visibilityPhase: MenuBarVisibilityPhase =
+            manager.hidingService.isAnimating || manager.hidingService.isTransitioning
+                ? .transitioning
+                : (manager.hidingService.state == .hidden ? .hidden : .expanded)
 
         let geometrySnapshot = MenuBarRuntimeSnapshot(
             structuralState: structuralState,
             separatorAnchorSource: separatorAnchorSource,
             mainAnchorSource: mainAnchorSource,
+            visibilityPhase: visibilityPhase,
             startupItemsValid: startupItemsValid,
             hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
             likelySystemSuppressedStatusItems: likelySystemSuppressedStatusItems,
@@ -220,6 +253,11 @@ final class MenuBarStatusItemRecoveryWorkflow {
             screenWidth: screenWidth,
             notchRightSafeMinX: notchRightSafeMinX,
             persistedMainDistanceFromRight: persistedMainDistanceFromRight
+        )
+        let alwaysHiddenSeparatorMisordered = Self.alwaysHiddenMisorderNeedsRecovery(
+            snapshot: geometrySnapshot,
+            liveSeparatorX: liveSeparatorFrame?.origin.x,
+            liveAlwaysHiddenSeparatorRightEdgeX: liveAlwaysHiddenSeparatorRightEdgeX
         )
         let geometryConfidence = Self.resolvedGeometryConfidence(
             for: geometrySnapshot,
@@ -239,7 +277,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             separatorAnchorSource: separatorAnchorSource,
             mainAnchorSource: mainAnchorSource,
             bootstrapPhase: bootstrapPhase,
-            visibilityPhase: manager.hidingService.isAnimating || manager.hidingService.isTransitioning ? .transitioning : (manager.hidingService.state == .hidden ? .hidden : .expanded),
+            visibilityPhase: visibilityPhase,
             browsePhase: SearchWindowController.shared.isMoveInProgress ? .moveInProgress : (SearchWindowController.shared.isBrowseSessionActive ? .open : .idle),
             startupItemsValid: startupItemsValid,
             hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
@@ -299,7 +337,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
         ) {
             if hiddenPresentationHasHealthyCollapsedSeparator(
                 snapshot: snapshot,
-                hidingState: hidingState
+                hidingState: hidingState,
+                allowStartupPositionDrift: true
             ) {
                 return .shielded
             }
@@ -323,9 +362,32 @@ final class MenuBarStatusItemRecoveryWorkflow {
         return .cached
     }
 
+    nonisolated static func alwaysHiddenMisorderNeedsRecovery(
+        snapshot: MenuBarRuntimeSnapshot,
+        liveSeparatorX: CGFloat?,
+        liveAlwaysHiddenSeparatorRightEdgeX: CGFloat?
+    ) -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.startupItemsValid,
+              snapshot.hasAlwaysHiddenSeparator,
+              snapshot.visibilityPhase != .transitioning,
+              snapshot.separatorAnchorSource == .live,
+              snapshot.mainAnchorSource != .missing
+        else {
+            return false
+        }
+
+        return MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
+            hasAlwaysHiddenSeparator: snapshot.hasAlwaysHiddenSeparator,
+            separatorX: liveSeparatorX,
+            alwaysHiddenSeparatorRightEdgeX: liveAlwaysHiddenSeparatorRightEdgeX
+        )
+    }
+
     private nonisolated static func hiddenPresentationHasHealthyCollapsedSeparator(
         snapshot: MenuBarRuntimeSnapshot,
-        hidingState: HidingState
+        hidingState: HidingState,
+        allowStartupPositionDrift: Bool = false
     ) -> Bool {
         guard hidingState == .hidden else { return false }
         let hiddenStructureHealthy =
@@ -334,12 +396,38 @@ final class MenuBarStatusItemRecoveryWorkflow {
         guard snapshot.separatorAnchorSource == .live ||
             (snapshot.separatorAnchorSource == .cached && hiddenStructureHealthy) else { return false }
         guard snapshot.mainAnchorSource != .missing else { return false }
-        return MenuBarVisibilityPolicy.isMainNearControlCenter(
+        let startupPositionDrift = MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: snapshot.separatorX,
             mainX: snapshot.mainX,
             mainRightGap: snapshot.mainRightGap,
             screenWidth: snapshot.screenWidth,
-            notchRightSafeMinX: snapshot.notchRightSafeMinX
+            notchRightSafeMinX: snapshot.notchRightSafeMinX,
+            persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
         )
+        guard !startupPositionDrift || allowStartupPositionDrift else {
+            return false
+        }
+        if startupPositionDrift, allowStartupPositionDrift {
+            guard let separatorX = snapshot.separatorX,
+                  let mainX = snapshot.mainX,
+                  separatorX.isFinite,
+                  mainX.isFinite,
+                  separatorX < mainX else {
+                return false
+            }
+            return true
+        }
+        return StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+            hidingState: hidingState,
+            mainWindowValid: true,
+            separatorVisible: true,
+            separatorX: snapshot.separatorX,
+            mainX: snapshot.mainX,
+            mainRightGap: snapshot.mainRightGap,
+            screenWidth: snapshot.screenWidth,
+            notchRightSafeMinX: snapshot.notchRightSafeMinX,
+            persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
+        ))
     }
 
     func logStatusItemRecoveryReason(
@@ -472,6 +560,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             surfaceHealthFallbackAfterRecoveryStopIfNeeded(
                 reason: reason,
                 trigger: trigger,
+                validationContext: validationContext,
                 recoveryCount: recoveryCount
             )
 
@@ -483,11 +572,13 @@ final class MenuBarStatusItemRecoveryWorkflow {
     private func surfaceHealthFallbackAfterRecoveryStopIfNeeded(
         reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
         trigger: String,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext?,
         recoveryCount: Int
     ) {
         guard MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
             recoveryReason: reason,
-            recoveryCount: recoveryCount
+            recoveryCount: recoveryCount,
+            validationContext: validationContext
         ) else { return }
 
         logger.error(
@@ -544,7 +635,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 }
 
                 let snapshot = self.currentStatusItemRecoverySnapshot()
-                let recoveryReason = MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot)
+                let recoveryReason = MenuBarOperationCoordinator.positionValidationRecoveryReason(snapshot: snapshot)
                 let alwaysHiddenNeedsRepair = self.stableSnapshotNeedsAlwaysHiddenRepair(snapshot)
 
                 self.visibilityFlapDetector.record(itemsHealthy: recoveryReason == nil, at: Date())
@@ -627,6 +718,15 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 recoveryCount: recoveryCount,
                 maxRecoveryCount: MenuBarManager.maxStatusItemRecoveryCount
             )
+            if MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: snapshot,
+                validationContext: context,
+                action: action
+            ) {
+                self.manager.markWakeVisibleAllowListReplayPending(
+                    reason: "runtime-attachment-loss-\(context.rawValue)"
+                )
+            }
 
             if action == .waitForLiveAnchor {
                 logger.warning(
@@ -678,10 +778,12 @@ final class MenuBarStatusItemRecoveryWorkflow {
     }
 
     private func stableSnapshotNeedsAlwaysHiddenRepair(_ snapshot: MenuBarRuntimeSnapshot) -> Bool {
-        MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
-            hasAlwaysHiddenSeparator: snapshot.hasAlwaysHiddenSeparator,
-            separatorX: snapshot.separatorX,
-            alwaysHiddenSeparatorRightEdgeX: snapshot.alwaysHiddenSeparatorX
+        let liveSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame()
+        let liveAlwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()
+        return Self.alwaysHiddenMisorderNeedsRecovery(
+            snapshot: snapshot,
+            liveSeparatorX: liveSeparatorFrame?.origin.x,
+            liveAlwaysHiddenSeparatorRightEdgeX: liveAlwaysHiddenFrame.map { $0.origin.x + $0.width }
         )
     }
 

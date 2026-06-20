@@ -178,7 +178,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
     func toggle(mode: SearchWindowMode? = nil) {
         if let window, window.isVisible, currentMode == (mode ?? activeMode) {
-            close()
+            close(ignoringBrowseActivationGrace: true)
         } else if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
             // Auth required — must be async
             Task {
@@ -285,13 +285,31 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     }
 
     /// Close the search window
-    func close() {
+    func close(ignoringBrowseActivationGrace: Bool = false) {
         // Don't close while a move is in progress — CGEvent mouse
         // simulation causes resignKey which would break the move.
         guard !isMoveInProgress else { return }
 
+        guard ignoringBrowseActivationGrace || !shouldDeferCloseForBrowseActivation() else {
+            logger.info("close deferred during recent second menu bar activation")
+            schedulePanelIdleCloseIfNeeded(for: .secondMenuBar)
+            return
+        }
+
         window?.orderOut(nil)
         handleBrowseDismissal(reason: "close")
+    }
+
+    private func shouldDeferCloseForBrowseActivation(now: Date = Date()) -> Bool {
+        guard currentMode == .secondMenuBar, window?.isVisible == true else { return false }
+
+        let secondsSinceLastActivation = lastBrowseActivationFinishedAt.map { now.timeIntervalSince($0) }
+        return SearchWindowLayoutPolicy.shouldDeferPanelIdleClose(
+            mode: .secondMenuBar,
+            pointerInsidePanel: false,
+            activationInFlight: browseActivationInFlightCount > 0,
+            secondsSinceLastActivation: secondsSinceLastActivation
+        )
     }
 
     private func handleBrowseDismissal(reason: String) {
@@ -613,7 +631,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let contentView = MenuBarSearchView(
             initialSearchText: searchText,
             onDismiss: { [weak self] in
-                self?.close()
+                self?.close(ignoringBrowseActivationGrace: true)
             }
         )
         .preferredColorScheme(.dark)
@@ -645,7 +663,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let contentView = MenuBarSearchView(
             isSecondMenuBar: true,
             onDismiss: { [weak self] in
-                self?.close()
+                self?.close(ignoringBrowseActivationGrace: true)
             }
         )
         .preferredColorScheme(.dark)

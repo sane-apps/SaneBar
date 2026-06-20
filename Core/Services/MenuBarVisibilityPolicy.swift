@@ -122,10 +122,18 @@ enum MenuBarVisibilityPolicy {
         hidingState == .hidden && !shouldSkipHideForExternalMonitor
     }
 
+    nonisolated static func shouldReplayAlwaysHiddenIntent(
+        alwaysHiddenSectionEnabled: Bool,
+        pinnedItemCount: Int
+    ) -> Bool {
+        alwaysHiddenSectionEnabled && pinnedItemCount > 0
+    }
+
     nonisolated static func canApplyHiddenStateAfterStatusItemRecovery(
         hidingState: HidingState,
         shouldSkipHideForExternalMonitor: Bool,
-        snapshot: MenuBarRuntimeSnapshot
+        snapshot: MenuBarRuntimeSnapshot,
+        requiresLiveGeometryForVisibleAllowList: Bool = false
     ) -> Bool {
         guard shouldRestoreHiddenAfterStatusItemRecovery(
             hidingState: hidingState,
@@ -134,16 +142,38 @@ enum MenuBarVisibilityPolicy {
 
         guard snapshot.structuralState == .ready, snapshot.startupItemsValid else { return false }
 
-        // Hidden replay applies the 10,000pt delimiter. After structural recovery,
-        // only do that once AppKit has actually attached both core status items.
-        return snapshot.separatorAnchorSource == .live && snapshot.mainAnchorSource == .live
+        if snapshot.separatorAnchorSource == .live && snapshot.mainAnchorSource == .live {
+            return true
+        }
+
+        guard !requiresLiveGeometryForVisibleAllowList else { return false }
+
+        // Hidden replay only reapplies SaneBar's collapsed delimiter length; it
+        // does not physically move third-party icons. While hidden, AppKit can
+        // shield the separator behind a cached anchor even though the main
+        // status item is attached and the collapsed presentation is valid.
+        guard snapshot.visibilityPhase == .hidden,
+              snapshot.mainAnchorSource == .live,
+              snapshot.separatorAnchorSource == .cached else {
+            return false
+        }
+
+        switch snapshot.geometryConfidence {
+        case .cached, .shielded:
+            return true
+        case .live, .stale, .missing:
+            return false
+        }
     }
 
     nonisolated static func shouldSurfaceHealthAfterStatusItemRecoveryStop(
         recoveryReason: MenuBarOperationCoordinator.StartupRecoveryReason?,
-        recoveryCount: Int
+        recoveryCount: Int,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext?
     ) -> Bool {
-        recoveryReason != nil && recoveryCount > 0
+        recoveryReason != nil &&
+            recoveryCount > 0 &&
+            validationContext == .manualLayoutRestore
     }
 
     nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
@@ -178,7 +208,19 @@ enum MenuBarVisibilityPolicy {
     /// How far the live main position may deviate from SaneBar's own persisted
     /// preferred position (both measured as distance from the screen's right
     /// edge) before soft drift is flagged.
-    nonisolated static let mainDriftFromPersistedIntentTolerance: CGFloat = 160
+    nonisolated static let minimumMainDriftFromPersistedIntentTolerance: CGFloat = 160
+    nonisolated static let maximumMainDriftFromPersistedIntentTolerance: CGFloat = 320
+    nonisolated static let customMainDriftFromPersistedIntentTolerance: CGFloat = 32
+
+    nonisolated static func mainDriftFromPersistedIntentTolerance(screenWidth: CGFloat?) -> CGFloat {
+        guard let screenWidth, screenWidth.isFinite, screenWidth > 0 else {
+            return minimumMainDriftFromPersistedIntentTolerance
+        }
+        return min(
+            maximumMainDriftFromPersistedIntentTolerance,
+            max(minimumMainDriftFromPersistedIntentTolerance, screenWidth * 0.10)
+        )
+    }
 
     nonisolated static func shouldRecoverStartupPositions(
         separatorX: CGFloat?,
@@ -206,7 +248,20 @@ enum MenuBarVisibilityPolicy {
            persistedMainDistanceFromRight < 5000,
            let mainRightGap,
            mainRightGap.isFinite {
-            return abs(mainRightGap - persistedMainDistanceFromRight) > mainDriftFromPersistedIntentTolerance
+            let drift = abs(mainRightGap - persistedMainDistanceFromRight)
+            if drift < customMainDriftFromPersistedIntentTolerance {
+                return false
+            }
+
+            if let gapHealthy = isMainRightGapHealthy(
+                mainRightGap: mainRightGap,
+                screenWidth: screenWidth
+            ), !gapHealthy {
+                return true
+            }
+
+            let tolerance = mainDriftFromPersistedIntentTolerance(screenWidth: screenWidth)
+            return drift > tolerance
         }
 
         // Fallback when persisted intent is unavailable: absolute zone checks.
@@ -285,36 +340,133 @@ extension MenuBarVisibilityPolicy {
     /// snapshot reports live geometry. Replays on cached/estimated/stale
     /// geometry moved items users never asked to move (#151, #154).
     ///
-    /// Healthy-validation replays (startup/relaunch reconciliation) get the
-    /// same live-gated physical capability: hide-all-other and pinned intent
-    /// are standing user instructions, and a relaunch can land the separator
-    /// on the other side of an allow-listed item without anything physically
-    /// moving. The consent gate still bounds these moves (armed-on-live only,
-    /// rate-limited).
+    /// Startup/relaunch reconciliation gets the same live-gated physical
+    /// capability: hide-all-other and pinned intent are standing user
+    /// instructions, and a relaunch can land the separator on the other side
+    /// of an allow-listed item without anything physically moving. Session,
+    /// Space, screen, and immediate wake validations stay passive unless the
+    /// explicit post-wake visible allow-list repair gate is armed.
     nonisolated static func visibilityIntentReplayMode(
         reason: String,
         geometryConfidence: MenuBarGeometryConfidence,
-        hidingState: HidingState
+        hidingState: HidingState,
+        hasVisibleAllowList: Bool = false,
+        hasPendingWakeVisibleAllowListReplay: Bool = false,
+        canRepairHiddenWakeVisibleAllowList: Bool = false
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
         // Startup/relaunch reconciliation follows an explicit user context
         // (the app was just launched) and may restore standing intent
-        // physically. Wake validation stays passive even after geometry
-        // settles: restoring hidden state and auto-rehide is safe, but cursor-
-        // moving repairs during wake violate the passive recovery contract.
+        // physically. Immediate wake stays passive because raw wake
+        // notifications arrive before geometry and dynamic helper items settle.
+        // Post-wake healthy validation may repair an explicit Hide All Other
+        // visible allow-list, because collapsing hidden state first would hide
+        // the item the user asked to keep visible.
         //
-        // Physical replay only runs on a live snapshot. Cached geometry is a
-        // recovery hint, not proof that the current status-item windows are
-        // attached after wake, Space, or display-topology churn.
-        let isWakeReplay = reason.contains("wake-resume")
-        if isWakeReplay {
+        // Physical replay normally runs only on a live snapshot. The sole
+        // non-live exception is a fresh wake recovery where Hidden state has a
+        // protected cached separator and a visible allow-list item needs to be
+        // moved back before the bar is collapsed again. Shielded geometry may
+        // preserve Hidden state, but is not safe enough for cursor moves.
+        let isImmediateWakeReplay = reason.hasPrefix("wake-resume")
+        let isPostWakeHealthyValidation = isPostWakeVisibleAllowListReplayReason(reason)
+        let isStartupReconciliation = isStartupVisibilityIntentReplayReason(reason)
+        if isImmediateWakeReplay {
             return (.auditOnly, nil)
         }
 
         let confidenceAllowsMoves = geometryConfidence == .live
-        if reason.contains("healthy-validation"), confidenceAllowsMoves {
+        let isWakeVisibleAllowListRecovery = hasVisibleAllowList &&
+            isPostWakeHealthyValidation &&
+            hasPendingWakeVisibleAllowListReplay
+        if isWakeVisibleAllowListRecovery, confidenceAllowsMoves {
+            return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        }
+        if isWakeVisibleAllowListRecovery, canRepairHiddenWakeVisibleAllowList {
+            return (.repairWithPhysicalMoves, .systemWakeRecovery)
+        }
+        if isStartupReconciliation, confidenceAllowsMoves {
             return (.repairWithPhysicalMoves, .systemWakeRecovery)
         }
         return (.auditOnly, nil)
+    }
+
+    nonisolated static func isPostWakeVisibleAllowListReplayReason(_ reason: String) -> Bool {
+        reason.hasPrefix("healthy-validation-wake-resume") ||
+            reason.hasPrefix("status-item-recreate-wake-resume")
+    }
+
+    nonisolated static func isStartupVisibilityIntentReplayReason(_ reason: String) -> Bool {
+        reason.hasPrefix("healthy-validation-startup-follow-up")
+    }
+
+    nonisolated static func canRepairWakeVisibleAllowListFromHiddenSnapshot(
+        _ snapshot: MenuBarRuntimeSnapshot
+    ) -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.startupItemsValid,
+              snapshot.visibilityPhase == .hidden,
+              snapshot.mainAnchorSource == .live,
+              snapshot.separatorAnchorSource == .cached,
+              snapshot.mainItemVisible != false,
+              snapshot.separatorItemVisible != false,
+              snapshot.hasAnyScreens,
+              snapshot.separatorX != nil,
+              snapshot.mainX != nil else {
+            return false
+        }
+
+        switch snapshot.geometryConfidence {
+        case .cached:
+            return true
+        case .live, .shielded, .stale, .missing:
+            return false
+        }
+    }
+
+    nonisolated static func shouldRunVisibilityIntentEnforcement(
+        reason: String,
+        snapshot: MenuBarRuntimeSnapshot,
+        hasVisibleAllowList: Bool,
+        hasPendingWakeVisibleAllowListReplay: Bool
+    ) -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.visibilityPhase != .transitioning else {
+            return false
+        }
+
+        if snapshot.hasLiveCoreAnchors, snapshot.geometryConfidence == .live {
+            return true
+        }
+
+        guard hasVisibleAllowList,
+              hasPendingWakeVisibleAllowListReplay,
+              isPostWakeVisibleAllowListReplayReason(reason) else { return false }
+        return canRepairWakeVisibleAllowListFromHiddenSnapshot(snapshot)
+    }
+
+    nonisolated static func shouldDeferHiddenStateForWakeVisibleAllowList(
+        reason: String,
+        hideAllOtherMenuBarItems: Bool,
+        visibleAllowListIds: [String],
+        hasPendingWakeVisibleAllowListReplay: Bool = false
+    ) -> Bool {
+        isPostWakeVisibleAllowListReplayReason(reason) &&
+            hasPendingWakeVisibleAllowListReplay &&
+            hideAllOtherMenuBarItems &&
+            !visibleAllowListIds.isEmpty
+    }
+
+    nonisolated static func shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+        reason: String,
+        hideAllOtherMenuBarItems: Bool,
+        visibleAllowListIds: [String],
+        hasPendingWakeVisibleAllowListReplay: Bool
+    ) -> Bool {
+        let isImmediateWakeRecovery = reason == "wakeResume" || reason == "wake-resume"
+        return isImmediateWakeRecovery &&
+            hasPendingWakeVisibleAllowListReplay &&
+            hideAllOtherMenuBarItems &&
+            !visibleAllowListIds.isEmpty
     }
 }
 
@@ -323,16 +475,24 @@ extension MenuBarManager {
     func visibilityIntentReplayHideAllOtherMode(
         reason: String
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        let confidence = currentStatusItemRecoverySnapshot().geometryConfidence
+        let snapshot = currentStatusItemRecoverySnapshot()
+        let confidence = snapshot.geometryConfidence
+        let hasVisibleAllowList = settings.hideAllOtherMenuBarItems &&
+            !settings.hideAllOtherVisibleItemIds.isEmpty
+        let hasPendingWakeVisibleAllowListReplay = statusItemRecoveryWorkflow
+            .hasPendingWakeVisibleAllowListReplay()
         let resolved = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
             reason: reason,
             geometryConfidence: confidence,
-            hidingState: hidingService.state
+            hidingState: hidingService.state,
+            hasVisibleAllowList: hasVisibleAllowList,
+            hasPendingWakeVisibleAllowListReplay: hasPendingWakeVisibleAllowListReplay,
+            canRepairHiddenWakeVisibleAllowList: MenuBarVisibilityPolicy
+                .canRepairWakeVisibleAllowListFromHiddenSnapshot(snapshot)
         )
         if resolved.mode == .repairWithPhysicalMoves {
             AccessibilityService.shared.automaticMoveGate.arm()
-            statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = nil
-        } else if reason.contains("wake-resume"), confidence != .live {
+        } else if MenuBarVisibilityPolicy.isPostWakeVisibleAllowListReplayReason(reason) {
             statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = reason
             visibilityReplayLogger.warning(
                 "Visibility replay downgraded to audit-only (\(reason, privacy: .public)): geometry confidence is \(confidence.rawValue, privacy: .public)"
@@ -350,11 +510,27 @@ extension MenuBarManager {
             return
         }
 
+        if MenuBarVisibilityPolicy.shouldDeferHiddenStateForWakeVisibleAllowList(
+            reason: reason,
+            hideAllOtherMenuBarItems: settings.hideAllOtherMenuBarItems,
+            visibleAllowListIds: settings.hideAllOtherVisibleItemIds,
+            hasPendingWakeVisibleAllowListReplay: statusItemRecoveryWorkflow
+                .hasPendingWakeVisibleAllowListReplay()
+        ) {
+            pendingRecoveryHideRestore = true
+            visibilityReplayLogger.info(
+                "Deferring hidden state after wake until Hide All Other visible allow-list replay completes (\(reason, privacy: .public))"
+            )
+            return
+        }
+
         let snapshot = currentStatusItemRecoverySnapshot()
         guard MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
             hidingState: hidingService.state,
             shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
-            snapshot: snapshot
+            snapshot: snapshot,
+            requiresLiveGeometryForVisibleAllowList: settings.hideAllOtherMenuBarItems &&
+                !settings.hideAllOtherVisibleItemIds.isEmpty
         ) else {
             pendingRecoveryHideRestore = true
             visibilityReplayLogger.warning(
@@ -380,10 +556,26 @@ extension MenuBarManager {
             return
         }
 
+        if MenuBarVisibilityPolicy.shouldDeferHiddenStateForWakeVisibleAllowList(
+            reason: "status-item-recreate-wake-resume",
+            hideAllOtherMenuBarItems: settings.hideAllOtherMenuBarItems,
+            visibleAllowListIds: settings.hideAllOtherVisibleItemIds,
+            hasPendingWakeVisibleAllowListReplay: statusItemRecoveryWorkflow
+                .hasPendingWakeVisibleAllowListReplay()
+        ) {
+            pendingRecoveryHideRestore = true
+            visibilityReplayLogger.info(
+                "Deferring post-recovery hidden state warmup until wake visible allow-list replay completes"
+            )
+            return
+        }
+
         guard MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
             hidingState: hidingService.state,
             shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor,
-            snapshot: snapshot
+            snapshot: snapshot,
+            requiresLiveGeometryForVisibleAllowList: settings.hideAllOtherMenuBarItems &&
+                !settings.hideAllOtherVisibleItemIds.isEmpty
         ) else {
             pendingRecoveryHideRestore = true
             visibilityReplayLogger.warning(
@@ -398,8 +590,60 @@ extension MenuBarManager {
         visibilityReplayLogger.info("Restored hidden state after post-recovery geometry warmup")
     }
 
+    func restorePendingHiddenStateAfterVisibilityReplayFailure(reason: String) {
+        defer {
+            if statusItemRecoveryWorkflow.pendingWakeVisibleAllowListReplayExpired() {
+                statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
+            }
+        }
+
+        guard pendingRecoveryHideRestore else { return }
+        guard MenuBarVisibilityPolicy.shouldRestoreHiddenAfterStatusItemRecovery(
+            hidingState: hidingService.state,
+            shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
+        ) else {
+            pendingRecoveryHideRestore = false
+            visibilityReplayLogger.info("Skipping hidden-state replay failure fallback because hide is no longer allowed")
+            return
+        }
+
+        pendingRecoveryHideRestore = false
+        hidingService.applyCurrentStateToLiveItems()
+        hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
+        visibilityReplayLogger.warning("Restored hidden state after visibility intent replay failed (\(reason, privacy: .public))")
+    }
+
+    func hasActionableDeferredWakeVisibleAllowListRepair() -> Bool {
+        statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason != nil &&
+            settings.hideAllOtherMenuBarItems &&
+            !settings.hideAllOtherVisibleItemIds.isEmpty
+    }
+
+    func markWakeVisibleAllowListReplayPending(reason: String, requiresHiddenState: Bool = true) {
+        guard settings.hideAllOtherMenuBarItems,
+              !settings.hideAllOtherVisibleItemIds.isEmpty else {
+            return
+        }
+        guard !requiresHiddenState || hidingService.state == .hidden else {
+            return
+        }
+        statusItemRecoveryWorkflow.markWakeVisibleAllowListReplayPending(reason: reason)
+    }
+
     func schedulePostRecoveryAutoRehideIfNeeded(reason: String) {
-        if reason.contains("wakeResume") { isRevealPinned = false }
+        if MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+            reason: reason,
+            hideAllOtherMenuBarItems: settings.hideAllOtherMenuBarItems,
+            visibleAllowListIds: settings.hideAllOtherVisibleItemIds,
+            hasPendingWakeVisibleAllowListReplay: statusItemRecoveryWorkflow
+                .hasPendingWakeVisibleAllowListReplay()
+        ) {
+            visibilityReplayLogger.info(
+                "Deferring post-wake auto-rehide until Hide All Other visible allow-list replay completes (\(reason, privacy: .public))"
+            )
+            schedulePostRecoveryVisibilityIntentReplay(reason: "healthy-validation-wake-resume")
+            return
+        }
         guard settings.autoRehide, hidingService.state == .expanded, !isRevealPinned, !shouldSkipHideForExternalMonitor else { return }
         visibilityReplayLogger.info("Auto-rehide rearmed after recovery replay (\(reason, privacy: .public))")
         hidingService.scheduleRehide(after: 0.5)

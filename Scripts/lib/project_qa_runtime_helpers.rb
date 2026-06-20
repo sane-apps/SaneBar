@@ -668,8 +668,7 @@ def applescript_commands_for_app(app_path)
           begin
             chunk = normalize_output_chunk(stdout_err.read_nonblock(4096))
             output << chunk
-            print chunk
-            $stdout.flush
+            write_runtime_progress(chunk)
             last_output_at = Time.now unless chunk.empty?
           rescue IO::WaitReadable
             nil
@@ -686,7 +685,7 @@ def applescript_commands_for_app(app_path)
         if timeout && (Time.now - started_at) >= timeout
           elapsed = (Time.now - started_at).round(1)
           output << "\n#{heartbeat_label} timeout after #{timeout}s (elapsed #{elapsed}s)\n"
-          puts "   ❌ #{heartbeat_label} timeout after #{timeout}s"
+          write_runtime_progress("   ❌ #{heartbeat_label} timeout after #{timeout}s\n")
           terminate_runtime_command_child(wait_thr)
           status = runtime_command_failed_status
           break
@@ -696,15 +695,14 @@ def applescript_commands_for_app(app_path)
         next unless (Time.now - last_heartbeat_at) >= RUNTIME_SMOKE_HEARTBEAT_SECONDS
 
         elapsed = (Time.now - started_at).round(1)
-        puts "   … #{heartbeat_label} still running (#{elapsed}s)"
+        write_runtime_progress("   … #{heartbeat_label} still running (#{elapsed}s)\n")
         last_heartbeat_at = Time.now
       end
 
       loop do
         chunk = normalize_output_chunk(stdout_err.read_nonblock(4096))
         output << chunk
-        print chunk
-        $stdout.flush
+        write_runtime_progress(chunk)
       rescue IO::WaitReadable
         break
       rescue EOFError
@@ -713,6 +711,17 @@ def applescript_commands_for_app(app_path)
     end
 
     [output, status]
+  end
+
+  def write_runtime_progress(chunk)
+    return if chunk.to_s.empty? || @runtime_progress_output_closed
+
+    # Runtime smoke can outlive a dropped SSH transport. Keep capturing output,
+    # but never let console streaming wedge the Mini-side QA process.
+    $stdout.write(chunk)
+    $stdout.flush
+  rescue Errno::EPIPE, IOError
+    @runtime_progress_output_closed = true
   end
 
   def normalize_output_chunk(chunk)

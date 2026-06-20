@@ -62,6 +62,48 @@ struct MenuBarOperationStartupRecoveryTests {
         #expect(MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) == .missingCoordinates)
     }
 
+    @Test("Startup repair does not reuse cached hidden replay geometry")
+    func startupRepairRequiresLiveAnchorsEvenWhenHiddenReplayCouldUseCache() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: 956,
+            mainX: 976,
+            mainRightGap: 944,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
+                hidingState: .hidden,
+                shouldSkipHideForExternalMonitor: false,
+                snapshot: snapshot
+            ),
+            "Hidden replay may use protected cached hidden geometry"
+        )
+        #expect(
+            MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) == .missingCoordinates,
+            "Startup repair must not treat hidden replay geometry as a general repair basis"
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .startupInitial(.init(
+                    hasCompletedOnboarding: true,
+                    autoRehideEnabled: true,
+                    shouldSkipHideForExternalMonitor: false,
+                    hasConnectedExternalMonitorWithAlwaysShow: false
+                )),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .keepExpanded(.waitingForLiveCoordinates)
+        )
+    }
+
     @Test("Startup waits while the separator anchor is only estimated")
     func startupHoldsExpandedWhenSeparatorAnchorIsEstimated() {
         let snapshot = MenuBarRuntimeSnapshot(

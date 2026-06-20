@@ -86,7 +86,7 @@ enum MenuBarOperationCoordinator {
             return .invalidStatusItems
         }
 
-        if !snapshot.hasTrustworthyBootstrapAnchors {
+        if !hasStartupValidationAnchorBasis(snapshot: snapshot) {
             return .missingCoordinates
         }
 
@@ -106,6 +106,50 @@ enum MenuBarOperationCoordinator {
         }
 
         return nil
+    }
+
+    private static func hasStartupValidationAnchorBasis(
+        snapshot: MenuBarRuntimeSnapshot
+    ) -> Bool {
+        snapshot.hasTrustworthyBootstrapAnchors
+    }
+
+    private static func hasProtectedHiddenCachedSeparatorPresentation(
+        snapshot: MenuBarRuntimeSnapshot
+    ) -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.startupItemsValid,
+              snapshot.visibilityPhase == .hidden,
+              snapshot.mainAnchorSource == .live,
+              snapshot.separatorAnchorSource == .cached else {
+            return false
+        }
+        guard !MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: snapshot.separatorX,
+            mainX: snapshot.mainX,
+            mainRightGap: snapshot.mainRightGap,
+            screenWidth: snapshot.screenWidth,
+            notchRightSafeMinX: snapshot.notchRightSafeMinX,
+            persistedMainDistanceFromRight: snapshot.persistedMainDistanceFromRight
+        ) else {
+            return false
+        }
+
+        switch snapshot.geometryConfidence {
+        case .cached:
+            return true
+        case .live, .shielded, .stale, .missing:
+            return false
+        }
+    }
+
+    static func positionValidationRecoveryReason(
+        snapshot: MenuBarRuntimeSnapshot
+    ) -> StartupRecoveryReason? {
+        if hasProtectedHiddenCachedSeparatorPresentation(snapshot: snapshot) {
+            return nil
+        }
+        return startupRecoveryReason(snapshot: snapshot)
     }
 
     static func needsStartupRecovery(snapshot: MenuBarRuntimeSnapshot) -> Bool {
@@ -236,6 +280,32 @@ enum MenuBarOperationCoordinator {
         return true
     }
 
+    static func shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+        snapshot: MenuBarRuntimeSnapshot,
+        validationContext: PositionValidationContext,
+        action: StatusItemRecoveryAction
+    ) -> Bool {
+        guard snapshot.visibilityPhase == .hidden else { return false }
+        guard validationContext == .wakeResume else { return false }
+        guard positionValidationRecoveryReason(snapshot: snapshot) == .missingCoordinates else { return false }
+
+        switch action {
+        case .waitForLiveAnchor,
+             .recreateFromPersistedLayout(.missingCoordinates),
+             .repairPersistedLayoutAndRecreate(.missingCoordinates),
+             .bumpAutosaveVersion(.missingCoordinates):
+            return true
+        case .captureCurrentDisplayBackup,
+             .keepExpanded,
+             .performInitialHide,
+             .recreateFromPersistedLayout,
+             .repairPersistedLayoutAndRecreate,
+             .bumpAutosaveVersion,
+             .stop:
+            return false
+        }
+    }
+
     static func statusItemRecoveryAction(
         snapshot: MenuBarRuntimeSnapshot,
         context: StatusItemRecoveryContext,
@@ -277,7 +347,7 @@ enum MenuBarOperationCoordinator {
             return .performInitialHide
 
         case let .positionValidation(validationContext):
-            guard let recoveryReason = startupRecoveryReason(snapshot: snapshot) else {
+            guard let recoveryReason = positionValidationRecoveryReason(snapshot: snapshot) else {
                 return .captureCurrentDisplayBackup
             }
 

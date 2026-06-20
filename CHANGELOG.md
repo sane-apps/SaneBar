@@ -10,6 +10,21 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.74] - 2026-06-20
+
+### Fixed
+
+- Stops a recovery loop that could make Settings reopen unexpectedly or disturb saved layouts when the menu bar was already hidden correctly; postponed wake repairs now appear in Settings > Health for manual repair.
+- Improves moving icons out of Always Hidden after restart, wake, or display changes, including wide menu bars.
+- Reduces repeated background retries after Always Hidden moves, lowering CPU/memory churn and avoiding extra layout disturbance.
+- Gives AppleScript users clearer next steps when an icon cannot be found or moved.
+
+### Changed
+
+- Icon-moving AppleScript automation now requires Pro consistently. Basic still supports browse, click, and list commands.
+
+---
+
 ## [2.1.73] - 2026-06-19
 
 Improves Always Hidden icon moves after wake/display changes.

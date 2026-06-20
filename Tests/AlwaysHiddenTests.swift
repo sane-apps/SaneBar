@@ -329,8 +329,49 @@ struct AlwaysHiddenTests {
         )
     }
 
-    @Test("hide-all-other replays visible allow-list anchors before hiding violators")
-    func hideAllOtherReplaysVisibleAllowListAnchorsBeforeHidingViolators() {
+    @Test("hide-all-other zone classification matches search boundary policy")
+    func hideAllOtherZoneClassificationMatchesSearchBoundaryPolicy() {
+        #expect(
+            SearchMenuBarZoneClassifier.classifyZone(
+                itemX: 50,
+                itemWidth: 80,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: 100
+            ) == .alwaysHidden
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherZone(
+                itemX: 50,
+                itemWidth: 80,
+                separatorX: 200,
+                alwaysHiddenBoundaryX: 100
+            ) == .alwaysHidden
+        )
+
+        #expect(
+            SearchMenuBarZoneClassifier.classifyZone(
+                itemX: 183,
+                itemWidth: 22,
+                separatorX: 200,
+                alwaysHiddenSeparatorX: nil
+            ) == .visible
+        )
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherZone(
+                itemX: 183,
+                itemWidth: 22,
+                separatorX: 200,
+                alwaysHiddenBoundaryX: nil
+            ) == .visible
+        )
+    }
+
+    @Test("hide-all-other repairs visible allow-list anchors after hiding violators")
+    func hideAllOtherRepairsVisibleAllowListAnchorsAfterHidingViolators() {
+        #expect(
+            MenuBarHideAllOtherWorkflow.hideAllOtherReplayMovePriority(shouldShow: false) <
+                MenuBarHideAllOtherWorkflow.hideAllOtherReplayMovePriority(shouldShow: true)
+        )
         #expect(
             MenuBarHideAllOtherWorkflow.hideAllOtherMoveNeeded(
                 initialZone: .visible,
@@ -338,7 +379,7 @@ struct AlwaysHiddenTests {
             )
         )
         #expect(
-            MenuBarHideAllOtherWorkflow.hideAllOtherMoveNeeded(
+            !MenuBarHideAllOtherWorkflow.hideAllOtherMoveNeeded(
                 initialZone: .visible,
                 shouldShow: true
             )

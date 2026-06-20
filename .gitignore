@@ -59,6 +59,7 @@ SESSION_HANDOFF.md
 .agent/
 .claude/
 .claude-mem/
+.codex/research.md
 
 # ═══════════════════════════════════════════════════════════════
 # Tooling

@@ -59,15 +59,11 @@ final class MenuBarHideAllOtherWorkflow {
         itemWidth: CGFloat?,
         alwaysHiddenBoundaryX: CGFloat?
     ) -> Bool {
-        guard let alwaysHiddenBoundaryX,
-              alwaysHiddenBoundaryX.isFinite
-        else {
-            return false
-        }
-        let width = max(1, itemWidth ?? 22)
-        let midX = itemX + (width / 2)
-        let margin = max(4, width * 0.3)
-        return midX < (alwaysHiddenBoundaryX - margin)
+        SearchMenuBarZoneClassifier.isAlwaysHiddenZone(
+            itemX: itemX,
+            itemWidth: itemWidth,
+            alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
+        )
     }
 
     nonisolated static func hideAllOtherZone(
@@ -76,17 +72,19 @@ final class MenuBarHideAllOtherWorkflow {
         separatorX: CGFloat,
         alwaysHiddenBoundaryX: CGFloat?
     ) -> HideAllOtherZone {
-        if isAlwaysHiddenZone(
+        switch SearchMenuBarZoneClassifier.classifyZone(
             itemX: itemX,
             itemWidth: itemWidth,
-            alwaysHiddenBoundaryX: alwaysHiddenBoundaryX
+            separatorX: separatorX,
+            alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
         ) {
+        case .alwaysHidden:
             return .alwaysHidden
+        case .hidden:
+            return .hidden
+        case .visible:
+            return .visible
         }
-
-        let width = max(1, itemWidth ?? 22)
-        let midX = itemX + (width / 2)
-        return midX >= (separatorX - 4) ? .visible : .hidden
     }
 
     nonisolated static func hideAllOtherMoveNeeded(
@@ -94,7 +92,7 @@ final class MenuBarHideAllOtherWorkflow {
         shouldShow: Bool
     ) -> Bool {
         if shouldShow {
-            return true
+            return initialZone != .visible
         }
         return initialZone == .visible
     }
@@ -107,6 +105,12 @@ final class MenuBarHideAllOtherWorkflow {
             return currentZone != .visible
         }
         return currentZone == .visible
+    }
+
+    nonisolated static func hideAllOtherReplayMovePriority(shouldShow: Bool) -> Int {
+        // Moving non-allow-listed items can shift the Visible lane. Keep the
+        // user's visible allow-list as the final physical repair in each pass.
+        shouldShow ? 1 : 0
     }
 
     nonisolated static func visibleItemIds(from apps: [RunningApp]) -> [String] {
@@ -176,6 +180,10 @@ final class MenuBarHideAllOtherWorkflow {
 
     func scheduleEnforcement(reason: String, filterBundleId: String? = nil, delay: Duration) {
         guard manager.settings.hideAllOtherMenuBarItems else { return }
+        guard !manager.settings.hideAllOtherVisibleItemIds.isEmpty else {
+            logger.warning("Hide-all-other enforcement skipped because the visible allow-list is empty (\(reason, privacy: .public))")
+            return
+        }
         guard !manager.shouldSkipHideForExternalMonitor else {
             logger.info("Hide-all-other enforcement skipped by external monitor policy (\(reason, privacy: .public))")
             return
@@ -219,6 +227,10 @@ final class MenuBarHideAllOtherWorkflow {
         }
 
         let visibleIds = Set(manager.settings.hideAllOtherVisibleItemIds)
+        guard !visibleIds.isEmpty else {
+            logger.warning("Hide-all-other enforcement rejected because the visible allow-list is empty (\(reason, privacy: .public))")
+            return false
+        }
 
         guard let separatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() else {
             logger.warning("Hide-all-other enforcement (\(reason, privacy: .public)): separator position unavailable")
@@ -237,9 +249,7 @@ final class MenuBarHideAllOtherWorkflow {
         }
         guard let repairOrigin = physicalMoveOrigin else { return false }
 
-        let wasHidden = manager.hidingService.state == .hidden
-        let isWakeReplay = reason.contains("wake-resume") || reason.contains("wakeResume")
-        let shouldRestoreHiddenState = wasHidden || isWakeReplay
+        let shouldRestoreHiddenState = manager.hidingService.state == .hidden
         let baselineItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
         if case .systemWakeRecovery = repairOrigin {
             let candidateItemCount = baselineItems.filter { item in
@@ -276,10 +286,18 @@ final class MenuBarHideAllOtherWorkflow {
                 if shouldRestoreHiddenState { await manager.hidingService.hide() }
                 return false
             }
+            let orderedItems = items.enumerated().sorted { lhs, rhs in
+                let lhsShouldShow = Self.shouldShowItem(app: lhs.element.app, visibleIds: visibleIds)
+                let rhsShouldShow = Self.shouldShowItem(app: rhs.element.app, visibleIds: visibleIds)
+                let lhsPriority = Self.hideAllOtherReplayMovePriority(shouldShow: lhsShouldShow)
+                let rhsPriority = Self.hideAllOtherReplayMovePriority(shouldShow: rhsShouldShow)
+                if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+                return lhs.offset < rhs.offset
+            }.map(\.element)
 
             var movedAnyItem = false
             var seenUniqueIds = Set<String>()
-            for item in items {
+            for item in orderedItems {
                 if Task.isCancelled { break }
                 let app = item.app
                 if let filterBundleId, app.bundleId != filterBundleId { continue }
@@ -350,9 +368,17 @@ final class MenuBarHideAllOtherWorkflow {
             let verificationSeparatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() ?? separatorX
             let verificationAlwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
             let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
+            let orderedVerificationItems = verificationItems.enumerated().sorted { lhs, rhs in
+                let lhsShouldShow = Self.shouldShowItem(app: lhs.element.app, visibleIds: visibleIds)
+                let rhsShouldShow = Self.shouldShowItem(app: rhs.element.app, visibleIds: visibleIds)
+                let lhsPriority = Self.hideAllOtherReplayMovePriority(shouldShow: lhsShouldShow)
+                let rhsPriority = Self.hideAllOtherReplayMovePriority(shouldShow: rhsShouldShow)
+                if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+                return lhs.offset < rhs.offset
+            }.map(\.element)
             var movedAnyItem = false
 
-            for item in verificationItems {
+            for item in orderedVerificationItems {
                 let app = item.app
                 if let filterBundleId, app.bundleId != filterBundleId { continue }
                 guard !Self.shouldSkipItem(

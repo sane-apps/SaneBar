@@ -7,6 +7,7 @@ class LiveZoneSmoke
     return unless @watch_resources
     return if @app_pid.to_i <= 0
 
+    stop_resource_watchdog if @resource_watchdog_thread&.alive?
     reset_resource_watchdog_state
     FileUtils.rm_f(@resource_sample_path)
     puts format(
@@ -38,9 +39,14 @@ class LiveZoneSmoke
 
   def stop_resource_watchdog
     @resource_watchdog_stop = true
-    return unless @resource_watchdog_thread
+    thread = @resource_watchdog_thread
+    return unless thread
 
-    @resource_watchdog_thread.join(2)
+    return if thread.join(2)
+
+    thread.kill if thread.respond_to?(:kill) && thread.alive?
+    thread.join(1) if thread.respond_to?(:join)
+  ensure
     @resource_watchdog_thread = nil
   end
 

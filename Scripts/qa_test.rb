@@ -197,6 +197,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?"
     assert_includes source, "runtime_fullscreen_matrix_artifact_passed?"
     assert_includes source, "'app activation keeps dark custom tint visible'"
+    assert_includes source, "'hidden and visible icon zones persist across fullscreen Space transition'"
     assert_includes source, "'useLiquidGlass' => true"
     assert_includes source, "set_runtime_smoke_reduce_transparency!(true)"
     assert_includes fullscreen_source, 'fullscreen_probe_window_states'
@@ -207,12 +208,25 @@ class ProjectQATest < Minitest::Test
     refute_includes source, "ENV['SANEBAR_RELEASE_SMOKE_SCREENSHOTS'] == '1'"
     refute_includes source, "'useLiquidGlass' => false"
   end
+
+  def test_release_runtime_smoke_children_have_hard_timeouts
+    source = qa_source
+
+    assert_includes source, 'RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 420'
+    assert_includes source, 'RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS = 300'
+    assert_includes source, 'timeout: RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS'
+    assert_includes source, 'timeout: RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS'
+    assert_includes source, 'terminate_runtime_command_child(wait_thr)'
+  end
   def test_live_zone_smoke_checks_activation_tint_stability
     source = live_zone_smoke_source
     assert_includes source, 'exercise_app_activation_tint_stability_check'
     assert_includes source, 'activation-immediate'
     assert_includes source, 'activation-settled'
     assert_includes source, 'app activation keeps dark custom tint visible'
+    assert_includes source, 'capture_fullscreen_space_transition_zone_baseline!'
+    assert_includes source, 'assert_fullscreen_space_transition_zone_persistence!'
+    assert_includes source, 'hidden and visible icon zones persist across fullscreen Space transition'
   end
   def test_release_hygiene_guardrails_cover_changelog_privacy_and_local_artifacts
     source = qa_source
@@ -503,6 +517,37 @@ class ProjectQATest < Minitest::Test
     refute_includes source, 'filter_map do |url|'
     assert_includes source, 'urls.each_with_index do |url, index|'
   end
+  def test_curl_url_status_uses_bounded_runtime_timeout_helper
+    calls = []
+    ok_status = Object.new
+    ok_status.define_singleton_method(:success?) { true }
+    @qa.define_singleton_method(:capture2e_with_runtime_timeout) do |*args, timeout:, label:|
+      calls << { args: args, timeout: timeout, label: label }
+      ['204', ok_status]
+    end
+
+    code = @qa.send(
+      :curl_url_status,
+      'https://example.com/download.zip',
+      head: true,
+      connect_timeout: '1',
+      max_time: '4'
+    )
+
+    assert_equal 204, code
+    assert_equal 1, calls.count
+    assert_includes calls.first[:args], '--head'
+    assert_includes calls.first[:args], 'https://example.com/download.zip'
+    assert_equal 7.0, calls.first[:timeout]
+    assert_equal 'HEAD URL status', calls.first[:label]
+  end
+  def test_curl_url_status_no_longer_uses_raw_open3_capture2e
+    stability_source = File.read(File.join(__dir__, 'lib', 'project_qa_stability_urls.rb'))
+
+    assert_includes stability_source, 'capture2e_with_runtime_timeout('
+    assert_includes stability_source, 'timeout: max_time.to_f + 3.0'
+    refute_includes stability_source, 'output, status = Open3.capture2e(*args)'
+  end
 
   def test_customer_facing_copy_guardrails_exist
     source = qa_source
@@ -523,6 +568,15 @@ class ProjectQATest < Minitest::Test
 
   def test_runtime_smoke_retryable_failure_matches_empty_zone_snapshot_after_relaunch
     assert @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: No icons returned from list icon zones.')
+  end
+
+  def test_runtime_smoke_retryable_failure_matches_target_loss_after_applescript_race
+    output = <<~LOG
+      ⚠️ Candidate failed: com.sanebar.hostsentinel (runtime_target_lost during AppleScript move icon to hidden "com.sanebar.hostsentinel::statusItem:0": AppleScript failed; process_missing pid=54650 expected=/Applications/SaneBar.app/Contents/MacOS/SaneBar currentMatches=none)
+      ❌ Live zone smoke failed: Candidate failures: com.sanebar.hostsentinel::statusItem:0: runtime_target_lost during AppleScript move icon to hidden "com.sanebar.hostsentinel::statusItem:0": AppleScript failed; process_missing pid=54650 expected=/Applications/SaneBar.app/Contents/MacOS/SaneBar currentMatches=none
+    LOG
+
+    assert @qa.send(:retryable_runtime_smoke_failure?, output)
   end
 
   def test_live_zone_smoke_waits_for_slow_release_zone_api_warmup
@@ -577,6 +631,16 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
   end
 
+  def test_shared_bundle_runtime_smoke_retries_single_post_settle_drift_after_partial_pass
+    output = <<~LOG
+      ✅ Candidate passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B
+      ✅ Candidate passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C
+      ❌ Live zone smoke failed: 2/3 candidates passed move action checks. Candidate failures: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A: Post-settle move verification drifted: com.sanebar.sharedfixture (SaneBarSharedFixture) expected visible, got hidden
+    LOG
+
+    assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
+  end
+
   def test_runtime_smoke_requires_startup_and_wake_layout_probes
     source = qa_source
     preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
@@ -587,7 +651,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'startup_probe_env.merge!(runtime_probe_no_keychain_env(target))'
     assert_includes source, "runtime startup layout probe"
     assert_includes source, 'startup_probe_started_at = Time.now'
-    assert_includes source, 'timeout: 300'
+    assert_includes source, 'timeout: startup_probe_timeout_seconds(startup_resource_soak_required, startup_resource_soak_seconds)'
     assert_includes source, 'startup_probe_artifact_contract_error(started_at: startup_probe_started_at)'
     assert_includes preflight_source, 'startup_probe_artifact_contract_error'
     assert_includes preflight_source, 'stale_runtime_artifact?'
@@ -597,6 +661,8 @@ class ProjectQATest < Minitest::Test
     assert_includes preflight_source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
     assert_includes preflight_source, '#155 pinned icon exits Always Hidden after dirty startup'
     assert_includes preflight_source, '#155 Always Hidden outbound moves leave move state idle'
+    assert_includes preflight_source, '#155 dirty startup resource soak remains stable after outbound moves'
+    assert_includes preflight_source, 'runtime_probe_candidate_matches_project?'
     assert_includes source, "wake_probe_script = File.join(SCRIPTS_DIR, 'wake_layout_probe.rb')"
     assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
     assert_includes source, "'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH"
@@ -609,6 +675,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'wake_probe_started_at = Time.now'
     assert_includes source, 'timeout: 240'
     assert_includes source, 'wake_probe_artifact_contract_error(started_at: wake_probe_started_at)'
+    assert_includes preflight_source, 'wake_probe_mini_runtime_provenance_error'
     assert_includes source, 'Lungo-style Hidden-to-Visible wake drift is release-blocking'
     assert_includes source, 'SwiftBar-style Visible-to-Hidden wake drift is release-blocking'
     assert_includes source, "runtime wake layout probe"
@@ -674,6 +741,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1'"
     assert_includes source, "ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1'"
     assert_includes source, "ENV['SANEPROCESS_RELEASE_POLICY_ONLY'] == '1'"
+    assert_includes source, "ENV['SANEPROCESS_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] == '1'"
     assert_includes source, 'policyOnlyMode: release_policy_only_mode?'
   end
 
@@ -742,6 +810,18 @@ class ProjectQATest < Minitest::Test
     ]
     artifact = {
       'status' => 'pass',
+      'app_path' => '/Applications/SaneBar.app',
+      'candidate' => {
+        'app_path' => '/Applications/SaneBar.app',
+        'app_version' => @qa.send(:project_yml_setting, 'MARKETING_VERSION'),
+        'app_build' => @qa.send(:project_yml_setting, 'CURRENT_PROJECT_VERSION')
+      },
+      'runtime_provenance' => {
+        'mini_runtime' => true,
+        'host' => 'mini',
+        'generated_at' => Time.now.utc.iso8601,
+        'app_path' => '/Applications/SaneBar.app'
+      },
       'visible_zone_persistence' => {
         'status' => 'pass',
         'completed_scenarios' => visible_scenarios
@@ -1533,15 +1613,234 @@ end
     assert_includes source, "restore_state!\n    @state_restored = true\n\n    write_artifact!(\n      status: 'pass'"
   end
 
+  def test_startup_layout_probe_artifact_records_mini_runtime_provenance
+    source = startup_layout_probe_source
+
+    assert_includes source, "require 'socket'"
+    assert_includes source, 'runtime_provenance: runtime_provenance'
+    assert_includes source, 'def runtime_provenance'
+    assert_includes source, 'mini_runtime: mini_runtime_host?'
+    assert_includes source, 'def mini_runtime_host?'
+    assert_includes source, "Socket.gethostname.to_s.downcase.include?('mini')"
+    assert_includes source, 'Socket.gethostname'
+    refute_includes source, 'pid: Process.pid'
+    refute_includes source, "ENV.fetch('USER'"
+    refute_includes source, 'cwd: Dir.pwd'
+  end
+
+  def test_runtime_preflight_rejects_startup_probe_artifact_without_mini_runtime_provenance
+    valid_artifact = {
+      'app_path' => '/Applications/SaneBar.app',
+      'candidate' => {
+        'app_path' => '/Applications/SaneBar.app',
+        'app_version' => @qa.send(:project_yml_setting, 'MARKETING_VERSION'),
+        'app_build' => @qa.send(:project_yml_setting, 'CURRENT_PROJECT_VERSION')
+      },
+      'runtime_provenance' => {
+        'mini_runtime' => true,
+        'host' => 'mini',
+        'generated_at' => Time.now.utc.iso8601,
+        'app_path' => '/Applications/SaneBar.app'
+      }
+    }
+
+    assert_nil @qa.send(:startup_probe_mini_runtime_provenance_error, valid_artifact)
+    assert_includes(
+      @qa.send(:startup_probe_mini_runtime_provenance_error, valid_artifact.merge('runtime_provenance' => nil)),
+      'missing Mini runtime provenance'
+    )
+    assert_includes(
+      @qa.send(:startup_probe_mini_runtime_provenance_error, valid_artifact.merge('runtime_provenance' => valid_artifact['runtime_provenance'].merge('app_path' => '/tmp/Other.app'))),
+      'does not match artifact app_path'
+    )
+    assert_includes(
+      @qa.send(:startup_probe_mini_runtime_provenance_error, valid_artifact.merge('runtime_provenance' => valid_artifact['runtime_provenance'].merge('host' => 'macbook-air'))),
+      'is not the Mini'
+    )
+  end
+
+  def test_runtime_preflight_rejects_wake_probe_artifact_without_mini_runtime_provenance
+    valid_artifact = {
+      'app_path' => '/Applications/SaneBar.app',
+      'candidate' => {
+        'app_path' => '/Applications/SaneBar.app',
+        'app_version' => @qa.send(:project_yml_setting, 'MARKETING_VERSION'),
+        'app_build' => @qa.send(:project_yml_setting, 'CURRENT_PROJECT_VERSION')
+      },
+      'runtime_provenance' => {
+        'mini_runtime' => true,
+        'host' => 'mini',
+        'generated_at' => Time.now.utc.iso8601,
+        'app_path' => '/Applications/SaneBar.app'
+      }
+    }
+
+    assert_nil @qa.send(:wake_probe_mini_runtime_provenance_error, valid_artifact)
+    assert_includes(
+      @qa.send(:wake_probe_mini_runtime_provenance_error, valid_artifact.merge('runtime_provenance' => nil)),
+      'missing Mini runtime provenance'
+    )
+    assert_includes(
+      @qa.send(:wake_probe_mini_runtime_provenance_error, valid_artifact.merge('runtime_provenance' => valid_artifact['runtime_provenance'].merge('host' => 'macbook-air'))),
+      'is not the Mini'
+    )
+  end
+
   def test_startup_layout_probe_prepares_post_onboarding_settings_before_first_case
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
-    assert_includes source, "backup_state!\n    prepare_startup_probe_settings!\n\n    poisoned_backup_case"
+    assert_includes source, "backup_state!\n    prepare_startup_probe_settings!\n\n    run_probe_case"
     assert_includes source, 'def prepare_startup_probe_settings!'
     assert_includes source, "run_probe_case('current-width backup restore')"
     assert_includes source, "run_probe_case('#155 Always Hidden dirty replay')"
     assert_includes source, 'puts "   ↳ startup probe: #{label}"'
+    assert_includes source, '@cases << result'
+    assert_includes source, '@cases << partial'
+    assert_includes source, 'partial[:last_snapshot] = read_layout_snapshot!'
     assert_includes source, "save_settings_json(dirty_reboot_settings(load_settings_json))"
+  end
+
+  def test_startup_layout_probe_saves_settings_with_safe_write_file
+    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
+
+    assert_includes source, 'def save_settings_json(payload)'
+    assert_includes source, 'safe_write_file(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")'
+    assert_includes source, 'def safe_copy_file(source, destination)'
+    assert_includes source, 'def safe_read_file(path)'
+    assert_includes source, 'File.lstat(path)'
+    assert_includes source, 'File::NOFOLLOW'
+    refute_includes source, 'File.write(SETTINGS_PATH'
+    refute_includes source, 'FileUtils.cp'
+  end
+
+  def test_startup_layout_probe_refuses_symlinked_settings_paths
+    Dir.mktmpdir('sanebar-settings-symlink') do |dir|
+      target = File.join(dir, 'target.json')
+      symlink = File.join(dir, 'settings.json')
+      destination = File.join(dir, 'backup.json')
+      File.write(target, '{"autoRehide":true}')
+      File.symlink(target, symlink)
+
+      with_startup_layout_probe do |probe|
+        error = assert_raises(RuntimeError) { probe.send(:safe_existing_file?, symlink) }
+        assert_includes error.message, 'Unsafe symlink settings path'
+        assert_raises(Errno::ELOOP, RuntimeError) { probe.send(:safe_copy_file, symlink, destination) }
+        refute_path_exists destination
+        assert_equal '{"autoRehide":true}', File.read(target)
+      end
+    end
+  end
+
+  def test_startup_layout_probe_refuses_symlinked_parent_directories
+    Dir.mktmpdir('sanebar-settings-parent-symlink') do |dir|
+      real_dir = File.join(dir, 'real')
+      link_dir = File.join(dir, 'link')
+      FileUtils.mkdir_p(real_dir)
+      File.symlink(real_dir, link_dir)
+
+      with_startup_layout_probe do |probe|
+        error = assert_raises(RuntimeError) do
+          probe.send(:safe_write_file, File.join(link_dir, 'settings.json'), '{"changed":true}')
+        end
+        assert_includes error.message, 'Unsafe symlink directory path'
+        refute_path_exists File.join(real_dir, 'settings.json')
+
+        tmp_path = File.join('/tmp', "sanebar-startup-safe-dir-#{Process.pid}.json")
+        probe.send(:safe_write_file, tmp_path, '{"ok":true}')
+        assert_equal '{"ok":true}', probe.send(:safe_read_file, tmp_path)
+      ensure
+        FileUtils.rm_f(tmp_path) if tmp_path
+      end
+    end
+  end
+
+  def test_runtime_preflight_refuses_symlinked_settings_paths
+    Dir.mktmpdir('sanebar-runtime-settings-symlink') do |dir|
+      target = File.join(dir, 'target.json')
+      symlink = File.join(dir, 'settings.json')
+      File.write(target, '{"autoRehide":true}')
+      File.symlink(target, symlink)
+
+      original = ProjectQA::SETTINGS_PATH
+      ProjectQA.send(:remove_const, :SETTINGS_PATH)
+      ProjectQA.const_set(:SETTINGS_PATH, symlink)
+
+      error = assert_raises(RuntimeError) { @qa.send(:safe_runtime_settings_exist?) }
+      assert_includes error.message, 'Unsafe symlink settings path'
+      assert_raises(Errno::ELOOP, RuntimeError) { @qa.send(:safe_runtime_settings_read) }
+      assert_raises(Errno::ELOOP, RuntimeError) { @qa.send(:safe_runtime_settings_write, '{"changed":true}') }
+      assert_equal '{"autoRehide":true}', File.read(target)
+    ensure
+      ProjectQA.send(:remove_const, :SETTINGS_PATH) if ProjectQA.const_defined?(:SETTINGS_PATH)
+      ProjectQA.const_set(:SETTINGS_PATH, original) if original
+    end
+  end
+
+  def test_wake_layout_probe_refuses_symlinked_settings_paths
+    require_relative 'wake_layout_probe'
+
+    Dir.mktmpdir('sanebar-wake-settings-symlink') do |dir|
+      target = File.join(dir, 'target.json')
+      symlink = File.join(dir, 'settings.json')
+      destination = File.join(dir, 'backup.json')
+      File.write(target, '{"autoRehide":true}')
+      File.symlink(target, symlink)
+
+      probe = WakeLayoutProbe.new
+      error = assert_raises(RuntimeError) { probe.send(:safe_existing_file?, symlink) }
+      assert_includes error.message, 'Unsafe symlink settings path'
+      assert_raises(Errno::ELOOP, RuntimeError) { probe.send(:safe_copy_file, symlink, destination) }
+      refute_path_exists destination
+      assert_equal '{"autoRehide":true}', File.read(target)
+    ensure
+      workspace = probe&.instance_variable_get(:@workspace)
+      FileUtils.remove_entry(workspace) if workspace && File.directory?(workspace)
+    end
+  end
+
+  def test_runtime_preflight_startup_probe_artifact_uses_durable_output_dir
+    assert_equal(
+      File.join(ProjectQA::PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.json'),
+      ProjectQA::RUNTIME_STARTUP_PROBE_ARTIFACT_PATH
+    )
+    assert_equal(
+      File.join(ProjectQA::PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.log'),
+      ProjectQA::RUNTIME_STARTUP_PROBE_LOG_PATH
+    )
+    refute ProjectQA::RUNTIME_STARTUP_PROBE_ARTIFACT_PATH.start_with?('/tmp/')
+  end
+
+  def test_customer_ui_action_sweep_retains_runtime_artifacts_without_following_symlinks
+    source = source_bundle('customer_ui_action_sweep.rb', 'customer_ui_action_sweep_*.rb')
+
+    assert_includes source, 'def safe_regular_artifact_file?(path)'
+    assert_includes source, 'safe_artifact_directory_path!(File.dirname(path))'
+    assert_includes source, 'def safe_artifact_directory_path!(path)'
+    assert_includes source, 'allowed_system_temp_directory_symlink?'
+    assert_includes source, 'File.lstat(path)'
+    assert_includes source, 'def safe_copy_artifact(source, destination)'
+    assert_includes source, 'def safe_copy_artifact_content(destination, content)'
+    assert_includes source, 'safe_read_artifact(path)'
+    assert_includes source, 'File::NOFOLLOW'
+    assert_includes source, 'IO.copy_stream(input, output)'
+    assert_includes source, 'safe_copy_artifact(staged, destination)'
+    assert_includes source, 'safe_copy_artifact(path, durable_path)'
+    assert_includes source, 'safe_copy_artifact(path, destination)'
+    assert_includes source, "File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.log')"
+    refute_includes source, 'FileUtils.cp'
+  end
+
+  def test_customer_ui_action_sweep_binds_runtime_states_to_candidate_build
+    source = source_bundle('customer_ui_action_sweep.rb', 'customer_ui_action_sweep_*.rb')
+
+    assert_includes source, 'def current_runtime_candidate'
+    assert_includes source, "app_path: '/Applications/SaneBar.app'"
+    assert_includes source, 'app_version: @running_bundle_version'
+    assert_includes source, 'app_build: @running_bundle_build'
+    assert_includes source, 'if runtime_artifact && runtime_artifact[:candidate]'
+    assert_includes source, "elsif id.to_s == 'resource_soak_growth'"
+    assert_includes source, 'current_runtime_candidate'
+    assert_includes source, 'failure_reasons << \'missing runtime candidate metadata\''
   end
 
   def test_startup_layout_probe_persists_restore_failures
@@ -1587,8 +1886,12 @@ end
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
     assert_includes source, "def app_pids"
+    assert_includes source, "def app_processes"
+    assert_includes source, "def ensure_single_target_process!(context)"
     assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
     assert_includes source, "ps', '-axo', 'pid=,command='"
+    assert_includes source, "command.split(/\\s+/, 2).first.to_s == process_path"
+    assert_includes source, "process[:command].include?('--sane-no-keychain')"
     assert_includes source, 'terminate_lingering_app_processes_until_gone!(timeout:'
     assert_includes source, "signal: 'TERM'"
     assert_includes source, "signal: 'KILL'"
@@ -1689,6 +1992,41 @@ end
     refute_includes source, "item[:unique_id].to_s.include?('::statusItem:') }"
   end
 
+  def test_startup_layout_probe_prefers_shared_fixture_candidates_before_host_sentinel
+    with_startup_layout_probe do |probe|
+      probe.define_singleton_method(:bundle_identifier) { 'com.sanebar.app' }
+      probe.define_singleton_method(:list_icon_zones) do
+        [
+          {
+            zone: 'hidden',
+            movable: true,
+            bundle: 'com.sanebar.hostsentinel',
+            unique_id: 'com.sanebar.hostsentinel::statusItem:0'
+          },
+          {
+            zone: 'hidden',
+            movable: true,
+            bundle: 'com.sanebar.sharedfixture',
+            unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
+          },
+          {
+            zone: 'visible',
+            movable: true,
+            bundle: 'com.sanebar.sharedfixture',
+            unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A'
+          }
+        ]
+      end
+
+      candidates = probe.send(:preferred_always_hidden_replay_candidates)
+
+      assert_equal [
+        'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+        'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
+      ], candidates.first(2).map { |candidate| candidate[:unique_id] }
+    end
+  end
+
   def test_startup_layout_probe_self_seeds_no_keychain_pro_runtime
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
@@ -1722,7 +2060,10 @@ end
     assert_includes source, 'Passive startup recovery moved cursor'
     assert_includes source, "completed_scenario: 'passive startup recovery did not physically move the cursor'"
     assert_includes source, 'launched = false'
-    assert_includes source, 'if layout_snapshot_available?'
+    assert_includes source, 'NO_KEYCHAIN_LAUNCH_REGISTRATION_GRACE_SECONDS'
+    assert_includes source, 'target_process_ready? && layout_snapshot_available?'
+    assert_includes source, "ensure_single_target_process!('layout snapshot')"
+    assert_includes source, 'duplicate #{@app_name} test processes'
     refute_includes source, 'raise "Timed out waiting for #{@app_name} launch" unless app_running? && layout_snapshot_available?'
   end
 
@@ -1747,6 +2088,16 @@ end
     assert_includes source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
     assert_includes source, '#155 pinned icon exits Always Hidden after dirty startup'
     assert_includes source, '#155 Always Hidden outbound moves leave move state idle'
+    assert_includes source, 'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155'
+    assert_includes source, 'run_resource_soak_after_155!'
+    assert_includes source, '#155 dirty startup resource soak remains stable after outbound moves'
+    assert_includes source, '#155 outbound move state remains durable after resource soak'
+    assert_includes source, '#155 hidden-exit remains Hidden after resource soak'
+    assert_includes source, '#155 visible-exit remains Visible after resource soak'
+    assert_includes source, 'durable_resource_soak_path'
+    assert_includes source, 'ephemeral_artifact_path'
+    assert_includes source, 'SANEMASTER_RESOURCE_SOAK_MIN_SECONDS'
+    assert_includes source, 'FileUtils.mkdir_p(File.dirname(path))'
     assert_includes source, 'preferred_always_hidden_replay_candidates'
     assert_includes source, "preferred_bundles.include?(item[:bundle].to_s)"
     assert_includes source, 'sanitized_replay_candidate'
@@ -1755,6 +2106,69 @@ end
     assert_includes source, '#155 visible-exit starts in AH after dirty startup'
     assert_includes source, 'move_icon_and_expect!'
     assert_includes source, 'assert_move_idle!'
+  end
+
+  def test_release_preflight_requires_dirty_replay_resource_soak_with_bounded_timeout
+    source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
+
+    assert_includes source, 'startup_probe_resource_soak_required?'
+    assert_includes source, "'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155' => '1'"
+    assert_includes source, "'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS' => startup_resource_soak_seconds.to_s"
+    assert_includes source, "'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_MIN_SECONDS' => startup_resource_soak_seconds.to_s"
+    assert_includes source, 'timeout: startup_probe_timeout_seconds(startup_resource_soak_required, startup_resource_soak_seconds)'
+    assert_includes source, 'return 300 unless resource_soak_required'
+    assert_includes source, '[resource_soak_seconds + 300, 900].max'
+    assert_includes source, '#155 dirty startup resource soak remains stable after outbound moves'
+    assert_includes source, '#155 outbound move state remains durable after resource soak'
+    assert_includes source, 'startup_probe_resource_soak_contract_error'
+    assert_includes source, 'Startup layout probe #155 resource proof missing candidate metadata.'
+    assert_includes source, 'Startup layout probe #155 resource proof did not re-check icon zones and idle move state after soak.'
+    assert_includes source, 'preflight_mode?'
+  end
+
+  def test_release_preflight_validates_dirty_replay_resource_soak_artifact_contract
+    Dir.mktmpdir('sanebar-155-resource-proof') do |dir|
+      artifact_path = File.join(dir, 'resource-soak.json')
+      log_path = File.join(dir, 'resource-soak.log')
+      File.write(log_path, "status=pass\n")
+      expected_version = @qa.send(:project_yml_setting, 'MARKETING_VERSION')
+      expected_build = @qa.send(:project_yml_setting, 'CURRENT_PROJECT_VERSION')
+      File.write(
+        artifact_path,
+        JSON.pretty_generate(
+          'status' => 'pass',
+          'candidate' => {
+            'app_path' => '/Applications/SaneBar.app',
+            'app_version' => expected_version,
+            'app_build' => expected_build
+          }
+        )
+      )
+      startup_artifact = {
+        'cases' => [
+          {
+            'name' => '#155 dirty startup AH replay allows outbound moves',
+            'post_soak' => {
+              'hidden_zone' => 'hidden',
+              'visible_zone' => 'visible',
+              'idle' => { 'isMoveInProgress' => false }
+            },
+            'resource_soak' => {
+              'artifact_path' => artifact_path,
+              'log_path' => log_path
+            }
+          }
+        ]
+      }
+
+      assert_nil @qa.send(:startup_probe_resource_soak_contract_error, startup_artifact)
+
+      startup_artifact['cases'][0]['post_soak']['visible_zone'] = 'alwaysHidden'
+      assert_includes(
+        @qa.send(:startup_probe_resource_soak_contract_error, startup_artifact),
+        'did not re-check icon zones'
+      )
+    end
   end
 
   def test_wake_layout_probe_waits_for_launch_ready_status_items_before_actions
@@ -1856,8 +2270,14 @@ end
     source = source_bundle('wake_layout_probe.rb', 'wake_layout_probe_*.rb')
 
     assert_includes source, "def app_pids"
+    assert_includes source, "def app_processes"
+    assert_includes source, "def ensure_single_target_process!(context)"
     assert_includes source, "process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)"
     assert_includes source, "ps', '-axo', 'pid=,command='"
+    assert_includes source, "command.split(/\\s+/, 2).first.to_s == process_path"
+    assert_includes source, "process[:command].include?('--sane-no-keychain')"
+    assert_includes source, 'target_process_ready? && layout_snapshot_available?'
+    assert_includes source, "ensure_single_target_process!('layout snapshot')"
     refute_includes source, "pgrep', '-x', @app_name.to_s"
     assert_includes source, 'terminate_lingering_app_processes_until_gone!(timeout:'
     assert_includes source, "signal: 'TERM'"
@@ -2370,17 +2790,57 @@ end
     run_body = source[/def run\n.*?\n  private/m]
 
     policy_index = run_body.index('check_release_cadence_guardrails')
-    runtime_index = run_body.index('check_runtime_release_smoke')
+    runtime_index = run_body.index('check_runtime_release_smoke', policy_index)
     url_index = run_body.index('check_urls')
     policy_only_index = run_body.index('if release_policy_only_mode?')
     skip_index = run_body.index('Skipping release runtime smoke and stability suite because release policy guardrails already failed.')
+    runtime_failed_skip_index = run_body.index('Skipping stability suite and URL checks because release runtime smoke failed.')
 
     assert policy_index && runtime_index && policy_index < runtime_index
     assert skip_index && skip_index < runtime_index
+    assert runtime_failed_skip_index && runtime_index < runtime_failed_skip_index
     assert policy_only_index && policy_only_index < runtime_index
     assert url_index && policy_only_index < url_index
     assert_includes run_body, 'Checking appcast download URLs... ⏭️  skipped in policy-only mode'
     assert_includes run_body, 'Policy-only release guardrails complete; skipping runtime smoke, stability suite, and URL checks.'
+    assert_includes run_body, 'Skipping stability suite and URL checks because release runtime smoke failed.'
+  end
+
+  def test_reused_customer_ui_runtime_proof_skips_duplicate_runtime_smoke_but_keeps_stability
+    source = qa_source
+    run_body = source[/def run\n.*?\n  private/m]
+
+    reuse_index = run_body.index('if runtime_smoke_reused?')
+    runtime_index = run_body.index('check_runtime_release_smoke', reuse_index)
+    stability_index = run_body.index('run_stability_suite', reuse_index)
+    url_index = run_body.index('check_urls', reuse_index)
+
+    assert reuse_index && runtime_index && stability_index && url_index
+    assert reuse_index < runtime_index
+    assert runtime_index < stability_index
+    assert stability_index < url_index
+    assert_includes run_body, 'Running release runtime smoke... ⏭️  skipped (fresh customer UI runtime proof reused)'
+    assert_includes source, 'def runtime_smoke_reused?'
+    assert_includes source, "ENV['SANEPROCESS_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] == '1'"
+    assert_includes source, "ENV['SANEBAR_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] == '1'"
+  end
+
+  def test_runtime_smoke_only_mode_refreshes_runtime_without_release_policy_gates
+    source = qa_source
+    run_body = source[/def run\n.*?\n  private/m]
+
+    runtime_only_index = run_body.index('if runtime_smoke_only_mode?')
+    runtime_smoke_index = run_body.index('check_runtime_release_smoke', runtime_only_index)
+    syntax_index = run_body.index('check_script_syntax_swift')
+    policy_index = run_body.index('check_release_cadence_guardrails')
+
+    assert runtime_only_index && runtime_smoke_index && syntax_index && policy_index
+    assert runtime_only_index < runtime_smoke_index
+    assert runtime_smoke_index < syntax_index
+    assert runtime_smoke_index < policy_index
+    assert_includes source, "ENV['SANEPROCESS_RUNTIME_SMOKE_ONLY'] == '1'"
+    assert_includes source, "ENV['SANEBAR_RUNTIME_SMOKE_ONLY'] == '1'"
+    assert_includes source, 'runtime_smoke_only_mode? ||'
   end
 
   def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys
@@ -2432,6 +2892,18 @@ def test_runtime_fixture_inventory_uses_bounded_applescript_refresh
   refute_includes source, 'Open3.capture2e(\'/usr/bin/osascript\', \'-e\', "tell #{script_target} to list authoritative icon zones")'
   refute_includes source, "Open3.capture2e('/usr/bin/osascript', '-e', script)"
   refute_includes source, 'loop { output << normalize_output_chunk(stdout_err.read_nonblock(4096)) }'
+end
+
+def test_runtime_smoke_progress_streaming_is_best_effort
+  source = qa_source
+
+  assert_includes source, 'def write_runtime_progress(chunk)'
+  assert_includes source, 'return if chunk.to_s.empty? || @runtime_progress_output_closed'
+  assert_includes source, 'output << chunk'
+  assert_includes source, 'write_runtime_progress(chunk)'
+  assert_includes source, 'rescue Errno::EPIPE, IOError'
+  assert_includes source, '@runtime_progress_output_closed = true'
+  refute_includes source, "print chunk\n            $stdout.flush"
 end
 
 def test_runtime_timeout_helper_returns_failed_status_on_timeout

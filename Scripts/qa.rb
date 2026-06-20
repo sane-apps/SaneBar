@@ -168,10 +168,11 @@ class ProjectQA
   ].freeze
   RUNTIME_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_smoke.log'
   RUNTIME_LAUNCH_LOG_PATH = '/tmp/sanebar_runtime_launch.log'
-  RUNTIME_STARTUP_PROBE_LOG_PATH = '/tmp/sanebar_runtime_startup_probe.log'
-  RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_startup_probe.json'
-  RUNTIME_WAKE_PROBE_LOG_PATH = '/tmp/sanebar_runtime_wake_probe.log'
-  RUNTIME_WAKE_PROBE_ARTIFACT_PATH = '/tmp/sanebar_runtime_wake_probe.json'
+  RUNTIME_PREFLIGHT_EVIDENCE_DIR = File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight')
+  RUNTIME_STARTUP_PROBE_LOG_PATH = File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_startup_probe.log')
+  RUNTIME_STARTUP_PROBE_ARTIFACT_PATH = File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_startup_probe.json')
+  RUNTIME_WAKE_PROBE_LOG_PATH = File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.log')
+  RUNTIME_WAKE_PROBE_ARTIFACT_PATH = File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.json')
   RUNTIME_SHARED_BUNDLE_SMOKE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
   RUNTIME_SHARED_BUNDLE_FIXTURE_LOG_PATH = '/tmp/sanebar_runtime_shared_bundle_fixture.log'
   RUNTIME_SHARED_BUNDLE_FIXTURE_APP_PATH = '/tmp/SaneBarSharedFixture.app'
@@ -208,6 +209,8 @@ class ProjectQA
   RUNTIME_SMOKE_PASSES = 1
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
+  RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 420
+  RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS = 300
   RUNTIME_SMOKE_REPRESENTATIVE_SETUP_TIMEOUT_SECONDS = 90
   RUNTIME_NATIVE_APPLE_IDS = %w[
     com.apple.menuextra.siri
@@ -339,35 +342,47 @@ class ProjectQA
     puts '═══════════════════════════════════════════════════════════════'
     puts
 
-    check_sanemaster_wrapper
-    check_script_syntax_rb
-    check_script_syntax_swift
-    check_script_syntax_sh
-    check_code_rules
-    check_version_consistency
-    check_release_hygiene_guardrails
-    check_saneui_guardrails
-    check_appcast_guardrails
-    if release_policy_only_mode?
-      puts 'Checking appcast download URLs... ⏭️  skipped in policy-only mode'
-    else
-      check_appcast_download_urls
-    end
-    check_migration_guardrails
-    check_test_mode_tooling_guardrails
-    check_recurring_regression_coverage_guardrails
-    check_release_cadence_guardrails
-    check_open_regression_guardrails
-    check_regression_confirmation_guardrails
-    check_customer_facing_copy_guardrails
-    if release_policy_only_mode?
-      puts 'Policy-only release guardrails complete; skipping runtime smoke, stability suite, and URL checks.'
-    elsif preflight_mode? && @errors.any?
-      puts 'Skipping release runtime smoke and stability suite because release policy guardrails already failed.'
-    else
+    if runtime_smoke_only_mode?
       check_runtime_release_smoke
-      run_stability_suite
-      check_urls
+    else
+      check_sanemaster_wrapper
+      check_script_syntax_rb
+      check_script_syntax_swift
+      check_script_syntax_sh
+      check_code_rules
+      check_version_consistency
+      check_release_hygiene_guardrails
+      check_saneui_guardrails
+      check_appcast_guardrails
+      if release_policy_only_mode?
+        puts 'Checking appcast download URLs... ⏭️  skipped in policy-only mode'
+      else
+        check_appcast_download_urls
+      end
+      check_migration_guardrails
+      check_test_mode_tooling_guardrails
+      check_recurring_regression_coverage_guardrails
+      check_release_cadence_guardrails
+      check_open_regression_guardrails
+      check_regression_confirmation_guardrails
+      check_customer_facing_copy_guardrails
+      if release_policy_only_mode?
+        puts 'Policy-only release guardrails complete; skipping runtime smoke, stability suite, and URL checks.'
+      elsif preflight_mode? && @errors.any?
+        puts 'Skipping release runtime smoke and stability suite because release policy guardrails already failed.'
+      else
+        if runtime_smoke_reused?
+          puts 'Running release runtime smoke... ⏭️  skipped (fresh customer UI runtime proof reused)'
+        else
+          check_runtime_release_smoke
+        end
+        if @errors.any?
+          puts 'Skipping stability suite and URL checks because release runtime smoke failed.'
+        else
+          run_stability_suite
+          check_urls
+        end
+      end
     end
 
     puts
@@ -401,6 +416,7 @@ class ProjectQA
 
   def preflight_mode?
     release_policy_only_mode? ||
+      runtime_smoke_only_mode? ||
       ENV['SANEPROCESS_RELEASE_PREFLIGHT'] == '1' ||
       ENV['SANEPROCESS_RUN_STABILITY_SUITE'] == '1' ||
       ENV['SANEBAR_RELEASE_PREFLIGHT'] == '1' ||
@@ -410,6 +426,16 @@ class ProjectQA
   def release_policy_only_mode?
     ENV['SANEPROCESS_RELEASE_POLICY_ONLY'] == '1' ||
       ENV['SANEBAR_RELEASE_POLICY_ONLY'] == '1'
+  end
+
+  def runtime_smoke_only_mode?
+    ENV['SANEPROCESS_RUNTIME_SMOKE_ONLY'] == '1' ||
+      ENV['SANEBAR_RUNTIME_SMOKE_ONLY'] == '1'
+  end
+
+  def runtime_smoke_reused?
+    ENV['SANEPROCESS_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] == '1' ||
+      ENV['SANEBAR_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] == '1'
   end
 
   def runtime_smoke_mode?

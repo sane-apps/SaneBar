@@ -7,6 +7,17 @@ enum ScriptIconZone: String {
     case visible
     case hidden
     case alwaysHidden
+
+    var userFacingName: String {
+        switch self {
+        case .visible:
+            return "Visible"
+        case .hidden:
+            return "Hidden"
+        case .alwaysHidden:
+            return "Always Hidden"
+        }
+    }
 }
 
 typealias ScriptClassifiedApps = SearchClassifiedApps
@@ -277,13 +288,17 @@ func authoritativeScriptListingZonesForCommand() -> [ScriptZonedIcon] {
 @MainActor
 func runScriptMove(timeoutSeconds: TimeInterval = 9.0, operation: @escaping @MainActor () async -> Bool) -> Bool? {
     let box = ScriptResultBox<Bool?>(nil)
-    Task { @MainActor in
+    let task = Task { @MainActor in
         box.value = await operation()
     }
 
     let deadline = Date().addingTimeInterval(timeoutSeconds)
     while box.value == nil, Date() < deadline {
         _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+    }
+    if box.value == nil {
+        task.cancel()
+        MenuBarManager.shared.activeMoveTask?.cancel()
     }
     return box.value
 }
@@ -514,12 +529,12 @@ func scriptErrorCrossZoneReorder(_ command: NSScriptCommand, sourceId: String, t
 
 func scriptErrorIconNotFound(_ command: NSScriptCommand, iconId: String) {
     command.scriptErrorNumber = errOSAGeneralError
-    command.scriptErrorString = "Icon '\(iconId)' not found. Use 'list icon zones' to see available identifiers."
+    command.scriptErrorString = "Icon '\(iconId)' not found. If this happened right after wake or a display change, wait a moment and try again. Otherwise use 'list icon zones' to see available identifiers."
 }
 
 func scriptErrorTargetIconNotFound(_ command: NSScriptCommand, iconId: String) {
     command.scriptErrorNumber = errOSAGeneralError
-    command.scriptErrorString = "Target icon '\(iconId)' not found. Use 'list icon zones' to see available identifiers, then pass it with the 'target icon' parameter."
+    command.scriptErrorString = "Target icon '\(iconId)' not found. If this happened right after wake or a display change, wait a moment and try again. Otherwise use 'list icon zones' and pass the target with the 'target icon' parameter."
 }
 
 func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
@@ -529,7 +544,7 @@ func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
 
 func scriptErrorMoveFailed(_ command: NSScriptCommand, iconId: String, target: ScriptIconZone) {
     command.scriptErrorNumber = errOSAGeneralError
-    command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.rawValue)."
+    command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.userFacingName). If this happened right after wake or a display change, wait a moment and try again. Use 'list icon zones' to confirm the identifier, then try again."
 }
 
 func scriptErrorReorderFailed(_ command: NSScriptCommand, sourceId: String, targetId: String, placeAfterTarget: Bool) {

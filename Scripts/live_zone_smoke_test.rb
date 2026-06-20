@@ -230,6 +230,26 @@ class LiveZoneSmokeTest < Minitest::Test
     refute_includes fullscreen_source, 'close_terminal_capture_host'
   end
 
+  def test_stop_resource_watchdog_kills_unresponsive_thread
+    smoke = build_smoke
+    killed = false
+    joins = []
+    fake_thread = Object.new
+    fake_thread.define_singleton_method(:alive?) { !killed }
+    fake_thread.define_singleton_method(:kill) { killed = true }
+    fake_thread.define_singleton_method(:join) do |timeout = nil|
+      joins << timeout
+      false
+    end
+    smoke.instance_variable_set(:@resource_watchdog_thread, fake_thread)
+
+    smoke.send(:stop_resource_watchdog)
+
+    assert killed
+    assert_nil smoke.instance_variable_get(:@resource_watchdog_thread)
+    assert_equal [2, 1], joins
+  end
+
   def test_top_strip_capture_workdir_prune_keeps_recent_bounded_artifacts
     smoke = build_smoke
 
@@ -255,6 +275,51 @@ class LiveZoneSmokeTest < Minitest::Test
       refute_includes remaining, File.basename(old_path)
       assert_includes remaining, File.basename(newest_path)
       assert_operator remaining.length, :<=, LiveZoneSmoke::TOP_STRIP_CAPTURE_MAX_ARTIFACTS
+    end
+  end
+
+  def test_top_strip_capture_debug_details_refuses_symlinked_status_and_log_paths
+    smoke = build_smoke
+
+    Dir.mktmpdir('sanebar-top-strip-debug') do |dir|
+      safe_status = File.join(dir, 'safe.status')
+      safe_log = File.join(dir, 'safe.log')
+      File.write(safe_status, "done\n")
+      File.write(safe_log, "line1\nline2\n")
+
+      safe_details = smoke.send(:top_strip_capture_debug_details, safe_log, safe_status)
+      assert_includes safe_details, 'status=done'
+      assert_includes safe_details, 'log_tail=line1 | line2'
+
+      secret_path = File.join(dir, 'secret.txt')
+      File.write(secret_path, 'should-not-read')
+      status_link = File.join(dir, 'linked.status')
+      log_link = File.join(dir, 'linked.log')
+      File.symlink(secret_path, status_link)
+      File.symlink(secret_path, log_link)
+
+      unsafe_details = smoke.send(:top_strip_capture_debug_details, log_link, status_link)
+      assert_includes unsafe_details, 'status=<missing-or-unsafe>'
+      assert_includes unsafe_details, 'log=<missing-or-unsafe>'
+      refute_includes unsafe_details, 'should-not-read'
+    end
+  end
+
+  def test_top_strip_capture_safe_write_refuses_symlinked_stdout_path
+    smoke = build_smoke
+
+    Dir.mktmpdir('sanebar-top-strip-stdout') do |dir|
+      safe_path = File.join(dir, 'safe.stdout')
+      assert smoke.send(:safe_top_strip_file_write, safe_path, 'ok')
+      assert_equal 'ok', File.read(safe_path)
+
+      target_path = File.join(dir, 'target.txt')
+      File.write(target_path, 'unchanged')
+      linked_path = File.join(dir, 'linked.stdout')
+      File.symlink(target_path, linked_path)
+
+      refute smoke.send(:safe_top_strip_file_write, linked_path, 'changed')
+      assert_equal 'unchanged', File.read(target_path)
     end
   end
 
@@ -337,10 +402,12 @@ class LiveZoneSmokeTest < Minitest::Test
 
   def test_safari_transition_probe_uses_one_canonical_file_url
     smoke_source = File.read(File.join(__dir__, 'live_zone_smoke.rb'))
+    browse_visual_source = File.read(File.join(__dir__, 'lib', 'live_zone_smoke_browse_visual.rb'))
     fullscreen_source = File.read(File.join(__dir__, 'lib', 'live_zone_smoke_screenshots_fullscreen.rb'))
 
     assert_includes smoke_source, "VISIBLE_TRANSITION_PROBE_HTML_PATH = '/tmp/sanebar-fullscreen-probe.html'"
     assert_includes smoke_source, 'VISIBLE_TRANSITION_PROBE_URL = "file://#{VISIBLE_TRANSITION_PROBE_HTML_PATH}"'
+    assert_includes browse_visual_source, 'hidden and visible icon zones persist across fullscreen Space transition'
     assert_includes fullscreen_source, 'File.write('
     assert_includes fullscreen_source, 'VISIBLE_TRANSITION_PROBE_HTML_PATH'
     assert_operator fullscreen_source.scan('VISIBLE_TRANSITION_PROBE_URL').length, :>=, 3
@@ -432,9 +499,14 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke = build_smoke
     smoke.instance_variable_set(:@require_visible_appearance_pixels, true)
     calls = []
+    baseline = { visible_ids: ['visible-id'], hidden_ids: ['hidden-id'] }
 
     smoke.define_singleton_method(:open_visible_transition_probe_window) { |probe| calls << [:open, probe[:label]] }
     smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| calls << [:sleep, seconds] }
+    smoke.define_singleton_method(:capture_fullscreen_space_transition_zone_baseline!) do
+      calls << [:capture_zone_baseline]
+      baseline
+    end
     smoke.define_singleton_method(:set_fullscreen_probe_window) { |probe, enabled| calls << [:set_fullscreen, probe[:label], enabled] }
     smoke.define_singleton_method(:ensure_visible_transition_probe_window_available!) { |probe| calls << [:ensure_probe, probe[:label]] }
     smoke.define_singleton_method(:assert_fullscreen_probe_window_state!) { |probe, expected| calls << [:fullscreen_state, probe[:label], expected] }
@@ -444,6 +516,9 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.define_singleton_method(:assert_appearance_overlay_hidden_after_fullscreen_settle!) { |label| calls << [:overlay_hidden, label] }
     smoke.define_singleton_method(:assert_customer_visible_top_strip_tint!) do |label, expected_visible:, restore_bundle_id: nil|
       calls << [:top_strip, label, expected_visible, restore_bundle_id]
+    end
+    smoke.define_singleton_method(:assert_fullscreen_space_transition_zone_persistence!) do |baseline_arg, label|
+      calls << [:zone_persistence, baseline_arg, label]
     end
     smoke.define_singleton_method(:assert_appearance_overlay_restored_after_fullscreen_settle!) { |label| calls << [:overlay_restored, label] }
     smoke.define_singleton_method(:mark_fullscreen_matrix_scenario) { |name| calls << [:scenario, name] }
@@ -456,16 +531,78 @@ class LiveZoneSmokeTest < Minitest::Test
     safari_exit_reacquire = calls.index([:ensure_probe, 'safari'])
     safari_surface_exit = calls.index([:surface, 'safari', 'safari fullscreen exit', false])
     safari_top_strip_exit = calls.index([:top_strip, 'safari-fullscreen-exit', true, 'com.apple.Safari'])
+    safari_zone_enter = calls.index([:zone_persistence, baseline, 'safari fullscreen enter'])
+    safari_zone_exit = calls.index([:zone_persistence, baseline, 'safari fullscreen exit'])
 
     refute_nil safari_surface_enter
     refute_nil safari_top_strip_enter
     refute_nil safari_exit_reacquire
     refute_nil safari_surface_exit
     refute_nil safari_top_strip_exit
+    refute_nil safari_zone_enter
+    refute_nil safari_zone_exit
     assert_operator safari_surface_enter, :<, safari_top_strip_enter
-    assert_operator safari_top_strip_enter, :<, safari_exit_reacquire
+    assert_operator safari_top_strip_enter, :<, safari_zone_enter
+    assert_operator safari_zone_enter, :<, safari_exit_reacquire
     assert_operator safari_exit_reacquire, :<, safari_surface_exit
     assert_operator safari_surface_exit, :<, safari_top_strip_exit
+    assert_operator safari_top_strip_exit, :<, safari_zone_exit
+  end
+
+  def test_fullscreen_zone_baseline_uses_reseeded_candidate_pool
+    smoke = build_smoke
+    raw_zones = [
+      { zone: 'visible', movable: true, bundle: 'com.example.frontmost', unique_id: 'com.example.frontmost::axid:file', name: 'File' }
+    ]
+    reseeded_zones = [
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:visible', name: 'Fixture Visible' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'com.example.hidden::axid:hidden', name: 'Hidden Extra' }
+    ]
+    calls = []
+
+    smoke.define_singleton_method(:wait_for_zone_api_ready) do
+      calls << :wait
+      raw_zones
+    end
+    smoke.define_singleton_method(:reseed_missing_zone_candidates) do |zones|
+      calls << [:reseed, zones]
+      reseeded_zones
+    end
+    smoke.define_singleton_method(:candidate_pool) do |zones, allow_denylisted: false|
+      calls << [:candidate_pool, zones, allow_denylisted]
+      zones
+    end
+
+    baseline = smoke.send(:capture_fullscreen_space_transition_zone_baseline!)
+
+    assert_equal ['com.sanebar.sharedfixture::axid:visible'], baseline[:visible_ids]
+    assert_equal ['com.example.hidden::axid:hidden'], baseline[:hidden_ids]
+    assert_includes calls, :wait
+    assert_includes calls, [:reseed, raw_zones]
+    assert_includes calls, [:candidate_pool, reseeded_zones, false]
+  end
+
+  def test_fullscreen_zone_persistence_retries_transient_zone_api_failures
+    smoke = build_smoke
+    baseline = { visible_ids: ['visible-id'], hidden_ids: ['hidden-id'] }
+    attempts = 0
+    sleeps = []
+
+    smoke.define_singleton_method(:list_icon_zones) do
+      attempts += 1
+      raise 'No icons returned from list icon zones.' if attempts == 1
+
+      [
+        { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible' },
+        { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' }
+      ]
+    end
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
+
+    smoke.send(:assert_fullscreen_space_transition_zone_persistence!, baseline, 'retry check')
+
+    assert_equal 2, attempts
+    refute_empty sleeps
   end
 
   def test_exit_surface_reopens_safari_probe_when_window_disappears
@@ -1521,6 +1658,29 @@ class LiveZoneSmokeTest < Minitest::Test
                  smoke.send(:app_script_timeout_for, 'activate browse icon "com.example.app::statusItem:1"')
     assert_equal LiveZoneSmoke::APPLESCRIPT_ACTIVATION_TIMEOUT_SECONDS,
                  smoke.send(:app_script_timeout_for, 'right click browse icon "com.example.app::statusItem:1"')
+  end
+
+  def test_app_script_reports_runtime_target_lost_when_process_disappears_after_precheck
+    smoke = build_smoke
+    failed = Object.new
+    failed.define_singleton_method(:success?) { false }
+    smoke.define_singleton_method(:verify_single_process) {}
+    smoke.define_singleton_method(:apple_script_lines) { |_statement| ['tell appTarget to move icon'] }
+    smoke.define_singleton_method(:capture2e_with_timeout) do |*_args, timeout:|
+      ["SaneBar got an error: This command requires SaneBar Pro.\n", failed]
+    end
+    smoke.define_singleton_method(:app_process_still_alive?) { false }
+    smoke.define_singleton_method(:current_matching_process_summary) { 'none' }
+    smoke.define_singleton_method(:process_monitor_error_detail) do |_error|
+      'process_missing pid=123 expected=/Applications/SaneBar.app/Contents/MacOS/SaneBar currentMatches=none'
+    end
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:app_script, 'move icon to hidden "com.sanebar.hostsentinel::statusItem:0"')
+    end
+
+    assert_includes error.message, 'runtime_target_lost during AppleScript'
+    assert_includes error.message, 'process_missing pid=123'
   end
 
   def test_transient_process_missing_is_tolerated_while_pid_is_still_alive

@@ -8,6 +8,17 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "AppleScript
 
 @objc(HideIconCommand)
 final class HideIconCommand: SaneBarScriptCommand {
+    private enum HideFailure {
+        case notFound
+        case timedOut
+        case moveFailed
+    }
+
+    private struct HideOutcome {
+        var succeeded: Bool
+        var failure: HideFailure?
+    }
+
     override func performDefaultImplementation() -> Any? {
         guard let iconId = directParameter as? String else {
             scriptErrorNumber = errOSAGeneralError
@@ -22,54 +33,73 @@ final class HideIconCommand: SaneBarScriptCommand {
             return false
         }
 
+        guard checkIsProUnlocked() else {
+            setProRequiredError()
+            return false
+        }
+
         guard checkAccessibilityTrusted() else {
             setAccessibilityError()
             return false
         }
 
-        let semaphore = DispatchSemaphore(value: 0)
-        let box = ScriptResultBox(false)
-        let completed = ScriptResultBox(false)
-
-        Task { @MainActor in
-            let manager = MenuBarManager.shared
-
-            // Find the icon in current menu bar items
-            let items = await AccessibilityService.shared.listMenuBarItemsWithPositions()
-            let match = items.first { item in
-                item.app.uniqueId == trimmedId || item.app.bundleId == trimmedId
+        let outcome: HideOutcome = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                Self.performHide(trimmedId: trimmedId)
             }
-
-            if let match {
-                manager.alwaysHiddenPinWorkflow.pin(app: match.app)
-                manager.saveSettings()
-                // Trigger enforcement to physically move the icon
-                await manager.alwaysHiddenPinWorkflow.enforce(
-                    reason: "AppleScript hide icon",
-                    mode: .repairWithPhysicalMoves,
-                    physicalMoveOrigin: .appleScriptUserAction
-                )
-                box.value = true
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    Self.performHide(trimmedId: trimmedId)
+                }
             }
-
-            completed.value = true
-            semaphore.signal()
         }
 
-        _ = semaphore.wait(timeout: .now() + 10.0)
-
-        guard completed.value else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
-            return false
+        if !outcome.succeeded {
+            switch outcome.failure {
+            case .moveFailed:
+                scriptErrorMoveFailed(self, iconId: trimmedId, target: .alwaysHidden)
+            case .timedOut:
+                scriptErrorOperationTimedOut(self)
+            case .notFound, nil:
+                scriptErrorIconNotFound(self, iconId: trimmedId)
+            }
         }
 
-        if !box.value {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Icon '\(trimmedId)' not found. Use 'list icons' to see available identifiers."
+        return outcome.succeeded
+    }
+
+    @MainActor
+    private static func performHide(trimmedId: String) -> HideOutcome {
+        let manager = MenuBarManager.shared
+        let startZones = zonesForScriptMoveResolution(trimmedId)
+        guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
+            return HideOutcome(succeeded: false, failure: .notFound)
         }
 
-        return box.value
+        if source.zone == .alwaysHidden {
+            if !manager.settings.alwaysHiddenSectionEnabled {
+                manager.settings.alwaysHiddenSectionEnabled = true
+            }
+            manager.alwaysHiddenPinWorkflow.pin(app: source.app)
+            manager.saveSettings()
+            return HideOutcome(succeeded: true)
+        }
+
+        let moved = runScriptMove {
+            await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
+                bundleID: source.app.bundleId,
+                menuExtraId: source.app.menuExtraIdentifier,
+                statusItemIndex: source.app.statusItemIndex,
+                preferredCenterX: source.app.preferredCenterX,
+                toAlwaysHidden: true,
+                physicalMoveOrigin: .appleScriptUserAction
+            )
+        }
+        guard let moved else {
+            return HideOutcome(succeeded: false, failure: .timedOut)
+        }
+        return HideOutcome(succeeded: moved, failure: moved ? nil : .moveFailed)
     }
 }
 
@@ -77,6 +107,18 @@ final class HideIconCommand: SaneBarScriptCommand {
 
 @objc(ShowIconCommand)
 final class ShowIconCommand: SaneBarScriptCommand {
+    private enum ShowFailure {
+        case notFound
+        case notInAlwaysHidden
+        case timedOut
+        case moveFailed
+    }
+
+    private struct ShowOutcome {
+        var succeeded: Bool
+        var failure: ShowFailure?
+    }
+
     override func performDefaultImplementation() -> Any? {
         guard let iconId = directParameter as? String else {
             scriptErrorNumber = errOSAGeneralError
@@ -91,27 +133,58 @@ final class ShowIconCommand: SaneBarScriptCommand {
             return false
         }
 
+        guard checkIsProUnlocked() else {
+            setProRequiredError()
+            return false
+        }
+
         guard checkAccessibilityTrusted() else {
             setAccessibilityError()
             return false
         }
 
-        let semaphore = DispatchSemaphore(value: 0)
-        let box = ScriptResultBox(false)
-        let completed = ScriptResultBox(false)
-
-        Task { @MainActor in
-            let manager = MenuBarManager.shared
-
-            let startZones = zonesForScriptMoveResolution(trimmedId)
-            guard let source = resolveScriptIcon(trimmedId, from: startZones),
-                  source.zone == .alwaysHidden else {
-                completed.value = true
-                semaphore.signal()
-                return
+        let outcome: ShowOutcome = if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                Self.performShow(trimmedId: trimmedId)
             }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated {
+                    Self.performShow(trimmedId: trimmedId)
+                }
+            }
+        }
 
-            let moved = await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
+        if !outcome.succeeded {
+            switch outcome.failure {
+            case .moveFailed:
+                scriptErrorMoveFailed(self, iconId: trimmedId, target: .visible)
+            case .timedOut:
+                scriptErrorOperationTimedOut(self)
+            case .notFound:
+                scriptErrorIconNotFound(self, iconId: trimmedId)
+            case .notInAlwaysHidden, nil:
+                scriptErrorNumber = errOSAGeneralError
+                scriptErrorString = "Icon '\(trimmedId)' is not currently in Always Hidden. Use 'list icon zones' to check its current zone."
+            }
+        }
+
+        return outcome.succeeded
+    }
+
+    @MainActor
+    private static func performShow(trimmedId: String) -> ShowOutcome {
+        let manager = MenuBarManager.shared
+        let startZones = zonesForScriptMoveResolution(trimmedId)
+        guard let source = resolveScriptIcon(trimmedId, from: startZones) else {
+            return ShowOutcome(succeeded: false, failure: .notFound)
+        }
+        guard source.zone == .alwaysHidden else {
+            return ShowOutcome(succeeded: false, failure: .notInAlwaysHidden)
+        }
+
+        let moved = runScriptMove {
+            await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
                 bundleID: source.app.bundleId,
                 menuExtraId: source.app.menuExtraIdentifier,
                 statusItemIndex: source.app.statusItemIndex,
@@ -119,41 +192,11 @@ final class ShowIconCommand: SaneBarScriptCommand {
                 toAlwaysHidden: false,
                 physicalMoveOrigin: .appleScriptUserAction
             )
-            guard moved else {
-                completed.value = true
-                semaphore.signal()
-                return
-            }
-
-            let removedPin = manager.alwaysHiddenPinWorkflow.unpin(
-                bundleID: source.app.bundleId,
-                menuExtraId: source.app.menuExtraIdentifier,
-                statusItemIndex: source.app.statusItemIndex
-            ) || (!source.app.bundleId.hasPrefix("com.apple.controlcenter") &&
-                manager.alwaysHiddenPinWorkflow.unpin(bundleID: source.app.bundleId))
-            if removedPin {
-                manager.saveSettings()
-            }
-
-            box.value = true
-            completed.value = true
-            semaphore.signal()
         }
-
-        _ = semaphore.wait(timeout: .now() + 10.0)
-
-        guard completed.value else {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
-            return false
+        guard let moved else {
+            return ShowOutcome(succeeded: false, failure: .timedOut)
         }
-
-        if !box.value {
-            scriptErrorNumber = errOSAGeneralError
-            scriptErrorString = "Icon '\(trimmedId)' is not in the always-hidden section."
-        }
-
-        return box.value
+        return ShowOutcome(succeeded: moved, failure: moved ? nil : .moveFailed)
     }
 }
 
@@ -302,21 +345,8 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
                 return true
             }
 
-            logger.warning("AppleScript move-to-always-hidden direct drag failed; falling back to exact pin enforcement")
-            _ = manager.alwaysHiddenPinWorkflow.pin(
-                bundleID: icon.bundleId,
-                menuExtraId: icon.menuExtraIdentifier,
-                statusItemIndex: icon.statusItemIndex
-            )
-            manager.saveSettings()
-            return runScriptMove {
-                await manager.alwaysHiddenPinWorkflow.enforce(
-                    reason: "AppleScript move icon to always hidden fallback",
-                    filterBundleId: icon.bundleId,
-                    mode: .repairWithPhysicalMoves,
-                    physicalMoveOrigin: .appleScriptUserAction
-                )
-            }
+            logger.warning("AppleScript move-to-always-hidden direct drag failed")
+            return moved
 
         case .hidden:
             switch sourceZone {

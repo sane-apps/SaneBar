@@ -182,6 +182,248 @@ struct MenuBarAutomaticMoveGateTests {
         }
     }
 
+    @Test("Post-wake visible allow-list repair requires pending live healthy geometry")
+    func postWakeVisibleAllowListRepairRequiresPendingLiveHealthyGeometry() {
+        let livePostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-wake-resume-attempt-1",
+            geometryConfidence: .live,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(livePostWake.mode == .repairWithPhysicalMoves)
+        #expect(livePostWake.physicalMoveOrigin == .systemWakeRecovery)
+
+        let noPendingLivePostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-wake-resume-attempt-1",
+            geometryConfidence: .live,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: false
+        )
+        #expect(noPendingLivePostWake.mode == .auditOnly)
+        #expect(noPendingLivePostWake.physicalMoveOrigin == nil)
+
+        for confidence in [MenuBarGeometryConfidence.cached, .shielded, .stale, .missing] {
+            let degradedPostWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                geometryConfidence: confidence,
+                hidingState: .hidden,
+                hasVisibleAllowList: true,
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+            #expect(degradedPostWake.mode == .auditOnly)
+            #expect(degradedPostWake.physicalMoveOrigin == nil)
+        }
+
+        #expect(
+            MenuBarVisibilityPolicy.shouldDeferHiddenStateForWakeVisibleAllowList(
+                reason: "healthy-validation-wake-resume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldDeferHiddenStateForWakeVisibleAllowList(
+                reason: "healthy-validation-startup-follow-up",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldDeferHiddenStateForWakeVisibleAllowList(
+                reason: "healthy-validation-wake-resume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: false
+            )
+        )
+    }
+
+    @Test("Immediate wake auto-rehide waits for pending visible allow-list replay")
+    func immediateWakeAutoRehideWaitsForPendingVisibleAllowListReplay() {
+        #expect(
+            MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "wakeResume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "wake-resume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "wakeResume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: false
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "wakeResume",
+                hideAllOtherMenuBarItems: false,
+                visibleAllowListIds: ["com.ameba.SwiftBar::statusItem:0"],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldReplayWakeVisibleAllowListBeforeAutoRehide(
+                reason: "wakeResume",
+                hideAllOtherMenuBarItems: true,
+                visibleAllowListIds: [],
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+    }
+
+    @Test("Pending wake visible allow-list replay can repair protected hidden cached geometry")
+    func pendingWakeVisibleAllowListReplayRepairsProtectedHiddenCachedGeometry() {
+        let protectedHiddenCached = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            structuralState: .ready,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            mainItemVisible: true,
+            separatorItemVisible: true,
+            separatorX: 1680,
+            mainX: 1700,
+            mainRightGap: 220,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                snapshot: protectedHiddenCached,
+                hasVisibleAllowList: true,
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(
+                reason: "healthy-validation-active-space-changed-attempt-1",
+                snapshot: protectedHiddenCached,
+                hasVisibleAllowList: true,
+                hasPendingWakeVisibleAllowListReplay: true
+            )
+        )
+        #expect(
+            !MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(
+                reason: "healthy-validation-wake-resume-attempt-1",
+                snapshot: protectedHiddenCached,
+                hasVisibleAllowList: true,
+                hasPendingWakeVisibleAllowListReplay: false
+            )
+        )
+
+        let replay = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-wake-resume-attempt-1",
+            geometryConfidence: .cached,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true,
+            canRepairHiddenWakeVisibleAllowList: true
+        )
+        #expect(replay.mode == .repairWithPhysicalMoves)
+        #expect(replay.physicalMoveOrigin == .systemWakeRecovery)
+
+        let unrelatedReplay = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "healthy-validation-active-space-changed-attempt-1",
+            geometryConfidence: .cached,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true,
+            canRepairHiddenWakeVisibleAllowList: true
+        )
+        #expect(unrelatedReplay.mode == .auditOnly)
+        #expect(unrelatedReplay.physicalMoveOrigin == nil)
+
+        let immediateWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "wake-resume-attempt-1",
+            geometryConfidence: .cached,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true,
+            canRepairHiddenWakeVisibleAllowList: true
+        )
+        #expect(immediateWake.mode == .auditOnly)
+        #expect(immediateWake.physicalMoveOrigin == nil)
+    }
+
+    @Test("Status item recreation can finish a pending wake visible allow-list repair")
+    func statusItemRecreateWakeResumeCanRepairPendingVisibleAllowList() {
+        let recreatedWake = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "status-item-recreate-wake-resume-attempt-1",
+            geometryConfidence: .live,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(recreatedWake.mode == .repairWithPhysicalMoves)
+        #expect(recreatedWake.physicalMoveOrigin == .systemWakeRecovery)
+
+        let recreatedWakeWithoutPending = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "status-item-recreate-wake-resume-attempt-1",
+            geometryConfidence: .live,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: false
+        )
+        #expect(recreatedWakeWithoutPending.mode == .auditOnly)
+        #expect(recreatedWakeWithoutPending.physicalMoveOrigin == nil)
+
+        let plainRecreate = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+            reason: "status-item-recreate-attempt-1",
+            geometryConfidence: .live,
+            hidingState: .hidden,
+            hasVisibleAllowList: true,
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(plainRecreate.mode == .auditOnly)
+        #expect(plainRecreate.physicalMoveOrigin == nil)
+    }
+
+    @Test("Non-wake lifecycle healthy validation stays audit-only on live geometry")
+    func nonWakeLifecycleHealthyValidationStaysAuditOnlyOnLiveGeometry() {
+        let nonWakeReasons = [
+            "healthy-validation-active-space-changed-attempt-1",
+            "healthy-validation-screen-parameters-changed-attempt-1"
+        ]
+
+        for reason in nonWakeReasons {
+            let replay = MenuBarVisibilityPolicy.visibilityIntentReplayMode(
+                reason: reason,
+                geometryConfidence: .live,
+                hidingState: .hidden,
+                hasVisibleAllowList: true,
+                hasPendingWakeVisibleAllowListReplay: true,
+                canRepairHiddenWakeVisibleAllowList: true
+            )
+            #expect(replay.mode == .auditOnly)
+            #expect(replay.physicalMoveOrigin == nil)
+        }
+    }
+
     @Test("Startup reconciliation uses physical moves only on live geometry")
     func startupReconciliationRequiresLiveGeometry() {
         let liveStartup = MenuBarVisibilityPolicy.visibilityIntentReplayMode(

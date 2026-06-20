@@ -299,10 +299,10 @@ osascript -e 'tell app "SaneBar" to hide items'
 # List all menu bar icons
 osascript -e 'tell app "SaneBar" to list icons'
 
-# Pin an icon to always-hidden zone
+# Pro: pin an icon to the Always Hidden zone
 osascript -e 'tell app "SaneBar" to hide icon "com.example.app"'
 
-# Unpin from always-hidden zone
+# Pro: unpin from the Always Hidden zone
 osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 ```
 

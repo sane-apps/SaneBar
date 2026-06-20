@@ -311,6 +311,7 @@ class LiveZoneSmoke
       begin
         open_visible_transition_probe_window(probe)
         sleep_with_watchdog(0.4)
+        zone_baseline = capture_fullscreen_space_transition_zone_baseline!
 
         set_fullscreen_probe_window(probe, true)
         sleep_with_watchdog(FULLSCREEN_APPEARANCE_SETTLE_SECONDS)
@@ -318,6 +319,7 @@ class LiveZoneSmoke
         assert_frontmost_probe_surface!(probe, "#{probe[:label]} fullscreen enter", fullscreen_expected: true)
         assert_appearance_overlay_hidden_after_fullscreen_settle!("#{probe[:label]} fullscreen enter")
         assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-enter", expected_visible: false, restore_bundle_id: probe[:bundle])
+        assert_fullscreen_space_transition_zone_persistence!(zone_baseline, "#{probe[:label]} fullscreen enter")
 
         sleep_with_watchdog(0.8)
 
@@ -328,7 +330,9 @@ class LiveZoneSmoke
         assert_frontmost_probe_surface!(probe, "#{probe[:label]} fullscreen exit", fullscreen_expected: false)
         assert_appearance_overlay_restored_after_fullscreen_settle!("#{probe[:label]}-fullscreen-exit")
         assert_customer_visible_top_strip_tint!("#{probe[:label]}-fullscreen-exit", expected_visible: true, restore_bundle_id: probe[:bundle])
+        assert_fullscreen_space_transition_zone_persistence!(zone_baseline, "#{probe[:label]} fullscreen exit")
         mark_fullscreen_matrix_scenario('native fullscreen enter and exit')
+        mark_fullscreen_matrix_scenario('hidden and visible icon zones persist across fullscreen Space transition')
       rescue StandardError => e
         handle_transition_probe_failure(probe, 'fullscreen transition', e)
       ensure
@@ -338,6 +342,74 @@ class LiveZoneSmoke
     end
 
     puts '✅ Visible fullscreen transition contract ok'
+  end
+
+  def capture_fullscreen_space_transition_zone_baseline!
+    zones = wait_for_zone_api_ready
+    zones = reseed_missing_zone_candidates(zones)
+    candidates = candidate_pool(zones)
+    baseline = {
+      visible_ids: fullscreen_space_transition_zone_ids(candidates, expected_zone: 'visible'),
+      hidden_ids: fullscreen_space_transition_zone_ids(candidates, expected_zone: 'hidden')
+    }
+
+    raise 'Fullscreen transition proof could not find baseline visible IDs' if baseline[:visible_ids].empty?
+    raise 'Fullscreen transition proof could not find baseline hidden IDs' if baseline[:hidden_ids].empty?
+
+    baseline
+  end
+
+  def fullscreen_space_transition_zone_ids(zones, expected_zone:, limit: 3)
+    zones.select do |item|
+      item[:movable] &&
+        item[:zone] == expected_zone &&
+        item[:bundle].to_s != 'com.sanebar.app' &&
+        !item[:unique_id].to_s.start_with?('com.sanebar.app::')
+    end.reject { |item| likely_standard_app_menu_candidate?(item) }
+      .map { |item| item[:unique_id].to_s.empty? ? item[:bundle].to_s : item[:unique_id].to_s }
+      .reject(&:empty?)
+      .uniq
+      .first(limit)
+  end
+
+  def assert_fullscreen_space_transition_zone_persistence!(baseline, label)
+    visible_ids = Array(baseline[:visible_ids]).map(&:to_s)
+    hidden_ids = Array(baseline[:hidden_ids]).map(&:to_s)
+    deadline = Time.now + LAYOUT_STABILIZE_TIMEOUT_SECONDS
+    last_problem = nil
+
+    while Time.now < deadline
+      begin
+        zones = list_icon_zones
+      rescue StandardError => e
+        last_problem = { zone_api_error: e.message }
+        raise unless retryable_zone_poll_error?(e)
+
+        sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
+        next
+      end
+      zone_lookup = zones.each_with_object({}) do |item, lookup|
+        unique_id = item[:unique_id].to_s
+        bundle = item[:bundle].to_s
+        lookup[unique_id] = item unless unique_id.empty?
+        lookup[bundle] = item unless bundle.empty?
+      end
+
+      moved_visible = visible_ids.reject { |identifier| zone_lookup[identifier]&.fetch(:zone, nil) == 'visible' }
+      moved_hidden = hidden_ids.reject { |identifier| zone_lookup[identifier]&.fetch(:zone, nil) == 'hidden' }
+      if moved_visible.empty? && moved_hidden.empty?
+        puts "✅ Fullscreen Space transition zone persistence ok (#{label})"
+        return
+      end
+
+      last_problem = {
+        moved_visible: moved_visible,
+        moved_hidden: moved_hidden
+      }
+      sleep_with_watchdog(LAYOUT_STABILIZE_POLL_SECONDS)
+    end
+
+    raise "Fullscreen Space transition changed icon zones after #{label}: #{last_problem.inspect}"
   end
 
   def handle_transition_probe_failure(probe, context, error)
@@ -493,7 +565,7 @@ class LiveZoneSmoke
         sleep_with_watchdog(0.5) if attempt.zero?
         next
       end
-      File.write(stdout_path, out)
+      safe_top_strip_file_write(stdout_path, out)
       return await_screenshot_file(output_path) if status.success?
 
       last_failure = top_strip_capture_debug_details(runner_log_path, runner_status_path, wrapper_stdout: out)
@@ -511,33 +583,33 @@ class LiveZoneSmoke
     dir = top_strip_capture_workdir
     return unless Dir.exist?(dir)
 
-    entries = Dir.glob(File.join(dir, '*')).select { |path| File.file?(path) }
+    entries = Dir.glob(File.join(dir, '*')).select { |path| safe_top_strip_regular_file?(path) }
     now = Time.now
     stale = entries.select do |path|
-      now - File.mtime(path) > TOP_STRIP_CAPTURE_ARTIFACT_RETENTION_SECONDS
+      now - File.lstat(path).mtime > TOP_STRIP_CAPTURE_ARTIFACT_RETENTION_SECONDS
     rescue StandardError
       false
     end
     FileUtils.rm_f(stale)
 
-    remaining = (entries - stale).select { |path| File.file?(path) }
-    overflow = remaining.sort_by { |path| File.mtime(path) }.reverse.drop(TOP_STRIP_CAPTURE_MAX_ARTIFACTS)
+    remaining = (entries - stale).select { |path| safe_top_strip_regular_file?(path) }
+    overflow = remaining.sort_by { |path| File.lstat(path).mtime }.reverse.drop(TOP_STRIP_CAPTURE_MAX_ARTIFACTS)
     FileUtils.rm_f(overflow)
   end
 
   def top_strip_capture_debug_details(log_path, status_path, wrapper_stdout: nil)
     details = ["log=#{log_path}", "status_file=#{status_path}"]
-    if File.exist?(status_path)
-      status = File.read(status_path).strip
+    if (status_content = safe_top_strip_file_read(status_path))
+      status = status_content.strip
       details << "status=#{status.empty? ? '<empty>' : status}"
     else
-      details << 'status=<missing>'
+      details << 'status=<missing-or-unsafe>'
     end
-    if File.exist?(log_path)
-      lines = File.readlines(log_path, chomp: true).last(12)
+    lines = safe_top_strip_file_lines(log_path, limit: 12)
+    if lines.any?
       details << "log_tail=#{lines.join(' | ')}" unless lines.empty?
     else
-      details << 'log=<missing>'
+      details << 'log=<missing-or-unsafe>'
     end
     if wrapper_stdout && !wrapper_stdout.to_s.strip.empty?
       stdout_tail = wrapper_stdout.to_s.lines.last(8).map(&:strip).join(' | ')
@@ -546,5 +618,72 @@ class LiveZoneSmoke
     details.join('; ')
   rescue StandardError => e
     "log=#{log_path}; status_file=#{status_path}; debug_unavailable=#{e.message}"
+  end
+
+  def safe_top_strip_file_read(path)
+    return nil unless safe_top_strip_regular_file?(path)
+
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    File.open(path, flags, &:read)
+  rescue StandardError
+    nil
+  end
+
+  def safe_top_strip_file_write(path, content)
+    safe_top_strip_directory_path!(File.dirname(path))
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    File.open(path, flags, 0o600) { |file| file.write(content.to_s) }
+    true
+  rescue StandardError
+    false
+  end
+
+  def safe_top_strip_file_lines(path, limit:)
+    content = safe_top_strip_file_read(path)
+    return [] unless content
+
+    content.lines(chomp: true).last(limit)
+  end
+
+  def safe_top_strip_regular_file?(path)
+    return false if path.nil? || path.to_s.empty?
+
+    safe_top_strip_directory_path!(File.dirname(path))
+    stat = File.lstat(path)
+    stat.file? && !stat.symlink?
+  rescue StandardError
+    false
+  end
+
+  def safe_top_strip_directory_path!(path)
+    expanded = File.expand_path(path)
+    current = expanded.start_with?(File::SEPARATOR) ? File::SEPARATOR : Dir.pwd
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |part|
+      current = current == File::SEPARATOR ? File.join(current, part) : File.join(current, part)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      if stat.symlink?
+        real = File.realpath(current) rescue nil
+        next if allowed_system_temp_directory_symlink?(current, real)
+
+        raise "Unsafe top-strip capture directory symlink: #{current}"
+      end
+      raise "Top-strip capture parent is not a directory: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def allowed_system_temp_directory_symlink?(path, real)
+    expanded = File.expand_path(path)
+    canonical = File.expand_path(real.to_s)
+    return true if expanded == '/tmp' && canonical == '/private/tmp'
+    return true if expanded == '/var' && canonical == '/private/var'
+
+    expanded == File.expand_path(Dir.tmpdir) && canonical == File.realpath(Dir.tmpdir)
+  rescue StandardError
+    false
   end
 end

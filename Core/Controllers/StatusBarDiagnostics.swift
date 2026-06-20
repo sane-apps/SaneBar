@@ -37,6 +37,29 @@ struct HiddenCollapsedSeparatorHealthInput: Equatable, Sendable {
     let mainRightGap: CGFloat?
     let screenWidth: CGFloat?
     let notchRightSafeMinX: CGFloat?
+    let persistedMainDistanceFromRight: CGFloat?
+
+    init(
+        hidingState: HidingState,
+        mainWindowValid: Bool,
+        separatorVisible: Bool?,
+        separatorX: CGFloat?,
+        mainX: CGFloat?,
+        mainRightGap: CGFloat?,
+        screenWidth: CGFloat?,
+        notchRightSafeMinX: CGFloat?,
+        persistedMainDistanceFromRight: CGFloat? = nil
+    ) {
+        self.hidingState = hidingState
+        self.mainWindowValid = mainWindowValid
+        self.separatorVisible = separatorVisible
+        self.separatorX = separatorX
+        self.mainX = mainX
+        self.mainRightGap = mainRightGap
+        self.screenWidth = screenWidth
+        self.notchRightSafeMinX = notchRightSafeMinX
+        self.persistedMainDistanceFromRight = persistedMainDistanceFromRight
+    }
 }
 
 enum StatusBarDiagnostics {
@@ -125,12 +148,51 @@ enum StatusBarDiagnostics {
         guard input.hidingState == .hidden else { return false }
         guard input.mainWindowValid, input.separatorVisible == true else { return false }
         guard let separatorX = input.separatorX, let mainX = input.mainX, separatorX < mainX else { return false }
+        guard !MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: input.separatorX,
+            mainX: input.mainX,
+            mainRightGap: input.mainRightGap,
+            screenWidth: input.screenWidth,
+            notchRightSafeMinX: input.notchRightSafeMinX,
+            persistedMainDistanceFromRight: input.persistedMainDistanceFromRight
+        ) else {
+            return false
+        }
+        if hasUsablePersistedMainIntent(
+            persistedMainDistanceFromRight: input.persistedMainDistanceFromRight,
+            mainRightGap: input.mainRightGap
+        ) {
+            return true
+        }
         return MenuBarVisibilityPolicy.isMainNearControlCenter(
             mainX: mainX,
             mainRightGap: input.mainRightGap,
             screenWidth: input.screenWidth,
             notchRightSafeMinX: input.notchRightSafeMinX
         )
+    }
+
+    nonisolated static func persistedMainDistanceFromRight() -> CGFloat? {
+        let persisted = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
+            forAutosaveName: StatusBarController.mainAutosaveName
+        )
+        guard StatusBarController.isPixelLikePosition(persisted), let persisted else { return nil }
+        return CGFloat(persisted)
+    }
+
+    private nonisolated static func hasUsablePersistedMainIntent(
+        persistedMainDistanceFromRight: CGFloat?,
+        mainRightGap: CGFloat?
+    ) -> Bool {
+        guard let persistedMainDistanceFromRight,
+              persistedMainDistanceFromRight.isFinite,
+              persistedMainDistanceFromRight >= 0,
+              persistedMainDistanceFromRight < 5000,
+              let mainRightGap,
+              mainRightGap.isFinite else {
+            return false
+        }
+        return true
     }
 
     nonisolated static func missionControlSpacesSummary(spansDisplays: Bool?) -> String {

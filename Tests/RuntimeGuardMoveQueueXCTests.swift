@@ -34,6 +34,22 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
     }
 
+    func testAlwaysHiddenPinReplayUsesDedicatedAlwaysHiddenMoveLane() throws {
+        let alwaysHiddenURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenPinWorkflow.swift")
+        let alwaysHiddenSource = try String(contentsOf: alwaysHiddenURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            alwaysHiddenSource.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                alwaysHiddenSource.contains("preferredCenterX: item.app.preferredCenterX") &&
+                alwaysHiddenSource.contains("toAlwaysHidden: true"),
+            "Always Hidden pin replay should use the dedicated Always Hidden move lane so wide-item target policy and exact identity checks apply"
+        )
+        XCTAssertFalse(
+            alwaysHiddenSource.contains("separatorOverrideX: currentAHBoundaryX"),
+            "Always Hidden pin replay should not route through the generic hidden-lane separator override"
+        )
+    }
+
     func testPhysicalVisibilityIntentRepairRequiresExplicitOrigin() throws {
         let modeURL = projectRootURL().appendingPathComponent("Core/Models/MenuBarRuntimeSnapshot.swift")
         let modeSource = try String(contentsOf: modeURL, encoding: .utf8)
@@ -56,18 +72,85 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testAppleScriptAlwaysHiddenMoveFallsBackToExactPinEnforcement() throws {
+    func testAppleScriptAlwaysHiddenMoveDoesNotPersistPinsOutsideMoveQueue() throws {
         let scriptURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconMoveCommands.swift")
         let scriptSource = try String(contentsOf: scriptURL, encoding: .utf8)
+        let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTaskCoordinator.swift")
+        let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
 
         XCTAssertTrue(
-            scriptSource.contains("AppleScript move-to-always-hidden direct drag failed; falling back to exact pin enforcement") &&
-                scriptSource.contains("manager.alwaysHiddenPinWorkflow.pin(") &&
-                scriptSource.contains("reason: \"AppleScript move icon to always hidden fallback\"") &&
-                scriptSource.contains("filterBundleId: icon.bundleId") &&
-                scriptSource.contains("mode: .repairWithPhysicalMoves") &&
-                scriptSource.contains("physicalMoveOrigin: .appleScriptUserAction"),
-            "AppleScript exact-ID move-to-always-hidden should fall back to pin enforcement when the direct drag path fails"
+            scriptSource.contains("AppleScript move-to-always-hidden direct drag failed") &&
+                scriptSource.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                scriptSource.contains("toAlwaysHidden: true"),
+            "AppleScript exact-ID move-to-always-hidden should route through the manager-owned move queue"
+        )
+        XCTAssertFalse(
+            scriptSource.contains("reason: \"AppleScript move icon to always hidden fallback\"") ||
+                scriptSource.contains("filterBundleId: icon.bundleId"),
+            "AppleScript move-to-always-hidden must not keep a second manual pin/enforce fallback that can persist a pin after failure"
+        )
+        XCTAssertTrue(
+            coordinatorSource.contains("let operationSuccess = await operation(manager)") &&
+                coordinatorSource.contains("let success = !Task.isCancelled && operationSuccess") &&
+                coordinatorSource.contains("self.rollbackQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)"),
+            "The move coordinator should roll back optimistic Always Hidden mutations on failed or cancelled AppleScript moves"
+        )
+    }
+
+    func testAppleScriptHideShowCommandsKeepAlwaysHiddenProGateAndFailureProof() throws {
+        let scriptURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconMoveCommands.swift")
+        let scriptSource = try String(contentsOf: scriptURL, encoding: .utf8)
+        guard let hideStart = scriptSource.range(of: "@objc(HideIconCommand)")?.lowerBound,
+              let hideEnd = scriptSource.range(of: "// MARK: - Show Icon Command")?.lowerBound,
+              let showStart = scriptSource.range(of: "@objc(ShowIconCommand)")?.lowerBound,
+              let showEnd = scriptSource.range(of: "// MARK: - Move Icon Commands")?.lowerBound else {
+            XCTFail("Could not locate AppleScript hide/show command blocks")
+            return
+        }
+        let hideBlock = String(scriptSource[hideStart..<hideEnd])
+        let showBlock = String(scriptSource[showStart..<showEnd])
+
+        XCTAssertTrue(
+            hideBlock.contains("guard checkIsProUnlocked() else {") &&
+                hideBlock.contains("setProRequiredError()"),
+            "AppleScript hide icon mutates Always Hidden state, so it must use the same Pro gate as move-to-always-hidden"
+        )
+        XCTAssertTrue(
+            showBlock.contains("guard checkIsProUnlocked() else {") &&
+                showBlock.contains("setProRequiredError()"),
+            "AppleScript show icon exits Always Hidden, so it must use the same Pro gate as other zone-move automation"
+        )
+        XCTAssertTrue(
+            hideBlock.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                hideBlock.contains("toAlwaysHidden: true") &&
+                !hideBlock.contains("manager.alwaysHiddenPinWorkflow.enforce(") &&
+                hideBlock.contains("case .moveFailed:") &&
+                hideBlock.contains("scriptErrorMoveFailed(self, iconId: trimmedId, target: .alwaysHidden)") &&
+                hideBlock.contains("scriptErrorIconNotFound(self, iconId: trimmedId)") &&
+                !hideBlock.contains("Use 'list icons'"),
+            "AppleScript hide icon should report success only after the manager-owned physical Always Hidden move succeeds and should direct not-found users to list icon zones"
+        )
+        XCTAssertTrue(
+            showBlock.contains("case .moveFailed:") &&
+                showBlock.contains("scriptErrorMoveFailed(self, iconId: trimmedId, target: .visible)") &&
+                showBlock.contains("case .notFound:") &&
+                showBlock.contains("scriptErrorIconNotFound(self, iconId: trimmedId)") &&
+                showBlock.contains("not currently in Always Hidden") &&
+                showBlock.contains("toAlwaysHidden: false"),
+            "AppleScript show icon should distinguish not-found IDs, wrong-zone IDs, and physical move failures"
+        )
+        let commandsURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptCommands.swift")
+        let commandsSource = try String(contentsOf: commandsURL, encoding: .utf8)
+        XCTAssertTrue(
+            commandsSource.contains("Hide, show, and move icon commands require SaneBar Pro"),
+            "AppleScript Pro gate should name hide/show/move commands instead of only move commands"
+        )
+        let supportURL = projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconSupport.swift")
+        let supportSource = try String(contentsOf: supportURL, encoding: .utf8)
+        XCTAssertTrue(
+            supportSource.contains("target.userFacingName") &&
+                supportSource.contains("Use 'list icon zones' to confirm the identifier, then try again."),
+            "AppleScript move failures should include a concrete next step"
         )
     }
 
@@ -174,8 +257,11 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             managerSource.contains("? .pin(") &&
                 managerSource.contains(": .unpin(") &&
-                managerSource.contains("optimisticAlwaysHiddenMutation: optimisticMutation"),
-            "The move engine should own always-hidden optimistic pin and unpin mutations for both queued and awaited move flows"
+                managerSource.contains("optimisticAlwaysHiddenMutation: optimisticMutation") &&
+                managerSource.contains("repairAlwaysHiddenSeparatorForInboundMoveIfNeeded") &&
+                managerSource.contains("requiresAlwaysHiddenBoundary: true") &&
+                managerSource.contains("Inbound always-hidden boundary stayed unavailable after AH separator repair"),
+            "The move engine should own always-hidden optimistic pin and unpin mutations, and inbound Always Hidden moves must repair stale AH geometry before resolving targets"
         )
         XCTAssertTrue(
             source.contains("manager.saveSettings()") &&
@@ -198,9 +284,11 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "Show icon should resolve a real always-hidden source item and route the restore through the manager-owned always-hidden move path"
         )
         XCTAssertTrue(
-            source.contains("let removedPin = manager.alwaysHiddenPinWorkflow.unpin(") &&
-                source.contains("guard moved else {"),
-            "Show icon should only clear pins after a successful visible restore, not before proving the move worked"
+            source.contains("toAlwaysHidden: false") &&
+                source.contains("case .moveFailed:") &&
+                source.contains("scriptErrorMoveFailed(self, iconId: trimmedId, target: .visible)") &&
+                !source.contains("let removedPin = manager.alwaysHiddenPinWorkflow.unpin("),
+            "Show icon should leave unpin rollback/commit to the manager-owned move queue and report a real move failure when restore fails"
         )
         XCTAssertFalse(
             source.contains("pinId.hasPrefix(trimmedId)"),
@@ -670,7 +758,8 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "Move-task cleanup must be awaited before task.value completes so the next queue decision cannot see a completed move as still in flight"
         )
         XCTAssertTrue(
-            taskSource.contains("let success = await operation(manager)") &&
+            taskSource.contains("let operationSuccess = await operation(manager)") &&
+                taskSource.contains("let success = !Task.isCancelled && operationSuccess") &&
                 taskSource.contains("manager.activeMoveTask = nil") &&
                 taskSource.contains("AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)") &&
                 taskSource.contains("SearchWindowController.shared.setMoveInProgress(false)") &&
@@ -696,9 +785,10 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
             "The outbound AH repair should be gated on live source geometry instead of running unconditionally"
         )
         XCTAssertTrue(
-            source.contains("private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(") &&
+                source.contains("private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(") &&
                 source.contains("_ request: Request,") &&
                 source.contains("requiresAlwaysHiddenToHiddenTargets: Bool = false") &&
+                source.contains("requiresAlwaysHiddenBoundary: Bool = false") &&
                 source.contains("guard sourceFrameIsOnScreen(request) else") &&
                 source.contains("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag") &&
                 source.contains("guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else"),

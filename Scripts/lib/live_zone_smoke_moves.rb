@@ -430,6 +430,8 @@ class LiveZoneSmoke
 
       out
     rescue StandardError => e
+      raise runtime_target_lost_error(statement, e) if runtime_target_lost_after_applescript_failure?
+
       retryable = e.message.include?('timeout') || e.message.include?('failed')
       if attempts < APPLESCRIPT_RETRIES && retryable && !non_idempotent_app_script?(statement)
         sleep_with_watchdog(0.2)
@@ -437,6 +439,18 @@ class LiveZoneSmoke
       end
       raise
     end
+  end
+
+  def runtime_target_lost_after_applescript_failure?
+    !app_process_still_alive? && current_matching_process_summary == 'none'
+  rescue StandardError
+    false
+  end
+
+  def runtime_target_lost_error(statement, error)
+    RuntimeError.new(
+      "runtime_target_lost during AppleScript #{statement}: #{error.message}; #{process_monitor_error_detail(RuntimeError.new('process_missing'))}"
+    )
   end
 
   def current_browse_activation_diagnostics

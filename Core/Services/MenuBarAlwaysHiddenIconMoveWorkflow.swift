@@ -94,7 +94,12 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             await manager.hidingService.showAll()
             let revealSettleMilliseconds = toAlwaysHidden ? 300 : alwaysHiddenOutboundRevealSettleMilliseconds
             try? await Task.sleep(for: .milliseconds(revealSettleMilliseconds))
-            if !toAlwaysHidden {
+            if toAlwaysHidden {
+                guard await self.repairAlwaysHiddenSeparatorForInboundMoveIfNeeded(request) else {
+                    await self.restoreFromShield(wasHidden: wasHidden)
+                    return false
+                }
+            } else {
                 guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else {
                     await self.restoreFromShield(wasHidden: wasHidden)
                     return false
@@ -481,18 +486,26 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
 
     private func repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(
         _ request: Request,
-        requiresAlwaysHiddenToHiddenTargets: Bool = false
+        requiresAlwaysHiddenToHiddenTargets: Bool = false,
+        requiresAlwaysHiddenBoundary: Bool = false
     ) async -> Bool {
         let sourceIsOnScreen = sourceFrameIsOnScreen(request)
         let liveTargetsReady: Bool
         if requiresAlwaysHiddenToHiddenTargets {
             liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil
+        } else if requiresAlwaysHiddenBoundary {
+            liveTargetsReady = await MainActor.run {
+                manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() != nil
+            }
         } else {
             liveTargetsReady = true
         }
         if sourceIsOnScreen, liveTargetsReady { return true }
 
-        logger.warning("Outbound always-hidden geometry is not live after showAll; recreating AH separator before retry")
+        logger.warning("Always-hidden move geometry is not live after showAll; recreating AH separator before retry")
+        if requiresAlwaysHiddenToHiddenTargets {
+            await repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded()
+        }
         await MainActor.run {
             manager.clearCachedSeparatorGeometry()
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
@@ -518,7 +531,40 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             logger.error("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair; aborting move before drag")
             return false
         }
+        if requiresAlwaysHiddenBoundary,
+           await MainActor.run(body: { manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() == nil }) {
+            logger.error("Inbound always-hidden boundary stayed unavailable after AH separator repair; aborting move before drag")
+            return false
+        }
         return true
+    }
+
+    private func repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded() async {
+        guard await MainActor.run(body: { manager.geometryResolver.currentLiveSeparatorFrame() == nil }) else {
+            return
+        }
+
+        logger.warning("AH-to-Hidden move is missing a live main separator after showAll; recreating status items before AH separator repair")
+        await MainActor.run {
+            manager.executeStatusItemRecoveryAction(
+                .recreateFromPersistedLayout(.invalidStatusItems),
+                trigger: "ah-to-hidden-target-repair"
+            )
+            manager.clearCachedSeparatorGeometry()
+            AccessibilityService.shared.invalidateMenuBarItemCache()
+        }
+        try? await Task.sleep(for: .milliseconds(400))
+        await manager.hidingService.showAll()
+        await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
+        await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 24)
+        await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
+    }
+
+    private func repairAlwaysHiddenSeparatorForInboundMoveIfNeeded(_ request: Request) async -> Bool {
+        await repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(
+            request,
+            requiresAlwaysHiddenBoundary: true
+        )
     }
 
     private func sourceFrameIsOnScreen(_ request: Request) -> Bool {

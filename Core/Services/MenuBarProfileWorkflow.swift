@@ -149,6 +149,8 @@ final class MenuBarProfileWorkflow {
 
     func repairMenuBarHealth(reason: String = "manual") async -> MenuBarRuntimeSnapshot {
         manager.hidingService.cancelRehide()
+        manager.statusItemRecoveryWorkflow.clearRecoveryDormancy()
+        let replayReason = repairVisibilityReplayReason(reason: reason)
         if manager.hidingService.state == .hidden {
             let didReveal = await revealHiddenIconsForHealthRepair(reason: reason)
             guard didReveal else {
@@ -183,7 +185,7 @@ final class MenuBarProfileWorkflow {
                 profileLogger.info(
                     "Health repair reached healthy snapshot after \(attempt, privacy: .public) check(s) reason=\(reason, privacy: .public)"
                 )
-                manager.schedulePostRecoveryVisibilityIntentReplay(reason: "repair-\(reason)")
+                manager.schedulePostRecoveryVisibilityIntentReplay(reason: replayReason)
                 return snapshot
             }
         }
@@ -192,8 +194,20 @@ final class MenuBarProfileWorkflow {
         profileLogger.warning(
             "Health repair still needs attention reason=\(reason, privacy: .public) geometry=\(finalSnapshot.geometryConfidence.rawValue, privacy: .public) structure=\(finalSnapshot.structuralState.rawValue, privacy: .public)"
         )
-        manager.schedulePostRecoveryVisibilityIntentReplay(reason: "repair-\(reason)")
+        manager.schedulePostRecoveryVisibilityIntentReplay(reason: replayReason)
         return finalSnapshot
+    }
+
+    private func repairVisibilityReplayReason(reason: String) -> String {
+        guard manager.hasActionableDeferredWakeVisibleAllowListRepair() else {
+            return "repair-\(reason)"
+        }
+
+        manager.markWakeVisibleAllowListReplayPending(
+            reason: "manual-repair-\(reason)",
+            requiresHiddenState: false
+        )
+        return "healthy-validation-wake-resume-manual-repair-\(reason)"
     }
 
     private func revealHiddenIconsForHealthRepair(reason: String) async -> Bool {
