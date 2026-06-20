@@ -293,5 +293,31 @@ struct StatusBarControllerMenuTests {
         #expect(controller.separatorItem.button != nil)
     }
 
+    @Test("Hidden separator style clears the visible divider glyph without shrinking delimiter")
+    @MainActor
+    func hiddenSeparatorStyleClearsVisibleGlyph() {
+        let controller = StatusBarController()
+
+        controller.updateSeparatorStyle(.slash, isHidden: false)
+        let expandedLength = controller.separatorItem.length
+        #expect(controller.separatorItem.button?.title == "/")
+        #expect((controller.separatorItem.button?.alphaValue ?? 0) > 0)
+
+        controller.separatorItem.length = 10_000
+        controller.updateSeparatorStyle(.slash, isHidden: true)
+
+        #expect(controller.separatorItem.length == 10_000)
+        #expect(controller.separatorItem.button?.title == "")
+        #expect(controller.separatorItem.button?.image == nil)
+        #expect(controller.separatorItem.button?.alphaValue == 0)
+        #expect(controller.separatorItem.button?.cell?.isEnabled == false)
+
+        controller.updateSeparatorStyle(.slash, isHidden: false)
+        #expect(controller.separatorItem.length == expandedLength)
+        #expect(controller.separatorItem.button?.title == "/")
+        #expect((controller.separatorItem.button?.alphaValue ?? 0) > 0)
+        #expect(controller.separatorItem.button?.cell?.isEnabled == true)
+    }
+
     // MARK: - Display-Aware Position Validation
 }
